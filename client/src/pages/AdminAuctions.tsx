@@ -547,8 +547,9 @@ export default function AdminAuctions() {
                     className="mt-1 w-full rounded-md border border-amber-200 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 resize-none"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
+                <div className="flex items-end gap-2">
+                  {/* 起拍價 + 貨幣：占剩餘寬度 */}
+                  <div className="flex-1 min-w-0">
                     <Label htmlFor="price">起拍價 *</Label>
                     <div className="flex items-center gap-1 mt-1">
                       <Input
@@ -558,14 +559,14 @@ export default function AdminAuctions() {
                         value={form.startingPrice}
                         onChange={(e) => setForm((f) => ({ ...f, startingPrice: e.target.value }))}
                         placeholder="100"
-                        className="border-amber-200 focus-visible:ring-amber-400"
+                        className="border-amber-200 focus-visible:ring-amber-400 min-w-0"
                         disabled={!!editId}
                       />
                       <Select
                         value={form.currency}
                         onValueChange={(val) => setForm((f) => ({ ...f, currency: val }))}
                       >
-                        <SelectTrigger id="currency" className="w-20 h-9 text-[10px] leading-tight border-amber-200 focus:ring-amber-400 px-1.5 shrink-0">
+                        <SelectTrigger id="currency" className="w-[4.5rem] h-9 text-[10px] leading-tight border-amber-200 focus:ring-amber-400 px-1.5 shrink-0">
                           <SelectValue placeholder="貨幣" />
                         </SelectTrigger>
                         <SelectContent>
@@ -579,14 +580,15 @@ export default function AdminAuctions() {
                     </div>
                     {editId && <p className="text-xs text-muted-foreground mt-1">編輯時不可修改起拍價</p>}
                   </div>
-                  <div>
-                    <Label htmlFor="endTime">結束時間 *</Label>
+                  {/* 結束時間：固定寬度縮小 */}
+                  <div className="w-40 shrink-0">
+                    <Label htmlFor="endTime" className="text-[10px] leading-tight font-medium">結束時間 *</Label>
                     <Input
                       id="endTime"
                       type="datetime-local"
                       value={form.endTime}
                       onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
-                      className="mt-1 border-amber-200 focus-visible:ring-amber-400"
+                      className="mt-1 border-amber-200 focus-visible:ring-amber-400 text-[10px] h-8 px-2"
                     />
                   </div>
                 </div>
