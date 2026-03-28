@@ -53,6 +53,14 @@ export default function Auctions() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
+  // 找出所有活躍拍賣中出價最高的項目 ID
+  const topBidAuctionId = (auctions ?? [])
+    .filter(a => new Date(a.endTime).getTime() > Date.now())
+    .reduce<{ id: number; price: number } | null>((top, a) => {
+      const price = Number(a.currentPrice);
+      return !top || price > top.price ? { id: a.id, price } : top;
+    }, null)?.id ?? null;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -177,16 +185,35 @@ export default function Auctions() {
                     ) : (
                       <span className="text-5xl">🪙</span>
                     )}
-                    <div className="absolute top-2 right-2">
+                    {/* 狀態 Badge */}
+                    <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
                       {(() => {
-                        const isEnded = new Date(auction.endTime).getTime() <= Date.now();
+                        const now = Date.now();
+                        const endMs = new Date(auction.endTime).getTime();
+                        const isEnded = endMs <= now;
+                        const isEndingSoon = !isEnded && (endMs - now) <= 3600000;
                         return (
-                          <Badge className={!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}>
-                            {!isEnded ? "競拍中" : "已結束"}
-                          </Badge>
+                          <>
+                            {isEndingSoon && (
+                              <Badge className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5 animate-pulse">
+                                ⏰ 即將結束
+                              </Badge>
+                            )}
+                            <Badge className={!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}>
+                              {!isEnded ? "競拍中" : "已結束"}
+                            </Badge>
+                          </>
                         );
                       })()}
                     </div>
+                    {/* 出價最高 Badge */}
+                    {auction.id === topBidAuctionId && (
+                      <div className="absolute top-2 left-2">
+                        <Badge className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 shadow-md">
+                          🔥 出價最高
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                   <CardContent className="p-4">
                     <h3 className="font-semibold text-sm mb-2 line-clamp-2">{auction.title}</h3>
