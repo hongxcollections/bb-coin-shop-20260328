@@ -178,9 +178,14 @@ export default function Auctions() {
                       <span className="text-5xl">🪙</span>
                     )}
                     <div className="absolute top-2 right-2">
-                      <Badge className={auction.status === "active" ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}>
-                        {auction.status === "active" ? "競拍中" : "已結束"}
-                      </Badge>
+                      {(() => {
+                        const isEnded = new Date(auction.endTime).getTime() <= Date.now();
+                        return (
+                          <Badge className={!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}>
+                            {!isEnded ? "競拍中" : "已結束"}
+                          </Badge>
+                        );
+                      })()}
                     </div>
                   </div>
                   <CardContent className="p-4">
@@ -193,7 +198,7 @@ export default function Auctions() {
                           <span className="text-xs font-normal text-amber-500 ml-0.5">{(auction as { currency?: string }).currency ?? 'HKD'}</span>
                         </div>
                       </div>
-                      {auction.status === "active" && (
+                      {new Date(auction.endTime).getTime() > Date.now() && (
                         <CountdownTimer endTime={new Date(auction.endTime)} />
                       )}
                     </div>
