@@ -48,27 +48,32 @@ export default function AuctionDetail() {
   const { user, isAuthenticated } = useAuth();
   const [bidAmount, setBidAmount] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [bidMessage, setBidMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
 
   const { data: auction, isLoading, refetch } = trpc.auctions.detail.useQuery({ id: auctionId });
   const [selectedImage, setSelectedImage] = useState(0);
 
   const placeBid = trpc.auctions.placeBid.useMutation({
     onSuccess: () => {
-      toast.success("出價成功！您目前是最高出價者");
+      setBidMessage({ type: "success", text: "✅ 出價成功！您目前是最高出價者" });
       setBidAmount("");
       refetch();
+      setTimeout(() => setBidMessage(null), 6000);
     },
     onError: (err) => {
-      toast.error(err.message || "出價失敗，請重試");
+      setBidMessage({ type: "error", text: `❌ ${err.message || "出價失敗，請重試"}` });
+      setTimeout(() => setBidMessage(null), 6000);
     },
   });
 
   const handleBid = () => {
     const amount = parseFloat(bidAmount);
     if (isNaN(amount) || amount <= 0) {
-      toast.error("請輸入有效的出價金額");
+      setBidMessage({ type: "error", text: "❌ 請輸入有效的出價金額" });
+      setTimeout(() => setBidMessage(null), 6000);
       return;
     }
+    setBidMessage({ type: "info", text: "⏳ 出價處理中，請稍候..." });
     placeBid.mutate({ auctionId, bidAmount: amount });
   };
 
@@ -296,6 +301,24 @@ export default function AuctionDetail() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Bid Message */}
+            {bidMessage && (
+              <div className={`flex items-start gap-3 rounded-xl px-4 py-3 text-sm font-medium border ${
+                bidMessage.type === "success"
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                  : bidMessage.type === "info"
+                  ? "bg-blue-50 border-blue-200 text-blue-800"
+                  : "bg-red-50 border-red-200 text-red-800"
+              }`}>
+                <span className="flex-1 leading-relaxed">{bidMessage.text}</span>
+                <button
+                  onClick={() => setBidMessage(null)}
+                  className="text-current opacity-50 hover:opacity-100 transition-opacity shrink-0 mt-0.5"
+                  aria-label="關閉"
+                >✕</button>
+              </div>
+            )}
 
             {/* Bid History */}
             <Card className="border-amber-100">
