@@ -582,7 +582,7 @@ export default function AdminAuctions() {
                   </div>
                   {/* 結束時間：固定寬度縮小 */}
                   <div className="w-40 shrink-0">
-                    <Label htmlFor="endTime" className="text-[10px] leading-tight font-medium">結束時間 *</Label>
+                    <Label htmlFor="endTime">結束時間 *</Label>
                     <Input
                       id="endTime"
                       type="datetime-local"
