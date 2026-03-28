@@ -219,7 +219,12 @@ export default function AuctionDetail() {
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <div className="text-xs text-muted-foreground mb-1">當前最高出價</div>
+                    <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                      當前最高出價
+                      {bids.length > 0 && (
+                        <span className="text-[9px] text-amber-500 font-normal">(用戶 #{bids[0].userId})</span>
+                      )}
+                    </div>
                     <div className="text-3xl font-extrabold text-amber-600 price-tag">
                       {currencySymbol}{Number(auction.currentPrice).toLocaleString()}
                       <span className="text-base font-normal text-amber-500 ml-1">{currency}</span>
