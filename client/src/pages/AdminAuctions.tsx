@@ -565,12 +565,12 @@ export default function AdminAuctions() {
                         value={form.currency}
                         onValueChange={(val) => setForm((f) => ({ ...f, currency: val }))}
                       >
-                        <SelectTrigger id="currency" className="w-24 h-9 text-xs border-amber-200 focus:ring-amber-400 px-2 shrink-0">
+                        <SelectTrigger id="currency" className="w-20 h-9 text-[10px] leading-tight border-amber-200 focus:ring-amber-400 px-1.5 shrink-0">
                           <SelectValue placeholder="貨幣" />
                         </SelectTrigger>
                         <SelectContent>
                           {CURRENCY_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                            <SelectItem key={opt.value} value={opt.value} className="text-[10px] leading-tight">
                               {opt.label}
                             </SelectItem>
                           ))}
