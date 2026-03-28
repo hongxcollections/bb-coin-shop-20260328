@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Pencil, Trash2, TrendingUp, Clock, LogOut, Upload, X, ImageIcon, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 
 const MAX_IMAGES = 10;
@@ -555,43 +556,23 @@ export default function AdminAuctions() {
                 </div>
 
                 {/* Bid Increment */}
-                <div>
-                  <Label htmlFor="bidIncrement">每口加幅（HK$）*</Label>
-                  <div className="mt-1 space-y-2">
-                    {/* Quick select buttons */}
-                    <div className="flex flex-wrap gap-1.5">
+                <div className="flex items-center justify-between gap-4">
+                  <Label htmlFor="bidIncrement" className="shrink-0 font-medium">每口加幅（HK$）</Label>
+                  <Select
+                    value={String(form.bidIncrement)}
+                    onValueChange={(val) => setForm((f) => ({ ...f, bidIncrement: parseInt(val) }))}
+                  >
+                    <SelectTrigger id="bidIncrement" className="w-44 border-amber-200 focus:ring-amber-400">
+                      <SelectValue placeholder="選擇加幅" />
+                    </SelectTrigger>
+                    <SelectContent>
                       {BID_INCREMENT_OPTIONS.map((val) => (
-                        <button
-                          key={val}
-                          type="button"
-                          onClick={() => setForm((f) => ({ ...f, bidIncrement: val }))}
-                          className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
-                            form.bidIncrement === val
-                              ? "bg-amber-500 text-white border-amber-500 shadow-sm"
-                              : "bg-white text-amber-700 border-amber-200 hover:border-amber-400 hover:bg-amber-50"
-                          }`}
-                        >
-                          HK${val}
-                        </button>
+                        <SelectItem key={val} value={String(val)}>
+                          HK${val.toLocaleString()}
+                        </SelectItem>
                       ))}
-                    </div>
-                    {/* Custom input */}
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="bidIncrement"
-                        type="number"
-                        min="30"
-                        max="5000"
-                        value={form.bidIncrement}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value) || 50;
-                          setForm((f) => ({ ...f, bidIncrement: val }));
-                        }}
-                        className="border-amber-200 focus-visible:ring-amber-400 w-32"
-                      />
-                      <span className="text-xs text-muted-foreground">自訂金額（HK$30 至 HK$5000）</span>
-                    </div>
-                  </div>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Image Upload Zone */}
