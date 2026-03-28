@@ -49,10 +49,10 @@ export default function Home() {
   ];
 
   const features = [
-    { icon: Shield, title: "安全可信", desc: "每件拍品均經專業鑑定，確保真品保障" },
-    { icon: TrendingUp, title: "公開競價", desc: "透明出價記錄，公平公正的競拍環境" },
-    { icon: Award, title: "品質保證", desc: "嚴格篩選優質錢幣，提供完整收藏資訊" },
-    { icon: Coins, title: "多元品類", desc: "古幣、紀念幣、外幣，滿足各類收藏需求" },
+    { emoji: "🛡️", icon: Shield, title: "安全可信", desc: "每件拍品均經專業鑑定，確保真品保障" },
+    { emoji: "📈", icon: TrendingUp, title: "公開競價", desc: "透明出價記錄，公平公正的競拍環境" },
+    { emoji: "🏆", icon: Award, title: "品質保證", desc: "嚴格篩選優質錢幣，提供完整收藏資訊" },
+    { emoji: "🪙", icon: Coins, title: "多元品類", desc: "古幣、紀念幣、外幣，滿足各類收藏需求" },
   ];
 
   return (
@@ -226,14 +226,10 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto">
             {features.map((f) => (
-              <Card key={f.title} className="flex items-start gap-3 p-4 border border-amber-100 hover:border-amber-300 hover:shadow-xl hover:scale-[1.04] transition-all duration-200 cursor-default">
-                <div className="w-9 h-9 gold-gradient rounded-lg flex items-center justify-center shrink-0">
-                  <f.icon className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm mb-0.5">{f.title}</h3>
-                  <p className="text-xs text-muted-foreground leading-snug">{f.desc}</p>
-                </div>
+              <Card key={f.title} className="flex flex-col items-center text-center p-5 border border-amber-100 hover:border-amber-300 hover:shadow-xl hover:scale-[1.04] transition-all duration-200 cursor-default">
+                <div className="text-4xl mb-3 leading-none">{f.emoji}</div>
+                <h3 className="font-bold text-sm mb-1">{f.title}</h3>
+                <p className="text-xs text-muted-foreground leading-snug">{f.desc}</p>
               </Card>
             ))}
           </div>
