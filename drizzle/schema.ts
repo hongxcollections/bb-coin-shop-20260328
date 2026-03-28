@@ -1,17 +1,11 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { decimal, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { relations } from "drizzle-orm";
 
 /**
  * Core user table backing auth flow.
- * Extend this file with additional tables as your product grows.
- * Columns use camelCase to match both database fields and generated types.
  */
 export const users = mysqlTable("users", {
-  /**
-   * Surrogate primary key. Auto-incremented numeric value managed by the database.
-   * Use this for relations between tables.
-   */
   id: int("id").autoincrement().primaryKey(),
-  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
@@ -25,4 +19,89 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+/**
+ * Auctions table - stores coin auction listings
+ */
+export const auctions = mysqlTable("auctions", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  startingPrice: decimal("startingPrice", { precision: 10, scale: 2 }).notNull(),
+  currentPrice: decimal("currentPrice", { precision: 10, scale: 2 }).notNull(),
+  highestBidderId: int("highestBidderId"),
+  endTime: timestamp("endTime").notNull(),
+  status: mysqlEnum("status", ["active", "ended", "cancelled"]).default("active").notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Auction = typeof auctions.$inferSelect;
+export type InsertAuction = typeof auctions.$inferInsert;
+
+/**
+ * Auction images table - stores multiple images per auction
+ */
+export const auctionImages = mysqlTable("auctionImages", {
+  id: int("id").autoincrement().primaryKey(),
+  auctionId: int("auctionId").notNull(),
+  imageUrl: text("imageUrl").notNull(),
+  displayOrder: int("displayOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AuctionImage = typeof auctionImages.$inferSelect;
+export type InsertAuctionImage = typeof auctionImages.$inferInsert;
+
+/**
+ * Bids table - stores bidding history
+ */
+export const bids = mysqlTable("bids", {
+  id: int("id").autoincrement().primaryKey(),
+  auctionId: int("auctionId").notNull(),
+  userId: int("userId").notNull(),
+  bidAmount: decimal("bidAmount", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Bid = typeof bids.$inferSelect;
+export type InsertBid = typeof bids.$inferInsert;
+
+/**
+ * Relations
+ */
+export const usersRelations = relations(users, ({ many }) => ({
+  auctions: many(auctions),
+  bids: many(bids),
+}));
+
+export const auctionsRelations = relations(auctions, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [auctions.createdBy],
+    references: [users.id],
+  }),
+  highestBidder: one(users, {
+    fields: [auctions.highestBidderId],
+    references: [users.id],
+  }),
+  images: many(auctionImages),
+  bids: many(bids),
+}));
+
+export const auctionImagesRelations = relations(auctionImages, ({ one }) => ({
+  auction: one(auctions, {
+    fields: [auctionImages.auctionId],
+    references: [auctions.id],
+  }),
+}));
+
+export const bidsRelations = relations(bids, ({ one }) => ({
+  auction: one(auctions, {
+    fields: [bids.auctionId],
+    references: [auctions.id],
+  }),
+  user: one(users, {
+    fields: [bids.userId],
+    references: [users.id],
+  }),
+}));
