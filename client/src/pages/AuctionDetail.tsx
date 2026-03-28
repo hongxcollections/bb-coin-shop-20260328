@@ -220,6 +220,23 @@ export default function AuctionDetail() {
                     </div>
                   </div>
                   <div className="text-right space-y-1">
+                    {/* Bid Message inline — above 出價次數 */}
+                    {bidMessage && (
+                      <div className={`mb-2 rounded-lg px-3 py-2 text-xs font-medium border text-right ${
+                        bidMessage.type === "success"
+                          ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                          : bidMessage.type === "info"
+                          ? "bg-blue-50 border-blue-200 text-blue-700"
+                          : "bg-red-50 border-red-200 text-red-700"
+                      }`}>
+                        <span>{bidMessage.text}</span>
+                        <button
+                          onClick={() => setBidMessage(null)}
+                          className="ml-2 opacity-50 hover:opacity-100 transition-opacity"
+                          aria-label="關閉"
+                        >✕</button>
+                      </div>
+                    )}
                     <div>
                       <div className="text-xs text-muted-foreground mb-0.5">出價次數</div>
                       <div className="flex items-center gap-1 text-amber-700 font-bold justify-end">
@@ -301,24 +318,6 @@ export default function AuctionDetail() {
                 )}
               </CardContent>
             </Card>
-
-            {/* Bid Message */}
-            {bidMessage && (
-              <div className={`flex items-start gap-3 rounded-xl px-4 py-3 text-sm font-medium border ${
-                bidMessage.type === "success"
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                  : bidMessage.type === "info"
-                  ? "bg-blue-50 border-blue-200 text-blue-800"
-                  : "bg-red-50 border-red-200 text-red-800"
-              }`}>
-                <span className="flex-1 leading-relaxed">{bidMessage.text}</span>
-                <button
-                  onClick={() => setBidMessage(null)}
-                  className="text-current opacity-50 hover:opacity-100 transition-opacity shrink-0 mt-0.5"
-                  aria-label="關閉"
-                >✕</button>
-              </div>
-            )}
 
             {/* Bid History */}
             <Card className="border-amber-100">
