@@ -1,4 +1,4 @@
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
 import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid } from "../drizzle/schema";
@@ -160,8 +160,16 @@ export async function getBidHistory(auctionId: number) {
 
   try {
     const result = await db
-      .select()
+      .select({
+        id: bids.id,
+        auctionId: bids.auctionId,
+        userId: bids.userId,
+        bidAmount: bids.bidAmount,
+        createdAt: bids.createdAt,
+        username: users.name,
+      })
       .from(bids)
+      .leftJoin(users, eq(bids.userId, users.id))
       .where(eq(bids.auctionId, auctionId))
       .orderBy(desc(bids.createdAt));
     return result;
