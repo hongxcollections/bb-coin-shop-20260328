@@ -226,10 +226,22 @@ export default function AuctionDetail() {
                         bidMessage.type === "success"
                           ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                           : bidMessage.type === "info"
-                          ? "bg-blue-50 border-blue-200 text-blue-700"
+                          ? "bg-blue-50 border-blue-200 text-blue-700 bid-processing-card"
                           : "bg-red-50 border-red-200 text-red-700"
                       }`}>
-                        <span>{bidMessage.text}</span>
+                        {bidMessage.type === "info" ? (
+                          <span className="flex items-center justify-end gap-1.5">
+                            <span className="bid-coin text-base" aria-hidden="true">🪙</span>
+                            <span className="bid-shimmer-text">出價處理中</span>
+                            <span className="flex items-center gap-0.5 ml-0.5">
+                              <span className="bid-dot" />
+                              <span className="bid-dot" />
+                              <span className="bid-dot" />
+                            </span>
+                          </span>
+                        ) : (
+                          <span>{bidMessage.text}</span>
+                        )}
                         <button
                           onClick={() => setBidMessage(null)}
                           className="ml-2 opacity-50 hover:opacity-100 transition-opacity"
