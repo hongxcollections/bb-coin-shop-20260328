@@ -120,6 +120,41 @@ export default function Auctions() {
           </div>
         </div>
 
+        {/* ── Marquee Ticker ── */}
+        {!isLoading && (auctions ?? []).length > 0 && (
+          <div className="marquee-wrapper mb-6 border border-amber-100 rounded-xl bg-amber-50/60 py-2">
+            <div className="marquee-track">
+              {/* 複製一份以實現無縮循環 */}
+              {[...(auctions ?? []), ...(auctions ?? [])].map((auction, idx) => (
+                <Link
+                  key={`${auction.id}-${idx}`}
+                  href={`/auctions/${auction.id}`}
+                  className="flex items-center gap-2 px-4 py-1 mx-1 rounded-lg hover:bg-amber-100 transition-colors shrink-0 cursor-pointer"
+                >
+                  <div className="w-9 h-9 rounded-md overflow-hidden bg-amber-100 flex items-center justify-center shrink-0">
+                    {auction.images && (auction.images as Array<{ imageUrl: string }>).length > 0 ? (
+                      <img
+                        src={(auction.images as Array<{ imageUrl: string }>)[0].imageUrl}
+                        alt={auction.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-lg">🪙</span>
+                    )}
+                  </div>
+                  <div className="flex flex-col leading-tight">
+                    <span className="text-xs font-medium text-amber-900 max-w-[8rem] truncate">{auction.title}</span>
+                    <span className="text-xs text-amber-600 font-semibold">
+                      {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
+                    </span>
+                  </div>
+                  <span className={`ml-1 w-1.5 h-1.5 rounded-full shrink-0 ${auction.status === 'active' ? 'bg-emerald-400' : 'bg-gray-300'}`} />
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Auction Grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
