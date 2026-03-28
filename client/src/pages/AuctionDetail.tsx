@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Clock, ChevronLeft, User, TrendingUp, History, ArrowUpCircle } from "lucide-react";
+import { Clock, ChevronLeft, User, TrendingUp, History, ArrowUpCircle, ChevronDown } from "lucide-react";
 import { getCurrencySymbol } from "./AdminAuctions";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
@@ -352,25 +352,31 @@ export default function AuctionDetail() {
               </CardContent>
             </Card>
 
-            {/* Bid History */}
-            <Card className="border-amber-100">
-              <CardHeader className="pb-3">
-                <button
-                  onClick={() => setShowHistory(!showHistory)}
-                  className="flex items-center justify-between w-full"
-                >
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <History className="w-4 h-4 text-amber-600" />
-                    出價記錄
-                    <Badge variant="secondary" className="ml-1">{bids.length}</Badge>
-                  </CardTitle>
-                  <span className="text-xs text-muted-foreground">{showHistory ? "收起" : "展開"}</span>
-                </button>
-              </CardHeader>
-              {showHistory && (
-                <CardContent className="pt-0">
+            {/* Bid History — Collapsible Dropdown */}
+            <div className="rounded-xl border border-amber-100 overflow-hidden bg-white shadow-sm">
+              {/* Header trigger */}
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-amber-50 transition-colors group"
+              >
+                <div className="flex items-center gap-2">
+                  <History className="w-4 h-4 text-amber-600" />
+                  <span className="text-sm font-semibold text-amber-900">出價記錄</span>
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">{bids.length}</span>
+                </div>
+                <ChevronDown
+                  className={`w-4 h-4 text-amber-500 transition-transform duration-300 ${showHistory ? "rotate-180" : "rotate-0"}`}
+                />
+              </button>
+
+              {/* Collapsible content */}
+              <div
+                className="transition-all duration-300 ease-in-out overflow-hidden"
+                style={{ maxHeight: showHistory ? "320px" : "0px", opacity: showHistory ? 1 : 0 }}
+              >
+                <div className="border-t border-amber-100 px-4 py-3">
                   {bids.length > 0 ? (
-                    <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin">
+                    <div className="space-y-2 max-h-60 overflow-y-auto scrollbar-thin pr-1">
                       {bids.map((bid, i) => (
                         <div key={bid.id} className={`flex items-center justify-between py-2 px-3 rounded-lg text-sm ${i === 0 ? "bg-amber-50 border border-amber-200" : "bg-muted/30"}`}>
                           <div className="flex items-center gap-2">
@@ -390,9 +396,9 @@ export default function AuctionDetail() {
                       暫無出價記錄，成為第一位出價者！
                     </div>
                   )}
-                </CardContent>
-              )}
-            </Card>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
