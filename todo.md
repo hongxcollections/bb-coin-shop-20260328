@@ -62,3 +62,4 @@
 - [x] 草稿審核頁面批次操作：批次刪除（含確認對話框）
 - [x] Server 端新增 auctions.batchPublish 及 auctions.batchDelete procedures
 - [x] 設定說明頁面直接顯示完整 Webhook URL 並提供一鍵複製按鈕
+- [x] 設定說明頁面新增詳細 Groups Watcher 逐步教學（含截圖說明、注意事項、常見問題）
