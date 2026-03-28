@@ -580,37 +580,37 @@ export default function AdminAuctions() {
                     </div>
                     {editId && <p className="text-xs text-muted-foreground mt-1">編輯時不可修改起拍價</p>}
                   </div>
-                  {/* 結束時間：固定寬度縮小 */}
+                  {/* 每口加幅：移至起拍價行右側 */}
                   <div className="w-40 shrink-0">
-                    <Label htmlFor="endTime">結束時間 *</Label>
-                    <Input
-                      id="endTime"
-                      type="datetime-local"
-                      value={form.endTime}
-                      onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
-                      className="mt-1 border-amber-200 focus-visible:ring-amber-400 text-[10px] h-8 px-2"
-                    />
+                    <Label htmlFor="bidIncrement" className="shrink-0 font-medium">每口加幅</Label>
+                    <Select
+                      value={String(form.bidIncrement)}
+                      onValueChange={(val) => setForm((f) => ({ ...f, bidIncrement: parseInt(val) }))}
+                    >
+                      <SelectTrigger id="bidIncrement" className="mt-1 w-full border-amber-200 focus:ring-amber-400">
+                        <SelectValue placeholder="選擇加幅" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BID_INCREMENT_OPTIONS.map((val) => (
+                          <SelectItem key={val} value={String(val)}>
+                            {getCurrencySymbol(form.currency)}{val.toLocaleString()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
-                {/* Bid Increment */}
+                {/* 結束時間：移至独立一行 */}
                 <div className="flex items-center justify-between gap-4">
-                  <Label htmlFor="bidIncrement" className="shrink-0 font-medium">每口加幅</Label>
-                  <Select
-                    value={String(form.bidIncrement)}
-                    onValueChange={(val) => setForm((f) => ({ ...f, bidIncrement: parseInt(val) }))}
-                  >
-                    <SelectTrigger id="bidIncrement" className="w-44 border-amber-200 focus:ring-amber-400">
-                      <SelectValue placeholder="選擇加幅" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BID_INCREMENT_OPTIONS.map((val) => (
-                        <SelectItem key={val} value={String(val)}>
-                          {getCurrencySymbol(form.currency)}{val.toLocaleString()}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="endTime">結束時間 *</Label>
+                  <Input
+                    id="endTime"
+                    type="datetime-local"
+                    value={form.endTime}
+                    onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
+                    className="border-amber-200 focus-visible:ring-amber-400 text-[10px] h-8 px-2 w-44"
+                  />
                 </div>
 
                 {/* Image Upload Zone */}
