@@ -58,6 +58,16 @@ export default function AuctionDetail() {
 
   const { data: auction, isLoading, refetch } = trpc.auctions.detail.useQuery({ id: auctionId });
   const [selectedImage, setSelectedImage] = useState(0);
+  const utils = trpc.useUtils();
+  const relistMutation = trpc.auctions.relist.useMutation({
+    onSuccess: (data) => {
+      toast.success("已成功建立重新拍賣草稿！請前往管理後台設定結束時間並發佈。");
+      utils.auctions.drafts.invalidate();
+    },
+    onError: (err) => {
+      toast.error(`重新拍賣失敗：${err.message}`);
+    },
+  });
 
   const placeBid = trpc.auctions.placeBid.useMutation({
     onSuccess: () => {
@@ -302,11 +312,22 @@ export default function AuctionDetail() {
 
                 {/* Ended Notice */}
                 {!isActive && (
-                  <div className="flex items-center gap-2 mb-2 px-4 py-3 rounded-lg bg-gray-100 border border-gray-200">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-400 text-white text-xs font-semibold shrink-0">
-                      ✕ 已結束
-                    </span>
-                    <span className="text-xs text-gray-500">此拍賣已結束，不再接受出價</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-gray-100 border border-gray-200">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-400 text-white text-xs font-semibold shrink-0">
+                        ✕ 已結束
+                      </span>
+                      <span className="text-xs text-gray-500">此拍賣已結束，不再接受出價</span>
+                    </div>
+                    {user?.role === "admin" && (
+                      <Button
+                        onClick={() => relistMutation.mutate({ id: auctionId })}
+                        disabled={relistMutation.isPending}
+                        className="w-full bg-amber-500 hover:bg-amber-600 text-white border-0 shadow-md"
+                      >
+                        {relistMutation.isPending ? "建立草稿中..." : "🔄 重新拍賣"}
+                      </Button>
+                    )}
                   </div>
                 )}
 

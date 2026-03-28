@@ -326,6 +326,41 @@ export const appRouter = router({
         const succeeded = results.filter(r => r.status === 'fulfilled' && (r.value as { success?: boolean }).success).length;
         return { succeeded, total: input.ids.length };
       }),
+
+    relist: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can relist auctions' });
+        }
+        const original = await getAuctionById(input.id);
+        if (!original) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+
+        // Create a new draft with the same details, resetting price and bids
+        const newAuction = await createAuction({
+          title: original.title,
+          description: original.description ?? undefined,
+          startingPrice: original.startingPrice,
+          currentPrice: original.startingPrice, // reset to starting price
+          endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // default 7 days
+          status: 'draft',
+          bidIncrement: original.bidIncrement,
+          currency: original.currency,
+          createdBy: ctx.user.id,
+        });
+
+        // Copy images from original auction
+        const originalImages = await getAuctionImages(input.id);
+        for (const img of originalImages) {
+          await addAuctionImage({
+            auctionId: newAuction.id,
+            imageUrl: img.imageUrl,
+            displayOrder: img.displayOrder,
+          });
+        }
+
+        return { success: true, newAuctionId: newAuction.id };
+      }),
   }),
 });
 
