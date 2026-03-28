@@ -300,6 +300,16 @@ export default function AuctionDetail() {
                   </span>
                 </div>
 
+                {/* Ended Notice */}
+                {!isActive && (
+                  <div className="flex items-center gap-2 mb-2 px-4 py-3 rounded-lg bg-gray-100 border border-gray-200">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-400 text-white text-xs font-semibold shrink-0">
+                      ✕ 已結束
+                    </span>
+                    <span className="text-xs text-gray-500">此拍賣已結束，不再接受出價</span>
+                  </div>
+                )}
+
                 {/* Bid Input */}
                 {isActive && (
                   isAuthenticated ? (
