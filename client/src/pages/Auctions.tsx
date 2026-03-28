@@ -50,8 +50,16 @@ export default function Auctions() {
     return matchSearch && matchFilter;
   });
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  // 排序：活躍拍賣在前，已結束拍賣在後
+  const sorted = [...filtered].sort((a, b) => {
+    const aEnded = new Date(a.endTime).getTime() <= Date.now() || a.status === 'ended';
+    const bEnded = new Date(b.endTime).getTime() <= Date.now() || b.status === 'ended';
+    if (aEnded !== bEnded) return aEnded ? 1 : -1;
+    return 0;
+  });
+
+  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+  const paginated = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   // 找出所有活躍拍賣中出價最高的項目 ID
   const topBidAuctionId = (auctions ?? [])
