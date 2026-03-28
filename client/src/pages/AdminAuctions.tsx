@@ -9,7 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, TrendingUp, Clock, LogOut, Upload, X, ImageIcon, Camera } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp, Clock, LogOut, Upload, X, ImageIcon, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+
+const MAX_IMAGES = 10;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 function formatDate(date: Date) {
   return new Date(date).toLocaleString("zh-HK", {
@@ -31,10 +34,14 @@ interface UploadedImage {
   imageId?: number;
 }
 
+type UploadStatus = "pending" | "uploading" | "success" | "error";
+
 interface PendingImage {
   file: File;
   previewUrl: string;
   displayOrder: number;
+  status: UploadStatus;
+  errorMsg?: string;
 }
 
 const defaultForm: AuctionFormData = {
@@ -61,130 +68,173 @@ function ImageUploadZone({
   isUploading: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-      const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
-      if (files.length > 0) onAddFiles(files);
+  const totalCount = uploadedImages.length + pendingImages.length;
+  const remaining = MAX_IMAGES - totalCount;
+  const canAddMore = remaining > 0 && !isUploading;
+
+  const processFiles = useCallback(
+    (rawFiles: File[]) => {
+      const imageFiles = rawFiles.filter((f) => f.type.startsWith("image/"));
+      const oversized = imageFiles.filter((f) => f.size > MAX_FILE_SIZE);
+      if (oversized.length > 0) {
+        toast.error(`${oversized.length} 張圖片超過 5MB 限制，已略過`);
+      }
+      const valid = imageFiles.filter((f) => f.size <= MAX_FILE_SIZE);
+      if (valid.length === 0) return;
+      const toAdd = valid.slice(0, remaining);
+      if (valid.length > remaining) {
+        toast.warning(`最多只能上傳 ${MAX_IMAGES} 張，已自動截取前 ${toAdd.length} 張`);
+      }
+      onAddFiles(toAdd);
     },
-    [onAddFiles]
+    [remaining, onAddFiles]
   );
 
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (!canAddMore) return;
+    processFiles(Array.from(e.dataTransfer.files));
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []).filter((f) => f.type.startsWith("image/"));
-    if (files.length > 0) onAddFiles(files);
+    processFiles(Array.from(e.target.files ?? []));
     e.target.value = "";
   };
 
-  const allImages = [...uploadedImages, ...pendingImages];
-  const hasImages = allImages.length > 0;
+  const hasImages = totalCount > 0;
 
   return (
     <div className="space-y-3">
-      <Label>商品圖片</Label>
-
-      {/* Drop Zone */}
-      <div
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-        className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${
-          isDragging
-            ? "border-amber-400 bg-amber-50"
-            : "border-amber-200 hover:border-amber-400 hover:bg-amber-50/50"
-        }`}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={handleFileChange}
-        />
-        <input
-          ref={cameraInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={handleFileChange}
-        />
-        <div className="flex flex-col items-center gap-2 pointer-events-none">
-          <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
-            <Upload className="w-5 h-5 text-amber-600" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-amber-800">點擊選擇或拖拽圖片至此</p>
-            <p className="text-xs text-muted-foreground mt-0.5">支援 JPG、PNG、WebP，每張最大 5MB</p>
-          </div>
-        </div>
+      <div className="flex items-center justify-between">
+        <Label>商品圖片</Label>
+        <span className="text-xs text-muted-foreground">
+          {totalCount} / {MAX_IMAGES} 張
+        </span>
       </div>
 
-      {/* Camera Button for mobile */}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
-        onClick={(e) => { e.preventDefault(); cameraInputRef.current?.click(); }}
-      >
-        <Camera className="w-4 h-4 mr-2" />
-        用相機拍照上傳
-      </Button>
+      {/* Drop Zone */}
+      {canAddMore ? (
+        <div
+          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer select-none ${
+            isDragging
+              ? "border-amber-400 bg-amber-50 scale-[1.01]"
+              : "border-amber-200 hover:border-amber-400 hover:bg-amber-50/50"
+          }`}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <div className="flex flex-col items-center gap-2 pointer-events-none">
+            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+              <Upload className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-amber-800">點擊選擇或拖拽圖片至此</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                可一次選取最多 {remaining} 張 · 每張最大 5MB · 支援 JPG、PNG、WebP
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center text-sm text-muted-foreground bg-gray-50">
+          已達上限 {MAX_IMAGES} 張，請先刪除部分圖片再新增
+        </div>
+      )}
 
-      {/* Image Previews */}
+      {/* Image Grid */}
       {hasImages && (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {/* Already uploaded images */}
           {uploadedImages.map((img, idx) => (
-            <div key={`uploaded-${idx}`} className="relative group aspect-square rounded-lg overflow-hidden border border-amber-100">
+            <div key={`uploaded-${idx}`} className="relative group aspect-square rounded-lg overflow-hidden border border-amber-100 bg-amber-50">
               <img src={img.url} alt="" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all" />
-              <button
-                type="button"
-                onClick={() => onRemoveUploaded(idx)}
-                className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-              >
-                <X className="w-3 h-3" />
-              </button>
-              <div className="absolute bottom-1 left-1 bg-emerald-500 text-white text-xs px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                已上傳
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all" />
+              {!isUploading && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveUploaded(idx)}
+                  className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 z-10"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+              {/* Uploaded badge */}
+              <div className="absolute bottom-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 drop-shadow" />
               </div>
             </div>
           ))}
 
-          {/* Pending images (not yet uploaded) */}
+          {/* Pending images */}
           {pendingImages.map((img, idx) => (
-            <div key={`pending-${idx}`} className="relative group aspect-square rounded-lg overflow-hidden border border-amber-200">
+            <div key={`pending-${idx}`} className="relative group aspect-square rounded-lg overflow-hidden border-2 border-amber-200 bg-amber-50">
               <img src={img.previewUrl} alt="" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all" />
-              <button
-                type="button"
-                onClick={() => onRemovePending(idx)}
-                className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-              >
-                <X className="w-3 h-3" />
-              </button>
-              {isUploading && (
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+
+              {/* Status overlay */}
+              {img.status === "uploading" && (
+                <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-1">
+                  <Loader2 className="w-5 h-5 text-white animate-spin" />
+                  <span className="text-white text-xs">上傳中</span>
                 </div>
               )}
-              <div className="absolute bottom-1 left-1 bg-amber-500 text-white text-xs px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                待上傳
-              </div>
+              {img.status === "success" && (
+                <div className="absolute inset-0 bg-emerald-500/30 flex items-center justify-center">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-500 drop-shadow" />
+                </div>
+              )}
+              {img.status === "error" && (
+                <div className="absolute inset-0 bg-red-500/40 flex flex-col items-center justify-center gap-1 p-1">
+                  <AlertCircle className="w-5 h-5 text-red-200" />
+                  <span className="text-red-100 text-xs text-center leading-tight">{img.errorMsg ?? "失敗"}</span>
+                </div>
+              )}
+
+              {/* Remove button (only when not uploading) */}
+              {img.status === "pending" && (
+                <button
+                  type="button"
+                  onClick={() => onRemovePending(idx)}
+                  className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 z-10"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+
+              {/* Pending badge */}
+              {img.status === "pending" && (
+                <div className="absolute bottom-1 left-1 bg-amber-500/80 text-white text-xs px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                  待上傳
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {!hasImages && (
+      {/* Upload progress summary */}
+      {isUploading && (
+        <div className="flex items-center gap-2 text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <Loader2 className="w-3.5 h-3.5 text-amber-600 animate-spin flex-shrink-0" />
+          <span className="text-amber-800">
+            正在上傳圖片（{pendingImages.filter(p => p.status === "success").length + pendingImages.filter(p => p.status === "uploading").length} / {pendingImages.length}）...
+          </span>
+        </div>
+      )}
+
+      {!hasImages && !isUploading && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-amber-50 rounded-lg p-3">
           <ImageIcon className="w-4 h-4 text-amber-400 flex-shrink-0" />
           <span>尚未選擇圖片，拍賣將顯示預設錢幣圖示</span>
@@ -206,12 +256,67 @@ export default function AdminAuctions() {
 
   const { data: auctions, isLoading, refetch } = trpc.auctions.myAuctions.useQuery();
 
+  const uploadImageMutation = trpc.auctions.uploadImage.useMutation();
+  const deleteImageMutation = trpc.auctions.deleteImage.useMutation();
+
+  // ── Batch upload all pending images ──
+  const uploadAllPending = async (auctionId: number): Promise<number> => {
+    setIsUploading(true);
+    let successCount = 0;
+
+    for (let i = 0; i < pendingImages.length; i++) {
+      const pending = pendingImages[i];
+      if (pending.status !== "pending") continue;
+
+      // Mark as uploading
+      setPendingImages((prev) =>
+        prev.map((p, idx) => idx === i ? { ...p, status: "uploading" } : p)
+      );
+
+      try {
+        const base64 = await fileToBase64(pending.file);
+        await uploadImageMutation.mutateAsync({
+          auctionId,
+          imageData: base64,
+          fileName: pending.file.name,
+          displayOrder: uploadedImages.length + i,
+          mimeType: pending.file.type || "image/jpeg",
+        });
+        // Mark as success
+        setPendingImages((prev) =>
+          prev.map((p, idx) => idx === i ? { ...p, status: "success" } : p)
+        );
+        successCount++;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "上傳失敗";
+        setPendingImages((prev) =>
+          prev.map((p, idx) => idx === i ? { ...p, status: "error", errorMsg: msg } : p)
+        );
+      }
+    }
+
+    setIsUploading(false);
+    return successCount;
+  };
+
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve((reader.result as string).split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
   const createAuction = trpc.auctions.create.useMutation({
     onSuccess: async (result) => {
+      let uploaded = 0;
       if (pendingImages.length > 0 && result?.id) {
-        await uploadPendingImages(result.id);
+        uploaded = await uploadAllPending(result.id);
       }
-      toast.success("拍賣建立成功！");
+      const msg = uploaded > 0
+        ? `拍賣建立成功！已上傳 ${uploaded} 張圖片`
+        : "拍賣建立成功！";
+      toast.success(msg);
       closeDialog();
       refetch();
     },
@@ -220,10 +325,14 @@ export default function AdminAuctions() {
 
   const updateAuction = trpc.auctions.update.useMutation({
     onSuccess: async () => {
+      let uploaded = 0;
       if (pendingImages.length > 0 && editId) {
-        await uploadPendingImages(editId);
+        uploaded = await uploadAllPending(editId);
       }
-      toast.success("拍賣更新成功！");
+      const msg = uploaded > 0
+        ? `拍賣更新成功！已上傳 ${uploaded} 張圖片`
+        : "拍賣更新成功！";
+      toast.success(msg);
       closeDialog();
       refetch();
     },
@@ -235,51 +344,15 @@ export default function AdminAuctions() {
     onError: (err) => toast.error(err.message || "刪除失敗"),
   });
 
-  const uploadImageMutation = trpc.auctions.uploadImage.useMutation();
-  const deleteImageMutation = trpc.auctions.deleteImage.useMutation();
-
-  const uploadPendingImages = async (auctionId: number) => {
-    setIsUploading(true);
-    let successCount = 0;
-    for (let i = 0; i < pendingImages.length; i++) {
-      const pending = pendingImages[i];
-      try {
-        const base64 = await fileToBase64(pending.file);
-        await uploadImageMutation.mutateAsync({
-          auctionId,
-          imageData: base64,
-          fileName: pending.file.name,
-          displayOrder: uploadedImages.length + i,
-          mimeType: pending.file.type || "image/jpeg",
-        });
-        successCount++;
-      } catch {
-        toast.error(`圖片 ${pending.file.name} 上傳失敗`);
-      }
-    }
-    setIsUploading(false);
-    if (successCount > 0) toast.success(`${successCount} 張圖片上傳成功`);
-  };
-
-  const fileToBase64 = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        resolve(result.split(",")[1]);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-
-  const handleAddFiles = (files: File[]) => {
+  const handleAddFiles = useCallback((files: File[]) => {
     const newPending: PendingImage[] = files.map((file, i) => ({
       file,
       previewUrl: URL.createObjectURL(file),
       displayOrder: uploadedImages.length + pendingImages.length + i,
+      status: "pending" as UploadStatus,
     }));
     setPendingImages((prev) => [...prev, ...newPending]);
-  };
+  }, [uploadedImages.length, pendingImages.length]);
 
   const handleRemovePending = (idx: number) => {
     setPendingImages((prev) => {
@@ -313,7 +386,7 @@ export default function AdminAuctions() {
   };
 
   const handleSubmit = () => {
-    if (!form.title || !form.startingPrice || !form.endTime) {
+    if (!form.title.trim() || !form.startingPrice || !form.endTime) {
       toast.error("請填寫所有必填欄位");
       return;
     }
@@ -375,7 +448,8 @@ export default function AdminAuctions() {
 
   const activeCount = (auctions ?? []).filter((a: { status: string }) => a.status === "active").length;
   const endedCount = (auctions ?? []).filter((a: { status: string }) => a.status === "ended").length;
-  const isPending = createAuction.isPending || updateAuction.isPending || isUploading;
+  const isMutating = createAuction.isPending || updateAuction.isPending || isUploading;
+  const pendingCount = pendingImages.filter((p) => p.status === "pending").length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -426,7 +500,7 @@ export default function AdminAuctions() {
                     value={form.title}
                     onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                     placeholder="例：1980年香港一元硬幣"
-                    className="mt-1 border-amber-200"
+                    className="mt-1 border-amber-200 focus-visible:ring-amber-400"
                   />
                 </div>
                 <div>
@@ -446,10 +520,11 @@ export default function AdminAuctions() {
                     <Input
                       id="price"
                       type="number"
+                      min="1"
                       value={form.startingPrice}
                       onChange={(e) => setForm((f) => ({ ...f, startingPrice: e.target.value }))}
                       placeholder="100"
-                      className="mt-1 border-amber-200"
+                      className="mt-1 border-amber-200 focus-visible:ring-amber-400"
                       disabled={!!editId}
                     />
                     {editId && <p className="text-xs text-muted-foreground mt-1">編輯時不可修改起拍價</p>}
@@ -461,7 +536,7 @@ export default function AdminAuctions() {
                       type="datetime-local"
                       value={form.endTime}
                       onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
-                      className="mt-1 border-amber-200"
+                      className="mt-1 border-amber-200 focus-visible:ring-amber-400"
                     />
                   </div>
                 </div>
@@ -476,17 +551,29 @@ export default function AdminAuctions() {
                   isUploading={isUploading}
                 />
 
+                {/* Submit Button */}
                 <Button
                   onClick={handleSubmit}
-                  disabled={isPending}
-                  className="w-full gold-gradient text-white border-0"
+                  disabled={isMutating}
+                  className="w-full gold-gradient text-white border-0 h-11"
                 >
-                  {isPending ? (
+                  {isMutating ? (
                     <span className="flex items-center gap-2">
-                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      {isUploading ? "上傳圖片中..." : "處理中..."}
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {isUploading
+                        ? `上傳圖片中（${pendingImages.filter(p => p.status === "success").length}/${pendingImages.length}）...`
+                        : "處理中..."}
                     </span>
-                  ) : editId ? "更新拍賣" : "建立拍賣"}
+                  ) : (
+                    <>
+                      {editId ? "更新拍賣" : "建立拍賣"}
+                      {pendingCount > 0 && (
+                        <span className="ml-2 bg-white/20 text-white text-xs px-2 py-0.5 rounded-full">
+                          + {pendingCount} 張圖片
+                        </span>
+                      )}
+                    </>
+                  )}
                 </Button>
               </div>
             </DialogContent>
