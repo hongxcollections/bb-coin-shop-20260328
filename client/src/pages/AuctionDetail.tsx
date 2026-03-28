@@ -231,31 +231,43 @@ export default function AuctionDetail() {
                   <div className="text-right space-y-1">
                     {/* Bid Message inline — above 出價次數 */}
                     {bidMessage && (
-                      <div className={`mb-2 rounded-lg px-3 py-2 text-xs font-medium border text-right ${
+                      <div className={`mb-2 rounded-lg text-xs font-medium border text-right overflow-hidden relative ${
                         bidMessage.type === "success"
                           ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                           : bidMessage.type === "info"
                           ? "bg-blue-50 border-blue-200 text-blue-700 bid-processing-card"
                           : "bg-red-50 border-red-200 text-red-700"
                       } ${bidMsgExiting ? "bid-msg-exit" : "bid-msg-enter"}`}>
-                        {bidMessage.type === "info" ? (
-                          <span className="flex items-center justify-end gap-1.5">
-                            <span className="bid-coin text-base" aria-hidden="true">🪙</span>
-                            <span className="bid-shimmer-text">出價處理中</span>
-                            <span className="flex items-center gap-0.5 ml-0.5">
-                              <span className="bid-dot" />
-                              <span className="bid-dot" />
-                              <span className="bid-dot" />
+                        <div className="px-3 py-2">
+                          {bidMessage.type === "info" ? (
+                            <span className="flex items-center justify-end gap-1.5">
+                              <span className="bid-coin text-base" aria-hidden="true">🪙</span>
+                              <span className="bid-shimmer-text">出價處理中</span>
+                              <span className="flex items-center gap-0.5 ml-0.5">
+                                <span className="bid-dot" />
+                                <span className="bid-dot" />
+                                <span className="bid-dot" />
+                              </span>
                             </span>
-                          </span>
-                        ) : (
-                          <span>{bidMessage.text}</span>
+                          ) : (
+                            <span>{bidMessage.text}</span>
+                          )}
+                          <button
+                            onClick={dismissBidMessage}
+                            className="ml-2 opacity-50 hover:opacity-100 transition-opacity"
+                            aria-label="關閉"
+                          >✕</button>
+                        </div>
+                        {bidMessage.type !== "info" && !bidMsgExiting && (
+                          <div
+                            key={bidMessage.text}
+                            className={`bid-progress-bar ${
+                              bidMessage.type === "success"
+                                ? "bg-emerald-400"
+                                : "bg-red-400"
+                            }`}
+                          />
                         )}
-                        <button
-                          onClick={dismissBidMessage}
-                          className="ml-2 opacity-50 hover:opacity-100 transition-opacity"
-                          aria-label="關閉"
-                        >✕</button>
                       </div>
                     )}
                     <div>
