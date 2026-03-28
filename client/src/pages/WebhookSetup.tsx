@@ -120,6 +120,26 @@ export default function WebhookSetup() {
             <CardContent className="px-5 pb-5 pt-3 space-y-3">
               <p className="text-sm">前往 <a href="https://www.groupswatcher.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-medium">groupswatcher.com</a>，點擊右上角「<strong>Pricing</strong>」選擇方案。</p>
 
+              {/* Screenshot: Homepage */}
+              <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                <img
+                  src="https://d2xsxph8kpxj0f.cloudfront.net/310519663481413711/5iU7X8HzvqNf24sNdvU8FR/gw_step1_homepage_6ad7aac8.webp"
+                  alt="Groups Watcher 官網首頁"
+                  className="w-full object-cover"
+                />
+                <p className="text-xs text-center text-muted-foreground py-1.5 bg-gray-50 border-t border-gray-100">▲ Groups Watcher 官網首頁</p>
+              </div>
+
+              {/* Screenshot: Pricing */}
+              <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                <img
+                  src="https://d2xsxph8kpxj0f.cloudfront.net/310519663481413711/5iU7X8HzvqNf24sNdvU8FR/gw_step1_pricing_03c2196d.webp"
+                  alt="Groups Watcher 定價頁面"
+                  className="w-full object-cover"
+                />
+                <p className="text-xs text-center text-muted-foreground py-1.5 bg-gray-50 border-t border-gray-100">▲ Professional 方案（推薦）— 首月 $75，之後 $150/月</p>
+              </div>
+
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm space-y-2">
                 <p className="font-medium text-blue-800">方案選擇建議：</p>
                 <div className="space-y-1 text-blue-700">
@@ -156,6 +176,16 @@ export default function WebhookSetup() {
             <CardContent className="px-5 pb-5 pt-3 space-y-3">
               <p className="text-sm">登入 Groups Watcher 後台後，點擊「<strong>Add Group</strong>」或「<strong>+ New Campaign</strong>」，然後貼上您的 Facebook 群組連結。</p>
 
+              {/* Screenshot: Login */}
+              <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                <img
+                  src="https://d2xsxph8kpxj0f.cloudfront.net/310519663481413711/5iU7X8HzvqNf24sNdvU8FR/gw_step1_login_f696d91f.webp"
+                  alt="Groups Watcher 登入頁面"
+                  className="w-full object-cover"
+                />
+                <p className="text-xs text-center text-muted-foreground py-1.5 bg-gray-50 border-t border-gray-100">▲ 登入 Groups Watcher 後台（app.groupswatcher.com）</p>
+              </div>
+
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600 space-y-2">
                 <p className="font-medium text-gray-700">如何取得 Facebook 群組連結：</p>
                 <ol className="list-decimal list-inside space-y-1">
@@ -187,6 +217,16 @@ export default function WebhookSetup() {
             <CardContent className="px-5 pb-5 pt-3 space-y-3">
               <p className="text-sm">在群組設定中，選擇要接收哪些貼文的通知：</p>
 
+              {/* Screenshot: Setup guide */}
+              <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                <img
+                  src="https://d2xsxph8kpxj0f.cloudfront.net/310519663481413711/5iU7X8HzvqNf24sNdvU8FR/gw_step3_setup_aeb316ef.webp"
+                  alt="Groups Watcher 即時通知設定說明"
+                  className="w-full object-cover"
+                />
+                <p className="text-xs text-center text-muted-foreground py-1.5 bg-gray-50 border-t border-gray-100">▲ Groups Watcher 即時通知設定說明頁</p>
+              </div>
+
               <div className="grid grid-cols-1 gap-2">
                 <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm">
                   <p className="font-medium mb-1 flex items-center gap-1"><Bell className="w-3.5 h-3.5 text-amber-500" />選項 A：接收所有貼文（推薦）</p>
@@ -215,6 +255,16 @@ export default function WebhookSetup() {
             </CardHeader>
             <CardContent className="px-5 pb-5 pt-3 space-y-3">
               <p className="text-sm">在通知渠道設定中，選擇「<strong>Webhook</strong>」或「<strong>Custom Webhook</strong>」，然後填入以下資料：</p>
+
+              {/* Screenshot: Webhook docs */}
+              <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                <img
+                  src="https://d2xsxph8kpxj0f.cloudfront.net/310519663481413711/5iU7X8HzvqNf24sNdvU8FR/gw_step2_dashboard_c514f56b.webp"
+                  alt="Groups Watcher Webhook 設定文件"
+                  className="w-full object-cover"
+                />
+                <p className="text-xs text-center text-muted-foreground py-1.5 bg-gray-50 border-t border-gray-100">▲ Groups Watcher Webhook 設定文件（顯示 POST 方式及 JSON 格式）</p>
+              </div>
 
               <div className="space-y-2">
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs space-y-2">
