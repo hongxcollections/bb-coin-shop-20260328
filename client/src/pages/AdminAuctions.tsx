@@ -575,18 +575,18 @@ export default function AdminAuctions() {
                 </div>
 
                 {/* Currency */}
-                <div className="flex items-center justify-between gap-4">
-                  <Label htmlFor="currency" className="shrink-0 font-medium">貨幣</Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="currency" className="shrink-0 font-medium text-xs">貨幣</Label>
                   <Select
                     value={form.currency}
                     onValueChange={(val) => setForm((f) => ({ ...f, currency: val }))}
                   >
-                    <SelectTrigger id="currency" className="w-44 border-amber-200 focus:ring-amber-400">
+                    <SelectTrigger id="currency" className="w-36 h-7 text-xs border-amber-200 focus:ring-amber-400 px-2">
                       <SelectValue placeholder="選擇貨幣" />
                     </SelectTrigger>
                     <SelectContent>
                       {CURRENCY_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
+                        <SelectItem key={opt.value} value={opt.value} className="text-xs">
                           {opt.label}
                         </SelectItem>
                       ))}
