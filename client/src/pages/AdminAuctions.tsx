@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, TrendingUp, Clock, LogOut, Upload, X, ImageIcon, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp, Clock, LogOut, Upload, X, ImageIcon, CheckCircle2, AlertCircle, Loader2, Facebook } from "lucide-react";
 
 const MAX_IMAGES = 10;
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -496,6 +496,11 @@ export default function AdminAuctions() {
           <div className="flex items-center gap-2">
             <Link href="/auctions">
               <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">所有拍賣</Button>
+            </Link>
+            <Link href="/admin/drafts">
+              <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 gap-1">
+                <Facebook className="w-3.5 h-3.5" /> 草稿審核
+              </Button>
             </Link>
             <Link href="/profile">
               <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">{user?.name}</Button>

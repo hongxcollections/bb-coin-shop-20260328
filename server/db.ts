@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
 import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid } from "../drizzle/schema";
@@ -288,6 +288,23 @@ export async function getAuctionsByCreator(userId: number) {
     return result;
   } catch (error) {
     console.error('[Database] Failed to get auctions by creator:', error);
+    return [];
+  }
+}
+
+export async function getDraftAuctions() {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    const result = await db
+      .select()
+      .from(auctions)
+      .where(eq(auctions.status, 'draft'))
+      .orderBy(desc(auctions.createdAt));
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to get draft auctions:', error);
     return [];
   }
 }

@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator } from "./db";
+import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions } from "./db";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon } from "./auctions";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
@@ -232,6 +232,54 @@ export const appRouter = router({
           }))
         );
         return withImages;
+      }),
+
+    drafts: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can view drafts' });
+        }
+        const draftList = await getDraftAuctions();
+        const withImages = await Promise.all(
+          draftList.map(async (auction: { id: number; [key: string]: unknown }) => ({
+            ...auction,
+            images: await getAuctionImages(auction.id),
+          }))
+        );
+        return withImages;
+      }),
+
+    publish: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().min(1).optional(),
+        description: z.string().optional(),
+        startingPrice: z.number().min(0).optional(),
+        endTime: z.date(),
+        bidIncrement: z.number().int().min(30).max(5000).optional(),
+        currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can publish drafts' });
+        }
+        const auction = await getAuctionById(input.id);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到草稿' });
+        if (auction.status !== 'draft') throw new TRPCError({ code: 'BAD_REQUEST', message: '此拍賣並非草稿狀態' });
+        if (input.endTime <= new Date()) throw new TRPCError({ code: 'BAD_REQUEST', message: '結束時間必須為未來時間' });
+
+        const updateData: Record<string, unknown> = { status: 'active', endTime: input.endTime };
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.description !== undefined) updateData.description = input.description;
+        if (input.startingPrice !== undefined) {
+          updateData.startingPrice = input.startingPrice.toString();
+          updateData.currentPrice = input.startingPrice.toString();
+        }
+        if (input.bidIncrement !== undefined) updateData.bidIncrement = input.bidIncrement;
+        if (input.currency !== undefined) updateData.currency = input.currency;
+
+        await updateAuction(input.id, updateData);
+        return { success: true };
       }),
   }),
 });

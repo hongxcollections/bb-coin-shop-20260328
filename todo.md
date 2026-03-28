@@ -52,3 +52,8 @@
 - [x] 結束時間與每口加幅位置互換
 - [x] 所有拍賣頁面商品列表上方新增橫向自動滾動跑馬燈（顯示全部商品縮圖＋名稱＋現價）
 - [x] 修復拍賣列表 Badge 顯示錯誤：改為根據 endTime 即時判斷狀態（非依賴 DB status 欄位）
+- [x] 資料庫 auctions 表新增 draft 狀態及 fbPostUrl 欄位
+- [x] Server 端新增 /api/webhook/facebook POST 端點，AI 解析貼文建立草稿
+- [x] 管理後台新增「草稿審核」頁面（待審核列表、一鍵上架/刪除）
+- [x] 新增 Webhook 設定說明頁面（引導配置 Groups Watcher）
+- [x] 新增 WEBHOOK_SECRET 環境變數驗證保護
