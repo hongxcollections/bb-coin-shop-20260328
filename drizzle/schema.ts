@@ -31,6 +31,7 @@ export const auctions = mysqlTable("auctions", {
   highestBidderId: int("highestBidderId"),
   endTime: timestamp("endTime").notNull(),
   status: mysqlEnum("status", ["active", "ended", "cancelled"]).default("active").notNull(),
+  bidIncrement: int("bidIncrement").default(50).notNull(),
   createdBy: int("createdBy").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

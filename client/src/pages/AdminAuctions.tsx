@@ -14,6 +14,9 @@ import { Plus, Pencil, Trash2, TrendingUp, Clock, LogOut, Upload, X, ImageIcon, 
 const MAX_IMAGES = 10;
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
+// 每口加幅預設選項（HK$）
+const BID_INCREMENT_OPTIONS = [30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
+
 function formatDate(date: Date) {
   return new Date(date).toLocaleString("zh-HK", {
     year: "numeric", month: "short", day: "numeric",
@@ -26,6 +29,7 @@ interface AuctionFormData {
   description: string;
   startingPrice: string;
   endTime: string;
+  bidIncrement: number;
 }
 
 interface UploadedImage {
@@ -49,6 +53,7 @@ const defaultForm: AuctionFormData = {
   description: "",
   startingPrice: "",
   endTime: "",
+  bidIncrement: 50,
 };
 
 // ─── Image Upload Zone Component ────────────────────────────────────────────
@@ -390,12 +395,17 @@ export default function AdminAuctions() {
       toast.error("請填寫所有必填欄位");
       return;
     }
+    if (form.bidIncrement < 30 || form.bidIncrement > 5000) {
+      toast.error("每口加幅必須介於 HK$30 至 HK$5000 之間");
+      return;
+    }
     if (editId) {
       updateAuction.mutate({
         id: editId,
         title: form.title,
         description: form.description,
         endTime: new Date(form.endTime),
+        bidIncrement: form.bidIncrement,
       });
     } else {
       createAuction.mutate({
@@ -403,6 +413,7 @@ export default function AdminAuctions() {
         description: form.description,
         startingPrice: parseFloat(form.startingPrice),
         endTime: new Date(form.endTime),
+        bidIncrement: form.bidIncrement,
       });
     }
   };
@@ -413,6 +424,7 @@ export default function AdminAuctions() {
     description: string | null;
     startingPrice: string | number;
     endTime: Date;
+    bidIncrement?: number;
     images: unknown;
   }) => {
     setEditId(auction.id);
@@ -422,6 +434,7 @@ export default function AdminAuctions() {
       description: auction.description ?? "",
       startingPrice: String(auction.startingPrice),
       endTime: new Date(auction.endTime).toISOString().slice(0, 16),
+      bidIncrement: auction.bidIncrement ?? 50,
     });
     setUploadedImages(
       (images ?? []).map((img) => ({
@@ -541,6 +554,46 @@ export default function AdminAuctions() {
                   </div>
                 </div>
 
+                {/* Bid Increment */}
+                <div>
+                  <Label htmlFor="bidIncrement">每口加幅（HK$）*</Label>
+                  <div className="mt-1 space-y-2">
+                    {/* Quick select buttons */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {BID_INCREMENT_OPTIONS.map((val) => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, bidIncrement: val }))}
+                          className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                            form.bidIncrement === val
+                              ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                              : "bg-white text-amber-700 border-amber-200 hover:border-amber-400 hover:bg-amber-50"
+                          }`}
+                        >
+                          HK${val}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Custom input */}
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="bidIncrement"
+                        type="number"
+                        min="30"
+                        max="5000"
+                        value={form.bidIncrement}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value) || 50;
+                          setForm((f) => ({ ...f, bidIncrement: val }));
+                        }}
+                        className="border-amber-200 focus-visible:ring-amber-400 w-32"
+                      />
+                      <span className="text-xs text-muted-foreground">自訂金額（HK$30 至 HK$5000）</span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Image Upload Zone */}
                 <ImageUploadZone
                   pendingImages={pendingImages}
@@ -613,6 +666,7 @@ export default function AdminAuctions() {
               currentPrice: string | number;
               endTime: Date;
               status: string;
+              bidIncrement?: number;
               images: unknown;
             }) => {
               const images = auction.images as Array<{ imageUrl: string }>;
@@ -652,6 +706,11 @@ export default function AdminAuctions() {
                             <Clock className="w-3 h-3" />
                             {formatDate(new Date(auction.endTime))}
                           </span>
+                          {auction.bidIncrement && (
+                            <span className="flex items-center gap-1 text-amber-600 font-medium">
+                              每口 HK${auction.bidIncrement}
+                            </span>
+                          )}
                           {images && images.length > 0 && (
                             <span className="flex items-center gap-1 text-amber-600">
                               <ImageIcon className="w-3 h-3" />

@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Clock, ChevronLeft, User, TrendingUp, History } from "lucide-react";
+import { Clock, ChevronLeft, User, TrendingUp, History, ArrowUpCircle } from "lucide-react";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -71,7 +71,17 @@ export default function AuctionDetail() {
     placeBid.mutate({ auctionId, bidAmount: amount });
   };
 
-  const minBid = auction ? Math.ceil(Number(auction.currentPrice) * 1.01) : 0;
+  // 使用 bidIncrement 計算最低出價金額
+  const bidIncrement = auction?.bidIncrement ?? 50;
+  const currentPrice = auction ? Number(auction.currentPrice) : 0;
+  const minBid = currentPrice + bidIncrement;
+
+  // 快速出價按鈕：最低出價、最低+1口、最低+2口
+  const quickBidOptions = auction ? [
+    { label: `HK$${minBid.toLocaleString()}`, value: minBid },
+    { label: `HK$${(minBid + bidIncrement).toLocaleString()}`, value: minBid + bidIncrement },
+    { label: `HK$${(minBid + bidIncrement * 2).toLocaleString()}`, value: minBid + bidIncrement * 2 },
+  ] : [];
 
   if (isLoading) {
     return (
@@ -190,7 +200,7 @@ export default function AuctionDetail() {
             {/* Price Card */}
             <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50">
               <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-3">
                   <div>
                     <div className="text-xs text-muted-foreground mb-1">當前最高出價</div>
                     <div className="text-3xl font-extrabold text-amber-600 price-tag">
@@ -200,11 +210,20 @@ export default function AuctionDetail() {
                       起拍價：HK${Number(auction.startingPrice).toLocaleString()}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-xs text-muted-foreground mb-1">出價次數</div>
-                    <div className="flex items-center gap-1 text-amber-700 font-bold">
-                      <TrendingUp className="w-4 h-4" />
-                      {bids.length}
+                  <div className="text-right space-y-1">
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-0.5">出價次數</div>
+                      <div className="flex items-center gap-1 text-amber-700 font-bold justify-end">
+                        <TrendingUp className="w-4 h-4" />
+                        {bids.length}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-0.5">每口加幅</div>
+                      <div className="flex items-center gap-1 text-amber-700 font-bold justify-end">
+                        <ArrowUpCircle className="w-4 h-4" />
+                        HK${bidIncrement}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -220,25 +239,48 @@ export default function AuctionDetail() {
                 {/* Bid Input */}
                 {isActive && (
                   isAuthenticated ? (
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">HK$</span>
-                        <Input
-                          type="number"
-                          placeholder={`最低 ${minBid}`}
-                          value={bidAmount}
-                          onChange={(e) => setBidAmount(e.target.value)}
-                          className="pl-10 border-amber-300 focus-visible:ring-amber-400"
-                          min={minBid}
-                        />
+                    <div className="space-y-2">
+                      {/* Quick bid buttons */}
+                      <div className="flex gap-2">
+                        {quickBidOptions.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setBidAmount(String(opt.value))}
+                            className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                              bidAmount === String(opt.value)
+                                ? "bg-amber-500 text-white border-amber-500"
+                                : "bg-white text-amber-700 border-amber-200 hover:border-amber-400 hover:bg-amber-50"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
                       </div>
-                      <Button
-                        onClick={handleBid}
-                        disabled={placeBid.isPending}
-                        className="gold-gradient text-white border-0 shadow-md hover:opacity-90 px-6"
-                      >
-                        {placeBid.isPending ? "出價中..." : "立即出價"}
-                      </Button>
+                      {/* Manual input + bid button */}
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">HK$</span>
+                          <Input
+                            type="number"
+                            placeholder={`最低 ${minBid}`}
+                            value={bidAmount}
+                            onChange={(e) => setBidAmount(e.target.value)}
+                            className="pl-10 border-amber-300 focus-visible:ring-amber-400"
+                            min={minBid}
+                          />
+                        </div>
+                        <Button
+                          onClick={handleBid}
+                          disabled={placeBid.isPending}
+                          className="gold-gradient text-white border-0 shadow-md hover:opacity-90 px-6"
+                        >
+                          {placeBid.isPending ? "出價中..." : "立即出價"}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center">
+                        最低出價：HK${minBid.toLocaleString()}（現價 + 每口加幅 HK${bidIncrement}）
+                      </p>
                     </div>
                   ) : (
                     <a href={getLoginUrl()}>

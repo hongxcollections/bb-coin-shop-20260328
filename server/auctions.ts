@@ -21,8 +21,11 @@ export async function validateBid(auctionId: number, bidAmount: number): Promise
   }
 
   const currentPrice = parseFloat(auction.currentPrice.toString());
-  if (bidAmount <= currentPrice) {
-    return { valid: false, error: `Bid amount must be greater than current price (${currentPrice})` };
+  const bidIncrement = auction.bidIncrement ?? 50;
+  const minBid = currentPrice + bidIncrement;
+
+  if (bidAmount < minBid) {
+    return { valid: false, error: `出價金額必須至少為 HK$${minBid}（現價 HK$${currentPrice} + 每口加幅 HK$${bidIncrement}）` };
   }
 
   return { valid: true };

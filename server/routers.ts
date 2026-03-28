@@ -62,6 +62,7 @@ export const appRouter = router({
         description: z.string(),
         startingPrice: z.number().min(0),
         endTime: z.date(),
+        bidIncrement: z.number().int().min(30).max(5000).default(50),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') {
@@ -76,6 +77,7 @@ export const appRouter = router({
           endTime: input.endTime,
           createdBy: ctx.user.id,
           status: 'active',
+          bidIncrement: input.bidIncrement,
         });
 
         return result;
@@ -148,6 +150,7 @@ export const appRouter = router({
         title: z.string().min(1).optional(),
         description: z.string().optional(),
         endTime: z.date().optional(),
+        bidIncrement: z.number().int().min(30).max(5000).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') {
@@ -163,6 +166,7 @@ export const appRouter = router({
         if (input.title !== undefined) updateData.title = input.title;
         if (input.description !== undefined) updateData.description = input.description;
         if (input.endTime !== undefined) updateData.endTime = input.endTime;
+        if (input.bidIncrement !== undefined) updateData.bidIncrement = input.bidIncrement;
 
         try {
           await updateAuction(input.id, updateData);
