@@ -108,8 +108,25 @@ export async function getAuctions(limit = 20, offset = 0) {
 
   try {
     const result = await db
-      .select()
+      .select({
+        id: auctions.id,
+        title: auctions.title,
+        description: auctions.description,
+        startingPrice: auctions.startingPrice,
+        currentPrice: auctions.currentPrice,
+        highestBidderId: auctions.highestBidderId,
+        highestBidderName: users.name,
+        endTime: auctions.endTime,
+        status: auctions.status,
+        fbPostUrl: auctions.fbPostUrl,
+        bidIncrement: auctions.bidIncrement,
+        currency: auctions.currency,
+        createdBy: auctions.createdBy,
+        createdAt: auctions.createdAt,
+        updatedAt: auctions.updatedAt,
+      })
       .from(auctions)
+      .leftJoin(users, eq(auctions.highestBidderId, users.id))
       .orderBy(desc(auctions.createdAt))
       .limit(limit)
       .offset(offset);
