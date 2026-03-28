@@ -337,25 +337,23 @@
 
 /* ── Bid Message Fade In / Fade Out ───────────────────── */
 @keyframes bid-msg-in {
-  0%   { opacity: 0; transform: translateY(-16px) scale(0.94); max-height: 0; }
+  0%   { opacity: 0; transform: translateY(-12px) scale(0.94); }
   60%  { opacity: 1; }
-  100% { opacity: 1; transform: translateY(0) scale(1); max-height: 120px; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes bid-msg-out {
-  0%   { opacity: 1; transform: translateY(0) scale(1); max-height: 120px; }
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
   40%  { opacity: 0; }
-  100% { opacity: 0; transform: translateY(-12px) scale(0.94); max-height: 0; margin-bottom: 0; padding: 0; }
+  100% { opacity: 0; transform: translateY(-8px) scale(0.94); }
 }
 
 .bid-msg-enter {
   animation: bid-msg-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  overflow: hidden;
 }
 
 .bid-msg-exit {
   animation: bid-msg-out 0.55s cubic-bezier(0.55, 0, 1, 0.45) forwards;
-  overflow: hidden;
   pointer-events: none;
 }
 

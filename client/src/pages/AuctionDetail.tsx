@@ -228,19 +228,19 @@ export default function AuctionDetail() {
                       起拍價：{currencySymbol}{Number(auction.startingPrice).toLocaleString()}
                     </div>
                   </div>
-                  <div className="text-right space-y-1">
-                    {/* Bid Message inline — above 出價次數 */}
+                  <div className="text-right space-y-1 relative">
+                    {/* Bid Message — floating pop-up above 出價次數 */}
                     {bidMessage && (
-                      <div className={`mb-2 rounded-lg text-xs font-medium border text-right overflow-hidden relative ${
+                      <div className={`absolute bottom-full right-0 mb-2 z-20 w-64 rounded-lg text-xs font-medium border shadow-lg overflow-hidden ${
                         bidMessage.type === "success"
                           ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                           : bidMessage.type === "info"
                           ? "bg-blue-50 border-blue-200 text-blue-700 bid-processing-card"
                           : "bg-red-50 border-red-200 text-red-700"
                       } ${bidMsgExiting ? "bid-msg-exit" : "bid-msg-enter"}`}>
-                        <div className="px-3 py-2">
+                        <div className="px-3 py-2 flex items-center justify-between">
                           {bidMessage.type === "info" ? (
-                            <span className="flex items-center justify-end gap-1.5">
+                            <span className="flex items-center gap-1.5">
                               <span className="bid-coin text-base" aria-hidden="true">🪙</span>
                               <span className="bid-shimmer-text">出價處理中</span>
                               <span className="flex items-center gap-0.5 ml-0.5">
@@ -250,11 +250,11 @@ export default function AuctionDetail() {
                               </span>
                             </span>
                           ) : (
-                            <span>{bidMessage.text}</span>
+                            <span className="flex-1">{bidMessage.text}</span>
                           )}
                           <button
                             onClick={dismissBidMessage}
-                            className="ml-2 opacity-50 hover:opacity-100 transition-opacity"
+                            className="ml-2 opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
                             aria-label="關閉"
                           >✕</button>
                         </div>
