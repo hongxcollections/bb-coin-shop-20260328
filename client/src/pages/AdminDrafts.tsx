@@ -294,7 +294,14 @@ export default function AdminDrafts() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <h3 className="font-semibold text-sm line-clamp-1">{draft.title}</h3>
-                        <Badge className="bg-blue-100 text-blue-700 shrink-0 text-[10px]">草稿</Badge>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {(draft as { relistSourceId?: number | null }).relistSourceId && (
+                            <Badge className="bg-orange-100 text-orange-700 text-[10px] flex items-center gap-0.5">
+                              🔄 重新拍賣
+                            </Badge>
+                          )}
+                          <Badge className="bg-blue-100 text-blue-700 text-[10px]">草稿</Badge>
+                        </div>
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-1 mb-2">{draft.description}</p>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">

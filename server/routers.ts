@@ -347,6 +347,7 @@ export const appRouter = router({
           bidIncrement: original.bidIncrement,
           currency: original.currency,
           createdBy: ctx.user.id,
+          relistSourceId: input.id, // track the original auction
         });
 
         // Copy images from original auction
