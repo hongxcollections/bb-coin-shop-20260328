@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Clock, ChevronLeft, User, TrendingUp, History, ArrowUpCircle } from "lucide-react";
+import { getCurrencySymbol } from "./AdminAuctions";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -72,15 +73,17 @@ export default function AuctionDetail() {
   };
 
   // 使用 bidIncrement 計算最低出價金額
-  const bidIncrement = auction?.bidIncrement ?? 50;
+  const bidIncrement = auction?.bidIncrement ?? 30;
+  const currency = (auction as { currency?: string })?.currency ?? 'HKD';
+  const currencySymbol = getCurrencySymbol(currency);
   const currentPrice = auction ? Number(auction.currentPrice) : 0;
   const minBid = currentPrice + bidIncrement;
 
   // 快速出價按鈕：最低出價、最低+1口、最低+2口
   const quickBidOptions = auction ? [
-    { label: `HK$${minBid.toLocaleString()}`, value: minBid },
-    { label: `HK$${(minBid + bidIncrement).toLocaleString()}`, value: minBid + bidIncrement },
-    { label: `HK$${(minBid + bidIncrement * 2).toLocaleString()}`, value: minBid + bidIncrement * 2 },
+    { label: `${currencySymbol}${minBid.toLocaleString()}`, value: minBid },
+    { label: `${currencySymbol}${(minBid + bidIncrement).toLocaleString()}`, value: minBid + bidIncrement },
+    { label: `${currencySymbol}${(minBid + bidIncrement * 2).toLocaleString()}`, value: minBid + bidIncrement * 2 },
   ] : [];
 
   if (isLoading) {
@@ -204,10 +207,11 @@ export default function AuctionDetail() {
                   <div>
                     <div className="text-xs text-muted-foreground mb-1">當前最高出價</div>
                     <div className="text-3xl font-extrabold text-amber-600 price-tag">
-                      HK${Number(auction.currentPrice).toLocaleString()}
+                      {currencySymbol}{Number(auction.currentPrice).toLocaleString()}
+                      <span className="text-base font-normal text-amber-500 ml-1">{currency}</span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      起拍價：HK${Number(auction.startingPrice).toLocaleString()}
+                      起拍價：{currencySymbol}{Number(auction.startingPrice).toLocaleString()}
                     </div>
                   </div>
                   <div className="text-right space-y-1">
@@ -222,7 +226,7 @@ export default function AuctionDetail() {
                       <div className="text-xs text-muted-foreground mb-0.5">每口加幅</div>
                       <div className="flex items-center gap-1 text-amber-700 font-bold justify-end">
                         <ArrowUpCircle className="w-4 h-4" />
-                        HK${bidIncrement}
+                        {currencySymbol}{bidIncrement}
                       </div>
                     </div>
                   </div>
@@ -260,7 +264,7 @@ export default function AuctionDetail() {
                       {/* Manual input + bid button */}
                       <div className="flex gap-2">
                         <div className="relative flex-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">HK$</span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">{currencySymbol}</span>
                           <Input
                             type="number"
                             placeholder={`最低 ${minBid}`}
@@ -279,7 +283,7 @@ export default function AuctionDetail() {
                         </Button>
                       </div>
                       <p className="text-xs text-muted-foreground text-center">
-                        最低出價：HK${minBid.toLocaleString()}（現價 + 每口加幅 HK${bidIncrement}）
+                        最低出價：{currencySymbol}{minBid.toLocaleString()}（現價 + 每口加幅 {currencySymbol}{bidIncrement}）
                       </p>
                     </div>
                   ) : (
@@ -320,7 +324,7 @@ export default function AuctionDetail() {
                             {i === 0 && <Badge className="bg-amber-500 text-white text-xs py-0">最高</Badge>}
                           </div>
                           <div className="font-bold text-amber-700 price-tag">
-                            HK${Number(bid.bidAmount).toLocaleString()}
+                            {currencySymbol}{Number(bid.bidAmount).toLocaleString()}
                           </div>
                         </div>
                       ))}

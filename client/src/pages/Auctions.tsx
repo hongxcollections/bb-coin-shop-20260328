@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Clock, Search, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { getCurrencySymbol } from "./AdminAuctions";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -153,7 +154,8 @@ export default function Auctions() {
                       <div>
                         <div className="text-xs text-muted-foreground">當前出價</div>
                         <div className="text-base font-bold text-amber-600 price-tag">
-                          HK${Number(auction.currentPrice).toLocaleString()}
+                          {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
+                          <span className="text-xs font-normal text-amber-500 ml-0.5">{(auction as { currency?: string }).currency ?? 'HKD'}</span>
                         </div>
                       </div>
                       {auction.status === "active" && (

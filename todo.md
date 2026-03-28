@@ -40,3 +40,8 @@
 - [x] Server 端出價驗證：出價金額必須 >= 當前價 + 每口加幅
 - [x] AuctionDetail 頁面顯示每口加幅資訊，新增快速出價按鈕（最低、+1口、+2口）
 - [x] 管理後台每口加幅改為下拉菜單（Select）形式，標籤與選擇器同行（左標籤右菜單）
+- [x] 每口加幅預設値改為 HK$30（前端 defaultForm + 資料庫預設値）
+- [x] 資料庫 auctions 表新增 currency 欄位（預設 HKD）
+- [x] Server 端 create/update procedure 支援 currency 欄位
+- [x] 管理後台新增貨幣選擇下拉菜單（HKD/USD/CNY/GBP/EUR/JPY）
+- [x] 拍賣詳情頁及列表頁依 currency 顯示對應貨幣符號

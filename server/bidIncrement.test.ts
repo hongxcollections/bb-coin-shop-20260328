@@ -109,11 +109,11 @@ describe("bidIncrement feature", () => {
         description: "Test",
         startingPrice: 100,
         endTime: new Date(Date.now() + 86400000),
-        // bidIncrement defaults to 50
+        // bidIncrement defaults to 30
       });
 
       expect(dbModule.createAuction).toHaveBeenCalledWith(
-        expect.objectContaining({ bidIncrement: 50 })
+        expect.objectContaining({ bidIncrement: 30 })
       );
       expect(result).toEqual(mockAuction);
     });

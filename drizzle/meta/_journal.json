@@ -8,6 +8,13 @@
       "when": 1774686476921,
       "tag": "0000_rich_boomerang",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1774701431087,
+      "tag": "0001_abandoned_professor_monster",
+      "breakpoints": true
     }
   ]
 }

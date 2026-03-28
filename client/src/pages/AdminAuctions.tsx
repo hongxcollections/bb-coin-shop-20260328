@@ -18,6 +18,20 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 // 每口加幅預設選項（HK$）
 const BID_INCREMENT_OPTIONS = [30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
 
+// 貨幣選項
+const CURRENCY_OPTIONS = [
+  { value: 'HKD', label: '🇭🇰 港幣 HKD', symbol: 'HK$' },
+  { value: 'USD', label: '🇺🇸 美元 USD', symbol: 'US$' },
+  { value: 'CNY', label: '🇨🇳 人民幣 CNY', symbol: '¥' },
+  { value: 'GBP', label: '🇬🇧 英鎊 GBP', symbol: '£' },
+  { value: 'EUR', label: '🇪🇺 歐元 EUR', symbol: '€' },
+  { value: 'JPY', label: '🇯🇵 日圓 JPY', symbol: '¥' },
+];
+
+export function getCurrencySymbol(currency: string): string {
+  return CURRENCY_OPTIONS.find(c => c.value === currency)?.symbol ?? currency + '$';
+}
+
 function formatDate(date: Date) {
   return new Date(date).toLocaleString("zh-HK", {
     year: "numeric", month: "short", day: "numeric",
@@ -31,6 +45,7 @@ interface AuctionFormData {
   startingPrice: string;
   endTime: string;
   bidIncrement: number;
+  currency: string;
 }
 
 interface UploadedImage {
@@ -54,7 +69,8 @@ const defaultForm: AuctionFormData = {
   description: "",
   startingPrice: "",
   endTime: "",
-  bidIncrement: 50,
+  bidIncrement: 30,
+  currency: "HKD",
 };
 
 // ─── Image Upload Zone Component ────────────────────────────────────────────
@@ -407,6 +423,7 @@ export default function AdminAuctions() {
         description: form.description,
         endTime: new Date(form.endTime),
         bidIncrement: form.bidIncrement,
+        currency: form.currency as 'HKD' | 'USD' | 'CNY' | 'GBP' | 'EUR' | 'JPY',
       });
     } else {
       createAuction.mutate({
@@ -415,6 +432,7 @@ export default function AdminAuctions() {
         startingPrice: parseFloat(form.startingPrice),
         endTime: new Date(form.endTime),
         bidIncrement: form.bidIncrement,
+        currency: form.currency as 'HKD' | 'USD' | 'CNY' | 'GBP' | 'EUR' | 'JPY',
       });
     }
   };
@@ -435,7 +453,8 @@ export default function AdminAuctions() {
       description: auction.description ?? "",
       startingPrice: String(auction.startingPrice),
       endTime: new Date(auction.endTime).toISOString().slice(0, 16),
-      bidIncrement: auction.bidIncrement ?? 50,
+      bidIncrement: auction.bidIncrement ?? 30,
+      currency: (auction as { currency?: string }).currency ?? "HKD",
     });
     setUploadedImages(
       (images ?? []).map((img) => ({
@@ -555,9 +574,29 @@ export default function AdminAuctions() {
                   </div>
                 </div>
 
+                {/* Currency */}
+                <div className="flex items-center justify-between gap-4">
+                  <Label htmlFor="currency" className="shrink-0 font-medium">貨幣</Label>
+                  <Select
+                    value={form.currency}
+                    onValueChange={(val) => setForm((f) => ({ ...f, currency: val }))}
+                  >
+                    <SelectTrigger id="currency" className="w-44 border-amber-200 focus:ring-amber-400">
+                      <SelectValue placeholder="選擇貨幣" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Bid Increment */}
                 <div className="flex items-center justify-between gap-4">
-                  <Label htmlFor="bidIncrement" className="shrink-0 font-medium">每口加幅（HK$）</Label>
+                  <Label htmlFor="bidIncrement" className="shrink-0 font-medium">每口加幅</Label>
                   <Select
                     value={String(form.bidIncrement)}
                     onValueChange={(val) => setForm((f) => ({ ...f, bidIncrement: parseInt(val) }))}
@@ -568,7 +607,7 @@ export default function AdminAuctions() {
                     <SelectContent>
                       {BID_INCREMENT_OPTIONS.map((val) => (
                         <SelectItem key={val} value={String(val)}>
-                          HK${val.toLocaleString()}
+                          {getCurrencySymbol(form.currency)}{val.toLocaleString()}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -680,7 +719,8 @@ export default function AdminAuctions() {
                         <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                           <span className="flex items-center gap-1">
                             <TrendingUp className="w-3 h-3" />
-                            HK${Number(auction.currentPrice).toLocaleString()}
+                            {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
+                            <span className="text-muted-foreground">{(auction as { currency?: string }).currency ?? 'HKD'}</span>
                             {gain > 0 && <span className="text-emerald-600 font-medium ml-1">+{gainPct}%</span>}
                           </span>
                           <span className="flex items-center gap-1">
@@ -689,7 +729,7 @@ export default function AdminAuctions() {
                           </span>
                           {auction.bidIncrement && (
                             <span className="flex items-center gap-1 text-amber-600 font-medium">
-                              每口 HK${auction.bidIncrement}
+                              每口 {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{auction.bidIncrement}
                             </span>
                           )}
                           {images && images.length > 0 && (
