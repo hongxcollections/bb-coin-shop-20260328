@@ -226,7 +226,7 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto">
             {features.map((f) => (
-              <Card key={f.title} className="flex items-start gap-3 p-4 border border-amber-100 hover:border-amber-300 hover:shadow-md transition-all">
+              <Card key={f.title} className="flex items-start gap-3 p-4 border border-amber-100 hover:border-amber-300 hover:shadow-xl hover:scale-[1.04] transition-all duration-200 cursor-default">
                 <div className="w-9 h-9 gold-gradient rounded-lg flex items-center justify-center shrink-0">
                   <f.icon className="w-4 h-4 text-white" />
                 </div>
