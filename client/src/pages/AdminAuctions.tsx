@@ -549,17 +549,34 @@ export default function AdminAuctions() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="price">起拍價（HK$）*</Label>
-                    <Input
-                      id="price"
-                      type="number"
-                      min="0"
-                      value={form.startingPrice}
-                      onChange={(e) => setForm((f) => ({ ...f, startingPrice: e.target.value }))}
-                      placeholder="100"
-                      className="mt-1 border-amber-200 focus-visible:ring-amber-400"
-                      disabled={!!editId}
-                    />
+                    <Label htmlFor="price">起拍價 *</Label>
+                    <div className="flex items-center gap-1 mt-1">
+                      <Input
+                        id="price"
+                        type="number"
+                        min="0"
+                        value={form.startingPrice}
+                        onChange={(e) => setForm((f) => ({ ...f, startingPrice: e.target.value }))}
+                        placeholder="100"
+                        className="border-amber-200 focus-visible:ring-amber-400"
+                        disabled={!!editId}
+                      />
+                      <Select
+                        value={form.currency}
+                        onValueChange={(val) => setForm((f) => ({ ...f, currency: val }))}
+                      >
+                        <SelectTrigger id="currency" className="w-24 h-9 text-xs border-amber-200 focus:ring-amber-400 px-2 shrink-0">
+                          <SelectValue placeholder="貨幣" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CURRENCY_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     {editId && <p className="text-xs text-muted-foreground mt-1">編輯時不可修改起拍價</p>}
                   </div>
                   <div>
@@ -572,26 +589,6 @@ export default function AdminAuctions() {
                       className="mt-1 border-amber-200 focus-visible:ring-amber-400"
                     />
                   </div>
-                </div>
-
-                {/* Currency */}
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="currency" className="shrink-0 font-medium text-xs">貨幣</Label>
-                  <Select
-                    value={form.currency}
-                    onValueChange={(val) => setForm((f) => ({ ...f, currency: val }))}
-                  >
-                    <SelectTrigger id="currency" className="w-36 h-7 text-xs border-amber-200 focus:ring-amber-400 px-2">
-                      <SelectValue placeholder="選擇貨幣" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CURRENCY_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
 
                 {/* Bid Increment */}
