@@ -57,3 +57,7 @@
 - [x] 管理後台新增「草稿審核」頁面（待審核列表、一鍵上架/刪除）
 - [x] 新增 Webhook 設定說明頁面（引導配置 Groups Watcher）
 - [x] 新增 WEBHOOK_SECRET 環境變數驗證保護
+- [x] 草稿審核頁面批次操作：全選/取消全選 Checkbox
+- [x] 草稿審核頁面批次操作：批次上架（統一設定結束時間）
+- [x] 草稿審核頁面批次操作：批次刪除（含確認對話框）
+- [x] Server 端新增 auctions.batchPublish 及 auctions.batchDelete procedures

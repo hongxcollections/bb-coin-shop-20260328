@@ -281,6 +281,51 @@ export const appRouter = router({
         await updateAuction(input.id, updateData);
         return { success: true };
       }),
+
+    batchPublish: protectedProcedure
+      .input(z.object({
+        ids: z.array(z.number()).min(1).max(100),
+        endTime: z.date(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can batch publish drafts' });
+        }
+        if (input.endTime <= new Date()) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '結束時間必須為未來時間' });
+        }
+        const results = await Promise.allSettled(
+          input.ids.map(async (id) => {
+            const auction = await getAuctionById(id);
+            if (!auction || auction.status !== 'draft') return { id, skipped: true };
+            await updateAuction(id, { status: 'active', endTime: input.endTime });
+            return { id, success: true };
+          })
+        );
+        const succeeded = results.filter(r => r.status === 'fulfilled' && (r.value as { success?: boolean }).success).length;
+        const skipped = results.filter(r => r.status === 'fulfilled' && (r.value as { skipped?: boolean }).skipped).length;
+        return { succeeded, skipped, total: input.ids.length };
+      }),
+
+    batchDelete: protectedProcedure
+      .input(z.object({
+        ids: z.array(z.number()).min(1).max(100),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can batch delete drafts' });
+        }
+        const results = await Promise.allSettled(
+          input.ids.map(async (id) => {
+            const auction = await getAuctionById(id);
+            if (!auction || auction.status !== 'draft') return { id, skipped: true };
+            await deleteAuction(id);
+            return { id, success: true };
+          })
+        );
+        const succeeded = results.filter(r => r.status === 'fulfilled' && (r.value as { success?: boolean }).success).length;
+        return { succeeded, total: input.ids.length };
+      }),
   }),
 });
 
