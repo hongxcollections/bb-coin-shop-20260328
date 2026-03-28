@@ -49,28 +49,37 @@ export default function AuctionDetail() {
   const [bidAmount, setBidAmount] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [bidMessage, setBidMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
+  const [bidMsgExiting, setBidMsgExiting] = useState(false);
+
+  const dismissBidMessage = () => {
+    setBidMsgExiting(true);
+    setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400);
+  };
 
   const { data: auction, isLoading, refetch } = trpc.auctions.detail.useQuery({ id: auctionId });
   const [selectedImage, setSelectedImage] = useState(0);
 
   const placeBid = trpc.auctions.placeBid.useMutation({
     onSuccess: () => {
+      setBidMsgExiting(false);
       setBidMessage({ type: "success", text: "✅ 出價成功！您目前是最高出價者" });
       setBidAmount("");
       refetch();
-      setTimeout(() => setBidMessage(null), 6000);
+      setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 5600);
     },
     onError: (err) => {
+      setBidMsgExiting(false);
       setBidMessage({ type: "error", text: `❌ ${err.message || "出價失敗，請重試"}` });
-      setTimeout(() => setBidMessage(null), 6000);
+      setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 5600);
     },
   });
 
   const handleBid = () => {
     const amount = parseFloat(bidAmount);
     if (isNaN(amount) || amount <= 0) {
+      setBidMsgExiting(false);
       setBidMessage({ type: "error", text: "❌ 請輸入有效的出價金額" });
-      setTimeout(() => setBidMessage(null), 6000);
+      setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 5600);
       return;
     }
     setBidMessage({ type: "info", text: "⏳ 出價處理中，請稍候..." });
@@ -228,7 +237,7 @@ export default function AuctionDetail() {
                           : bidMessage.type === "info"
                           ? "bg-blue-50 border-blue-200 text-blue-700 bid-processing-card"
                           : "bg-red-50 border-red-200 text-red-700"
-                      }`}>
+                      } ${bidMsgExiting ? "bid-msg-exit" : "bid-msg-enter"}`}>
                         {bidMessage.type === "info" ? (
                           <span className="flex items-center justify-end gap-1.5">
                             <span className="bid-coin text-base" aria-hidden="true">🪙</span>
@@ -243,7 +252,7 @@ export default function AuctionDetail() {
                           <span>{bidMessage.text}</span>
                         )}
                         <button
-                          onClick={() => setBidMessage(null)}
+                          onClick={dismissBidMessage}
                           className="ml-2 opacity-50 hover:opacity-100 transition-opacity"
                           aria-label="關閉"
                         >✕</button>

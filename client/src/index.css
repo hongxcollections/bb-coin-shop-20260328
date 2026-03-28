@@ -334,3 +334,22 @@
   animation: shimmer-sweep 1.6s linear infinite;
   font-weight: 600;
 }
+
+/* ── Bid Message Fade In / Fade Out ───────────────────── */
+@keyframes bid-msg-in {
+  0%   { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+@keyframes bid-msg-out {
+  0%   { opacity: 1; transform: translateY(0)   scale(1); }
+  100% { opacity: 0; transform: translateY(-4px) scale(0.97); }
+}
+
+.bid-msg-enter {
+  animation: bid-msg-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.bid-msg-exit {
+  animation: bid-msg-out 0.4s ease-in forwards;
+}
