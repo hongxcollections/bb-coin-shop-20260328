@@ -138,6 +138,21 @@ export default function WebhookSetup() {
           </div>
         </div>
 
+        {/* Webhook URL highlight box */}
+        <div className="bg-white border-2 border-blue-300 rounded-2xl p-5 mb-8 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center shrink-0">
+              <Webhook className="w-3.5 h-3.5 text-white" />
+            </div>
+            <p className="font-semibold text-sm text-blue-800">您的 Webhook URL（填入 Groups Watcher）</p>
+          </div>
+          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl p-3">
+            <code className="text-sm flex-1 break-all text-gray-800 font-mono select-all">{WEBHOOK_URL}</code>
+            <CopyButton text={WEBHOOK_URL} />
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">此 URL 是您的專屬接收端點，請勿公開分享。</p>
+        </div>
+
         {/* Steps */}
         <div className="space-y-4">
           {steps.map((step) => (

@@ -61,3 +61,4 @@
 - [x] 草稿審核頁面批次操作：批次上架（統一設定結束時間）
 - [x] 草稿審核頁面批次操作：批次刪除（含確認對話框）
 - [x] Server 端新增 auctions.batchPublish 及 auctions.batchDelete procedures
+- [x] 設定說明頁面直接顯示完整 Webhook URL 並提供一鍵複製按鈕
