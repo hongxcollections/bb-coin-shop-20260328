@@ -218,20 +218,22 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="py-16 hero-bg">
+      <section className="py-8 hero-bg">
         <div className="container">
-          <div className="text-center mb-10">
+          <div className="text-center mb-6">
             <h2 className="text-2xl md:text-3xl font-bold">為什麼選擇我們？</h2>
-            <p className="text-muted-foreground mt-2">專業、安全、透明的錢幣拍賣體驗</p>
+            <p className="text-muted-foreground mt-1 text-sm">專業、安全、透明的錢幣拍賣體驗</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto">
             {features.map((f) => (
-              <Card key={f.title} className="text-center p-6 border border-amber-100 hover:border-amber-300 hover:shadow-md transition-all">
-                <div className="w-12 h-12 gold-gradient rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <f.icon className="w-6 h-6 text-white" />
+              <Card key={f.title} className="flex items-start gap-3 p-4 border border-amber-100 hover:border-amber-300 hover:shadow-md transition-all">
+                <div className="w-9 h-9 gold-gradient rounded-lg flex items-center justify-center shrink-0">
+                  <f.icon className="w-4 h-4 text-white" />
                 </div>
-                <h3 className="font-bold mb-2">{f.title}</h3>
-                <p className="text-sm text-muted-foreground">{f.desc}</p>
+                <div>
+                  <h3 className="font-bold text-sm mb-0.5">{f.title}</h3>
+                  <p className="text-xs text-muted-foreground leading-snug">{f.desc}</p>
+                </div>
               </Card>
             ))}
           </div>
