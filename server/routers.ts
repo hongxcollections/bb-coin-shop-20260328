@@ -60,7 +60,7 @@ export const appRouter = router({
       .input(z.object({
         title: z.string().min(1),
         description: z.string(),
-        startingPrice: z.number().positive(),
+        startingPrice: z.number().min(0),
         endTime: z.date(),
       }))
       .mutation(async ({ input, ctx }) => {

@@ -520,7 +520,7 @@ export default function AdminAuctions() {
                     <Input
                       id="price"
                       type="number"
-                      min="1"
+                      min="0"
                       value={form.startingPrice}
                       onChange={(e) => setForm((f) => ({ ...f, startingPrice: e.target.value }))}
                       placeholder="100"
