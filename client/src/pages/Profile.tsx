@@ -159,7 +159,20 @@ export default function Profile() {
     );
   }
 
-  const totalBidAmount = (myBids ?? []).reduce((sum: number, bid: { bidAmount: string | number }) => sum + Number(bid.bidAmount), 0);
+  // myBids is now grouped: each item is one auction with multiple bids
+  type BidGroup = {
+    auctionId: number;
+    auctionTitle: string | null;
+    auctionStatus: string | null;
+    auctionEndTime: number | null;
+    auctionCurrency: string | null;
+    latestBid: number;
+    latestBidAt: Date | null;
+    totalBids: number;
+    bids: Array<{ id: number; bidAmount: number; createdAt: Date | null }>;
+  };
+  const bidGroups: BidGroup[] = (myBids ?? []) as BidGroup[];
+  const totalBidAmount = bidGroups.reduce((sum, g) => sum + g.latestBid, 0);
   const initials = (user?.name ?? "U").slice(0, 2).toUpperCase();
 
   return (
@@ -319,12 +332,15 @@ export default function Profile() {
           ))}
         </div>
 
-        {/* Bid History */}
+        {/* Bid History - grouped by auction */}
         <Card className="border-amber-100">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Clock className="w-4 h-4 text-amber-600" />
               我的出價記錄
+              {bidGroups.length > 0 && (
+                <span className="ml-auto text-xs font-normal text-muted-foreground">{bidGroups.length} 件商品</span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -334,44 +350,90 @@ export default function Profile() {
                   <div key={i} className="h-14 bg-amber-50 rounded-lg animate-pulse" />
                 ))}
               </div>
-            ) : myBids && myBids.length > 0 ? (
+            ) : bidGroups.length > 0 ? (
               <div className="space-y-2">
-                {myBids.map((bid: { id: number; auctionId: number; bidAmount: string | number; createdAt: Date; auctionTitle?: string | null }) => {
-                  const rawTitle = bid.auctionTitle ?? '';
+                {bidGroups.map((group) => {
+                  const rawTitle = group.auctionTitle ?? '';
                   const displayTitle = rawTitle.length > 20 ? rawTitle.slice(0, 20) + '..' : rawTitle;
-                  const isExpanded = expandedBidId === bid.id;
+                  const isExpanded = expandedBidId === group.auctionId;
+                  const statusLabel = group.auctionStatus === 'active' ? '進行中' : group.auctionStatus === 'ended' ? '已結束' : group.auctionStatus === 'draft' ? '草稿' : '';
+                  const statusColor = group.auctionStatus === 'active' ? 'bg-green-100 text-green-700' : group.auctionStatus === 'ended' ? 'bg-gray-100 text-gray-500' : 'bg-amber-100 text-amber-600';
                   return (
-                  <div key={bid.id} className="rounded-lg border border-amber-100 overflow-hidden">
-                    {/* Main row */}
-                    <div className="flex items-center justify-between py-3 px-4 bg-white hover:bg-amber-50/50 transition-colors">
-                      <Link href={`/auctions/${bid.auctionId}`} className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="w-8 h-8 coin-placeholder rounded-lg flex items-center justify-center text-sm shrink-0">🪙</div>
-                        <div className="min-w-0">
-                          <div className="text-[0.667rem] font-medium leading-snug truncate">拍賣 {displayTitle}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(bid.createdAt).toLocaleString("zh-HK")}
+                    <div key={group.auctionId} className="rounded-lg border border-amber-100 overflow-hidden">
+                      {/* Accordion header */}
+                      <div className="flex items-center justify-between py-3 px-4 bg-white hover:bg-amber-50/50 transition-colors">
+                        <Link href={`/auctions/${group.auctionId}`} className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-8 h-8 coin-placeholder rounded-lg flex items-center justify-center text-sm shrink-0">🪙</div>
+                          <div className="min-w-0">
+                            <div className="text-[0.667rem] font-medium leading-snug truncate">拍賣 {displayTitle}</div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {statusLabel && (
+                                <span className={`text-[0.55rem] px-1 py-0.5 rounded font-medium ${statusColor}`}>{statusLabel}</span>
+                              )}
+                              <span className="text-[0.6rem] text-muted-foreground">{group.totalBids} 口出價</span>
+                              {group.latestBidAt && (
+                                <span className="text-[0.6rem] text-muted-foreground">· {new Date(group.latestBidAt).toLocaleString('zh-HK')}</span>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="font-bold text-amber-700 price-tag text-sm">
+                            HK${group.latestBid.toLocaleString()}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedBidId(isExpanded ? null : group.auctionId)}
+                            className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-1 transition-colors bg-amber-50 hover:bg-amber-100"
+                          >
+                            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            詳情
+                          </button>
+                        </div>
+                      </div>
+                      {/* Expanded: all bids for this auction */}
+                      {isExpanded && (
+                        <div>
+                          {/* My bids for this auction */}
+                          <div className="bg-amber-50/60 border-t border-amber-100">
+                            <div className="px-4 py-2 flex items-center justify-between">
+                              <span className="text-xs font-medium text-amber-800">我的出價（共 {group.totalBids} 口）</span>
+                              <span className="text-xs text-muted-foreground">最新在上</span>
+                            </div>
+                            <div className="divide-y divide-amber-100">
+                              {group.bids.map((b, idx) => (
+                                <div key={b.id} className={`flex items-center justify-between px-4 py-2 ${idx === 0 ? 'bg-amber-100/60' : 'bg-white/60'}`}>
+                                  <div className="flex items-center gap-2">
+                                    {idx === 0 && <span className="text-[0.6rem] bg-amber-500 text-white px-1.5 py-0.5 rounded font-bold">最高</span>}
+                                    <span className="text-xs text-muted-foreground">第 {group.totalBids - idx} 口</span>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xs font-bold text-amber-700">HK${b.bidAmount.toLocaleString()}</span>
+                                    <span className="text-[0.6rem] text-muted-foreground">{b.createdAt ? new Date(b.createdAt).toLocaleString('zh-HK') : ''}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          {/* Full auction bid history (all bidders) */}
+                          <div className="border-t border-amber-200">
+                            <div className="px-4 pt-2 pb-1">
+                              <span className="text-xs font-semibold text-amber-900">📊 完整競標過程</span>
+                            </div>
+                            <BidHistoryPanel auctionId={group.auctionId} />
+                          </div>
+                          <div className="px-4 pb-2 pt-1 bg-amber-50/60">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedBidId(null)}
+                              className="text-[0.65rem] text-amber-600 hover:underline"
+                            >
+                              收起
+                            </button>
                           </div>
                         </div>
-                      </Link>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <div className="font-bold text-amber-700 price-tag text-sm">
-                          HK${Number(bid.bidAmount).toLocaleString()}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setExpandedBidId(isExpanded ? null : bid.id)}
-                          className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-1 transition-colors bg-amber-50 hover:bg-amber-100"
-                        >
-                          {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                          詳情
-                        </button>
-                      </div>
+                      )}
                     </div>
-                    {/* Expanded bid history */}
-                    {isExpanded && (
-                      <BidHistoryPanel auctionId={bid.auctionId} />
-                    )}
-                  </div>
                   );
                 })}
               </div>

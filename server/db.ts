@@ -242,6 +242,71 @@ export async function getUserBids(userId: number) {
   }
 }
 
+export async function getUserBidsGrouped(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    // Get all bids with auction info, ordered newest first
+    const rows = await db
+      .select({
+        id: bids.id,
+        auctionId: bids.auctionId,
+        bidAmount: bids.bidAmount,
+        createdAt: bids.createdAt,
+        auctionTitle: auctions.title,
+        auctionStatus: auctions.status,
+        auctionEndTime: auctions.endTime,
+        auctionCurrency: auctions.currency,
+      })
+      .from(bids)
+      .leftJoin(auctions, eq(bids.auctionId, auctions.id))
+      .where(eq(bids.userId, userId))
+      .orderBy(desc(bids.createdAt));
+
+    // Group by auctionId, preserving insertion order (newest bid first per group)
+    const groupMap = new Map<number, {
+      auctionId: number;
+      auctionTitle: string | null;
+      auctionStatus: string | null;
+      auctionEndTime: number | null;
+      auctionCurrency: string | null;
+      latestBid: number;
+      latestBidAt: Date | null;
+      totalBids: number;
+      bids: Array<{ id: number; bidAmount: number; createdAt: Date | null }>;
+    }>();
+
+    for (const row of rows) {
+      const key = row.auctionId ?? 0;
+      if (!groupMap.has(key)) {
+        groupMap.set(key, {
+          auctionId: key,
+          auctionTitle: row.auctionTitle ?? null,
+          auctionStatus: row.auctionStatus ?? null,
+          auctionEndTime: row.auctionEndTime ?? null,
+          auctionCurrency: row.auctionCurrency ?? null,
+          latestBid: row.bidAmount ?? 0,
+          latestBidAt: row.createdAt ?? null,
+          totalBids: 0,
+          bids: [],
+        });
+      }
+      const group = groupMap.get(key)!;
+      group.totalBids++;
+      group.bids.push({ id: row.id, bidAmount: row.bidAmount ?? 0, createdAt: row.createdAt ?? null });
+    }
+
+    // Return as array sorted by latestBidAt descending
+    return Array.from(groupMap.values()).sort(
+      (a, b) => (b.latestBidAt?.getTime() ?? 0) - (a.latestBidAt?.getTime() ?? 0)
+    );
+  } catch (error) {
+    console.error('[Database] Failed to get grouped user bids:', error);
+    return [];
+  }
+}
+
 export async function createAuction(data: InsertAuction) {
   const db = await getDb();
   if (!db) throw new Error('Database not available');

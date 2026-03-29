@@ -213,3 +213,9 @@
 - [x] 前端建立 UserProfile.tsx 公開用戶頁面（/users/:userId）
 - [x] 前端 App.tsx 新增 /users/:userId 路由
 - [x] BidHistoryPanel 出價者名稱改為連結，指向 /users/:userId
+
+## 出價紀錄按商品分組
+
+- [x] 後端更新 getUserBids：回傳按 auctionId 分組的出價資料（每組含商品標題、所有出價列表、最新出價金額）
+- [x] 前端 Profile.tsx 改寫出價紀錄：同一商品合併為一個 Accordion，標題顯示商品名稱及最新出價，展開後列出該商品所有出價記錄
+- [x] 前端：在分組 Accordion 展開區保留「完整競標過程」入口（使用 BidHistoryPanel），可查看全體出價者記錄
