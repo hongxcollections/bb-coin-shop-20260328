@@ -144,3 +144,15 @@
 - [x] 後端：無出價記錄時，允許以起拍價出價（最低出價 = startingPrice，而非 currentPrice + bidIncrement）
 - [x] 前端：快速出價按鈕「最低出價」金額對應修正（無出價時顯示起拍價）
 - [x] 更新 vitest 測試覆蓋第一口出價邏輯
+
+## 代理出價功能
+
+- [x] 資料庫新增 proxyBids 表（userId, auctionId, maxAmount, isActive）
+- [x] 執行 CREATE TABLE migration SQL
+- [x] 後端 db.ts 新增 setProxyBid / getProxyBid / getActiveProxiesForAuction 查詢函數
+- [x] 後端 auctions.ts 新增 runProxyBidEngine：placeBid 後觸發，讓最高代理者自動加價
+- [x] 後端新增 auctions.setProxyBid procedure（設定/更新代理出價上限）
+- [x] 後端新增 auctions.getMyProxyBid procedure（取得目前用戶的代理設定）
+- [x] 前端 AuctionDetail.tsx 加入代理出價切換（一般出價 / 代理出價）
+- [x] 前端顯示目前已設定的代理上限（已設定時顯示「代理中：上限 HK$X」）
+- [x] 新增 vitest 測試覆蓋代理出價引擎邏輯

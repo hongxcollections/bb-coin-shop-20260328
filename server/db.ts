@@ -1,7 +1,7 @@
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -429,5 +429,85 @@ export async function getDraftAuctions() {
   } catch (error) {
     console.error('[Database] Failed to get draft auctions:', error);
     return [];
+  }
+}
+
+// ── Proxy Bids ──────────────────────────────────────────────────────────────
+
+/**
+ * Set or update a user's proxy bid for an auction.
+ * Uses INSERT ... ON DUPLICATE KEY UPDATE to upsert.
+ */
+export async function setProxyBid(auctionId: number, userId: number, maxAmount: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    await db
+      .insert(proxyBids)
+      .values({ auctionId, userId, maxAmount: maxAmount.toString(), isActive: 1 })
+      .onDuplicateKeyUpdate({ set: { maxAmount: maxAmount.toString(), isActive: 1, updatedAt: new Date() } });
+    return { success: true };
+  } catch (error) {
+    console.error("[Database] Failed to set proxy bid:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get a user's active proxy bid for a specific auction.
+ */
+export async function getProxyBid(auctionId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    const result = await db
+      .select()
+      .from(proxyBids)
+      .where(and(eq(proxyBids.auctionId, auctionId), eq(proxyBids.userId, userId), eq(proxyBids.isActive, 1)))
+      .limit(1);
+    return result[0] ?? null;
+  } catch (error) {
+    console.error("[Database] Failed to get proxy bid:", error);
+    return null;
+  }
+}
+
+/**
+ * Get all active proxy bids for an auction, ordered by maxAmount descending.
+ * Excludes the current highest bidder to find competing proxies.
+ */
+export async function getActiveProxiesForAuction(auctionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    const result = await db
+      .select()
+      .from(proxyBids)
+      .where(and(eq(proxyBids.auctionId, auctionId), eq(proxyBids.isActive, 1)))
+      .orderBy(desc(proxyBids.maxAmount));
+    return result;
+  } catch (error) {
+    console.error("[Database] Failed to get active proxies:", error);
+    return [];
+  }
+}
+
+/**
+ * Deactivate a user's proxy bid (e.g. when auction ends or user cancels).
+ */
+export async function deactivateProxyBid(auctionId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  try {
+    await db
+      .update(proxyBids)
+      .set({ isActive: 0 })
+      .where(and(eq(proxyBids.auctionId, auctionId), eq(proxyBids.userId, userId)));
+  } catch (error) {
+    console.error("[Database] Failed to deactivate proxy bid:", error);
   }
 }

@@ -75,6 +75,22 @@ export type Bid = typeof bids.$inferSelect;
 export type InsertBid = typeof bids.$inferInsert;
 
 /**
+ * Proxy bids table - stores each user's maximum proxy bid per auction
+ */
+export const proxyBids = mysqlTable("proxyBids", {
+  id: int("id").autoincrement().primaryKey(),
+  auctionId: int("auctionId").notNull(),
+  userId: int("userId").notNull(),
+  maxAmount: decimal("maxAmount", { precision: 10, scale: 2 }).notNull(),
+  isActive: int("isActive").default(1).notNull(), // 1 = active, 0 = cancelled/expired
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ProxyBid = typeof proxyBids.$inferSelect;
+export type InsertProxyBid = typeof proxyBids.$inferInsert;
+
+/**
  * Relations
  */
 export const usersRelations = relations(users, ({ many }) => ({
@@ -109,6 +125,17 @@ export const bidsRelations = relations(bids, ({ one }) => ({
   }),
   user: one(users, {
     fields: [bids.userId],
+    references: [users.id],
+  }),
+}));
+
+export const proxyBidsRelations = relations(proxyBids, ({ one }) => ({
+  auction: one(auctions, {
+    fields: [proxyBids.auctionId],
+    references: [auctions.id],
+  }),
+  user: one(users, {
+    fields: [proxyBids.userId],
     references: [users.id],
   }),
 }));

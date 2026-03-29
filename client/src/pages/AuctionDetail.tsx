@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Clock, ChevronLeft, User, TrendingUp, History, ArrowUpCircle, ChevronDown } from "lucide-react";
+import { Clock, ChevronLeft, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X } from "lucide-react";
 import { getCurrencySymbol } from "./AdminAuctions";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
@@ -50,6 +50,8 @@ export default function AuctionDetail() {
   const [showHistory, setShowHistory] = useState(false);
   const [bidMessage, setBidMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
   const [bidMsgExiting, setBidMsgExiting] = useState(false);
+  const [proxyMode, setProxyMode] = useState(false);
+  const [proxyAmount, setProxyAmount] = useState("");
 
   const dismissBidMessage = () => {
     setBidMsgExiting(true);
@@ -83,6 +85,42 @@ export default function AuctionDetail() {
       toast.error(`重新拍賣失敗：${err.message}`);
     },
   });
+
+  const { data: myProxy, refetch: refetchProxy } = trpc.auctions.getMyProxyBid.useQuery(
+    { auctionId },
+    { enabled: isAuthenticated && auctionId > 0 }
+  );
+
+  const setProxyBidMutation = trpc.auctions.setProxyBid.useMutation({
+    onSuccess: () => {
+      toast.success("代理出價已設定！系統將在您被超越時自動出價。");
+      setProxyAmount("");
+      refetchProxy();
+      refetch();
+    },
+    onError: (err) => {
+      toast.error(`設定失敗：${err.message}`);
+    },
+  });
+
+  const cancelProxyBidMutation = trpc.auctions.cancelProxyBid.useMutation({
+    onSuccess: () => {
+      toast.success("代理出價已取消");
+      refetchProxy();
+    },
+    onError: (err) => {
+      toast.error(`取消失敗：${err.message}`);
+    },
+  });
+
+  const handleProxyBid = () => {
+    const amount = parseFloat(proxyAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("請輸入有效的代理出價上限");
+      return;
+    }
+    setProxyBidMutation.mutate({ auctionId, maxAmount: amount });
+  };
 
   const placeBid = trpc.auctions.placeBid.useMutation({
     onSuccess: () => {
@@ -403,51 +441,130 @@ export default function AuctionDetail() {
                 {/* Bid Input */}
                 {isActive && (
                   isAuthenticated ? (
-                    <div className="space-y-2">
-                      {/* Quick bid buttons */}
-                      <div className="flex gap-2">
-                        {quickBidOptions.map((opt) => (
+                    <div className="space-y-3">
+                      {/* Active proxy bid banner */}
+                      {myProxy?.isActive && (
+                        <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                          <div className="flex items-center gap-2 text-blue-700">
+                            <Bot className="w-4 h-4" />
+                            <span className="text-xs font-medium">代理中：上限 {currencySymbol}{myProxy.maxAmount.toLocaleString()}</span>
+                          </div>
                           <button
-                            key={opt.value}
                             type="button"
-                            onClick={() => setBidAmount(String(opt.value))}
-                            className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                              bidAmount === String(opt.value)
-                                ? "bg-amber-500 text-white border-amber-500"
-                                : "bg-white text-amber-700 border-amber-200 hover:border-amber-400 hover:bg-amber-50"
-                            }`}
+                            onClick={() => cancelProxyBidMutation.mutate({ auctionId })}
+                            disabled={cancelProxyBidMutation.isPending}
+                            className="text-blue-400 hover:text-blue-600 transition-colors"
+                            title="取消代理出價"
                           >
-                            {opt.label}
+                            <X className="w-3.5 h-3.5" />
                           </button>
-                        ))}
-                      </div>
-                      {/* Manual input + bid button */}
-                      <div className="flex gap-2">
-                        <div className="relative flex-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">{currencySymbol}</span>
-                          <Input
-                            type="number"
-                            placeholder={`最低 ${minBid}`}
-                            value={bidAmount}
-                            onChange={(e) => setBidAmount(e.target.value)}
-                            className="pl-10 border-amber-300 focus-visible:ring-amber-400"
-                            min={minBid}
-                          />
                         </div>
-                        <Button
-                          onClick={handleBid}
-                          disabled={placeBid.isPending}
-                          className="gold-gradient text-white border-0 shadow-md hover:opacity-90 px-6"
+                      )}
+
+                      {/* Mode toggle */}
+                      <div className="flex rounded-lg border border-amber-200 overflow-hidden text-xs font-medium">
+                        <button
+                          type="button"
+                          onClick={() => setProxyMode(false)}
+                          className={`flex-1 py-1.5 transition-colors ${
+                            !proxyMode ? "bg-amber-500 text-white" : "bg-white text-amber-700 hover:bg-amber-50"
+                          }`}
                         >
-                          {placeBid.isPending ? "出價中..." : "立即出價"}
-                        </Button>
+                          一般出價
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setProxyMode(true)}
+                          className={`flex-1 py-1.5 flex items-center justify-center gap-1 transition-colors ${
+                            proxyMode ? "bg-blue-500 text-white" : "bg-white text-blue-600 hover:bg-blue-50"
+                          }`}
+                        >
+                          <Bot className="w-3 h-3" />
+                          代理出價
+                        </button>
                       </div>
-                      <p className="text-xs text-muted-foreground text-center">
-                        最低出價：{currencySymbol}{minBid.toLocaleString()}
-                        {hasExistingBid
-                          ? `（現價 + 每口加幅 ${currencySymbol}${bidIncrement}）`
-                          : `（起拍價，首口免加幅）`}
-                      </p>
+
+                      {!proxyMode ? (
+                        <>
+                          {/* Quick bid buttons */}
+                          <div className="flex gap-2">
+                            {quickBidOptions.map((opt) => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setBidAmount(String(opt.value))}
+                                className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                                  bidAmount === String(opt.value)
+                                    ? "bg-amber-500 text-white border-amber-500"
+                                    : "bg-white text-amber-700 border-amber-200 hover:border-amber-400 hover:bg-amber-50"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                          {/* Manual input + bid button */}
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">{currencySymbol}</span>
+                              <Input
+                                type="number"
+                                placeholder={`最低 ${minBid}`}
+                                value={bidAmount}
+                                onChange={(e) => setBidAmount(e.target.value)}
+                                className="pl-10 border-amber-300 focus-visible:ring-amber-400"
+                                min={minBid}
+                              />
+                            </div>
+                            <Button
+                              onClick={handleBid}
+                              disabled={placeBid.isPending}
+                              className="gold-gradient text-white border-0 shadow-md hover:opacity-90 px-6"
+                            >
+                              {placeBid.isPending ? "出價中..." : "立即出價"}
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground text-center">
+                            最低出價：{currencySymbol}{minBid.toLocaleString()}
+                            {hasExistingBid
+                              ? `（現價 + 每口加幅 ${currencySymbol}${bidIncrement}）`
+                              : `（起拍價，首口免加幅）`}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          {/* Proxy bid input */}
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+                            <p className="text-xs text-blue-700 font-medium flex items-center gap-1">
+                              <Bot className="w-3.5 h-3.5" />
+                              設定您願意支付的最高金額，系統將在您被超越時自動以最小加幅代為出價。
+                            </p>
+                            <div className="flex gap-2">
+                              <div className="relative flex-1">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-blue-400">{currencySymbol}</span>
+                                <Input
+                                  type="number"
+                                  placeholder={`最高上限（至少 ${minBid}）`}
+                                  value={proxyAmount}
+                                  onChange={(e) => setProxyAmount(e.target.value)}
+                                  className="pl-10 border-blue-300 focus-visible:ring-blue-400"
+                                  min={minBid}
+                                />
+                              </div>
+                              <Button
+                                onClick={handleProxyBid}
+                                disabled={setProxyBidMutation.isPending}
+                                className="bg-blue-500 hover:bg-blue-600 text-white border-0 shadow-md px-4"
+                              >
+                                {setProxyBidMutation.isPending ? "設定中..." : "設定代理"}
+                              </Button>
+                            </div>
+                            <p className="text-xs text-blue-500 text-center">
+                              代理上限至少 {currencySymbol}{minBid.toLocaleString()}・每口加幅 {currencySymbol}{bidIncrement}
+                            </p>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ) : (
                     <a href={getLoginUrl()}>

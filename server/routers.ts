@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered } from "./db";
+import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon } from "./auctions";
 import { storagePut } from "./storage";
@@ -525,6 +525,53 @@ export const appRouter = router({
           (r) => r.status === 'fulfilled' && (r.value as { skipped?: boolean }).skipped
         ).length;
         return { succeeded, skipped, total: input.ids.length };
+      }),
+
+    // ── Proxy Bidding ────────────────────────────────────────────────────────
+    setProxyBid: protectedProcedure
+      .input(z.object({
+        auctionId: z.number(),
+        maxAmount: z.number().positive(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const auction = await getAuctionById(input.auctionId);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (auction.status !== 'active') throw new TRPCError({ code: 'BAD_REQUEST', message: '拍賣已結束，無法設定代理出價' });
+        if (new Date() > auction.endTime) throw new TRPCError({ code: 'BAD_REQUEST', message: '拍賣已結束，無法設定代理出價' });
+
+        const currentPrice = parseFloat(auction.currentPrice.toString());
+        const startingPrice = parseFloat(auction.startingPrice.toString());
+        const hasExistingBid = !!auction.highestBidderId;
+        const minAllowed = hasExistingBid ? currentPrice + (auction.bidIncrement ?? 30) : startingPrice;
+
+        if (input.maxAmount < minAllowed) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `代理出價上限必須至少為 HK$${minAllowed}`,
+          });
+        }
+
+        await setProxyBid(input.auctionId, ctx.user.id, input.maxAmount);
+        return { success: true };
+      }),
+
+    getMyProxyBid: protectedProcedure
+      .input(z.object({ auctionId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const proxy = await getProxyBid(input.auctionId, ctx.user.id);
+        if (!proxy) return null;
+        return {
+          maxAmount: parseFloat(proxy.maxAmount.toString()),
+          isActive: proxy.isActive === 1,
+          updatedAt: proxy.updatedAt,
+        };
+      }),
+
+    cancelProxyBid: protectedProcedure
+      .input(z.object({ auctionId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await deactivateProxyBid(input.auctionId, ctx.user.id);
+        return { success: true };
       }),
   }),
 });

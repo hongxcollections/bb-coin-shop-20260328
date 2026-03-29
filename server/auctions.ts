@@ -1,4 +1,4 @@
-import { getDb, getAuctionById, getBidHistory, placeBid as dbPlaceBid, getAuctions as dbGetAuctions } from './db';
+import { getDb, getAuctionById, getBidHistory, placeBid as dbPlaceBid, getAuctions as dbGetAuctions, getActiveProxiesForAuction } from './db';
 import { auctions as auctionsTable } from '../drizzle/schema';
 import { eq } from 'drizzle-orm';
 
@@ -41,7 +41,102 @@ export async function validateBid(auctionId: number, bidAmount: number): Promise
 }
 
 /**
- * Place a bid on an auction
+ * Internal helper: record a bid and update auction price/highestBidder.
+ * Does NOT validate — caller is responsible for ensuring the bid is legal.
+ */
+async function recordBid(db: NonNullable<Awaited<ReturnType<typeof getDb>>>, auctionId: number, userId: number, bidAmount: number) {
+  await db
+    .update(auctionsTable)
+    .set({ currentPrice: bidAmount.toString(), highestBidderId: userId })
+    .where(eq(auctionsTable.id, auctionId));
+
+  await dbPlaceBid({ auctionId, userId, bidAmount: bidAmount.toString() });
+}
+
+/**
+ * Proxy bidding engine.
+ * After a manual bid is placed, check if any OTHER user has an active proxy
+ * that can outbid the new highest bidder. The engine resolves the final price
+ * in a single synchronous loop (no recursive DB calls) and writes one final
+ * bid record for the winning proxy holder.
+ *
+ * Algorithm:
+ * 1. Load all active proxies for the auction, sorted by maxAmount DESC.
+ * 2. Find the top proxy that belongs to someone OTHER than the current highest bidder.
+ * 3. If that proxy's maxAmount > currentPrice, the proxy can counter-bid.
+ *    - Counter-bid = min(topProxy.maxAmount, currentPrice + bidIncrement)
+ *    - But also check if the manual bidder has their own proxy and can respond.
+ * 4. Repeat until no proxy can outbid, or the same user holds the top proxy.
+ */
+export async function runProxyBidEngine(auctionId: number, triggeringUserId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  // Max iterations to prevent infinite loops
+  const MAX_ROUNDS = 50;
+
+  for (let round = 0; round < MAX_ROUNDS; round++) {
+    const auction = await getAuctionById(auctionId);
+    if (!auction || auction.status !== 'active' || new Date() > auction.endTime) break;
+
+    const currentPrice = parseFloat(auction.currentPrice.toString());
+    const bidIncrement = auction.bidIncrement ?? 50;
+    const currentHighestBidderId = auction.highestBidderId;
+
+    // Get all active proxies sorted by maxAmount DESC
+    const proxies = await getActiveProxiesForAuction(auctionId);
+
+    // Find the top proxy that does NOT belong to the current highest bidder
+    const topChallenger = proxies.find((p: { userId: number; maxAmount: string | number }) => p.userId !== currentHighestBidderId);
+
+    if (!topChallenger) break; // No one can challenge
+
+    const challengerMax = parseFloat(topChallenger.maxAmount.toString());
+
+    // The minimum amount needed to outbid current leader
+    const requiredBid = currentPrice + bidIncrement;
+
+    if (challengerMax < requiredBid) break; // Challenger can't afford to outbid
+
+    // Challenger can bid. Now check if current leader has a proxy to defend.
+    const leaderProxy = currentHighestBidderId
+      ? proxies.find((p: { userId: number; maxAmount: string | number }) => p.userId === currentHighestBidderId)
+      : null;
+
+    let finalBidAmount: number;
+    let finalBidderId: number;
+
+    if (leaderProxy) {
+      const leaderMax = parseFloat(leaderProxy.maxAmount.toString());
+      if (leaderMax >= challengerMax + bidIncrement) {
+        // Leader can outbid challenger — settle at challenger's max + 1 increment
+        finalBidAmount = Math.min(leaderMax, challengerMax + bidIncrement);
+        finalBidderId = leaderProxy.userId;
+      } else if (challengerMax > leaderMax) {
+        // Challenger wins — bid at leader's max + 1 increment (or challenger's max)
+        finalBidAmount = Math.min(challengerMax, leaderMax + bidIncrement);
+        finalBidderId = topChallenger.userId;
+      } else {
+        // Tie: leader keeps position (first-come-first-serve)
+        break;
+      }
+    } else {
+      // No leader proxy — challenger bids the minimum required
+      finalBidAmount = requiredBid;
+      finalBidderId = topChallenger.userId;
+    }
+
+    // Record the proxy-triggered bid
+    await recordBid(db, auctionId, finalBidderId, finalBidAmount);
+
+    // If the same user is still winning after this round, engine is done
+    const updatedAuction = await getAuctionById(auctionId);
+    if (!updatedAuction || updatedAuction.highestBidderId === currentHighestBidderId) break;
+  }
+}
+
+/**
+ * Place a bid on an auction, then run the proxy bidding engine.
  */
 export async function placeBid(auctionId: number, userId: number, bidAmount: number) {
   const validation = await validateBid(auctionId, bidAmount);
@@ -53,21 +148,12 @@ export async function placeBid(auctionId: number, userId: number, bidAmount: num
   if (!db) throw new Error('Database not available');
 
   try {
-    // Update auction current price and highest bidder
-    await db
-      .update(auctionsTable)
-      .set({
-        currentPrice: bidAmount.toString(),
-        highestBidderId: userId,
-      })
-      .where(eq(auctionsTable.id, auctionId));
+    await recordBid(db, auctionId, userId, bidAmount);
 
-    // Record the bid
-    await dbPlaceBid({
-      auctionId,
-      userId,
-      bidAmount: bidAmount.toString(),
-    });
+    // Run proxy engine asynchronously — don't block the response
+    runProxyBidEngine(auctionId, userId).catch(err =>
+      console.error('[Auctions] Proxy engine error:', err)
+    );
 
     return { success: true };
   } catch (error) {
