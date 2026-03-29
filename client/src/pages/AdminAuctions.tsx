@@ -701,8 +701,8 @@ export default function AdminAuctions() {
             ))}
           </div>
         ) : auctions && auctions.length > 0 ? (
-          <div className="space-y-3">
-            {auctions.map((auction: {
+          (() => {
+            type AuctionItem = {
               id: number;
               title: string;
               description: string | null;
@@ -713,7 +713,14 @@ export default function AdminAuctions() {
               bidIncrement?: number;
               highestBidderId?: number | null;
               images: unknown;
-            }) => {
+            };
+            const activeAuctions = (auctions as AuctionItem[]).filter(
+              (a) => a.status !== "ended" && new Date(a.endTime) > now
+            );
+            const endedAuctions = (auctions as AuctionItem[]).filter(
+              (a) => a.status === "ended" || new Date(a.endTime) <= now
+            );
+            const renderCard = (auction: AuctionItem) => {
               const images = auction.images as Array<{ imageUrl: string }>;
               const gain = Number(auction.currentPrice) - Number(auction.startingPrice);
               const gainPct = Number(auction.startingPrice) > 0
@@ -724,7 +731,6 @@ export default function AdminAuctions() {
                 <Card key={auction.id} className="border-amber-100 hover:border-amber-300 transition-all">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
-                      {/* Thumbnail */}
                       <div className="w-16 h-16 rounded-xl coin-placeholder flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {images?.[0]?.imageUrl ? (
                           <img src={images[0].imageUrl} alt="" className="w-full h-full object-cover" />
@@ -732,13 +738,10 @@ export default function AdminAuctions() {
                           <span className="text-2xl">🪙</span>
                         )}
                       </div>
-                      {/* Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <h3 className="font-semibold text-sm truncate">{auction.title}</h3>
-                          <Badge className={!isEffectivelyEnded
-                            ? "bg-emerald-500 text-white text-xs"
-                            : "bg-gray-400 text-white text-xs"}>
+                          <Badge className={!isEffectivelyEnded ? "bg-emerald-500 text-white text-xs" : "bg-gray-400 text-white text-xs"}>
                             {!isEffectivelyEnded ? "競拍中" : "已結束"}
                           </Badge>
                         </div>
@@ -766,7 +769,6 @@ export default function AdminAuctions() {
                           )}
                         </div>
                       </div>
-                      {/* Actions */}
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {isEffectivelyEnded ? (
                           <Button
@@ -790,11 +792,7 @@ export default function AdminAuctions() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => {
-                                if (confirm("確定要刪除此拍賣嗎？")) {
-                                  deleteAuction.mutate({ id: auction.id });
-                                }
-                              }}
+                              onClick={() => { if (confirm("確定要刪除此拍賣嗎？")) { deleteAuction.mutate({ id: auction.id }); } }}
                               className="border-red-200 text-red-600 hover:bg-red-50"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -806,8 +804,33 @@ export default function AdminAuctions() {
                   </CardContent>
                 </Card>
               );
-            })}
-          </div>
+            };
+            return (
+              <div className="space-y-6">
+                {/* Active auctions */}
+                {activeAuctions.length > 0 && (
+                  <div className="space-y-3">
+                    {activeAuctions.map(renderCard)}
+                  </div>
+                )}
+                {/* Ended auctions section */}
+                {endedAuctions.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 pt-2">
+                      <div className="h-px flex-1 bg-gray-200" />
+                      <h2 className="text-sm font-semibold text-gray-500 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />
+                        已結束的商品
+                        <span className="text-xs font-normal text-gray-400">({endedAuctions.length} 件)</span>
+                      </h2>
+                      <div className="h-px flex-1 bg-gray-200" />
+                    </div>
+                    {endedAuctions.map(renderCard)}
+                  </div>
+                )}
+              </div>
+            );
+          })()
         ) : (
           <div className="text-center py-20 text-muted-foreground">
             <div className="text-5xl mb-4">📦</div>
