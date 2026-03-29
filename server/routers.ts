@@ -592,6 +592,19 @@ export const appRouter = router({
           createdAt: log.createdAt,
         }));
       }),
+
+    auctionBidHistory: publicProcedure
+      .input(z.object({ auctionId: z.number() }))
+      .query(async ({ input }) => {
+        const history = await getBidHistory(input.auctionId);
+        return history.map((b: { id: number; auctionId: number; userId: number | null; bidAmount: string | number; createdAt: Date; username: string | null }) => ({
+          id: b.id,
+          userId: b.userId,
+          username: b.username ?? '匿名',
+          bidAmount: parseFloat(b.bidAmount.toString()),
+          createdAt: b.createdAt,
+        }));
+      }),
   }),
 
   notificationSettings: router({

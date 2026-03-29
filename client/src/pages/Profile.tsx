@@ -8,8 +8,53 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff } from "lucide-react";
+import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+
+function BidHistoryPanel({ auctionId }: { auctionId: number }) {
+  const { data: history, isLoading } = trpc.auctions.auctionBidHistory.useQuery({ auctionId });
+
+  if (isLoading) {
+    return (
+      <div className="px-4 py-3 bg-amber-50/60 border-t border-amber-100 space-y-2">
+        {[...Array(3)].map((_, i) => <div key={i} className="h-6 bg-amber-100 rounded animate-pulse" />)}
+      </div>
+    );
+  }
+
+  if (!history || history.length === 0) {
+    return (
+      <div className="px-4 py-3 bg-amber-50/60 border-t border-amber-100 text-xs text-muted-foreground text-center">
+        尚無出價記錄
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-amber-50/60 border-t border-amber-100">
+      <div className="px-4 py-2 flex items-center justify-between">
+        <span className="text-xs font-medium text-amber-800">完整競標過程（共 {history.length} 口）</span>
+        <span className="text-xs text-muted-foreground">最新在上</span>
+      </div>
+      <div className="divide-y divide-amber-100">
+        {history.map((h: { id: number; userId: number | null; username: string; bidAmount: number; createdAt: Date }, idx: number) => (
+          <div key={h.id} className={`flex items-center justify-between px-4 py-2 ${
+            idx === 0 ? 'bg-amber-100/60' : 'bg-white/60'
+          }`}>
+            <div className="flex items-center gap-2">
+              {idx === 0 && <span className="text-[0.6rem] bg-amber-500 text-white px-1.5 py-0.5 rounded font-bold">最高</span>}
+              <span className="text-xs font-medium">{h.username}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-amber-700">HK${h.bidAmount.toLocaleString()}</span>
+              <span className="text-[0.6rem] text-muted-foreground">{new Date(h.createdAt).toLocaleString('zh-HK')}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function Profile() {
   const { user, isAuthenticated, loading, logout } = useAuth();
@@ -25,6 +70,7 @@ export default function Profile() {
   const [notifyWon, setNotifyWon] = useState(true);
   const [notifyEndingSoon, setNotifyEndingSoon] = useState(true);
   const [prefsInitialised, setPrefsInitialised] = useState(false);
+  const [expandedBidId, setExpandedBidId] = useState<number | null>(null);
 
   if (notifPrefs && !prefsInitialised) {
     setNotifyOutbid(!!notifPrefs.notifyOutbid);
@@ -287,23 +333,39 @@ export default function Profile() {
                 {myBids.map((bid: { id: number; auctionId: number; bidAmount: string | number; createdAt: Date; auctionTitle?: string | null }) => {
                   const rawTitle = bid.auctionTitle ?? '';
                   const displayTitle = rawTitle.length > 20 ? rawTitle.slice(0, 20) + '..' : rawTitle;
+                  const isExpanded = expandedBidId === bid.id;
                   return (
-                  <Link key={bid.id} href={`/auctions/${bid.auctionId}`}>
-                    <div className="flex items-center justify-between py-3 px-4 rounded-lg border border-amber-100 hover:border-amber-300 hover:bg-amber-50 transition-all cursor-pointer">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 coin-placeholder rounded-lg flex items-center justify-center text-sm">🪙</div>
-                        <div>
-                          <div className="text-[0.667rem] font-medium leading-snug">拍賣 {displayTitle}</div>
+                  <div key={bid.id} className="rounded-lg border border-amber-100 overflow-hidden">
+                    {/* Main row */}
+                    <div className="flex items-center justify-between py-3 px-4 bg-white hover:bg-amber-50/50 transition-colors">
+                      <Link href={`/auctions/${bid.auctionId}`} className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-8 h-8 coin-placeholder rounded-lg flex items-center justify-center text-sm shrink-0">🪙</div>
+                        <div className="min-w-0">
+                          <div className="text-[0.667rem] font-medium leading-snug truncate">拍賣 {displayTitle}</div>
                           <div className="text-xs text-muted-foreground">
                             {new Date(bid.createdAt).toLocaleString("zh-HK")}
                           </div>
                         </div>
-                      </div>
-                      <div className="font-bold text-amber-700 price-tag">
-                        HK${Number(bid.bidAmount).toLocaleString()}
+                      </Link>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="font-bold text-amber-700 price-tag text-sm">
+                          HK${Number(bid.bidAmount).toLocaleString()}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedBidId(isExpanded ? null : bid.id)}
+                          className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-1 transition-colors bg-amber-50 hover:bg-amber-100"
+                        >
+                          {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          詳情
+                        </button>
                       </div>
                     </div>
-                  </Link>
+                    {/* Expanded bid history */}
+                    {isExpanded && (
+                      <BidHistoryPanel auctionId={bid.auctionId} />
+                    )}
+                  </div>
                   );
                 })}
               </div>
