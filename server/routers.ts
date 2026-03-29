@@ -238,8 +238,27 @@ export const appRouter = router({
         }
 
         const auctionList = await getAuctionsByCreator(ctx.user.id);
+
+        // Auto-update expired auctions status to 'ended'
+        const now = new Date();
+        const expiredIds = auctionList
+          .filter((a: { status: string; endTime: Date | string }) =>
+            a.status === 'active' && new Date(a.endTime) <= now
+          )
+          .map((a: { id: number }) => a.id);
+        if (expiredIds.length > 0) {
+          await Promise.all(
+            expiredIds.map((id: number) => updateAuction(id, { status: 'ended' }))
+          );
+        }
+
+        // Re-fetch to get updated statuses
+        const updatedList = expiredIds.length > 0
+          ? await getAuctionsByCreator(ctx.user.id)
+          : auctionList;
+
         const withImages = await Promise.all(
-          auctionList.map(async (auction: { id: number; [key: string]: unknown }) => ({
+          updatedList.map(async (auction: { id: number; [key: string]: unknown }) => ({
             ...auction,
             images: await getAuctionImages(auction.id),
           }))

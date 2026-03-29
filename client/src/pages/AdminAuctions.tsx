@@ -492,8 +492,13 @@ export default function AdminAuctions() {
     );
   }
 
-  const activeCount = (auctions ?? []).filter((a: { status: string }) => a.status === "active").length;
-  const endedCount = (auctions ?? []).filter((a: { status: string }) => a.status === "ended").length;
+  const now = new Date();
+  const activeCount = (auctions ?? []).filter((a: { status: string; endTime: Date | string }) =>
+    a.status === "active" && new Date(a.endTime) > now
+  ).length;
+  const endedCount = (auctions ?? []).filter((a: { status: string; endTime: Date | string }) =>
+    a.status === "ended" || (a.status === "active" && new Date(a.endTime) <= now)
+  ).length;
   const isMutating = createAuction.isPending || updateAuction.isPending || isUploading;
   const pendingCount = pendingImages.filter((p) => p.status === "pending").length;
 
@@ -714,6 +719,7 @@ export default function AdminAuctions() {
               const gainPct = Number(auction.startingPrice) > 0
                 ? ((gain / Number(auction.startingPrice)) * 100).toFixed(1)
                 : "0";
+              const isEffectivelyEnded = auction.status === "ended" || new Date(auction.endTime) <= now;
               return (
                 <Card key={auction.id} className="border-amber-100 hover:border-amber-300 transition-all">
                   <CardContent className="p-4">
@@ -730,10 +736,10 @@ export default function AdminAuctions() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <h3 className="font-semibold text-sm truncate">{auction.title}</h3>
-                          <Badge className={auction.status === "active"
+                          <Badge className={!isEffectivelyEnded
                             ? "bg-emerald-500 text-white text-xs"
                             : "bg-gray-400 text-white text-xs"}>
-                            {auction.status === "active" ? "競拍中" : "已結束"}
+                            {!isEffectivelyEnded ? "競拍中" : "已結束"}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
@@ -762,7 +768,7 @@ export default function AdminAuctions() {
                       </div>
                       {/* Actions */}
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        {auction.status === "ended" ? (
+                        {isEffectivelyEnded ? (
                           <Button
                             size="sm"
                             onClick={() => relistAuction.mutate({ id: auction.id })}
