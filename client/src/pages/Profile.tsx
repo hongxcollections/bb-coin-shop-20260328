@@ -43,7 +43,13 @@ function BidHistoryPanel({ auctionId }: { auctionId: number }) {
           }`}>
             <div className="flex items-center gap-2">
               {idx === 0 && <span className="text-[0.6rem] bg-amber-500 text-white px-1.5 py-0.5 rounded font-bold">最高</span>}
-              <span className="text-xs font-medium">{h.username}</span>
+              {h.userId ? (
+                <Link href={`/users/${h.userId}`}>
+                  <span className="text-xs font-medium text-amber-700 hover:text-amber-900 hover:underline cursor-pointer">{h.username}</span>
+                </Link>
+              ) : (
+                <span className="text-xs font-medium">{h.username}</span>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <span className="text-xs font-bold text-amber-700">HK${h.bidAmount.toLocaleString()}</span>

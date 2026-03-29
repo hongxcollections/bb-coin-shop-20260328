@@ -205,3 +205,11 @@
 
 - [x] 後端新增 auctions.auctionBidHistory procedure，回傳指定拍賣的完整出價列表（含出價者名稱、金額、時間）
 - [x] 前端 Profile.tsx 每個出價紀錄卡加入「查看競標詳情」按鈕，點擊後展開/收起該拍賣出價歷史
+
+## 公開用戶個人資料頁
+
+- [x] 後端新增 users.publicProfile procedure（回傳名稱、加入時間、參與拍賣數、得標數）
+- [x] 後端新增 db.ts getUserPublicStats 查詢函數
+- [x] 前端建立 UserProfile.tsx 公開用戶頁面（/users/:userId）
+- [x] 前端 App.tsx 新增 /users/:userId 路由
+- [x] BidHistoryPanel 出價者名稱改為連結，指向 /users/:userId

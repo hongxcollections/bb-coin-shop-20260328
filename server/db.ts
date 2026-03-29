@@ -713,3 +713,50 @@ export async function getActiveAuctionsEndingSoon(withinMinutes: number): Promis
     return [];
   }
 }
+
+export async function getUserPublicStats(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    // Get user basic info
+    const userRows = await db
+      .select({ id: users.id, name: users.name, createdAt: users.createdAt })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (userRows.length === 0) return null;
+    const user = userRows[0];
+
+    // Count distinct auctions the user has bid on
+    const bidCountRows = await db
+      .select({ count: sql<number>`COUNT(DISTINCT ${bids.auctionId})` })
+      .from(bids)
+      .where(eq(bids.userId, userId));
+    const auctionsParticipated = Number(bidCountRows[0]?.count ?? 0);
+
+    // Count auctions won (ended auctions where user is highest bidder)
+    const wonRows = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(auctions)
+      .where(
+        and(
+          eq(auctions.highestBidderId, userId),
+          eq(auctions.status, 'ended')
+        )
+      );
+    const auctionsWon = Number(wonRows[0]?.count ?? 0);
+
+    return {
+      id: user.id,
+      name: user.name,
+      createdAt: user.createdAt,
+      auctionsParticipated,
+      auctionsWon,
+    };
+  } catch (error) {
+    console.error('[Database] Failed to get user public stats:', error);
+    return null;
+  }
+}
