@@ -106,3 +106,9 @@
 - [x] 前端 App.tsx 新增封存區路由 /admin/archive
 - [x] 後台導航加入「封存區」連結
 - [x] 修正：getAuctionsByCreator 查詢排除 archived=1 的商品，確保封存後不再出現在後台已結束列表
+
+## 封存區還原功能
+
+- [x] 後端新增 auctions.restore procedure（將 archived=1 改回 archived=0）
+- [x] 前端 AdminArchive.tsx 每張商品卡加入「還原」按鈕
+- [x] 新增 vitest 測試覆蓋 restore procedure

@@ -19,8 +19,21 @@ function formatDate(date: Date) {
 export default function AdminArchive() {
   const { user, isAuthenticated, logout } = useAuth();
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [restoringId, setRestoringId] = useState<number | null>(null);
 
   const { data: archivedList, isLoading, refetch } = trpc.auctions.getArchived.useQuery();
+
+  const restoreAuction = trpc.auctions.restore.useMutation({
+    onSuccess: () => {
+      toast.success("已還原至後台已結束列表");
+      setRestoringId(null);
+      refetch();
+    },
+    onError: (err) => {
+      toast.error(err.message || "還原失敗");
+      setRestoringId(null);
+    },
+  });
 
   const permanentDelete = trpc.auctions.permanentDelete.useMutation({
     onSuccess: () => {
@@ -38,6 +51,13 @@ export default function AdminArchive() {
     if (confirm(`⚠️ 警告：此操作無法還原！\n\n確定要永久刪除「${title}」及其所有出價記錄嗎？`)) {
       setDeletingId(id);
       permanentDelete.mutate({ id });
+    }
+  };
+
+  const handleRestore = (id: number, title: string) => {
+    if (confirm(`確定要還原「${title}」嗎？\n\n商品將重新出現在後台已結束列表中。`)) {
+      setRestoringId(id);
+      restoreAuction.mutate({ id });
     }
   };
 
@@ -168,15 +188,25 @@ export default function AdminArchive() {
                         <h3 className="font-semibold text-sm truncate max-w-[200px] text-gray-600">{auction.title}</h3>
                         <Badge className="bg-gray-400 text-white text-[10px] px-1.5 py-0">已封存</Badge>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handlePermanentDelete(auction.id, auction.title)}
-                        disabled={isDeleting || permanentDelete.isPending}
-                        className="bg-red-600 hover:bg-red-700 text-white border-0 text-xs px-2 h-7 flex-shrink-0"
-                      >
-                        <Trash2 className="w-3 h-3 mr-1" />
-                        {isDeleting ? "刪除中..." : "永久刪除"}
-                      </Button>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <Button
+                          size="sm"
+                          onClick={() => handleRestore(auction.id, auction.title)}
+                          disabled={restoringId === auction.id || restoreAuction.isPending}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 text-xs px-2 h-7"
+                        >
+                          {restoringId === auction.id ? "還原中..." : "↩ 還原"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handlePermanentDelete(auction.id, auction.title)}
+                          disabled={isDeleting || permanentDelete.isPending}
+                          className="bg-red-600 hover:bg-red-700 text-white border-0 text-xs px-2 h-7"
+                        >
+                          <Trash2 className="w-3 h-3 mr-1" />
+                          {isDeleting ? "刪除中..." : "永久刪除"}
+                        </Button>
+                      </div>
                     </div>
 
                     {/* Row 3: Price + End time */}

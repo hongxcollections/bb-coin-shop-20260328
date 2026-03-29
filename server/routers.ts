@@ -466,6 +466,21 @@ export const appRouter = router({
         await deleteAuction(input.id);
         return { success: true };
       }),
+
+    restore: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can restore auctions' });
+        }
+        const auction = await getAuctionById(input.id);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (!auction.archived) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '此拍賣並未被封存' });
+        }
+        await updateAuction(input.id, { archived: 0 });
+        return { success: true };
+      }),
   }),
 });
 

@@ -148,6 +148,41 @@ describe("auctions.permanentDelete", () => {
   });
 });
 
+describe("auctions.restore", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("allows admin to restore an archived auction", async () => {
+    const archivedAuction = { ...mockEndedAuction, archived: 1 };
+    vi.mocked(db.getAuctionById).mockResolvedValue(archivedAuction);
+    vi.mocked(db.updateAuction).mockResolvedValue({} as never);
+
+    const caller = appRouter.createCaller(createAdminContext());
+    const result = await caller.auctions.restore({ id: 10 });
+
+    expect(result).toEqual({ success: true });
+    expect(db.updateAuction).toHaveBeenCalledWith(10, { archived: 0 });
+  });
+
+  it("rejects non-admin users", async () => {
+    const caller = appRouter.createCaller(createUserContext());
+    await expect(caller.auctions.restore({ id: 10 })).rejects.toThrow(TRPCError);
+  });
+
+  it("rejects restoring a non-archived auction", async () => {
+    vi.mocked(db.getAuctionById).mockResolvedValue(mockEndedAuction); // archived: 0
+    const caller = appRouter.createCaller(createAdminContext());
+    await expect(caller.auctions.restore({ id: 10 })).rejects.toThrow(TRPCError);
+  });
+
+  it("rejects restoring a non-existent auction", async () => {
+    vi.mocked(db.getAuctionById).mockResolvedValue(undefined);
+    const caller = appRouter.createCaller(createAdminContext());
+    await expect(caller.auctions.restore({ id: 999 })).rejects.toThrow(TRPCError);
+  });
+});
+
 describe("auctions.getArchived", () => {
   beforeEach(() => {
     vi.clearAllMocks();
