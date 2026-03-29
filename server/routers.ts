@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid } from "./db";
+import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon } from "./auctions";
 import { storagePut } from "./storage";
@@ -572,6 +572,23 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         await deactivateProxyBid(input.auctionId, ctx.user.id);
         return { success: true };
+      }),
+
+    getProxyBidLogs: publicProcedure
+      .input(z.object({ auctionId: z.number() }))
+      .query(async ({ input }) => {
+        const logs = await getProxyBidLogs(input.auctionId);
+        return logs.map((log: { id: number; round: number; triggerUserId: number; triggerUserName: string; triggerAmount: string | number; proxyUserId: number; proxyUserName: string; proxyAmount: string | number; createdAt: Date }) => ({
+          id: log.id,
+          round: log.round,
+          triggerUserId: log.triggerUserId,
+          triggerUserName: log.triggerUserName,
+          triggerAmount: parseFloat(log.triggerAmount.toString()),
+          proxyUserId: log.proxyUserId,
+          proxyUserName: log.proxyUserName,
+          proxyAmount: parseFloat(log.proxyAmount.toString()),
+          createdAt: log.createdAt,
+        }));
       }),
   }),
 });

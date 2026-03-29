@@ -52,6 +52,7 @@ export default function AuctionDetail() {
   const [bidMsgExiting, setBidMsgExiting] = useState(false);
   const [proxyMode, setProxyMode] = useState(false);
   const [proxyAmount, setProxyAmount] = useState("");
+  const [historyTab, setHistoryTab] = useState<"bids" | "proxy">("bids");
 
   const dismissBidMessage = () => {
     setBidMsgExiting(true);
@@ -85,6 +86,11 @@ export default function AuctionDetail() {
       toast.error(`重新拍賣失敗：${err.message}`);
     },
   });
+
+  const { data: proxyLogs } = trpc.auctions.getProxyBidLogs.useQuery(
+    { auctionId },
+    { enabled: auctionId > 0, refetchInterval: 8000 }
+  );
 
   const { data: myProxy, refetch: refetchProxy } = trpc.auctions.getMyProxyBid.useQuery(
     { auctionId },
@@ -588,6 +594,11 @@ export default function AuctionDetail() {
                   <History className="w-4 h-4 text-amber-600" />
                   <span className="text-sm font-semibold text-amber-900">出價記錄</span>
                   <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">{bids.length}</span>
+                  {(proxyLogs?.length ?? 0) > 0 && (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 text-xs font-medium">
+                      <Bot className="w-3 h-3" />{proxyLogs?.length ?? 0}
+                    </span>
+                  )}
                 </div>
                 <ChevronDown
                   className={`w-4 h-4 text-amber-500 transition-transform duration-300 ${showHistory ? "rotate-180" : "rotate-0"}`}
@@ -597,29 +608,82 @@ export default function AuctionDetail() {
               {/* Collapsible content */}
               <div
                 className="transition-all duration-300 ease-in-out overflow-hidden"
-                style={{ maxHeight: showHistory ? "320px" : "0px", opacity: showHistory ? 1 : 0 }}
+                style={{ maxHeight: showHistory ? "400px" : "0px", opacity: showHistory ? 1 : 0 }}
               >
-                <div className="border-t border-amber-100 px-4 py-3">
-                  {bids.length > 0 ? (
-                    <div className="space-y-2 max-h-60 overflow-y-auto scrollbar-thin pr-1">
-                      {bids.map((bid, i) => (
-                        <div key={bid.id} className={`flex items-center justify-between py-2 px-3 rounded-lg text-sm ${i === 0 ? "bg-amber-50 border border-amber-200" : "bg-muted/30"}`}>
-                          <div className="flex items-center gap-2">
-                            <User className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span className="text-muted-foreground">{bid.username ?? `用戶 #${bid.userId}`}</span>
-                            {i === 0 && <Badge className="bg-amber-500 text-white text-xs py-0">最高</Badge>}
+                {/* Tab bar */}
+                <div className="border-t border-amber-100 flex">
+                  <button
+                    onClick={() => setHistoryTab("bids")}
+                    className={`flex-1 py-2 text-xs font-medium transition-colors ${
+                      historyTab === "bids"
+                        ? "bg-amber-50 text-amber-700 border-b-2 border-amber-400"
+                        : "text-muted-foreground hover:bg-muted/30"
+                    }`}
+                  >
+                    出價記錄（{bids.length}）
+                  </button>
+                  <button
+                    onClick={() => setHistoryTab("proxy")}
+                    className={`flex-1 py-2 text-xs font-medium flex items-center justify-center gap-1 transition-colors ${
+                      historyTab === "proxy"
+                        ? "bg-blue-50 text-blue-600 border-b-2 border-blue-400"
+                        : "text-muted-foreground hover:bg-muted/30"
+                    }`}
+                  >
+                    <Bot className="w-3 h-3" />
+                    代理紀錄（{proxyLogs?.length ?? 0}）
+                  </button>
+                </div>
+
+                <div className="px-4 py-3">
+                  {historyTab === "bids" ? (
+                    bids.length > 0 ? (
+                      <div className="space-y-2 max-h-60 overflow-y-auto scrollbar-thin pr-1">
+                        {bids.map((bid, i) => (
+                          <div key={bid.id} className={`flex items-center justify-between py-2 px-3 rounded-lg text-sm ${i === 0 ? "bg-amber-50 border border-amber-200" : "bg-muted/30"}`}>
+                            <div className="flex items-center gap-2">
+                              <User className="w-3.5 h-3.5 text-muted-foreground" />
+                              <span className="text-muted-foreground">{bid.username ?? `用戶 #${bid.userId}`}</span>
+                              {i === 0 && <Badge className="bg-amber-500 text-white text-xs py-0">最高</Badge>}
+                            </div>
+                            <div className="font-bold text-amber-700 price-tag">
+                              {currencySymbol}{Number(bid.bidAmount).toLocaleString()}
+                            </div>
                           </div>
-                          <div className="font-bold text-amber-700 price-tag">
-                            {currencySymbol}{Number(bid.bidAmount).toLocaleString()}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 text-muted-foreground text-sm">
+                        <TrendingUp className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                        暫無出價記錄，成為第一位出價者！
+                      </div>
+                    )
                   ) : (
-                    <div className="text-center py-6 text-muted-foreground text-sm">
-                      <TrendingUp className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      暫無出價記錄，成為第一位出價者！
-                    </div>
+                    (proxyLogs?.length ?? 0) > 0 ? (
+                      <div className="space-y-2 max-h-60 overflow-y-auto scrollbar-thin pr-1">
+                        {(proxyLogs ?? []).map((log: { id: number; round: number; triggerUserId: number; triggerUserName: string; triggerAmount: number; proxyUserId: number; proxyUserName: string; proxyAmount: number; createdAt: Date | string }) => (
+                          <div key={log.id} className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-blue-500 font-medium">第 {log.round} 輪</span>
+                              <span className="text-muted-foreground">{new Date(log.createdAt).toLocaleString("zh-HK", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <span className="font-medium text-foreground">{log.proxyUserName}</span>
+                              <span>的代理自動出價</span>
+                              <span className="font-bold text-blue-600">{currencySymbol}{log.proxyAmount.toLocaleString()}</span>
+                            </div>
+                            <div className="text-muted-foreground mt-0.5">
+                              觸發者：{log.triggerUserName}（{currencySymbol}{log.triggerAmount.toLocaleString()}）
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 text-muted-foreground text-sm">
+                        <Bot className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                        暫無代理出價紀錄
+                      </div>
+                    )
                   )}
                 </div>
               </div>

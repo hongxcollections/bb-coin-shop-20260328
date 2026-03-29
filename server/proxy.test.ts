@@ -11,6 +11,8 @@ vi.mock("./db", () => ({
   setProxyBid: vi.fn(),
   getProxyBid: vi.fn(),
   deactivateProxyBid: vi.fn(),
+  insertProxyBidLog: vi.fn(),
+  getProxyBidLogs: vi.fn(),
 }));
 
 import * as dbModule from "./db";
@@ -165,5 +167,56 @@ describe("setProxyBid / getProxyBid helpers", () => {
 
     const result = await dbModule.getProxyBid(1, 5);
     expect(result).toEqual(mockProxy);
+  });
+});
+
+describe("insertProxyBidLog / getProxyBidLogs", () => {
+  it("insertProxyBidLog is called with correct fields during engine run", async () => {
+    vi.mocked(dbModule.insertProxyBidLog).mockResolvedValue(undefined);
+    vi.mocked(dbModule.getAuctionById)
+      .mockResolvedValueOnce({ ...mockAuction, highestBidderId: 2, currentPrice: "200" })
+      .mockResolvedValueOnce({ ...mockAuction, highestBidderId: 3, currentPrice: "250" });
+    vi.mocked(dbModule.getActiveProxiesForAuction).mockResolvedValue([
+      { id: 2, auctionId: 1, userId: 3, maxAmount: "400", isActive: 1, createdAt: new Date(), updatedAt: new Date() },
+    ]);
+
+    const { runProxyBidEngine } = await vi.importActual<typeof import("./auctions")>("./auctions");
+    await runProxyBidEngine(1, 3);
+
+    expect(dbModule.insertProxyBidLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auctionId: 1,
+        proxyUserId: 3,
+        proxyAmount: 250,
+      })
+    );
+  });
+
+  it("getProxyBidLogs returns empty array when no logs exist", async () => {
+    vi.mocked(dbModule.getProxyBidLogs).mockResolvedValue([]);
+    const result = await dbModule.getProxyBidLogs(1);
+    expect(result).toEqual([]);
+  });
+
+  it("getProxyBidLogs returns enriched log entries with user names", async () => {
+    const mockLog = {
+      id: 1,
+      auctionId: 1,
+      round: 1,
+      triggerUserId: 4,
+      triggerAmount: "200",
+      proxyUserId: 3,
+      proxyAmount: "250",
+      createdAt: new Date(),
+      triggerUserName: "Alice",
+      proxyUserName: "Bob",
+    };
+    vi.mocked(dbModule.getProxyBidLogs).mockResolvedValue([mockLog]);
+
+    const result = await dbModule.getProxyBidLogs(1);
+    expect(result).toHaveLength(1);
+    expect(result[0].triggerUserName).toBe("Alice");
+    expect(result[0].proxyUserName).toBe("Bob");
+    expect(result[0].round).toBe(1);
   });
 });

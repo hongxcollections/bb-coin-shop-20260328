@@ -156,3 +156,13 @@
 - [x] 前端 AuctionDetail.tsx 加入代理出價切換（一般出價 / 代理出價）
 - [x] 前端顯示目前已設定的代理上限（已設定時顯示「代理中：上限 HK$X」）
 - [x] 新增 vitest 測試覆蓋代理出價引擎邏輯
+
+## 代理出價歷史紀錄
+
+- [x] 資料庫新增 proxyBidLogs 表（auctionId, triggerUserId, proxyUserId, triggerAmount, proxyAmount, round）
+- [x] 執行 CREATE TABLE migration SQL
+- [x] 後端 db.ts 新增 insertProxyBidLog / getProxyBidLogs 查詢函數
+- [x] 後端 auctions.ts runProxyBidEngine 每輪競價後寫入 log
+- [x] 後端新增 auctions.getProxyBidLogs procedure（取得拍賣的代理出價紀錄，含用戶名稱）
+- [x] 前端 AuctionDetail.tsx 出價歷史加入「代理紀錄」標籤，顯示每筆自動出價詳情
+- [x] 新增 vitest 測試覆蓋 log 寫入邏輯

@@ -1,4 +1,4 @@
-import { getDb, getAuctionById, getBidHistory, placeBid as dbPlaceBid, getAuctions as dbGetAuctions, getActiveProxiesForAuction } from './db';
+import { getDb, getAuctionById, getBidHistory, placeBid as dbPlaceBid, getAuctions as dbGetAuctions, getActiveProxiesForAuction, insertProxyBidLog } from './db';
 import { auctions as auctionsTable } from '../drizzle/schema';
 import { eq } from 'drizzle-orm';
 
@@ -128,6 +128,16 @@ export async function runProxyBidEngine(auctionId: number, triggeringUserId: num
 
     // Record the proxy-triggered bid
     await recordBid(db, auctionId, finalBidderId, finalBidAmount);
+
+    // Write audit log
+    await insertProxyBidLog({
+      auctionId,
+      round: round + 1,
+      triggerUserId: currentHighestBidderId ?? triggeringUserId,
+      triggerAmount: currentPrice,
+      proxyUserId: finalBidderId,
+      proxyAmount: finalBidAmount,
+    });
 
     // If the same user is still winning after this round, engine is done
     const updatedAuction = await getAuctionById(auctionId);

@@ -91,6 +91,23 @@ export type ProxyBid = typeof proxyBids.$inferSelect;
 export type InsertProxyBid = typeof proxyBids.$inferInsert;
 
 /**
+ * Proxy bid logs - records each automatic bid triggered by the proxy engine
+ */
+export const proxyBidLogs = mysqlTable("proxyBidLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  auctionId: int("auctionId").notNull(),
+  round: int("round").default(1).notNull(),          // engine iteration round
+  triggerUserId: int("triggerUserId").notNull(),      // the user whose bid triggered the engine
+  triggerAmount: decimal("triggerAmount", { precision: 10, scale: 2 }).notNull(), // the triggering bid
+  proxyUserId: int("proxyUserId").notNull(),          // the user whose proxy responded
+  proxyAmount: decimal("proxyAmount", { precision: 10, scale: 2 }).notNull(),     // the auto-bid amount
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ProxyBidLog = typeof proxyBidLogs.$inferSelect;
+export type InsertProxyBidLog = typeof proxyBidLogs.$inferInsert;
+
+/**
  * Relations
  */
 export const usersRelations = relations(users, ({ many }) => ({

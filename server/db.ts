@@ -1,7 +1,7 @@
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -509,5 +509,90 @@ export async function deactivateProxyBid(auctionId: number, userId: number) {
       .where(and(eq(proxyBids.auctionId, auctionId), eq(proxyBids.userId, userId)));
   } catch (error) {
     console.error("[Database] Failed to deactivate proxy bid:", error);
+  }
+}
+
+// ── Proxy Bid Logs ──────────────────────────────────────────────────────────
+
+/**
+ * Insert a proxy bid log entry when the engine fires an automatic bid.
+ */
+export async function insertProxyBidLog(entry: {
+  auctionId: number;
+  round: number;
+  triggerUserId: number;
+  triggerAmount: number;
+  proxyUserId: number;
+  proxyAmount: number;
+}) {
+  const db = await getDb();
+  if (!db) return;
+
+  try {
+    await db.insert(proxyBidLogs).values({
+      auctionId: entry.auctionId,
+      round: entry.round,
+      triggerUserId: entry.triggerUserId,
+      triggerAmount: entry.triggerAmount.toString(),
+      proxyUserId: entry.proxyUserId,
+      proxyAmount: entry.proxyAmount.toString(),
+    });
+  } catch (error) {
+    console.error("[Database] Failed to insert proxy bid log:", error);
+  }
+}
+
+/**
+ * Get all proxy bid logs for an auction, joined with user names.
+ */
+export async function getProxyBidLogs(auctionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    const triggerUser = { id: users.id, name: users.name };
+    // Use two separate queries and join in memory to avoid complex alias issues
+    const logs = await db
+      .select({
+        id: proxyBidLogs.id,
+        auctionId: proxyBidLogs.auctionId,
+        round: proxyBidLogs.round,
+        triggerUserId: proxyBidLogs.triggerUserId,
+        triggerAmount: proxyBidLogs.triggerAmount,
+        proxyUserId: proxyBidLogs.proxyUserId,
+        proxyAmount: proxyBidLogs.proxyAmount,
+        createdAt: proxyBidLogs.createdAt,
+      })
+      .from(proxyBidLogs)
+      .where(eq(proxyBidLogs.auctionId, auctionId))
+      .orderBy(desc(proxyBidLogs.createdAt));
+
+    if (logs.length === 0) return [];
+
+    // Collect unique user IDs and fetch names
+    const allUserIds = logs.flatMap((l: { triggerUserId: number; proxyUserId: number }) => [l.triggerUserId, l.proxyUserId]);
+    const userIds = Array.from(new Set(allUserIds));
+
+    // Guard: avoid IN () which causes SQL error
+    if (userIds.length === 0) return logs.map((log: { triggerUserId: number; proxyUserId: number; id: number; auctionId: number; round: number; triggerAmount: string; proxyAmount: string; createdAt: Date }) => ({
+      ...log,
+      triggerUserName: `用戶 ${log.triggerUserId}`,
+      proxyUserName: `用戶 ${log.proxyUserId}`,
+    }));
+    const userRows = await db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .where(sql`${users.id} IN (${sql.join(userIds.map(id => sql`${id}`), sql`, `)})`);
+
+    const userMap = new Map(userRows.map((u: { id: number; name: string | null }) => [u.id, u.name ?? `用戶 ${u.id}`]));
+
+    return logs.map((log: { triggerUserId: number; proxyUserId: number; id: number; auctionId: number; round: number; triggerAmount: string; proxyAmount: string; createdAt: Date }) => ({
+      ...log,
+      triggerUserName: userMap.get(log.triggerUserId) ?? `用戶 ${log.triggerUserId}`,
+      proxyUserName: userMap.get(log.proxyUserId) ?? `用戶 ${log.proxyUserId}`,
+    }));
+  } catch (error) {
+    console.error("[Database] Failed to get proxy bid logs:", error);
+    return [];
   }
 }
