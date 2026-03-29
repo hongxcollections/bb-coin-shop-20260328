@@ -367,6 +367,14 @@ export default function AdminAuctions() {
     onError: (err) => toast.error(err.message || "刪除失敗"),
   });
 
+  const relistAuction = trpc.auctions.relist.useMutation({
+    onSuccess: () => {
+      toast.success("已建立重新上架草稿！請前往草稿審核頁面設定結束時間並發佈。");
+      refetch();
+    },
+    onError: (err) => toast.error(err.message || "重新上架失敗"),
+  });
+
   const handleAddFiles = useCallback((files: File[]) => {
     const newPending: PendingImage[] = files.map((file, i) => ({
       file,
@@ -754,26 +762,39 @@ export default function AdminAuctions() {
                       </div>
                       {/* Actions */}
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openEdit({ ...auction, highestBidderId: (auction as { highestBidderId?: number | null }).highestBidderId })}
-                          className="border-amber-200 text-amber-700 hover:bg-amber-50"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            if (confirm("確定要刪除此拍賣嗎？")) {
-                              deleteAuction.mutate({ id: auction.id });
-                            }
-                          }}
-                          className="border-red-200 text-red-600 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                        {auction.status === "ended" ? (
+                          <Button
+                            size="sm"
+                            onClick={() => relistAuction.mutate({ id: auction.id })}
+                            disabled={relistAuction.isPending}
+                            className="bg-amber-500 hover:bg-amber-600 text-white border-0 text-xs px-3"
+                          >
+                            {relistAuction.isPending ? "建立中..." : "🔄 重新上架"}
+                          </Button>
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openEdit({ ...auction, highestBidderId: (auction as { highestBidderId?: number | null }).highestBidderId })}
+                              className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                if (confirm("確定要刪除此拍賣嗎？")) {
+                                  deleteAuction.mutate({ id: auction.id });
+                                }
+                              }}
+                              className="border-red-200 text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </CardContent>
