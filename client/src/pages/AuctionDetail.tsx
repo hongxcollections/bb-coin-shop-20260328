@@ -230,10 +230,12 @@ export default function AuctionDetail() {
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                      當前最高出價
-                      {bids.length > 0 && (
-                        <span className="text-[9px] text-red-500 font-semibold">({bids[0].username ?? `用戶 #${bids[0].userId}`})</span>
-                      )}
+                       當前最高出價
+                       {bids.length > 0 ? (
+                         <span className="text-[9px] text-red-500 font-semibold">({bids[0].username ?? `用戶 #${bids[0].userId}`})</span>
+                       ) : (
+                         <span className="text-[9px] text-black font-normal">(未有出價)</span>
+                       )}
                     </div>
                     <div className="text-3xl font-extrabold text-amber-600 price-tag">
                       {currencySymbol}{Number(auction.currentPrice).toLocaleString()}
