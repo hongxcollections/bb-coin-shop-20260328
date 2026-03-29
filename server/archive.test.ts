@@ -8,6 +8,7 @@ vi.mock("./db", () => ({
   updateAuction: vi.fn(),
   deleteAuction: vi.fn(),
   getArchivedAuctions: vi.fn(),
+  getArchivedAuctionsFiltered: vi.fn(),
   getAuctionImages: vi.fn(),
   getAuctions: vi.fn(),
   getAuctionsByCreator: vi.fn(),
@@ -95,7 +96,10 @@ describe("auctions.archive", () => {
     const result = await caller.auctions.archive({ id: 10 });
 
     expect(result).toEqual({ success: true });
-    expect(db.updateAuction).toHaveBeenCalledWith(10, { archived: 1 });
+    expect(db.updateAuction).toHaveBeenCalledWith(
+      10,
+      expect.objectContaining({ archived: 1, archivedAt: expect.any(Date) })
+    );
   });
 
   it("rejects non-admin users", async () => {
@@ -248,5 +252,63 @@ describe("auctions.batchRestore", () => {
   it("rejects empty ids array", async () => {
     const caller = appRouter.createCaller(createAdminContext());
     await expect(caller.auctions.batchRestore({ ids: [] })).rejects.toThrow(TRPCError);
+  });
+});
+
+describe("auctions.getArchived (with filters)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const archivedAuction = {
+    ...mockEndedAuction,
+    archived: 1,
+    category: "古幣",
+    archivedAt: new Date("2026-03-01T10:00:00Z"),
+  };
+
+  it("calls getArchivedAuctions when no filter is provided", async () => {
+    vi.mocked(db.getArchivedAuctions).mockResolvedValue([archivedAuction]);
+    vi.mocked(db.getAuctionImages).mockResolvedValue([]);
+
+    const caller = appRouter.createCaller(createAdminContext());
+    const result = await caller.auctions.getArchived(undefined);
+
+    expect(db.getArchivedAuctions).toHaveBeenCalled();
+    expect(db.getArchivedAuctionsFiltered).not.toHaveBeenCalled();
+    expect(result).toHaveLength(1);
+  });
+
+  it("calls getArchivedAuctionsFiltered when category filter is provided", async () => {
+    vi.mocked(db.getArchivedAuctionsFiltered).mockResolvedValue([archivedAuction]);
+    vi.mocked(db.getAuctionImages).mockResolvedValue([]);
+
+    const caller = appRouter.createCaller(createAdminContext());
+    const result = await caller.auctions.getArchived({ category: "古幣" });
+
+    expect(db.getArchivedAuctionsFiltered).toHaveBeenCalledWith(
+      expect.objectContaining({ category: "古幣" })
+    );
+    expect(db.getArchivedAuctions).not.toHaveBeenCalled();
+    expect(result).toHaveLength(1);
+  });
+
+  it("calls getArchivedAuctionsFiltered when date range filter is provided", async () => {
+    const dateFrom = new Date("2026-03-01");
+    const dateTo = new Date("2026-03-31");
+    vi.mocked(db.getArchivedAuctionsFiltered).mockResolvedValue([archivedAuction]);
+    vi.mocked(db.getAuctionImages).mockResolvedValue([]);
+
+    const caller = appRouter.createCaller(createAdminContext());
+    await caller.auctions.getArchived({ dateFrom, dateTo });
+
+    expect(db.getArchivedAuctionsFiltered).toHaveBeenCalledWith(
+      expect.objectContaining({ dateFrom, dateTo })
+    );
+  });
+
+  it("rejects non-admin users from accessing filtered results", async () => {
+    const caller = appRouter.createCaller(createUserContext());
+    await expect(caller.auctions.getArchived({ category: "古幣" })).rejects.toThrow(TRPCError);
   });
 });

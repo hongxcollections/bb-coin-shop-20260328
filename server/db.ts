@@ -1,7 +1,7 @@
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -335,38 +335,82 @@ export async function getAuctionsByCreator(userId: number) {
   }
 }
 
+const ARCHIVED_SELECT = {
+  id: auctions.id,
+  title: auctions.title,
+  description: auctions.description,
+  startingPrice: auctions.startingPrice,
+  currentPrice: auctions.currentPrice,
+  highestBidderId: auctions.highestBidderId,
+  highestBidderName: users.name,
+  endTime: auctions.endTime,
+  status: auctions.status,
+  fbPostUrl: auctions.fbPostUrl,
+  bidIncrement: auctions.bidIncrement,
+  currency: auctions.currency,
+  category: auctions.category,
+  createdBy: auctions.createdBy,
+  createdAt: auctions.createdAt,
+  updatedAt: auctions.updatedAt,
+  archivedAt: auctions.archivedAt,
+  relistSourceId: auctions.relistSourceId,
+  archived: auctions.archived,
+} as const;
+
 export async function getArchivedAuctions() {
   const db = await getDb();
   if (!db) return [];
 
   try {
     const result = await db
-      .select({
-        id: auctions.id,
-        title: auctions.title,
-        description: auctions.description,
-        startingPrice: auctions.startingPrice,
-        currentPrice: auctions.currentPrice,
-        highestBidderId: auctions.highestBidderId,
-        highestBidderName: users.name,
-        endTime: auctions.endTime,
-        status: auctions.status,
-        fbPostUrl: auctions.fbPostUrl,
-        bidIncrement: auctions.bidIncrement,
-        currency: auctions.currency,
-        createdBy: auctions.createdBy,
-        createdAt: auctions.createdAt,
-        updatedAt: auctions.updatedAt,
-        relistSourceId: auctions.relistSourceId,
-        archived: auctions.archived,
-      })
+      .select(ARCHIVED_SELECT)
       .from(auctions)
       .leftJoin(users, eq(auctions.highestBidderId, users.id))
       .where(eq(auctions.archived, 1))
-      .orderBy(desc(auctions.updatedAt));
+      .orderBy(desc(auctions.archivedAt), desc(auctions.updatedAt));
     return result;
   } catch (error) {
     console.error('[Database] Failed to get archived auctions:', error);
+    return [];
+  }
+}
+
+export type ArchivedFilter = {
+  // Accept string so callers don't need to cast to the narrow enum type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  category?: any;
+  dateFrom?: Date;
+  dateTo?: Date;
+};
+
+export async function getArchivedAuctionsFiltered(filter: ArchivedFilter) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    const conditions = [eq(auctions.archived, 1)];
+    if (filter.category) {
+      conditions.push(sql`${auctions.category} = ${filter.category}`);
+    }
+    if (filter.dateFrom) {
+      conditions.push(gte(auctions.archivedAt, filter.dateFrom));
+    }
+    if (filter.dateTo) {
+      // include the whole day of dateTo
+      const endOfDay = new Date(filter.dateTo);
+      endOfDay.setHours(23, 59, 59, 999);
+      conditions.push(lte(auctions.archivedAt, endOfDay));
+    }
+
+    const result = await db
+      .select(ARCHIVED_SELECT)
+      .from(auctions)
+      .leftJoin(users, eq(auctions.highestBidderId, users.id))
+      .where(and(...conditions))
+      .orderBy(desc(auctions.archivedAt), desc(auctions.updatedAt));
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to get filtered archived auctions:', error);
     return [];
   }
 }

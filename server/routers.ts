@@ -3,7 +3,8 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions } from "./db";
+import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered } from "./db";
+import type { Auction } from "../drizzle/schema";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon } from "./auctions";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
@@ -433,16 +434,35 @@ export const appRouter = router({
         if (auction.status !== 'ended') {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '只有已結束的拍賣才能封存' });
         }
-        await updateAuction(input.id, { archived: 1 });
+        await updateAuction(input.id, { archived: 1, archivedAt: new Date() });
         return { success: true };
       }),
 
     getArchived: protectedProcedure
-      .query(async ({ ctx }) => {
+      .input(z.object({
+        category: z.enum(["古幣", "紀念幣", "外幣", "銀幣", "金幣", "其他"]).optional(),
+        dateFrom: z.date().optional(),
+        dateTo: z.date().optional(),
+      }).optional().refine(
+        (val) => {
+          if (!val || !val.dateFrom || !val.dateTo) return true;
+          return val.dateFrom <= val.dateTo;
+        },
+        { message: "起始日期不能晚於結束日期" }
+      ))
+      .query(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can view archived auctions' });
         }
-        const archivedList = await getArchivedAuctions();
+        const hasFilter = input && (input.category || input.dateFrom || input.dateTo);
+        const archivedList = hasFilter
+          ? await getArchivedAuctionsFiltered({
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              category: input!.category as any,
+              dateFrom: input!.dateFrom,
+              dateTo: input!.dateTo,
+            })
+          : await getArchivedAuctions();
         const withImages = await Promise.all(
           archivedList.map(async (auction: { id: number; [key: string]: unknown }) => ({
             ...auction,

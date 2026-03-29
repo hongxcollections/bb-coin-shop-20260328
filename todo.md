@@ -130,3 +130,11 @@
 - [x] 底部固定操作列：顯示已選數量、「批次還原」按鈕
 - [x] 批次還原觸發 10 秒倒數（共用現有倒數機制），支援 ESC 取消
 - [x] 新增 vitest 測試覆蓋 batchRestore procedure
+
+## 封存區篩選器
+
+- [x] 確認 auctions 表 category 欄位是否存在，必要時新增 schema 及 ALTER TABLE
+- [x] 後端 getArchived procedure 支援 category、dateFrom、dateTo 篩選參數
+- [x] 前端 AdminArchive.tsx 加入篩選列（類別下拉、日期範圍選擇器）
+- [x] 篩選結果與批次模式整合（篩選後可勾選批次還原）
+- [x] 新增 vitest 測試覆蓋篩選邏輯
