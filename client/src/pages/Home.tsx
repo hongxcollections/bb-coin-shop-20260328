@@ -192,7 +192,14 @@ export default function Home() {
                       <h3 className="font-semibold text-sm mb-2 line-clamp-2 text-foreground">{auction.title}</h3>
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="text-xs text-muted-foreground">當前出價</div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-1">
+                            當前出價
+                            {(auction as { highestBidderId?: number | null }).highestBidderId ? (
+                              <span className="text-[9px] text-red-500 font-semibold">({(auction as { highestBidderName?: string | null }).highestBidderName ?? `用戶 #${(auction as { highestBidderId?: number }).highestBidderId}`})</span>
+                            ) : (
+                              <span className="text-[9px] text-black font-normal">(未有出價)</span>
+                            )}
+                          </div>
                           <div className="text-lg font-bold text-amber-600 price-tag">
                             {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
                             <span className="text-xs font-normal text-amber-500 ml-0.5">{(auction as { currency?: string }).currency ?? 'HKD'}</span>
