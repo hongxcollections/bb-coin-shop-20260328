@@ -121,3 +121,12 @@
 
 - [x] AdminArchive.tsx：監聽 Escape 鍵，取消所有進行中的倒數計時器
 - [x] 在倒數 UI 顯示「ESC」快捷鍵提示標籤
+
+## 批次還原功能
+
+- [x] 後端新增 auctions.batchRestore procedure（接受 ids 陣列，逐一還原）
+- [x] 前端 AdminArchive.tsx 加入「批次模式」切換按鈕
+- [x] 批次模式下每張商品卡顯示 Checkbox，支援全選/取消全選
+- [x] 底部固定操作列：顯示已選數量、「批次還原」按鈕
+- [x] 批次還原觸發 10 秒倒數（共用現有倒數機制），支援 ESC 取消
+- [x] 新增 vitest 測試覆蓋 batchRestore procedure

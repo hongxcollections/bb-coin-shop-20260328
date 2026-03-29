@@ -205,3 +205,48 @@ describe("auctions.getArchived", () => {
     await expect(caller.auctions.getArchived()).rejects.toThrow(TRPCError);
   });
 });
+
+describe("auctions.batchRestore", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("allows admin to batch restore multiple archived auctions", async () => {
+    const archivedAuction = { ...mockEndedAuction, archived: 1 };
+    vi.mocked(db.getAuctionById).mockResolvedValue(archivedAuction);
+    vi.mocked(db.updateAuction).mockResolvedValue({} as never);
+
+    const caller = appRouter.createCaller(createAdminContext());
+    const result = await caller.auctions.batchRestore({ ids: [10, 11] });
+
+    expect(result.succeeded).toBe(2);
+    expect(result.skipped).toBe(0);
+    expect(result.total).toBe(2);
+    expect(db.updateAuction).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips non-archived auctions and counts them", async () => {
+    vi.mocked(db.getAuctionById)
+      .mockResolvedValueOnce({ ...mockEndedAuction, archived: 1 }) // id 10 → archived
+      .mockResolvedValueOnce(mockEndedAuction);                     // id 11 → not archived
+
+    vi.mocked(db.updateAuction).mockResolvedValue({} as never);
+
+    const caller = appRouter.createCaller(createAdminContext());
+    const result = await caller.auctions.batchRestore({ ids: [10, 11] });
+
+    expect(result.succeeded).toBe(1);
+    expect(result.skipped).toBe(1);
+    expect(result.total).toBe(2);
+  });
+
+  it("rejects non-admin users", async () => {
+    const caller = appRouter.createCaller(createUserContext());
+    await expect(caller.auctions.batchRestore({ ids: [10] })).rejects.toThrow(TRPCError);
+  });
+
+  it("rejects empty ids array", async () => {
+    const caller = appRouter.createCaller(createAdminContext());
+    await expect(caller.auctions.batchRestore({ ids: [] })).rejects.toThrow(TRPCError);
+  });
+});
