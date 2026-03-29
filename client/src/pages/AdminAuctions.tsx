@@ -712,6 +712,8 @@ export default function AdminAuctions() {
               status: string;
               bidIncrement?: number;
               highestBidderId?: number | null;
+              highestBidderName?: string | null;
+              currency?: string;
               images: unknown;
             };
             const activeAuctions = (auctions as AuctionItem[]).filter(
@@ -770,6 +772,17 @@ export default function AdminAuctions() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
+                        {isEffectivelyEnded && auction.highestBidderId && (
+                          <div className="mt-1.5 flex items-center gap-1.5 text-xs bg-emerald-50 border border-emerald-200 rounded-md px-2 py-1">
+                            <span className="text-emerald-600">🏆 得標：</span>
+                            <span className="font-semibold text-emerald-700">{auction.highestBidderName ?? `用戶 #${auction.highestBidderId}`}</span>
+                            <span className="text-gray-400 mx-0.5">·</span>
+                            <span className="font-bold text-emerald-700">{getCurrencySymbol(auction.currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()} {auction.currency ?? 'HKD'}</span>
+                          </div>
+                        )}
+                        {isEffectivelyEnded && !auction.highestBidderId && (
+                          <div className="mt-1.5 text-xs text-gray-400 italic">未有出價，流拍</div>
+                        )}
                         {isEffectivelyEnded ? (
                           <Button
                             size="sm"
