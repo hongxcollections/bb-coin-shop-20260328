@@ -271,6 +271,7 @@ export default function AdminAuctions() {
   const { user, isAuthenticated, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
+  const [editHasBids, setEditHasBids] = useState(false);
   const [form, setForm] = useState<AuctionFormData>(defaultForm);
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
@@ -401,6 +402,7 @@ export default function AdminAuctions() {
   const closeDialog = () => {
     setOpen(false);
     setEditId(null);
+    setEditHasBids(false);
     setForm(defaultForm);
     pendingImages.forEach((p) => URL.revokeObjectURL(p.previewUrl));
     setPendingImages([]);
@@ -421,6 +423,7 @@ export default function AdminAuctions() {
         id: editId,
         title: form.title,
         description: form.description,
+        ...(!editHasBids && form.startingPrice ? { startingPrice: parseFloat(form.startingPrice) } : {}),
         endTime: new Date(form.endTime),
         bidIncrement: form.bidIncrement,
         currency: form.currency as 'HKD' | 'USD' | 'CNY' | 'GBP' | 'EUR' | 'JPY',
@@ -444,9 +447,11 @@ export default function AdminAuctions() {
     startingPrice: string | number;
     endTime: Date;
     bidIncrement?: number;
+    highestBidderId?: number | null;
     images: unknown;
   }) => {
     setEditId(auction.id);
+    setEditHasBids(!!auction.highestBidderId);
     const images = auction.images as Array<{ id?: number; imageUrl: string; displayOrder: number }>;
     setForm({
       title: auction.title,
@@ -565,11 +570,12 @@ export default function AdminAuctions() {
                         onChange={(e) => setForm((f) => ({ ...f, startingPrice: e.target.value }))}
                         placeholder="100"
                         className="border-amber-200 focus-visible:ring-amber-400 min-w-0"
-                        disabled={!!editId}
+                        disabled={editId ? editHasBids : false}
                       />
                       <Select
                         value={form.currency}
                         onValueChange={(val) => setForm((f) => ({ ...f, currency: val }))}
+                        disabled={editId ? editHasBids : false}
                       >
                         <SelectTrigger id="currency" className="w-[4.5rem] h-9 text-[10px] leading-tight border-amber-200 focus:ring-amber-400 px-1.5 shrink-0">
                           <SelectValue placeholder="貨幣" />
@@ -583,7 +589,8 @@ export default function AdminAuctions() {
                         </SelectContent>
                       </Select>
                     </div>
-                    {editId && <p className="text-xs text-muted-foreground mt-1">編輯時不可修改起拍價</p>}
+                    {editId && editHasBids && <p className="text-xs text-red-400 mt-1">已有出價記錄，不可修改起拍價</p>}
+                    {editId && !editHasBids && <p className="text-xs text-emerald-600 mt-1">✓ 未有出價，可修改起拍價</p>}
                   </div>
                   {/* 每口加幅：移至起拍價行右側 */}
                   <div className="w-40 shrink-0">
@@ -691,6 +698,7 @@ export default function AdminAuctions() {
               endTime: Date;
               status: string;
               bidIncrement?: number;
+              highestBidderId?: number | null;
               images: unknown;
             }) => {
               const images = auction.images as Array<{ imageUrl: string }>;
@@ -749,7 +757,7 @@ export default function AdminAuctions() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => openEdit(auction)}
+                          onClick={() => openEdit({ ...auction, highestBidderId: (auction as { highestBidderId?: number | null }).highestBidderId })}
                           className="border-amber-200 text-amber-700 hover:bg-amber-50"
                         >
                           <Pencil className="w-3.5 h-3.5" />

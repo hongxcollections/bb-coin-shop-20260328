@@ -151,6 +151,7 @@ export const appRouter = router({
         id: z.number(),
         title: z.string().min(1).optional(),
         description: z.string().optional(),
+        startingPrice: z.number().min(0).optional(),
         endTime: z.date().optional(),
         bidIncrement: z.number().int().min(30).max(5000).optional(),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).optional(),
@@ -165,9 +166,21 @@ export const appRouter = router({
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Auction not found' });
         }
 
+        // If startingPrice is being changed, verify no bids exist
+        if (input.startingPrice !== undefined) {
+          const bidHistory = await getBidHistory(input.id);
+          if (bidHistory.length > 0) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: '已有出價記錄，不能修改起拍價' });
+          }
+        }
+
         const updateData: Record<string, unknown> = {};
         if (input.title !== undefined) updateData.title = input.title;
         if (input.description !== undefined) updateData.description = input.description;
+        if (input.startingPrice !== undefined) {
+          updateData.startingPrice = String(input.startingPrice);
+          updateData.currentPrice = String(input.startingPrice);
+        }
         if (input.endTime !== undefined) updateData.endTime = input.endTime;
         if (input.bidIncrement !== undefined) updateData.bidIncrement = input.bidIncrement;
         if (input.currency !== undefined) updateData.currency = input.currency;
