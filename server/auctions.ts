@@ -2,6 +2,7 @@ import { getDb, getAuctionById, getBidHistory, placeBid as dbPlaceBid, getAuctio
 import { auctions as auctionsTable, users } from '../drizzle/schema';
 import { eq } from 'drizzle-orm';
 import { sendOutbidEmail, sendWonEmail, sendEndingSoonEmail } from './email';
+import { getUserById } from './db';
 
 // Track which auctions have had ending-soon notifications sent (in-memory, resets on restart)
 const endingSoonSent = new Set<number>();
@@ -140,9 +141,10 @@ async function notifyOutbid(auctionId: number, previousHighestBidderId: number |
     const auction = await getAuctionById(auctionId);
     if (!auction) return;
 
-    const userRows = await db.select({ email: users.email, name: users.name }).from(users).where(eq(users.id, previousHighestBidderId));
+    const userRows = await db.select({ email: users.email, name: users.name, notifyOutbid: users.notifyOutbid }).from(users).where(eq(users.id, previousHighestBidderId));
     const prevUser = userRows[0];
     if (!prevUser?.email) return;
+    if (!prevUser.notifyOutbid) return; // User opted out
 
     await sendOutbidEmail({
       to: prevUser.email,
@@ -174,9 +176,10 @@ export async function notifyWon(auctionId: number, origin: string) {
     const db = await getDb();
     if (!db) return;
 
-    const userRows = await db.select({ email: users.email, name: users.name }).from(users).where(eq(users.id, auction.highestBidderId));
+    const userRows = await db.select({ email: users.email, name: users.name, notifyWon: users.notifyWon }).from(users).where(eq(users.id, auction.highestBidderId));
     const winner = userRows[0];
     if (!winner?.email) return;
+    if (!winner.notifyWon) return; // User opted out
 
     await sendWonEmail({
       to: winner.email,
@@ -213,6 +216,9 @@ export async function notifyEndingSoon(auctionId: number, origin: string) {
 
     for (const bidder of bidders) {
       if (!bidder.email) continue;
+      // Check user's personal notification preference
+      const bidderUser = await getUserById(bidder.userId);
+      if (!bidderUser?.notifyEndingSoon) continue;
       await sendEndingSoonEmail({
         to: bidder.email,
         senderName: settings.senderName,

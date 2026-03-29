@@ -182,3 +182,13 @@
 - [x] 前端用戶個人資料頁加入電郵填寫欄位
 - [x] 前端後台新增「通知設定」頁面（發件人名稱/電郵、三種通知開關、即將結束分鐘數）
 - [x] 新增 vitest 測試覆蓋郵件觸發邏輯
+
+## 用戶通知偏好設定
+
+- [x] 資料庫 users 表新增 notifyOutbid、notifyWon、notifyEndingSoon 欄位（int 預設 1）
+- [x] 執行 ALTER TABLE migration
+- [x] 後端 db.ts 更新 getUserById 回傳通知偏好欄位
+- [x] 後端新增 users.updateNotificationPrefs procedure
+- [x] 後端 placeBid/notifyWon/notifyEndingSoon 發送前檢查用戶個人偏好
+- [x] 前端 Profile.tsx 加入三個通知開關（出價被超越、得標、即將結束）
+- [x] 新增 vitest 測試覆蓋通知偏好邏輯

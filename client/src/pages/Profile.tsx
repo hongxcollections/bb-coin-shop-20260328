@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2 } from "lucide-react";
+import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Profile() {
@@ -18,6 +18,41 @@ export default function Profile() {
   const [emailSaved, setEmailSaved] = useState(false);
 
   const utils = trpc.useUtils();
+
+  // Notification preferences
+  const { data: notifPrefs } = trpc.users.getNotificationPrefs.useQuery(undefined, { enabled: isAuthenticated });
+  const [notifyOutbid, setNotifyOutbid] = useState(true);
+  const [notifyWon, setNotifyWon] = useState(true);
+  const [notifyEndingSoon, setNotifyEndingSoon] = useState(true);
+  const [prefsInitialised, setPrefsInitialised] = useState(false);
+
+  if (notifPrefs && !prefsInitialised) {
+    setNotifyOutbid(!!notifPrefs.notifyOutbid);
+    setNotifyWon(!!notifPrefs.notifyWon);
+    setNotifyEndingSoon(!!notifPrefs.notifyEndingSoon);
+    setPrefsInitialised(true);
+  }
+
+  const updateNotifPrefs = trpc.users.updateNotificationPrefs.useMutation({
+    onSuccess: () => {
+      toast.success('通知偏好已儲存');
+      utils.users.getNotificationPrefs.invalidate();
+    },
+    onError: (err) => toast.error(`儲存失敗：${err.message}`),
+  });
+
+  const handleToggleNotif = (key: 'outbid' | 'won' | 'endingSoon', value: boolean) => {
+    const next = {
+      notifyOutbid: key === 'outbid' ? (value ? 1 : 0) : (notifyOutbid ? 1 : 0),
+      notifyWon: key === 'won' ? (value ? 1 : 0) : (notifyWon ? 1 : 0),
+      notifyEndingSoon: key === 'endingSoon' ? (value ? 1 : 0) : (notifyEndingSoon ? 1 : 0),
+    };
+    if (key === 'outbid') setNotifyOutbid(value);
+    if (key === 'won') setNotifyWon(value);
+    if (key === 'endingSoon') setNotifyEndingSoon(value);
+    updateNotifPrefs.mutate(next);
+  };
+
   const updateEmail = trpc.users.updateEmail.useMutation({
     onSuccess: () => {
       setEmailSaved(true);
@@ -123,7 +158,7 @@ export default function Profile() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              填寫電郵地址後，系統將在以下情況自動發送通知：出價被他人超越、成功得標、拍賣即將結束。
+              填寫電郵地址後，可在下方選擇接收哪些通知。
             </p>
             <div className="space-y-2">
               <Label htmlFor="email-input" className="text-sm font-medium">電郵地址</Label>
@@ -153,6 +188,42 @@ export default function Profile() {
                 <span>尚未設定電郵，目前不會收到任何通知。請填寫電郵地址以啟用通知功能。</span>
               </div>
             )}
+
+            {/* Notification toggles */}
+            <div className="border-t border-amber-100 pt-4 space-y-3">
+              <p className="text-sm font-medium">通知類型</p>
+              {([
+                { key: 'outbid' as const, label: '出價被超越', desc: '有人出價超越你時通知', value: notifyOutbid },
+                { key: 'won' as const, label: '成功得標', desc: '拍賣結束且你得標時通知', value: notifyWon },
+                { key: 'endingSoon' as const, label: '拍賣即將結束', desc: '你有出價的拍賣快結束時通知', value: notifyEndingSoon },
+              ]).map(({ key, label, desc, value }) => (
+                <div key={key} className="flex items-center justify-between gap-4 py-2 px-3 rounded-lg bg-amber-50/60 border border-amber-100">
+                  <div className="flex items-center gap-2">
+                    {value ? <Bell className="w-4 h-4 text-amber-600" /> : <BellOff className="w-4 h-4 text-muted-foreground" />}
+                    <div>
+                      <p className="text-sm font-medium leading-none">{label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={value}
+                    onClick={() => handleToggleNotif(key, !value)}
+                    disabled={updateNotifPrefs.isPending}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 disabled:opacity-50 ${
+                      value ? 'bg-amber-500' : 'bg-muted'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform ${
+                        value ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
 

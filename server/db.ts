@@ -102,6 +102,28 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function getUserById(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateUserNotificationPrefs(
+  userId: number,
+  prefs: { notifyOutbid?: number; notifyWon?: number; notifyEndingSoon?: number }
+): Promise<boolean> {
+  try {
+    const db = await getDb();
+    if (!db) return false;
+    await db.update(users).set(prefs).where(eq(users.id, userId));
+    return true;
+  } catch (error) {
+    console.error('[Database] Failed to update notification prefs:', error);
+    return false;
+  }
+}
+
 export async function getAuctions(limit = 20, offset = 0) {
   const db = await getDb();
   if (!db) return [];

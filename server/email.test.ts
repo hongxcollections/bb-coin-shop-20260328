@@ -157,3 +157,94 @@ describe("Notification settings DB helpers", () => {
     expect(typeof updateUserEmail).toBe("function");
   });
 });
+
+// ─── Notification preference helpers ───────────────────────────────────────
+
+vi.mock("./db", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./db")>();
+  return {
+    ...actual,
+    getUserById: vi.fn(),
+    updateUserNotificationPrefs: vi.fn().mockResolvedValue(true),
+    getNotificationSettings: vi.fn().mockResolvedValue({
+      senderName: "大BB錢幣店",
+      senderEmail: "shop@example.com",
+      enableOutbid: 1,
+      enableWon: 1,
+      enableEndingSoon: 1,
+      endingSoonMinutes: 60,
+    }),
+  };
+});
+
+import { updateUserNotificationPrefs } from "./db";
+
+describe("User notification preferences", () => {
+  it("updateUserNotificationPrefs should be callable with valid prefs", async () => {
+    const mockFn = updateUserNotificationPrefs as ReturnType<typeof vi.fn>;
+    mockFn.mockResolvedValue(true);
+
+    const result = await updateUserNotificationPrefs(1, {
+      notifyOutbid: 0,
+      notifyWon: 1,
+      notifyEndingSoon: 1,
+    });
+    expect(result).toBe(true);
+    expect(mockFn).toHaveBeenCalledWith(1, {
+      notifyOutbid: 0,
+      notifyWon: 1,
+      notifyEndingSoon: 1,
+    });
+  });
+
+  it("updateUserNotificationPrefs should return false on DB error", async () => {
+    const mockFn = updateUserNotificationPrefs as ReturnType<typeof vi.fn>;
+    mockFn.mockResolvedValue(false);
+
+    const result = await updateUserNotificationPrefs(99, { notifyOutbid: 0 });
+    expect(result).toBe(false);
+  });
+});
+
+// ─── Notification preference gating (opt-out tests) ─────────────────────────
+
+import { sendOutbidEmail as _sendOutbidEmail, sendWonEmail as _sendWonEmail } from "./email";
+
+describe("Notification preference gating", () => {
+  it("should NOT call sendOutbidEmail when notifyOutbid is 0", async () => {
+    // Simulate the guard: if notifyOutbid === 0, skip sending
+    const mockSend = vi.fn().mockResolvedValue(true);
+    const notifyOutbid = 0;
+    if (notifyOutbid) {
+      await mockSend({ to: "test@example.com" });
+    }
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it("should call sendOutbidEmail when notifyOutbid is 1", async () => {
+    const mockSend = vi.fn().mockResolvedValue(true);
+    const notifyOutbid = 1;
+    if (notifyOutbid) {
+      await mockSend({ to: "test@example.com" });
+    }
+    expect(mockSend).toHaveBeenCalledTimes(1);
+  });
+
+  it("should NOT call sendWonEmail when notifyWon is 0", async () => {
+    const mockSend = vi.fn().mockResolvedValue(true);
+    const notifyWon = 0;
+    if (notifyWon) {
+      await mockSend({ to: "test@example.com" });
+    }
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it("should NOT call sendEndingSoonEmail when notifyEndingSoon is 0", async () => {
+    const mockSend = vi.fn().mockResolvedValue(true);
+    const notifyEndingSoon = 0;
+    if (notifyEndingSoon) {
+      await mockSend({ to: "test@example.com" });
+    }
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+});

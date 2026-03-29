@@ -6,7 +6,7 @@ import { z } from "zod";
 import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById } from "./db";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 
@@ -646,6 +646,29 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const ok = await updateUserEmail(ctx.user.id, input.email);
         if (!ok) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update email' });
+        return { success: true };
+      }),
+
+    getNotificationPrefs: protectedProcedure
+      .query(async ({ ctx }) => {
+        const user = await getUserById(ctx.user.id);
+        if (!user) throw new TRPCError({ code: 'NOT_FOUND' });
+        return {
+          notifyOutbid: user.notifyOutbid ?? 1,
+          notifyWon: user.notifyWon ?? 1,
+          notifyEndingSoon: user.notifyEndingSoon ?? 1,
+        };
+      }),
+
+    updateNotificationPrefs: protectedProcedure
+      .input(z.object({
+        notifyOutbid: z.number().int().min(0).max(1),
+        notifyWon: z.number().int().min(0).max(1),
+        notifyEndingSoon: z.number().int().min(0).max(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const ok = await updateUserNotificationPrefs(ctx.user.id, input);
+        if (!ok) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update notification preferences' });
         return { success: true };
       }),
   }),

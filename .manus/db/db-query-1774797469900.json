@@ -1,0 +1,9 @@
+{
+  "query": "\nALTER TABLE `users`\n  ADD COLUMN IF NOT EXISTS `notifyOutbid` int NOT NULL DEFAULT 1,\n  ADD COLUMN IF NOT EXISTS `notifyWon` int NOT NULL DEFAULT 1,\n  ADD COLUMN IF NOT EXISTS `notifyEndingSoon` int NOT NULL DEFAULT 1;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3JP8k7yzHFv62xZ.9d413e412763 --database 5iU7X8HzvqNf24sNdvU8FR --execute \nALTER TABLE `users`\n  ADD COLUMN IF NOT EXISTS `notifyOutbid` int NOT NULL DEFAULT 1,\n  ADD COLUMN IF NOT EXISTS `notifyWon` int NOT NULL DEFAULT 1,\n  ADD COLUMN IF NOT EXISTS `notifyEndingSoon` int NOT NULL DEFAULT 1;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2182
+}
