@@ -284,13 +284,16 @@ export default function Profile() {
               </div>
             ) : myBids && myBids.length > 0 ? (
               <div className="space-y-2">
-                {myBids.map((bid: { id: number; auctionId: number; bidAmount: string | number; createdAt: Date }) => (
+                {myBids.map((bid: { id: number; auctionId: number; bidAmount: string | number; createdAt: Date; auctionTitle?: string | null }) => {
+                  const rawTitle = bid.auctionTitle ?? '';
+                  const displayTitle = rawTitle.length > 20 ? rawTitle.slice(0, 20) + '..' : rawTitle;
+                  return (
                   <Link key={bid.id} href={`/auctions/${bid.auctionId}`}>
                     <div className="flex items-center justify-between py-3 px-4 rounded-lg border border-amber-100 hover:border-amber-300 hover:bg-amber-50 transition-all cursor-pointer">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 coin-placeholder rounded-lg flex items-center justify-center text-sm">🪙</div>
                         <div>
-                          <div className="text-sm font-medium">拍賣 #{bid.auctionId}</div>
+                          <div className="text-[0.667rem] font-medium leading-snug">拍賣 {displayTitle}</div>
                           <div className="text-xs text-muted-foreground">
                             {new Date(bid.createdAt).toLocaleString("zh-HK")}
                           </div>
@@ -301,7 +304,8 @@ export default function Profile() {
                       </div>
                     </div>
                   </Link>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-10 text-muted-foreground">

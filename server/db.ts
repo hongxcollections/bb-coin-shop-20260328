@@ -224,8 +224,15 @@ export async function getUserBids(userId: number) {
 
   try {
     const result = await db
-      .select()
+      .select({
+        id: bids.id,
+        auctionId: bids.auctionId,
+        bidAmount: bids.bidAmount,
+        createdAt: bids.createdAt,
+        auctionTitle: auctions.title,
+      })
       .from(bids)
+      .leftJoin(auctions, eq(bids.auctionId, auctions.id))
       .where(eq(bids.userId, userId))
       .orderBy(desc(bids.createdAt));
     return result;
