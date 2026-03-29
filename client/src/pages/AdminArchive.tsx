@@ -74,6 +74,20 @@ export default function AdminArchive() {
     };
   }, []);
 
+  // Escape key: cancel ALL pending restores
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && pendingRestores.size > 0) {
+        intervalsRef.current.forEach((intervalId) => clearInterval(intervalId));
+        intervalsRef.current.clear();
+        setPendingRestores(new Map());
+        toast.info("已按 ESC 取消所有還原操作");
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [pendingRestores]);
+
   /** Start a 10-second countdown for a given auction, then fire the API */
   const handleRestore = (id: number, title: string) => {
     // If already pending, ignore
@@ -302,6 +316,7 @@ export default function AdminArchive() {
                             >
                               <X className="w-3 h-3 mr-1" />
                               取消還原
+                              <kbd className="ml-1.5 inline-flex items-center rounded border border-gray-400 bg-white px-1 font-mono text-[9px] text-gray-500 leading-none">ESC</kbd>
                             </Button>
                           </div>
                         ) : (
