@@ -116,7 +116,10 @@ export default function AuctionDetail() {
   const currency = (auction as { currency?: string })?.currency ?? 'HKD';
   const currencySymbol = getCurrencySymbol(currency);
   const currentPrice = auction ? Number(auction.currentPrice) : 0;
-  const minBid = currentPrice + bidIncrement;
+  const startingPrice = auction ? Number(auction.startingPrice) : 0;
+  // 無出價記錄時，最低出價 = 起拍價；有出價時 = 現價 + 每口加幅
+  const hasExistingBid = !!(auction as { highestBidderId?: number | null })?.highestBidderId;
+  const minBid = hasExistingBid ? currentPrice + bidIncrement : startingPrice;
 
   // 快速出價按鈕：最低出價、最低+1口、最低+2口
   const quickBidOptions = auction ? [
@@ -440,7 +443,10 @@ export default function AuctionDetail() {
                         </Button>
                       </div>
                       <p className="text-xs text-muted-foreground text-center">
-                        最低出價：{currencySymbol}{minBid.toLocaleString()}（現價 + 每口加幅 {currencySymbol}{bidIncrement}）
+                        最低出價：{currencySymbol}{minBid.toLocaleString()}
+                        {hasExistingBid
+                          ? `（現價 + 每口加幅 ${currencySymbol}${bidIncrement}）`
+                          : `（起拍價，首口免加幅）`}
                       </p>
                     </div>
                   ) : (

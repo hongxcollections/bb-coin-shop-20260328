@@ -21,11 +21,20 @@ export async function validateBid(auctionId: number, bidAmount: number): Promise
   }
 
   const currentPrice = parseFloat(auction.currentPrice.toString());
+  const startingPrice = parseFloat(auction.startingPrice.toString());
   const bidIncrement = auction.bidIncrement ?? 50;
-  const minBid = currentPrice + bidIncrement;
+
+  // First bid: allow bidding at starting price (no increment required)
+  // Subsequent bids: must be at least currentPrice + bidIncrement
+  const hasExistingBid = auction.highestBidderId !== null && auction.highestBidderId !== undefined;
+  const minBid = hasExistingBid ? currentPrice + bidIncrement : startingPrice;
 
   if (bidAmount < minBid) {
-    return { valid: false, error: `出價金額必須至少為 HK$${minBid}（現價 HK$${currentPrice} + 每口加幅 HK$${bidIncrement}）` };
+    if (hasExistingBid) {
+      return { valid: false, error: `出價金額必須至少為 HK$${minBid}（現價 HK$${currentPrice} + 每口加幅 HK$${bidIncrement}）` };
+    } else {
+      return { valid: false, error: `第一口出價金額必須至少為起拍價 HK$${startingPrice}` };
+    }
   }
 
   return { valid: true };

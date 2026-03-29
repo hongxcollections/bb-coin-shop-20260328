@@ -231,7 +231,7 @@ describe("bidIncrement feature", () => {
   });
 
   describe("validateBid with bidIncrement", () => {
-    it("rejects bid below currentPrice + bidIncrement", async () => {
+    it("rejects bid below currentPrice + bidIncrement (with existing bid)", async () => {
       const { validateBid } = await import("./auctions");
       // Restore original implementation for this test
       vi.mocked(validateBid).mockRestore?.();
@@ -239,7 +239,7 @@ describe("bidIncrement feature", () => {
       // Use the actual validateBid logic by re-importing
       const { validateBid: realValidateBid } = await vi.importActual<typeof import("./auctions")>("./auctions");
 
-      // Mock getAuctionById to return auction with bidIncrement
+      // Mock getAuctionById to return auction with bidIncrement AND existing bid
       vi.mocked(dbModule.getAuctionById).mockResolvedValue({
         id: 1,
         title: "Test",
@@ -252,7 +252,7 @@ describe("bidIncrement feature", () => {
         createdBy: 1,
         createdAt: new Date(),
         updatedAt: new Date(),
-        highestBidderId: null,
+        highestBidderId: 3, // existing bid - increment required
       });
 
       // Bid of 550 should fail (needs >= 500 + 100 = 600)
@@ -261,7 +261,7 @@ describe("bidIncrement feature", () => {
       expect(result.error).toContain("600");
     });
 
-    it("accepts bid equal to currentPrice + bidIncrement", async () => {
+    it("accepts bid equal to currentPrice + bidIncrement (with existing bid)", async () => {
       const { validateBid: realValidateBid } = await vi.importActual<typeof import("./auctions")>("./auctions");
 
       vi.mocked(dbModule.getAuctionById).mockResolvedValue({
@@ -276,12 +276,85 @@ describe("bidIncrement feature", () => {
         createdBy: 1,
         createdAt: new Date(),
         updatedAt: new Date(),
-        highestBidderId: null,
+        highestBidderId: 3, // existing bid - increment required
       });
 
       // Bid of exactly 600 should pass (500 + 100 = 600)
       const result = await realValidateBid(1, 600);
       expect(result.valid).toBe(true);
     });
+  });
+});
+
+describe("validateBid - first bid logic", () => {
+  it("accepts first bid at exactly starting price (no increment required)", async () => {
+    const { validateBid: realValidateBid } = await vi.importActual<typeof import("./auctions")>("./auctions");
+
+    vi.mocked(dbModule.getAuctionById).mockResolvedValue({
+      id: 1,
+      title: "Test",
+      description: "Test",
+      startingPrice: "200",
+      currentPrice: "200",
+      bidIncrement: 50,
+      status: "active",
+      endTime: new Date(Date.now() + 86400000),
+      createdBy: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      highestBidderId: null, // no existing bid
+    });
+
+    // First bid at exactly starting price (200) should pass
+    const result = await realValidateBid(1, 200);
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects first bid below starting price", async () => {
+    const { validateBid: realValidateBid } = await vi.importActual<typeof import("./auctions")>("./auctions");
+
+    vi.mocked(dbModule.getAuctionById).mockResolvedValue({
+      id: 1,
+      title: "Test",
+      description: "Test",
+      startingPrice: "200",
+      currentPrice: "200",
+      bidIncrement: 50,
+      status: "active",
+      endTime: new Date(Date.now() + 86400000),
+      createdBy: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      highestBidderId: null, // no existing bid
+    });
+
+    // Bid below starting price (199) should fail
+    const result = await realValidateBid(1, 199);
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("200");
+  });
+
+  it("requires increment for subsequent bids (highestBidderId set)", async () => {
+    const { validateBid: realValidateBid } = await vi.importActual<typeof import("./auctions")>("./auctions");
+
+    vi.mocked(dbModule.getAuctionById).mockResolvedValue({
+      id: 1,
+      title: "Test",
+      description: "Test",
+      startingPrice: "200",
+      currentPrice: "300",
+      bidIncrement: 50,
+      status: "active",
+      endTime: new Date(Date.now() + 86400000),
+      createdBy: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      highestBidderId: 5, // existing bid
+    });
+
+    // Bid of 300 (same as current) should fail; needs >= 350
+    const result = await realValidateBid(1, 300);
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("350");
   });
 });
