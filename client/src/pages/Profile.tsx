@@ -41,6 +41,16 @@ export default function Profile() {
     onError: (err) => toast.error(`儲存失敗：${err.message}`),
   });
 
+  const allOn = notifyOutbid && notifyWon && notifyEndingSoon;
+
+  const handleToggleAll = () => {
+    const next = allOn ? 0 : 1;
+    setNotifyOutbid(!!next);
+    setNotifyWon(!!next);
+    setNotifyEndingSoon(!!next);
+    updateNotifPrefs.mutate({ notifyOutbid: next, notifyWon: next, notifyEndingSoon: next });
+  };
+
   const handleToggleNotif = (key: 'outbid' | 'won' | 'endingSoon', value: boolean) => {
     const next = {
       notifyOutbid: key === 'outbid' ? (value ? 1 : 0) : (notifyOutbid ? 1 : 0),
@@ -191,7 +201,21 @@ export default function Profile() {
 
             {/* Notification toggles */}
             <div className="border-t border-amber-100 pt-4 space-y-3">
-              <p className="text-sm font-medium">通知類型</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">通知類型</p>
+                <button
+                  type="button"
+                  onClick={handleToggleAll}
+                  disabled={updateNotifPrefs.isPending}
+                  className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors disabled:opacity-50 ${
+                    allOn
+                      ? 'border-red-200 text-red-600 hover:bg-red-50'
+                      : 'border-amber-300 text-amber-700 hover:bg-amber-50'
+                  }`}
+                >
+                  {allOn ? '全部關閉' : '全部開啟'}
+                </button>
+              </div>
               {([
                 { key: 'outbid' as const, label: '出價被超越', desc: '有人出價超越你時通知', value: notifyOutbid },
                 { key: 'won' as const, label: '成功得標', desc: '拍賣結束且你得標時通知', value: notifyWon },

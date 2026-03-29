@@ -192,3 +192,7 @@
 - [x] 後端 placeBid/notifyWon/notifyEndingSoon 發送前檢查用戶個人偏好
 - [x] 前端 Profile.tsx 加入三個通知開關（出價被超越、得標、即將結束）
 - [x] 新增 vitest 測試覆蓋通知偏好邏輯
+
+## 通知一鍵全部開啟/關閉
+
+- [x] 前端 Profile.tsx 通知類型標題列右側加入「全部開啟」/「全部關閉」切換按鈕
