@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { TrendingUp, Clock, LogOut, Trash2, Facebook, Archive } from "lucide-react";
+import { TrendingUp, Clock, LogOut, Trash2, Facebook, Archive, X } from "lucide-react";
 import { getCurrencySymbol } from "./AdminAuctions";
+
+const RESTORE_COUNTDOWN = 10; // seconds
 
 function formatDate(date: Date) {
   return new Date(date).toLocaleString("zh-HK", {
@@ -16,22 +18,40 @@ function formatDate(date: Date) {
   });
 }
 
+/** Countdown state for a pending restore */
+type PendingRestore = {
+  id: number;
+  title: string;
+  secondsLeft: number;
+};
+
 export default function AdminArchive() {
   const { user, isAuthenticated, logout } = useAuth();
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [restoringId, setRestoringId] = useState<number | null>(null);
+  // Map of auctionId → pending restore state
+  const [pendingRestores, setPendingRestores] = useState<Map<number, PendingRestore>>(new Map());
+  // Refs to hold interval IDs so we can clear them
+  const intervalsRef = useRef<Map<number, ReturnType<typeof setInterval>>>(new Map());
 
   const { data: archivedList, isLoading, refetch } = trpc.auctions.getArchived.useQuery();
 
   const restoreAuction = trpc.auctions.restore.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast.success("已還原至後台已結束列表");
-      setRestoringId(null);
+      setPendingRestores((prev) => {
+        const next = new Map(prev);
+        next.delete(variables.id);
+        return next;
+      });
       refetch();
     },
-    onError: (err) => {
+    onError: (err, variables) => {
       toast.error(err.message || "還原失敗");
-      setRestoringId(null);
+      setPendingRestores((prev) => {
+        const next = new Map(prev);
+        next.delete(variables.id);
+        return next;
+      });
     },
   });
 
@@ -47,17 +67,73 @@ export default function AdminArchive() {
     },
   });
 
+  // Clean up all intervals on unmount
+  useEffect(() => {
+    return () => {
+      intervalsRef.current.forEach((id) => clearInterval(id));
+    };
+  }, []);
+
+  /** Start a 10-second countdown for a given auction, then fire the API */
+  const handleRestore = (id: number, title: string) => {
+    // If already pending, ignore
+    if (pendingRestores.has(id)) return;
+
+    // Register pending restore
+    setPendingRestores((prev) => {
+      const next = new Map(prev);
+      next.set(id, { id, title, secondsLeft: RESTORE_COUNTDOWN });
+      return next;
+    });
+
+    // Tick every second
+    const intervalId = setInterval(() => {
+      setPendingRestores((prev) => {
+        const entry = prev.get(id);
+        if (!entry) {
+          clearInterval(intervalId);
+          intervalsRef.current.delete(id);
+          return prev;
+        }
+        const newSeconds = entry.secondsLeft - 1;
+        if (newSeconds <= 0) {
+          // Time's up — fire the API
+          clearInterval(intervalId);
+          intervalsRef.current.delete(id);
+          restoreAuction.mutate({ id });
+          // Keep entry in map (mutation callbacks will remove it)
+          const next = new Map(prev);
+          next.set(id, { ...entry, secondsLeft: 0 });
+          return next;
+        }
+        const next = new Map(prev);
+        next.set(id, { ...entry, secondsLeft: newSeconds });
+        return next;
+      });
+    }, 1000);
+
+    intervalsRef.current.set(id, intervalId);
+  };
+
+  /** Cancel a pending restore */
+  const handleCancelRestore = (id: number) => {
+    const intervalId = intervalsRef.current.get(id);
+    if (intervalId !== undefined) {
+      clearInterval(intervalId);
+      intervalsRef.current.delete(id);
+    }
+    setPendingRestores((prev) => {
+      const next = new Map(prev);
+      next.delete(id);
+      return next;
+    });
+    toast.info("已取消還原");
+  };
+
   const handlePermanentDelete = (id: number, title: string) => {
     if (confirm(`⚠️ 警告：此操作無法還原！\n\n確定要永久刪除「${title}」及其所有出價記錄嗎？`)) {
       setDeletingId(id);
       permanentDelete.mutate({ id });
-    }
-  };
-
-  const handleRestore = (id: number, title: string) => {
-    if (confirm(`確定要還原「${title}」嗎？\n\n商品將重新出現在後台已結束列表中。`)) {
-      setRestoringId(id);
-      restoreAuction.mutate({ id });
     }
   };
 
@@ -162,9 +238,14 @@ export default function AdminArchive() {
                 ? ((gain / Number(auction.startingPrice)) * 100).toFixed(1)
                 : "0";
               const isDeleting = deletingId === auction.id;
+              const pending = pendingRestores.get(auction.id);
+              const isRestoring = restoreAuction.isPending && !pendingRestores.has(auction.id);
 
               return (
-                <Card key={auction.id} className="border-gray-200 bg-gray-50/50 hover:border-gray-300 transition-all">
+                <Card
+                  key={auction.id}
+                  className={`border-gray-200 transition-all ${pending ? "bg-emerald-50/60 border-emerald-200" : "bg-gray-50/50 hover:border-gray-300"}`}
+                >
                   <CardContent className="p-3">
                     {/* Row 1: Images */}
                     {previewImages.length > 0 && (
@@ -182,30 +263,69 @@ export default function AdminArchive() {
                       </div>
                     )}
 
-                    {/* Row 2: Title + Badge + Delete button */}
+                    {/* Row 2: Title + Badge + Action buttons */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-1.5 flex-wrap flex-1 min-w-0">
                         <h3 className="font-semibold text-sm truncate max-w-[200px] text-gray-600">{auction.title}</h3>
-                        <Badge className="bg-gray-400 text-white text-[10px] px-1.5 py-0">已封存</Badge>
+                        <Badge className={`text-[10px] px-1.5 py-0 ${pending ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
+                          {pending ? "還原中..." : "已封存"}
+                        </Badge>
                       </div>
+
                       <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <Button
-                          size="sm"
-                          onClick={() => handleRestore(auction.id, auction.title)}
-                          disabled={restoringId === auction.id || restoreAuction.isPending}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 text-xs px-2 h-7"
-                        >
-                          {restoringId === auction.id ? "還原中..." : "↩ 還原"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => handlePermanentDelete(auction.id, auction.title)}
-                          disabled={isDeleting || permanentDelete.isPending}
-                          className="bg-red-600 hover:bg-red-700 text-white border-0 text-xs px-2 h-7"
-                        >
-                          <Trash2 className="w-3 h-3 mr-1" />
-                          {isDeleting ? "刪除中..." : "永久刪除"}
-                        </Button>
+                        {pending ? (
+                          /* ── Countdown + Cancel ── */
+                          <div className="flex items-center gap-1.5">
+                            {/* Circular countdown indicator */}
+                            <div className="relative w-7 h-7 flex-shrink-0">
+                              <svg className="w-7 h-7 -rotate-90" viewBox="0 0 28 28">
+                                <circle cx="14" cy="14" r="11" fill="none" stroke="#d1fae5" strokeWidth="3" />
+                                <circle
+                                  cx="14" cy="14" r="11"
+                                  fill="none"
+                                  stroke="#10b981"
+                                  strokeWidth="3"
+                                  strokeDasharray={`${2 * Math.PI * 11}`}
+                                  strokeDashoffset={`${2 * Math.PI * 11 * (1 - pending.secondsLeft / RESTORE_COUNTDOWN)}`}
+                                  strokeLinecap="round"
+                                  style={{ transition: "stroke-dashoffset 0.9s linear" }}
+                                />
+                              </svg>
+                              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-emerald-700">
+                                {pending.secondsLeft}
+                              </span>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => handleCancelRestore(auction.id)}
+                              className="bg-gray-200 hover:bg-gray-300 text-gray-700 border-0 text-xs px-2 h-7"
+                            >
+                              <X className="w-3 h-3 mr-1" />
+                              取消還原
+                            </Button>
+                          </div>
+                        ) : (
+                          /* ── Normal buttons ── */
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => handleRestore(auction.id, auction.title)}
+                              disabled={isRestoring}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 text-xs px-2 h-7"
+                            >
+                              ↩ 還原
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handlePermanentDelete(auction.id, auction.title)}
+                              disabled={isDeleting || permanentDelete.isPending}
+                              className="bg-red-600 hover:bg-red-700 text-white border-0 text-xs px-2 h-7"
+                            >
+                              <Trash2 className="w-3 h-3 mr-1" />
+                              {isDeleting ? "刪除中..." : "永久刪除"}
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
 

@@ -112,3 +112,7 @@
 - [x] 後端新增 auctions.restore procedure（將 archived=1 改回 archived=0）
 - [x] 前端 AdminArchive.tsx 每張商品卡加入「還原」按鈕
 - [x] 新增 vitest 測試覆蓋 restore procedure
+
+## 還原倒數計時器
+
+- [x] AdminArchive.tsx：點擊還原後進入 10 秒倒數，期間顯示取消按鈕，倒數結束才真正執行還原 API
