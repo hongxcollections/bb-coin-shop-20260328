@@ -375,6 +375,14 @@ export default function AdminAuctions() {
     onError: (err) => toast.error(err.message || "重新上架失敗"),
   });
 
+  const archiveAuction = trpc.auctions.archive.useMutation({
+    onSuccess: () => {
+      toast.success("已封存至封存區");
+      refetch();
+    },
+    onError: (err) => toast.error(err.message || "封存失敗"),
+  });
+
   const handleAddFiles = useCallback((files: File[]) => {
     const newPending: PendingImage[] = files.map((file, i) => ({
       file,
@@ -518,6 +526,11 @@ export default function AdminAuctions() {
             <Link href="/admin/drafts">
               <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 gap-1">
                 <Facebook className="w-3.5 h-3.5" /> 草稿審核
+              </Button>
+            </Link>
+            <Link href="/admin/archive">
+              <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 gap-1">
+                📦 封存區
               </Button>
             </Link>
             <Link href="/profile">
@@ -759,14 +772,28 @@ export default function AdminAuctions() {
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         {isEffectivelyEnded ? (
-                          <Button
-                            size="sm"
-                            onClick={() => relistAuction.mutate({ id: auction.id })}
-                            disabled={relistAuction.isPending}
-                            className="bg-amber-500 hover:bg-amber-600 text-white border-0 text-xs px-2 h-7"
-                          >
-                            {relistAuction.isPending ? "建立中..." : "🔄 重新上架"}
-                          </Button>
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              size="sm"
+                              onClick={() => relistAuction.mutate({ id: auction.id })}
+                              disabled={relistAuction.isPending}
+                              className="bg-amber-500 hover:bg-amber-600 text-white border-0 text-xs px-2 h-7"
+                            >
+                              {relistAuction.isPending ? "建立中..." : "🔄 重新上架"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                if (confirm(`確定要封存「${auction.title}」嗎？封存後可在封存區查看或永久刪除。`)) {
+                                  archiveAuction.mutate({ id: auction.id });
+                                }
+                              }}
+                              disabled={archiveAuction.isPending}
+                              className="bg-gray-500 hover:bg-gray-600 text-white border-0 text-xs px-2 h-7"
+                            >
+                              📦 封存
+                            </Button>
+                          </div>
                         ) : (
                           <>
                             <Button size="sm" variant="outline"

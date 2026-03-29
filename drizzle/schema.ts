@@ -36,6 +36,7 @@ export const auctions = mysqlTable("auctions", {
   currency: mysqlEnum("currency", ["HKD", "USD", "CNY", "GBP", "EUR", "JPY"]).default("HKD").notNull(),
   createdBy: int("createdBy").notNull(),
   relistSourceId: int("relistSourceId"),
+  archived: int("archived").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

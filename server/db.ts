@@ -326,11 +326,47 @@ export async function getAuctionsByCreator(userId: number) {
       })
       .from(auctions)
       .leftJoin(users, eq(auctions.highestBidderId, users.id))
-      .where(eq(auctions.createdBy, userId))
+      .where(and(eq(auctions.createdBy, userId), eq(auctions.archived, 0)))
       .orderBy(desc(auctions.createdAt));
     return result;
   } catch (error) {
     console.error('[Database] Failed to get auctions by creator:', error);
+    return [];
+  }
+}
+
+export async function getArchivedAuctions() {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    const result = await db
+      .select({
+        id: auctions.id,
+        title: auctions.title,
+        description: auctions.description,
+        startingPrice: auctions.startingPrice,
+        currentPrice: auctions.currentPrice,
+        highestBidderId: auctions.highestBidderId,
+        highestBidderName: users.name,
+        endTime: auctions.endTime,
+        status: auctions.status,
+        fbPostUrl: auctions.fbPostUrl,
+        bidIncrement: auctions.bidIncrement,
+        currency: auctions.currency,
+        createdBy: auctions.createdBy,
+        createdAt: auctions.createdAt,
+        updatedAt: auctions.updatedAt,
+        relistSourceId: auctions.relistSourceId,
+        archived: auctions.archived,
+      })
+      .from(auctions)
+      .leftJoin(users, eq(auctions.highestBidderId, users.id))
+      .where(eq(auctions.archived, 1))
+      .orderBy(desc(auctions.updatedAt));
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to get archived auctions:', error);
     return [];
   }
 }

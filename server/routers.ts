@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions } from "./db";
+import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions } from "./db";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon } from "./auctions";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
@@ -419,6 +419,51 @@ export const appRouter = router({
           currentPrice: String(input.startingPrice),
         });
 
+        return { success: true };
+      }),
+
+    archive: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can archive auctions' });
+        }
+        const auction = await getAuctionById(input.id);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (auction.status !== 'ended') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只有已結束的拍賣才能封存' });
+        }
+        await updateAuction(input.id, { archived: 1 });
+        return { success: true };
+      }),
+
+    getArchived: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can view archived auctions' });
+        }
+        const archivedList = await getArchivedAuctions();
+        const withImages = await Promise.all(
+          archivedList.map(async (auction: { id: number; [key: string]: unknown }) => ({
+            ...auction,
+            images: await getAuctionImages(auction.id),
+          }))
+        );
+        return withImages;
+      }),
+
+    permanentDelete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can permanently delete auctions' });
+        }
+        const auction = await getAuctionById(input.id);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (!auction.archived) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只有已封存的拍賣才能永久刪除' });
+        }
+        await deleteAuction(input.id);
         return { success: true };
       }),
   }),

@@ -93,3 +93,16 @@
 - [x] 管理後台「已結束的商品」列表：每個商品顯示最終得標者名稱及出價金額
 - [x] 管理後台商品卡片重新設計：圖片最多3張在第一行，其他資料緊湊排列在下方
 - [x] 管理後台競拍中商品卡片：加入當前最高出價用戶名稱（或「未有出價」）顯示
+
+## 封存功能
+
+- [x] 資料庫 auctions 表新增 archived 欄位（boolean，預設 false）
+- [x] 執行 ALTER TABLE 遷移
+- [x] 後端新增 auctions.archive procedure（將已結束拍賣封存）
+- [x] 後端新增 auctions.getArchived procedure（取得封存列表，含 highestBidderName）
+- [x] 後端新增 auctions.permanentDelete procedure（永久刪除封存拍賣）
+- [x] 前端 AdminAuctions.tsx：已結束商品卡片加入「封存」按鈕
+- [x] 前端新增 AdminArchive.tsx 封存區頁面（顯示封存商品、永久刪除按鈕）
+- [x] 前端 App.tsx 新增封存區路由 /admin/archive
+- [x] 後台導航加入「封存區」連結
+- [x] 修正：getAuctionsByCreator 查詢排除 archived=1 的商品，確保封存後不再出現在後台已結束列表

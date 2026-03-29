@@ -10,6 +10,7 @@ import AuctionDetail from "./pages/AuctionDetail";
 import Profile from "./pages/Profile";
 import AdminAuctions from "./pages/AdminAuctions";
 import AdminDrafts from "./pages/AdminDrafts";
+import AdminArchive from "./pages/AdminArchive";
 import WebhookSetup from "./pages/WebhookSetup";
 
 function Router() {
@@ -21,6 +22,7 @@ function Router() {
       <Route path={"/profile"} component={Profile} />
       <Route path={"/admin"} component={AdminAuctions} />
       <Route path={"/admin/drafts"} component={AdminDrafts} />
+      <Route path={"/admin/archive"} component={AdminArchive} />
       <Route path={"/admin/webhook-setup"} component={WebhookSetup} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
