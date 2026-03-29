@@ -1,6 +1,10 @@
-import { getDb, getAuctionById, getBidHistory, placeBid as dbPlaceBid, getAuctions as dbGetAuctions, getActiveProxiesForAuction, insertProxyBidLog } from './db';
-import { auctions as auctionsTable } from '../drizzle/schema';
+import { getDb, getAuctionById, getBidHistory, placeBid as dbPlaceBid, getAuctions as dbGetAuctions, getActiveProxiesForAuction, insertProxyBidLog, getNotificationSettings, getBiddersForAuction } from './db';
+import { auctions as auctionsTable, users } from '../drizzle/schema';
 import { eq } from 'drizzle-orm';
+import { sendOutbidEmail, sendWonEmail, sendEndingSoonEmail } from './email';
+
+// Track which auctions have had ending-soon notifications sent (in-memory, resets on restart)
+const endingSoonSent = new Set<number>();
 
 /**
  * Validate if a bid amount is valid for an auction
@@ -56,23 +60,12 @@ async function recordBid(db: NonNullable<Awaited<ReturnType<typeof getDb>>>, auc
 /**
  * Proxy bidding engine.
  * After a manual bid is placed, check if any OTHER user has an active proxy
- * that can outbid the new highest bidder. The engine resolves the final price
- * in a single synchronous loop (no recursive DB calls) and writes one final
- * bid record for the winning proxy holder.
- *
- * Algorithm:
- * 1. Load all active proxies for the auction, sorted by maxAmount DESC.
- * 2. Find the top proxy that belongs to someone OTHER than the current highest bidder.
- * 3. If that proxy's maxAmount > currentPrice, the proxy can counter-bid.
- *    - Counter-bid = min(topProxy.maxAmount, currentPrice + bidIncrement)
- *    - But also check if the manual bidder has their own proxy and can respond.
- * 4. Repeat until no proxy can outbid, or the same user holds the top proxy.
+ * that can outbid the new highest bidder.
  */
 export async function runProxyBidEngine(auctionId: number, triggeringUserId: number): Promise<void> {
   const db = await getDb();
   if (!db) return;
 
-  // Max iterations to prevent infinite loops
   const MAX_ROUNDS = 50;
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
@@ -83,22 +76,16 @@ export async function runProxyBidEngine(auctionId: number, triggeringUserId: num
     const bidIncrement = auction.bidIncrement ?? 50;
     const currentHighestBidderId = auction.highestBidderId;
 
-    // Get all active proxies sorted by maxAmount DESC
     const proxies = await getActiveProxiesForAuction(auctionId);
-
-    // Find the top proxy that does NOT belong to the current highest bidder
     const topChallenger = proxies.find((p: { userId: number; maxAmount: string | number }) => p.userId !== currentHighestBidderId);
 
-    if (!topChallenger) break; // No one can challenge
+    if (!topChallenger) break;
 
     const challengerMax = parseFloat(topChallenger.maxAmount.toString());
-
-    // The minimum amount needed to outbid current leader
     const requiredBid = currentPrice + bidIncrement;
 
-    if (challengerMax < requiredBid) break; // Challenger can't afford to outbid
+    if (challengerMax < requiredBid) break;
 
-    // Challenger can bid. Now check if current leader has a proxy to defend.
     const leaderProxy = currentHighestBidderId
       ? proxies.find((p: { userId: number; maxAmount: string | number }) => p.userId === currentHighestBidderId)
       : null;
@@ -109,27 +96,21 @@ export async function runProxyBidEngine(auctionId: number, triggeringUserId: num
     if (leaderProxy) {
       const leaderMax = parseFloat(leaderProxy.maxAmount.toString());
       if (leaderMax >= challengerMax + bidIncrement) {
-        // Leader can outbid challenger — settle at challenger's max + 1 increment
         finalBidAmount = Math.min(leaderMax, challengerMax + bidIncrement);
         finalBidderId = leaderProxy.userId;
       } else if (challengerMax > leaderMax) {
-        // Challenger wins — bid at leader's max + 1 increment (or challenger's max)
         finalBidAmount = Math.min(challengerMax, leaderMax + bidIncrement);
         finalBidderId = topChallenger.userId;
       } else {
-        // Tie: leader keeps position (first-come-first-serve)
         break;
       }
     } else {
-      // No leader proxy — challenger bids the minimum required
       finalBidAmount = requiredBid;
       finalBidderId = topChallenger.userId;
     }
 
-    // Record the proxy-triggered bid
     await recordBid(db, auctionId, finalBidderId, finalBidAmount);
 
-    // Write audit log
     await insertProxyBidLog({
       auctionId,
       round: round + 1,
@@ -139,16 +120,122 @@ export async function runProxyBidEngine(auctionId: number, triggeringUserId: num
       proxyAmount: finalBidAmount,
     });
 
-    // If the same user is still winning after this round, engine is done
     const updatedAuction = await getAuctionById(auctionId);
     if (!updatedAuction || updatedAuction.highestBidderId === currentHighestBidderId) break;
   }
 }
 
 /**
- * Place a bid on an auction, then run the proxy bidding engine.
+ * Send outbid notification to the previous highest bidder.
  */
-export async function placeBid(auctionId: number, userId: number, bidAmount: number) {
+async function notifyOutbid(auctionId: number, previousHighestBidderId: number | null, newBidAmount: number, origin: string) {
+  if (!previousHighestBidderId) return;
+  try {
+    const settings = await getNotificationSettings();
+    if (!settings || !settings.enableOutbid) return;
+
+    const db = await getDb();
+    if (!db) return;
+
+    const auction = await getAuctionById(auctionId);
+    if (!auction) return;
+
+    const userRows = await db.select({ email: users.email, name: users.name }).from(users).where(eq(users.id, previousHighestBidderId));
+    const prevUser = userRows[0];
+    if (!prevUser?.email) return;
+
+    await sendOutbidEmail({
+      to: prevUser.email,
+      senderName: settings.senderName,
+      senderEmail: settings.senderEmail,
+      userName: prevUser.name ?? `用戶 #${previousHighestBidderId}`,
+      auctionTitle: auction.title,
+      auctionId,
+      newHighestBid: newBidAmount,
+      currency: auction.currency,
+      auctionUrl: `${origin}/auctions/${auctionId}`,
+    });
+  } catch (err) {
+    console.error('[Email] Outbid notification error:', err);
+  }
+}
+
+/**
+ * Send won notification to the highest bidder when auction ends.
+ */
+export async function notifyWon(auctionId: number, origin: string) {
+  try {
+    const settings = await getNotificationSettings();
+    if (!settings || !settings.enableWon) return;
+
+    const auction = await getAuctionById(auctionId);
+    if (!auction || !auction.highestBidderId) return;
+
+    const db = await getDb();
+    if (!db) return;
+
+    const userRows = await db.select({ email: users.email, name: users.name }).from(users).where(eq(users.id, auction.highestBidderId));
+    const winner = userRows[0];
+    if (!winner?.email) return;
+
+    await sendWonEmail({
+      to: winner.email,
+      senderName: settings.senderName,
+      senderEmail: settings.senderEmail,
+      userName: winner.name ?? `用戶 #${auction.highestBidderId}`,
+      auctionTitle: auction.title,
+      auctionId,
+      finalPrice: parseFloat(auction.currentPrice.toString()),
+      currency: auction.currency,
+      auctionUrl: `${origin}/auctions/${auctionId}`,
+    });
+  } catch (err) {
+    console.error('[Email] Won notification error:', err);
+  }
+}
+
+/**
+ * Send ending-soon notifications to all bidders (once per auction per server session).
+ */
+export async function notifyEndingSoon(auctionId: number, origin: string) {
+  if (endingSoonSent.has(auctionId)) return;
+  try {
+    const settings = await getNotificationSettings();
+    if (!settings || !settings.enableEndingSoon) return;
+
+    const auction = await getAuctionById(auctionId);
+    if (!auction || auction.status !== 'active') return;
+
+    const bidders = await getBiddersForAuction(auctionId);
+    if (bidders.length === 0) return;
+
+    endingSoonSent.add(auctionId);
+
+    for (const bidder of bidders) {
+      if (!bidder.email) continue;
+      await sendEndingSoonEmail({
+        to: bidder.email,
+        senderName: settings.senderName,
+        senderEmail: settings.senderEmail,
+        userName: bidder.name ?? `用戶 #${bidder.userId}`,
+        auctionTitle: auction.title,
+        auctionId,
+        currentPrice: parseFloat(auction.currentPrice.toString()),
+        currency: auction.currency,
+        minutesLeft: settings.endingSoonMinutes,
+        auctionUrl: `${origin}/auctions/${auctionId}`,
+      });
+    }
+  } catch (err) {
+    console.error('[Email] Ending-soon notification error:', err);
+  }
+}
+
+/**
+ * Place a bid on an auction, then run the proxy bidding engine.
+ * Also sends outbid notification to the previous highest bidder.
+ */
+export async function placeBid(auctionId: number, userId: number, bidAmount: number, origin = '') {
   const validation = await validateBid(auctionId, bidAmount);
   if (!validation.valid) {
     throw new Error(validation.error);
@@ -157,13 +244,24 @@ export async function placeBid(auctionId: number, userId: number, bidAmount: num
   const db = await getDb();
   if (!db) throw new Error('Database not available');
 
+  // Capture previous highest bidder before overwriting
+  const auctionBefore = await getAuctionById(auctionId);
+  const previousHighestBidderId = auctionBefore?.highestBidderId ?? null;
+
   try {
     await recordBid(db, auctionId, userId, bidAmount);
 
-    // Run proxy engine asynchronously — don't block the response
+    // Run proxy engine asynchronously
     runProxyBidEngine(auctionId, userId).catch(err =>
       console.error('[Auctions] Proxy engine error:', err)
     );
+
+    // Send outbid email to previous highest bidder (fire-and-forget)
+    if (previousHighestBidderId && previousHighestBidderId !== userId) {
+      notifyOutbid(auctionId, previousHighestBidderId, bidAmount, origin).catch(err =>
+        console.error('[Auctions] Outbid notify error:', err)
+      );
+    }
 
     return { success: true };
   } catch (error) {
@@ -195,9 +293,10 @@ export async function getActiveAuctions(limit = 20, offset = 0) {
 }
 
 /**
- * Check if auction has ended and update status if needed
+ * Check if auction has ended and update status if needed.
+ * Triggers won notification on transition to ended.
  */
-export async function checkAndUpdateAuctionStatus(auctionId: number) {
+export async function checkAndUpdateAuctionStatus(auctionId: number, origin = '') {
   const auction = await getAuctionById(auctionId);
   if (!auction || auction.status !== 'active') return;
 
@@ -210,6 +309,11 @@ export async function checkAndUpdateAuctionStatus(auctionId: number) {
         .update(auctionsTable)
         .set({ status: 'ended' })
         .where(eq(auctionsTable.id, auctionId));
+
+      // Send won notification (fire-and-forget)
+      notifyWon(auctionId, origin).catch(err =>
+        console.error('[Auctions] Won notify error:', err)
+      );
     } catch (error) {
       console.error('[Auctions] Failed to update auction status:', error);
     }

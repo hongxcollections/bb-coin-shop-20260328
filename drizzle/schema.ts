@@ -108,6 +108,23 @@ export type ProxyBidLog = typeof proxyBidLogs.$inferSelect;
 export type InsertProxyBidLog = typeof proxyBidLogs.$inferInsert;
 
 /**
+ * Notification settings - global email notification configuration (single row)
+ */
+export const notificationSettings = mysqlTable("notificationSettings", {
+  id: int("id").autoincrement().primaryKey(),
+  senderName: varchar("senderName", { length: 128 }).default("大BB錢幣店").notNull(),
+  senderEmail: varchar("senderEmail", { length: 320 }).default("ywkyee@gmail.com").notNull(),
+  enableOutbid: int("enableOutbid").default(1).notNull(),      // 1 = enabled
+  enableWon: int("enableWon").default(1).notNull(),
+  enableEndingSoon: int("enableEndingSoon").default(1).notNull(),
+  endingSoonMinutes: int("endingSoonMinutes").default(60).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type NotificationSettings = typeof notificationSettings.$inferSelect;
+export type InsertNotificationSettings = typeof notificationSettings.$inferInsert;
+
+/**
  * Relations
  */
 export const usersRelations = relations(users, ({ many }) => ({

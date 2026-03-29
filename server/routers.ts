@@ -5,7 +5,8 @@ import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs } from "./db";
 import type { Auction } from "../drizzle/schema";
-import { validateBid, placeBid, getAuctionDetails, isEndingSoon } from "./auctions";
+import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon } from "./auctions";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail } from "./db";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 
@@ -131,10 +132,11 @@ export const appRouter = router({
       .input(z.object({
         auctionId: z.number(),
         bidAmount: z.number().positive(),
+        origin: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         try {
-          await placeBid(input.auctionId, ctx.user.id, input.bidAmount);
+          await placeBid(input.auctionId, ctx.user.id, input.bidAmount, input.origin ?? '');
           return { success: true };
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Failed to place bid';
@@ -589,6 +591,62 @@ export const appRouter = router({
           proxyAmount: parseFloat(log.proxyAmount.toString()),
           createdAt: log.createdAt,
         }));
+      }),
+  }),
+
+  notificationSettings: router({
+    get: protectedProcedure.query(async () => {
+      const settings = await getNotificationSettings();
+      return settings ?? {
+        senderName: '大BB錢幣店',
+        senderEmail: 'ywkyee@gmail.com',
+        enableOutbid: 1,
+        enableWon: 1,
+        enableEndingSoon: 1,
+        endingSoonMinutes: 60,
+      };
+    }),
+
+    update: protectedProcedure
+      .input(z.object({
+        senderName: z.string().min(1).max(128).optional(),
+        senderEmail: z.string().email().optional(),
+        enableOutbid: z.number().min(0).max(1).optional(),
+        enableWon: z.number().min(0).max(1).optional(),
+        enableEndingSoon: z.number().min(0).max(1).optional(),
+        endingSoonMinutes: z.number().min(5).max(1440).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const ok = await upsertNotificationSettings(input);
+        if (!ok) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to save settings' });
+        return { success: true };
+      }),
+
+    testEndingSoon: protectedProcedure
+      .input(z.object({ auctionId: z.number(), origin: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        await notifyEndingSoon(input.auctionId, input.origin ?? '');
+        return { success: true };
+      }),
+
+    testWon: protectedProcedure
+      .input(z.object({ auctionId: z.number(), origin: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        await notifyWon(input.auctionId, input.origin ?? '');
+        return { success: true };
+      }),
+  }),
+
+  users: router({
+    updateEmail: protectedProcedure
+      .input(z.object({ email: z.string().email() }))
+      .mutation(async ({ input, ctx }) => {
+        const ok = await updateUserEmail(ctx.user.id, input.email);
+        if (!ok) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update email' });
+        return { success: true };
       }),
   }),
 });

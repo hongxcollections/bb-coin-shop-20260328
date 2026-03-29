@@ -1,7 +1,7 @@
-import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
+import { eq, desc, and, gte, lte, gt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -593,6 +593,94 @@ export async function getProxyBidLogs(auctionId: number) {
     }));
   } catch (error) {
     console.error("[Database] Failed to get proxy bid logs:", error);
+    return [];
+  }
+}
+
+// ─── Notification Settings ────────────────────────────────────────────────────
+
+export async function getNotificationSettings(): Promise<NotificationSettings | null> {
+  try {
+    const db = await getDb();
+    if (!db) return null;
+    const rows = await db.select().from(notificationSettings).limit(1);
+    return rows[0] ?? null;
+  } catch (error) {
+    console.error("[Database] Failed to get notification settings:", error);
+    return null;
+  }
+}
+
+export async function upsertNotificationSettings(data: Partial<Omit<NotificationSettings, "id" | "updatedAt">>): Promise<boolean> {
+  try {
+    const db = await getDb();
+    if (!db) return false;
+    // Always operate on row id=1 (single-row config)
+    await db
+      .insert(notificationSettings)
+      .values({ id: 1, senderName: "大BB錢幣店", senderEmail: "ywkyee@gmail.com", ...data })
+      .onDuplicateKeyUpdate({ set: data });
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to upsert notification settings:", error);
+    return false;
+  }
+}
+
+// ─── Bidders for auction (for ending-soon notifications) ─────────────────────
+
+export async function getBiddersForAuction(auctionId: number): Promise<{ userId: number; email: string | null; name: string | null }[]> {
+  try {
+    const db = await getDb();
+    if (!db) return [];
+    const rows = await db
+      .selectDistinct({ userId: bids.userId, email: users.email, name: users.name })
+      .from(bids)
+      .innerJoin(users, eq(bids.userId, users.id))
+      .where(eq(bids.auctionId, auctionId));
+    return rows;
+  } catch (error) {
+    console.error("[Database] Failed to get bidders for auction:", error);
+    return [];
+  }
+}
+
+export async function updateUserEmail(userId: number, email: string): Promise<boolean> {
+  try {
+    const db = await getDb();
+    if (!db) return false;
+    await db.update(users).set({ email }).where(eq(users.id, userId));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to update user email:", error);
+    return false;
+  }
+}
+
+/**
+ * Get all active auctions that are ending within the given number of minutes.
+ * Used by the scheduler to trigger ending-soon notifications.
+ */
+export async function getActiveAuctionsEndingSoon(withinMinutes: number): Promise<{ id: number; title: string }[]> {
+  try {
+    const db = await getDb();
+    if (!db) return [];
+    const now = new Date();
+    const threshold = new Date(now.getTime() + withinMinutes * 60 * 1000);
+    const rows = await db
+      .select({ id: auctions.id, title: auctions.title })
+      .from(auctions)
+      .where(
+        and(
+          eq(auctions.status, 'active'),
+          eq(auctions.archived, 0),
+          lte(auctions.endTime, threshold),
+          gt(auctions.endTime, now)
+        )
+      );
+    return rows;
+  } catch (error) {
+    console.error("[Database] Failed to get auctions ending soon:", error);
     return [];
   }
 }

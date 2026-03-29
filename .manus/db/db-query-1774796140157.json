@@ -1,0 +1,9 @@
+{
+  "query": "\nCREATE TABLE IF NOT EXISTS `notificationSettings` (\n  `id` int AUTO_INCREMENT PRIMARY KEY,\n  `senderName` varchar(128) NOT NULL DEFAULT '大BB錢幣店',\n  `senderEmail` varchar(320) NOT NULL DEFAULT 'ywkyee@gmail.com',\n  `enableOutbid` int NOT NULL DEFAULT 1,\n  `enableWon` int NOT NULL DEFAULT 1,\n  `enableEndingSoon` int NOT NULL DEFAULT 1,\n  `endingSoonMinutes` int NOT NULL DEFAULT 60,\n  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n);\n\nINSERT IGNORE INTO `notificationSettings` (`id`, `senderName`, `senderEmail`, `enableOutbid`, `enableWon`, `enableEndingSoon`, `endingSoonMinutes`)\nVALUES (1, '大BB錢幣店', 'ywkyee@gmail.com', 1, 1, 1, 60);\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3JP8k7yzHFv62xZ.9d413e412763 --database 5iU7X8HzvqNf24sNdvU8FR --execute \nCREATE TABLE IF NOT EXISTS `notificationSettings` (\n  `id` int AUTO_INCREMENT PRIMARY KEY,\n  `senderName` varchar(128) NOT NULL DEFAULT '大BB錢幣店',\n  `senderEmail` varchar(320) NOT NULL DEFAULT 'ywkyee@gmail.com',\n  `enableOutbid` int NOT NULL DEFAULT 1,\n  `enableWon` int NOT NULL DEFAULT 1,\n  `enableEndingSoon` int NOT NULL DEFAULT 1,\n  `endingSoonMinutes` int NOT NULL DEFAULT 60,\n  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n);\n\nINSERT IGNORE INTO `notificationSettings` (`id`, `senderName`, `senderEmail`, `enableOutbid`, `enableWon`, `enableEndingSoon`, `endingSoonMinutes`)\nVALUES (1, '大BB錢幣店', 'ywkyee@gmail.com', 1, 1, 1, 60);\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2464
+}

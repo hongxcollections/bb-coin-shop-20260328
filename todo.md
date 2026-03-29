@@ -166,3 +166,19 @@
 - [x] 後端新增 auctions.getProxyBidLogs procedure（取得拍賣的代理出價紀錄，含用戶名稱）
 - [x] 前端 AuctionDetail.tsx 出價歷史加入「代理紀錄」標籤，顯示每筆自動出價詳情
 - [x] 新增 vitest 測試覆蓋 log 寫入邏輯
+
+## 電郵通知功能
+
+- [x] 資料庫 users 表新增 email 欄位
+- [x] 資料庫新增 notificationSettings 表（senderName, senderEmail, enableOutbid, enableWon, enableEndingSoon, endingSoonMinutes）
+- [x] 執行 ALTER TABLE / CREATE TABLE migration SQL
+- [x] 安裝 Resend npm 套件
+- [x] 後端建立 server/email.ts（Resend helper + 三種郵件模板：出價被超越、得標、即將結束）
+- [x] 後端 placeBid 後觸發「出價被超越」通知給前任最高出價者
+- [x] 後端拍賣結束時觸發「得標」通知給得標者
+- [x] 後端新增即將結束計時器（endingSoon），在設定時間前發送提醒給所有出價者
+- [x] 後端新增 notificationSettings.get / update procedures（管理員專用）
+- [x] 後端新增 users.updateEmail procedure（用戶更新自己的電郵）
+- [x] 前端用戶個人資料頁加入電郵填寫欄位
+- [x] 前端後台新增「通知設定」頁面（發件人名稱/電郵、三種通知開關、即將結束分鐘數）
+- [x] 新增 vitest 測試覆蓋郵件觸發邏輯

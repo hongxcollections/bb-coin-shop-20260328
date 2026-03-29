@@ -9,6 +9,8 @@ import { registerWebhookRoutes } from "../webhook";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { notifyEndingSoon } from "../auctions";
+import { getActiveAuctionsEndingSoon, getNotificationSettings } from "../db";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -66,6 +68,23 @@ async function startServer() {
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
   });
+
+  // Ending-soon notification scheduler: poll every 5 minutes
+  setInterval(async () => {
+    try {
+      const settings = await getNotificationSettings();
+      if (!settings || !settings.enableEndingSoon) return;
+      const auctions = await getActiveAuctionsEndingSoon(settings.endingSoonMinutes);
+      const origin = process.env.VITE_OAUTH_PORTAL_URL
+        ? new URL(process.env.VITE_OAUTH_PORTAL_URL).origin
+        : '';
+      for (const auction of auctions) {
+        await notifyEndingSoon(auction.id, origin);
+      }
+    } catch (err) {
+      console.error('[Scheduler] Ending-soon check error:', err);
+    }
+  }, 5 * 60 * 1000);
 }
 
 startServer().catch(console.error);

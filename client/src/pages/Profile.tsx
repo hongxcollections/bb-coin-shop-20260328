@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -5,11 +6,36 @@ import { getLoginUrl } from "@/const";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, TrendingUp, Clock, LogOut } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Profile() {
   const { user, isAuthenticated, loading, logout } = useAuth();
   const { data: myBids, isLoading } = trpc.auctions.myBids.useQuery(undefined, { enabled: isAuthenticated });
+  const [emailInput, setEmailInput] = useState("");
+  const [emailSaved, setEmailSaved] = useState(false);
+
+  const utils = trpc.useUtils();
+  const updateEmail = trpc.users.updateEmail.useMutation({
+    onSuccess: () => {
+      setEmailSaved(true);
+      toast.success("電郵地址已儲存！往後出價被超越或得標時將收到通知。");
+      utils.auth.me.invalidate();
+      setTimeout(() => setEmailSaved(false), 3000);
+    },
+    onError: (err) => {
+      toast.error(`儲存失敗：${err.message}`);
+    },
+  });
+
+  // Initialise email input from user data (once)
+  const [emailInitialised, setEmailInitialised] = useState(false);
+  if (user?.email && !emailInitialised) {
+    setEmailInput(user.email);
+    setEmailInitialised(true);
+  }
 
   if (loading) {
     return (
@@ -84,6 +110,49 @@ export default function Profile() {
             </div>
             <h1 className="text-2xl font-bold">{user?.name}</h1>
             {user?.email && <p className="text-muted-foreground text-sm mt-1">{user.email}</p>}
+          </CardContent>
+        </Card>
+
+        {/* Email Notification Settings */}
+        <Card className="mb-6 border-amber-100">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Mail className="w-4 h-4 text-amber-600" />
+              電郵通知設定
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              填寫電郵地址後，系統將在以下情況自動發送通知：出價被他人超越、成功得標、拍賣即將結束。
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="email-input" className="text-sm font-medium">電郵地址</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="email-input"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  className="border-amber-200 focus-visible:ring-amber-400"
+                />
+                <Button
+                  onClick={() => updateEmail.mutate({ email: emailInput })}
+                  disabled={updateEmail.isPending || !emailInput.trim()}
+                  className={emailSaved ? "bg-emerald-500 hover:bg-emerald-600 text-white" : "gold-gradient text-white border-0"}
+                >
+                  {emailSaved ? (
+                    <><CheckCircle2 className="w-4 h-4 mr-1" />已儲存</>
+                  ) : updateEmail.isPending ? "儲存中..." : "儲存"}
+                </Button>
+              </div>
+            </div>
+            {!user?.email && (
+              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                <Mail className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                <span>尚未設定電郵，目前不會收到任何通知。請填寫電郵地址以啟用通知功能。</span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
