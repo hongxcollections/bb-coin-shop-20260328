@@ -729,91 +729,87 @@ export default function AdminAuctions() {
                 ? ((gain / Number(auction.startingPrice)) * 100).toFixed(1)
                 : "0";
               const isEffectivelyEnded = auction.status === "ended" || new Date(auction.endTime) <= now;
+              const previewImages = images?.slice(0, 3) ?? [];
+              const currency = (auction as { currency?: string }).currency ?? 'HKD';
               return (
                 <Card key={auction.id} className="border-amber-100 hover:border-amber-300 transition-all">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 rounded-xl coin-placeholder flex items-center justify-center flex-shrink-0 overflow-hidden">
-                        {images?.[0]?.imageUrl ? (
-                          <img src={images[0].imageUrl} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-2xl">🪙</span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <h3 className="font-semibold text-sm truncate">{auction.title}</h3>
-                          <Badge className={!isEffectivelyEnded ? "bg-emerald-500 text-white text-xs" : "bg-gray-400 text-white text-xs"}>
-                            {!isEffectivelyEnded ? "競拍中" : "已結束"}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-                          <span className="flex items-center gap-1">
-                            <TrendingUp className="w-3 h-3" />
-                            {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
-                            <span className="text-muted-foreground">{(auction as { currency?: string }).currency ?? 'HKD'}</span>
-                            {gain > 0 && <span className="text-emerald-600 font-medium ml-1">+{gainPct}%</span>}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {formatDate(new Date(auction.endTime))}
-                          </span>
-                          {auction.bidIncrement && (
-                            <span className="flex items-center gap-1 text-amber-600 font-medium">
-                              每口 {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{auction.bidIncrement}
-                            </span>
-                          )}
-                          {images && images.length > 0 && (
-                            <span className="flex items-center gap-1 text-amber-600">
-                              <ImageIcon className="w-3 h-3" />
-                              {images.length} 張圖片
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {isEffectivelyEnded && auction.highestBidderId && (
-                          <div className="mt-1.5 flex items-center gap-1.5 text-xs bg-emerald-50 border border-emerald-200 rounded-md px-2 py-1">
-                            <span className="text-emerald-600">🏆 得標：</span>
-                            <span className="font-semibold text-emerald-700">{auction.highestBidderName ?? `用戶 #${auction.highestBidderId}`}</span>
-                            <span className="text-gray-400 mx-0.5">·</span>
-                            <span className="font-bold text-emerald-700">{getCurrencySymbol(auction.currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()} {auction.currency ?? 'HKD'}</span>
+                  <CardContent className="p-3">
+                    {/* Row 1: Images (up to 3) */}
+                    {previewImages.length > 0 && (
+                      <div className="flex gap-1.5 mb-2">
+                        {previewImages.map((img, i) => (
+                          <div key={i} className="w-16 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-amber-50">
+                            <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                        {images && images.length > 3 && (
+                          <div className="w-16 h-14 rounded-lg bg-amber-50 flex items-center justify-center text-xs text-amber-500 font-medium flex-shrink-0">
+                            +{images.length - 3}
                           </div>
                         )}
-                        {isEffectivelyEnded && !auction.highestBidderId && (
-                          <div className="mt-1.5 text-xs text-gray-400 italic">未有出價，流拍</div>
-                        )}
+                      </div>
+                    )}
+                    {/* Row 2: Title + Status Badge + Actions */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm truncate max-w-[200px]">{auction.title}</h3>
+                        <Badge className={!isEffectivelyEnded ? "bg-emerald-500 text-white text-[10px] px-1.5 py-0" : "bg-gray-400 text-white text-[10px] px-1.5 py-0"}>
+                          {!isEffectivelyEnded ? "競拍中" : "已結束"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
                         {isEffectivelyEnded ? (
                           <Button
                             size="sm"
                             onClick={() => relistAuction.mutate({ id: auction.id })}
                             disabled={relistAuction.isPending}
-                            className="bg-amber-500 hover:bg-amber-600 text-white border-0 text-xs px-3"
+                            className="bg-amber-500 hover:bg-amber-600 text-white border-0 text-xs px-2 h-7"
                           >
                             {relistAuction.isPending ? "建立中..." : "🔄 重新上架"}
                           </Button>
                         ) : (
                           <>
-                            <Button
-                              size="sm"
-                              variant="outline"
+                            <Button size="sm" variant="outline"
                               onClick={() => openEdit({ ...auction, highestBidderId: (auction as { highestBidderId?: number | null }).highestBidderId })}
-                              className="border-amber-200 text-amber-700 hover:bg-amber-50"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
+                              className="border-amber-200 text-amber-700 hover:bg-amber-50 h-7 w-7 p-0">
+                              <Pencil className="w-3 h-3" />
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
+                            <Button size="sm" variant="outline"
                               onClick={() => { if (confirm("確定要刪除此拍賣嗎？")) { deleteAuction.mutate({ id: auction.id }); } }}
-                              className="border-red-200 text-red-600 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              className="border-red-200 text-red-600 hover:bg-red-50 h-7 w-7 p-0">
+                              <Trash2 className="w-3 h-3" />
                             </Button>
                           </>
                         )}
                       </div>
                     </div>
+                    {/* Row 3: Price + End time + Bid increment */}
+                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+                      <span className="flex items-center gap-0.5 font-medium text-foreground">
+                        <TrendingUp className="w-3 h-3 text-amber-500" />
+                        {getCurrencySymbol(currency)}{Number(auction.currentPrice).toLocaleString()} {currency}
+                        {gain > 0 && <span className="text-emerald-600 ml-1">+{gainPct}%</span>}
+                      </span>
+                      <span className="flex items-center gap-0.5">
+                        <Clock className="w-3 h-3" />
+                        {formatDate(new Date(auction.endTime))}
+                      </span>
+                      {auction.bidIncrement && (
+                        <span className="text-amber-600">每口 {getCurrencySymbol(currency)}{auction.bidIncrement}</span>
+                      )}
+                    </div>
+                    {/* Row 4: Winner info (ended only) */}
+                    {isEffectivelyEnded && auction.highestBidderId && (
+                      <div className="mt-1.5 flex items-center gap-1 text-xs bg-emerald-50 border border-emerald-200 rounded px-2 py-0.5">
+                        <span className="text-emerald-600">🏆</span>
+                        <span className="font-semibold text-emerald-700 truncate max-w-[120px]">{auction.highestBidderName ?? `用戶 #${auction.highestBidderId}`}</span>
+                        <span className="text-gray-400">·</span>
+                        <span className="font-bold text-emerald-700">{getCurrencySymbol(currency)}{Number(auction.currentPrice).toLocaleString()} {currency}</span>
+                      </div>
+                    )}
+                    {isEffectivelyEnded && !auction.highestBidderId && (
+                      <div className="mt-1 text-xs text-gray-400 italic">未有出價，流拍</div>
+                    )}
                   </CardContent>
                 </Card>
               );
