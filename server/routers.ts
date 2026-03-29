@@ -362,6 +362,33 @@ export const appRouter = router({
 
         return { success: true, newAuctionId: newAuction.id };
       }),
+
+    updateStartingPrice: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        startingPrice: z.number().min(0, '起拍價不能為負數'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can update starting price' });
+        }
+        const auction = await getAuctionById(input.id);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (auction.status === 'ended') throw new TRPCError({ code: 'BAD_REQUEST', message: '已結束的拍賣不可修改' });
+
+        // Verify no bids exist
+        const bidHistory = await getBidHistory(input.id);
+        if (bidHistory.length > 0) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '已有出價記錄，不能修改起拍價' });
+        }
+
+        await updateAuction(input.id, {
+          startingPrice: String(input.startingPrice),
+          currentPrice: String(input.startingPrice),
+        });
+
+        return { success: true };
+      }),
   }),
 });
 

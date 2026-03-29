@@ -59,6 +59,21 @@ export default function AuctionDetail() {
   const { data: auction, isLoading, refetch } = trpc.auctions.detail.useQuery({ id: auctionId });
   const [selectedImage, setSelectedImage] = useState(0);
   const utils = trpc.useUtils();
+  const [editingPrice, setEditingPrice] = useState(false);
+  const [newStartingPrice, setNewStartingPrice] = useState("");
+
+  const updateStartingPriceMutation = trpc.auctions.updateStartingPrice.useMutation({
+    onSuccess: () => {
+      toast.success("起拍價已更新！");
+      setEditingPrice(false);
+      setNewStartingPrice("");
+      refetch();
+    },
+    onError: (err) => {
+      toast.error(`修改失敗：${err.message}`);
+    },
+  });
+
   const relistMutation = trpc.auctions.relist.useMutation({
     onSuccess: (data) => {
       toast.success("已成功建立重新拍賣草稿！請前往管理後台設定結束時間並發佈。");
@@ -329,6 +344,55 @@ export default function AuctionDetail() {
                       >
                         {relistMutation.isPending ? "建立草稿中..." : "🔄 重新拍賣"}
                       </Button>
+                    )}
+                  </div>
+                )}
+
+                {/* Edit Starting Price (admin only, no bids, active) */}
+                {isActive && user?.role === "admin" && bids.length === 0 && (
+                  <div className="border border-amber-200 rounded-lg p-3 bg-amber-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-amber-700">⚙️ 修改起拍價</span>
+                      {!editingPrice && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[10px] px-2 border-amber-400 text-amber-700 hover:bg-amber-100"
+                          onClick={() => { setEditingPrice(true); setNewStartingPrice(String(Number(auction.startingPrice))); }}
+                        >
+                          修改
+                        </Button>
+                      )}
+                    </div>
+                    {editingPrice ? (
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          type="number"
+                          min={0}
+                          value={newStartingPrice}
+                          onChange={e => setNewStartingPrice(e.target.value)}
+                          className="h-8 text-sm"
+                          placeholder="輸入新起拍價"
+                        />
+                        <Button
+                          size="sm"
+                          className="h-8 bg-amber-500 hover:bg-amber-600 text-white border-0 shrink-0"
+                          disabled={updateStartingPriceMutation.isPending || !newStartingPrice}
+                          onClick={() => updateStartingPriceMutation.mutate({ id: auctionId, startingPrice: Number(newStartingPrice) })}
+                        >
+                          {updateStartingPriceMutation.isPending ? "儲存..." : "確認"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 shrink-0"
+                          onClick={() => { setEditingPrice(false); setNewStartingPrice(""); }}
+                        >
+                          取消
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-amber-600">目前起拍價：{currencySymbol}{Number(auction.startingPrice).toLocaleString()} {currency}（未有出價時可修改）</p>
                     )}
                   </div>
                 )}
