@@ -798,7 +798,16 @@ export default function AdminAuctions() {
                         <span className="text-amber-600">每口 {getCurrencySymbol(currency)}{auction.bidIncrement}</span>
                       )}
                     </div>
-                    {/* Row 4: Winner info (ended only) */}
+                    {/* Row 4: Bidder info (active) or Winner info (ended) */}
+                    {!isEffectivelyEnded && auction.highestBidderId && (
+                      <div className="mt-1.5 flex items-center gap-1 text-xs">
+                        <span className="text-muted-foreground">最高出價：</span>
+                        <span className="font-semibold text-red-500 truncate max-w-[120px]">{auction.highestBidderName ?? `用戶 #${auction.highestBidderId}`}</span>
+                      </div>
+                    )}
+                    {!isEffectivelyEnded && !auction.highestBidderId && (
+                      <div className="mt-1 text-xs text-black">(未有出價)</div>
+                    )}
                     {isEffectivelyEnded && auction.highestBidderId && (
                       <div className="mt-1.5 flex items-center gap-1 text-xs bg-emerald-50 border border-emerald-200 rounded px-2 py-0.5">
                         <span className="text-emerald-600">🏆</span>
