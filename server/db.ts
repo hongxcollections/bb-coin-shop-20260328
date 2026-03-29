@@ -264,6 +264,23 @@ export async function getUserBidsGrouped(userId: number) {
       .where(eq(bids.userId, userId))
       .orderBy(desc(bids.createdAt));
 
+    // For each unique auctionId, find the highest bidder
+    const auctionIds = Array.from(new Set<number>(rows.map((r: { auctionId: number | null }) => r.auctionId).filter((id: number | null): id is number => id !== null)));
+    const winnerMap = new Map<number, number>(); // auctionId -> highest bidder userId
+    if (auctionIds.length > 0) {
+      for (const aId of auctionIds) {
+        const topBid = await db
+          .select({ userId: bids.userId, bidAmount: bids.bidAmount })
+          .from(bids)
+          .where(eq(bids.auctionId, aId))
+          .orderBy(desc(bids.bidAmount), desc(bids.createdAt))
+          .limit(1);
+        if (topBid[0]?.userId !== null && topBid[0]?.userId !== undefined) {
+          winnerMap.set(aId, topBid[0].userId);
+        }
+      }
+    }
+
     // Group by auctionId, preserving insertion order (newest bid first per group)
     const groupMap = new Map<number, {
       auctionId: number;
@@ -274,12 +291,17 @@ export async function getUserBidsGrouped(userId: number) {
       latestBid: number;
       latestBidAt: Date | null;
       totalBids: number;
+      isWinner: boolean;
       bids: Array<{ id: number; bidAmount: number; createdAt: Date | null }>;
     }>();
 
     for (const row of rows) {
       const key = row.auctionId ?? 0;
       if (!groupMap.has(key)) {
+        // isWinner: auction ended AND this user is the highest bidder
+        const auctionEnded = (row.auctionStatus === 'ended') ||
+          (row.auctionEndTime !== null && row.auctionEndTime < Date.now());
+        const isWinner = auctionEnded && winnerMap.get(key) === userId;
         groupMap.set(key, {
           auctionId: key,
           auctionTitle: row.auctionTitle ?? null,
@@ -289,6 +311,7 @@ export async function getUserBidsGrouped(userId: number) {
           latestBid: row.bidAmount ?? 0,
           latestBidAt: row.createdAt ?? null,
           totalBids: 0,
+          isWinner,
           bids: [],
         });
       }

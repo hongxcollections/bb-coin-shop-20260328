@@ -219,3 +219,9 @@
 - [x] 後端更新 getUserBids：回傳按 auctionId 分組的出價資料（每組含商品標題、所有出價列表、最新出價金額）
 - [x] 前端 Profile.tsx 改寫出價紀錄：同一商品合併為一個 Accordion，標題顯示商品名稱及最新出價，展開後列出該商品所有出價記錄
 - [x] 前端：在分組 Accordion 展開區保留「完整競標過程」入口（使用 BidHistoryPanel），可查看全體出價者記錄
+
+## 得標徽章功能
+
+- [x] 後端 getUserBidsGrouped：加入 isWinner 欄位（拍賣已結束且該用戶為最高出價者）
+- [x] 前端 Profile.tsx：得標商品卡片右上角顯示金色「得標」徽章
+- [x] 新增 vitest 測試覆蓋 isWinner 判斷邏輯（winner.test.ts，9 個測試，89 個全部通過）

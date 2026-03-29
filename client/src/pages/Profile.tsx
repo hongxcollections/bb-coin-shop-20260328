@@ -169,6 +169,7 @@ export default function Profile() {
     latestBid: number;
     latestBidAt: Date | null;
     totalBids: number;
+    isWinner: boolean;
     bids: Array<{ id: number; bidAmount: number; createdAt: Date | null }>;
   };
   const bidGroups: BidGroup[] = (myBids ?? []) as BidGroup[];
@@ -359,9 +360,13 @@ export default function Profile() {
                   const statusLabel = group.auctionStatus === 'active' ? '進行中' : group.auctionStatus === 'ended' ? '已結束' : group.auctionStatus === 'draft' ? '草稿' : '';
                   const statusColor = group.auctionStatus === 'active' ? 'bg-green-100 text-green-700' : group.auctionStatus === 'ended' ? 'bg-gray-100 text-gray-500' : 'bg-amber-100 text-amber-600';
                   return (
-                    <div key={group.auctionId} className="rounded-lg border border-amber-100 overflow-hidden">
+                    <div key={group.auctionId} className="rounded-lg border overflow-hidden relative" style={{ borderColor: group.isWinner ? '#f59e0b' : undefined }}>
+                      {/* Winner badge */}
+                      {group.isWinner && (
+                        <span className="absolute top-0 right-0 z-10 text-[0.6rem] font-bold px-2 py-0.5 rounded-bl-lg rounded-tr-lg" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', letterSpacing: '0.05em' }}>🏆 得標</span>
+                      )}
                       {/* Accordion header */}
-                      <div className="flex items-center justify-between py-3 px-4 bg-white hover:bg-amber-50/50 transition-colors">
+                      <div className={`flex items-center justify-between py-3 px-4 transition-colors ${group.isWinner ? 'bg-amber-50 hover:bg-amber-100/70' : 'bg-white hover:bg-amber-50/50'}`}>
                         <Link href={`/auctions/${group.auctionId}`} className="flex items-center gap-3 flex-1 min-w-0">
                           <div className="w-8 h-8 coin-placeholder rounded-lg flex items-center justify-center text-sm shrink-0">🪙</div>
                           <div className="min-w-0">
