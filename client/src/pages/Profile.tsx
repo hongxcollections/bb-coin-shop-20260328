@@ -77,6 +77,7 @@ export default function Profile() {
   const [notifyEndingSoon, setNotifyEndingSoon] = useState(true);
   const [prefsInitialised, setPrefsInitialised] = useState(false);
   const [expandedBidId, setExpandedBidId] = useState<number | null>(null);
+  const [bidFilter, setBidFilter] = useState<'all' | 'active' | 'won'>('all');
 
   if (notifPrefs && !prefsInitialised) {
     setNotifyOutbid(!!notifPrefs.notifyOutbid);
@@ -174,6 +175,22 @@ export default function Profile() {
   };
   const bidGroups: BidGroup[] = (myBids ?? []) as BidGroup[];
   const totalBidAmount = bidGroups.reduce((sum, g) => sum + g.latestBid, 0);
+
+  // Filter counts
+  const activeCount = bidGroups.filter(g => {
+    const isActive = g.auctionStatus === 'active' && (g.auctionEndTime === null || g.auctionEndTime > Date.now());
+    return isActive;
+  }).length;
+  const wonCount = bidGroups.filter(g => g.isWinner).length;
+
+  // Filtered list
+  const filteredGroups = bidGroups.filter(g => {
+    if (bidFilter === 'active') {
+      return g.auctionStatus === 'active' && (g.auctionEndTime === null || g.auctionEndTime > Date.now());
+    }
+    if (bidFilter === 'won') return g.isWinner;
+    return true;
+  });
   const initials = (user?.name ?? "U").slice(0, 2).toUpperCase();
 
   return (
@@ -335,14 +352,44 @@ export default function Profile() {
 
         {/* Bid History - grouped by auction */}
         <Card className="border-amber-100">
-          <CardHeader>
+          <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <Clock className="w-4 h-4 text-amber-600" />
               我的出價記錄
               {bidGroups.length > 0 && (
-                <span className="ml-auto text-xs font-normal text-muted-foreground">{bidGroups.length} 件商品</span>
+                <span className="ml-auto text-xs font-normal text-muted-foreground">{filteredGroups.length} / {bidGroups.length} 件</span>
               )}
             </CardTitle>
+            {/* Filter tabs */}
+            {bidGroups.length > 0 && (
+              <div className="flex gap-1.5 mt-2">
+                {([
+                  { key: 'all', label: '全部', count: bidGroups.length },
+                  { key: 'active', label: '進行中', count: activeCount },
+                  { key: 'won', label: '已得標', count: wonCount },
+                ] as const).map(tab => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setBidFilter(tab.key)}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                      bidFilter === tab.key
+                        ? tab.key === 'won'
+                          ? 'bg-amber-500 text-white'
+                          : tab.key === 'active'
+                          ? 'bg-green-500 text-white'
+                          : 'bg-amber-700 text-white'
+                        : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
+                    }`}
+                  >
+                    {tab.key === 'won' && '🏆 '}{tab.label}
+                    <span className={`text-[0.6rem] px-1 py-0.5 rounded-full font-bold ${
+                      bidFilter === tab.key ? 'bg-white/30 text-white' : 'bg-amber-100 text-amber-600'
+                    }`}>{tab.count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -353,7 +400,12 @@ export default function Profile() {
               </div>
             ) : bidGroups.length > 0 ? (
               <div className="space-y-2">
-                {bidGroups.map((group) => {
+                {filteredGroups.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p className="text-sm">{bidFilter === 'active' ? '目前沒有進行中的競標' : '尚未得標任何商品'}</p>
+                  </div>
+                )}
+                {filteredGroups.map((group) => {
                   const rawTitle = group.auctionTitle ?? '';
                   const displayTitle = rawTitle.length > 20 ? rawTitle.slice(0, 20) + '..' : rawTitle;
                   const isExpanded = expandedBidId === group.auctionId;

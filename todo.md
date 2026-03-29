@@ -225,3 +225,9 @@
 - [x] 後端 getUserBidsGrouped：加入 isWinner 欄位（拍賣已結束且該用戶為最高出價者）
 - [x] 前端 Profile.tsx：得標商品卡片右上角顯示金色「得標」徽章
 - [x] 新增 vitest 測試覆蓋 isWinner 判斷邏輯（winner.test.ts，9 個測試，89 個全部通過）
+
+## 出價紀錄篩選標籤
+
+- [x] 前端 Profile.tsx：在出價紀錄列表上方加入「全部」、「進行中」、「已得標」三個篩選標籤
+- [x] 篩選邏輯：「進行中」顯示 auctionStatus=active 或 endTime 未過的記錄；「已得標」顯示 isWinner=true 的記錄
+- [x] 標籤顯示各分類數量（如「進行中 2」、「已得標 1」）
