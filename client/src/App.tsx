@@ -13,6 +13,7 @@ import AdminDrafts from "./pages/AdminDrafts";
 import AdminArchive from "./pages/AdminArchive";
 import UserProfile from "./pages/UserProfile";
 import AdminNotifications from "./pages/AdminNotifications";
+import AdminUsers from "./pages/AdminUsers";
 import WebhookSetup from "./pages/WebhookSetup";
 
 function Router() {
@@ -27,6 +28,7 @@ function Router() {
       <Route path={"/admin/archive"} component={AdminArchive} />
       <Route path={"/users/:userId"} component={UserProfile} />
       <Route path={"/admin/notifications"} component={AdminNotifications} />
+      <Route path={"/admin/users"} component={AdminUsers} />
       <Route path={"/admin/webhook-setup"} component={WebhookSetup} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />

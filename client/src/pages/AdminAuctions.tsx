@@ -563,6 +563,11 @@ export default function AdminAuctions() {
                 🔔 通知設定
               </Button>
             </Link>
+            <Link href="/admin/users">
+              <Button variant="ghost" size="sm" className="text-violet-600 hover:text-violet-800 hover:bg-violet-50 gap-1">
+                👥 會員管理
+              </Button>
+            </Link>
             <Link href="/profile">
               <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">{user?.name}</Button>
             </Link>

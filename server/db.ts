@@ -213,6 +213,7 @@ export async function getBidHistory(auctionId: number) {
         bidAmount: bids.bidAmount,
         createdAt: bids.createdAt,
         username: users.name,
+        memberLevel: users.memberLevel,
       })
       .from(bids)
       .leftJoin(users, eq(bids.userId, users.id))
@@ -857,5 +858,39 @@ export async function getUserPublicStats(userId: number) {
   } catch (error) {
     console.error('[Database] Failed to get user public stats:', error);
     return null;
+  }
+}
+
+export async function getAllUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const result = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+        memberLevel: users.memberLevel,
+        createdAt: users.createdAt,
+      })
+      .from(users)
+      .orderBy(desc(users.createdAt));
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to get all users:', error);
+    return [];
+  }
+}
+
+export async function setUserMemberLevel(userId: number, memberLevel: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  try {
+    await db.update(users).set({ memberLevel } as Record<string, unknown>).where(eq(users.id, userId));
+    return true;
+  } catch (error) {
+    console.error('[Database] Failed to set member level:', error);
+    return false;
   }
 }

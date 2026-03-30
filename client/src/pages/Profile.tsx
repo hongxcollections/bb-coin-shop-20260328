@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { ShareMenu } from "@/components/ShareMenu";
+import { MemberBadge } from "@/components/MemberBadge";
 
 function BidHistoryPanel({ auctionId }: { auctionId: number }) {
   const { data: history, isLoading } = trpc.auctions.auctionBidHistory.useQuery({ auctionId });
@@ -51,6 +52,7 @@ function BidHistoryPanel({ auctionId }: { auctionId: number }) {
               ) : (
                 <span className="text-xs font-medium">{h.username}</span>
               )}
+              <MemberBadge level={(h as { memberLevel?: string }).memberLevel} variant="icon" />
             </div>
             <div className="flex items-center gap-3">
               <span className="text-xs font-bold text-amber-700">HK${h.bidAmount.toLocaleString()}</span>
@@ -237,8 +239,14 @@ export default function Profile() {
                 {user?.role === "admin" ? "🔑 管理員" : "👤 一般用戶"}
               </Badge>
             </div>
-            <h1 className="text-2xl font-bold">{user?.name}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl font-bold">{user?.name}</h1>
+              <MemberBadge level={(user as { memberLevel?: string } | null)?.memberLevel} variant="badge" />
+            </div>
             {user?.email && <p className="text-muted-foreground text-sm mt-1">{user.email}</p>}
+            <div className="mt-3">
+              <MemberBadge level={(user as { memberLevel?: string } | null)?.memberLevel} variant="full" />
+            </div>
           </CardContent>
         </Card>
 

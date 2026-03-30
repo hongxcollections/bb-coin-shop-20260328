@@ -294,3 +294,11 @@
 - [x] 後端 routers.ts：create/update procedure 加入 antiSnipeMemberLevels 欄位驗證
 - [x] 管理後台 AdminAuctions.tsx：反狙擊設定卡片加入會員等級彩色按鈕多選 UI
 - [x] 新增 vitest 測試覆蓋會員等級判斷邏輯（5 個測試，112 個全部通過）
+
+## 會員等級徽章
+
+- [x] 建立 MemberBadge 元件：四個等級各有專屬顏色、圖示、光暈效果（銅/銀/金/VIP），支援 badge/icon/full 三種展示樣式
+- [x] Profile.tsx：在用戶名稱旁顯示等級徽章，並在個人資料卡片加入 full 樣式徽章卡片
+- [x] BidHistoryPanel：在出價者名稱旁顯示對應等級圖示徽章
+- [x] AdminUsers.tsx：新建會員管理頁面，可設定用戶的會員等級（下拉選單），管理後台導航加入「👥 會員管理」連結
+- [x] 後端 routers.ts：新增 users.listAll 和 users.setMemberLevel procedure
