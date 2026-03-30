@@ -42,6 +42,8 @@ export const auctions = mysqlTable("auctions", {
   archived: int("archived").default(0).notNull(),
   archivedAt: timestamp("archivedAt"),
   category: mysqlEnum("category", ["古幣", "紀念幣", "外幣", "銀幣", "金幣", "其他"]).default("其他"),
+  antiSnipeMinutes: int("antiSnipeMinutes").default(3).notNull(),
+  extendMinutes: int("extendMinutes").default(3).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

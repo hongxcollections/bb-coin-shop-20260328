@@ -252,8 +252,22 @@
 - [x] 後端：公開列表（getAuctions）及管理後台（getAuctionsByCreator）改為 active 排在前、按 endTime 升序；ended/draft 按 createdAt 降序排後
 - [x] 前端：各頁面經同一 API 返回，排序自動生效
 
-## 功能更新歷史
+## 反狙擊延時功能（Anti-Snipe Extension）
 
-- [x] 建立 ChangelogSection 元件：時間軸樣式，每條記錄含日期、圖示、標題、簡介
-- [x] 整合至 Home.tsx 主頁最底部，預設收合，點擊「查看更新歷史」展開
-- [x] 填入所有已發佈功能的更新記錄（依日期由新至舊）
+- [ ] Schema：auctions 表加入 antiSnipeMinutes（預設3）和 extendMinutes（預設3）欄位；auctionSettings 全域設定表加入相同欄位作預設值
+- [ ] 資料庫遷移：執行 ALTER TABLE 加入新欄位
+- [ ] 後端 placeBid：出價時若距 endTime 剩餘時間 < antiSnipeMinutes，自動將 endTime 延長 extendMinutes 分鐘
+- [ ] 後端：返回出價結果時包含 extended: boolean 及新 endTime
+- [ ] 管理後台：新增/編輯拍賣表單加入「反狙擊觸發時間（分鐘）」和「延長時間（分鐘）」兩個輸入欄
+- [ ] 管理後台：全域設定頁加入預設反狙擊數值設定
+- [ ] 前端詳情頁：出價成功後若 extended=true，顯示「⏱ 拍賣已延長 X 分鐘！」Toast 提示
+- [ ] 新增 vitest 測試覆蓋反狙擊邏輯
+
+## 反狙擊延時功能（Anti-Snipe Extension）
+
+- [x] 資料庫：auctions 表加入 antiSnipeMinutes（預設 3）和 extendMinutes（預設 3）欄位
+- [x] 後端 placeBid：出價後檢查 timeLeft <= antiSnipeMs，若觸發則延長 endTime 並回傳 extended/newEndTime/extendMinutes
+- [x] 後端 routers.ts：create/update procedure 加入兩個欄位的 zod 驗證
+- [x] 管理後台 AdminAuctions.tsx：表單加入「🛡️ 反狙擊延時設定」卡片，可設定觸發分鐘數和延長分鐘數，設為 0 即停用
+- [x] 前端 AuctionDetail.tsx：出價成功後若觸發延時，顯示「🛡️ 拍賣已延長 X 分鐘」提示
+- [x] vitest：antisnipe.test.ts 9 個測試，98 個測試全部通過

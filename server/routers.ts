@@ -66,6 +66,8 @@ export const appRouter = router({
         endTime: z.date(),
         bidIncrement: z.number().int().min(30).max(5000).default(30),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).default('HKD'),
+        antiSnipeMinutes: z.number().int().min(0).max(60).default(3),
+        extendMinutes: z.number().int().min(1).max(60).default(3),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') {
@@ -82,6 +84,8 @@ export const appRouter = router({
           status: 'active',
           bidIncrement: input.bidIncrement,
           currency: input.currency,
+          antiSnipeMinutes: input.antiSnipeMinutes,
+          extendMinutes: input.extendMinutes,
         });
 
         return result;
@@ -136,8 +140,8 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         try {
-          await placeBid(input.auctionId, ctx.user.id, input.bidAmount, input.origin ?? '');
-          return { success: true };
+          const result = await placeBid(input.auctionId, ctx.user.id, input.bidAmount, input.origin ?? '');
+          return { success: true, extended: result.extended ?? false, newEndTime: result.newEndTime, extendMinutes: result.extendMinutes };
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Failed to place bid';
           throw new TRPCError({ code: 'BAD_REQUEST', message });
@@ -158,6 +162,8 @@ export const appRouter = router({
         endTime: z.date().optional(),
         bidIncrement: z.number().int().min(30).max(5000).optional(),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).optional(),
+        antiSnipeMinutes: z.number().int().min(0).max(60).optional(),
+        extendMinutes: z.number().int().min(1).max(60).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') {
@@ -187,6 +193,8 @@ export const appRouter = router({
         if (input.endTime !== undefined) updateData.endTime = input.endTime;
         if (input.bidIncrement !== undefined) updateData.bidIncrement = input.bidIncrement;
         if (input.currency !== undefined) updateData.currency = input.currency;
+        if (input.antiSnipeMinutes !== undefined) updateData.antiSnipeMinutes = input.antiSnipeMinutes;
+        if (input.extendMinutes !== undefined) updateData.extendMinutes = input.extendMinutes;
 
         try {
           await updateAuction(input.id, updateData);

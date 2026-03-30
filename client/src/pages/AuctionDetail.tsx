@@ -129,9 +129,13 @@ export default function AuctionDetail() {
   };
 
   const placeBid = trpc.auctions.placeBid.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       setBidMsgExiting(false);
-      setBidMessage({ type: "success", text: "✅ 出價成功！您目前是最高出價者" });
+      if (data.extended) {
+        setBidMessage({ type: "success", text: `✅ 出價成功！🛡️ 拍賣已延長 ${data.extendMinutes ?? 3} 分鐘` });
+      } else {
+        setBidMessage({ type: "success", text: "✅ 出價成功！您目前是最高出價者" });
+      }
       setBidAmount("");
       refetch();
       setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 5600);

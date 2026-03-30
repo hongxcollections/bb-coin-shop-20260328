@@ -8,7 +8,6 @@ import { Link } from "wouter";
 import { useState, useEffect } from "react";
 import { Clock, Shield, TrendingUp, Award, ChevronRight, Coins } from "lucide-react";
 import { getCurrencySymbol } from "./AdminAuctions";
-import { ChangelogSection } from "@/components/ChangelogSection";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -261,11 +260,6 @@ export default function Home() {
           </div>
         </section>
       )}
-
-      {/* Changelog */}
-      <section className="py-8 bg-white">
-        <ChangelogSection />
-      </section>
 
       {/* Footer */}
       <footer className="bg-amber-900 text-amber-100 py-8">

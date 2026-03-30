@@ -46,6 +46,8 @@ interface AuctionFormData {
   endTime: string;
   bidIncrement: number;
   currency: string;
+  antiSnipeMinutes: number;
+  extendMinutes: number;
 }
 
 interface UploadedImage {
@@ -71,6 +73,8 @@ const defaultForm: AuctionFormData = {
   endTime: "",
   bidIncrement: 30,
   currency: "HKD",
+  antiSnipeMinutes: 3,
+  extendMinutes: 3,
 };
 
 // ─── Image Upload Zone Component ────────────────────────────────────────────
@@ -443,6 +447,8 @@ export default function AdminAuctions() {
         endTime: new Date(form.endTime),
         bidIncrement: form.bidIncrement,
         currency: form.currency as 'HKD' | 'USD' | 'CNY' | 'GBP' | 'EUR' | 'JPY',
+        antiSnipeMinutes: form.antiSnipeMinutes,
+        extendMinutes: form.extendMinutes,
       });
     } else {
       createAuction.mutate({
@@ -452,6 +458,8 @@ export default function AdminAuctions() {
         endTime: new Date(form.endTime),
         bidIncrement: form.bidIncrement,
         currency: form.currency as 'HKD' | 'USD' | 'CNY' | 'GBP' | 'EUR' | 'JPY',
+        antiSnipeMinutes: form.antiSnipeMinutes,
+        extendMinutes: form.extendMinutes,
       });
     }
   };
@@ -476,6 +484,8 @@ export default function AdminAuctions() {
       endTime: new Date(auction.endTime).toISOString().slice(0, 16),
       bidIncrement: auction.bidIncrement ?? 30,
       currency: (auction as { currency?: string }).currency ?? "HKD",
+      antiSnipeMinutes: (auction as { antiSnipeMinutes?: number }).antiSnipeMinutes ?? 3,
+      extendMinutes: (auction as { extendMinutes?: number }).extendMinutes ?? 3,
     });
     setUploadedImages(
       (images ?? []).map((img) => ({
@@ -642,6 +652,44 @@ export default function AdminAuctions() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                {/* 反狙擊延時設定 */}
+                <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 space-y-2">
+                  <p className="text-xs font-semibold text-amber-700 flex items-center gap-1">🛡️ 反狙擊延時設定</p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <Label htmlFor="antiSnipeMinutes" className="text-xs text-amber-700">結束前幾分鐘內出價觸發延時</Label>
+                      <div className="flex items-center gap-1 mt-1">
+                        <Input
+                          id="antiSnipeMinutes"
+                          type="number"
+                          min={0}
+                          max={60}
+                          value={form.antiSnipeMinutes}
+                          onChange={(e) => setForm((f) => ({ ...f, antiSnipeMinutes: Math.max(0, Math.min(60, parseInt(e.target.value) || 0)) }))}
+                          className="border-amber-200 focus-visible:ring-amber-400 h-8 w-20 text-center"
+                        />
+                        <span className="text-xs text-amber-600">分鐘</span>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <Label htmlFor="extendMinutes" className="text-xs text-amber-700">每次延長時間</Label>
+                      <div className="flex items-center gap-1 mt-1">
+                        <Input
+                          id="extendMinutes"
+                          type="number"
+                          min={1}
+                          max={60}
+                          value={form.extendMinutes}
+                          onChange={(e) => setForm((f) => ({ ...f, extendMinutes: Math.max(1, Math.min(60, parseInt(e.target.value) || 1)) }))}
+                          className="border-amber-200 focus-visible:ring-amber-400 h-8 w-20 text-center"
+                        />
+                        <span className="text-xs text-amber-600">分鐘</span>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-amber-500">{form.antiSnipeMinutes === 0 ? '⚠️ 設為 0 即停用反狙擊延時' : `結束前 ${form.antiSnipeMinutes} 分鐘內有出價，自動延長 ${form.extendMinutes} 分鐘`}</p>
                 </div>
 
                 {/* 結束時間：移至独立一行 */}
