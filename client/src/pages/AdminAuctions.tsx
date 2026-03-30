@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Pencil, Trash2, TrendingUp, Clock, LogOut, Upload, X, ImageIcon, CheckCircle2, AlertCircle, Loader2, Facebook } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp, Clock, LogOut, Upload, X, ImageIcon, CheckCircle2, AlertCircle, Loader2, Facebook, Menu } from "lucide-react";
 
 const MAX_IMAGES = 10;
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -513,6 +513,8 @@ export default function AdminAuctions() {
     setOpen(true);
   };
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   if (!isAuthenticated || user?.role !== "admin") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -540,67 +542,68 @@ export default function AdminAuctions() {
       {/* Navigation */}
       <nav className="nav-glass sticky top-0 z-50">
         <div className="container flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl">
+          <Link href="/" className="flex items-center gap-2 font-bold text-xl shrink-0">
             <span className="text-2xl">💰</span>
             <span className="gold-gradient-text">大BB錢幣店</span>
           </Link>
-          <div className="flex items-center gap-2">
-            <Link href="/auctions">
-              <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">所有拍賣</Button>
-            </Link>
-            <Link href="/admin/drafts">
-              <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 gap-1">
-                <Facebook className="w-3.5 h-3.5" /> 草稿審核
-              </Button>
-            </Link>
-            <Link href="/admin/archive">
-              <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 gap-1">
-                📦 封存區
-              </Button>
-            </Link>
-            <Link href="/admin/notifications">
-              <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 gap-1">
-                🔔 通知設定
-              </Button>
-            </Link>
-            <Link href="/admin/users">
-              <Button variant="ghost" size="sm" className="text-violet-600 hover:text-violet-800 hover:bg-violet-50 gap-1">
-                👥 會員管理
-              </Button>
-            </Link>
-            <Link href="/admin/anonymous-bids">
-              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-800 hover:bg-slate-100 gap-1">
-                🕵️ 匿名出價
-              </Button>
-            </Link>
-            <Link href="/admin/dashboard">
-              <Button variant="ghost" size="sm" className="text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 gap-1">
-                📊 統計儀表板
-              </Button>
-            </Link>
-            <Link href="/admin/export-bids">
-              <Button variant="ghost" size="sm" className="text-orange-600 hover:text-orange-800 hover:bg-orange-50 gap-1">
-                📥 匯出記錄
-              </Button>
-            </Link>
-            <Link href="/admin/settings">
-              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 hover:bg-gray-50 gap-1">
-                ⚙️ 站點設定
-              </Button>
-            </Link>
-            <Link href="/admin/won-orders">
-              <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50 gap-1">
-                🏆 得標訂單
-              </Button>
-            </Link>
-            <Link href="/profile">
-              <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">{user?.name}</Button>
-            </Link>
+          {/* Desktop nav */}
+          <div className="hidden md:flex items-center gap-1 flex-wrap justify-end">
+            <Link href="/auctions"><Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">所有拍賣</Button></Link>
+            <Link href="/admin/drafts"><Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 gap-1"><Facebook className="w-3.5 h-3.5" /> 草稿審核</Button></Link>
+            <Link href="/admin/archive"><Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 hover:bg-gray-100">📦 封存區</Button></Link>
+            <Link href="/admin/notifications"><Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 hover:bg-gray-100">🔔 通知設定</Button></Link>
+            <Link href="/admin/users"><Button variant="ghost" size="sm" className="text-violet-600 hover:text-violet-800 hover:bg-violet-50">👥 會員管理</Button></Link>
+            <Link href="/admin/anonymous-bids"><Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-800 hover:bg-slate-100">🕵️ 匿名出價</Button></Link>
+            <Link href="/admin/dashboard"><Button variant="ghost" size="sm" className="text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50">📊 統計</Button></Link>
+            <Link href="/admin/export-bids"><Button variant="ghost" size="sm" className="text-orange-600 hover:text-orange-800 hover:bg-orange-50">📥 匯出</Button></Link>
+            <Link href="/admin/settings"><Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 hover:bg-gray-50">⚙️ 設定</Button></Link>
+            <Link href="/admin/won-orders"><Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">🏆 得標訂單</Button></Link>
+            <Link href="/profile"><Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">{user?.name}</Button></Link>
             <Button variant="outline" size="sm" onClick={logout} className="border-red-200 text-red-600 hover:bg-red-50">
               <LogOut className="w-3.5 h-3.5 mr-1" /> 登出
             </Button>
           </div>
+          {/* Mobile hamburger button */}
+          <button
+            className="md:hidden p-2 rounded-lg hover:bg-amber-50 transition-colors"
+            onClick={() => setMobileMenuOpen((v) => !v)}
+            aria-label="開啟選單"
+          >
+            <Menu className="w-5 h-5 text-amber-700" />
+          </button>
         </div>
+        {/* Mobile dropdown menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-amber-100 bg-background/98 backdrop-blur px-4 py-3 flex flex-col gap-0.5 shadow-lg">
+            {[
+              { href: "/auctions", label: "所有拍賣", cls: "text-amber-700" },
+              { href: "/admin/drafts", label: "📘 草稿審核", cls: "text-blue-600" },
+              { href: "/admin/archive", label: "📦 封存區", cls: "text-gray-600" },
+              { href: "/admin/notifications", label: "🔔 通知設定", cls: "text-gray-600" },
+              { href: "/admin/users", label: "👥 會員管理", cls: "text-violet-600" },
+              { href: "/admin/anonymous-bids", label: "🕵️ 匿名出價", cls: "text-slate-600" },
+              { href: "/admin/dashboard", label: "📊 統計儀表板", cls: "text-emerald-600" },
+              { href: "/admin/export-bids", label: "📥 匯出記錄", cls: "text-orange-600" },
+              { href: "/admin/settings", label: "⚙️ 站點設定", cls: "text-gray-600" },
+              { href: "/admin/won-orders", label: "🏆 得標訂單", cls: "text-amber-700" },
+              { href: "/profile", label: user?.name ?? "個人資料", cls: "text-amber-700" },
+            ].map(({ href, label, cls }) => (
+              <Link key={href} href={href} onClick={() => setMobileMenuOpen(false)}>
+                <button className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-amber-50 transition-colors ${cls}`}>
+                  {label}
+                </button>
+              </Link>
+            ))}
+            <div className="pt-1 mt-1 border-t border-amber-100">
+              <button
+                onClick={() => { setMobileMenuOpen(false); logout(); }}
+                className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" /> 登出
+              </button>
+            </div>
+          </div>
+        )}
       </nav>
 
       <div className="container py-8">

@@ -435,3 +435,9 @@
 - [x] 按鈕點擊後顯示 loading 狀態（Loader2 旋轉動畫 + 「發送中…」），成功後 Toast 顯示已發送至的電郵
 - [x] 買家無 Email 時顯示提示（「得標者尚未填寫電郵地址，無法發送通知」）
 - [x] 新增 vitest 測試覆蓋 resendEmail procedure 邏輯（10 個測試，165 個全部通過）
+
+## 後台管理頁面手機 RWD 修復
+
+- [x] 修復 AdminAuctions 手機版面錯亂（導覽列改為漢堡選單，手機顯示漢堡鈕，電腦顯示完整導覽列）
+- [x] DashboardLayout 已有手機選單支援（非 AdminAuctions 頁面問題）
+- [x] TypeScript 編譯無錯誤
