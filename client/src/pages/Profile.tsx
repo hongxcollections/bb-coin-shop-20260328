@@ -419,14 +419,15 @@ export default function Profile() {
                         <span className="absolute top-0 right-0 z-10 text-[0.6rem] font-bold px-2 py-0.5 rounded-bl-lg rounded-tr-lg" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', letterSpacing: '0.05em' }}>🏆 得標</span>
                       )}
                       {/* Accordion header */}
-                      <div className={`flex items-center justify-between py-3 px-4 transition-colors ${group.isWinner ? 'bg-amber-50 hover:bg-amber-100/70' : 'bg-white hover:bg-amber-50/50'}`}>
-                        <Link href={`/auctions/${group.auctionId}`} className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className={`flex flex-col py-3 px-3 gap-2 transition-colors ${group.isWinner ? 'bg-amber-50 hover:bg-amber-100/70' : 'bg-white hover:bg-amber-50/50'}`}>
+                        {/* Row 1: icon + title + status */}
+                        <Link href={`/auctions/${group.auctionId}`} className="flex items-center gap-2 min-w-0">
                           <div className="w-8 h-8 coin-placeholder rounded-lg flex items-center justify-center text-sm shrink-0">🪙</div>
-                          <div className="min-w-0">
-                            <div className="text-[0.667rem] font-medium leading-snug truncate">拍賣 {displayTitle}</div>
-                            <div className="flex items-center gap-1.5 mt-0.5">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-semibold leading-snug truncate">拍賣 {rawTitle || '(未命名)'}</div>
+                            <div className="flex items-center flex-wrap gap-1 mt-0.5">
                               {statusLabel && (
-                                <span className={`text-[0.55rem] px-1 py-0.5 rounded font-medium ${statusColor}`}>{statusLabel}</span>
+                                <span className={`text-[0.6rem] px-1.5 py-0.5 rounded font-medium ${statusColor}`}>{statusLabel}</span>
                               )}
                               <span className="text-[0.6rem] text-muted-foreground">{group.totalBids} 口出價</span>
                               {group.latestBidAt && (
@@ -435,24 +436,27 @@ export default function Profile() {
                             </div>
                           </div>
                         </Link>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <div className="font-bold text-amber-700 price-tag text-sm">
+                        {/* Row 2: price + action buttons */}
+                        <div className="flex items-center justify-between">
+                          <div className="font-bold text-amber-700 price-tag text-base">
                             HK${group.latestBid.toLocaleString()}
                           </div>
-                          <ShareMenu
-                            auctionId={group.auctionId}
-                            title={group.auctionTitle ?? ''}
-                            latestBid={group.latestBid}
-                            currency={group.auctionCurrency}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setExpandedBidId(isExpanded ? null : group.auctionId)}
-                            className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-1 transition-colors bg-amber-50 hover:bg-amber-100"
-                          >
-                            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                            詳情
-                          </button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <ShareMenu
+                              auctionId={group.auctionId}
+                              title={group.auctionTitle ?? ''}
+                              latestBid={group.latestBid}
+                              currency={group.auctionCurrency}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setExpandedBidId(isExpanded ? null : group.auctionId)}
+                              className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-1 transition-colors bg-amber-50 hover:bg-amber-100"
+                            >
+                              {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                              詳情
+                            </button>
+                          </div>
                         </div>
                       </div>
                       {/* Expanded: all bids for this auction */}
