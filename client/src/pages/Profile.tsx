@@ -12,6 +12,7 @@ import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff, Che
 import { toast } from "sonner";
 import { ShareMenu } from "@/components/ShareMenu";
 import { MemberBadge } from "@/components/MemberBadge";
+import { MemberHeroBanner } from "@/components/MemberHeroBanner";
 
 function BidHistoryPanel({ auctionId }: { auctionId: number }) {
   const { data: history, isLoading } = trpc.auctions.auctionBidHistory.useQuery({ auctionId });
@@ -229,7 +230,10 @@ export default function Profile() {
       <div className="container py-8 max-w-3xl">
         {/* Profile Header */}
         <Card className="mb-6 border-amber-100 overflow-hidden">
-          <div className="h-24 gold-gradient" />
+          <MemberHeroBanner
+            level={(user as { memberLevel?: string } | null)?.memberLevel}
+            name={user?.name}
+          />
           <CardContent className="pt-0 pb-6 px-6">
             <div className="-mt-10 flex items-end justify-between mb-4">
               <div className="w-20 h-20 gold-gradient rounded-2xl flex items-center justify-center text-white font-bold text-2xl border-4 border-white shadow-lg">

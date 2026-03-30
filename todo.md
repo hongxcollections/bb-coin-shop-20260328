@@ -302,3 +302,8 @@
 - [x] BidHistoryPanel：在出價者名稱旁顯示對應等級圖示徽章
 - [x] AdminUsers.tsx：新建會員管理頁面，可設定用戶的會員等級（下拉選單），管理後台導航加入「👥 會員管理」連結
 - [x] 後端 routers.ts：新增 users.listAll 和 users.setMemberLevel procedure
+
+## 會員等級專屬頂部橫幅
+
+- [x] 建立 MemberHeroBanner 元件：四個等級各有專屬漸層背景、裝飾圖案、等級稱號文案、浮動粒子與閃光動畫
+- [x] 整合至 Profile.tsx 頁面最頂部，替換現有純色背景
