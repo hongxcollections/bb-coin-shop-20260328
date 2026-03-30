@@ -15,6 +15,74 @@ import { ShareMenu } from "@/components/ShareMenu";
 import { MemberBadge } from "@/components/MemberBadge";
 import { MemberHeroBanner } from "@/components/MemberHeroBanner";
 
+// 付款狀態設定
+const PAYMENT_STATUS_CONFIG = {
+  pending_payment: { label: '待付款', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: '⏳' },
+  paid: { label: '已付款', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: '💳' },
+  delivered: { label: '已交收', color: 'bg-green-100 text-green-800 border-green-200', icon: '✅' },
+} as const;
+
+type WonAuctionItemType = { id: number; title: string; currency: string; winningAmount: string; endTime: number; category?: string | null; bidCount: number; paymentStatus?: string | null };
+
+function WonAuctionItem({ item }: { item: WonAuctionItemType }) {
+  const utils = trpc.useUtils();
+  const updateStatus = trpc.wonAuctions.updatePaymentStatus.useMutation({
+    onSuccess: () => {
+      utils.wonAuctions.myWon.invalidate();
+      toast.success('付款狀態已更新！');
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const statusKey = (item.paymentStatus ?? null) as keyof typeof PAYMENT_STATUS_CONFIG | null;
+  const statusConfig = statusKey ? PAYMENT_STATUS_CONFIG[statusKey] : null;
+
+  return (
+    <div className="rounded-lg border border-amber-100 bg-amber-50/50 overflow-hidden">
+      <Link href={`/auctions/${item.id}`}>
+        <div className="flex items-center gap-3 p-3 hover:bg-amber-100/60 transition-colors cursor-pointer">
+          <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <Trophy className="w-4 h-4 text-amber-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
+            <p className="text-xs text-muted-foreground">
+              結標：{new Date(item.endTime).toLocaleDateString('zh-HK', { year: 'numeric', month: 'short', day: 'numeric' })}
+              {item.category && <span className="ml-2 text-amber-600">#{item.category}</span>}
+            </p>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-sm font-bold text-amber-700">{item.currency}${Number(item.winningAmount).toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">{item.bidCount} 口競標</p>
+          </div>
+        </div>
+      </Link>
+      {/* 付款狀態列 */}
+      <div className="px-3 pb-3 flex items-center gap-2 flex-wrap">
+        {statusConfig ? (
+          <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${statusConfig.color}`}>
+            {statusConfig.icon} {statusConfig.label}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-gray-200 bg-gray-100 text-gray-500">
+            未設定狀態
+          </span>
+        )}
+        {/* 買家操作：未付款時可標記「已付款」 */}
+        {(!statusKey || statusKey === 'pending_payment') && (
+          <button
+            onClick={() => updateStatus.mutate({ auctionId: item.id, status: 'paid' })}
+            disabled={updateStatus.isPending}
+            className="text-xs px-2 py-0.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-50"
+          >
+            {updateStatus.isPending ? '更新中...' : '✓ 標記已付款'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function BidHistoryPanel({ auctionId }: { auctionId: number }) {
   const { data: history, isLoading } = trpc.auctions.auctionBidHistory.useQuery({ auctionId });
 
@@ -643,25 +711,8 @@ export default function Profile() {
               </div>
             ) : (
               <div className="space-y-3">
-                {(wonAuctions as Array<{ id: number; title: string; currency: string; winningAmount: string; endTime: number; category?: string | null; bidCount: number }>).map((item) => (
-                  <Link key={item.id} href={`/auctions/${item.id}`}>
-                    <div className="flex items-center gap-3 p-3 rounded-lg border border-amber-100 bg-amber-50/50 hover:bg-amber-100/60 transition-colors cursor-pointer">
-                      <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                        <Trophy className="w-4 h-4 text-amber-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          結標：{new Date(item.endTime).toLocaleDateString('zh-HK', { year: 'numeric', month: 'short', day: 'numeric' })}
-                          {item.category && <span className="ml-2 text-amber-600">#{item.category}</span>}
-                        </p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-bold text-amber-700">{item.currency}${Number(item.winningAmount).toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">{item.bidCount} 口競標</p>
-                      </div>
-                    </div>
-                  </Link>
+                {(wonAuctions as Array<{ id: number; title: string; currency: string; winningAmount: string; endTime: number; category?: string | null; bidCount: number; paymentStatus?: string | null }>).map((item) => (
+                  <WonAuctionItem key={item.id} item={item} />
                 ))}
               </div>
             )}

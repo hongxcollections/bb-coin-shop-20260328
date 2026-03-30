@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings } from "./db";
+import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon } from "./auctions";
 import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel } from "./db";
@@ -811,6 +811,28 @@ export const appRouter = router({
     myWon: protectedProcedure
       .query(async ({ ctx }) => {
         return getMyWonAuctions(ctx.user.id);
+      }),
+
+    // 更新付款狀態（買家標記已付款；管理員可設定任何狀態）
+    updatePaymentStatus: protectedProcedure
+      .input(z.object({
+        auctionId: z.number().int().positive(),
+        status: z.enum(['pending_payment', 'paid', 'delivered']),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const isAdmin = ctx.user.role === 'admin';
+        const result = await updatePaymentStatus(input.auctionId, input.status, ctx.user.id, isAdmin);
+        if (!result.success) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: result.error ?? '更新失敗' });
+        }
+        return { success: true };
+      }),
+
+    // 管理員查看所有得標訂單
+    allOrders: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
+        return getWonOrders();
       }),
   }),
 

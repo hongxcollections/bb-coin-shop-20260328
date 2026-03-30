@@ -409,3 +409,12 @@
 - [x] 前端 Auctions.tsx：倒數提醒閾值從後台讀取（預設 30 分鐘，取代硬編碼 1 小時）
 - [x] 前端：AdminSiteSettings.tsx 新頁面（管理員可設定倒數提醒閾值，含效果預覽）
 - [x] 後台導航加入「⚙️ 站點設定」連結
+
+## 付款狀態追蹤功能
+
+- [x] 資料庫：auctions 表加入 paymentStatus 欄位（pending_payment / paid / delivered，預設 null）
+- [x] 後端：新增 wonAuctions.updatePaymentStatus procedure（買家可標記「已付款」，管理員可標記「已收款」/「已交收」）
+- [x] 前端 Profile.tsx：「我的得標記錄」每項加入狀態標籤（顏色區分）和「標記已付款」按鈕
+- [x] 後台：新增 AdminWonOrders.tsx（統計卡片、搜尋篩選、狀態更新按鈕）
+- [x] 後台導航加入「🏆 得標訂單」連結
+- [x] 新增 server/paymentStatus.test.ts：17 個測試，覆蓋買家/管理員權限、狀態遷移、顯示文字（150 個測試全部通過）

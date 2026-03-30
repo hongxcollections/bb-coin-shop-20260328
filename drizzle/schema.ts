@@ -48,6 +48,7 @@ export const auctions = mysqlTable("auctions", {
   antiSnipeMinutes: int("antiSnipeMinutes").default(3).notNull(),
   extendMinutes: int("extendMinutes").default(3).notNull(),
   antiSnipeMemberLevels: text("antiSnipeMemberLevels"),
+  paymentStatus: mysqlEnum("paymentStatus", ["pending_payment", "paid", "delivered"]),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

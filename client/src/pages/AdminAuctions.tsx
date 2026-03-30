@@ -588,6 +588,11 @@ export default function AdminAuctions() {
                 ⚙️ 站點設定
               </Button>
             </Link>
+            <Link href="/admin/won-orders">
+              <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50 gap-1">
+                🏆 得標訂單
+              </Button>
+            </Link>
             <Link href="/profile">
               <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">{user?.name}</Button>
             </Link>

@@ -36,6 +36,13 @@
       "when": 1774889771788,
       "tag": "0004_dashing_blindfold",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1774890615352,
+      "tag": "0005_common_barracuda",
+      "breakpoints": true
     }
   ]
 }

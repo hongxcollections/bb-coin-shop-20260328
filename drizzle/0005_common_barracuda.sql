@@ -1,0 +1,1 @@
+ALTER TABLE `auctions` ADD `paymentStatus` enum('pending_payment','paid','delivered');

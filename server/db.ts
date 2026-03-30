@@ -1163,6 +1163,7 @@ export async function getMyWonAuctions(userId: number) {
         category: auctions.category,
         bidCount: sql<number>`(SELECT COUNT(*) FROM bids WHERE bids.auction_id = ${auctions.id})`,
         winningAmount: sql<string>`(SELECT bid_amount FROM bids WHERE bids.auction_id = ${auctions.id} ORDER BY bid_amount DESC, created_at ASC LIMIT 1)`,
+        paymentStatus: auctions.paymentStatus,
       })
       .from(auctions)
       .where(
@@ -1242,5 +1243,77 @@ export async function getAllSiteSettings(): Promise<Record<string, string>> {
   } catch (error) {
     console.error('[Database] Failed to get all site settings:', error);
     return {};
+  }
+}
+
+// 管理員查看所有得標訂單
+export async function getWonOrders() {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const result = await db
+      .select({
+        id: auctions.id,
+        title: auctions.title,
+        currentPrice: auctions.currentPrice,
+        currency: auctions.currency,
+        endTime: auctions.endTime,
+        paymentStatus: auctions.paymentStatus,
+        winnerName: sql<string>`(SELECT u.name FROM users u INNER JOIN bids b ON b.user_id = u.id WHERE b.auction_id = ${auctions.id} ORDER BY b.bid_amount DESC, b.created_at ASC LIMIT 1)`,
+        winnerOpenId: sql<string>`(SELECT u.open_id FROM users u INNER JOIN bids b ON b.user_id = u.id WHERE b.auction_id = ${auctions.id} ORDER BY b.bid_amount DESC, b.created_at ASC LIMIT 1)`,
+        winningAmount: sql<string>`(SELECT b.bid_amount FROM bids b WHERE b.auction_id = ${auctions.id} ORDER BY b.bid_amount DESC, b.created_at ASC LIMIT 1)`,
+      })
+      .from(auctions)
+      .where(eq(auctions.status, 'ended'))
+      .orderBy(desc(auctions.endTime));
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to get won orders:', error);
+    return [];
+  }
+}
+
+// 更新付款狀態
+export async function updatePaymentStatus(
+  auctionId: number,
+  status: 'pending_payment' | 'paid' | 'delivered',
+  userId: number,
+  isAdmin: boolean
+): Promise<{ success: boolean; error?: string }> {
+  const db = await getDb();
+  if (!db) return { success: false, error: 'Database unavailable' };
+  try {
+    // 取得拍賣資料
+    const [auction] = await db.select({
+      id: auctions.id,
+      status: auctions.status,
+      paymentStatus: auctions.paymentStatus,
+      highestBidderId: auctions.highestBidderId,
+    }).from(auctions).where(eq(auctions.id, auctionId)).limit(1);
+
+    if (!auction) return { success: false, error: '拍賣不存在' };
+    if (auction.status !== 'ended') return { success: false, error: '拍賣尚未結束' };
+
+    // 確認得標者
+    const [topBid] = await db.select({ userId: bids.userId })
+      .from(bids)
+      .where(eq(bids.auctionId, auctionId))
+      .orderBy(desc(bids.bidAmount), asc(bids.createdAt))
+      .limit(1);
+
+    if (!topBid) return { success: false, error: '找不到得標記錄' };
+
+    // 權限控制：買家只能標記 pending_payment → paid，管理員可設定任何狀態
+    if (!isAdmin) {
+      if (topBid.userId !== userId) return { success: false, error: '您不是此拍賣的得標者' };
+      if (status !== 'paid') return { success: false, error: '買家只能標記「已付款」' };
+      if (auction.paymentStatus === 'delivered') return { success: false, error: '訂單已完成，無法修改' };
+    }
+
+    await db.update(auctions).set({ paymentStatus: status }).where(eq(auctions.id, auctionId));
+    return { success: true };
+  } catch (error) {
+    console.error('[Database] Failed to update payment status:', error);
+    return { success: false, error: '更新失敗，請稍後再試' };
   }
 }
