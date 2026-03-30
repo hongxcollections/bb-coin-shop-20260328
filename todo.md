@@ -370,3 +370,11 @@
 
 - [x] 前端直接從已載入資料篩選建議，無需額外 API
 - [x] 前端 Auctions.tsx：搜尋欄加入下拉建議清單（最多 6 筆，顯示標題和當前價格）
+
+## 多用戶出價實時同步修復
+
+- [x] 診斷 AuctionDetail.tsx 現有 tRPC query 是否有 refetchInterval
+- [x] 拍賣詳情頁：加入自動輪詢（每 5 秒 refetchInterval），確保 currentPrice/bidHistory 即時更新
+- [x] 出價衝突提示：出價失敗時自動刷新最新出價，顯示「已有新出價！頁面已更新最新出價，請重新確認金額」
+- [x] 出價成功後立即 invalidate 相關 query，確保自己的頁面也即時更新
+- [x] 輪詢偵測到價格變動時，在出價表單上方顯示橙色警告橫幅（⚡ 有新出價！）並清空舊金額

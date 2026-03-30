@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRoute, Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -62,6 +62,9 @@ export default function AuctionDetail() {
   const [showProxyConfirm, setShowProxyConfirm] = useState(false);
   const [pendingProxyAmount, setPendingProxyAmount] = useState(0);
   const [isFavorited, setIsFavorited] = useState(false);
+  // 追蹤上一次已知的最高出價，用於偵測其他用戶的新出價
+  const prevPriceRef = useRef<number | null>(null);
+  const [priceUpdated, setPriceUpdated] = useState(false);
 
   // 取得用戶預設匿名設定
   const { data: defaultAnonData } = trpc.users.getDefaultAnonymous.useQuery(undefined, {
@@ -90,7 +93,28 @@ export default function AuctionDetail() {
     setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400);
   };
 
-  const { data: auction, isLoading, refetch } = trpc.auctions.detail.useQuery({ id: auctionId });
+  const { data: auction, isLoading, refetch } = trpc.auctions.detail.useQuery(
+    { id: auctionId },
+    {
+      // 每 5 秒自動輪詢，確保多用戶同時競標時頁面即時同步
+      refetchInterval: 5000,
+      // 切換回此標籤頁時立即重新取得最新數據
+      refetchOnWindowFocus: true,
+    }
+  );
+
+  // 偵測其他用戶出價導致的價格變動，主動提示 B 用戶
+  useEffect(() => {
+    if (!auction) return;
+    const latestPrice = Number(auction.currentPrice);
+    if (prevPriceRef.current !== null && prevPriceRef.current !== latestPrice) {
+      // 價格已被其他人更新，若用戶正在填寫出價金額則顯示提示
+      if (bidAmount || proxyAmount) {
+        setPriceUpdated(true);
+      }
+    }
+    prevPriceRef.current = latestPrice;
+  }, [auction?.currentPrice]);
   const [selectedImage, setSelectedImage] = useState(0);
   const utils = trpc.useUtils();
   const [editingPrice, setEditingPrice] = useState(false);
@@ -175,13 +199,28 @@ export default function AuctionDetail() {
         setBidMessage({ type: "success", text: "✅ 出價成功！您目前是最高出價者" });
       }
       setBidAmount("");
+      setPriceUpdated(false);
+      // 出價成功後立即刷新所有相關 query，確保自己的頁面也即時更新
       refetch();
+      utils.auctions.detail.invalidate({ id: auctionId });
+      // 代理出價相關 query 也一並刷新
+      utils.auctions.getProxyBidLogs.invalidate({ auctionId });
+      utils.auctions.getMyProxyBid.invalidate({ auctionId });
       setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 5600);
     },
     onError: (err) => {
       setBidMsgExiting(false);
-      setBidMessage({ type: "error", text: `❌ ${err.message || "出價失敗，請重試"}` });
-      setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 5600);
+      // 出價失敗時自動刷新最新出價，避免用戶再次使用舊數據出價
+      refetch();
+      const errMsg = err.message || "出價失敗，請重試";
+      // 如果是出價金額不足，提示用戶頁面已更新
+      const isStalePrice = errMsg.includes('出價金額必須') || errMsg.includes('必須至少為');
+      if (isStalePrice) {
+        setBidMessage({ type: "error", text: `❌ 已有新出價！頁面已更新最新出價，請重新確認金額` });
+      } else {
+        setBidMessage({ type: "error", text: `❌ ${errMsg}` });
+      }
+      setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 6600);
     },
   });
 
@@ -551,6 +590,21 @@ export default function AuctionDetail() {
                           代理出價
                         </button>
                       </div>
+
+                      {/* 價格已被其他用戶更新的提示橫幅 */}
+                      {priceUpdated && (
+                        <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-orange-50 border border-orange-300 text-orange-700 text-xs font-medium animate-pulse">
+                          <div className="flex items-center gap-1.5">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                            <span>⚡ 有新出價！最新現價已更新，請重新確認出價金額</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { setPriceUpdated(false); setBidAmount(""); setProxyAmount(""); }}
+                            className="shrink-0 opacity-60 hover:opacity-100"
+                          >✕</button>
+                        </div>
+                      )}
 
                       {!proxyMode ? (
                         <>
