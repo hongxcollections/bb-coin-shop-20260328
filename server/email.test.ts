@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// Capture sent email payloads for assertion
+const capturedEmails: Array<{ from: string; to: string; subject: string; html: string }> = [];
+
 // Mock the Resend module
 vi.mock("resend", () => ({
   Resend: vi.fn().mockImplementation(() => ({
     emails: {
-      send: vi.fn().mockResolvedValue({ data: { id: "mock-id" }, error: null }),
+      send: vi.fn().mockImplementation(async (payload: { from: string; to: string; subject: string; html: string }) => {
+        capturedEmails.push(payload);
+        return { data: { id: "mock-id" }, error: null };
+      }),
     },
   })),
 }));
@@ -22,6 +28,7 @@ const baseParams = {
 
 describe("Email notifications", () => {
   beforeEach(() => {
+    capturedEmails.length = 0;
     vi.clearAllMocks();
   });
 
@@ -74,6 +81,93 @@ describe("Email notifications", () => {
         auctionUrl: "https://example.com/auctions/3",
       });
       expect(result).toBe(true);
+    });
+
+    it("should render paymentInstructions with nl2br conversion in HTML", async () => {
+      await sendWonEmail({
+        ...baseParams,
+        userName: "小明",
+        auctionTitle: "紀念幣",
+        auctionId: 10,
+        finalPrice: 500,
+        currency: "HKD",
+        auctionUrl: "https://example.com/auctions/10",
+        paymentInstructions: "FPS: 12345678\n八達通: 到店付款",
+      });
+
+      const lastEmail = capturedEmails.at(-1);
+      expect(lastEmail).toBeDefined();
+      // Verify nl2br conversion: \n should become <br />
+      expect(lastEmail!.html).toContain("FPS: 12345678<br />八達通: 到店付款");
+    });
+
+    it("should render deliveryInfo with nl2br conversion in HTML", async () => {
+      await sendWonEmail({
+        ...baseParams,
+        userName: "大明",
+        auctionTitle: "銀幣",
+        auctionId: 11,
+        finalPrice: 2000,
+        currency: "HKD",
+        auctionUrl: "https://example.com/auctions/11",
+        deliveryInfo: "順豐到付\n自取亦可",
+      });
+
+      const lastEmail = capturedEmails.at(-1);
+      expect(lastEmail).toBeDefined();
+      expect(lastEmail!.html).toContain("順豐到付<br />自取亦可");
+    });
+
+    it("should use default payment text when paymentInstructions is null", async () => {
+      await sendWonEmail({
+        ...baseParams,
+        userName: "用戶A",
+        auctionTitle: "測試拍賣",
+        auctionId: 12,
+        finalPrice: 100,
+        currency: "HKD",
+        auctionUrl: "https://example.com/auctions/12",
+        paymentInstructions: null,
+        deliveryInfo: null,
+      });
+
+      const lastEmail = capturedEmails.at(-1);
+      expect(lastEmail).toBeDefined();
+      // Default payment text should include FPS
+      expect(lastEmail!.html).toContain("FPS");
+    });
+
+    it("should include final price in subject line", async () => {
+      await sendWonEmail({
+        ...baseParams,
+        userName: "用戶B",
+        auctionTitle: "古幣",
+        auctionId: 13,
+        finalPrice: 9999,
+        currency: "HKD",
+        auctionUrl: "https://example.com/auctions/13",
+      });
+
+      const lastEmail = capturedEmails.at(-1);
+      expect(lastEmail).toBeDefined();
+      expect(lastEmail!.subject).toContain("古幣");
+      expect(lastEmail!.subject).toContain("9,999");
+    });
+
+    it("should include auction URL in HTML body", async () => {
+      await sendWonEmail({
+        ...baseParams,
+        userName: "用戶C",
+        auctionTitle: "銀幣",
+        auctionId: 14,
+        finalPrice: 500,
+        currency: "HKD",
+        auctionUrl: "https://bbcoinshop.example.com/auctions/14",
+      });
+
+      const lastEmail = capturedEmails.at(-1);
+      expect(lastEmail).toBeDefined();
+      expect(lastEmail!.html).toContain("https://bbcoinshop.example.com/auctions/14");
     });
   });
 

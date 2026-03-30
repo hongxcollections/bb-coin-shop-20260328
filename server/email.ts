@@ -95,14 +95,29 @@ export interface WonEmailParams extends EmailOptions {
   finalPrice: number;
   currency: string;
   auctionUrl: string;
+  paymentInstructions?: string | null;
+  deliveryInfo?: string | null;
+}
+
+/** Convert newlines to <br> for HTML display */
+function nl2br(text: string): string {
+  return text.replace(/\n/g, '<br />');
 }
 
 export async function sendWonEmail(params: WonEmailParams): Promise<boolean> {
-  const { to, senderName, senderEmail, userName, auctionTitle, finalPrice, currency, auctionUrl } = params;
+  const { to, senderName, senderEmail, userName, auctionTitle, finalPrice, currency, auctionUrl, paymentInstructions, deliveryInfo } = params;
+
+  const defaultPayment = '接受付款方式：FPS、八達通、微信支付、支付寶、BOCPay、Visa\n請聯絡大BB錢幣店安排付款。';
+  const defaultDelivery = '建議順豐到付（買家承擔運費），或歡迎來店自取（請提前聯絡預約）。';
+
+  const paymentHtml = nl2br(paymentInstructions || defaultPayment);
+  const deliveryHtml = nl2br(deliveryInfo || defaultDelivery);
+
   const body = `
     <h2>🎉 恭喜您成功得標！</h2>
     <p>親愛的 <strong>${userName}</strong>，</p>
-    <p>恭喜您在以下拍賣中以最高出價成功得標：</p>
+    <p>恭喜您在以下拍賣中以最高出價成功得標！</p>
+
     <div class="highlight">
       <div class="label">得標拍賣品</div>
       <div style="font-size:16px;font-weight:600;color:#333;margin-top:4px;">${auctionTitle}</div>
@@ -111,10 +126,21 @@ export async function sendWonEmail(params: WonEmailParams): Promise<boolean> {
       <div class="label">成交價格</div>
       <div class="value">${currency} ${finalPrice.toLocaleString()}</div>
     </div>
-    <p>請等候賣家聯絡您安排付款及交收事宜。如有查詢，請聯絡大BB錢幣店。</p>
+
+    <h2 style="margin-top:24px;font-size:16px;color:#92400e;">💳 付款方式</h2>
+    <div style="background:#f0fdf4;border-left:4px solid #16a34a;border-radius:4px;padding:12px 16px;margin:8px 0;font-size:14px;line-height:1.8;">
+      ${paymentHtml}
+    </div>
+
+    <h2 style="margin-top:20px;font-size:16px;color:#92400e;">📦 交收安排</h2>
+    <div style="background:#eff6ff;border-left:4px solid #3b82f6;border-radius:4px;padding:12px 16px;margin:8px 0;font-size:14px;line-height:1.8;">
+      ${deliveryHtml}
+    </div>
+
+    <p style="margin-top:20px;font-size:13px;color:#6b7280;">如有任何查詢，請聯絡大BB錢幣店。我們期待與您完成交易！</p>
     <a href="${auctionUrl}" class="btn">查看拍賣詳情 →</a>
   `;
-  return sendEmail({ to, senderName, senderEmail, subject: `【恭喜得標】${auctionTitle}`, html: baseLayout("得標通知", body) });
+  return sendEmail({ to, senderName, senderEmail, subject: `🎉 【恭喜得標】${auctionTitle} — 成交價 ${currency} ${finalPrice.toLocaleString()}`, html: baseLayout("得標通知", body) });
 }
 
 // ─── Email: ending soon ───────────────────────────────────────────────────────

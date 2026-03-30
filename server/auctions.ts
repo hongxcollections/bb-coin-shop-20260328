@@ -191,6 +191,8 @@ export async function notifyWon(auctionId: number, origin: string) {
       finalPrice: parseFloat(auction.currentPrice.toString()),
       currency: auction.currency,
       auctionUrl: `${origin}/auctions/${auctionId}`,
+      paymentInstructions: settings.paymentInstructions ?? null,
+      deliveryInfo: settings.deliveryInfo ?? null,
     });
   } catch (err) {
     console.error('[Email] Won notification error:', err);

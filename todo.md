@@ -418,3 +418,12 @@
 - [x] 後台：新增 AdminWonOrders.tsx（統計卡片、搜尋篩選、狀態更新按鈕）
 - [x] 後台導航加入「🏆 得標訂單」連結
 - [x] 新增 server/paymentStatus.test.ts：17 個測試，覆蓋買家/管理員權限、狀態遷移、顯示文字（150 個測試全部通過）
+
+## 得標 Email 通知功能
+
+- [x] 查核 Resend 整合和現有 email helper 結構
+- [x] 設計 HTML Email 模板（得標金額、付款方式、交收安排）— 郵件主旨含成交價，正文含付款方式（綠色區塊）和交收安排（藍色區塊）
+- [x] 後台「電郵通知設定」加入付款指引和交收安排設定欄位（Textarea，支援換行）
+- [x] 自動結標邏輯（closeExpiredAuctions）觸發得標 Email 發送（list/detail query 觸發後 fire-and-forget）
+- [x] notificationSettings.get/update procedure 加入 paymentInstructions/deliveryInfo 欄位
+- [x] 新增 vitest 測試覆蓋 Email 模板生成邏輯（paymentInstructions/deliveryInfo 渲染、nl2br 轉換、主旨含成交價）（154 個測試全部通過）

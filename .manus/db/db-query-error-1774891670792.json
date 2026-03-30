@@ -1,0 +1,8 @@
+{
+  "query": "ALTER TABLE `notificationSettings` ADD `paymentInstructions` text DEFAULT ('接受付款方式：FPS、八達通、微信支付、支付寶、BOCPay、Visa\\n\\nFPS 轉數快：請轉帳至 [電話號碼/電郵]，並備注拍賣編號。') NOT NULL;\nALTER TABLE `notificationSettings` ADD `deliveryInfo` text DEFAULT ('交收安排：\\n1. 建議順豐到付（買家承擔運費）\\n2. 歡迎來店自取（請提前聯絡預約）\\n3. 如有查詢請聯絡大BB錢幣店') NOT NULL;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3JP8k7yzHFv62xZ.9d413e412763 --database 5iU7X8HzvqNf24sNdvU8FR --execute ALTER TABLE `notificationSettings` ADD `paymentInstructions` text DEFAULT ('接受付款方式：FPS、八達通、微信支付、支付寶、BOCPay、Visa\\n\\nFPS 轉數快：請轉帳至 [電話號碼/電郵]，並備注拍賣編號。') NOT NULL;\nALTER TABLE `notificationSettings` ADD `deliveryInfo` text DEFAULT ('交收安排：\\n1. 建議順豐到付（買家承擔運費）\\n2. 歡迎來店自取（請提前聯絡預約）\\n3. 如有查詢請聯絡大BB錢幣店') NOT NULL;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1064 (42000) at line 1: You have an error in your SQL syntax; check the manual that corresponds to your TiDB version for the right syntax to use line 1 column 237 near \"'接受付款方式：FPS、八達通、微信支付、支付寶、BOCPay、Visa\\n\\nFPS 轉數快：請轉帳至 [電話號碼/電郵]，並備注拍賣編號。') NOT NULL\""
+  ]
+}

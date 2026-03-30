@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Bell, Settings, ArrowLeft, CheckCircle2, AlertCircle, Send } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Mail, Bell, Settings, ArrowLeft, CheckCircle2, AlertCircle, Send, CreditCard, Package } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AdminNotifications() {
@@ -26,7 +27,20 @@ export default function AdminNotifications() {
   const [enableEndingSoon, setEnableEndingSoon] = useState(true);
   const [endingSoonMinutes, setEndingSoonMinutes] = useState(60);
   const [enableAntiSnipe, setEnableAntiSnipe] = useState(true);
+  const [paymentInstructions, setPaymentInstructions] = useState("");
+  const [deliveryInfo, setDeliveryInfo] = useState("");
   const [initialised, setInitialised] = useState(false);
+
+  const DEFAULT_PAYMENT = `接受付款方式：FPS、八達通、微信支付、支付寶、BOCPay、Visa
+
+FPS 轉數快：請轉帳至 [電話號碼/電郵]，並備注拍賣編號。
+八達通：請到店拍打八達通付款。
+微信支付 / 支付寶 / BOCPay / Visa：請到店或聯絡賣家安排。`;
+
+  const DEFAULT_DELIVERY = `交收安排：
+1. 建議順豐到付（買家承擔運費）
+2. 歡迎來店自取（請提前聯絡預約）
+3. 如有查詢請聯絡大BB錢幣店`;
 
   useEffect(() => {
     if (settings && !initialised) {
@@ -37,6 +51,8 @@ export default function AdminNotifications() {
       setEnableEndingSoon(settings.enableEndingSoon === 1);
       setEndingSoonMinutes(settings.endingSoonMinutes);
       setEnableAntiSnipe((settings.enableAntiSnipe ?? 1) === 1);
+      setPaymentInstructions(settings.paymentInstructions ?? DEFAULT_PAYMENT);
+      setDeliveryInfo(settings.deliveryInfo ?? DEFAULT_DELIVERY);
       setInitialised(true);
     }
   }, [settings, initialised]);
@@ -59,6 +75,8 @@ export default function AdminNotifications() {
       enableEndingSoon: enableEndingSoon ? 1 : 0,
       endingSoonMinutes,
       enableAntiSnipe: enableAntiSnipe ? 1 : 0,
+      paymentInstructions: paymentInstructions || null,
+      deliveryInfo: deliveryInfo || null,
     });
   };
 
@@ -97,7 +115,7 @@ export default function AdminNotifications() {
     {
       key: "won",
       label: "得標通知",
-      description: "拍賣結束時，自動通知最高出價者已成功得標",
+      description: "拍賣結束時，自動通知最高出價者已成功得標（含付款指引）",
       icon: "🏆",
       enabled: enableWon,
       setEnabled: setEnableWon,
@@ -241,6 +259,55 @@ export default function AdminNotifications() {
                 />
               </div>
             ))}
+          </CardContent>
+        </Card>
+
+        {/* Payment Instructions & Delivery Info */}
+        <Card className="mb-6 border-green-100">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CreditCard className="w-4 h-4 text-green-600" />
+              得標通知 — 付款指引
+            </CardTitle>
+            <CardDescription>
+              此內容會顯示在得標通知電郵中，告知買家如何付款。留空則使用預設文字。
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              value={paymentInstructions}
+              onChange={(e) => setPaymentInstructions(e.target.value)}
+              placeholder={DEFAULT_PAYMENT}
+              rows={6}
+              className="border-green-200 focus-visible:ring-green-400 text-sm font-mono resize-y"
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              支援換行。每行會在電郵中顯示為獨立段落。
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-6 border-blue-100">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Package className="w-4 h-4 text-blue-600" />
+              得標通知 — 交收安排
+            </CardTitle>
+            <CardDescription>
+              此內容會顯示在得標通知電郵中，告知買家交收方式。留空則使用預設文字。
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              value={deliveryInfo}
+              onChange={(e) => setDeliveryInfo(e.target.value)}
+              placeholder={DEFAULT_DELIVERY}
+              rows={5}
+              className="border-blue-200 focus-visible:ring-blue-400 text-sm font-mono resize-y"
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              支援換行。每行會在電郵中顯示為獨立段落。
+            </p>
           </CardContent>
         </Card>
 

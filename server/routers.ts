@@ -34,9 +34,14 @@ export const appRouter = router({
         offset: z.number().default(0),
         category: z.string().optional(),
       }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
         // Auto-close expired auctions before returning list
-        await closeExpiredAuctions();
+        const closedIds = await closeExpiredAuctions();
+        // Send won notifications for newly closed auctions (fire-and-forget)
+        if (closedIds.length > 0) {
+          const origin = ctx.req.headers.origin || ctx.req.headers.referer?.replace(/\/[^/]*$/, '') || '';
+          closedIds.forEach(id => notifyWon(id, origin).catch(() => {}));
+        }
         const auctionList = await getAuctions(input.limit, input.offset, input.category);
         const withImages = await Promise.all(
           auctionList.map(async (auction: { id: number; [key: string]: unknown }) => ({
@@ -49,9 +54,14 @@ export const appRouter = router({
 
     detail: publicProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
         // Auto-close if expired
-        await closeExpiredAuctions();
+        const closedIds = await closeExpiredAuctions();
+        // Send won notifications for newly closed auctions (fire-and-forget)
+        if (closedIds.length > 0) {
+          const origin = ctx.req.headers.origin || ctx.req.headers.referer?.replace(/\/[^/]*$/, '') || '';
+          closedIds.forEach(id => notifyWon(id, origin).catch(() => {}));
+        }
         const auction = await getAuctionById(input.id);
         if (!auction) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Auction not found' });
@@ -665,6 +675,8 @@ export const appRouter = router({
         enableEndingSoon: 1,
         endingSoonMinutes: 60,
         enableAntiSnipe: 1,
+        paymentInstructions: null as string | null,
+        deliveryInfo: null as string | null,
       };
     }),
 
@@ -677,6 +689,8 @@ export const appRouter = router({
         enableEndingSoon: z.number().min(0).max(1).optional(),
         endingSoonMinutes: z.number().min(5).max(1440).optional(),
         enableAntiSnipe: z.number().min(0).max(1).optional(),
+        paymentInstructions: z.string().max(2000).nullable().optional(),
+        deliveryInfo: z.string().max(2000).nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
