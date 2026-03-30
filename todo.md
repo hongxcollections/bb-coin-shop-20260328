@@ -313,3 +313,8 @@
 - [x] 建立 MemberBenefits.tsx：展示四個等級的完整權益對比表及各等級專屬說明
 - [x] MemberHeroBanner 加入「查看會員權益 →」按鈕（連結至 /member-benefits）
 - [x] App.tsx 註冊 /member-benefits 路由
+
+## 權益彈出式詳細說明
+
+- [x] MemberBenefits.tsx：為對比表每項權益加入 ⓘ 圖示，點擊或懸停彈出 Tooltip 顯示詳細說明
+- [x] 每項權益均有獨立的說明文案（11 項，含深色琥珀色 Tooltip 樣式）
