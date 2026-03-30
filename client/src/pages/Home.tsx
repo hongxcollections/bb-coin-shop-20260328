@@ -7,6 +7,7 @@ import { getLoginUrl } from "@/const";
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
 import { Clock, Shield, TrendingUp, Award, ChevronRight, Coins } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrencySymbol } from "./AdminAuctions";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
@@ -65,6 +66,7 @@ export default function Home() {
             <span className="gold-gradient-text">大BB錢幣店</span>
           </Link>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Link href="/auctions">
               <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">
                 所有拍賣

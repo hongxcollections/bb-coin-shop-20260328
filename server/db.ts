@@ -1,7 +1,7 @@
-import { eq, desc, asc, and, gte, lte, gt, sql } from "drizzle-orm";
+import { eq, desc, asc, and, gte, lte, gt, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -124,12 +124,11 @@ export async function updateUserNotificationPrefs(
   }
 }
 
-export async function getAuctions(limit = 20, offset = 0) {
+export async function getAuctions(limit = 20, offset = 0, category?: string) {
   const db = await getDb();
   if (!db) return [];
-
   try {
-    const result = await db
+    const baseQuery = db
       .select({
         id: auctions.id,
         title: auctions.title,
@@ -143,18 +142,27 @@ export async function getAuctions(limit = 20, offset = 0) {
         fbPostUrl: auctions.fbPostUrl,
         bidIncrement: auctions.bidIncrement,
         currency: auctions.currency,
+        category: auctions.category,
         createdBy: auctions.createdBy,
         createdAt: auctions.createdAt,
         updatedAt: auctions.updatedAt,
       })
       .from(auctions)
-      .leftJoin(users, eq(auctions.highestBidderId, users.id))
+      .leftJoin(users, eq(auctions.highestBidderId, users.id));
+
+    const conditions = [
+      sql`${auctions.status} != 'draft'`,
+      sql`${auctions.archived} = 0`,
+    ];
+    if (category && category !== 'all') {
+      conditions.push(sql`${auctions.category} = ${category}`);
+    }
+
+    const result = await baseQuery
+      .where(and(...conditions))
       .orderBy(
-        // active auctions first (0), others last (1)
         sql`CASE WHEN ${auctions.status} = 'active' THEN 0 ELSE 1 END`,
-        // among active: soonest ending first
         sql`CASE WHEN ${auctions.status} = 'active' THEN ${auctions.endTime} ELSE NULL END`,
-        // among non-active: newest first
         desc(auctions.createdAt)
       )
       .limit(limit)
@@ -937,5 +945,202 @@ export async function getAnonymousBids(options?: { page?: number; pageSize?: num
   } catch (error) {
     console.error('[Database] Failed to get anonymous bids:', error);
     return { bids: [], total: 0 };
+  }
+}
+
+/** Close expired auctions: set status='ended' for all active auctions past endTime.
+ *  Returns the list of auction IDs that were just closed. */
+export async function closeExpiredAuctions(): Promise<number[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    const now = new Date();
+    // Find active auctions whose endTime has passed
+    const expired = await db
+      .select({ id: auctions.id })
+      .from(auctions)
+      .where(
+        and(
+          eq(auctions.status, 'active'),
+          sql`${auctions.endTime} <= ${now}`
+        )
+      );
+    if (expired.length === 0) return [];
+
+    const ids = expired.map((a: { id: number }) => a.id);
+    await db
+      .update(auctions)
+      .set({ status: 'ended', updatedAt: now })
+      .where(inArray(auctions.id, ids));
+
+    return ids;
+  } catch (error) {
+    console.error('[Database] Failed to close expired auctions:', error);
+    return [];
+  }
+}
+
+/** Dashboard statistics for admin panel */
+export async function getDashboardStats() {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Active auctions count
+    const activeResult = await db
+      .select({ count: sql`COUNT(*)` })
+      .from(auctions)
+      .where(and(eq(auctions.status, 'active'), sql`${auctions.endTime} > ${now}`));
+    const activeCount = Number((activeResult[0] as { count: unknown })?.count ?? 0);
+
+    // Total ended auctions
+    const endedResult = await db
+      .select({ count: sql`COUNT(*)` })
+      .from(auctions)
+      .where(eq(auctions.status, 'ended'));
+    const endedCount = Number((endedResult[0] as { count: unknown })?.count ?? 0);
+
+    // Total bids count
+    const bidCountResult = await db
+      .select({ count: sql`COUNT(*)` })
+      .from(bids);
+    const totalBids = Number((bidCountResult[0] as { count: unknown })?.count ?? 0);
+
+    // Total users
+    const userCountResult = await db
+      .select({ count: sql`COUNT(*)` })
+      .from(users);
+    const totalUsers = Number((userCountResult[0] as { count: unknown })?.count ?? 0);
+
+    // Bids in last 7 days
+    const recentBidsResult = await db
+      .select({ count: sql`COUNT(*)` })
+      .from(bids)
+      .where(sql`${bids.createdAt} >= ${sevenDaysAgo}`);
+    const recentBids = Number((recentBidsResult[0] as { count: unknown })?.count ?? 0);
+
+    // Total transaction value (sum of currentPrice for ended auctions)
+    const totalValueResult = await db
+      .select({ total: sql`COALESCE(SUM(${auctions.currentPrice}), 0)` })
+      .from(auctions)
+      .where(eq(auctions.status, 'ended'));
+    const totalValue = Number((totalValueResult[0] as { total: unknown })?.total ?? 0);
+
+    // Recent 7-day transaction value
+    const recentValueResult = await db
+      .select({ total: sql`COALESCE(SUM(${auctions.currentPrice}), 0)` })
+      .from(auctions)
+      .where(and(eq(auctions.status, 'ended'), sql`${auctions.updatedAt} >= ${sevenDaysAgo}`));
+    const recentValue = Number((recentValueResult[0] as { total: unknown })?.total ?? 0);
+
+    // Top 5 most-bid auctions
+    const topAuctions = await db
+      .select({
+        id: auctions.id,
+        title: auctions.title,
+        currentPrice: auctions.currentPrice,
+        status: auctions.status,
+        bidCount: sql`COUNT(${bids.id})`,
+      })
+      .from(auctions)
+      .leftJoin(bids, eq(bids.auctionId, auctions.id))
+      .groupBy(auctions.id)
+      .orderBy(desc(sql`COUNT(${bids.id})`))
+      .limit(5);
+
+    // Bids per day for last 7 days
+    const bidsPerDay = await db
+      .select({
+        day: sql`DATE(${bids.createdAt})`,
+        count: sql`COUNT(*)`,
+      })
+      .from(bids)
+      .where(sql`${bids.createdAt} >= ${sevenDaysAgo}`)
+      .groupBy(sql`DATE(${bids.createdAt})`)
+      .orderBy(sql`DATE(${bids.createdAt})`);
+
+    return {
+      activeCount,
+      endedCount,
+      totalBids,
+      totalUsers,
+      recentBids,
+      totalValue,
+      recentValue,
+      topAuctions,
+      bidsPerDay,
+    };
+  } catch (error) {
+    console.error('[Database] Failed to get dashboard stats:', error);
+    return null;
+  }
+}
+
+// ── Favorites ──────────────────────────────────────────────────────────────
+
+export async function toggleFavorite(userId: number, auctionId: number): Promise<{ isFavorited: boolean }> {
+  const db = await getDb();
+  if (!db) return { isFavorited: false };
+  try {
+    const existing = await db
+      .select({ id: favorites.id })
+      .from(favorites)
+      .where(and(eq(favorites.userId, userId), eq(favorites.auctionId, auctionId)))
+      .limit(1);
+    if (existing.length > 0) {
+      await db.delete(favorites).where(and(eq(favorites.userId, userId), eq(favorites.auctionId, auctionId)));
+      return { isFavorited: false };
+    } else {
+      await db.insert(favorites).values({ userId, auctionId });
+      return { isFavorited: true };
+    }
+  } catch (error) {
+    console.error('[Database] Failed to toggle favorite:', error);
+    return { isFavorited: false };
+  }
+}
+
+export async function getUserFavorites(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const result = await db
+      .select({
+        id: auctions.id,
+        title: auctions.title,
+        currentPrice: auctions.currentPrice,
+        endTime: auctions.endTime,
+        status: auctions.status,
+        currency: auctions.currency,
+        category: auctions.category,
+        favoritedAt: favorites.createdAt,
+      })
+      .from(favorites)
+      .innerJoin(auctions, eq(favorites.auctionId, auctions.id))
+      .where(eq(favorites.userId, userId))
+      .orderBy(desc(favorites.createdAt));
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to get user favorites:', error);
+    return [];
+  }
+}
+
+export async function getFavoriteIds(userId: number): Promise<number[]> {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const result = await db
+      .select({ auctionId: favorites.auctionId })
+      .from(favorites)
+      .where(eq(favorites.userId, userId));
+    return result.map((r: { auctionId: number }) => r.auctionId);
+  } catch (error) {
+    console.error('[Database] Failed to get favorite ids:', error);
+    return [];
   }
 }

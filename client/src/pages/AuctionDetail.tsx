@@ -8,9 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Clock, ChevronLeft, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X, EyeOff } from "lucide-react";
+import { Clock, ChevronLeft, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X, EyeOff, AlertCircle, Heart } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { getCurrencySymbol } from "./AdminAuctions";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
@@ -56,6 +57,11 @@ export default function AuctionDetail() {
   const [proxyAmount, setProxyAmount] = useState("");
   const [historyTab, setHistoryTab] = useState<"bids" | "proxy">("bids");
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [showBidConfirm, setShowBidConfirm] = useState(false);
+  const [pendingBidAmount, setPendingBidAmount] = useState(0);
+  const [showProxyConfirm, setShowProxyConfirm] = useState(false);
+  const [pendingProxyAmount, setPendingProxyAmount] = useState(0);
+  const [isFavorited, setIsFavorited] = useState(false);
 
   // 取得用戶預設匿名設定
   const { data: defaultAnonData } = trpc.users.getDefaultAnonymous.useQuery(undefined, {
@@ -67,6 +73,17 @@ export default function AuctionDetail() {
       setIsAnonymous((defaultAnonData as { defaultAnonymous: number }).defaultAnonymous === 1);
     }
   }, [defaultAnonData]);
+
+  // 收藏功能
+  const { data: favoriteIds } = trpc.favorites.ids.useQuery(undefined, { enabled: isAuthenticated });
+  useEffect(() => {
+    if (favoriteIds) setIsFavorited((favoriteIds as number[]).includes(auctionId));
+  }, [favoriteIds, auctionId]);
+  const toggleFavoriteMutation = trpc.favorites.toggle.useMutation({
+    onMutate: () => setIsFavorited((prev) => !prev),
+    onSuccess: (data) => setIsFavorited((data as { isFavorited: boolean }).isFavorited),
+    onError: () => setIsFavorited((prev) => !prev),
+  });
 
   const dismissBidMessage = () => {
     setBidMsgExiting(true);
@@ -139,7 +156,14 @@ export default function AuctionDetail() {
       toast.error("請輸入有效的代理出價上限");
       return;
     }
-    setProxyBidMutation.mutate({ auctionId, maxAmount: amount });
+    // 顯示確認彈窗
+    setPendingProxyAmount(amount);
+    setShowProxyConfirm(true);
+  };
+
+  const confirmProxyBid = () => {
+    setShowProxyConfirm(false);
+    setProxyBidMutation.mutate({ auctionId, maxAmount: pendingProxyAmount });
   };
 
   const placeBid = trpc.auctions.placeBid.useMutation({
@@ -169,8 +193,15 @@ export default function AuctionDetail() {
       setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 5600);
       return;
     }
+    // 顯示確認彈窗
+    setPendingBidAmount(amount);
+    setShowBidConfirm(true);
+  };
+
+  const confirmBid = () => {
+    setShowBidConfirm(false);
     setBidMessage({ type: "info", text: "⏳ 出價處理中，請稍候..." });
-    placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: isAnonymous ? 1 : 0 });
+    placeBid.mutate({ auctionId, bidAmount: pendingBidAmount, isAnonymous: isAnonymous ? 1 : 0 });
   };
 
   // 使用 bidIncrement 計算最低出價金額
@@ -295,9 +326,22 @@ export default function AuctionDetail() {
             <div>
               <div className="flex items-start justify-between gap-3 mb-2">
                 <h1 className="text-2xl font-bold leading-tight">{auction.title}</h1>
-                <Badge className={isActive ? "bg-emerald-500 text-white shrink-0" : "bg-gray-400 text-white shrink-0"}>
-                  {isActive ? "競拍中" : "已結束"}
-                </Badge>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge className={isActive ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}>
+                    {isActive ? "競拍中" : "已結束"}
+                  </Badge>
+                  {isAuthenticated && (
+                    <button
+                      onClick={() => toggleFavoriteMutation.mutate({ auctionId })}
+                      className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${
+                        isFavorited ? "bg-rose-100 hover:bg-rose-200" : "bg-gray-100 hover:bg-rose-50"
+                      }`}
+                      title={isFavorited ? "取消收藏" : "加入收藏"}
+                    >
+                      <Heart className={`w-4 h-4 transition-all ${isFavorited ? "text-rose-500 fill-rose-500" : "text-gray-400"}`} />
+                    </button>
+                  )}
+                </div>
               </div>
               {auction.description && (
                 <p className="text-muted-foreground text-sm leading-relaxed">{auction.description}</p>
@@ -732,6 +776,86 @@ export default function AuctionDetail() {
           </div>
         </div>
       </div>
+
+      {/* 出價確認彈窗 */}
+      <Dialog open={showBidConfirm} onOpenChange={setShowBidConfirm}>
+        <DialogContent className="sm:max-w-md" onKeyDown={(e) => { if (e.key === 'Enter') confirmBid(); }}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-500" />
+              確認出價
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">商品</span>
+                <span className="text-sm font-medium truncate max-w-[200px]">{(auction as { title?: string })?.title ?? '未命名'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">出價金額</span>
+                <span className="text-xl font-bold text-amber-700">{currencySymbol}{pendingBidAmount.toLocaleString()}</span>
+              </div>
+              {isAnonymous && (
+                <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-100 rounded-lg px-3 py-2">
+                  <EyeOff className="w-3.5 h-3.5" />
+                  <span>此次出價將以匿名方式登記</span>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground text-center">出價後不可撤销，請確認金額正確。</p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowBidConfirm(false)} className="flex-1">取消</Button>
+            <Button
+              onClick={confirmBid}
+              disabled={placeBid.isPending}
+              className="flex-1 gold-gradient text-white border-0"
+            >
+              {placeBid.isPending ? '出價中...' : `確認出價 ${currencySymbol}${pendingBidAmount.toLocaleString()}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 代理出價確認彈窗 */}
+      <Dialog open={showProxyConfirm} onOpenChange={setShowProxyConfirm}>
+        <DialogContent className="sm:max-w-md" onKeyDown={(e) => { if (e.key === 'Enter') confirmProxyBid(); }}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bot className="w-5 h-5 text-blue-500" />
+              確認代理出價
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">商品</span>
+                <span className="text-sm font-medium truncate max-w-[200px]">{(auction as { title?: string })?.title ?? '未命名'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">代理上限</span>
+                <span className="text-xl font-bold text-blue-700">{currencySymbol}{pendingProxyAmount.toLocaleString()}</span>
+              </div>
+            </div>
+            <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
+              <Bot className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span>系統將在您被超越時自動以最小加幅代為出價，直至達到上限金額為止。</span>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">設定後可隨時取消代理出價。</p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowProxyConfirm(false)} className="flex-1">取消</Button>
+            <Button
+              onClick={confirmProxyBid}
+              disabled={setProxyBidMutation.isPending}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white border-0"
+            >
+              {setProxyBidMutation.isPending ? '設定中...' : `確認設定上限 ${currencySymbol}${pendingProxyAmount.toLocaleString()}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

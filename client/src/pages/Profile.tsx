@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff, ChevronDown, ChevronUp, EyeOff } from "lucide-react";
+import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff, ChevronDown, ChevronUp, EyeOff, Heart } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ShareMenu } from "@/components/ShareMenu";
@@ -417,6 +417,36 @@ export default function Profile() {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        {/* Quick Links */}
+        <div className="flex gap-3 mb-6">
+          <Link href="/favorites" className="flex-1">
+            <Card className="border-rose-100 hover:border-rose-300 transition-colors cursor-pointer">
+              <CardContent className="py-3 px-4 flex items-center gap-3">
+                <div className="w-8 h-8 bg-rose-100 rounded-lg flex items-center justify-center shrink-0">
+                  <Heart className="w-4 h-4 text-rose-500" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-amber-900">我的收藏</div>
+                  <div className="text-xs text-muted-foreground">查看收藏的拍品</div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/member-benefits" className="flex-1">
+            <Card className="border-amber-100 hover:border-amber-300 transition-colors cursor-pointer">
+              <CardContent className="py-3 px-4 flex items-center gap-3">
+                <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center shrink-0">
+                  <span className="text-base">🏆</span>
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-amber-900">會員福利</div>
+                  <div className="text-xs text-muted-foreground">查看會員等級權益</div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         {/* Bid History - grouped by auction */}

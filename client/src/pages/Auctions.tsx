@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Clock, Search, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrencySymbol } from "./AdminAuctions";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
@@ -40,9 +41,23 @@ export default function Auctions() {
   const { user, isAuthenticated } = useAuth();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "ended">("all");
+  const [category, setCategory] = useState("all");
   const [page, setPage] = useState(0);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const { data: auctions, isLoading } = trpc.auctions.list.useQuery({ limit: 100, offset: 0 });
+  const CATEGORIES = [
+    { value: "all", label: "全部", emoji: "🪙" },
+    { value: "古幣", label: "古幣", emoji: "🏺" },
+    { value: "紀念幣", label: "紀念幣", emoji: "🏅" },
+    { value: "外幣", label: "外幣", emoji: "🌍" },
+    { value: "銀幣", label: "銀幣", emoji: "⚪" },
+    { value: "金幣", label: "金幣", emoji: "🟡" },
+    { value: "其他", label: "其他", emoji: "✨" },
+  ];
+
+  const { data: auctions, isLoading } = trpc.auctions.list.useQuery(
+    { limit: 100, offset: 0, category: category === "all" ? undefined : category }
+  );
 
   const filtered = (auctions ?? []).filter((a) => {
     const matchSearch = !search || a.title.toLowerCase().includes(search.toLowerCase());
@@ -79,6 +94,7 @@ export default function Auctions() {
             <span className="gold-gradient-text">大BB錢幣店</span>
           </Link>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Link href="/auctions">
               <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">所有拍賣</Button>
             </Link>
@@ -109,6 +125,24 @@ export default function Auctions() {
           <p className="text-muted-foreground">共 {filtered.length} 件拍品</p>
         </div>
 
+        {/* Category tabs */}
+        <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c.value}
+              onClick={() => { setCategory(c.value); setPage(0); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                category === c.value
+                  ? "gold-gradient text-white shadow-sm"
+                  : "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
+              }`}
+            >
+              <span>{c.emoji}</span>
+              <span>{c.label}</span>
+            </button>
+          ))}
+        </div>
+
         {/* Search & Filter */}
         <div className="flex flex-col sm:flex-row gap-3 mb-8">
           <div className="relative flex-1">
@@ -116,9 +150,33 @@ export default function Auctions() {
             <Input
               placeholder="搜尋拍品名稱..."
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+              onChange={(e) => { setSearch(e.target.value); setPage(0); setShowSuggestions(true); }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
               className="pl-9 border-amber-200 focus-visible:ring-amber-400"
             />
+            {/* 搜尋自動補全建議 */}
+            {showSuggestions && search.length >= 1 && (() => {
+              const suggestions = (auctions ?? [])
+                .filter(a => a.title.toLowerCase().includes(search.toLowerCase()))
+                .slice(0, 6);
+              return suggestions.length > 0 ? (
+                <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-amber-200 rounded-xl shadow-lg overflow-hidden">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      className="w-full text-left px-4 py-2.5 hover:bg-amber-50 flex items-center gap-3 transition-colors"
+                      onMouseDown={() => { setSearch(s.title); setShowSuggestions(false); setPage(0); }}
+                    >
+                      <Search className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span className="text-sm text-amber-900 truncate">{s.title}</span>
+                      <span className="ml-auto text-xs text-amber-500 shrink-0">{getCurrencySymbol((s as { currency?: string }).currency ?? 'HKD')}{Number(s.currentPrice).toLocaleString()}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null;
+            })()}
           </div>
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />

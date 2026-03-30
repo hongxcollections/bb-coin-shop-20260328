@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids } from "./db";
+import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon } from "./auctions";
 import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel } from "./db";
@@ -28,9 +28,12 @@ export const appRouter = router({
       .input(z.object({
         limit: z.number().default(20),
         offset: z.number().default(0),
+        category: z.string().optional(),
       }))
       .query(async ({ input }) => {
-        const auctionList = await getAuctions(input.limit, input.offset);
+        // Auto-close expired auctions before returning list
+        await closeExpiredAuctions();
+        const auctionList = await getAuctions(input.limit, input.offset, input.category);
         const withImages = await Promise.all(
           auctionList.map(async (auction: { id: number; [key: string]: unknown }) => ({
             ...auction,
@@ -43,6 +46,8 @@ export const appRouter = router({
     detail: publicProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
+        // Auto-close if expired
+        await closeExpiredAuctions();
         const auction = await getAuctionById(input.id);
         if (!auction) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Auction not found' });
@@ -756,6 +761,31 @@ export const appRouter = router({
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can view anonymous bids' });
         const result = await getAnonymousBids({ page: input.page, pageSize: input.pageSize });
         return result;
+      }),
+
+    getDashboardStats: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can view dashboard stats' });
+        const stats = await getDashboardStats();
+        return stats;
+      }),
+  }),
+
+  favorites: router({
+    toggle: protectedProcedure
+      .input(z.object({ auctionId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        return toggleFavorite(ctx.user.id, input.auctionId);
+      }),
+
+    list: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getUserFavorites(ctx.user.id);
+      }),
+
+    ids: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getFavoriteIds(ctx.user.id);
       }),
   }),
 });

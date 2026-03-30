@@ -184,3 +184,17 @@ export const proxyBidsRelations = relations(proxyBids, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+// ── Favorites / Watchlist ──────────────────────────────────────────────────
+export const favorites = mysqlTable("favorites", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  auctionId: int("auctionId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type InsertFavorite = typeof favorites.$inferInsert;
+
+export const favoritesRelations = relations(favorites, ({ one }) => ({
+  user: one(users, { fields: [favorites.userId], references: [users.id] }),
+  auction: one(auctions, { fields: [favorites.auctionId], references: [auctions.id] }),
+}));

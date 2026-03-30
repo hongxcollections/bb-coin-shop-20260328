@@ -455,7 +455,7 @@ export default function AdminAuctions() {
         antiSnipeEnabled: form.antiSnipeEnabled ? 1 : 0,
         antiSnipeMinutes: form.antiSnipeMinutes,
         extendMinutes: form.extendMinutes,
-        antiSnipeMemberLevels: form.antiSnipeMemberLevels as unknown as string,
+        antiSnipeMemberLevels: form.antiSnipeMemberLevels as unknown as ('bronze' | 'silver' | 'gold' | 'vip')[] | 'all',
       });
     } else {
       createAuction.mutate({
@@ -468,7 +468,7 @@ export default function AdminAuctions() {
         antiSnipeEnabled: form.antiSnipeEnabled ? 1 : 0,
         antiSnipeMinutes: form.antiSnipeMinutes,
         extendMinutes: form.extendMinutes,
-        antiSnipeMemberLevels: form.antiSnipeMemberLevels as unknown as string,
+        antiSnipeMemberLevels: form.antiSnipeMemberLevels as unknown as ('bronze' | 'silver' | 'gold' | 'vip')[] | 'all',
       });
     }
   };
@@ -571,6 +571,11 @@ export default function AdminAuctions() {
             <Link href="/admin/anonymous-bids">
               <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-800 hover:bg-slate-100 gap-1">
                 🕵️ 匿名出價
+              </Button>
+            </Link>
+            <Link href="/admin/dashboard">
+              <Button variant="ghost" size="sm" className="text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 gap-1">
+                📊 統計儀表板
               </Button>
             </Link>
             <Link href="/profile">

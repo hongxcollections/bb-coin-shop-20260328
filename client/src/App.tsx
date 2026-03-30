@@ -15,6 +15,8 @@ import UserProfile from "./pages/UserProfile";
 import AdminNotifications from "./pages/AdminNotifications";
 import AdminUsers from "./pages/AdminUsers";
 import AdminAnonymousBids from "./pages/AdminAnonymousBids";
+import AdminDashboard from "./pages/AdminDashboard";
+import Favorites from "./pages/Favorites";
 import MemberBenefits from "./pages/MemberBenefits";
 import WebhookSetup from "./pages/WebhookSetup";
 
@@ -32,6 +34,8 @@ function Router() {
       <Route path={"/admin/notifications"} component={AdminNotifications} />
       <Route path={"/admin/users"} component={AdminUsers} />
       <Route path={"/admin/anonymous-bids"} component={AdminAnonymousBids} />
+      <Route path={"/admin/dashboard"} component={AdminDashboard} />
+      <Route path={"/favorites"} component={Favorites} />
       <Route path={"/member-benefits"} component={MemberBenefits} />
       <Route path={"/admin/webhook-setup"} component={WebhookSetup} />
       <Route path={"/404"} component={NotFound} />
@@ -43,7 +47,7 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="light">
+      <ThemeProvider defaultTheme="light" switchable={true}>
         <TooltipProvider>
           <Toaster />
           <Router />
