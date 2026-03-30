@@ -1,4 +1,4 @@
-import { eq, desc, and, gte, lte, gt, sql } from "drizzle-orm";
+import { eq, desc, asc, and, gte, lte, gt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
 import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings } from "../drizzle/schema";
@@ -149,7 +149,14 @@ export async function getAuctions(limit = 20, offset = 0) {
       })
       .from(auctions)
       .leftJoin(users, eq(auctions.highestBidderId, users.id))
-      .orderBy(desc(auctions.createdAt))
+      .orderBy(
+        // active auctions first (0), others last (1)
+        sql`CASE WHEN ${auctions.status} = 'active' THEN 0 ELSE 1 END`,
+        // among active: soonest ending first
+        sql`CASE WHEN ${auctions.status} = 'active' THEN ${auctions.endTime} ELSE NULL END`,
+        // among non-active: newest first
+        desc(auctions.createdAt)
+      )
       .limit(limit)
       .offset(offset);
     return result;
@@ -444,7 +451,11 @@ export async function getAuctionsByCreator(userId: number) {
       .from(auctions)
       .leftJoin(users, eq(auctions.highestBidderId, users.id))
       .where(and(eq(auctions.createdBy, userId), eq(auctions.archived, 0)))
-      .orderBy(desc(auctions.createdAt));
+      .orderBy(
+        sql`CASE WHEN ${auctions.status} = 'active' THEN 0 ELSE 1 END`,
+        sql`CASE WHEN ${auctions.status} = 'active' THEN ${auctions.endTime} ELSE NULL END`,
+        desc(auctions.createdAt)
+      );
     return result;
   } catch (error) {
     console.error('[Database] Failed to get auctions by creator:', error);

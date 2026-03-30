@@ -246,3 +246,8 @@
 ## ShareMenu 位置修復
 
 - [x] 修復 ShareMenu 彈出選單在手機版超出畫面右側：改用 fixed 定位，動態計算彈出位置，確保不超出視窗邊界
+
+## 競投中商品排序
+
+- [x] 後端：公開列表（getAuctions）及管理後台（getAuctionsByCreator）改為 active 排在前、按 endTime 升序；ended/draft 按 createdAt 降序排後
+- [x] 前端：各頁面經同一 API 返回，排序自動生效
