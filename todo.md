@@ -384,3 +384,10 @@
 - [x] 修復：最高出價者顯示位置（現價旁的用戶名稱）套用 isAnonymous 邏輯
 - [x] 確認出價記錄列表中匿名出價顯示「🕵️ 匿名買家」
 - [x] 確認後端 getBidHistory 正確回傳 isAnonymous 欄位
+
+## Rate Limit 錯誤修復
+
+- [x] 查核 Rate Limit 錯誤來源（平台 API Gateway 限流，回傳純文字而非 JSON）
+- [x] 後端加入出價防抖（同一用戶 3 秒內不可重複出價）
+- [x] 前端捕捉非 JSON 回傳，顯示易懂的「請求過於頻繁，請稍後再試」提示
+- [x] 降低 refetchInterval 至 10 秒，減少輪詢請求量

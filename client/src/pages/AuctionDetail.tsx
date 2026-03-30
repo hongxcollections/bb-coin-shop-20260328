@@ -96,8 +96,8 @@ export default function AuctionDetail() {
   const { data: auction, isLoading, refetch } = trpc.auctions.detail.useQuery(
     { id: auctionId },
     {
-      // 每 5 秒自動輪詢，確保多用戶同時競標時頁面即時同步
-      refetchInterval: 5000,
+      // 每 10 秒自動輪詢，確保多用戶同時競標時頁面即時同步（避免請求過於頻繁觸發平台限流）
+      refetchInterval: 10000,
       // 切換回此標籤頁時立即重新取得最新數據
       refetchOnWindowFocus: true,
     }
@@ -213,10 +213,13 @@ export default function AuctionDetail() {
       // 出價失敗時自動刷新最新出價，避免用戶再次使用舊數據出價
       refetch();
       const errMsg = err.message || "出價失敗，請重試";
-      // 如果是出價金額不足，提示用戶頁面已更新
+      // 判斷錯誤類型並顯示易懂提示
       const isStalePrice = errMsg.includes('出價金額必須') || errMsg.includes('必須至少為');
+      const isRateLimit = errMsg.includes('請求過於頻繁') || errMsg.includes('rate') || errMsg.includes('Rate') || errMsg.includes('TOO_MANY');
       if (isStalePrice) {
         setBidMessage({ type: "error", text: `❌ 已有新出價！頁面已更新最新出價，請重新確認金額` });
+      } else if (isRateLimit) {
+        setBidMessage({ type: "error", text: `⏳ 請求過於頻繁，請稍候幾秒再試` });
       } else {
         setBidMessage({ type: "error", text: `❌ ${errMsg}` });
       }

@@ -10,6 +10,10 @@ import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, u
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 
+// 出價防抖 Map：鍵為 "userId:auctionId"，値為最後出價時間戳
+// 防止同一用戶對同一拍賣在 3 秒內重複出價，減少平台 API 請求量
+export const bidDebounceMap = new Map<string, number>();
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -149,6 +153,21 @@ export const appRouter = router({
         isAnonymous: z.number().int().min(0).max(1).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        // 防抖：同一用戶對同一拍賣，3 秒內不允許重複出價
+        const debounceKey = `${ctx.user.id}:${input.auctionId}`;
+        const lastBidTime = bidDebounceMap.get(debounceKey) ?? 0;
+        const now = Date.now();
+        if (now - lastBidTime < 3000) {
+          throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: '請稍候幾秒再試，請勿重複出價' });
+        }
+        bidDebounceMap.set(debounceKey, now);
+        // 清除過舊的防抖記錄（防止記憶體漏水）
+        if (bidDebounceMap.size > 10000) {
+          const cutoff = now - 60000;
+          Array.from(bidDebounceMap.entries()).forEach(([k, t]) => {
+            if (t < cutoff) bidDebounceMap.delete(k);
+          });
+        }
         try {
           const result = await placeBid(input.auctionId, ctx.user.id, input.bidAmount, input.origin ?? '', input.isAnonymous ?? 0);
           return { success: true, extended: result.extended ?? false, newEndTime: result.newEndTime, extendMinutes: result.extendMinutes };
