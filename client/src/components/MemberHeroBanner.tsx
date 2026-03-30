@@ -114,17 +114,27 @@ export function MemberHeroBanner({ level, name }: MemberHeroBannerProps) {
 
       {/* Content */}
       <div className="relative z-10 h-full flex flex-col justify-end px-6 pb-5">
-        <p className={`text-xs font-semibold tracking-widest uppercase ${cfg.subtitleColor} mb-0.5`}>
-          {cfg.subtitle}
-        </p>
-        <h2 className={`text-2xl md:text-3xl font-extrabold ${cfg.textColor} drop-shadow`}>
-          {cfg.icon !== "💎" ? `${cfg.icon} ` : ""}{cfg.title}
-        </h2>
-        {name && (
-          <p className={`text-sm mt-1 ${cfg.subtitleColor} font-medium`}>
-            歡迎回來，{name}
-          </p>
-        )}
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className={`text-xs font-semibold tracking-widest uppercase ${cfg.subtitleColor} mb-0.5`}>
+              {cfg.subtitle}
+            </p>
+            <h2 className={`text-2xl md:text-3xl font-extrabold ${cfg.textColor} drop-shadow`}>
+              {cfg.icon !== "💎" ? `${cfg.icon} ` : ""}{cfg.title}
+            </h2>
+            {name && (
+              <p className={`text-sm mt-1 ${cfg.subtitleColor} font-medium`}>
+                歡迎回來，{name}
+              </p>
+            )}
+          </div>
+          <a
+            href="/member-benefits"
+            className={`flex-shrink-0 inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full border border-white/40 bg-white/15 hover:bg-white/25 transition-colors ${cfg.textColor} backdrop-blur-sm`}
+          >
+            查看會員權益 →
+          </a>
+        </div>
       </div>
 
       {/* Bottom fade */}

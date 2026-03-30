@@ -307,3 +307,9 @@
 
 - [x] 建立 MemberHeroBanner 元件：四個等級各有專屬漸層背景、裝飾圖案、等級稱號文案、浮動粒子與閃光動畫
 - [x] 整合至 Profile.tsx 頁面最頂部，替換現有純色背景
+
+## 會員權益說明頁面
+
+- [x] 建立 MemberBenefits.tsx：展示四個等級的完整權益對比表及各等級專屬說明
+- [x] MemberHeroBanner 加入「查看會員權益 →」按鈕（連結至 /member-benefits）
+- [x] App.tsx 註冊 /member-benefits 路由
