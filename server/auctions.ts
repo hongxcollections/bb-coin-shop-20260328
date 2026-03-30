@@ -264,7 +264,7 @@ export async function placeBid(auctionId: number, userId: number, bidAmount: num
     const globalSettings = await getNotificationSettings();
     const antiSnipeGloballyEnabled = globalSettings ? (globalSettings.enableAntiSnipe ?? 1) === 1 : true;
     if (antiSnipeGloballyEnabled && auctionAfter && auctionAfter.status === 'active') {
-      const perAuctionEnabled = (auctionAfter.antiSnipeMinutes ?? 3) > 0;
+      const perAuctionEnabled = (auctionAfter.antiSnipeEnabled ?? 1) === 1 && (auctionAfter.antiSnipeMinutes ?? 3) > 0;
       if (perAuctionEnabled) {
         const antiSnipeMs = (auctionAfter.antiSnipeMinutes ?? 3) * 60 * 1000;
         const extendMs = (auctionAfter.extendMinutes ?? 3) * 60 * 1000;

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Plus, Pencil, Trash2, TrendingUp, Clock, LogOut, Upload, X, ImageIcon, CheckCircle2, AlertCircle, Loader2, Facebook } from "lucide-react";
 
 const MAX_IMAGES = 10;
@@ -46,6 +47,7 @@ interface AuctionFormData {
   endTime: string;
   bidIncrement: number;
   currency: string;
+  antiSnipeEnabled: boolean;
   antiSnipeMinutes: number;
   extendMinutes: number;
 }
@@ -73,6 +75,7 @@ const defaultForm: AuctionFormData = {
   endTime: "",
   bidIncrement: 30,
   currency: "HKD",
+  antiSnipeEnabled: true,
   antiSnipeMinutes: 3,
   extendMinutes: 3,
 };
@@ -447,6 +450,7 @@ export default function AdminAuctions() {
         endTime: new Date(form.endTime),
         bidIncrement: form.bidIncrement,
         currency: form.currency as 'HKD' | 'USD' | 'CNY' | 'GBP' | 'EUR' | 'JPY',
+        antiSnipeEnabled: form.antiSnipeEnabled ? 1 : 0,
         antiSnipeMinutes: form.antiSnipeMinutes,
         extendMinutes: form.extendMinutes,
       });
@@ -458,6 +462,7 @@ export default function AdminAuctions() {
         endTime: new Date(form.endTime),
         bidIncrement: form.bidIncrement,
         currency: form.currency as 'HKD' | 'USD' | 'CNY' | 'GBP' | 'EUR' | 'JPY',
+        antiSnipeEnabled: form.antiSnipeEnabled ? 1 : 0,
         antiSnipeMinutes: form.antiSnipeMinutes,
         extendMinutes: form.extendMinutes,
       });
@@ -484,6 +489,7 @@ export default function AdminAuctions() {
       endTime: new Date(auction.endTime).toISOString().slice(0, 16),
       bidIncrement: auction.bidIncrement ?? 30,
       currency: (auction as { currency?: string }).currency ?? "HKD",
+      antiSnipeEnabled: ((auction as { antiSnipeEnabled?: number }).antiSnipeEnabled ?? 1) === 1,
       antiSnipeMinutes: (auction as { antiSnipeMinutes?: number }).antiSnipeMinutes ?? 3,
       extendMinutes: (auction as { extendMinutes?: number }).extendMinutes ?? 3,
     });
@@ -656,8 +662,20 @@ export default function AdminAuctions() {
 
                 {/* 反狙擊延時設定 */}
                 <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 space-y-2">
-                  <p className="text-xs font-semibold text-amber-700 flex items-center gap-1">🛡️ 反狙擊延時設定</p>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-amber-700 flex items-center gap-1">🛡️ 反狙擊延時設定</p>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs ${form.antiSnipeEnabled ? 'text-emerald-600' : 'text-gray-400'}`}>
+                        {form.antiSnipeEnabled ? '此商品已啟用' : '此商品已停用'}
+                      </span>
+                      <Switch
+                        checked={form.antiSnipeEnabled}
+                        onCheckedChange={(v) => setForm((f) => ({ ...f, antiSnipeEnabled: v }))}
+                        className="data-[state=checked]:bg-amber-500"
+                      />
+                    </div>
+                  </div>
+                  <div className={`flex items-center gap-3 transition-opacity ${form.antiSnipeEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
                     <div className="flex-1">
                       <Label htmlFor="antiSnipeMinutes" className="text-xs text-amber-700">結束前幾分鐘內出價觸發延時</Label>
                       <div className="flex items-center gap-1 mt-1">

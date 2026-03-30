@@ -278,3 +278,10 @@
 - [x] 後端 auctions.ts：placeBid 中讀取 enableAntiSnipe，若為 0 則跳過延時邏輯
 - [x] 後端 routers.ts：notificationSettings.get/update procedure 加入 enableAntiSnipe 欄位
 - [x] 管理後台 AdminNotifications.tsx：加入「🛡️ 反狙擊延時全域開關」卡片及 Switch Toggle
+
+## 商品獨立反狙擊延時開關
+
+- [x] 資料庫：auctions 表加入 antiSnipeEnabled 欄位（預設 1=啟用）
+- [x] 後端 routers.ts：create/update procedure 加入 antiSnipeEnabled 欄位
+- [x] 後端 auctions.ts：placeBid 中加入 antiSnipeEnabled 判斷（全域開關 AND 商品開關 AND antiSnipeMinutes>0）
+- [x] 管理後台 AdminAuctions.tsx：在「🛡️ 反狙擊延時設定」卡片加入商品獨立開關 Toggle，停用時數字欄位自動變灯

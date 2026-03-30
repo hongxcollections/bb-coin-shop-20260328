@@ -112,3 +112,46 @@ describe("Anti-snipe global switch", () => {
     expect(shouldExtendWithGlobalSwitch(endTime, 0, false, now)).toBe(false);
   });
 });
+
+// ── Per-auction switch tests ────────────────────────────────────────────────
+
+/**
+ * Full three-layer gate:
+ *   globalEnabled && perAuctionEnabled && antiSnipeMinutes > 0 && shouldExtend()
+ */
+function shouldExtendFull(
+  endTime: Date,
+  antiSnipeMinutes: number,
+  globalEnabled: boolean,
+  perAuctionEnabled: boolean,
+  now: Date = new Date()
+): boolean {
+  if (!globalEnabled) return false;
+  if (!perAuctionEnabled) return false;
+  return shouldExtend(endTime, antiSnipeMinutes, now);
+}
+
+describe("Per-auction antiSnipeEnabled switch", () => {
+  const now = new Date("2026-03-30T10:00:00Z");
+  const endTime = new Date("2026-03-30T10:02:00Z"); // 2 min left
+
+  it("extends when both global and per-auction are ON", () => {
+    expect(shouldExtendFull(endTime, 3, true, true, now)).toBe(true);
+  });
+
+  it("does NOT extend when per-auction switch is OFF (global ON)", () => {
+    expect(shouldExtendFull(endTime, 3, true, false, now)).toBe(false);
+  });
+
+  it("does NOT extend when global is OFF (per-auction ON)", () => {
+    expect(shouldExtendFull(endTime, 3, false, true, now)).toBe(false);
+  });
+
+  it("does NOT extend when both switches are OFF", () => {
+    expect(shouldExtendFull(endTime, 3, false, false, now)).toBe(false);
+  });
+
+  it("does NOT extend when per-auction ON but antiSnipeMinutes=0", () => {
+    expect(shouldExtendFull(endTime, 0, true, true, now)).toBe(false);
+  });
+});

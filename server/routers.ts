@@ -66,6 +66,7 @@ export const appRouter = router({
         endTime: z.date(),
         bidIncrement: z.number().int().min(30).max(5000).default(30),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).default('HKD'),
+        antiSnipeEnabled: z.number().int().min(0).max(1).default(1),
         antiSnipeMinutes: z.number().int().min(0).max(60).default(3),
         extendMinutes: z.number().int().min(1).max(60).default(3),
       }))
@@ -84,6 +85,7 @@ export const appRouter = router({
           status: 'active',
           bidIncrement: input.bidIncrement,
           currency: input.currency,
+          antiSnipeEnabled: input.antiSnipeEnabled,
           antiSnipeMinutes: input.antiSnipeMinutes,
           extendMinutes: input.extendMinutes,
         });
@@ -162,6 +164,7 @@ export const appRouter = router({
         endTime: z.date().optional(),
         bidIncrement: z.number().int().min(30).max(5000).optional(),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).optional(),
+        antiSnipeEnabled: z.number().int().min(0).max(1).optional(),
         antiSnipeMinutes: z.number().int().min(0).max(60).optional(),
         extendMinutes: z.number().int().min(1).max(60).optional(),
       }))
@@ -193,6 +196,7 @@ export const appRouter = router({
         if (input.endTime !== undefined) updateData.endTime = input.endTime;
         if (input.bidIncrement !== undefined) updateData.bidIncrement = input.bidIncrement;
         if (input.currency !== undefined) updateData.currency = input.currency;
+        if (input.antiSnipeEnabled !== undefined) updateData.antiSnipeEnabled = input.antiSnipeEnabled;
         if (input.antiSnipeMinutes !== undefined) updateData.antiSnipeMinutes = input.antiSnipeMinutes;
         if (input.extendMinutes !== undefined) updateData.extendMinutes = input.extendMinutes;
 
