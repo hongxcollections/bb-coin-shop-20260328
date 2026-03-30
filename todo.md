@@ -318,3 +318,15 @@
 
 - [x] MemberBenefits.tsx：為對比表每項權益加入 ⓘ 圖示，點擊或懸停彈出 Tooltip 顯示詳細說明
 - [x] 每項權益均有獨立的說明文案（11 項，含深色琥珀色 Tooltip 樣式）
+
+## 匿名出價功能（A+B 方案）
+
+- [x] 資料庫：bids 表加入 isAnonymous 欄位（預設 0），users 表加入 defaultAnonymous 欄位（預設 0）
+- [x] 後端 placeBid：接受 isAnonymous 參數，儲存至 bids 表
+- [x] 後端 getBidHistory：匿名出價者顯示「🕵️ 匿名買家」，管理員查詢時顯示真實名稱
+- [x] 後端 routers.ts：新增 users.getDefaultAnonymous 及 users.setDefaultAnonymous procedure
+- [x] 前端 AuctionDetail.tsx：出價表單加入「匿名出價」 Switch 開關，預設値讀取用戶設定
+- [x] 前端 Profile.tsx：個人設定區加入「預設匿名出價」開關卡片
+- [x] 後台 AdminAnonymousBids.tsx：建立匿名出價管理頁面（記錄查閱、搜尋、分頁）
+- [x] 後台導航加入「🕵️ 匿名出價」連結
+- [x] 新增 vitest 測試覆蓋匿名出價邏輯（14 個測試，126 個全部通過）

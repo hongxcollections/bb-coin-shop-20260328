@@ -8,7 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Clock, ChevronLeft, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X } from "lucide-react";
+import { Clock, ChevronLeft, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X, EyeOff } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { getCurrencySymbol } from "./AdminAuctions";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
@@ -53,6 +55,18 @@ export default function AuctionDetail() {
   const [proxyMode, setProxyMode] = useState(false);
   const [proxyAmount, setProxyAmount] = useState("");
   const [historyTab, setHistoryTab] = useState<"bids" | "proxy">("bids");
+  const [isAnonymous, setIsAnonymous] = useState(false);
+
+  // 取得用戶預設匿名設定
+  const { data: defaultAnonData } = trpc.users.getDefaultAnonymous.useQuery(undefined, {
+    enabled: isAuthenticated,
+  });
+  // 當 defaultAnonData 載入後同步初始值
+  useEffect(() => {
+    if (defaultAnonData !== undefined) {
+      setIsAnonymous((defaultAnonData as { defaultAnonymous: number }).defaultAnonymous === 1);
+    }
+  }, [defaultAnonData]);
 
   const dismissBidMessage = () => {
     setBidMsgExiting(true);
@@ -156,7 +170,7 @@ export default function AuctionDetail() {
       return;
     }
     setBidMessage({ type: "info", text: "⏳ 出價處理中，請稍候..." });
-    placeBid.mutate({ auctionId, bidAmount: amount });
+    placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: isAnonymous ? 1 : 0 });
   };
 
   // 使用 bidIncrement 計算最低出價金額
@@ -540,6 +554,29 @@ export default function AuctionDetail() {
                               ? `（現價 + 每口加幅 ${currencySymbol}${bidIncrement}）`
                               : `（起拍價，首口免加幅）`}
                           </p>
+                          {/* 匿名出價開關 */}
+                          <div className={`flex items-center justify-between rounded-lg px-3 py-2 border transition-all ${
+                            isAnonymous
+                              ? 'bg-slate-50 border-slate-300'
+                              : 'bg-white border-amber-100'
+                          }`}>
+                            <div className="flex items-center gap-2">
+                              <EyeOff className={`w-4 h-4 ${isAnonymous ? 'text-slate-500' : 'text-amber-400'}`} />
+                              <Label htmlFor="anonymous-bid" className="text-xs font-medium cursor-pointer select-none">
+                                {isAnonymous ? (
+                                  <span className="text-slate-600">匿名出價（其他人看不到您的名字）</span>
+                                ) : (
+                                  <span className="text-muted-foreground">匿名出價</span>
+                                )}
+                              </Label>
+                            </div>
+                            <Switch
+                              id="anonymous-bid"
+                              checked={isAnonymous}
+                              onCheckedChange={setIsAnonymous}
+                              className="data-[state=checked]:bg-slate-500"
+                            />
+                          </div>
                         </>
                       ) : (
                         <>

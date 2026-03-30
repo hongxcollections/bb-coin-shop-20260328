@@ -15,6 +15,7 @@ export const users = mysqlTable("users", {
   notifyWon: int("notifyWon").default(1).notNull(),
   notifyEndingSoon: int("notifyEndingSoon").default(1).notNull(),
   memberLevel: mysqlEnum("memberLevel", ["bronze", "silver", "gold", "vip"]).default("bronze").notNull(),
+  defaultAnonymous: int("defaultAnonymous").default(0).notNull(), // 1 = always bid anonymously by default
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -76,6 +77,7 @@ export const bids = mysqlTable("bids", {
   auctionId: int("auctionId").notNull(),
   userId: int("userId").notNull(),
   bidAmount: decimal("bidAmount", { precision: 10, scale: 2 }).notNull(),
+  isAnonymous: int("isAnonymous").default(0).notNull(), // 1 = anonymous bid
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

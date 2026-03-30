@@ -14,6 +14,7 @@ import AdminArchive from "./pages/AdminArchive";
 import UserProfile from "./pages/UserProfile";
 import AdminNotifications from "./pages/AdminNotifications";
 import AdminUsers from "./pages/AdminUsers";
+import AdminAnonymousBids from "./pages/AdminAnonymousBids";
 import MemberBenefits from "./pages/MemberBenefits";
 import WebhookSetup from "./pages/WebhookSetup";
 
@@ -30,6 +31,7 @@ function Router() {
       <Route path={"/users/:userId"} component={UserProfile} />
       <Route path={"/admin/notifications"} component={AdminNotifications} />
       <Route path={"/admin/users"} component={AdminUsers} />
+      <Route path={"/admin/anonymous-bids"} component={AdminAnonymousBids} />
       <Route path={"/member-benefits"} component={MemberBenefits} />
       <Route path={"/admin/webhook-setup"} component={WebhookSetup} />
       <Route path={"/404"} component={NotFound} />

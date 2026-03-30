@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs } from "./db";
+import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon } from "./auctions";
 import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel } from "./db";
@@ -141,10 +141,11 @@ export const appRouter = router({
         auctionId: z.number(),
         bidAmount: z.number().positive(),
         origin: z.string().optional(),
+        isAnonymous: z.number().int().min(0).max(1).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         try {
-          const result = await placeBid(input.auctionId, ctx.user.id, input.bidAmount, input.origin ?? '');
+          const result = await placeBid(input.auctionId, ctx.user.id, input.bidAmount, input.origin ?? '', input.isAnonymous ?? 0);
           return { success: true, extended: result.extended ?? false, newEndTime: result.newEndTime, extendMinutes: result.extendMinutes };
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Failed to place bid';
@@ -611,15 +612,20 @@ export const appRouter = router({
 
     auctionBidHistory: publicProcedure
       .input(z.object({ auctionId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
         const history = await getBidHistory(input.auctionId);
-        return history.map((b: { id: number; auctionId: number; userId: number | null; bidAmount: string | number; createdAt: Date; username: string | null; memberLevel?: string | null }) => ({
+        const isAdmin = ctx.user?.role === 'admin';
+        return history.map((b: { id: number; auctionId: number; userId: number | null; bidAmount: string | number; createdAt: Date; username: string | null; memberLevel?: string | null; isAnonymous?: number }) => ({
           id: b.id,
           userId: b.userId,
-          username: b.username ?? '匿名',
+          // Admin sees real name with anonymous marker; public sees '匿名買家'
+          username: b.isAnonymous === 1
+            ? (isAdmin ? `${b.username ?? '未知'} (匿名)` : '🕵️ 匿名買家')
+            : (b.username ?? '匿名'),
           bidAmount: parseFloat(b.bidAmount.toString()),
           createdAt: b.createdAt,
           memberLevel: b.memberLevel ?? 'bronze',
+          isAnonymous: b.isAnonymous === 1,
         }));
       }),
   }),
@@ -717,12 +723,39 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    getDefaultAnonymous: protectedProcedure
+      .query(async ({ ctx }) => {
+        const user = await getUserById(ctx.user.id);
+        if (!user) throw new TRPCError({ code: 'NOT_FOUND' });
+        return { defaultAnonymous: (user as { defaultAnonymous?: number }).defaultAnonymous ?? 0 };
+      }),
+
+    setDefaultAnonymous: protectedProcedure
+      .input(z.object({ defaultAnonymous: z.number().int().min(0).max(1) }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await (await import('./db')).getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const { users: usersTable } = await import('../drizzle/schema');
+        const { eq } = await import('drizzle-orm');
+        await db.update(usersTable).set({ defaultAnonymous: input.defaultAnonymous } as Record<string, unknown>).where(eq(usersTable.id, ctx.user.id));
+        return { success: true };
+      }),
+
     publicProfile: publicProcedure
       .input(z.object({ userId: z.number().int().positive() }))
       .query(async ({ input }) => {
         const stats = await getUserPublicStats(input.userId);
-        if (!stats) throw new TRPCError({ code: 'NOT_FOUND', message: '\u627e\u4e0d\u5230\u8a72\u7528\u6236' });
+        if (!stats) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到該用戶' });
         return stats;
+      }),
+
+    // Admin: get all anonymous bids with real user info
+    getAnonymousBids: protectedProcedure
+      .input(z.object({ page: z.number().int().min(1).optional(), pageSize: z.number().int().min(1).max(100).optional() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can view anonymous bids' });
+        const result = await getAnonymousBids({ page: input.page, pageSize: input.pageSize });
+        return result;
       }),
   }),
 });

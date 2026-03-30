@@ -49,13 +49,13 @@ export async function validateBid(auctionId: number, bidAmount: number): Promise
  * Internal helper: record a bid and update auction price/highestBidder.
  * Does NOT validate — caller is responsible for ensuring the bid is legal.
  */
-async function recordBid(db: NonNullable<Awaited<ReturnType<typeof getDb>>>, auctionId: number, userId: number, bidAmount: number) {
+async function recordBid(db: NonNullable<Awaited<ReturnType<typeof getDb>>>, auctionId: number, userId: number, bidAmount: number, isAnonymous = 0) {
   await db
     .update(auctionsTable)
     .set({ currentPrice: bidAmount.toString(), highestBidderId: userId })
     .where(eq(auctionsTable.id, auctionId));
 
-  await dbPlaceBid({ auctionId, userId, bidAmount: bidAmount.toString() });
+  await dbPlaceBid({ auctionId, userId, bidAmount: bidAmount.toString(), isAnonymous });
 }
 
 /**
@@ -241,7 +241,7 @@ export async function notifyEndingSoon(auctionId: number, origin: string) {
  * Place a bid on an auction, then run the proxy bidding engine.
  * Also sends outbid notification to the previous highest bidder.
  */
-export async function placeBid(auctionId: number, userId: number, bidAmount: number, origin = '') {
+export async function placeBid(auctionId: number, userId: number, bidAmount: number, origin = '', isAnonymous = 0) {
   const validation = await validateBid(auctionId, bidAmount);
   if (!validation.valid) {
     throw new Error(validation.error);
@@ -255,7 +255,7 @@ export async function placeBid(auctionId: number, userId: number, bidAmount: num
   const previousHighestBidderId = auctionBefore?.highestBidderId ?? null;
 
   try {
-    await recordBid(db, auctionId, userId, bidAmount);
+    await recordBid(db, auctionId, userId, bidAmount, isAnonymous);
 
     // ── Anti-snipe extension ─────────────────────────────────────────────────
     let extended = false;

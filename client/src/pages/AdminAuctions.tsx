@@ -568,6 +568,11 @@ export default function AdminAuctions() {
                 👥 會員管理
               </Button>
             </Link>
+            <Link href="/admin/anonymous-bids">
+              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-800 hover:bg-slate-100 gap-1">
+                🕵️ 匿名出價
+              </Button>
+            </Link>
             <Link href="/profile">
               <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">{user?.name}</Button>
             </Link>

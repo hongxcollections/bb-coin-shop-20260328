@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff, ChevronDown, ChevronUp } from "lucide-react";
+import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff, ChevronDown, ChevronUp, EyeOff } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ShareMenu } from "@/components/ShareMenu";
 import { MemberBadge } from "@/components/MemberBadge";
@@ -82,6 +83,23 @@ export default function Profile() {
   const [prefsInitialised, setPrefsInitialised] = useState(false);
   const [expandedBidId, setExpandedBidId] = useState<number | null>(null);
   const [bidFilter, setBidFilter] = useState<'all' | 'active' | 'won'>('all');
+
+  // 預設匿名出價設定
+  const { data: defaultAnonData } = trpc.users.getDefaultAnonymous.useQuery(undefined, { enabled: isAuthenticated });
+  const [defaultAnonymous, setDefaultAnonymous] = useState(false);
+  const [anonInitialised, setAnonInitialised] = useState(false);
+  if (defaultAnonData !== undefined && !anonInitialised) {
+    setDefaultAnonymous((defaultAnonData as { defaultAnonymous: number }).defaultAnonymous === 1);
+    setAnonInitialised(true);
+  }
+  const setDefaultAnonMutation = trpc.users.setDefaultAnonymous.useMutation({
+    onSuccess: () => toast.success('預設匿名設定已儲存'),
+    onError: (err) => toast.error(`儲存失敗：${err.message}`),
+  });
+  const handleToggleDefaultAnon = (val: boolean) => {
+    setDefaultAnonymous(val);
+    setDefaultAnonMutation.mutate({ defaultAnonymous: val ? 1 : 0 });
+  };
 
   if (notifPrefs && !prefsInitialised) {
     setNotifyOutbid(!!notifPrefs.notifyOutbid);
@@ -250,6 +268,44 @@ export default function Profile() {
             {user?.email && <p className="text-muted-foreground text-sm mt-1">{user.email}</p>}
             <div className="mt-3">
               <MemberBadge level={(user as { memberLevel?: string } | null)?.memberLevel} variant="full" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Anonymous Bid Default Setting */}
+        <Card className="mb-6 border-slate-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <EyeOff className="w-4 h-4 text-slate-500" />
+              匿名出價設定
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              開啟後，每次出價預設為匿名模式。您仍可在出價時臨時切換。
+            </p>
+            <div className={`flex items-center justify-between rounded-lg px-4 py-3 border transition-all ${
+              defaultAnonymous ? 'bg-slate-50 border-slate-300' : 'bg-white border-slate-100'
+            }`}>
+              <div className="flex items-center gap-3">
+                <EyeOff className={`w-5 h-5 ${defaultAnonymous ? 'text-slate-500' : 'text-muted-foreground'}`} />
+                <div>
+                  <p className="text-sm font-medium">預設匿名出價</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {defaultAnonymous ? '已開啟：出價時將顯示「🕵️ 匿名買家」' : '關閉：出價時顯示您的名字'}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={defaultAnonymous}
+                onCheckedChange={handleToggleDefaultAnon}
+                disabled={setDefaultAnonMutation.isPending}
+                className="data-[state=checked]:bg-slate-500"
+              />
+            </div>
+            <div className="flex items-start gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
+              <EyeOff className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span>匿名出價時，競標歷史將顯示「🕵️ 匿名買家」。管理員仍可查看真實身份。得標後賣家將以真實資料聯絡您。</span>
             </div>
           </CardContent>
         </Card>

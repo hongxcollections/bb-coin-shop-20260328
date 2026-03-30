@@ -211,6 +211,7 @@ export async function getBidHistory(auctionId: number) {
         auctionId: bids.auctionId,
         userId: bids.userId,
         bidAmount: bids.bidAmount,
+        isAnonymous: bids.isAnonymous,
         createdAt: bids.createdAt,
         username: users.name,
         memberLevel: users.memberLevel,
@@ -892,5 +893,49 @@ export async function setUserMemberLevel(userId: number, memberLevel: string): P
   } catch (error) {
     console.error('[Database] Failed to set member level:', error);
     return false;
+  }
+}
+
+export async function getAnonymousBids(options?: { page?: number; pageSize?: number }) {
+  const db = await getDb();
+  if (!db) return { bids: [], total: 0 };
+
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 50;
+  const offset = (page - 1) * pageSize;
+
+  try {
+    const result = await db
+      .select({
+        id: bids.id,
+        auctionId: bids.auctionId,
+        auctionTitle: auctions.title,
+        userId: bids.userId,
+        username: users.name,
+        userEmail: users.email,
+        memberLevel: users.memberLevel,
+        bidAmount: bids.bidAmount,
+        createdAt: bids.createdAt,
+        isAnonymous: bids.isAnonymous,
+      })
+      .from(bids)
+      .leftJoin(users, eq(bids.userId, users.id))
+      .leftJoin(auctions, eq(bids.auctionId, auctions.id))
+      .where(eq(bids.isAnonymous, 1))
+      .orderBy(desc(bids.createdAt))
+      .limit(pageSize)
+      .offset(offset);
+
+    // Count total
+    const countResult = await db
+      .select({ count: sql`COUNT(*)` })
+      .from(bids)
+      .where(eq(bids.isAnonymous, 1));
+    const total = Number((countResult[0] as { count: unknown })?.count ?? 0);
+
+    return { bids: result, total };
+  } catch (error) {
+    console.error('[Database] Failed to get anonymous bids:', error);
+    return { bids: [], total: 0 };
   }
 }
