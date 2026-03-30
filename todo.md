@@ -396,3 +396,16 @@
 
 - [x] AuctionDetail.tsx：displayName 加入 currentUserId 參數，匿名且為自己時顯示「🕵️ 匿名出價 - 你自己」
 - [x] 現價旁最高出價者、出價記錄列表均套用此邏輯
+
+## 三項新功能（得標記錄、CSV 匯出、倒數提醒）
+
+- [x] 後端：新增 users.wonAuctions.myWon procedure，查詢已結束且自己得標的拍賣
+- [x] 前端 Profile.tsx：加入「我的得標記錄」卡片，顯示得標拍賣清單（拍品名稱、得標金額、結標時間）
+- [x] 後端：新增 admin.exportBids procedure（管理員匯出所有出價記錄，支援按拍賣篩選）
+- [x] 前端：AdminExportBids.tsx 新頁面（篩選拍賣、預覽表格、下載 CSV）
+- [x] 後台導航加入「📥 匯出記錄」連結
+- [x] 資料庫：新增 site_settings 表（key-value 全局設定），插入預設 endingSoonMinutes=30
+- [x] 後端：新增 siteSettings.getAll / siteSettings.set procedures（管理員專用）
+- [x] 前端 Auctions.tsx：倒數提醒閾值從後台讀取（預設 30 分鐘，取代硬編碼 1 小時）
+- [x] 前端：AdminSiteSettings.tsx 新頁面（管理員可設定倒數提醒閾值，含效果預覽）
+- [x] 後台導航加入「⚙️ 站點設定」連結

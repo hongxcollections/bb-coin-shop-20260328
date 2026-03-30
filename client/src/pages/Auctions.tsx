@@ -59,6 +59,13 @@ export default function Auctions() {
     { limit: 100, offset: 0, category: category === "all" ? undefined : category }
   );
 
+  // 從後台讀取即將結標提醒閾値（預設 30 分鐘）
+  const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000, // 緩存 5 分鐘
+  });
+  const _endingSoonRaw = parseInt((siteSettings as Record<string, string> | undefined)?.endingSoonMinutes ?? '30', 10);
+  const endingSoonMs = (isNaN(_endingSoonRaw) || _endingSoonRaw < 1 ? 30 : _endingSoonRaw) * 60 * 1000;
+
   const filtered = (auctions ?? []).filter((a) => {
     const matchSearch = !search || a.title.toLowerCase().includes(search.toLowerCase());
     const matchFilter = filter === "all" || a.status === filter;
@@ -257,7 +264,7 @@ export default function Auctions() {
                         const now = Date.now();
                         const endMs = new Date(auction.endTime).getTime();
                         const isEnded = endMs <= now;
-                        const isEndingSoon = !isEnded && (endMs - now) <= 3600000;
+                        const isEndingSoon = !isEnded && (endMs - now) <= endingSoonMs;
                         return (
                           <>
                             {isEndingSoon && (

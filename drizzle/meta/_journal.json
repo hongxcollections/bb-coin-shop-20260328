@@ -29,6 +29,13 @@
       "when": 1774884248299,
       "tag": "0003_vengeful_the_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1774889771788,
+      "tag": "0004_dashing_blindfold",
+      "breakpoints": true
     }
   ]
 }

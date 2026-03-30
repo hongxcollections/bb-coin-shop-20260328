@@ -16,6 +16,8 @@ import AdminNotifications from "./pages/AdminNotifications";
 import AdminUsers from "./pages/AdminUsers";
 import AdminAnonymousBids from "./pages/AdminAnonymousBids";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminExportBids from "./pages/AdminExportBids";
+import AdminSiteSettings from "./pages/AdminSiteSettings";
 import Favorites from "./pages/Favorites";
 import MemberBenefits from "./pages/MemberBenefits";
 import WebhookSetup from "./pages/WebhookSetup";
@@ -35,9 +37,11 @@ function Router() {
       <Route path={"/admin/users"} component={AdminUsers} />
       <Route path={"/admin/anonymous-bids"} component={AdminAnonymousBids} />
       <Route path={"/admin/dashboard"} component={AdminDashboard} />
+      <Route path={"/admin/export-bids"} component={AdminExportBids} />
       <Route path={"/favorites"} component={Favorites} />
       <Route path={"/member-benefits"} component={MemberBenefits} />
       <Route path={"/admin/webhook-setup"} component={WebhookSetup} />
+      <Route path={"/admin/settings"} component={AdminSiteSettings} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

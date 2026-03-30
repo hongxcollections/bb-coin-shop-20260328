@@ -3,7 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds } from "./db";
+import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon } from "./auctions";
 import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel } from "./db";
@@ -796,17 +796,47 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         return toggleFavorite(ctx.user.id, input.auctionId);
       }),
-
     list: protectedProcedure
       .query(async ({ ctx }) => {
         return getUserFavorites(ctx.user.id);
       }),
-
     ids: protectedProcedure
       .query(async ({ ctx }) => {
         return getFavoriteIds(ctx.user.id);
       }),
   }),
-});
 
+  wonAuctions: router({
+    // 用戶得標記錄：已結束且自己是最高出價者
+    myWon: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getMyWonAuctions(ctx.user.id);
+      }),
+  }),
+
+  export: router({
+    // 管理員匯出出價記錄 CSV
+    bids: protectedProcedure
+      .input(z.object({ auctionId: z.number().int().positive().optional() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can export bids' });
+        return getAllBidsForExport(input.auctionId);
+      }),
+  }),
+
+  siteSettings: router({
+    // 取得所有站點設定（公開，前端用）
+    getAll: publicProcedure
+      .query(async () => {
+        return getAllSiteSettings();
+      }),
+    // 管理員設定值
+    set: protectedProcedure
+      .input(z.object({ key: z.string(), value: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can change settings' });
+        return setSiteSetting(input.key, input.value);
+      }),
+  }),
+});
 export type AppRouter = typeof appRouter;

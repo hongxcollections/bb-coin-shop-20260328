@@ -578,6 +578,16 @@ export default function AdminAuctions() {
                 📊 統計儀表板
               </Button>
             </Link>
+            <Link href="/admin/export-bids">
+              <Button variant="ghost" size="sm" className="text-orange-600 hover:text-orange-800 hover:bg-orange-50 gap-1">
+                📥 匯出記錄
+              </Button>
+            </Link>
+            <Link href="/admin/settings">
+              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 hover:bg-gray-50 gap-1">
+                ⚙️ 站點設定
+              </Button>
+            </Link>
             <Link href="/profile">
               <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">{user?.name}</Button>
             </Link>

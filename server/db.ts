@@ -1,7 +1,7 @@
 import { eq, desc, asc, and, gte, lte, gt, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1142,5 +1142,105 @@ export async function getFavoriteIds(userId: number): Promise<number[]> {
   } catch (error) {
     console.error('[Database] Failed to get favorite ids:', error);
     return [];
+  }
+}
+
+// 查詢用戶得標記錄（已結束且自己是最高出價者）
+export async function getMyWonAuctions(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const result = await db
+      .select({
+        id: auctions.id,
+        title: auctions.title,
+        description: auctions.description,
+        currentPrice: auctions.currentPrice,
+        startingPrice: auctions.startingPrice,
+        currency: auctions.currency,
+        endTime: auctions.endTime,
+        status: auctions.status,
+        category: auctions.category,
+        bidCount: sql<number>`(SELECT COUNT(*) FROM bids WHERE bids.auction_id = ${auctions.id})`,
+        winningAmount: sql<string>`(SELECT bid_amount FROM bids WHERE bids.auction_id = ${auctions.id} ORDER BY bid_amount DESC, created_at ASC LIMIT 1)`,
+      })
+      .from(auctions)
+      .where(
+        and(
+          eq(auctions.status, 'ended'),
+          sql`(SELECT user_id FROM bids WHERE bids.auction_id = ${auctions.id} ORDER BY bid_amount DESC, created_at ASC LIMIT 1) = ${userId}`
+        )
+      )
+      .orderBy(desc(auctions.endTime));
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to get won auctions:', error);
+    return [];
+  }
+}
+
+// 匯出指定拍賣的所有出價記錄（管理員用）
+export async function getAllBidsForExport(auctionId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const result = await db
+      .select({
+        bidId: bids.id,
+        auctionId: bids.auctionId,
+        auctionTitle: auctions.title,
+        userId: bids.userId,
+        username: users.name,
+        bidAmount: bids.bidAmount,
+        currency: auctions.currency,
+        isAnonymous: bids.isAnonymous,
+        createdAt: bids.createdAt,
+      })
+      .from(bids)
+      .innerJoin(auctions, eq(bids.auctionId, auctions.id))
+      .innerJoin(users, eq(bids.userId, users.id))
+      .where(auctionId ? eq(bids.auctionId, auctionId) : sql`1=1`)
+      .orderBy(desc(bids.createdAt));
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to export bids:', error);
+    return [];
+  }
+}
+
+// ── Site Settings ──────────────────────────────────────────────────────────
+export async function getSiteSetting(key: string): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  try {
+    const result = await db.select().from(siteSettings).where(eq(siteSettings.key, key)).limit(1);
+    return result.length > 0 ? result[0].value : null;
+  } catch (error) {
+    console.error('[Database] Failed to get site setting:', error);
+    return null;
+  }
+}
+
+export async function setSiteSetting(key: string, value: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  try {
+    await db.insert(siteSettings).values({ key, value }).onDuplicateKeyUpdate({ set: { value } });
+    return true;
+  } catch (error) {
+    console.error('[Database] Failed to set site setting:', error);
+    return false;
+  }
+}
+
+export async function getAllSiteSettings(): Promise<Record<string, string>> {
+  const db = await getDb();
+  if (!db) return {};
+  try {
+    const rows = await db.select().from(siteSettings);
+    return Object.fromEntries(rows.map((r: { key: string; value: string }) => [r.key, r.value]));
+  } catch (error) {
+    console.error('[Database] Failed to get all site settings:', error);
+    return {};
   }
 }

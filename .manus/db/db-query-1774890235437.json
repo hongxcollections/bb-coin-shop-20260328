@@ -1,0 +1,15 @@
+{
+  "query": "SELECT * FROM site_settings;\nINSERT IGNORE INTO site_settings (`key`, `value`) VALUES ('endingSoonMinutes', '30');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3JP8k7yzHFv62xZ.9d413e412763 --database 5iU7X8HzvqNf24sNdvU8FR --execute SELECT * FROM site_settings;\nINSERT IGNORE INTO site_settings (`key`, `value`) VALUES ('endingSoonMinutes', '30');",
+  "rows": [
+    {
+      "key": "endingSoonMinutes",
+      "value": "30",
+      "updatedAt": "2026-03-30 16:56:27"
+    }
+  ],
+  "messages": [],
+  "stdout": "key\tvalue\tupdatedAt\nendingSoonMinutes\t30\t2026-03-30 16:56:27\n",
+  "stderr": "",
+  "execution_time_ms": 1872
+}

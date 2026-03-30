@@ -198,3 +198,13 @@ export const favoritesRelations = relations(favorites, ({ one }) => ({
   user: one(users, { fields: [favorites.userId], references: [users.id] }),
   auction: one(auctions, { fields: [favorites.auctionId], references: [auctions.id] }),
 }));
+
+// ── Site Settings ──────────────────────────────────────────────────────────
+// Single-row key-value settings table for global configuration
+// Key: "endingSoonMinutes" → value: "30" (minutes before end to show warning)
+export const siteSettings = mysqlTable("site_settings", {
+  key: varchar("key", { length: 100 }).primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type InsertSiteSetting = typeof siteSettings.$inferInsert;

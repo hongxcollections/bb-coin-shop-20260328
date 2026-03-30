@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff, ChevronDown, ChevronUp, EyeOff, Heart } from "lucide-react";
+import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff, ChevronDown, ChevronUp, EyeOff, Heart, Trophy } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ShareMenu } from "@/components/ShareMenu";
@@ -70,6 +70,7 @@ function BidHistoryPanel({ auctionId }: { auctionId: number }) {
 export default function Profile() {
   const { user, isAuthenticated, loading, logout } = useAuth();
   const { data: myBids, isLoading } = trpc.auctions.myBids.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: wonAuctions, isLoading: wonLoading } = trpc.wonAuctions.myWon.useQuery(undefined, { enabled: isAuthenticated });
   const [emailInput, setEmailInput] = useState("");
   const [emailSaved, setEmailSaved] = useState(false);
 
@@ -611,6 +612,57 @@ export default function Profile() {
                 <Link href="/auctions">
                   <Button className="mt-4 gold-gradient text-white border-0">瀏覽拍賣</Button>
                 </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 我的得標記錄 */}
+        <Card className="border-amber-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Trophy className="w-4 h-4 text-amber-500" />
+              我的得標記錄
+              {wonAuctions && wonAuctions.length > 0 && (
+                <span className="ml-auto text-xs font-normal text-muted-foreground">{wonAuctions.length} 件</span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {wonLoading ? (
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-16 bg-amber-50 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : !wonAuctions || wonAuctions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Trophy className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p className="font-medium">尚未得標任何拍賣</p>
+                <p className="text-sm mt-1">繼續競標，期待您的第一件得標！</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {(wonAuctions as Array<{ id: number; title: string; currency: string; winningAmount: string; endTime: number; category?: string | null; bidCount: number }>).map((item) => (
+                  <Link key={item.id} href={`/auctions/${item.id}`}>
+                    <div className="flex items-center gap-3 p-3 rounded-lg border border-amber-100 bg-amber-50/50 hover:bg-amber-100/60 transition-colors cursor-pointer">
+                      <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                        <Trophy className="w-4 h-4 text-amber-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          結標：{new Date(item.endTime).toLocaleDateString('zh-HK', { year: 'numeric', month: 'short', day: 'numeric' })}
+                          {item.category && <span className="ml-2 text-amber-600">#{item.category}</span>}
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-bold text-amber-700">{item.currency}${Number(item.winningAmount).toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">{item.bidCount} 口競標</p>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
               </div>
             )}
           </CardContent>
