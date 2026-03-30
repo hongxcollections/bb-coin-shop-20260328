@@ -265,7 +265,23 @@ export async function placeBid(auctionId: number, userId: number, bidAmount: num
     const antiSnipeGloballyEnabled = globalSettings ? (globalSettings.enableAntiSnipe ?? 1) === 1 : true;
     if (antiSnipeGloballyEnabled && auctionAfter && auctionAfter.status === 'active') {
       const perAuctionEnabled = (auctionAfter.antiSnipeEnabled ?? 1) === 1 && (auctionAfter.antiSnipeMinutes ?? 3) > 0;
-      if (perAuctionEnabled) {
+      // Check member level gate
+      const memberLevelsRaw = (auctionAfter as { antiSnipeMemberLevels?: string | null }).antiSnipeMemberLevels ?? 'all';
+      let memberLevelAllowed = true;
+      if (memberLevelsRaw && memberLevelsRaw !== 'all') {
+        try {
+          const allowedLevels: string[] = JSON.parse(memberLevelsRaw);
+          if (allowedLevels.length > 0) {
+            const bidder = await getUserById(userId);
+            const bidderLevel = (bidder as { memberLevel?: string } | null)?.memberLevel ?? 'bronze';
+            memberLevelAllowed = allowedLevels.includes(bidderLevel);
+          }
+        } catch {
+          // Malformed JSON: fall back to allow-all
+          memberLevelAllowed = true;
+        }
+      }
+      if (perAuctionEnabled && memberLevelAllowed) {
         const antiSnipeMs = (auctionAfter.antiSnipeMinutes ?? 3) * 60 * 1000;
         const extendMs = (auctionAfter.extendMinutes ?? 3) * 60 * 1000;
         const now = Date.now();

@@ -155,3 +155,48 @@ describe("Per-auction antiSnipeEnabled switch", () => {
     expect(shouldExtendFull(endTime, 0, true, true, now)).toBe(false);
   });
 });
+
+// ── Member level gate tests ────────────────────────────────────────────────
+
+type MemberLevel = 'bronze' | 'silver' | 'gold' | 'vip';
+
+function isMemberLevelAllowed(memberLevelsRaw: string | null | undefined, bidderLevel: MemberLevel): boolean {
+  const raw = memberLevelsRaw ?? 'all';
+  if (!raw || raw === 'all') return true;
+  try {
+    const allowed: string[] = JSON.parse(raw);
+    if (allowed.length === 0) return true;
+    return allowed.includes(bidderLevel);
+  } catch {
+    return true;
+  }
+}
+
+describe("Member level gate for anti-snipe", () => {
+  it("allows all levels when set to 'all'", () => {
+    expect(isMemberLevelAllowed('all', 'bronze')).toBe(true);
+    expect(isMemberLevelAllowed('all', 'vip')).toBe(true);
+  });
+
+  it("allows all levels when null or undefined", () => {
+    expect(isMemberLevelAllowed(null, 'bronze')).toBe(true);
+    expect(isMemberLevelAllowed(undefined, 'gold')).toBe(true);
+  });
+
+  it("allows only specified levels", () => {
+    const raw = JSON.stringify(['gold', 'vip']);
+    expect(isMemberLevelAllowed(raw, 'gold')).toBe(true);
+    expect(isMemberLevelAllowed(raw, 'vip')).toBe(true);
+    expect(isMemberLevelAllowed(raw, 'silver')).toBe(false);
+    expect(isMemberLevelAllowed(raw, 'bronze')).toBe(false);
+  });
+
+  it("treats empty array as allow-all", () => {
+    const raw = JSON.stringify([]);
+    expect(isMemberLevelAllowed(raw, 'bronze')).toBe(true);
+  });
+
+  it("handles malformed JSON gracefully (allow-all fallback)", () => {
+    expect(isMemberLevelAllowed('not-json', 'bronze')).toBe(true);
+  });
+});

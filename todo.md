@@ -285,3 +285,12 @@
 - [x] 後端 routers.ts：create/update procedure 加入 antiSnipeEnabled 欄位
 - [x] 後端 auctions.ts：placeBid 中加入 antiSnipeEnabled 判斷（全域開關 AND 商品開關 AND antiSnipeMinutes>0）
 - [x] 管理後台 AdminAuctions.tsx：在「🛡️ 反狙擊延時設定」卡片加入商品獨立開關 Toggle，停用時數字欄位自動變灯
+
+## 反狙擊延時會員等級限制
+
+- [x] 資料庫：users 表加入 memberLevel 欄位（enum: bronze/silver/gold/vip，預設 bronze）
+- [x] 資料庫：auctions 表加入 antiSnipeMemberLevels 欄位（JSON 字串，預設 null = 所有等級均觸發）
+- [x] 後端 auctions.ts：placeBid 中加入會員等級判斷（出價者等級需在允許清單內才觸發延時）
+- [x] 後端 routers.ts：create/update procedure 加入 antiSnipeMemberLevels 欄位驗證
+- [x] 管理後台 AdminAuctions.tsx：反狙擊設定卡片加入會員等級彩色按鈕多選 UI
+- [x] 新增 vitest 測試覆蓋會員等級判斷邏輯（5 個測試，112 個全部通過）

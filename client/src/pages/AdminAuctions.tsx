@@ -50,6 +50,7 @@ interface AuctionFormData {
   antiSnipeEnabled: boolean;
   antiSnipeMinutes: number;
   extendMinutes: number;
+  antiSnipeMemberLevels: string[];
 }
 
 interface UploadedImage {
@@ -78,6 +79,7 @@ const defaultForm: AuctionFormData = {
   antiSnipeEnabled: true,
   antiSnipeMinutes: 3,
   extendMinutes: 3,
+  antiSnipeMemberLevels: [],
 };
 
 // ─── Image Upload Zone Component ────────────────────────────────────────────
@@ -453,6 +455,7 @@ export default function AdminAuctions() {
         antiSnipeEnabled: form.antiSnipeEnabled ? 1 : 0,
         antiSnipeMinutes: form.antiSnipeMinutes,
         extendMinutes: form.extendMinutes,
+        antiSnipeMemberLevels: form.antiSnipeMemberLevels as unknown as string,
       });
     } else {
       createAuction.mutate({
@@ -465,6 +468,7 @@ export default function AdminAuctions() {
         antiSnipeEnabled: form.antiSnipeEnabled ? 1 : 0,
         antiSnipeMinutes: form.antiSnipeMinutes,
         extendMinutes: form.extendMinutes,
+        antiSnipeMemberLevels: form.antiSnipeMemberLevels as unknown as string,
       });
     }
   };
@@ -492,6 +496,11 @@ export default function AdminAuctions() {
       antiSnipeEnabled: ((auction as { antiSnipeEnabled?: number }).antiSnipeEnabled ?? 1) === 1,
       antiSnipeMinutes: (auction as { antiSnipeMinutes?: number }).antiSnipeMinutes ?? 3,
       extendMinutes: (auction as { extendMinutes?: number }).extendMinutes ?? 3,
+      antiSnipeMemberLevels: (() => {
+        const raw = (auction as { antiSnipeMemberLevels?: string | null }).antiSnipeMemberLevels ?? 'all';
+        if (!raw || raw === 'all') return [];
+        try { return JSON.parse(raw) as string[]; } catch { return []; }
+      })(),
     });
     setUploadedImages(
       (images ?? []).map((img) => ({
@@ -706,6 +715,40 @@ export default function AdminAuctions() {
                         <span className="text-xs text-amber-600">分鐘</span>
                       </div>
                     </div>
+                  </div>
+                  {/* 會員等級限制 */}
+                  <div className={`space-y-1 transition-opacity ${form.antiSnipeEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+                    <p className="text-xs text-amber-700 font-medium">觸發延時的會員等級（不選 = 所有等級均可觸發）</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(['bronze', 'silver', 'gold', 'vip'] as const).map((level) => {
+                        const labels: Record<string, string> = { bronze: '🥉 銅牌', silver: '🥈 銀牌', gold: '🥇 金牌', vip: '💎 VIP' };
+                        const checked = form.antiSnipeMemberLevels.includes(level);
+                        return (
+                          <button
+                            key={level}
+                            type="button"
+                            onClick={() => setForm((f) => ({
+                              ...f,
+                              antiSnipeMemberLevels: checked
+                                ? f.antiSnipeMemberLevels.filter((l) => l !== level)
+                                : [...f.antiSnipeMemberLevels, level],
+                            }))}
+                            className={`px-2 py-1 rounded-full text-xs border transition-colors ${
+                              checked
+                                ? 'bg-amber-500 text-white border-amber-500'
+                                : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
+                            }`}
+                          >
+                            {labels[level]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-amber-400">
+                      {form.antiSnipeMemberLevels.length === 0
+                        ? '✅ 所有等級出價均可觸發延時'
+                        : `僅限 ${form.antiSnipeMemberLevels.map((l) => ({ bronze: '銅牌', silver: '銀牌', gold: '金牌', vip: 'VIP' }[l])).join('、')} 等級出價才觸發`}
+                    </p>
                   </div>
                   <p className="text-xs text-amber-500">{form.antiSnipeMinutes === 0 ? '⚠️ 設為 0 即停用反狙擊延時' : `結束前 ${form.antiSnipeMinutes} 分鐘內有出價，自動延長 ${form.extendMinutes} 分鐘`}</p>
                 </div>

@@ -14,6 +14,7 @@ export const users = mysqlTable("users", {
   notifyOutbid: int("notifyOutbid").default(1).notNull(),
   notifyWon: int("notifyWon").default(1).notNull(),
   notifyEndingSoon: int("notifyEndingSoon").default(1).notNull(),
+  memberLevel: mysqlEnum("memberLevel", ["bronze", "silver", "gold", "vip"]).default("bronze").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -45,6 +46,7 @@ export const auctions = mysqlTable("auctions", {
   antiSnipeEnabled: int("antiSnipeEnabled").default(1).notNull(),
   antiSnipeMinutes: int("antiSnipeMinutes").default(3).notNull(),
   extendMinutes: int("extendMinutes").default(3).notNull(),
+  antiSnipeMemberLevels: text("antiSnipeMemberLevels"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
