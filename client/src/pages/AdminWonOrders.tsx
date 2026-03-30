@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, Search, RefreshCw, ChevronLeft } from "lucide-react";
+import { Trophy, Search, RefreshCw, ChevronLeft, Mail, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const PAYMENT_STATUS_CONFIG = {
@@ -39,6 +39,8 @@ function StatusBadge({ status }: { status: string | null }) {
 
 function OrderRow({ order, onUpdate }: { order: WonOrder; onUpdate: () => void }) {
   const [updating, setUpdating] = useState(false);
+  const [resending, setResending] = useState(false);
+
   const updateStatus = trpc.wonAuctions.updatePaymentStatus.useMutation({
     onSuccess: () => {
       toast.success('付款狀態已更新！');
@@ -48,9 +50,22 @@ function OrderRow({ order, onUpdate }: { order: WonOrder; onUpdate: () => void }
     onSettled: () => setUpdating(false),
   });
 
+  const resendEmail = trpc.wonAuctions.resendEmail.useMutation({
+    onSuccess: (data) => {
+      toast.success(`得標通知已重發至 ${data.sentTo}`);
+    },
+    onError: (err) => toast.error(err.message),
+    onSettled: () => setResending(false),
+  });
+
   const handleUpdate = (status: 'pending_payment' | 'paid' | 'delivered') => {
     setUpdating(true);
     updateStatus.mutate({ auctionId: order.id, status });
+  };
+
+  const handleResendEmail = () => {
+    setResending(true);
+    resendEmail.mutate({ auctionId: order.id, origin: window.location.origin });
   };
 
   const currentStatus = order.paymentStatus as OrderStatus;
@@ -92,14 +107,14 @@ function OrderRow({ order, onUpdate }: { order: WonOrder; onUpdate: () => void }
       </div>
 
       {/* 操作按鈕 */}
-      <div className="flex gap-1.5 flex-wrap">
+      <div className="flex gap-1.5 flex-wrap items-center">
         {currentStatus !== 'pending_payment' && (
           <Button
             size="sm"
             variant="outline"
             className="text-xs h-7 px-2 border-yellow-300 text-yellow-800 hover:bg-yellow-50"
             onClick={() => handleUpdate('pending_payment')}
-            disabled={updating}
+            disabled={updating || resending}
           >
             ⏳ 待付款
           </Button>
@@ -110,7 +125,7 @@ function OrderRow({ order, onUpdate }: { order: WonOrder; onUpdate: () => void }
             variant="outline"
             className="text-xs h-7 px-2 border-blue-300 text-blue-800 hover:bg-blue-50"
             onClick={() => handleUpdate('paid')}
-            disabled={updating}
+            disabled={updating || resending}
           >
             💳 已付款
           </Button>
@@ -121,11 +136,27 @@ function OrderRow({ order, onUpdate }: { order: WonOrder; onUpdate: () => void }
             variant="outline"
             className="text-xs h-7 px-2 border-green-300 text-green-800 hover:bg-green-50"
             onClick={() => handleUpdate('delivered')}
-            disabled={updating}
+            disabled={updating || resending}
           >
             ✅ 已交收
           </Button>
         )}
+        {/* 重發 Email 按鈕 */}
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-xs h-7 px-2 border-violet-300 text-violet-700 hover:bg-violet-50 gap-1"
+          onClick={handleResendEmail}
+          disabled={updating || resending}
+          title="重發得標通知 Email 給買家"
+        >
+          {resending ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : (
+            <Mail className="w-3 h-3" />
+          )}
+          {resending ? '發送中…' : '重發 Email'}
+        </Button>
       </div>
     </div>
   );

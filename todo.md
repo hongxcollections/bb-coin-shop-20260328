@@ -427,3 +427,11 @@
 - [x] 自動結標邏輯（closeExpiredAuctions）觸發得標 Email 發送（list/detail query 觸發後 fire-and-forget）
 - [x] notificationSettings.get/update procedure 加入 paymentInstructions/deliveryInfo 欄位
 - [x] 新增 vitest 測試覆蓋 Email 模板生成邏輯（paymentInstructions/deliveryInfo 渲染、nl2br 轉換、主旨含成交價）（154 個測試全部通過）
+
+## 得標訂單重發 Email 功能
+
+- [x] 後端新增 wonAuctions.resendEmail procedure（管理員重發得標通知給指定訂單買家）
+- [x] 前端 AdminWonOrders.tsx 每筆訂單加入「重發 Email」按鈕（紫色按鈕，含 Mail 圖示）
+- [x] 按鈕點擊後顯示 loading 狀態（Loader2 旋轉動畫 + 「發送中…」），成功後 Toast 顯示已發送至的電郵
+- [x] 買家無 Email 時顯示提示（「得標者尚未填寫電郵地址，無法發送通知」）
+- [x] 新增 vitest 測試覆蓋 resendEmail procedure 邏輯（10 個測試，165 個全部通過）

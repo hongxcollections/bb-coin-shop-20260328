@@ -848,6 +848,54 @@ export const appRouter = router({
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
         return getWonOrders();
       }),
+
+    // 管理員重發得標通知 Email
+    resendEmail: protectedProcedure
+      .input(z.object({
+        auctionId: z.number().int().positive(),
+        origin: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
+        const auction = await getAuctionById(input.auctionId);
+        if (!auction || auction.status !== 'ended') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只能對已結束的拍賣重發通知' });
+        }
+        if (!auction.highestBidderId) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '此拍賣沒有得標者' });
+        }
+        const winner = await getUserById(auction.highestBidderId);
+        if (!winner?.email) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '得標者尚未填寫電郵地址，無法發送通知' });
+        }
+        const settings = await getNotificationSettings();
+        // Derive origin: prefer explicit input, then request headers, then site URL from settings
+        const origin = input.origin
+          || (ctx.req as any)?.headers?.origin
+          || (ctx.req as any)?.headers?.referer?.replace(/\/[^/]*$/, '')
+          || '';
+        if (!settings?.senderEmail) {
+          console.warn('[Email] resendEmail: senderEmail not configured in notification settings');
+        }
+        const { sendWonEmail } = await import('./email');
+        const sent = await sendWonEmail({
+          to: winner.email,
+          senderName: settings?.senderName ?? '大BB錢幣店',
+          senderEmail: settings?.senderEmail ?? 'noreply@example.com',
+          userName: winner.name ?? `用戶 #${auction.highestBidderId}`,
+          auctionTitle: auction.title,
+          auctionId: input.auctionId,
+          finalPrice: parseFloat(auction.currentPrice.toString()),
+          currency: auction.currency,
+          auctionUrl: origin ? `${origin}/auctions/${input.auctionId}` : `https://bbcoinshop-5iu7x8hz.manus.space/auctions/${input.auctionId}`,
+          paymentInstructions: settings?.paymentInstructions ?? null,
+          deliveryInfo: settings?.deliveryInfo ?? null,
+        });
+        if (!sent) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Email 發送失敗，請確認 Resend API 設定是否正確' });
+        }
+        return { success: true, sentTo: winner.email };
+      }),
   }),
 
   export: router({
