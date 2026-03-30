@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { ShareMenu } from "@/components/ShareMenu";
 
 function BidHistoryPanel({ auctionId }: { auctionId: number }) {
   const { data: history, isLoading } = trpc.auctions.auctionBidHistory.useQuery({ auctionId });
@@ -434,10 +435,16 @@ export default function Profile() {
                             </div>
                           </div>
                         </Link>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <div className="font-bold text-amber-700 price-tag text-sm">
                             HK${group.latestBid.toLocaleString()}
                           </div>
+                          <ShareMenu
+                            auctionId={group.auctionId}
+                            title={group.auctionTitle ?? ''}
+                            latestBid={group.latestBid}
+                            currency={group.auctionCurrency}
+                          />
                           <button
                             type="button"
                             onClick={() => setExpandedBidId(isExpanded ? null : group.auctionId)}
