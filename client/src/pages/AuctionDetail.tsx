@@ -284,7 +284,10 @@ export default function AuctionDetail() {
   }
 
   const images = auction.images as Array<{ id: number; imageUrl: string }>;
-  const bids = auction.bidHistory as Array<{ id: number; userId: number; bidAmount: string; createdAt: Date; username?: string | null }>;
+  const bids = auction.bidHistory as Array<{ id: number; userId: number; bidAmount: string; createdAt: Date; username?: string | null; isAnonymous?: number | null; memberLevel?: string | null }>;
+  // 輔助函數：根據 isAnonymous 欄位決定顯示名稱
+  const displayName = (bid: { userId: number; username?: string | null; isAnonymous?: number | null }) =>
+    bid.isAnonymous === 1 ? '🕵️ 匿名買家' : (bid.username ?? `用戶 #${bid.userId}`);
   const isActive = auction.status === "active" && new Date() < new Date(auction.endTime);
 
   return (
@@ -395,7 +398,7 @@ export default function AuctionDetail() {
                     <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                        當前最高出價
                        {bids.length > 0 ? (
-                         <span className="text-[9px] text-red-500 font-semibold">({bids[0].username ?? `用戶 #${bids[0].userId}`})</span>
+                         <span className="text-[9px] text-red-500 font-semibold">({displayName(bids[0])})</span>
                        ) : (
                          <span className="text-[9px] text-black font-normal">(未有出價)</span>
                        )}
@@ -782,7 +785,7 @@ export default function AuctionDetail() {
                           <div key={bid.id} className={`flex items-center justify-between py-2 px-3 rounded-lg text-sm ${i === 0 ? "bg-amber-50 border border-amber-200" : "bg-muted/30"}`}>
                             <div className="flex items-center gap-2">
                               <User className="w-3.5 h-3.5 text-muted-foreground" />
-                              <span className="text-muted-foreground">{bid.username ?? `用戶 #${bid.userId}`}</span>
+                              <span className="text-muted-foreground">{displayName(bid)}</span>
                               {i === 0 && <Badge className="bg-amber-500 text-white text-xs py-0">最高</Badge>}
                             </div>
                             <div className="font-bold text-amber-700 price-tag">

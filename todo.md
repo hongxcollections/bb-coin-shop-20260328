@@ -252,18 +252,18 @@
 - [x] 後端：公開列表（getAuctions）及管理後台（getAuctionsByCreator）改為 active 排在前、按 endTime 升序；ended/draft 按 createdAt 降序排後
 - [x] 前端：各頁面經同一 API 返回，排序自動生效
 
-## 反狙擊延時功能（Anti-Snipe Extension）
+## 反狙擊延時功能（Anti-Snipe Extension）（舊版規劃，已被新版完整實作取代）
 
-- [ ] Schema：auctions 表加入 antiSnipeMinutes（預設3）和 extendMinutes（預設3）欄位；auctionSettings 全域設定表加入相同欄位作預設值
-- [ ] 資料庫遷移：執行 ALTER TABLE 加入新欄位
-- [ ] 後端 placeBid：出價時若距 endTime 剩餘時間 < antiSnipeMinutes，自動將 endTime 延長 extendMinutes 分鐘
-- [ ] 後端：返回出價結果時包含 extended: boolean 及新 endTime
-- [ ] 管理後台：新增/編輯拍賣表單加入「反狙擊觸發時間（分鐘）」和「延長時間（分鐘）」兩個輸入欄
-- [ ] 管理後台：全域設定頁加入預設反狙擊數值設定
-- [ ] 前端詳情頁：出價成功後若 extended=true，顯示「⏱ 拍賣已延長 X 分鐘！」Toast 提示
-- [ ] 新增 vitest 測試覆蓋反狙擊邏輯
+- [x] Schema：auctions 表加入 antiSnipeMinutes（預設3）和 extendMinutes（預設3）欄位；auctionSettings 全域設定表加入相同欄位作預設值
+- [x] 資料庫遷移：執行 ALTER TABLE 加入新欄位
+- [x] 後端 placeBid：出價時若距 endTime 剩餘時間 < antiSnipeMinutes，自動將 endTime 延長 extendMinutes 分鐘
+- [x] 後端：返回出價結果時包含 extended: boolean 及新 endTime
+- [x] 管理後台：新增/編輯拍賣表單加入「反狙擊觸發時間（分鐘）」和「延長時間（分鐘）」兩個輸入欄
+- [x] 管理後台：全域設定頁加入預設反狙擊數值設定
+- [x] 前端詳情頁：出價成功後若 extended=true，顯示「⏱ 拍賣已延長 X 分鐘！」Toast 提示
+- [x] 新增 vitest 測試覆蓋反狙擊邏輯
 
-## 反狙擊延時功能（Anti-Snipe Extension）
+## 反狙擊延時功能（Anti-Snipe Extension）（舊版規劃，已被新版完整實作取代）
 
 - [x] 資料庫：auctions 表加入 antiSnipeMinutes（預設 3）和 extendMinutes（預設 3）欄位
 - [x] 後端 placeBid：出價後檢查 timeLeft <= antiSnipeMs，若觸發則延長 endTime 並回傳 extended/newEndTime/extendMinutes
@@ -378,3 +378,9 @@
 - [x] 出價衝突提示：出價失敗時自動刷新最新出價，顯示「已有新出價！頁面已更新最新出價，請重新確認金額」
 - [x] 出價成功後立即 invalidate 相關 query，確保自己的頁面也即時更新
 - [x] 輪詢偵測到價格變動時，在出價表單上方顯示橙色警告橫幅（⚡ 有新出價！）並清空舊金額
+## 匿名出價顯示修復
+
+- [x] 查核 AuctionDetail.tsx 中所有顯示「最高出價者」的位置（現價旁、出價記錄列表）
+- [x] 修復：最高出價者顯示位置（現價旁的用戶名稱）套用 isAnonymous 邏輯
+- [x] 確認出價記錄列表中匿名出價顯示「🕵️ 匿名買家」
+- [x] 確認後端 getBidHistory 正確回傳 isAnonymous 欄位
