@@ -251,3 +251,9 @@
 
 - [x] 後端：公開列表（getAuctions）及管理後台（getAuctionsByCreator）改為 active 排在前、按 endTime 升序；ended/draft 按 createdAt 降序排後
 - [x] 前端：各頁面經同一 API 返回，排序自動生效
+
+## 功能更新歷史
+
+- [x] 建立 ChangelogSection 元件：時間軸樣式，每條記錄含日期、圖示、標題、簡介
+- [x] 整合至 Home.tsx 主頁最底部，預設收合，點擊「查看更新歷史」展開
+- [x] 填入所有已發佈功能的更新記錄（依日期由新至舊）
