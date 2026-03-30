@@ -123,6 +123,7 @@ export const notificationSettings = mysqlTable("notificationSettings", {
   enableWon: int("enableWon").default(1).notNull(),
   enableEndingSoon: int("enableEndingSoon").default(1).notNull(),
   endingSoonMinutes: int("endingSoonMinutes").default(60).notNull(),
+  enableAntiSnipe: int("enableAntiSnipe").default(1).notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 

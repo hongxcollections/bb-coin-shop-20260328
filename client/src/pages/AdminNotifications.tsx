@@ -25,6 +25,7 @@ export default function AdminNotifications() {
   const [enableWon, setEnableWon] = useState(true);
   const [enableEndingSoon, setEnableEndingSoon] = useState(true);
   const [endingSoonMinutes, setEndingSoonMinutes] = useState(60);
+  const [enableAntiSnipe, setEnableAntiSnipe] = useState(true);
   const [initialised, setInitialised] = useState(false);
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function AdminNotifications() {
       setEnableWon(settings.enableWon === 1);
       setEnableEndingSoon(settings.enableEndingSoon === 1);
       setEndingSoonMinutes(settings.endingSoonMinutes);
+      setEnableAntiSnipe((settings.enableAntiSnipe ?? 1) === 1);
       setInitialised(true);
     }
   }, [settings, initialised]);
@@ -56,6 +58,7 @@ export default function AdminNotifications() {
       enableWon: enableWon ? 1 : 0,
       enableEndingSoon: enableEndingSoon ? 1 : 0,
       endingSoonMinutes,
+      enableAntiSnipe: enableAntiSnipe ? 1 : 0,
     });
   };
 
@@ -238,6 +241,49 @@ export default function AdminNotifications() {
                 />
               </div>
             ))}
+          </CardContent>
+        </Card>
+
+        {/* Anti-Snipe Global Switch */}
+        <Card className="mb-6 border-amber-100">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <span className="text-amber-600">🛡️</span>
+              反狙擊延時全域開關
+            </CardTitle>
+            <CardDescription>啟用後，所有拍賣在結束前 X 分鐘內有出價，將自動延長 Y 分鐘（各商品可分別設定）</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div
+              className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
+                enableAntiSnipe ? "border-amber-200 bg-amber-50" : "border-gray-200 bg-gray-50"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <span className="text-xl mt-0.5">🛡️</span>
+                <div>
+                  <div className="font-medium text-sm flex items-center gap-2">
+                    反狙擊延時
+                    <Badge
+                      variant="outline"
+                      className={enableAntiSnipe ? "border-emerald-300 text-emerald-700 bg-emerald-50" : "border-gray-300 text-gray-500"}
+                    >
+                      {enableAntiSnipe ? "啟用" : "停用"}
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {enableAntiSnipe
+                      ? "啟用中：拍賣結束前內有出價將自動延長（依各商品設定）"
+                      : "已全域停用：所有商品的反狙擊延時均不生效"}
+                  </div>
+                </div>
+              </div>
+              <Switch
+                checked={enableAntiSnipe}
+                onCheckedChange={setEnableAntiSnipe}
+                className="data-[state=checked]:bg-amber-500"
+              />
+            </div>
           </CardContent>
         </Card>
 

@@ -75,3 +75,40 @@ describe("Anti-snipe extension logic", () => {
     expect(shouldExtend(endTime, 60, now)).toBe(true);
   });
 });
+
+// ── Global switch tests ───────────────────────────────────────────────────────
+
+/**
+ * Simulate the full gate logic:
+ *   globalEnabled && perAuctionEnabled && shouldExtend()
+ */
+function shouldExtendWithGlobalSwitch(
+  endTime: Date,
+  antiSnipeMinutes: number,
+  globalEnabled: boolean,
+  now: Date = new Date()
+): boolean {
+  if (!globalEnabled) return false;
+  return shouldExtend(endTime, antiSnipeMinutes, now);
+}
+
+describe("Anti-snipe global switch", () => {
+  const now = new Date("2026-03-30T10:00:00Z");
+  const endTime = new Date("2026-03-30T10:02:00Z"); // 2 min left, within 3-min window
+
+  it("extends when global switch is ON", () => {
+    expect(shouldExtendWithGlobalSwitch(endTime, 3, true, now)).toBe(true);
+  });
+
+  it("does NOT extend when global switch is OFF", () => {
+    expect(shouldExtendWithGlobalSwitch(endTime, 3, false, now)).toBe(false);
+  });
+
+  it("does NOT extend when global ON but per-auction disabled (antiSnipeMinutes=0)", () => {
+    expect(shouldExtendWithGlobalSwitch(endTime, 0, true, now)).toBe(false);
+  });
+
+  it("does NOT extend when both global OFF and per-auction disabled", () => {
+    expect(shouldExtendWithGlobalSwitch(endTime, 0, false, now)).toBe(false);
+  });
+});

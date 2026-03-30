@@ -625,6 +625,7 @@ export const appRouter = router({
         enableWon: 1,
         enableEndingSoon: 1,
         endingSoonMinutes: 60,
+        enableAntiSnipe: 1,
       };
     }),
 
@@ -636,6 +637,7 @@ export const appRouter = router({
         enableWon: z.number().min(0).max(1).optional(),
         enableEndingSoon: z.number().min(0).max(1).optional(),
         endingSoonMinutes: z.number().min(5).max(1440).optional(),
+        enableAntiSnipe: z.number().min(0).max(1).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });

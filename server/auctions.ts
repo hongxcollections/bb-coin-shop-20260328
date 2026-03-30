@@ -261,20 +261,25 @@ export async function placeBid(auctionId: number, userId: number, bidAmount: num
     let extended = false;
     let newEndTime: Date | undefined;
     const auctionAfter = await getAuctionById(auctionId);
-    if (auctionAfter && auctionAfter.status === 'active') {
-      const antiSnipeMs = (auctionAfter.antiSnipeMinutes ?? 3) * 60 * 1000;
-      const extendMs = (auctionAfter.extendMinutes ?? 3) * 60 * 1000;
-      const now = Date.now();
-      const endMs = new Date(auctionAfter.endTime).getTime();
-      const timeLeft = endMs - now;
-      if (timeLeft > 0 && timeLeft <= antiSnipeMs) {
-        newEndTime = new Date(endMs + extendMs);
-        await db
-          .update(auctionsTable)
-          .set({ endTime: newEndTime })
-          .where(eq(auctionsTable.id, auctionId));
-        extended = true;
-        console.log(`[AntiSnipe] Auction #${auctionId} extended by ${auctionAfter.extendMinutes ?? 3} min. New endTime: ${newEndTime.toISOString()}`);
+    const globalSettings = await getNotificationSettings();
+    const antiSnipeGloballyEnabled = globalSettings ? (globalSettings.enableAntiSnipe ?? 1) === 1 : true;
+    if (antiSnipeGloballyEnabled && auctionAfter && auctionAfter.status === 'active') {
+      const perAuctionEnabled = (auctionAfter.antiSnipeMinutes ?? 3) > 0;
+      if (perAuctionEnabled) {
+        const antiSnipeMs = (auctionAfter.antiSnipeMinutes ?? 3) * 60 * 1000;
+        const extendMs = (auctionAfter.extendMinutes ?? 3) * 60 * 1000;
+        const now = Date.now();
+        const endMs = new Date(auctionAfter.endTime).getTime();
+        const timeLeft = endMs - now;
+        if (timeLeft > 0 && timeLeft <= antiSnipeMs) {
+          newEndTime = new Date(endMs + extendMs);
+          await db
+            .update(auctionsTable)
+            .set({ endTime: newEndTime })
+            .where(eq(auctionsTable.id, auctionId));
+          extended = true;
+          console.log(`[AntiSnipe] Auction #${auctionId} extended by ${auctionAfter.extendMinutes ?? 3} min. New endTime: ${newEndTime.toISOString()}`);
+        }
       }
     }
 

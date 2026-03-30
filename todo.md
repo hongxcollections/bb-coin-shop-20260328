@@ -271,3 +271,10 @@
 - [x] 管理後台 AdminAuctions.tsx：表單加入「🛡️ 反狙擊延時設定」卡片，可設定觸發分鐘數和延長分鐘數，設為 0 即停用
 - [x] 前端 AuctionDetail.tsx：出價成功後若觸發延時，顯示「🛡️ 拍賣已延長 X 分鐘」提示
 - [x] vitest：antisnipe.test.ts 9 個測試，98 個測試全部通過
+
+## 反狙擊延時全域開關
+
+- [x] 資料庫：notificationSettings 表加入 enableAntiSnipe 欄位（預設 1=啟用）
+- [x] 後端 auctions.ts：placeBid 中讀取 enableAntiSnipe，若為 0 則跳過延時邏輯
+- [x] 後端 routers.ts：notificationSettings.get/update procedure 加入 enableAntiSnipe 欄位
+- [x] 管理後台 AdminNotifications.tsx：加入「🛡️ 反狙擊延時全域開關」卡片及 Switch Toggle
