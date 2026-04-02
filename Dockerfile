@@ -5,17 +5,11 @@ WORKDIR /app
 # Install pnpm
 RUN npm install -g pnpm
 
-# Cache bust argument - change this to force rebuild
-ARG CACHE_BUST=20260403_01
-
-# Copy ALL files at once (including patches/)
+# Copy ALL files at once (including pre-built dist/)
 COPY . .
 
-# Install all dependencies (patches/ is already present)
+# Install production dependencies only (skip build - using pre-built dist)
 RUN pnpm install --frozen-lockfile
-
-# Build the application
-RUN pnpm build
 
 # Remove dev dependencies
 RUN pnpm prune --prod
@@ -23,5 +17,5 @@ RUN pnpm prune --prod
 # Expose port
 EXPOSE 3000
 
-# Run database migration then start the application
-CMD ["sh", "-c", "node dist/index.js"]
+# Start the application (dist is pre-built and committed)
+CMD ["node", "dist/index.js"]
