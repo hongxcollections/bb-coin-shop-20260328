@@ -5,8 +5,9 @@ WORKDIR /app
 # Install pnpm
 RUN npm install -g pnpm
 
-# Copy package files
+# Copy package files AND patches directory (needed for pnpm patched dependencies)
 COPY package.json pnpm-lock.yaml ./
+COPY patches/ ./patches/
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
@@ -25,8 +26,9 @@ WORKDIR /app
 # Install pnpm
 RUN npm install -g pnpm
 
-# Copy package files
+# Copy package files AND patches directory
 COPY package.json pnpm-lock.yaml ./
+COPY patches/ ./patches/
 
 # Install production dependencies only
 RUN pnpm install --frozen-lockfile --prod
