@@ -5,11 +5,17 @@ WORKDIR /app
 # Install pnpm
 RUN npm install -g pnpm
 
-# Copy ALL files at once (including pre-built dist/)
+# Copy package files first for better caching
+COPY package.json pnpm-lock.yaml ./
+
+# Install all dependencies (including dev for build)
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
 COPY . .
 
-# Install production dependencies only (skip build - using pre-built dist)
-RUN pnpm install --frozen-lockfile
+# Build the application (frontend + server bundle)
+RUN pnpm build
 
 # Remove dev dependencies
 RUN pnpm prune --prod
@@ -17,5 +23,5 @@ RUN pnpm prune --prod
 # Expose port
 EXPOSE 3000
 
-# Start the application (dist is pre-built and committed)
+# Start the application
 CMD ["node", "dist/index.js"]
