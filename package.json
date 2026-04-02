@@ -113,5 +113,6 @@
       "@tailwindcss/oxide",
       "esbuild"
     ]
-  }
+  },
+  "_cacheBust": "20260403-001"
 }
