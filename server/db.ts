@@ -13,13 +13,14 @@ export async function getDb() {
     try {
       // Parse DATABASE_URL and add proper SSL config for TiDB Cloud
       const url = new URL(process.env.DATABASE_URL);
+      const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
       const pool = createPool({
         host: url.hostname,
-        port: parseInt(url.port || "4000"),
+        port: parseInt(url.port || (isLocalhost ? "3306" : "4000")),
         user: url.username,
         password: url.password || undefined,
         database: url.pathname.slice(1),
-        ssl: { rejectUnauthorized: false },
+        ssl: isLocalhost ? undefined : { rejectUnauthorized: false },
         waitForConnections: true,
         connectionLimit: 10,
       });
