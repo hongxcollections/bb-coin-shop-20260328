@@ -1,4 +1,9 @@
 import "dotenv/config";
+import { migrate } from "drizzle-orm/mysql2/migrator";
+import { drizzle } from "drizzle-orm/mysql2";
+import { createPool } from "mysql2/promise";
+import path from "path";
+import { fileURLToPath } from "url";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
@@ -31,7 +36,34 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
+async function runMigrations() {
+  if (!process.env.DATABASE_URL) return;
+  try {
+    const url = new URL(process.env.DATABASE_URL);
+    const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    const pool = createPool({
+      host: url.hostname,
+      port: parseInt(url.port || (isLocalhost ? '3306' : '4000')),
+      user: url.username,
+      password: url.password || undefined,
+      database: url.pathname.slice(1),
+      ssl: isLocalhost ? undefined : { rejectUnauthorized: false },
+      multipleStatements: true,
+    });
+    const db = drizzle(pool);
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const migrationsFolder = path.resolve(__dirname, '../../drizzle');
+    console.log('[Migration] Running migrations from:', migrationsFolder);
+    await migrate(db, { migrationsFolder });
+    console.log('[Migration] Migrations completed successfully');
+    await pool.end();
+  } catch (error) {
+    console.warn('[Migration] Migration warning (continuing):', (error as Error).message);
+  }
+}
+
 async function startServer() {
+  await runMigrations();
   const app = express();
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads
