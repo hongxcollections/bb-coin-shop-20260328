@@ -20,5 +20,5 @@ RUN pnpm prune --prod
 # Expose port
 EXPOSE 3000
 
-# Start the application
-CMD ["node", "dist/index.js"]
+# Run database migration then start the application
+CMD ["sh", "-c", "npx drizzle-kit migrate 2>/dev/null || true && node dist/index.js"]
