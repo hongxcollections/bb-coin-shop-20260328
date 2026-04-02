@@ -5,6 +5,9 @@ WORKDIR /app
 # Install pnpm
 RUN npm install -g pnpm
 
+# Cache bust argument - change this to force rebuild
+ARG CACHE_BUST=20260403_01
+
 # Copy ALL files at once (including patches/)
 COPY . .
 
@@ -21,4 +24,4 @@ RUN pnpm prune --prod
 EXPOSE 3000
 
 # Run database migration then start the application
-CMD ["sh", "-c", "npx drizzle-kit migrate 2>/dev/null || true && node dist/index.js"]
+CMD ["sh", "-c", "node dist/index.js"]
