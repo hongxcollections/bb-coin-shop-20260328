@@ -65,7 +65,8 @@ export function registerOAuthRoutes(app: Express) {
     try {
       // Use Google OAuth if Google credentials are configured
       if (ENV.googleClientId && ENV.googleClientSecret) {
-        const redirectUri = `${req.protocol}://${req.get("host")}/api/oauth/callback`;
+        const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+        const redirectUri = `${protocol}://${req.get("host")}/api/oauth/callback`;
         const tokenResponse = await exchangeGoogleCode(code, redirectUri);
         const userInfo = await getGoogleUserInfo(tokenResponse.access_token);
 
