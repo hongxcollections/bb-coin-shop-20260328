@@ -204,7 +204,9 @@ var init_env = __esm({
       isProduction: process.env.NODE_ENV === "production" && process.env.SANDBOX_MODE !== "true",
       forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
       forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
-      webhookSecret: process.env.WEBHOOK_SECRET ?? ""
+      webhookSecret: process.env.WEBHOOK_SECRET ?? "",
+      googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
+      googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? ""
     };
   }
 });
@@ -1357,6 +1359,7 @@ var NOT_ADMIN_ERR_MSG = "You do not have required permission (10002)";
 
 // server/_core/oauth.ts
 init_db();
+import axios2 from "axios";
 
 // server/_core/cookies.ts
 function isSecureRequest(req) {
@@ -1605,19 +1608,67 @@ var SDKServer = class {
 var sdk = new SDKServer();
 
 // server/_core/oauth.ts
+init_env();
 function getQueryParam(req, key) {
   const value = req.query[key];
   return typeof value === "string" ? value : void 0;
+}
+async function exchangeGoogleCode(code, redirectUri) {
+  const params = new URLSearchParams({
+    code,
+    client_id: ENV.googleClientId,
+    client_secret: ENV.googleClientSecret,
+    redirect_uri: redirectUri,
+    grant_type: "authorization_code"
+  });
+  const { data } = await axios2.post(
+    "https://oauth2.googleapis.com/token",
+    params.toString(),
+    { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+  );
+  return data;
+}
+async function getGoogleUserInfo(accessToken) {
+  const { data } = await axios2.get(
+    "https://www.googleapis.com/oauth2/v3/userinfo",
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  return data;
 }
 function registerOAuthRoutes(app) {
   app.get("/api/oauth/callback", async (req, res) => {
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");
-    if (!code || !state) {
-      res.status(400).json({ error: "code and state are required" });
+    if (!code) {
+      res.status(400).json({ error: "code is required" });
       return;
     }
     try {
+      if (ENV.googleClientId && ENV.googleClientSecret) {
+        const redirectUri = `${req.protocol}://${req.get("host")}/api/oauth/callback`;
+        const tokenResponse2 = await exchangeGoogleCode(code, redirectUri);
+        const userInfo2 = await getGoogleUserInfo(tokenResponse2.access_token);
+        const openId = `google_${userInfo2.sub}`;
+        await upsertUser({
+          openId,
+          name: userInfo2.name || null,
+          email: userInfo2.email ?? null,
+          loginMethod: "google",
+          lastSignedIn: /* @__PURE__ */ new Date()
+        });
+        const sessionToken2 = await sdk.createSessionToken(openId, {
+          name: userInfo2.name || "",
+          expiresInMs: ONE_YEAR_MS
+        });
+        const cookieOptions2 = getSessionCookieOptions(req);
+        res.cookie(COOKIE_NAME, sessionToken2, { ...cookieOptions2, maxAge: ONE_YEAR_MS });
+        res.redirect(302, "/");
+        return;
+      }
+      if (!state) {
+        res.status(400).json({ error: "state is required" });
+        return;
+      }
       const tokenResponse = await sdk.exchangeCodeForToken(code, state);
       const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
       if (!userInfo.openId) {
