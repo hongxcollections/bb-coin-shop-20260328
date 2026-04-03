@@ -1645,8 +1645,11 @@ function registerOAuthRoutes(app) {
     }
     try {
       if (ENV.googleClientId && ENV.googleClientSecret) {
-        const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-        const redirectUri = `${protocol}://${req.get("host")}/api/oauth/callback`;
+        const forwardedProto = req.headers["x-forwarded-proto"];
+        const protocol = typeof forwardedProto === "string" ? forwardedProto.split(",")[0].trim() : req.protocol;
+        const host = req.get("host");
+        const redirectUri = `${protocol}://${host}/api/oauth/callback`;
+        console.log(`[OAuth] Callback - protocol: ${protocol}, host: ${host}, redirectUri: ${redirectUri}`);
         const tokenResponse2 = await exchangeGoogleCode(code, redirectUri);
         const userInfo2 = await getGoogleUserInfo(tokenResponse2.access_token);
         const openId = `google_${userInfo2.sub}`;

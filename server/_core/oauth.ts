@@ -65,8 +65,15 @@ export function registerOAuthRoutes(app: Express) {
     try {
       // Use Google OAuth if Google credentials are configured
       if (ENV.googleClientId && ENV.googleClientSecret) {
-        const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-        const redirectUri = `${protocol}://${req.get("host")}/api/oauth/callback`;
+        // Railway uses X-Forwarded-Proto which may contain multiple values like "https,http"
+        // Take the first value (the outermost proxy protocol)
+        const forwardedProto = req.headers["x-forwarded-proto"];
+        const protocol = typeof forwardedProto === "string"
+          ? forwardedProto.split(",")[0].trim()
+          : req.protocol;
+        const host = req.get("host");
+        const redirectUri = `${protocol}://${host}/api/oauth/callback`;
+        console.log(`[OAuth] Callback - protocol: ${protocol}, host: ${host}, redirectUri: ${redirectUri}`);
         const tokenResponse = await exchangeGoogleCode(code, redirectUri);
         const userInfo = await getGoogleUserInfo(tokenResponse.access_token);
 
