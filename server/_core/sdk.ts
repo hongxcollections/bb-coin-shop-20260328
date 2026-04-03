@@ -268,32 +268,52 @@ class SDKServer {
     const signedInAt = new Date();
     let user = await db.getUserByOpenId(sessionUserId);
 
-    // If user not in DB, sync from OAuth server automatically
+    // If user not in DB, try to sync from OAuth server or use session data directly
     if (!user) {
+      // Try to upsert user from session data (works even without OAuth server)
       try {
-        const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
         await db.upsertUser({
-          openId: userInfo.openId,
-          name: userInfo.name || null,
-          email: userInfo.email ?? null,
-          loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
+          openId: sessionUserId,
+          name: session.name || null,
+          email: null,
+          loginMethod: "google",
           lastSignedIn: signedInAt,
         });
-        user = await db.getUserByOpenId(userInfo.openId);
-      } catch (error) {
-        console.error("[Auth] Failed to sync user from OAuth:", error);
-        throw ForbiddenError("Failed to sync user info");
+        user = await db.getUserByOpenId(sessionUserId);
+      } catch (dbError) {
+        console.warn("[Auth] Failed to upsert user from session:", dbError);
+      }
+
+      // If DB is not available, construct a minimal user object from session
+      if (!user) {
+        console.warn("[Auth] Database unavailable, using session data directly for:", sessionUserId);
+        return {
+          id: 0,
+          openId: sessionUserId,
+          name: session.name || null,
+          email: null,
+          loginMethod: "google",
+          role: "user",
+          notifyOutbid: 1,
+          notifyWon: 1,
+          notifyEndingSoon: 1,
+          memberLevel: "bronze",
+          defaultAnonymous: 0,
+          lastSignedIn: signedInAt,
+          createdAt: signedInAt,
+          updatedAt: signedInAt,
+        } as User;
       }
     }
 
-    if (!user) {
-      throw ForbiddenError("User not found");
+    try {
+      await db.upsertUser({
+        openId: user.openId,
+        lastSignedIn: signedInAt,
+      });
+    } catch (dbError) {
+      console.warn("[Auth] Failed to update lastSignedIn:", dbError);
     }
-
-    await db.upsertUser({
-      openId: user.openId,
-      lastSignedIn: signedInAt,
-    });
 
     return user;
   }

@@ -1581,27 +1581,45 @@ var SDKServer = class {
     let user = await getUserByOpenId(sessionUserId);
     if (!user) {
       try {
-        const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
         await upsertUser({
-          openId: userInfo.openId,
-          name: userInfo.name || null,
-          email: userInfo.email ?? null,
-          loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
+          openId: sessionUserId,
+          name: session.name || null,
+          email: null,
+          loginMethod: "google",
           lastSignedIn: signedInAt
         });
-        user = await getUserByOpenId(userInfo.openId);
-      } catch (error) {
-        console.error("[Auth] Failed to sync user from OAuth:", error);
-        throw ForbiddenError("Failed to sync user info");
+        user = await getUserByOpenId(sessionUserId);
+      } catch (dbError) {
+        console.warn("[Auth] Failed to upsert user from session:", dbError);
+      }
+      if (!user) {
+        console.warn("[Auth] Database unavailable, using session data directly for:", sessionUserId);
+        return {
+          id: 0,
+          openId: sessionUserId,
+          name: session.name || null,
+          email: null,
+          loginMethod: "google",
+          role: "user",
+          notifyOutbid: 1,
+          notifyWon: 1,
+          notifyEndingSoon: 1,
+          memberLevel: "bronze",
+          defaultAnonymous: 0,
+          lastSignedIn: signedInAt,
+          createdAt: signedInAt,
+          updatedAt: signedInAt
+        };
       }
     }
-    if (!user) {
-      throw ForbiddenError("User not found");
+    try {
+      await upsertUser({
+        openId: user.openId,
+        lastSignedIn: signedInAt
+      });
+    } catch (dbError) {
+      console.warn("[Auth] Failed to update lastSignedIn:", dbError);
     }
-    await upsertUser({
-      openId: user.openId,
-      lastSignedIn: signedInAt
-    });
     return user;
   }
 };
