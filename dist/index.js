@@ -8,6 +8,19 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
+// shared/const.ts
+var COOKIE_NAME, ONE_YEAR_MS, AXIOS_TIMEOUT_MS, UNAUTHED_ERR_MSG, NOT_ADMIN_ERR_MSG;
+var init_const = __esm({
+  "shared/const.ts"() {
+    "use strict";
+    COOKIE_NAME = "app_session_id";
+    ONE_YEAR_MS = 1e3 * 60 * 60 * 24 * 365;
+    AXIOS_TIMEOUT_MS = 3e4;
+    UNAUTHED_ERR_MSG = "Please login (10001)";
+    NOT_ADMIN_ERR_MSG = "You do not have required permission (10002)";
+  }
+});
+
 // drizzle/schema.ts
 var schema_exports = {};
 __export(schema_exports, {
@@ -191,16 +204,22 @@ var init_schema = __esm({
 });
 
 // server/_core/env.ts
-var ENV;
+var env_exports = {};
+__export(env_exports, {
+  ENV: () => ENV
+});
+var _ownerOpenId, ENV;
 var init_env = __esm({
   "server/_core/env.ts"() {
     "use strict";
+    _ownerOpenId = process.env.OWNER_OPEN_ID ?? "";
+    console.log(`[ENV] OWNER_OPEN_ID loaded: "${_ownerOpenId}" (length: ${_ownerOpenId.length})`);
     ENV = {
       appId: process.env.VITE_APP_ID ?? "",
       cookieSecret: process.env.JWT_SECRET ?? "",
       databaseUrl: process.env.DATABASE_URL ?? "",
       oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
-      ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
+      ownerOpenId: _ownerOpenId,
       isProduction: process.env.NODE_ENV === "production" && process.env.SANDBOX_MODE !== "true",
       forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
       forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
@@ -1183,6 +1202,273 @@ var init_db = __esm({
   }
 });
 
+// shared/_core/errors.ts
+var HttpError, ForbiddenError;
+var init_errors = __esm({
+  "shared/_core/errors.ts"() {
+    "use strict";
+    HttpError = class extends Error {
+      constructor(statusCode, message) {
+        super(message);
+        this.statusCode = statusCode;
+        this.name = "HttpError";
+      }
+    };
+    ForbiddenError = (msg) => new HttpError(403, msg);
+  }
+});
+
+// server/_core/sdk.ts
+var sdk_exports = {};
+__export(sdk_exports, {
+  sdk: () => sdk
+});
+import axios from "axios";
+import { parse as parseCookieHeader } from "cookie";
+import { SignJWT, jwtVerify } from "jose";
+var isNonEmptyString, EXCHANGE_TOKEN_PATH, GET_USER_INFO_PATH, GET_USER_INFO_WITH_JWT_PATH, OAuthService, createOAuthHttpClient, SDKServer, sdk;
+var init_sdk = __esm({
+  "server/_core/sdk.ts"() {
+    "use strict";
+    init_const();
+    init_errors();
+    init_db();
+    init_env();
+    isNonEmptyString = (value) => typeof value === "string" && value.length > 0;
+    EXCHANGE_TOKEN_PATH = `/webdev.v1.WebDevAuthPublicService/ExchangeToken`;
+    GET_USER_INFO_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfo`;
+    GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfoWithJwt`;
+    OAuthService = class {
+      constructor(client) {
+        this.client = client;
+        console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
+        if (!ENV.oAuthServerUrl) {
+          console.error(
+            "[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable."
+          );
+        }
+      }
+      decodeState(state) {
+        const redirectUri = atob(state);
+        return redirectUri;
+      }
+      async getTokenByCode(code, state) {
+        const payload = {
+          clientId: ENV.appId,
+          grantType: "authorization_code",
+          code,
+          redirectUri: this.decodeState(state)
+        };
+        const { data } = await this.client.post(
+          EXCHANGE_TOKEN_PATH,
+          payload
+        );
+        return data;
+      }
+      async getUserInfoByToken(token) {
+        const { data } = await this.client.post(
+          GET_USER_INFO_PATH,
+          {
+            accessToken: token.accessToken
+          }
+        );
+        return data;
+      }
+    };
+    createOAuthHttpClient = () => axios.create({
+      baseURL: ENV.oAuthServerUrl,
+      timeout: AXIOS_TIMEOUT_MS
+    });
+    SDKServer = class {
+      client;
+      oauthService;
+      constructor(client = createOAuthHttpClient()) {
+        this.client = client;
+        this.oauthService = new OAuthService(this.client);
+      }
+      deriveLoginMethod(platforms, fallback) {
+        if (fallback && fallback.length > 0) return fallback;
+        if (!Array.isArray(platforms) || platforms.length === 0) return null;
+        const set = new Set(
+          platforms.filter((p) => typeof p === "string")
+        );
+        if (set.has("REGISTERED_PLATFORM_EMAIL")) return "email";
+        if (set.has("REGISTERED_PLATFORM_GOOGLE")) return "google";
+        if (set.has("REGISTERED_PLATFORM_APPLE")) return "apple";
+        if (set.has("REGISTERED_PLATFORM_MICROSOFT") || set.has("REGISTERED_PLATFORM_AZURE"))
+          return "microsoft";
+        if (set.has("REGISTERED_PLATFORM_GITHUB")) return "github";
+        const first = Array.from(set)[0];
+        return first ? first.toLowerCase() : null;
+      }
+      /**
+       * Exchange OAuth authorization code for access token
+       * @example
+       * const tokenResponse = await sdk.exchangeCodeForToken(code, state);
+       */
+      async exchangeCodeForToken(code, state) {
+        return this.oauthService.getTokenByCode(code, state);
+      }
+      /**
+       * Get user information using access token
+       * @example
+       * const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
+       */
+      async getUserInfo(accessToken) {
+        const data = await this.oauthService.getUserInfoByToken({
+          accessToken
+        });
+        const loginMethod = this.deriveLoginMethod(
+          data?.platforms,
+          data?.platform ?? data.platform ?? null
+        );
+        return {
+          ...data,
+          platform: loginMethod,
+          loginMethod
+        };
+      }
+      parseCookies(cookieHeader) {
+        if (!cookieHeader) {
+          return /* @__PURE__ */ new Map();
+        }
+        const parsed = parseCookieHeader(cookieHeader);
+        return new Map(Object.entries(parsed));
+      }
+      getSessionSecret() {
+        const secret = ENV.cookieSecret;
+        return new TextEncoder().encode(secret);
+      }
+      /**
+       * Create a session token for a Manus user openId
+       * @example
+       * const sessionToken = await sdk.createSessionToken(userInfo.openId);
+       */
+      async createSessionToken(openId, options = {}) {
+        return this.signSession(
+          {
+            openId,
+            appId: ENV.appId,
+            name: options.name || ""
+          },
+          options
+        );
+      }
+      async signSession(payload, options = {}) {
+        const issuedAt = Date.now();
+        const expiresInMs = options.expiresInMs ?? ONE_YEAR_MS;
+        const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1e3);
+        const secretKey = this.getSessionSecret();
+        return new SignJWT({
+          openId: payload.openId,
+          appId: payload.appId,
+          name: payload.name
+        }).setProtectedHeader({ alg: "HS256", typ: "JWT" }).setExpirationTime(expirationSeconds).sign(secretKey);
+      }
+      async verifySession(cookieValue) {
+        if (!cookieValue) {
+          console.warn("[Auth] Missing session cookie");
+          return null;
+        }
+        try {
+          const secretKey = this.getSessionSecret();
+          const { payload } = await jwtVerify(cookieValue, secretKey, {
+            algorithms: ["HS256"]
+          });
+          const { openId, appId, name } = payload;
+          if (!isNonEmptyString(openId)) {
+            console.warn("[Auth] Session payload missing required fields");
+            return null;
+          }
+          return {
+            openId,
+            appId: appId || "",
+            name: name || ""
+          };
+        } catch (error) {
+          console.warn("[Auth] Session verification failed", String(error));
+          return null;
+        }
+      }
+      async getUserInfoWithJwt(jwtToken) {
+        const payload = {
+          jwtToken,
+          projectId: ENV.appId
+        };
+        const { data } = await this.client.post(
+          GET_USER_INFO_WITH_JWT_PATH,
+          payload
+        );
+        const loginMethod = this.deriveLoginMethod(
+          data?.platforms,
+          data?.platform ?? data.platform ?? null
+        );
+        return {
+          ...data,
+          platform: loginMethod,
+          loginMethod
+        };
+      }
+      async authenticateRequest(req) {
+        const cookies = this.parseCookies(req.headers.cookie);
+        const sessionCookie = cookies.get(COOKIE_NAME);
+        const session = await this.verifySession(sessionCookie);
+        if (!session) {
+          throw ForbiddenError("Invalid session cookie");
+        }
+        const sessionUserId = session.openId;
+        const signedInAt = /* @__PURE__ */ new Date();
+        let user = await getUserByOpenId(sessionUserId);
+        if (!user) {
+          try {
+            await upsertUser({
+              openId: sessionUserId,
+              name: session.name || null,
+              email: null,
+              loginMethod: "google",
+              lastSignedIn: signedInAt
+            });
+            user = await getUserByOpenId(sessionUserId);
+          } catch (dbError) {
+            console.warn("[Auth] Failed to upsert user from session:", dbError);
+          }
+          if (!user) {
+            const ownerOpenId = ENV.ownerOpenId || process.env.OWNER_OPEN_ID || "";
+            const isOwner = ownerOpenId.length > 0 && sessionUserId === ownerOpenId;
+            console.warn(`[Auth] Database unavailable, using session data directly for: ${sessionUserId}, ownerOpenId: ${ownerOpenId}, isOwner: ${isOwner}`);
+            return {
+              id: 0,
+              openId: sessionUserId,
+              name: session.name || null,
+              email: null,
+              loginMethod: "google",
+              role: isOwner ? "admin" : "user",
+              notifyOutbid: 1,
+              notifyWon: 1,
+              notifyEndingSoon: 1,
+              memberLevel: "bronze",
+              defaultAnonymous: 0,
+              lastSignedIn: signedInAt,
+              createdAt: signedInAt,
+              updatedAt: signedInAt
+            };
+          }
+        }
+        try {
+          await upsertUser({
+            openId: user.openId,
+            lastSignedIn: signedInAt
+          });
+        } catch (dbError) {
+          console.warn("[Auth] Failed to update lastSignedIn:", dbError);
+        }
+        return user;
+      }
+    };
+    sdk = new SDKServer();
+  }
+});
+
 // server/email.ts
 var email_exports = {};
 __export(email_exports, {
@@ -1350,14 +1636,8 @@ import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 
-// shared/const.ts
-var COOKIE_NAME = "app_session_id";
-var ONE_YEAR_MS = 1e3 * 60 * 60 * 24 * 365;
-var AXIOS_TIMEOUT_MS = 3e4;
-var UNAUTHED_ERR_MSG = "Please login (10001)";
-var NOT_ADMIN_ERR_MSG = "You do not have required permission (10002)";
-
 // server/_core/oauth.ts
+init_const();
 init_db();
 import axios2 from "axios";
 
@@ -1378,255 +1658,8 @@ function getSessionCookieOptions(req) {
   };
 }
 
-// shared/_core/errors.ts
-var HttpError = class extends Error {
-  constructor(statusCode, message) {
-    super(message);
-    this.statusCode = statusCode;
-    this.name = "HttpError";
-  }
-};
-var ForbiddenError = (msg) => new HttpError(403, msg);
-
-// server/_core/sdk.ts
-init_db();
-init_env();
-import axios from "axios";
-import { parse as parseCookieHeader } from "cookie";
-import { SignJWT, jwtVerify } from "jose";
-var isNonEmptyString = (value) => typeof value === "string" && value.length > 0;
-var EXCHANGE_TOKEN_PATH = `/webdev.v1.WebDevAuthPublicService/ExchangeToken`;
-var GET_USER_INFO_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfo`;
-var GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfoWithJwt`;
-var OAuthService = class {
-  constructor(client) {
-    this.client = client;
-    console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
-    if (!ENV.oAuthServerUrl) {
-      console.error(
-        "[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable."
-      );
-    }
-  }
-  decodeState(state) {
-    const redirectUri = atob(state);
-    return redirectUri;
-  }
-  async getTokenByCode(code, state) {
-    const payload = {
-      clientId: ENV.appId,
-      grantType: "authorization_code",
-      code,
-      redirectUri: this.decodeState(state)
-    };
-    const { data } = await this.client.post(
-      EXCHANGE_TOKEN_PATH,
-      payload
-    );
-    return data;
-  }
-  async getUserInfoByToken(token) {
-    const { data } = await this.client.post(
-      GET_USER_INFO_PATH,
-      {
-        accessToken: token.accessToken
-      }
-    );
-    return data;
-  }
-};
-var createOAuthHttpClient = () => axios.create({
-  baseURL: ENV.oAuthServerUrl,
-  timeout: AXIOS_TIMEOUT_MS
-});
-var SDKServer = class {
-  client;
-  oauthService;
-  constructor(client = createOAuthHttpClient()) {
-    this.client = client;
-    this.oauthService = new OAuthService(this.client);
-  }
-  deriveLoginMethod(platforms, fallback) {
-    if (fallback && fallback.length > 0) return fallback;
-    if (!Array.isArray(platforms) || platforms.length === 0) return null;
-    const set = new Set(
-      platforms.filter((p) => typeof p === "string")
-    );
-    if (set.has("REGISTERED_PLATFORM_EMAIL")) return "email";
-    if (set.has("REGISTERED_PLATFORM_GOOGLE")) return "google";
-    if (set.has("REGISTERED_PLATFORM_APPLE")) return "apple";
-    if (set.has("REGISTERED_PLATFORM_MICROSOFT") || set.has("REGISTERED_PLATFORM_AZURE"))
-      return "microsoft";
-    if (set.has("REGISTERED_PLATFORM_GITHUB")) return "github";
-    const first = Array.from(set)[0];
-    return first ? first.toLowerCase() : null;
-  }
-  /**
-   * Exchange OAuth authorization code for access token
-   * @example
-   * const tokenResponse = await sdk.exchangeCodeForToken(code, state);
-   */
-  async exchangeCodeForToken(code, state) {
-    return this.oauthService.getTokenByCode(code, state);
-  }
-  /**
-   * Get user information using access token
-   * @example
-   * const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
-   */
-  async getUserInfo(accessToken) {
-    const data = await this.oauthService.getUserInfoByToken({
-      accessToken
-    });
-    const loginMethod = this.deriveLoginMethod(
-      data?.platforms,
-      data?.platform ?? data.platform ?? null
-    );
-    return {
-      ...data,
-      platform: loginMethod,
-      loginMethod
-    };
-  }
-  parseCookies(cookieHeader) {
-    if (!cookieHeader) {
-      return /* @__PURE__ */ new Map();
-    }
-    const parsed = parseCookieHeader(cookieHeader);
-    return new Map(Object.entries(parsed));
-  }
-  getSessionSecret() {
-    const secret = ENV.cookieSecret;
-    return new TextEncoder().encode(secret);
-  }
-  /**
-   * Create a session token for a Manus user openId
-   * @example
-   * const sessionToken = await sdk.createSessionToken(userInfo.openId);
-   */
-  async createSessionToken(openId, options = {}) {
-    return this.signSession(
-      {
-        openId,
-        appId: ENV.appId,
-        name: options.name || ""
-      },
-      options
-    );
-  }
-  async signSession(payload, options = {}) {
-    const issuedAt = Date.now();
-    const expiresInMs = options.expiresInMs ?? ONE_YEAR_MS;
-    const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1e3);
-    const secretKey = this.getSessionSecret();
-    return new SignJWT({
-      openId: payload.openId,
-      appId: payload.appId,
-      name: payload.name
-    }).setProtectedHeader({ alg: "HS256", typ: "JWT" }).setExpirationTime(expirationSeconds).sign(secretKey);
-  }
-  async verifySession(cookieValue) {
-    if (!cookieValue) {
-      console.warn("[Auth] Missing session cookie");
-      return null;
-    }
-    try {
-      const secretKey = this.getSessionSecret();
-      const { payload } = await jwtVerify(cookieValue, secretKey, {
-        algorithms: ["HS256"]
-      });
-      const { openId, appId, name } = payload;
-      if (!isNonEmptyString(openId)) {
-        console.warn("[Auth] Session payload missing required fields");
-        return null;
-      }
-      return {
-        openId,
-        appId: appId || "",
-        name: name || ""
-      };
-    } catch (error) {
-      console.warn("[Auth] Session verification failed", String(error));
-      return null;
-    }
-  }
-  async getUserInfoWithJwt(jwtToken) {
-    const payload = {
-      jwtToken,
-      projectId: ENV.appId
-    };
-    const { data } = await this.client.post(
-      GET_USER_INFO_WITH_JWT_PATH,
-      payload
-    );
-    const loginMethod = this.deriveLoginMethod(
-      data?.platforms,
-      data?.platform ?? data.platform ?? null
-    );
-    return {
-      ...data,
-      platform: loginMethod,
-      loginMethod
-    };
-  }
-  async authenticateRequest(req) {
-    const cookies = this.parseCookies(req.headers.cookie);
-    const sessionCookie = cookies.get(COOKIE_NAME);
-    const session = await this.verifySession(sessionCookie);
-    if (!session) {
-      throw ForbiddenError("Invalid session cookie");
-    }
-    const sessionUserId = session.openId;
-    const signedInAt = /* @__PURE__ */ new Date();
-    let user = await getUserByOpenId(sessionUserId);
-    if (!user) {
-      try {
-        await upsertUser({
-          openId: sessionUserId,
-          name: session.name || null,
-          email: null,
-          loginMethod: "google",
-          lastSignedIn: signedInAt
-        });
-        user = await getUserByOpenId(sessionUserId);
-      } catch (dbError) {
-        console.warn("[Auth] Failed to upsert user from session:", dbError);
-      }
-      if (!user) {
-        console.warn("[Auth] Database unavailable, using session data directly for:", sessionUserId);
-        const isOwner = ENV.ownerOpenId && sessionUserId === ENV.ownerOpenId;
-        return {
-          id: 0,
-          openId: sessionUserId,
-          name: session.name || null,
-          email: null,
-          loginMethod: "google",
-          role: isOwner ? "admin" : "user",
-          notifyOutbid: 1,
-          notifyWon: 1,
-          notifyEndingSoon: 1,
-          memberLevel: "bronze",
-          defaultAnonymous: 0,
-          lastSignedIn: signedInAt,
-          createdAt: signedInAt,
-          updatedAt: signedInAt
-        };
-      }
-    }
-    try {
-      await upsertUser({
-        openId: user.openId,
-        lastSignedIn: signedInAt
-      });
-    } catch (dbError) {
-      console.warn("[Auth] Failed to update lastSignedIn:", dbError);
-    }
-    return user;
-  }
-};
-var sdk = new SDKServer();
-
 // server/_core/oauth.ts
+init_sdk();
 init_env();
 function getQueryParam(req, key) {
   const value = req.query[key];
@@ -1721,7 +1754,9 @@ function registerOAuthRoutes(app) {
 }
 
 // server/_core/devLogin.ts
+init_const();
 init_db();
+init_sdk();
 init_env();
 function registerDevLoginRoutes(app) {
   if (ENV.isProduction) return;
@@ -2201,6 +2236,9 @@ function registerWebhookRoutes(app) {
   });
 }
 
+// server/routers.ts
+init_const();
+
 // server/_core/systemRouter.ts
 import { z } from "zod";
 
@@ -2288,6 +2326,7 @@ async function notifyOwner(payload) {
 }
 
 // server/_core/trpc.ts
+init_const();
 import { initTRPC, TRPCError as TRPCError2 } from "@trpc/server";
 import superjson from "superjson";
 var t = initTRPC.context().create({
@@ -3369,6 +3408,7 @@ var appRouter = router({
 });
 
 // server/_core/context.ts
+init_sdk();
 async function createContext(opts) {
   let user = null;
   try {
@@ -3642,6 +3682,29 @@ async function startServer() {
   registerOAuthRoutes(app);
   registerDevLoginRoutes(app);
   registerWebhookRoutes(app);
+  app.get("/api/debug/auth", async (req, res) => {
+    const { sdk: sdk2 } = await Promise.resolve().then(() => (init_sdk(), sdk_exports));
+    const { ENV: ENV2 } = await Promise.resolve().then(() => (init_env(), env_exports));
+    try {
+      const user = await sdk2.authenticateRequest(req);
+      res.json({
+        authenticated: true,
+        openId: user.openId,
+        role: user.role,
+        name: user.name,
+        ownerOpenId: ENV2.ownerOpenId,
+        isOwner: user.openId === ENV2.ownerOpenId,
+        dbAvailable: !!process.env.DATABASE_URL
+      });
+    } catch (err) {
+      res.json({
+        authenticated: false,
+        error: String(err),
+        ownerOpenId: ENV2.ownerOpenId,
+        dbAvailable: !!process.env.DATABASE_URL
+      });
+    }
+  });
   app.use(
     "/api/trpc",
     createExpressMiddleware({
