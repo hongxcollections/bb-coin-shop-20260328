@@ -1,30 +1,20 @@
 FROM node:20-alpine
-
 WORKDIR /app
-
 # Install pnpm
 RUN npm install -g pnpm
-
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
-
 # Copy patches directory if it exists
 COPY patches/ ./patches/
-
 # Install all dependencies (including devDependencies for build)
 RUN pnpm install --frozen-lockfile
-
-# Copy source code
+# Copy source code (including pre-built dist/ directory)
 COPY . .
-
-# Build the application (Vite frontend + esbuild server bundle)
-RUN pnpm build
-
+# Build only the server bundle (skip Vite frontend build - use pre-built dist/public)
+RUN pnpm exec esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
 # Remove dev dependencies after build
 RUN pnpm prune --prod
-
 # Expose port
 EXPOSE 3000
-
 # Start the server
 CMD ["node", "dist/index.js"]
