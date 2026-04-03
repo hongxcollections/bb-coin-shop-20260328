@@ -1594,13 +1594,14 @@ var SDKServer = class {
       }
       if (!user) {
         console.warn("[Auth] Database unavailable, using session data directly for:", sessionUserId);
+        const isOwner = ENV.ownerOpenId && sessionUserId === ENV.ownerOpenId;
         return {
           id: 0,
           openId: sessionUserId,
           name: session.name || null,
           email: null,
           loginMethod: "google",
-          role: "user",
+          role: isOwner ? "admin" : "user",
           notifyOutbid: 1,
           notifyWon: 1,
           notifyEndingSoon: 1,
@@ -1671,6 +1672,7 @@ function registerOAuthRoutes(app) {
         const tokenResponse2 = await exchangeGoogleCode(code, redirectUri);
         const userInfo2 = await getGoogleUserInfo(tokenResponse2.access_token);
         const openId = `google_${userInfo2.sub}`;
+        console.log(`[OAuth] User logged in - openId: ${openId}, email: ${userInfo2.email}, name: ${userInfo2.name}`);
         await upsertUser({
           openId,
           name: userInfo2.name || null,

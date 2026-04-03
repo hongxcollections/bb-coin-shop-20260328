@@ -287,13 +287,14 @@ class SDKServer {
       // If DB is not available, construct a minimal user object from session
       if (!user) {
         console.warn("[Auth] Database unavailable, using session data directly for:", sessionUserId);
+        const isOwner = ENV.ownerOpenId && sessionUserId === ENV.ownerOpenId;
         return {
           id: 0,
           openId: sessionUserId,
           name: session.name || null,
           email: null,
           loginMethod: "google",
-          role: "user",
+          role: isOwner ? "admin" : "user",
           notifyOutbid: 1,
           notifyWon: 1,
           notifyEndingSoon: 1,

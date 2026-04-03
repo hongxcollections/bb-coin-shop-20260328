@@ -78,6 +78,7 @@ export function registerOAuthRoutes(app: Express) {
         const userInfo = await getGoogleUserInfo(tokenResponse.access_token);
 
         const openId = `google_${userInfo.sub}`;
+        console.log(`[OAuth] User logged in - openId: ${openId}, email: ${userInfo.email}, name: ${userInfo.name}`);
 
         await db.upsertUser({
           openId,
