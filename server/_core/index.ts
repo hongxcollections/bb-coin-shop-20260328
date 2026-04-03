@@ -75,31 +75,6 @@ async function startServer() {
   registerDevLoginRoutes(app);
   // Facebook Groups Watcher webhook
   registerWebhookRoutes(app);
-  // Debug endpoint to check auth status
-  app.get("/api/debug/auth", async (req, res) => {
-    const { sdk } = await import("./sdk");
-    const { ENV } = await import("./env");
-    try {
-      const user = await sdk.authenticateRequest(req);
-      res.json({
-        authenticated: true,
-        openId: user.openId,
-        role: user.role,
-        name: user.name,
-        ownerOpenId: ENV.ownerOpenId,
-        isOwner: user.openId === ENV.ownerOpenId,
-        dbAvailable: !!process.env.DATABASE_URL,
-      });
-    } catch (err) {
-      res.json({
-        authenticated: false,
-        error: String(err),
-        ownerOpenId: ENV.ownerOpenId,
-        dbAvailable: !!process.env.DATABASE_URL,
-      });
-    }
-  });
-
   // tRPC API
   app.use(
     "/api/trpc",
