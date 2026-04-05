@@ -132,20 +132,20 @@ export default function Auctions() {
           <p className="text-muted-foreground">共 {filtered.length} 件拍品</p>
         </div>
 
-        {/* Category tabs */}
+        {/* Category tabs - Simplified to save space */}
         <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
           {CATEGORIES.map((c) => (
             <button
               key={c.value}
               onClick={() => { setCategory(c.value); setPage(0); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+              title={c.label}
+              className={`flex items-center justify-center w-10 h-10 rounded-full text-lg transition-all shrink-0 ${
                 category === c.value
-                  ? "gold-gradient text-white shadow-sm"
+                  ? "gold-gradient text-white shadow-md scale-110"
                   : "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
               }`}
             >
               <span>{c.emoji}</span>
-              <span>{c.label}</span>
             </button>
           ))}
         </div>
@@ -201,12 +201,14 @@ export default function Auctions() {
           </div>
         </div>
 
-        {/* ── Marquee Ticker ── */}
-        {!isLoading && (auctions ?? []).length > 0 && (
+        {/* ── Marquee Ticker ── Only show active auctions */}
+        {!isLoading && (auctions ?? []).filter(a => a.status === 'active').length > 0 && (
           <div className="marquee-wrapper mb-6 border border-amber-100 rounded-xl bg-amber-50/60 py-2">
             <div className="marquee-track">
               {/* 複製一份以實現無縮循環 */}
-              {[...(auctions ?? []), ...(auctions ?? [])].map((auction, idx) => (
+              {(() => {
+                const activeAuctions = (auctions ?? []).filter(a => a.status === 'active');
+                return [...activeAuctions, ...activeAuctions].map((auction, idx) => (
                 <Link
                   key={`${auction.id}-${idx}`}
                   href={`/auctions/${auction.id}`}
@@ -229,9 +231,10 @@ export default function Auctions() {
                       {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
                     </span>
                   </div>
-                  <span className={`ml-1 w-1.5 h-1.5 rounded-full shrink-0 ${auction.status === 'active' ? 'bg-emerald-400' : 'bg-gray-300'}`} />
+                  <span className="ml-1 w-1.5 h-1.5 rounded-full shrink-0 bg-emerald-400" />
                 </Link>
-              ))}
+              ));
+              })()}
             </div>
           </div>
         )}
