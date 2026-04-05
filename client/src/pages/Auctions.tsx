@@ -7,7 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Clock, Search, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { Clock, Search, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown, Filter } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrencySymbol } from "./AdminAuctions";
 
@@ -132,22 +140,50 @@ export default function Auctions() {
           <p className="text-muted-foreground">共 {filtered.length} 件拍品</p>
         </div>
 
-        {/* Category tabs - Simplified to save space */}
-        <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
-          {CATEGORIES.map((c) => (
-            <button
-              key={c.value}
-              onClick={() => { setCategory(c.value); setPage(0); }}
-              title={c.label}
-              className={`flex items-center justify-center w-10 h-10 rounded-full text-lg transition-all shrink-0 ${
-                category === c.value
-                  ? "gold-gradient text-white shadow-md scale-110"
-                  : "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
-              }`}
+        {/* Category Selector - Using Dropdown Menu to save space */}
+        <div className="flex items-center gap-3 mb-6">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="outline" 
+                className="border-amber-200 text-amber-800 hover:bg-amber-50 flex items-center gap-2 rounded-full px-5 h-10 shadow-sm transition-all active:scale-95"
+              >
+                <Filter className="w-4 h-4 text-amber-500" />
+                <span className="font-semibold">
+                  {category === "all" ? "全部商品分類" : `分類：${CATEGORIES.find(c => c.value === category)?.label}`}
+                </span>
+                <ChevronDown className="w-4 h-4 text-amber-400" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56 bg-white border-amber-100 rounded-xl shadow-xl z-[100]">
+              <DropdownMenuLabel className="text-amber-900 font-bold px-3 py-2">選擇商品分類</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-amber-50" />
+              {CATEGORIES.map((c) => (
+                <DropdownMenuItem
+                  key={c.value}
+                  onClick={() => { setCategory(c.value); setPage(0); }}
+                  className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${
+                    category === c.value ? "bg-amber-50 text-amber-900 font-bold" : "text-amber-800 hover:bg-amber-50/50"
+                  }`}
+                >
+                  <span className="text-xl">{c.emoji}</span>
+                  <span className="text-sm">{c.label}</span>
+                  {category === c.value && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          {category !== "all" && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => { setCategory("all"); setPage(0); }}
+              className="text-amber-600 hover:text-amber-800 hover:bg-amber-50 text-xs font-medium rounded-full"
             >
-              <span>{c.emoji}</span>
-            </button>
-          ))}
+              清除篩選
+            </Button>
+          )}
         </div>
 
         {/* Search & Filter */}
@@ -201,39 +237,46 @@ export default function Auctions() {
           </div>
         </div>
 
-        {/* ── Marquee Ticker ── Only show active auctions */}
-        {!isLoading && (auctions ?? []).filter(a => a.status === 'active').length > 0 && (
-          <div className="marquee-wrapper mb-6 border border-amber-100 rounded-xl bg-amber-50/60 py-2">
-            <div className="marquee-track">
-              {/* 複製一份以實現無縮循環 */}
+        {/* ── Marquee Ticker ── Strictly show only active auctions with future end time */}
+        {!isLoading && (auctions ?? []).filter(a => a.status === 'active' && new Date(a.endTime).getTime() > Date.now()).length > 0 && (
+          <div className="marquee-wrapper mb-6 border border-amber-100 rounded-xl bg-amber-50/60 py-2 overflow-hidden">
+            <div className="marquee-track flex">
               {(() => {
-                const activeAuctions = (auctions ?? []).filter(a => a.status === 'active');
+                const activeAuctions = (auctions ?? []).filter(a => 
+                  a.status === 'active' && new Date(a.endTime).getTime() > Date.now()
+                );
+                // Duplicate items for seamless infinite scroll
                 return [...activeAuctions, ...activeAuctions].map((auction, idx) => (
-                <Link
-                  key={`${auction.id}-${idx}`}
-                  href={`/auctions/${auction.id}`}
-                  className="flex items-center gap-2 px-4 py-1 mx-1 rounded-lg hover:bg-amber-100 transition-colors shrink-0 cursor-pointer"
-                >
-                  <div className="w-9 h-9 rounded-md overflow-hidden bg-amber-100 flex items-center justify-center shrink-0">
-                    {auction.images && (auction.images as Array<{ imageUrl: string }>).length > 0 ? (
-                      <img
-                        src={(auction.images as Array<{ imageUrl: string }>)[0].imageUrl}
-                        alt={auction.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-lg">🪙</span>
-                    )}
-                  </div>
-                  <div className="flex flex-col leading-tight">
-                    <span className="text-xs font-medium text-amber-900 max-w-[8rem] truncate">{auction.title}</span>
-                    <span className="text-xs text-amber-600 font-semibold">
-                      {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
-                    </span>
-                  </div>
-                  <span className="ml-1 w-1.5 h-1.5 rounded-full shrink-0 bg-emerald-400" />
-                </Link>
-              ));
+                  <Link
+                    key={`${auction.id}-${idx}`}
+                    href={`/auctions/${auction.id}`}
+                    className="flex items-center gap-3 px-4 py-1.5 mx-1.5 rounded-xl hover:bg-white/80 hover:shadow-sm transition-all shrink-0 cursor-pointer border border-transparent hover:border-amber-100"
+                  >
+                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-inner">
+                      {auction.images && (auction.images as Array<{ imageUrl: string }>).length > 0 ? (
+                        <img
+                          src={(auction.images as Array<{ imageUrl: string }>)[0].imageUrl}
+                          alt={auction.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xl">🪙</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col justify-center">
+                      <span className="text-xs font-bold text-amber-900 max-w-[10rem] truncate">{auction.title}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-amber-600 font-extrabold">
+                          {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
+                        </span>
+                        <div className="flex items-center gap-1 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-100">
+                          <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider">Live</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                ));
               })()}
             </div>
           </div>
