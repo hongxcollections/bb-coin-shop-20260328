@@ -24,11 +24,15 @@ import {
   Search, 
   SlidersHorizontal, 
   Filter, 
-  ChevronDown 
+  ChevronDown,
+  ChevronLeft
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrencySymbol } from "./AdminAuctions";
+
+// Version: 2026-04-06-V3-Final
+console.log("MANUS_VERSION_CHECK_V3");
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -461,7 +465,7 @@ export default function Home() {
           <div className="font-bold text-xl mb-2 text-amber-100">大BB錢幣店</div>
           <p className="text-sm mb-6">© 2026 大BB錢幣店 · 專業錢幣拍賣平台 · 誠信鑑定</p>
           <div className="flex justify-center gap-6 text-xs uppercase tracking-widest font-bold">
-            <Link href="/auctions" className="hover:text-amber-400 transition-colors">所有拍賣</Link>
+            <Link href="/" className="hover:text-amber-400 transition-colors">所有拍賣</Link>
             <a href="#" className="hover:text-amber-400 transition-colors">服務條款</a>
             <a href="#" className="hover:text-amber-400 transition-colors">隱私政策</a>
           </div>
