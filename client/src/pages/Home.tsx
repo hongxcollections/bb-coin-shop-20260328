@@ -31,8 +31,8 @@ import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrencySymbol } from "./AdminAuctions";
 
-// Version: 2026-04-06-V3-Final
-console.log("MANUS_VERSION_CHECK_V3");
+// Version: 2026-04-06-V4-Detail-Optimized
+console.log("MANUS_VERSION_CHECK_V4");
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -89,6 +89,8 @@ export default function Home() {
     { limit: 100, offset: 0, category: category === "all" ? undefined : category }
   );
 
+  const activeCount = (auctions ?? []).filter(a => a.status === "active" && new Date(a.endTime).getTime() > Date.now()).length;
+
   const filtered = (auctions ?? []).filter((a) => {
     const matchSearch = !search || a.title.toLowerCase().includes(search.toLowerCase());
     const matchFilter = filter === "all" || a.status === filter;
@@ -106,8 +108,8 @@ export default function Home() {
   const paginated = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const stats = [
-    { label: "活躍拍賣", value: auctions?.filter(a => a.status === "active").length ?? 0, suffix: "件" },
-    { label: "已成交", value: auctions?.filter(a => a.status === "ended").length ?? 0, suffix: "件" },
+    { label: "活躍拍賣", value: activeCount, suffix: "件" },
+    { label: "已成交", value: auctions?.filter(a => a.status === "ended" || new Date(a.endTime).getTime() <= Date.now()).length ?? 0, suffix: "件" },
     { label: "錢幣品類", value: "100+", suffix: "" },
   ];
 
@@ -129,11 +131,6 @@ export default function Home() {
           </Link>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Link href="/">
-              <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50 font-bold">
-                所有拍賣
-              </Button>
-            </Link>
             {isAuthenticated ? (
               <>
                 {user?.role === "admin" && (
@@ -179,7 +176,7 @@ export default function Home() {
         <div className="container">
           {!isLoading && (auctions ?? []).filter(a => a.status === 'active' && new Date(a.endTime).getTime() > Date.now()).length > 0 && (
             <div className="marquee-wrapper border border-amber-100 rounded-2xl bg-white py-3 overflow-hidden shadow-sm">
-              <div className="marquee-track flex">
+              <div className="marquee-track flex" style={{ animationDuration: '15s' }}>
                 {(() => {
                   const activeAuctions = (auctions ?? []).filter(a => 
                     a.status === 'active' && new Date(a.endTime).getTime() > Date.now()
@@ -225,9 +222,9 @@ export default function Home() {
       {/* ── Section 3: Auction Grid (Main Content) ── */}
       <section className="py-8 bg-white">
         <div className="container">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-1">正在拍賣</h1>
-            <p className="text-muted-foreground">共 {filtered.length} 件拍品</p>
+          <div className="mb-8 flex items-baseline gap-3">
+            <h1 className="text-3xl font-bold">正在拍賣</h1>
+            <p className="text-muted-foreground">(共 {activeCount} 件拍品)</p>
           </div>
 
           {/* Category Selector */}
