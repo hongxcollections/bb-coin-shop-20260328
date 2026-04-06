@@ -31,8 +31,8 @@ import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrencySymbol } from "./AdminAuctions";
 
-// Version: 2026-04-06-V4-FINAL-FORCE-UPDATE
-console.log("MANUS_VERSION_CHECK_V4_FINAL");
+// Version: 2026-04-06-V5-FINAL-SPEED-UPDATE
+console.log("MANUS_VERSION_CHECK_V5_FINAL");
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -80,7 +80,6 @@ export default function Home() {
   
   // Auctions Logic
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "active" | "ended">("all");
   const [category, setCategory] = useState("all");
   const [page, setPage] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -91,21 +90,16 @@ export default function Home() {
 
   const activeCount = (auctions ?? []).filter(a => a.status === "active" && new Date(a.endTime).getTime() > Date.now()).length;
 
+  // 1. Modified Filter: Only show active auctions in the main grid
   const filtered = (auctions ?? []).filter((a) => {
+    const isEnded = new Date(a.endTime).getTime() <= Date.now() || a.status === 'ended';
     const matchSearch = !search || a.title.toLowerCase().includes(search.toLowerCase());
-    const matchFilter = filter === "all" || a.status === filter;
-    return matchSearch && matchFilter;
+    // Only include items that are NOT ended
+    return matchSearch && !isEnded;
   });
 
-  const sorted = [...filtered].sort((a, b) => {
-    const aEnded = new Date(a.endTime).getTime() <= Date.now() || a.status === 'ended';
-    const bEnded = new Date(b.endTime).getTime() <= Date.now() || b.status === 'ended';
-    if (aEnded !== bEnded) return aEnded ? 1 : -1;
-    return 0;
-  });
-
-  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
-  const paginated = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const stats = [
     { label: "活躍拍賣", value: activeCount, suffix: "件" },
@@ -121,7 +115,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-background" id="manus-v4-root">
+    <div className="min-h-screen bg-background" id="manus-v5-root">
       {/* Navigation */}
       <nav className="nav-glass sticky top-0 z-50">
         <div className="container flex items-center justify-between h-16">
@@ -176,7 +170,8 @@ export default function Home() {
         <div className="container">
           {!isLoading && (auctions ?? []).filter(a => a.status === 'active' && new Date(a.endTime).getTime() > Date.now()).length > 0 && (
             <div className="marquee-wrapper border border-amber-100 rounded-2xl bg-white py-3 overflow-hidden shadow-sm">
-              <div className="marquee-track flex" style={{ animationDuration: '12s' }}>
+              {/* 2. Modified Animation Duration: 6s (Twice as fast as previous 12s) */}
+              <div className="marquee-track flex" style={{ animationDuration: '6s' }}>
                 {(() => {
                   const activeAuctions = (auctions ?? []).filter(a => 
                     a.status === 'active' && new Date(a.endTime).getTime() > Date.now()
@@ -273,7 +268,7 @@ export default function Home() {
             )}
           </div>
 
-          {/* Search & Filter */}
+          {/* Search */}
           <div className="flex flex-col sm:flex-row gap-3 mb-8">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -287,7 +282,7 @@ export default function Home() {
               />
               {showSuggestions && search.length >= 1 && (() => {
                 const suggestions = (auctions ?? [])
-                  .filter(a => a.title.toLowerCase().includes(search.toLowerCase()))
+                  .filter(a => a.title.toLowerCase().includes(search.toLowerCase()) && a.status === 'active' && new Date(a.endTime).getTime() > Date.now())
                   .slice(0, 6);
                 return suggestions.length > 0 ? (
                   <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-amber-200 rounded-xl shadow-lg overflow-hidden">
@@ -306,20 +301,6 @@ export default function Home() {
                   </div>
                 ) : null;
               })()}
-            </div>
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal className="w-4 h-4 text-muted-foreground mr-1" />
-              {(["all", "active", "ended"] as const).map((f) => (
-                <Button
-                  key={f}
-                  size="sm"
-                  variant={filter === f ? "default" : "outline"}
-                  className={filter === f ? "gold-gradient text-white border-0 px-4 rounded-full" : "border-amber-200 text-amber-700 hover:bg-amber-50 rounded-full px-4"}
-                  onClick={() => { setFilter(f); setPage(0); }}
-                >
-                  {f === "all" ? "全部" : f === "active" ? "競拍中" : "已結束"}
-                </Button>
-              ))}
             </div>
           </div>
 
@@ -346,14 +327,7 @@ export default function Home() {
                         <span className="text-5xl">🪙</span>
                       )}
                       <div className="absolute top-3 right-3">
-                        {(() => {
-                          const isEnded = new Date(auction.endTime).getTime() <= Date.now() || auction.status === 'ended';
-                          return (
-                            <Badge className={!isEnded ? "bg-emerald-500 text-white shadow-sm" : "bg-gray-400 text-white shadow-sm"}>
-                              {!isEnded ? "競拍中" : "已結束"}
-                            </Badge>
-                          );
-                        })()}
+                        <Badge className="bg-emerald-500 text-white shadow-sm">競拍中</Badge>
                       </div>
                     </div>
                     <CardContent className="p-4 flex-1 flex flex-col">
@@ -361,9 +335,7 @@ export default function Home() {
                       <div className="mt-auto pt-2 border-t border-amber-50">
                         <div className="flex items-center justify-between mb-2">
                           <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">當前出價</div>
-                          {new Date(auction.endTime).getTime() > Date.now() && auction.status === 'active' && (
-                            <CountdownTimer endTime={new Date(auction.endTime)} />
-                          )}
+                          <CountdownTimer endTime={new Date(auction.endTime)} />
                         </div>
                         <div className="flex items-end justify-between">
                           <div className="text-xl font-black text-amber-600 price-tag">
@@ -382,7 +354,7 @@ export default function Home() {
           ) : (
             <div className="text-center py-20 bg-amber-50/30 rounded-3xl border border-dashed border-amber-200">
               <div className="text-6xl mb-4">🪙</div>
-              <h3 className="text-xl font-bold text-amber-900">暫無拍賣商品</h3>
+              <h3 className="text-xl font-bold text-amber-900">暫無正在進行的拍賣</h3>
               <p className="text-muted-foreground mt-2">請調整篩選條件或稍後再來查看</p>
             </div>
           )}
