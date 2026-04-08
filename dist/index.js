@@ -208,7 +208,11 @@ var init_env = __esm({
       forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
       webhookSecret: process.env.WEBHOOK_SECRET ?? "",
       googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
-      googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? ""
+      googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      s3AccessKey: process.env.S3_ACCESS_KEY ?? "",
+      s3SecretKey: process.env.S3_SECRET_KEY ?? "",
+      s3Bucket: process.env.S3_BUCKET ?? "",
+      s3Endpoint: process.env.S3_ENDPOINT ?? ""
     };
   }
 });
@@ -2589,54 +2593,39 @@ init_db();
 
 // server/storage.ts
 init_env();
-function getStorageConfig() {
-  const baseUrl = ENV.forgeApiUrl;
-  const apiKey = ENV.forgeApiKey;
-  if (!baseUrl || !apiKey) {
-    throw new Error(
-      "Storage proxy credentials missing: set BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY"
-    );
-  }
-  return { baseUrl: baseUrl.replace(/\/+$/, ""), apiKey };
-}
-function buildUploadUrl(baseUrl, relKey) {
-  const url = new URL("v1/storage/upload", ensureTrailingSlash(baseUrl));
-  url.searchParams.set("path", normalizeKey(relKey));
-  return url;
-}
-function ensureTrailingSlash(value) {
-  return value.endsWith("/") ? value : `${value}/`;
-}
-function normalizeKey(relKey) {
-  return relKey.replace(/^\/+/, "");
-}
-function toFormData(data, contentType, fileName) {
-  const blob = typeof data === "string" ? new Blob([data], { type: contentType }) : new Blob([data], { type: contentType });
-  const form = new FormData();
-  form.append("file", blob, fileName || "file");
-  return form;
-}
-function buildAuthHeaders(apiKey) {
-  return { Authorization: `Bearer ${apiKey}` };
-}
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+var s3Client = new S3Client({
+  region: "ap-southeast-1",
+  credentials: {
+    accessKeyId: ENV.s3AccessKey || "",
+    secretAccessKey: ENV.s3SecretKey || ""
+  },
+  endpoint: ENV.s3Endpoint || void 0,
+  forcePathStyle: true
+});
 async function storagePut(relKey, data, contentType = "application/octet-stream") {
-  const { baseUrl, apiKey } = getStorageConfig();
-  const key = normalizeKey(relKey);
-  const uploadUrl = buildUploadUrl(baseUrl, key);
-  const formData = toFormData(data, contentType, key.split("/").pop() ?? key);
-  const response = await fetch(uploadUrl, {
-    method: "POST",
-    headers: buildAuthHeaders(apiKey),
-    body: formData
+  const key = relKey.replace(/^\/+/, "");
+  const bucket = ENV.s3Bucket || "";
+  const command = new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    Body: data,
+    ContentType: contentType
+    // Removed ACL: 'public-read' to support buckets with Object Ownership enabled
   });
-  if (!response.ok) {
-    const message = await response.text().catch(() => response.statusText);
-    throw new Error(
-      `Storage upload failed (${response.status} ${response.statusText}): ${message}`
-    );
+  try {
+    await s3Client.send(command);
+    let url = "";
+    if (ENV.s3Endpoint && !ENV.s3Endpoint.includes("amazonaws.com")) {
+      url = `${ENV.s3Endpoint.replace(/\/+$/, "")}/${bucket}/${key}`;
+    } else {
+      url = `https://${bucket}.s3.ap-southeast-1.amazonaws.com/${key}`;
+    }
+    return { key, url };
+  } catch (error) {
+    console.error("S3 upload error:", error);
+    throw new Error(`Storage upload failed: ${error.message}`);
   }
-  const url = (await response.json()).url;
-  return { key, url };
 }
 
 // server/routers.ts
@@ -3580,15 +3569,40 @@ async function setupVite(app, server) {
   });
 }
 function serveStatic(app) {
-  const distPath = process.env.NODE_ENV === "development" ? path2.resolve(import.meta.dirname, "../..", "dist", "public") : path2.resolve(import.meta.dirname, "public");
-  if (!fs2.existsSync(distPath)) {
+  const possiblePaths = [
+    path2.resolve(import.meta.dirname, "public"),
+    // Relative to dist/index.js
+    path2.resolve(process.cwd(), "dist", "public"),
+    // Relative to project root
+    path2.resolve(process.cwd(), "public")
+  ];
+  let distPath = "";
+  for (const p of possiblePaths) {
+    console.log(`[Static] Checking path: ${p}`);
+    if (fs2.existsSync(p) && fs2.existsSync(path2.join(p, "index.html"))) {
+      distPath = p;
+      console.log(`[Static] Found valid public directory at: ${distPath}`);
+      break;
+    }
+  }
+  if (!distPath) {
+    distPath = possiblePaths[0];
     console.error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`
+      `[Static] ERROR: Could not find a valid build directory with index.html. Defaulting to: ${distPath}`
     );
   }
   app.use(express.static(distPath));
-  app.use("*", (_req, res) => {
-    res.sendFile(path2.resolve(distPath, "index.html"));
+  app.use((req, res, next) => {
+    if (req.path.startsWith("/api")) {
+      return next();
+    }
+    const indexPath = path2.resolve(distPath, "index.html");
+    if (fs2.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      console.error(`[Static] index.html not found at: ${indexPath}`);
+      res.status(500).send("Server error: index.html not found");
+    }
   });
 }
 
