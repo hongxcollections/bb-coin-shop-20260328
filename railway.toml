@@ -6,4 +6,4 @@ buildCommand = "pnpm install --frozen-lockfile && pnpm build"
 startCommand = "node dist/index.js"
 restartPolicyType = "ON_FAILURE"
 
-# Trigger redeploy
+# Trigger redeploy with VITE_GOOGLE_CLIENT_ID
