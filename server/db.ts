@@ -1162,15 +1162,15 @@ export async function getMyWonAuctions(userId: number) {
         endTime: auctions.endTime,
         status: auctions.status,
         category: auctions.category,
-        bidCount: sql<number>`(SELECT COUNT(*) FROM bids WHERE bids.auction_id = ${auctions.id})`,
-        winningAmount: sql<string>`(SELECT bid_amount FROM bids WHERE bids.auction_id = ${auctions.id} ORDER BY bid_amount DESC, created_at ASC LIMIT 1)`,
+        bidCount: sql<number>`(SELECT COUNT(*) FROM bids WHERE bids.auctionId = ${auctions.id})`,
+        winningAmount: sql<string>`(SELECT bidAmount FROM bids WHERE bids.auctionId = ${auctions.id} ORDER BY bidAmount DESC, created_at ASC LIMIT 1)`,
         paymentStatus: auctions.paymentStatus,
       })
       .from(auctions)
       .where(
         and(
           eq(auctions.status, 'ended'),
-          sql`(SELECT user_id FROM bids WHERE bids.auction_id = ${auctions.id} ORDER BY bid_amount DESC, created_at ASC LIMIT 1) = ${userId}`
+          sql`(SELECT userId FROM bids WHERE bids.auctionId = ${auctions.id} ORDER BY bidAmount DESC, created_at ASC LIMIT 1) = ${userId}`
         )
       )
       .orderBy(desc(auctions.endTime));
@@ -1260,9 +1260,9 @@ export async function getWonOrders() {
         currency: auctions.currency,
         endTime: auctions.endTime,
         paymentStatus: auctions.paymentStatus,
-        winnerName: sql<string>`(SELECT u.name FROM users u INNER JOIN bids b ON b.user_id = u.id WHERE b.auction_id = ${auctions.id} ORDER BY b.bid_amount DESC, b.created_at ASC LIMIT 1)`,
-        winnerOpenId: sql<string>`(SELECT u.open_id FROM users u INNER JOIN bids b ON b.user_id = u.id WHERE b.auction_id = ${auctions.id} ORDER BY b.bid_amount DESC, b.created_at ASC LIMIT 1)`,
-        winningAmount: sql<string>`(SELECT b.bid_amount FROM bids b WHERE b.auction_id = ${auctions.id} ORDER BY b.bid_amount DESC, b.created_at ASC LIMIT 1)`,
+        winnerName: sql<string>`(SELECT u.name FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.created_at ASC LIMIT 1)`,
+        winnerOpenId: sql<string>`(SELECT u.open_id FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.created_at ASC LIMIT 1)`,
+        winningAmount: sql<string>`(SELECT b.bidAmount FROM bids b WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.created_at ASC LIMIT 1)`,
       })
       .from(auctions)
       .where(eq(auctions.status, 'ended'))
