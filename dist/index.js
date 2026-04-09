@@ -285,7 +285,12 @@ async function getDb() {
         database: url.pathname.slice(1),
         ssl: isLocalhost ? void 0 : { rejectUnauthorized: false },
         waitForConnections: true,
-        connectionLimit: 10
+        connectionLimit: 20,
+        queueLimit: 0,
+        connectTimeout: 1e4,
+        idleTimeout: 6e4,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 3e4
       });
       _db = drizzle(pool);
     } catch (error) {
@@ -485,10 +490,19 @@ async function getUserBidsGrouped(userId) {
     const auctionIds = Array.from(new Set(rows.map((r) => r.auctionId).filter((id) => id !== null)));
     const winnerMap = /* @__PURE__ */ new Map();
     if (auctionIds.length > 0) {
-      for (const aId of auctionIds) {
-        const topBid = await db.select({ userId: bids.userId, bidAmount: bids.bidAmount }).from(bids).where(eq(bids.auctionId, aId)).orderBy(desc(bids.bidAmount), desc(bids.createdAt)).limit(1);
-        if (topBid[0]?.userId !== null && topBid[0]?.userId !== void 0) {
-          winnerMap.set(aId, topBid[0].userId);
+      const topBids = await db.select({
+        auctionId: bids.auctionId,
+        userId: bids.userId,
+        maxBid: sql`MAX(${bids.bidAmount})`
+      }).from(bids).where(inArray(bids.auctionId, auctionIds)).groupBy(bids.auctionId, bids.userId);
+      const auctionMaxBid = /* @__PURE__ */ new Map();
+      for (const row of topBids) {
+        if (row.auctionId === null) continue;
+        const bid = parseFloat(row.maxBid);
+        const existing = auctionMaxBid.get(row.auctionId);
+        if (existing === void 0 || bid > existing) {
+          auctionMaxBid.set(row.auctionId, bid);
+          winnerMap.set(row.auctionId, row.userId);
         }
       }
     }
@@ -1042,13 +1056,13 @@ async function getMyWonAuctions(userId) {
       endTime: auctions.endTime,
       status: auctions.status,
       category: auctions.category,
-      bidCount: sql`(SELECT COUNT(*) FROM bids WHERE bids.auction_id = ${auctions.id})`,
-      winningAmount: sql`(SELECT bid_amount FROM bids WHERE bids.auction_id = ${auctions.id} ORDER BY bid_amount DESC, created_at ASC LIMIT 1)`,
+      bidCount: sql`(SELECT COUNT(*) FROM bids WHERE bids.auctionId = ${auctions.id})`,
+      winningAmount: sql`(SELECT bidAmount FROM bids WHERE bids.auctionId = ${auctions.id} ORDER BY bidAmount DESC, createdAt ASC LIMIT 1)`,
       paymentStatus: auctions.paymentStatus
     }).from(auctions).where(
       and(
         eq(auctions.status, "ended"),
-        sql`(SELECT user_id FROM bids WHERE bids.auction_id = ${auctions.id} ORDER BY bid_amount DESC, created_at ASC LIMIT 1) = ${userId}`
+        sql`(SELECT userId FROM bids WHERE bids.auctionId = ${auctions.id} ORDER BY bidAmount DESC, createdAt ASC LIMIT 1) = ${userId}`
       )
     ).orderBy(desc(auctions.endTime));
     return result;
@@ -1122,9 +1136,9 @@ async function getWonOrders() {
       currency: auctions.currency,
       endTime: auctions.endTime,
       paymentStatus: auctions.paymentStatus,
-      winnerName: sql`(SELECT u.name FROM users u INNER JOIN bids b ON b.user_id = u.id WHERE b.auction_id = ${auctions.id} ORDER BY b.bid_amount DESC, b.created_at ASC LIMIT 1)`,
-      winnerOpenId: sql`(SELECT u.open_id FROM users u INNER JOIN bids b ON b.user_id = u.id WHERE b.auction_id = ${auctions.id} ORDER BY b.bid_amount DESC, b.created_at ASC LIMIT 1)`,
-      winningAmount: sql`(SELECT b.bid_amount FROM bids b WHERE b.auction_id = ${auctions.id} ORDER BY b.bid_amount DESC, b.created_at ASC LIMIT 1)`
+      winnerName: sql`(SELECT u.name FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`,
+      winnerOpenId: sql`(SELECT u.openId FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`,
+      winningAmount: sql`(SELECT b.bidAmount FROM bids b WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`
     }).from(auctions).where(eq(auctions.status, "ended")).orderBy(desc(auctions.endTime));
     return result;
   } catch (error) {
@@ -2649,12 +2663,14 @@ var appRouter = router({
       offset: z2.number().default(0),
       category: z2.string().optional()
     })).query(async ({ input, ctx }) => {
-      const closedIds = await closeExpiredAuctions();
-      if (closedIds.length > 0) {
-        const origin = ctx.req.headers.origin || ctx.req.headers.referer?.replace(/\/[^/]*$/, "") || "";
-        closedIds.forEach((id) => notifyWon(id, origin).catch(() => {
-        }));
-      }
+      const origin = ctx.req.headers.origin || ctx.req.headers.referer?.replace(/\/[^/]*$/, "") || "";
+      closeExpiredAuctions().then((closedIds) => {
+        if (closedIds.length > 0) {
+          closedIds.forEach((id) => notifyWon(id, origin).catch(() => {
+          }));
+        }
+      }).catch(() => {
+      });
       const auctionList = await getAuctions(input.limit, input.offset, input.category);
       const withImages = await Promise.all(
         auctionList.map(async (auction) => ({
@@ -2665,18 +2681,22 @@ var appRouter = router({
       return withImages;
     }),
     detail: publicProcedure.input(z2.object({ id: z2.number() })).query(async ({ input, ctx }) => {
-      const closedIds = await closeExpiredAuctions();
-      if (closedIds.length > 0) {
-        const origin = ctx.req.headers.origin || ctx.req.headers.referer?.replace(/\/[^/]*$/, "") || "";
-        closedIds.forEach((id) => notifyWon(id, origin).catch(() => {
-        }));
-      }
+      const origin = ctx.req.headers.origin || ctx.req.headers.referer?.replace(/\/[^/]*$/, "") || "";
+      closeExpiredAuctions().then((closedIds) => {
+        if (closedIds.length > 0) {
+          closedIds.forEach((id) => notifyWon(id, origin).catch(() => {
+          }));
+        }
+      }).catch(() => {
+      });
       const auction = await getAuctionById(input.id);
       if (!auction) {
         throw new TRPCError3({ code: "NOT_FOUND", message: "Auction not found" });
       }
-      const images = await getAuctionImages(input.id);
-      const bidHistory = await getBidHistory(input.id);
+      const [images, bidHistory] = await Promise.all([
+        getAuctionImages(input.id),
+        getBidHistory(input.id)
+      ]);
       return {
         ...auction,
         images,

@@ -22,7 +22,12 @@ export async function getDb() {
         database: url.pathname.slice(1),
         ssl: isLocalhost ? undefined : { rejectUnauthorized: false },
         waitForConnections: true,
-        connectionLimit: 10,
+        connectionLimit: 20,
+        queueLimit: 0,
+        connectTimeout: 10000,
+        idleTimeout: 60000,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 30000,
       });
       _db = drizzle(pool);
     } catch (error) {
@@ -282,19 +287,29 @@ export async function getUserBidsGrouped(userId: number) {
       .where(eq(bids.userId, userId))
       .orderBy(desc(bids.createdAt));
 
-    // For each unique auctionId, find the highest bidder
+    // For each unique auctionId, find the highest bidder using a single batch query
     const auctionIds = Array.from(new Set<number>(rows.map((r: { auctionId: number | null }) => r.auctionId).filter((id: number | null): id is number => id !== null)));
     const winnerMap = new Map<number, number>(); // auctionId -> highest bidder userId
     if (auctionIds.length > 0) {
-      for (const aId of auctionIds) {
-        const topBid = await db
-          .select({ userId: bids.userId, bidAmount: bids.bidAmount })
-          .from(bids)
-          .where(eq(bids.auctionId, aId))
-          .orderBy(desc(bids.bidAmount), desc(bids.createdAt))
-          .limit(1);
-        if (topBid[0]?.userId !== null && topBid[0]?.userId !== undefined) {
-          winnerMap.set(aId, topBid[0].userId);
+      // Single batch query: get highest bid per auction using GROUP BY
+      const topBids = await db
+        .select({
+          auctionId: bids.auctionId,
+          userId: bids.userId,
+          maxBid: sql<string>`MAX(${bids.bidAmount})`,
+        })
+        .from(bids)
+        .where(inArray(bids.auctionId, auctionIds))
+        .groupBy(bids.auctionId, bids.userId);
+      // For each auction, find the userId with the highest bid
+      const auctionMaxBid = new Map<number, number>(); // auctionId -> maxBid
+      for (const row of topBids) {
+        if (row.auctionId === null) continue;
+        const bid = parseFloat(row.maxBid);
+        const existing = auctionMaxBid.get(row.auctionId);
+        if (existing === undefined || bid > existing) {
+          auctionMaxBid.set(row.auctionId, bid);
+          winnerMap.set(row.auctionId, row.userId);
         }
       }
     }
@@ -1163,14 +1178,14 @@ export async function getMyWonAuctions(userId: number) {
         status: auctions.status,
         category: auctions.category,
         bidCount: sql<number>`(SELECT COUNT(*) FROM bids WHERE bids.auctionId = ${auctions.id})`,
-        winningAmount: sql<string>`(SELECT bidAmount FROM bids WHERE bids.auctionId = ${auctions.id} ORDER BY bidAmount DESC, created_at ASC LIMIT 1)`,
+        winningAmount: sql<string>`(SELECT bidAmount FROM bids WHERE bids.auctionId = ${auctions.id} ORDER BY bidAmount DESC, createdAt ASC LIMIT 1)`,
         paymentStatus: auctions.paymentStatus,
       })
       .from(auctions)
       .where(
         and(
           eq(auctions.status, 'ended'),
-          sql`(SELECT userId FROM bids WHERE bids.auctionId = ${auctions.id} ORDER BY bidAmount DESC, created_at ASC LIMIT 1) = ${userId}`
+          sql`(SELECT userId FROM bids WHERE bids.auctionId = ${auctions.id} ORDER BY bidAmount DESC, createdAt ASC LIMIT 1) = ${userId}`
         )
       )
       .orderBy(desc(auctions.endTime));
@@ -1260,9 +1275,9 @@ export async function getWonOrders() {
         currency: auctions.currency,
         endTime: auctions.endTime,
         paymentStatus: auctions.paymentStatus,
-        winnerName: sql<string>`(SELECT u.name FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.created_at ASC LIMIT 1)`,
-        winnerOpenId: sql<string>`(SELECT u.open_id FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.created_at ASC LIMIT 1)`,
-        winningAmount: sql<string>`(SELECT b.bidAmount FROM bids b WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.created_at ASC LIMIT 1)`,
+        winnerName: sql<string>`(SELECT u.name FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`,
+        winnerOpenId: sql<string>`(SELECT u.openId FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`,
+        winningAmount: sql<string>`(SELECT b.bidAmount FROM bids b WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`,
       })
       .from(auctions)
       .where(eq(auctions.status, 'ended'))

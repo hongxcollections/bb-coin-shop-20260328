@@ -10,10 +10,9 @@ COPY patches/ ./patches/
 RUN pnpm install --frozen-lockfile
 # Copy source code (including pre-built dist/public with VITE_GOOGLE_CLIENT_ID embedded)
 COPY . .
-# Build both frontend and backend
-# The dist/public/ directory already contains the frontend with VITE_GOOGLE_CLIENT_ID embedded
+# Build both frontend and backend (pnpm run build includes vite build + esbuild)
+# VITE_GOOGLE_CLIENT_ID must be set in Railway environment variables for frontend build
 RUN pnpm run build
-RUN pnpm exec esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
 # Remove dev dependencies after build
 RUN pnpm prune --prod
 # Expose port

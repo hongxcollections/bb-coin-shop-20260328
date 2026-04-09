@@ -291,21 +291,30 @@ export default function AdminAuctions() {
   const uploadImageMutation = trpc.auctions.uploadImage.useMutation();
   const deleteImageMutation = trpc.auctions.deleteImage.useMutation();
 
-  // ── Batch upload all pending images ──
+  // ── Batch upload all pending images (parallel) ──
   const uploadAllPending = async (auctionId: number): Promise<number> => {
     setIsUploading(true);
     let successCount = 0;
 
-    for (let i = 0; i < pendingImages.length; i++) {
-      const pending = pendingImages[i];
-      if (pending.status !== "pending") continue;
+    const pendingToUpload = pendingImages
+      .map((p, i) => ({ pending: p, i }))
+      .filter(({ pending }) => pending.status === "pending");
 
-      // Mark as uploading
-      setPendingImages((prev) =>
-        prev.map((p, idx) => idx === i ? { ...p, status: "uploading" } : p)
-      );
+    if (pendingToUpload.length === 0) {
+      setIsUploading(false);
+      return 0;
+    }
 
-      try {
+    // Mark all as uploading
+    setPendingImages((prev) =>
+      prev.map((p, idx) =>
+        pendingToUpload.some(({ i }) => i === idx) ? { ...p, status: "uploading" } : p
+      )
+    );
+
+    // Upload all images in parallel
+    const results = await Promise.allSettled(
+      pendingToUpload.map(async ({ pending, i }) => {
         const base64 = await fileToBase64(pending.file);
         await uploadImageMutation.mutateAsync({
           auctionId,
@@ -314,18 +323,31 @@ export default function AdminAuctions() {
           displayOrder: uploadedImages.length + i,
           mimeType: pending.file.type || "image/jpeg",
         });
-        // Mark as success
-        setPendingImages((prev) =>
-          prev.map((p, idx) => idx === i ? { ...p, status: "success" } : p)
-        );
+        return i;
+      })
+    );
+
+    // Update statuses based on results
+    const successIndices = new Set<number>();
+    const errorMap = new Map<number, string>();
+    results.forEach((result, j) => {
+      const { i } = pendingToUpload[j];
+      if (result.status === "fulfilled") {
+        successIndices.add(i);
         successCount++;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "上傳失敗";
-        setPendingImages((prev) =>
-          prev.map((p, idx) => idx === i ? { ...p, status: "error", errorMsg: msg } : p)
-        );
+      } else {
+        const msg = result.reason instanceof Error ? result.reason.message : "上傳失敗";
+        errorMap.set(i, msg);
       }
-    }
+    });
+
+    setPendingImages((prev) =>
+      prev.map((p, idx) => {
+        if (successIndices.has(idx)) return { ...p, status: "success" };
+        if (errorMap.has(idx)) return { ...p, status: "error", errorMsg: errorMap.get(idx) };
+        return p;
+      })
+    );
 
     setIsUploading(false);
     return successCount;

@@ -35,13 +35,13 @@ export const appRouter = router({
         category: z.string().optional(),
       }))
       .query(async ({ input, ctx }) => {
-        // Auto-close expired auctions before returning list
-        const closedIds = await closeExpiredAuctions();
-        // Send won notifications for newly closed auctions (fire-and-forget)
-        if (closedIds.length > 0) {
-          const origin = ctx.req.headers.origin || ctx.req.headers.referer?.replace(/\/[^/]*$/, '') || '';
-          closedIds.forEach(id => notifyWon(id, origin).catch(() => {}));
-        }
+        // Auto-close expired auctions in background (non-blocking)
+        const origin = ctx.req.headers.origin || ctx.req.headers.referer?.replace(/\/[^/]*$/, '') || '';
+        closeExpiredAuctions().then(closedIds => {
+          if (closedIds.length > 0) {
+            closedIds.forEach(id => notifyWon(id, origin).catch(() => {}));
+          }
+        }).catch(() => {});
         const auctionList = await getAuctions(input.limit, input.offset, input.category);
         const withImages = await Promise.all(
           auctionList.map(async (auction: { id: number; [key: string]: unknown }) => ({
@@ -55,20 +55,23 @@ export const appRouter = router({
     detail: publicProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input, ctx }) => {
-        // Auto-close if expired
-        const closedIds = await closeExpiredAuctions();
-        // Send won notifications for newly closed auctions (fire-and-forget)
-        if (closedIds.length > 0) {
-          const origin = ctx.req.headers.origin || ctx.req.headers.referer?.replace(/\/[^/]*$/, '') || '';
-          closedIds.forEach(id => notifyWon(id, origin).catch(() => {}));
-        }
+        // Auto-close expired auctions in background (non-blocking)
+        const origin = ctx.req.headers.origin || ctx.req.headers.referer?.replace(/\/[^/]*$/, '') || '';
+        closeExpiredAuctions().then(closedIds => {
+          if (closedIds.length > 0) {
+            closedIds.forEach(id => notifyWon(id, origin).catch(() => {}));
+          }
+        }).catch(() => {});
         const auction = await getAuctionById(input.id);
         if (!auction) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Auction not found' });
         }
 
-        const images = await getAuctionImages(input.id);
-        const bidHistory = await getBidHistory(input.id);
+        // Fetch images and bid history in parallel
+        const [images, bidHistory] = await Promise.all([
+          getAuctionImages(input.id),
+          getBidHistory(input.id),
+        ]);
 
         return {
           ...auction,
