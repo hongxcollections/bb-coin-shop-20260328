@@ -10,8 +10,9 @@ COPY patches/ ./patches/
 RUN pnpm install --frozen-lockfile
 # Copy source code (including pre-built dist/public with VITE_GOOGLE_CLIENT_ID embedded)
 COPY . .
-# Build ONLY the server bundle using esbuild (skip Vite frontend rebuild)
+# Build both frontend and backend
 # The dist/public/ directory already contains the frontend with VITE_GOOGLE_CLIENT_ID embedded
+RUN pnpm run build
 RUN pnpm exec esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
 # Remove dev dependencies after build
 RUN pnpm prune --prod
