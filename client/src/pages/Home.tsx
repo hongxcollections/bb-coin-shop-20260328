@@ -390,41 +390,28 @@ export default function Home() {
       </section>
 
       {/* ── Section 4: Brand Intro (Bottom) ── */}
-      <section className="py-20 hero-bg border-t border-amber-100">
+      <section className="py-12 hero-bg border-t border-amber-100">
         <div className="container">
           <div className="max-w-3xl mx-auto text-center">
-            <div className="text-7xl mb-8 animate-float inline-block drop-shadow-lg">💰</div>
-            <h1 className="text-4xl md:text-5xl font-black mb-4 leading-tight">
+            <div className="text-6xl mb-3 animate-float inline-block drop-shadow-lg">💰</div>
+            <h1 className="text-3xl md:text-4xl font-black mb-2 leading-tight">
               <span className="gold-gradient-text">大BB錢幣店</span>
             </h1>
-            <p className="text-xl md:text-2xl text-amber-800/80 mb-6 font-bold">
+            <p className="text-lg md:text-xl text-amber-800/80 mb-4 font-bold">
               專業錢幣拍賣平台
             </p>
-            <p className="text-base md:text-lg text-muted-foreground mb-12 max-w-xl mx-auto leading-relaxed">
-              匯聚古幣、紀念幣、外幣精品，為收藏愛好者提供安全、透明的競拍體驗。我們堅持專業鑑定，誠信至上。
-            </p>
-            
-            <div className="w-full max-w-2xl mx-auto mb-12">
-              <Accordion type="single" collapsible className="w-full">
-                {features.map((f, idx) => (
-                  <AccordionItem key={f.title} value={`feature-${idx}`} className="border-b border-amber-100 last:border-b-0">
-                    <AccordionTrigger className="hover:bg-amber-50/50 px-4 py-3 rounded-lg transition-colors">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{f.emoji}</span>
-                        <h3 className="font-bold text-sm text-amber-900">{f.title}</h3>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 py-3 text-sm text-muted-foreground bg-white/30 rounded-lg">
-                      {f.desc}
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
+            <div className="flex justify-center gap-4 md:gap-6 mb-6 flex-wrap">
+              {features.map((f) => (
+                <div key={f.title} className="flex flex-col items-center gap-1">
+                  <span className="text-2xl">{f.emoji}</span>
+                  <span className="text-xs font-bold text-amber-900 text-center">{f.title}</span>
+                </div>
+              ))}
             </div>
 
             {!isAuthenticated && (
-              <div className="bg-white/80 backdrop-blur rounded-3xl p-8 border border-amber-200 shadow-xl inline-block px-12">
-                <h3 className="text-xl font-bold mb-4 text-amber-900">準備好開始您的收藏之旅了嗎？</h3>
+              <div className="bg-white/80 backdrop-blur rounded-3xl p-6 border border-amber-200 shadow-xl inline-block px-10">
+                <h3 className="text-lg font-bold mb-3 text-amber-900">準備好開始您的收藏之旅了嗎？</h3>
                 <a href={getLoginUrl()}>
                   <Button size="lg" className="gold-gradient text-white border-0 shadow-lg hover:opacity-90 px-12 h-12 rounded-full font-bold">
                     立即免費註冊
