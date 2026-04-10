@@ -25,19 +25,19 @@ export default function BottomNav() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showMore]);
 
-  // Hide on admin pages
-  if (location.startsWith("/admin")) return null;
+  const showComingSoon = useCallback((featureName: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToastMessage(featureName + " 功能暫未開通");
+    toastTimer.current = setTimeout(() => setToastMessage(null), 2500);
+  }, []);
 
   const isActive = (path: string) => {
     if (path === "/") return location === "/" || location === "/auctions";
     return location === path || location.startsWith(path + "/");
   };
 
-  const showComingSoon = useCallback((featureName: string) => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToastMessage(featureName + " 功能暫未開通");
-    toastTimer.current = setTimeout(() => setToastMessage(null), 2500);
-  }, []);
+  // Hide on admin pages - MUST be after all hooks to avoid React Error #300
+  if (location.startsWith("/admin")) return null;
 
   const navItems = [
     {
