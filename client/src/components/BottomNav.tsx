@@ -1,8 +1,9 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Link, useLocation } from "wouter";
-import { Home, Gavel, Heart, User, MoreHorizontal, MessageCircle, Settings, LogOut, Shield } from "lucide-react";
+import { Home, Gavel, Store, User, MoreHorizontal, MessageCircle, Settings, Shield } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { toast } from "sonner";
 
 export default function BottomNav() {
   const { user, isAuthenticated } = useAuth();
@@ -31,6 +32,13 @@ export default function BottomNav() {
     return location === path || location.startsWith(path + "/");
   };
 
+  const handleComingSoon = (featureName: string) => {
+    toast("🚧 " + featureName + "功能暫未開通", {
+      description: "敬請期待，我們正在努力開發中！",
+      duration: 2500,
+    });
+  };
+
   const navItems = [
     {
       label: "首頁",
@@ -51,10 +59,10 @@ export default function BottomNav() {
       type: "center" as const,
     },
     {
-      label: "收藏",
-      icon: Heart,
-      path: "/favorites",
-      type: "link" as const,
+      label: "商店",
+      icon: Store,
+      path: null,
+      type: "disabled" as const,
     },
     {
       label: "更多",
@@ -70,15 +78,12 @@ export default function BottomNav() {
       <nav className="bottom-nav-bar">
         <div className="bottom-nav-inner">
           {navItems.map((item) => {
-            // Center button (客服) - elevated circular button
+            // Center button (客服) - elevated circular button, currently disabled
             if (item.type === "center") {
               return (
                 <button
                   key={item.label}
-                  onClick={() => {
-                    // Open WhatsApp or other customer service channel
-                    window.open("https://wa.me/85260120828", "_blank");
-                  }}
+                  onClick={() => handleComingSoon("客服")}
                   className="bottom-nav-center-btn"
                   aria-label={item.label}
                 >
@@ -86,6 +91,23 @@ export default function BottomNav() {
                     <span className="text-xl">💰</span>
                   </div>
                   <span className="bottom-nav-label">{item.label}</span>
+                </button>
+              );
+            }
+
+            // Disabled items (商店) - show coming soon toast
+            if (item.type === "disabled") {
+              return (
+                <button
+                  key={item.label}
+                  onClick={() => handleComingSoon(item.label)}
+                  className="bottom-nav-item"
+                  style={{ background: "none", border: "none", padding: 0 }}
+                >
+                  <div className="bottom-nav-btn">
+                    <item.icon className="bottom-nav-icon" />
+                    <span className="bottom-nav-label">{item.label}</span>
+                  </div>
                 </button>
               );
             }
@@ -152,22 +174,6 @@ export default function BottomNav() {
 
             // Regular nav items
             const active = isActive(item.path!);
-            
-            // If not authenticated and trying to access favorites, redirect to login
-            if (item.path === "/favorites" && !isAuthenticated) {
-              return (
-                <a
-                  key={item.label}
-                  href={getLoginUrl(item.path)}
-                  className="bottom-nav-item"
-                >
-                  <div className="bottom-nav-btn">
-                    <item.icon className="bottom-nav-icon" />
-                    <span className="bottom-nav-label">{item.label}</span>
-                  </div>
-                </a>
-              );
-            }
 
             return (
               <Link
