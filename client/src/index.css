@@ -585,11 +585,11 @@
 /* Bottom Nav Custom Toast */
 .bottom-nav-toast {
   position: fixed;
-  bottom: 5rem;
+  top: 1.5rem;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 100;
-  animation: bottom-nav-toast-in 0.25s ease-out;
+  z-index: 99999;
+  animation: bottom-nav-toast-in 0.3s ease-out;
 }
 
 .bottom-nav-toast-inner {
@@ -630,7 +630,7 @@
 @keyframes bottom-nav-toast-in {
   0% {
     opacity: 0;
-    transform: translateX(-50%) translateY(8px);
+    transform: translateX(-50%) translateY(-16px);
   }
   100% {
     opacity: 1;
