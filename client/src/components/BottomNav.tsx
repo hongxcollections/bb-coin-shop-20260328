@@ -66,9 +66,6 @@ export default function BottomNav() {
 
   return (
     <>
-      {/* Spacer to prevent content from being hidden behind the fixed nav */}
-      <div className="h-[calc(4rem+env(safe-area-inset-bottom,0px))]" />
-
       {/* Fixed bottom navigation */}
       <nav className="bottom-nav-bar">
         <div className="bottom-nav-inner">
