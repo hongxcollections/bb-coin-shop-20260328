@@ -390,21 +390,14 @@ export default function Home() {
       </section>
 
       {/* ── Section 4: Brand Intro (Bottom) ── */}
-      <section className="py-12 hero-bg border-t border-amber-100">
+      <section className="py-6 hero-bg border-t border-amber-100">
         <div className="container">
           <div className="max-w-3xl mx-auto text-center">
-            <div className="text-6xl mb-3 animate-float inline-block drop-shadow-lg">💰</div>
-            <h1 className="text-3xl md:text-4xl font-black mb-2 leading-tight">
-              <span className="gold-gradient-text">大BB錢幣店</span>
-            </h1>
-            <p className="text-lg md:text-xl text-amber-800/80 mb-4 font-bold">
-              專業錢幣拍賣平台
-            </p>
-            <div className="flex justify-center gap-4 md:gap-6 mb-6 flex-wrap">
+            <div className="flex justify-center gap-3 md:gap-4 flex-wrap">
               {features.map((f) => (
-                <div key={f.title} className="flex flex-col items-center gap-1">
-                  <span className="text-2xl">{f.emoji}</span>
-                  <span className="text-xs font-bold text-amber-900 text-center">{f.title}</span>
+                <div key={f.title} className="flex flex-col items-center gap-0.5">
+                  <span className="text-xl">{f.emoji}</span>
+                  <span className="text-[10px] font-bold text-amber-900 text-center">{f.title}</span>
                 </div>
               ))}
             </div>
