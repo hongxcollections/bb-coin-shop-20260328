@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
 import { Link } from "wouter";
@@ -403,14 +404,22 @@ export default function Home() {
               匯聚古幣、紀念幣、外幣精品，為收藏愛好者提供安全、透明的競拍體驗。我們堅持專業鑑定，誠信至上。
             </p>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-              {features.map((f) => (
-                <div key={f.title} className="bg-white/60 backdrop-blur-sm p-4 rounded-2xl border border-amber-100 shadow-sm hover:shadow-md transition-all">
-                  <div className="text-3xl mb-2">{f.emoji}</div>
-                  <h3 className="font-bold text-xs text-amber-900 mb-1">{f.title}</h3>
-                  <p className="text-[10px] text-muted-foreground leading-tight">{f.desc}</p>
-                </div>
-              ))}
+            <div className="w-full max-w-2xl mx-auto mb-12">
+              <Accordion type="single" collapsible className="w-full">
+                {features.map((f, idx) => (
+                  <AccordionItem key={f.title} value={`feature-${idx}`} className="border-b border-amber-100 last:border-b-0">
+                    <AccordionTrigger className="hover:bg-amber-50/50 px-4 py-3 rounded-lg transition-colors">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{f.emoji}</span>
+                        <h3 className="font-bold text-sm text-amber-900">{f.title}</h3>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 py-3 text-sm text-muted-foreground bg-white/30 rounded-lg">
+                      {f.desc}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
             </div>
 
             {!isAuthenticated && (
