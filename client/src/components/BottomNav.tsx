@@ -2,14 +2,15 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Link, useLocation } from "wouter";
 import { Home, Gavel, Store, User, MoreHorizontal, MessageCircle, Settings, Shield } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
-import { toast } from "sonner";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 export default function BottomNav() {
   const { user, isAuthenticated } = useAuth();
   const [location] = useLocation();
   const [showMore, setShowMore] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const moreRef = useRef<HTMLDivElement>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Close "more" menu when clicking outside
   useEffect(() => {
@@ -32,12 +33,11 @@ export default function BottomNav() {
     return location === path || location.startsWith(path + "/");
   };
 
-  const handleComingSoon = (featureName: string) => {
-    toast("🚧 " + featureName + "功能暫未開通", {
-      description: "敬請期待，我們正在努力開發中！",
-      duration: 2500,
-    });
-  };
+  const showComingSoon = useCallback((featureName: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToastMessage(featureName + " 功能暫未開通");
+    toastTimer.current = setTimeout(() => setToastMessage(null), 2500);
+  }, []);
 
   const navItems = [
     {
@@ -74,6 +74,19 @@ export default function BottomNav() {
 
   return (
     <>
+      {/* Custom toast notification */}
+      {toastMessage && (
+        <div className="bottom-nav-toast">
+          <div className="bottom-nav-toast-inner">
+            <span className="bottom-nav-toast-icon">🚧</span>
+            <div>
+              <div className="bottom-nav-toast-title">{toastMessage}</div>
+              <div className="bottom-nav-toast-desc">敬請期待，我們正在努力開發中！</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Fixed bottom navigation */}
       <nav className="bottom-nav-bar">
         <div className="bottom-nav-inner">
@@ -83,7 +96,7 @@ export default function BottomNav() {
               return (
                 <button
                   key={item.label}
-                  onClick={() => handleComingSoon("客服")}
+                  onClick={() => showComingSoon("客服")}
                   className="bottom-nav-center-btn"
                   aria-label={item.label}
                 >
@@ -95,12 +108,12 @@ export default function BottomNav() {
               );
             }
 
-            // Disabled items (商店) - show coming soon toast
+            // Disabled items (商店) - show coming soon message
             if (item.type === "disabled") {
               return (
                 <button
                   key={item.label}
-                  onClick={() => handleComingSoon(item.label)}
+                  onClick={() => showComingSoon(item.label)}
                   className="bottom-nav-item"
                   style={{ background: "none", border: "none", padding: 0 }}
                 >
