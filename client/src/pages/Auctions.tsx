@@ -43,7 +43,7 @@ function CountdownTimer({ endTime }: { endTime: Date }) {
   return <span className={cls}><Clock className="w-3 h-3" />{timeLeft}</span>;
 }
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 20;
 
 export default function Auctions() {
   const { user, isAuthenticated } = useAuth();
@@ -133,15 +133,15 @@ export default function Auctions() {
         </div>
       </nav>
 
-      <div className="container py-8">
+      <div className="container py-6">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-3xl font-bold mb-1">所有拍賣</h1>
           <p className="text-muted-foreground">共 {filtered.length} 件拍品</p>
         </div>
 
         {/* Category Selector - Using Dropdown Menu to save space */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
@@ -187,7 +187,7 @@ export default function Auctions() {
         </div>
 
         {/* Search & Filter */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-8">
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -239,7 +239,7 @@ export default function Auctions() {
 
         {/* ── Marquee Ticker ── Strictly show only active auctions with future end time */}
         {!isLoading && (auctions ?? []).filter(a => a.status === 'active' && new Date(a.endTime).getTime() > Date.now()).length > 0 && (
-          <div className="marquee-wrapper mb-6 border border-amber-100 rounded-xl bg-amber-50/60 py-2 overflow-hidden">
+          <div className="marquee-wrapper mb-4 border border-amber-100 rounded-xl bg-amber-50/60 py-2 overflow-hidden">
             <div className="marquee-track flex">
               {(() => {
                 const activeAuctions = (auctions ?? []).filter(a => 
@@ -282,19 +282,20 @@ export default function Auctions() {
           </div>
         )}
 
-        {/* Auction Grid */}
+        {/* Auction List - Compact Left Image Right Content */}
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="h-64 bg-amber-50 rounded-xl animate-pulse" />
+          <div className="space-y-2">
+            {[...Array(10)].map((_, i) => (
+              <div key={i} className="h-20 bg-amber-50 rounded-lg animate-pulse" />
             ))}
           </div>
         ) : paginated.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <div className="space-y-1.5">
             {paginated.map((auction) => (
               <Link key={auction.id} href={`/auctions/${auction.id}`}>
-                <Card className="auction-card overflow-hidden border border-amber-100 hover:border-amber-300 cursor-pointer h-full">
-                  <div className="h-44 coin-placeholder flex items-center justify-center relative overflow-hidden">
+                <div className="auction-list-item flex gap-3 p-3 border border-amber-100 rounded-lg hover:border-amber-300 hover:bg-amber-50/50 cursor-pointer transition-all">
+                  {/* Left: Image */}
+                  <div className="w-20 h-20 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
                     {auction.images && (auction.images as Array<{ imageUrl: string }>).length > 0 ? (
                       <img
                         src={(auction.images as Array<{ imageUrl: string }>)[0].imageUrl}
@@ -302,61 +303,69 @@ export default function Auctions() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <span className="text-5xl">🪙</span>
-                    )}
-                    {/* 狀態 Badge */}
-                    <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
-                      {(() => {
-                        const now = Date.now();
-                        const endMs = new Date(auction.endTime).getTime();
-                        const isEnded = endMs <= now;
-                        const isEndingSoon = !isEnded && (endMs - now) <= endingSoonMs;
-                        return (
-                          <>
-                            {isEndingSoon && (
-                              <Badge className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5 animate-pulse">
-                                ⏰ 即將結束
-                              </Badge>
-                            )}
-                            <Badge className={!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}>
-                              {!isEnded ? "競拍中" : "已結束"}
-                            </Badge>
-                          </>
-                        );
-                      })()}
-                    </div>
-                    {/* 出價最高 Badge */}
-                    {auction.id === topBidAuctionId && (
-                      <div className="absolute top-2 left-2">
-                        <Badge className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 shadow-md">
-                          🔥 出價最高
-                        </Badge>
-                      </div>
+                      <span className="text-3xl">🪙</span>
                     )}
                   </div>
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold text-sm mb-2 line-clamp-2">{auction.title}</h3>
-                    <div className="flex items-center justify-between">
-                      <div>
+
+                  {/* Right: Content */}
+                  <div className="flex-1 flex flex-col justify-between min-w-0">
+                    {/* Title & Status */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm line-clamp-1 text-amber-900">{auction.title}</h3>
+                        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                          {(() => {
+                            // Extract description from description field or show category
+                            const desc = (auction as { description?: string }).description;
+                            return desc ? desc.substring(0, 60) : `分類：${category !== "all" ? CATEGORIES.find(c => c.value === category)?.label : "未分類"}`;
+                          })()}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        {(() => {
+                          const now = Date.now();
+                          const endMs = new Date(auction.endTime).getTime();
+                          const isEnded = endMs <= now;
+                          const isEndingSoon = !isEnded && (endMs - now) <= endingSoonMs;
+                          return (
+                            <>
+                              {isEndingSoon && (
+                                <Badge className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 animate-pulse">
+                                  ⏰ 即將結束
+                                </Badge>
+                              )}
+                              <Badge className={`text-[9px] px-1.5 py-0.5 ${!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
+                                {!isEnded ? "競拍中" : "已結束"}
+                              </Badge>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Price & Bidder & Timer */}
+                    <div className="flex items-center justify-between gap-2 mt-1">
+                      <div className="flex-1 min-w-0">
                         <div className="text-xs text-muted-foreground flex items-center gap-1">
-                          當前出價
+                          目前出價
                           {(auction as { highestBidderName?: string | null; highestBidderId?: number | null }).highestBidderName ? (
                             <span className="text-[9px] text-red-500 font-semibold">({(auction as { highestBidderName?: string | null }).highestBidderName})</span>
                           ) : !(auction as { highestBidderId?: number | null }).highestBidderId ? (
-                            <span className="text-[9px] text-black font-normal">(未有出價)</span>
+                            <span className="text-[9px] text-gray-500 font-normal">(未有出價)</span>
                           ) : null}
                         </div>
-                        <div className="text-base font-bold text-amber-600 price-tag">
+                        <div className="text-sm font-bold text-amber-600">
                           {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
-                          <span className="text-xs font-normal text-amber-500 ml-0.5">{(auction as { currency?: string }).currency ?? 'HKD'}</span>
                         </div>
                       </div>
                       {new Date(auction.endTime).getTime() > Date.now() && (
-                        <CountdownTimer endTime={new Date(auction.endTime)} />
+                        <div className="shrink-0">
+                          <CountdownTimer endTime={new Date(auction.endTime)} />
+                        </div>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </Link>
             ))}
           </div>
@@ -370,7 +379,7 @@ export default function Auctions() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-3 mt-10">
+          <div className="flex items-center justify-center gap-3 mt-6">
             <Button
               variant="outline"
               size="sm"
