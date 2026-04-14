@@ -23,6 +23,8 @@ import AdminWonOrders from "./pages/AdminWonOrders";
 import Favorites from "./pages/Favorites";
 import MemberBenefits from "./pages/MemberBenefits";
 import WebhookSetup from "./pages/WebhookSetup";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 
 function Router() {
   return (
@@ -45,6 +47,8 @@ function Router() {
       <Route path={"/admin/webhook-setup"} component={WebhookSetup} />
       <Route path={"/admin/settings"} component={AdminSiteSettings} />
       <Route path={"/admin/won-orders"} component={AdminWonOrders} />
+      <Route path={"/privacy"} component={Privacy} />
+      <Route path={"/terms"} component={Terms} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
