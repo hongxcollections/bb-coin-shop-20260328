@@ -7,6 +7,46 @@ interface ShareMenuProps {
   title: string;
   latestBid: number;
   currency?: string | null;
+  endTime?: string | Date | null;
+}
+
+function formatEndTimeDisplay(endTime: Date): string {
+  const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+  const year = endTime.getFullYear();
+  const month = endTime.getMonth() + 1;
+  const day = endTime.getDate();
+  const weekday = weekdays[endTime.getDay()];
+  const hours = endTime.getHours();
+  const minutes = endTime.getMinutes().toString().padStart(2, "0");
+
+  let period: string;
+  let displayHour: number;
+  if (hours < 6) {
+    period = "凌晨";
+    displayHour = hours;
+  } else if (hours < 12) {
+    period = "上午";
+    displayHour = hours;
+  } else if (hours === 12) {
+    period = "中午";
+    displayHour = 12;
+  } else if (hours < 18) {
+    period = "下午";
+    displayHour = hours - 12;
+  } else {
+    period = "晚上";
+    displayHour = hours - 12;
+  }
+
+  return `${year}年${month}月${day}日 (${weekday}) ${period}${displayHour}:${minutes}`;
+}
+
+function getCurrSymbol(currency: string): string {
+  const map: Record<string, string> = {
+    HKD: "HK$", USD: "US$", CNY: "¥", EUR: "€", GBP: "£",
+    JPY: "¥", TWD: "NT$", SGD: "S$", MYR: "RM", THB: "฿",
+  };
+  return map[currency] ?? currency + "$";
 }
 
 const SHARE_PLATFORMS = [
@@ -19,8 +59,9 @@ const SHARE_PLATFORMS = [
         <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.267h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z" />
       </svg>
     ),
-    getUrl: (url: string, text: string) =>
-      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`,
+    // Facebook sharer uses og:tags from the URL; quote is the user's comment
+    getUrl: (url: string, _text: string) =>
+      `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
   },
   {
     key: "twitter",
@@ -44,7 +85,7 @@ const SHARE_PLATFORMS = [
       </svg>
     ),
     getUrl: (url: string, text: string) =>
-      `https://wa.me/?text=${encodeURIComponent(text + " " + url)}`,
+      `https://wa.me/?text=${encodeURIComponent(text + "\n" + url)}`,
   },
 ] as const;
 
@@ -52,7 +93,7 @@ const SHARE_PLATFORMS = [
 const MENU_WIDTH = 176; // w-44 = 11rem = 176px
 const MENU_HEIGHT = 200; // approximate height
 
-export function ShareMenu({ auctionId, title, latestBid, currency }: ShareMenuProps) {
+export function ShareMenu({ auctionId, title, latestBid, currency, endTime }: ShareMenuProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   // Position of the dropdown in viewport coordinates
@@ -61,7 +102,20 @@ export function ShareMenu({ auctionId, title, latestBid, currency }: ShareMenuPr
 
   const auctionUrl = `${window.location.origin}/auctions/${auctionId}`;
   const curr = currency ?? "HKD";
-  const shareText = `【大BB錢幣店】${title} — 目前出價 ${curr === "HKD" ? "HK$" : curr + " "}${latestBid.toLocaleString()}，快來競標！`;
+  const currSymbol = getCurrSymbol(curr);
+
+  // Build share text with end time
+  let endTimeStr = "";
+  if (endTime) {
+    const d = new Date(endTime);
+    if (!isNaN(d.getTime())) {
+      endTimeStr = formatEndTimeDisplay(d);
+    }
+  }
+
+  const shareText = endTimeStr
+    ? `【大BB錢幣店】${title}\n目前出價 ${currSymbol}${latestBid.toLocaleString()}\n結標時間：${endTimeStr}\n快來競拍！`
+    : `【大BB錢幣店】${title}\n目前出價 ${currSymbol}${latestBid.toLocaleString()}，快來競拍！`;
 
   const calcPosition = useCallback(() => {
     if (!btnRef.current) return;
@@ -91,6 +145,7 @@ export function ShareMenu({ auctionId, title, latestBid, currency }: ShareMenuPr
   }, []);
 
   function handleOpen(e: React.MouseEvent) {
+    e.preventDefault();
     e.stopPropagation();
     if (open) {
       setOpen(false);

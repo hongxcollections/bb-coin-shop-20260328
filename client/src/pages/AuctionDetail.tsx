@@ -203,6 +203,8 @@ export default function AuctionDetail() {
       // 出價成功後立即刷新所有相關 query，確保自己的頁面也即時更新
       refetch();
       utils.auctions.detail.invalidate({ id: auctionId });
+      // 列表頁面也一並刷新，確保首頁和拍賣頁的價格及最高出價者即時更新
+      utils.auctions.list.invalidate();
       // 代理出價相關 query 也一並刷新
       utils.auctions.getProxyBidLogs.invalidate({ auctionId });
       utils.auctions.getMyProxyBid.invalidate({ auctionId });
@@ -301,37 +303,39 @@ export default function AuctionDetail() {
   const isActive = auction.status === "active" && new Date() < new Date(auction.endTime);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Navigation */}
-      <nav className="nav-glass sticky top-0 z-50">
-        <div className="container flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl">
+      <nav className="nav-glass fixed top-0 left-0 right-0 z-50 overflow-hidden">
+        <div className="container flex items-center justify-between h-16 overflow-hidden">
+          <Link href="/" className="flex items-center gap-1 font-bold text-xl shrink-0">
             <span className="text-2xl">💰</span>
             <span className="gold-gradient-text">大BB錢幣店</span>
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 overflow-hidden shrink min-w-0">
             <Link href="/auctions">
-              <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">所有拍賣</Button>
+              <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50 px-2 text-xs sm:text-sm sm:px-3">所有拍賣</Button>
             </Link>
             {isAuthenticated ? (
               <>
                 {user?.role === "admin" && (
                   <Link href="/admin">
-                    <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">管理後台</Button>
+                    <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50 px-2 text-xs sm:text-sm sm:px-3">管理後台</Button>
                   </Link>
                 )}
                 <Link href="/profile">
-                  <Button variant="outline" size="sm" className="border-amber-300 text-amber-800 hover:bg-amber-50">{user?.name ?? "個人資料"}</Button>
+                  <Button variant="outline" size="sm" className="border-amber-300 text-amber-800 hover:bg-amber-50 px-2 text-xs sm:text-sm sm:px-3 truncate max-w-[80px] sm:max-w-none">{user?.name ?? "個人資料"}</Button>
                 </Link>
               </>
             ) : (
               <a href={getLoginUrl()}>
-                <Button size="sm" className="gold-gradient text-white border-0 shadow-md hover:opacity-90">立即登入</Button>
+                <Button size="sm" className="gold-gradient text-white border-0 shadow-md hover:opacity-90 px-2 text-xs sm:text-sm sm:px-3">立即登入</Button>
               </a>
             )}
           </div>
         </div>
       </nav>
+      {/* Spacer for fixed nav */}
+      <div className="h-16" />
 
       <div className="container py-8">
         {/* Breadcrumb */}

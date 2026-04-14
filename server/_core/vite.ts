@@ -5,6 +5,104 @@ import { nanoid } from "nanoid";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
+import { getAuctionById, getAuctionImages } from "../db";
+import { getCurrencySymbol } from "./currency";
+
+/**
+ * Format auction end time for display in OG description.
+ * Output example: "2026年4月16日 (三) 晚上11:00"
+ */
+function formatEndTime(endTime: Date): string {
+  const d = new Date(endTime);
+  const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const weekday = weekdays[d.getDay()];
+  const hours = d.getHours();
+  const minutes = d.getMinutes().toString().padStart(2, "0");
+
+  let period: string;
+  let displayHour: number;
+  if (hours < 6) {
+    period = "凌晨";
+    displayHour = hours;
+  } else if (hours < 12) {
+    period = "上午";
+    displayHour = hours;
+  } else if (hours === 12) {
+    period = "中午";
+    displayHour = 12;
+  } else if (hours < 18) {
+    period = "下午";
+    displayHour = hours - 12;
+  } else {
+    period = "晚上";
+    displayHour = hours - 12;
+  }
+
+  return `${year}年${month}月${day}日 (${weekday}) ${period}${displayHour}:${minutes}`;
+}
+
+/**
+ * Inject Open Graph meta tags into HTML for auction detail pages.
+ * This enables rich previews when sharing auction links on social media.
+ *
+ * Key decisions:
+ * - og:site_name = "大BB錢幣店" so the shop name always appears
+ * - og:title = auction title + price (concise)
+ * - og:description includes end time and call-to-action
+ * - og:url is included (required by Facebook for proper link preview)
+ * - og:image includes width/height hints for high-quality rendering
+ */
+async function injectOgMeta(html: string, reqPath: string, protocol: string, host: string): Promise<string | null> {
+  const auctionMatch = reqPath.match(/^\/auctions\/(\d+)$/);
+  if (!auctionMatch) return null;
+
+  try {
+    const auctionId = parseInt(auctionMatch[1], 10);
+    const auction = await getAuctionById(auctionId);
+    if (!auction) return null;
+
+    const images = await getAuctionImages(auctionId);
+    const imageUrl = images.length > 0 ? images[0].imageUrl : "";
+    const currSymbol = getCurrencySymbol((auction as { currency?: string }).currency ?? "HKD");
+    const price = Number(auction.currentPrice).toLocaleString();
+    const endTimeStr = formatEndTime(new Date(auction.endTime));
+
+    // Facebook large-image preview ONLY shows og:title (not description/site_name).
+    // So we pack all key info into og:title for maximum visibility.
+    const ogTitle = `大BB錢幣店｜${auction.title} — ${currSymbol}${price}｜結標：${endTimeStr}｜快來競拍！`;
+    const ogDesc = `【大BB錢幣店】${auction.title}｜目前出價 ${currSymbol}${price}｜結標時間：${endTimeStr}｜快來競拍！`;
+    const fullUrl = `${protocol}://${host}${reqPath}`;
+
+    const esc = (s: string) => s.replace(/"/g, "&quot;").replace(/</g, "&lt;");
+
+    const ogMeta = [
+      `<meta property="og:type" content="product" />`,
+      `<meta property="og:site_name" content="大BB錢幣店" />`,
+      `<meta property="og:title" content="${esc(ogTitle)}" />`,
+      `<meta property="og:description" content="${esc(ogDesc)}" />`,
+      `<meta property="og:url" content="${esc(fullUrl)}" />`,
+      imageUrl ? `<meta property="og:image" content="${imageUrl}" />` : "",
+      imageUrl ? `<meta property="og:image:width" content="1200" />` : "",
+      imageUrl ? `<meta property="og:image:height" content="630" />` : "",
+      `<meta name="twitter:card" content="summary_large_image" />`,
+      `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
+      `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
+      imageUrl ? `<meta name="twitter:image" content="${imageUrl}" />` : "",
+      `<title>${esc(ogTitle)}</title>`,
+    ].filter(Boolean).join("\n    ");
+
+    // Replace existing <title> and inject OG meta before </head>
+    let result = html.replace(/<title>[^<]*<\/title>/, "");
+    result = result.replace("</head>", `    ${ogMeta}\n  </head>`);
+    return result;
+  } catch (err) {
+    console.error("[OG Meta] Error generating OG tags:", err);
+    return null;
+  }
+}
 
 export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
@@ -74,21 +172,92 @@ export function serveStatic(app: Express) {
     );
   }
 
+  // Workaround for Facebook crawler 403 bug (known issue since Jan 2026).
+  // Facebook's crawler expects robots.txt to support Range requests and return 206.
+  // When robots.txt returns 200 instead of 206, Facebook incorrectly reports 403.
+  // This handler explicitly serves robots.txt with Range request support.
+  app.get("/robots.txt", (req, res) => {
+    const robotsPath = path.resolve(distPath, "robots.txt");
+    if (!fs.existsSync(robotsPath)) {
+      // Serve a default permissive robots.txt if file doesn't exist
+      const defaultRobots = "User-agent: *\nAllow: /\n";
+      const buf = Buffer.from(defaultRobots, "utf-8");
+      const rangeHeader = req.headers.range;
+      if (rangeHeader) {
+        const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+        if (match) {
+          const start = parseInt(match[1], 10);
+          const end = match[2] ? parseInt(match[2], 10) : buf.length - 1;
+          const chunk = buf.subarray(start, end + 1);
+          res.status(206).set({
+            "Content-Type": "text/plain; charset=utf-8",
+            "Content-Range": `bytes ${start}-${end}/${buf.length}`,
+            "Content-Length": chunk.length.toString(),
+            "Accept-Ranges": "bytes",
+          }).end(chunk);
+          return;
+        }
+      }
+      res.status(200).set({
+        "Content-Type": "text/plain; charset=utf-8",
+        "Accept-Ranges": "bytes",
+        "Content-Length": buf.length.toString(),
+      }).end(buf);
+      return;
+    }
+
+    const content = fs.readFileSync(robotsPath);
+    const rangeHeader = req.headers.range;
+    if (rangeHeader) {
+      const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+      if (match) {
+        const start = parseInt(match[1], 10);
+        const end = match[2] ? parseInt(match[2], 10) : content.length - 1;
+        const chunk = content.subarray(start, end + 1);
+        res.status(206).set({
+          "Content-Type": "text/plain; charset=utf-8",
+          "Content-Range": `bytes ${start}-${end}/${content.length}`,
+          "Content-Length": chunk.length.toString(),
+          "Accept-Ranges": "bytes",
+        }).end(chunk);
+        return;
+      }
+    }
+    res.status(200).set({
+      "Content-Type": "text/plain; charset=utf-8",
+      "Accept-Ranges": "bytes",
+      "Content-Length": content.length.toString(),
+    }).end(content);
+  });
+
   app.use(express.static(distPath));
 
   // For all non-API routes, serve index.html to support React Router client-side routing
-  app.use((req, res, next) => {
+  app.use(async (req, res, next) => {
     // Let API routes fall through to their handlers
     if (req.path.startsWith("/api")) {
       return next();
     }
     
     const indexPath = path.resolve(distPath, "index.html");
-    if (fs.existsSync(indexPath)) {
-      res.sendFile(indexPath);
-    } else {
+    if (!fs.existsSync(indexPath)) {
       console.error(`[Static] index.html not found at: ${indexPath}`);
       res.status(500).send("Server error: index.html not found");
+      return;
     }
+
+    // Try to inject OG meta for auction detail pages
+    const forwardedProto = req.headers["x-forwarded-proto"];
+    const protocol = typeof forwardedProto === "string" ? forwardedProto.split(",")[0].trim() : req.protocol;
+    const host = req.get("host") || "";
+
+    let html = await fs.promises.readFile(indexPath, "utf-8");
+    const ogHtml = await injectOgMeta(html, req.path, protocol, host);
+    if (ogHtml) {
+      res.status(200).set({ "Content-Type": "text/html" }).end(ogHtml);
+      return;
+    }
+
+    res.sendFile(indexPath);
   });
 }

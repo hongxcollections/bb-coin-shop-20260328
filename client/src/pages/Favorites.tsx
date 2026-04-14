@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Heart, Clock, ChevronLeft, Gavel } from "lucide-react";
 import { getCurrencySymbol } from "./AdminAuctions";
+import { ShareMenu } from "@/components/ShareMenu";
 
 function CountdownBadge({ endTime, status }: { endTime: Date; status: string }) {
   const now = new Date();
@@ -58,7 +59,7 @@ export default function Favorites() {
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
-      <nav className="nav-glass sticky top-0 z-50">
+      <nav className="nav-glass fixed top-0 left-0 right-0 z-50">
         <div className="container flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-2 font-bold text-xl">
             <span className="text-2xl">💰</span>
@@ -74,6 +75,8 @@ export default function Favorites() {
           </div>
         </div>
       </nav>
+      {/* Spacer for fixed nav */}
+      <div className="h-16" />
 
       <div className="container py-8 max-w-3xl">
         <div className="flex items-center gap-3 mb-6">
@@ -125,6 +128,13 @@ export default function Favorites() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
+                        <ShareMenu
+                          auctionId={item.id}
+                          title={item.title}
+                          latestBid={Number(item.currentPrice)}
+                          currency={item.currency}
+                          endTime={item.endTime}
+                        />
                         <Link href={`/auctions/${item.id}`}>
                           <Button size="sm" variant="outline" className="border-amber-200 text-amber-700 hover:bg-amber-50 gap-1">
                             <Gavel className="w-3.5 h-3.5" />

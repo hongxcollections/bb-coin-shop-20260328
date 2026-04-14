@@ -244,7 +244,7 @@ function DashboardLayoutContent({
 
       <SidebarInset>
         {isMobile && (
-          <div className="flex border-b h-14 items-center justify-between bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
+          <div className="flex border-b h-14 items-center justify-between bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur fixed top-0 left-0 right-0 z-40">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />
               <div className="flex items-center gap-3">
@@ -257,6 +257,7 @@ function DashboardLayoutContent({
             </div>
           </div>
         )}
+        {isMobile && <div className="h-14" />}
         <main className="flex-1 p-4">{children}</main>
       </SidebarInset>
     </>

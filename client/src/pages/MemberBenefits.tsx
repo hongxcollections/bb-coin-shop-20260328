@@ -189,7 +189,7 @@ export default function MemberBenefits() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50">
       {/* Nav */}
-      <nav className="nav-glass sticky top-0 z-50">
+      <nav className="nav-glass fixed top-0 left-0 right-0 z-50">
         <div className="container flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-2 font-bold text-xl">
             <span className="text-2xl">💰</span>
@@ -205,6 +205,8 @@ export default function MemberBenefits() {
           </Button>
         </div>
       </nav>
+      {/* Spacer for fixed nav */}
+      <div className="h-16" />
 
       <div className="container max-w-4xl py-8 space-y-8">
 

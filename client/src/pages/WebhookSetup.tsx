@@ -56,7 +56,7 @@ export default function WebhookSetup() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-white">
       {/* Nav */}
-      <nav className="nav-glass sticky top-0 z-50">
+      <nav className="nav-glass fixed top-0 left-0 right-0 z-50">
         <div className="container flex items-center h-14 gap-3">
           <Link href="/admin/drafts">
             <Button variant="ghost" size="sm" className="gap-1 text-amber-700">
@@ -65,6 +65,8 @@ export default function WebhookSetup() {
           </Link>
         </div>
       </nav>
+      {/* Spacer for fixed nav */}
+      <div className="h-16" />
 
       <div className="container py-10 max-w-2xl">
         {/* Header */}

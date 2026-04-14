@@ -15,9 +15,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Clock, Search, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown, Filter } from "lucide-react";
+import { Clock, Search, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown, Filter, Shield, TrendingUp, Award, Coins } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrencySymbol } from "./AdminAuctions";
+import { ShareMenu } from "@/components/ShareMenu";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -48,7 +49,7 @@ const PAGE_SIZE = 20;
 export default function Auctions() {
   const { user, isAuthenticated } = useAuth();
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "active" | "ended">("all");
+  const [filter, setFilter] = useState<"active" | "myBids">("active");
   const [category, setCategory] = useState("all");
   const [page, setPage] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -64,8 +65,20 @@ export default function Auctions() {
   ];
 
   const { data: auctions, isLoading } = trpc.auctions.list.useQuery(
-    { limit: 100, offset: 0, category: category === "all" ? undefined : category }
+    { limit: 100, offset: 0, category: category === "all" ? undefined : category },
+    {
+      refetchInterval: 5000, // 每 5 秒自動輪詢，確保價格和最高出價者即時更新
+      staleTime: 3000, // 3 秒內視為新鮮資料
+    }
   );
+
+  // 查詢當前用戶曾出價的拍賣 ID
+  const { data: myBidsData } = trpc.auctions.myBids.useQuery(undefined, {
+    enabled: isAuthenticated && filter === "myBids",
+    refetchInterval: 5000,
+    staleTime: 3000,
+  });
+  const myBidAuctionIds = new Set((myBidsData ?? []).map((b: { auctionId: number | null }) => b.auctionId).filter((id: number | null): id is number => id !== null));
 
   // 從後台讀取即將結標提醒閾値（預設 30 分鐘）
   const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, {
@@ -76,8 +89,12 @@ export default function Auctions() {
 
   const filtered = (auctions ?? []).filter((a) => {
     const matchSearch = !search || a.title.toLowerCase().includes(search.toLowerCase());
-    const matchFilter = filter === "all" || a.status === filter;
-    return matchSearch && matchFilter;
+    const isActive = a.status === "active" && new Date(a.endTime).getTime() > Date.now();
+    if (filter === "myBids") {
+      return matchSearch && isActive && myBidAuctionIds.has(a.id);
+    }
+    // filter === "active"
+    return matchSearch && isActive;
   });
 
   // 排序：活躍拍賣在前，已結束拍賣在後
@@ -100,59 +117,61 @@ export default function Auctions() {
     }, null)?.id ?? null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Navigation */}
-      <nav className="nav-glass sticky top-0 z-50">
-        <div className="container flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl">
+      <nav className="nav-glass fixed top-0 left-0 right-0 z-50 overflow-hidden">
+        <div className="container flex items-center justify-between h-16 overflow-hidden">
+          <Link href="/" className="flex items-center gap-1 font-bold text-xl shrink-0">
             <span className="text-2xl">💰</span>
             <span className="gold-gradient-text">大BB錢幣店</span>
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 overflow-hidden shrink min-w-0">
             <ThemeToggle />
             <Link href="/auctions">
-              <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">所有拍賣</Button>
+              <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50 px-2 text-xs sm:text-sm sm:px-3">所有拍賣</Button>
             </Link>
             {isAuthenticated ? (
               <>
                 {user?.role === "admin" && (
                   <Link href="/admin">
-                    <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">管理後台</Button>
+                    <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50 px-2 text-xs sm:text-sm sm:px-3">管理後台</Button>
                   </Link>
                 )}
                 <Link href="/profile">
-                  <Button variant="outline" size="sm" className="border-amber-300 text-amber-800 hover:bg-amber-50">{user?.name ?? "個人資料"}</Button>
+                  <Button variant="outline" size="sm" className="border-amber-300 text-amber-800 hover:bg-amber-50 px-2 text-xs sm:text-sm sm:px-3 truncate max-w-[80px] sm:max-w-none">{user?.name ?? "個人資料"}</Button>
                 </Link>
               </>
             ) : (
               <a href={getLoginUrl()}>
-                <Button size="sm" className="gold-gradient text-white border-0 shadow-md hover:opacity-90">立即登入</Button>
+                <Button size="sm" className="gold-gradient text-white border-0 shadow-md hover:opacity-90 px-2 text-xs sm:text-sm sm:px-3">立即登入</Button>
               </a>
             )}
           </div>
         </div>
       </nav>
+      {/* Spacer for fixed nav */}
+      <div className="h-16" />
 
-      <div className="container py-6">
+      <div className="container py-3">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-1">所有拍賣</h1>
-          <p className="text-muted-foreground">共 {filtered.length} 件拍品</p>
+        <div className="mb-2 flex items-baseline gap-2">
+          <h1 className="text-xl font-bold">所有拍賣</h1>
+          <p className="text-sm text-muted-foreground">(共 {filtered.length} 件拍品)</p>
         </div>
 
         {/* Category Selector - Using Dropdown Menu to save space */}
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-2 mb-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
                 variant="outline" 
-                className="border-amber-200 text-amber-800 hover:bg-amber-50 flex items-center gap-2 rounded-full px-5 h-10 shadow-sm transition-all active:scale-95"
+                className="border-amber-200 text-amber-800 hover:bg-amber-50 flex items-center gap-1.5 rounded-full px-3 h-8 shadow-sm transition-all active:scale-95 text-xs"
               >
-                <Filter className="w-4 h-4 text-amber-500" />
+                <Filter className="w-3.5 h-3.5 text-amber-500" />
                 <span className="font-semibold">
                   {category === "all" ? "全部商品分類" : `分類：${CATEGORIES.find(c => c.value === category)?.label}`}
                 </span>
-                <ChevronDown className="w-4 h-4 text-amber-400" />
+                <ChevronDown className="w-3.5 h-3.5 text-amber-400" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 bg-white border-amber-100 rounded-xl shadow-xl z-[100]">
@@ -187,16 +206,16 @@ export default function Auctions() {
         </div>
 
         {/* Search & Filter */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row gap-2 mb-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
               placeholder="搜尋拍品名稱..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); setShowSuggestions(true); }}
               onFocus={() => setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-              className="pl-9 border-amber-200 focus-visible:ring-amber-400"
+              className="pl-8 border-amber-200 focus-visible:ring-amber-400 h-9 text-sm rounded-xl"
             />
             {/* 搜尋自動補全建議 */}
             {showSuggestions && search.length >= 1 && (() => {
@@ -223,15 +242,15 @@ export default function Auctions() {
           </div>
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
-            {(["all", "active", "ended"] as const).map((f) => (
+            {(["active", ...(isAuthenticated ? ["myBids" as const] : [])] as const).map((f) => (
               <Button
                 key={f}
                 size="sm"
                 variant={filter === f ? "default" : "outline"}
                 className={filter === f ? "gold-gradient text-white border-0" : "border-amber-200 text-amber-700 hover:bg-amber-50"}
-                onClick={() => { setFilter(f); setPage(0); }}
+                onClick={() => { setFilter(f as typeof filter); setPage(0); }}
               >
-                {f === "all" ? "全部" : f === "active" ? "競拍中" : "已結束"}
+                {f === "active" ? "競拍中" : "我曾出價"}
               </Button>
             ))}
           </div>
@@ -290,7 +309,7 @@ export default function Auctions() {
             ))}
           </div>
         ) : paginated.length > 0 ? (
-          <div className="space-y-1.5">
+          <div className="space-y-4">
             {paginated.map((auction) => (
               <Link key={auction.id} href={`/auctions/${auction.id}`}>
                 <div className="auction-list-item flex gap-3 p-3 border border-amber-100 rounded-lg hover:border-amber-300 hover:bg-amber-50/50 cursor-pointer transition-all">
@@ -358,11 +377,20 @@ export default function Auctions() {
                           {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
                         </div>
                       </div>
-                      {new Date(auction.endTime).getTime() > Date.now() && (
-                        <div className="shrink-0">
+                      <div className="shrink-0 flex items-center gap-1.5">
+                        {new Date(auction.endTime).getTime() > Date.now() && (
                           <CountdownTimer endTime={new Date(auction.endTime)} />
+                        )}
+                        <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                          <ShareMenu
+                            auctionId={auction.id}
+                            title={auction.title}
+                            latestBid={Number(auction.currentPrice)}
+                            currency={(auction as { currency?: string }).currency}
+                            endTime={auction.endTime}
+                          />
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -404,6 +432,50 @@ export default function Auctions() {
           </div>
         )}
       </div>
+      
+      {/* ── Section 4: Brand Intro (Bottom) ── */}
+      <section className="py-6 hero-bg border-t border-amber-100">
+        <div className="container">
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="flex justify-center gap-3 md:gap-4 flex-wrap">
+              {[
+                { emoji: "🛡️", icon: Shield, title: "安全可信" },
+                { emoji: "📈", icon: TrendingUp, title: "公開競價" },
+                { emoji: "🏆", icon: Award, title: "品質保證" },
+                { emoji: "🪙", icon: Coins, title: "多元品類" },
+              ].map((f) => (
+                <div key={f.title} className="flex flex-col items-center gap-0.5">
+                  <span className="text-xl">{f.emoji}</span>
+                  <span className="text-[10px] font-bold text-amber-900 text-center">{f.title}</span>
+                </div>
+              ))}
+            </div>
+
+            {!isAuthenticated && (
+              <div className="bg-white/80 backdrop-blur rounded-3xl p-6 border border-amber-200 shadow-xl inline-block px-10 mt-6">
+                <h3 className="text-lg font-bold mb-3 text-amber-900">準備好開始您的收藏之旅了嗎？</h3>
+                <a href={getLoginUrl()}>
+                  <Button size="lg" className="gold-gradient text-white border-0 shadow-lg hover:opacity-90 px-12 h-12 rounded-full font-bold">
+                    立即免費註冊
+                  </Button>
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-amber-950 text-amber-100/60 py-4 pb-24 border-t border-amber-900/50">
+        <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
+          <p>© 2026 大BB錢幣店 · 專業錢幣拍賣平台 · 誠信鑑定</p>
+          <div className="flex gap-4 font-bold">
+            <Link href="/" className="hover:text-amber-400 transition-colors">首頁</Link>
+            <a href="#" className="hover:text-amber-400 transition-colors">服務條款</a>
+            <a href="#" className="hover:text-amber-400 transition-colors">隱私政策</a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

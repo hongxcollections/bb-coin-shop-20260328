@@ -195,7 +195,7 @@ export default function AdminWonOrders() {
   return (
     <div className="min-h-screen bg-background">
       {/* 後台導航 */}
-      <div className="border-b bg-card sticky top-0 z-10">
+      <div className="border-b bg-card fixed top-0 left-0 right-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3 flex-wrap text-sm">
           <Link href="/admin"><span className="text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-1"><ChevronLeft className="w-3.5 h-3.5" />後台</span></Link>
           <span className="text-muted-foreground">/</span>
@@ -214,6 +214,8 @@ export default function AdminWonOrders() {
           <span className="font-medium text-amber-600">🏆 得標訂單</span>
         </div>
       </div>
+      {/* Spacer for fixed nav */}
+      <div className="h-12" />
 
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         {/* 標題 */}

@@ -1,8 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
 import { Link } from "wouter";
@@ -20,20 +18,17 @@ import {
   Shield, 
   TrendingUp, 
   Award, 
-  ChevronRight, 
   Coins, 
   Search, 
-  SlidersHorizontal, 
   Filter, 
   ChevronDown,
-  ChevronLeft
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrencySymbol } from "./AdminAuctions";
-
-// Version: 2026-04-06-V5-FINAL-SPEED-UPDATE
-console.log("MANUS_VERSION_CHECK_V5_FINAL");
+import { ShareMenu } from "@/components/ShareMenu";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -64,7 +59,7 @@ function CountdownTimer({ endTime }: { endTime: Date }) {
   return <span className={cls}><Clock className="w-3 h-3" />{timeLeft}</span>;
 }
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 20;
 
 const CATEGORIES = [
   { value: "all", label: "全部", emoji: "🪙" },
@@ -86,16 +81,24 @@ export default function Home() {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const { data: auctions, isLoading } = trpc.auctions.list.useQuery(
-    { limit: 100, offset: 0, category: category === "all" ? undefined : category }
+    { limit: 100, offset: 0, category: category === "all" ? undefined : category },
+    {
+      refetchInterval: 5000, // 每 5 秒自動輪詢，確保價格和最高出價者即時更新
+      staleTime: 3000, // 3 秒內視為新鮮資料
+    }
   );
+
+  const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+  });
+  const _endingSoonRaw = parseInt((siteSettings as Record<string, string> | undefined)?.endingSoonMinutes ?? '30', 10);
+  const endingSoonMs = (isNaN(_endingSoonRaw) || _endingSoonRaw < 1 ? 30 : _endingSoonRaw) * 60 * 1000;
 
   const activeCount = (auctions ?? []).filter(a => a.status === "active" && new Date(a.endTime).getTime() > Date.now()).length;
 
-  // 1. Modified Filter: Only show active auctions in the main grid
   const filtered = (auctions ?? []).filter((a) => {
     const isEnded = new Date(a.endTime).getTime() <= Date.now() || a.status === 'ended';
     const matchSearch = !search || a.title.toLowerCase().includes(search.toLowerCase());
-    // Only include items that are NOT ended
     return matchSearch && !isEnded;
   });
 
@@ -109,57 +112,56 @@ export default function Home() {
   ];
 
   const features = [
-    { emoji: "🛡️", icon: Shield, title: "安全可信", desc: "每件拍品均經專業鑑定，確保真品保障" },
-    { emoji: "📈", icon: TrendingUp, title: "公開競價", desc: "透明出價記錄，公平公正的競拍環境" },
-    { emoji: "🏆", icon: Award, title: "品質保證", desc: "嚴格篩選優質錢幣，提供完整收藏資訊" },
-    { emoji: "🪙", icon: Coins, title: "多元品類", desc: "古幣、紀念幣、外幣，滿足各類收藏需求" },
+    { emoji: "🛡️", icon: Shield, title: "安全可信" },
+    { emoji: "📈", icon: TrendingUp, title: "公開競價" },
+    { emoji: "🏆", icon: Award, title: "品質保證" },
+    { emoji: "🪙", icon: Coins, title: "多元品類" },
   ];
 
   return (
-    <div className="min-h-screen bg-background" id="manus-v5-root">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Navigation */}
-      <nav className="nav-glass sticky top-0 z-50">
-        <div className="container flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl">
+      <nav className="nav-glass fixed top-0 left-0 right-0 z-50 overflow-hidden">
+        <div className="container flex items-center justify-between h-16 overflow-hidden">
+          <Link href="/" className="flex items-center gap-1 font-bold text-xl shrink-0">
             <span className="text-2xl">💰</span>
             <span className="gold-gradient-text">大BB錢幣店</span>
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 overflow-hidden shrink min-w-0">
             <ThemeToggle />
+            <Link href="/auctions">
+              <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50 px-2 text-xs sm:text-sm sm:px-3">所有拍賣</Button>
+            </Link>
             {isAuthenticated ? (
               <>
                 {user?.role === "admin" && (
                   <Link href="/admin">
-                    <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">
-                      管理後台
-                    </Button>
+                    <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50 px-2 text-xs sm:text-sm sm:px-3">管理後台</Button>
                   </Link>
                 )}
                 <Link href="/profile">
-                  <Button variant="outline" size="sm" className="border-amber-300 text-amber-800 hover:bg-amber-50">
-                    {user?.name ?? "個人資料"}
-                  </Button>
+                  <Button variant="outline" size="sm" className="border-amber-300 text-amber-800 hover:bg-amber-50 px-2 text-xs sm:text-sm sm:px-3 truncate max-w-[80px] sm:max-w-none">{user?.name ?? "個人資料"}</Button>
                 </Link>
               </>
             ) : (
               <a href={getLoginUrl()}>
-                <Button size="sm" className="gold-gradient text-white border-0 shadow-md hover:opacity-90">
-                  立即登入
-                </Button>
+                <Button size="sm" className="gold-gradient text-white border-0 shadow-md hover:opacity-90 px-2 text-xs sm:text-sm sm:px-3">立即登入</Button>
               </a>
             )}
           </div>
         </div>
       </nav>
+      {/* Spacer for fixed nav */}
+      <div className="h-16" />
 
       {/* ── Section 1: Stats (Top) ── */}
-      <section className="pt-8 pb-4 bg-amber-50/30">
+      <section className="pt-3 pb-2 bg-amber-50/30">
         <div className="container">
-          <div className="grid grid-cols-3 gap-4 max-w-xl mx-auto">
+          <div className="grid grid-cols-3 gap-2 max-w-md mx-auto">
             {stats.map((s) => (
-              <div key={s.label} className="bg-white/80 backdrop-blur rounded-2xl p-4 border border-amber-100 shadow-sm text-center">
-                <div className="text-2xl md:text-3xl font-extrabold text-amber-700">{s.value}{s.suffix}</div>
-                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-1">{s.label}</div>
+              <div key={s.label} className="bg-white/80 backdrop-blur rounded-xl p-2 border border-amber-100 shadow-sm text-center">
+                <div className="text-lg font-extrabold text-amber-700">{s.value}{s.suffix}</div>
+                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{s.label}</div>
               </div>
             ))}
           </div>
@@ -167,11 +169,10 @@ export default function Home() {
       </section>
 
       {/* ── Section 2: Marquee Ticker ── */}
-      <section className="py-4">
+      <section className="py-2">
         <div className="container">
           {!isLoading && (auctions ?? []).filter(a => a.status === 'active' && new Date(a.endTime).getTime() > Date.now()).length > 0 && (
             <div className="marquee-wrapper border border-amber-100 rounded-2xl bg-white py-3 overflow-hidden shadow-sm">
-              {/* 2. Modified Animation Duration: 6s (Twice as fast as previous 12s) */}
               <div className="marquee-track flex" style={{ animationDuration: '6s' }}>
                 {(() => {
                   const activeAuctions = (auctions ?? []).filter(a => 
@@ -215,27 +216,27 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Section 3: Auction Grid (Main Content) ── */}
-      <section className="py-8 bg-white">
+      {/* ── Section 3: Auction List (Main Content) ── */}
+      <section className="py-3 bg-white">
         <div className="container">
-          <div className="mb-8 flex items-baseline gap-3">
-            <h1 className="text-3xl font-bold">正在拍賣</h1>
-            <p className="text-muted-foreground">(共 {activeCount} 件拍品)</p>
+          <div className="mb-3 flex items-baseline gap-2">
+            <h1 className="text-xl font-bold">正在拍賣</h1>
+            <p className="text-sm text-muted-foreground">(共 {activeCount} 件拍品)</p>
           </div>
 
           {/* Category Selector */}
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-2 mb-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
                   variant="outline" 
-                  className="border-amber-200 text-amber-800 hover:bg-amber-50 flex items-center gap-2 rounded-full px-5 h-10 shadow-sm transition-all active:scale-95"
+                  className="border-amber-200 text-amber-800 hover:bg-amber-50 flex items-center gap-1.5 rounded-full px-3 h-8 shadow-sm transition-all active:scale-95 text-xs"
                 >
-                  <Filter className="w-4 h-4 text-amber-500" />
+                  <Filter className="w-3.5 h-3.5 text-amber-500" />
                   <span className="font-semibold">
                     {category === "all" ? "全部商品分類" : `分類：${CATEGORIES.find(c => c.value === category)?.label}`}
                   </span>
-                  <ChevronDown className="w-4 h-4 text-amber-400" />
+                  <ChevronDown className="w-3.5 h-3.5 text-amber-400" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56 bg-white border-amber-100 rounded-xl shadow-xl z-[100]">
@@ -270,16 +271,16 @@ export default function Home() {
           </div>
 
           {/* Search */}
-          <div className="flex flex-col sm:flex-row gap-3 mb-8">
+          <div className="flex flex-col sm:flex-row gap-2 mb-4">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input
                 placeholder="搜尋拍品名稱..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(0); setShowSuggestions(true); }}
                 onFocus={() => setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                className="pl-9 border-amber-200 focus-visible:ring-amber-400 rounded-xl h-11"
+                className="pl-8 border-amber-200 focus-visible:ring-amber-400 rounded-xl h-9 text-sm"
               />
               {showSuggestions && search.length >= 1 && (() => {
                 const suggestions = (auctions ?? [])
@@ -305,19 +306,20 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Grid */}
+          {/* Compact List Layout - No Grid! */}
           {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="h-64 bg-amber-50 rounded-xl animate-pulse" />
+            <div className="space-y-2">
+              {[...Array(10)].map((_, i) => (
+                <div key={i} className="h-20 bg-amber-50 rounded-lg animate-pulse" />
               ))}
             </div>
           ) : paginated.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div className="space-y-4">
               {paginated.map((auction) => (
                 <Link key={auction.id} href={`/auctions/${auction.id}`}>
-                  <Card className="auction-card overflow-hidden border border-amber-100 hover:border-amber-300 cursor-pointer h-full flex flex-col">
-                    <div className="h-48 coin-placeholder flex items-center justify-center relative shrink-0">
+                  <div className="auction-list-item flex gap-3 p-3 border border-amber-100 rounded-lg hover:border-amber-300 hover:bg-amber-50/50 cursor-pointer transition-all">
+                    {/* Left: Image */}
+                    <div className="w-20 h-20 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
                       {auction.images && (auction.images as Array<{ imageUrl: string }>).length > 0 ? (
                         <img
                           src={(auction.images as Array<{ imageUrl: string }>)[0].imageUrl}
@@ -325,30 +327,74 @@ export default function Home() {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <span className="text-5xl">🪙</span>
+                        <span className="text-3xl">🪙</span>
                       )}
-                      <div className="absolute top-3 right-3">
-                        <Badge className="bg-emerald-500 text-white shadow-sm">競拍中</Badge>
-                      </div>
                     </div>
-                    <CardContent className="p-4 flex-1 flex flex-col">
-                      <h3 className="font-bold text-sm mb-3 line-clamp-2 text-foreground h-10">{auction.title}</h3>
-                      <div className="mt-auto pt-2 border-t border-amber-50">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">當前出價</div>
-                          <CountdownTimer endTime={new Date(auction.endTime)} />
+
+                    {/* Right: Content */}
+                    <div className="flex-1 flex flex-col justify-between min-w-0">
+                      {/* Title & Status */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-sm line-clamp-1 text-amber-900">{auction.title}</h3>
+                          <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                            {(() => {
+                              const desc = (auction as { description?: string }).description;
+                              return desc ? desc.substring(0, 60) : `分類：${category !== "all" ? CATEGORIES.find(c => c.value === category)?.label : "未分類"}`;
+                            })()}
+                          </p>
                         </div>
-                        <div className="flex items-end justify-between">
-                          <div className="text-xl font-black text-amber-600 price-tag">
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          {(() => {
+                            const now = Date.now();
+                            const endMs = new Date(auction.endTime).getTime();
+                            const isEndingSoon = (endMs - now) <= endingSoonMs;
+                            return (
+                              <>
+                                {isEndingSoon && (
+                                  <Badge className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 animate-pulse">
+                                    ⏰ 即將結束
+                                  </Badge>
+                                )}
+                                <Badge className="bg-emerald-500 text-white text-[9px] px-1.5 py-0.5">
+                                  競拍中
+                                </Badge>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Price & Bidder & Timer */}
+                      <div className="flex items-center justify-between gap-2 mt-1">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs text-muted-foreground flex items-center gap-1">
+                            目前出價
+                            {(auction as { highestBidderName?: string | null; highestBidderId?: number | null }).highestBidderName ? (
+                              <span className="text-[9px] text-red-500 font-semibold">({(auction as { highestBidderName?: string | null }).highestBidderName})</span>
+                            ) : !(auction as { highestBidderId?: number | null }).highestBidderId ? (
+                              <span className="text-[9px] text-gray-500 font-normal">(未有出價)</span>
+                            ) : null}
+                          </div>
+                          <div className="text-sm font-bold text-amber-600">
                             {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
                           </div>
-                          <Button size="sm" className="h-8 px-3 rounded-lg gold-gradient border-0 text-[10px] font-bold uppercase tracking-widest text-white shadow-md">
-                            立即競投
-                          </Button>
+                        </div>
+                        <div className="shrink-0 flex items-center gap-1.5">
+                          <CountdownTimer endTime={new Date(auction.endTime)} />
+                          <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                            <ShareMenu
+                              auctionId={auction.id}
+                              title={auction.title}
+                              latestBid={Number(auction.currentPrice)}
+                              currency={(auction as { currency?: string }).currency}
+                              endTime={auction.endTime}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 </Link>
               ))}
             </div>
@@ -403,7 +449,7 @@ export default function Home() {
             </div>
 
             {!isAuthenticated && (
-              <div className="bg-white/80 backdrop-blur rounded-3xl p-6 border border-amber-200 shadow-xl inline-block px-10">
+              <div className="bg-white/80 backdrop-blur rounded-3xl p-6 border border-amber-200 shadow-xl inline-block px-10 mt-6">
                 <h3 className="text-lg font-bold mb-3 text-amber-900">準備好開始您的收藏之旅了嗎？</h3>
                 <a href={getLoginUrl()}>
                   <Button size="lg" className="gold-gradient text-white border-0 shadow-lg hover:opacity-90 px-12 h-12 rounded-full font-bold">
@@ -417,7 +463,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-amber-950 text-amber-100/60 py-4 pb-20 border-t border-amber-900/50">
+      <footer className="bg-amber-950 text-amber-100/60 py-4 pb-24 border-t border-amber-900/50">
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
           <p>© 2026 大BB錢幣店 · 專業錢幣拍賣平台 · 誠信鑑定</p>
           <div className="flex gap-4 font-bold">
