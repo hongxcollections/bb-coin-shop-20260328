@@ -423,7 +423,7 @@ export default function Auctions() {
             {!isAuthenticated && (
               <div className="bg-white/80 backdrop-blur rounded-3xl p-6 border border-amber-200 shadow-xl inline-block px-10 mt-6">
                 <h3 className="text-lg font-bold mb-3 text-amber-900">準備好開始您的收藏之旅了嗎？</h3>
-                <a href={getLoginUrl()}>
+                <a href="/login">
                   <Button size="lg" className="gold-gradient text-white border-0 shadow-lg hover:opacity-90 px-12 h-12 rounded-full font-bold">
                     立即免費註冊
                   </Button>

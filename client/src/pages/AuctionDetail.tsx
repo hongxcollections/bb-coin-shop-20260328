@@ -699,7 +699,7 @@ export default function AuctionDetail() {
                       )}
                     </div>
                   ) : (
-                    <a href={getLoginUrl()}>
+                    <a href="/login">
                       <Button className="w-full gold-gradient text-white border-0 shadow-md hover:opacity-90">
                         登入後出價
                       </Button>

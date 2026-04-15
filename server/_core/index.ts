@@ -9,6 +9,7 @@ import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
+import { registerAuthRoutes } from "./authRoutes";
 import { registerDevLoginRoutes } from "./devLogin";
 import { registerWebhookRoutes } from "../webhook";
 import { appRouter } from "../routers";
@@ -71,6 +72,10 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+
+  // Email/phone + password auth routes
+  registerAuthRoutes(app);
+
   // Dev/Sandbox mock login (non-production only)
   registerDevLoginRoutes(app);
   // Facebook Groups Watcher webhook

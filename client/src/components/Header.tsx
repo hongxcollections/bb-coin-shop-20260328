@@ -4,7 +4,7 @@ export default function Header() {
   return (
     <>
       <nav className="nav-glass fixed top-0 left-0 right-0 z-50">
-        <div className="container flex items-center h-11 px-4">
+        <div className="container flex items-center px-4" style={{ height: "64px" }}>
           <div className="flex items-center gap-1.5 w-full">
             {/* 💰 icon */}
             <span className="text-xl leading-none" style={{ marginTop: "-2px" }}>💰</span>
@@ -32,7 +32,7 @@ export default function Header() {
         </div>
       </nav>
       {/* Spacer for fixed nav */}
-      <div className="h-11" />
+      <div style={{ height: "64px" }} />
     </>
   );
 }

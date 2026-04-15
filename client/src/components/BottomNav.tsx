@@ -188,7 +188,7 @@ export default function BottomNav() {
                         </>
                       ) : (
                         <a
-                          href={getLoginUrl()}
+                          href="/login"
                           className="bottom-nav-more-item"
                         >
                           <User className="w-4 h-4" />

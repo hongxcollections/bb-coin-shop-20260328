@@ -382,7 +382,7 @@ export default function SubscriptionPlans() {
                         {isCurrentLevel ? "目前等級" : "立即訂閱"}
                       </Button>
                     ) : (
-                      <Link href="/api/login">
+                      <Link href="/login">
                         <Button className="w-full gold-gradient text-white border-0">
                           登入後訂閱
                         </Button>
