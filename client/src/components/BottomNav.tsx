@@ -180,10 +180,10 @@ export default function BottomNav() {
                           <button
                             onClick={() => { setShowMore(false); logout(); }}
                             className="bottom-nav-more-item"
-                            style={{ background: "none", border: "none", cursor: "pointer", width: "100%", borderTop: "1px solid rgba(0,0,0,0.06)", marginTop: "4px", paddingTop: "8px" }}
+                            style={{ background: "none", border: "none", cursor: "pointer", width: "100%", borderTop: "1px solid rgba(0,0,0,0.06)", marginTop: "2px", paddingTop: "6px" }}
                           >
                             <LogOut className="w-4 h-4" style={{ color: "#dc2626" }} />
-                            <span style={{ fontSize: "8px", color: "#999" }}>登出 ({user?.name})</span>
+                            <span>登出 <span style={{ fontSize: "10px", color: "#999" }}>({user?.name})</span></span>
                           </button>
                         </>
                       ) : (
