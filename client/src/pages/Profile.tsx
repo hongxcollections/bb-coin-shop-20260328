@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { ShareMenu } from "@/components/ShareMenu";
 import { MemberBadge } from "@/components/MemberBadge";
 import { MemberHeroBanner } from "@/components/MemberHeroBanner";
+import Header from "@/components/Header";
 
 // 付款狀態設定
 const PAYMENT_STATUS_CONFIG = {
@@ -287,35 +288,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
-      <nav className="nav-glass fixed top-0 left-0 right-0 z-50">
-        <div className="container flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl">
-            <span className="text-2xl">💰</span>
-            <span className="gold-gradient-text">大BB錢幣店</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link href="/auctions">
-              <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">所有拍賣</Button>
-            </Link>
-            {user?.role === "admin" && (
-              <Link href="/admin">
-                <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">管理後台</Button>
-              </Link>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={logout}
-              className="border-red-200 text-red-600 hover:bg-red-50"
-            >
-              <LogOut className="w-3.5 h-3.5 mr-1" /> 登出
-            </Button>
-          </div>
-        </div>
-      </nav>
-      {/* Spacer for fixed nav */}
-      <div className="h-16" />
-
+      <Header />
       <div className="container py-8 max-w-3xl">
         {/* Profile Header */}
         <Card className="mb-6 border-amber-100 overflow-hidden">

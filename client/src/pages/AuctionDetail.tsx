@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { getCurrencySymbol } from "./AdminAuctions";
+import Header from "@/components/Header";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -305,38 +306,7 @@ export default function AuctionDetail() {
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Navigation */}
-      <nav className="nav-glass fixed top-0 left-0 right-0 z-50 overflow-hidden">
-        <div className="container flex items-center justify-between h-16 overflow-hidden">
-          <Link href="/" className="flex items-center gap-1 font-bold text-xl shrink-0">
-            <span className="text-2xl">💰</span>
-            <span className="gold-gradient-text">大BB錢幣店</span>
-          </Link>
-          <div className="flex items-center gap-1 overflow-hidden shrink min-w-0">
-            <Link href="/auctions">
-              <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50 px-2 text-xs sm:text-sm sm:px-3">所有拍賣</Button>
-            </Link>
-            {isAuthenticated ? (
-              <>
-                {user?.role === "admin" && (
-                  <Link href="/admin">
-                    <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50 px-2 text-xs sm:text-sm sm:px-3">管理後台</Button>
-                  </Link>
-                )}
-                <Link href="/profile">
-                  <Button variant="outline" size="sm" className="border-amber-300 text-amber-800 hover:bg-amber-50 px-2 text-xs sm:text-sm sm:px-3 truncate max-w-[80px] sm:max-w-none">{user?.name ?? "個人資料"}</Button>
-                </Link>
-              </>
-            ) : (
-              <a href={getLoginUrl()}>
-                <Button size="sm" className="gold-gradient text-white border-0 shadow-md hover:opacity-90 px-2 text-xs sm:text-sm sm:px-3">立即登入</Button>
-              </a>
-            )}
-          </div>
-        </div>
-      </nav>
-      {/* Spacer for fixed nav */}
-      <div className="h-16" />
-
+      <Header />
       <div className="container py-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 mb-6 text-sm text-muted-foreground">

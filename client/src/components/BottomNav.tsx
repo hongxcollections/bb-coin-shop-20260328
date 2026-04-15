@@ -1,11 +1,11 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Link, useLocation } from "wouter";
-import { Home, Gavel, Store, User, MoreHorizontal, MessageCircle, Settings, Shield } from "lucide-react";
+import { Home, Gavel, Store, User, MoreHorizontal, MessageCircle, Settings, Shield, LogOut, ShoppingBag } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 
 export default function BottomNav() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const [location] = useLocation();
   const [showMore, setShowMore] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -169,6 +169,22 @@ export default function BottomNav() {
                             <Settings className="w-4 h-4" />
                             <span>會員福利</span>
                           </Link>
+                          <button
+                            onClick={() => { setShowMore(false); showComingSoon("開通商戶"); }}
+                            className="bottom-nav-more-item"
+                            style={{ background: "none", border: "none", cursor: "pointer", width: "100%" }}
+                          >
+                            <ShoppingBag className="w-4 h-4" />
+                            <span>開通商戶</span>
+                          </button>
+                          <button
+                            onClick={() => { setShowMore(false); logout(); }}
+                            className="bottom-nav-more-item"
+                            style={{ background: "none", border: "none", cursor: "pointer", width: "100%", borderTop: "1px solid rgba(0,0,0,0.06)", marginTop: "4px", paddingTop: "8px" }}
+                          >
+                            <LogOut className="w-4 h-4" style={{ color: "#dc2626" }} />
+                            <span style={{ fontSize: "8px", color: "#999" }}>登出 ({user?.name})</span>
+                          </button>
                         </>
                       ) : (
                         <a

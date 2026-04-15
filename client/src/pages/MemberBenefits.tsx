@@ -13,6 +13,7 @@ import { Check, X, ArrowLeft, Star, Zap, Shield, Crown, Info } from "lucide-reac
 import { useAuth } from "@/_core/hooks/useAuth";
 import { MemberHeroBanner } from "@/components/MemberHeroBanner";
 import { type MemberLevel } from "@/components/MemberBadge";
+import Header from "@/components/Header";
 
 // ── Level config ──────────────────────────────────────────────────────────────
 
@@ -189,25 +190,7 @@ export default function MemberBenefits() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50">
       {/* Nav */}
-      <nav className="nav-glass fixed top-0 left-0 right-0 z-50">
-        <div className="container flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl">
-            <span className="text-2xl">💰</span>
-            <span className="gold-gradient-text">大BB錢幣店</span>
-          </Link>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => window.history.back()}
-            className="text-amber-700 hover:text-amber-900 hover:bg-amber-50 gap-1"
-          >
-            <ArrowLeft className="w-4 h-4" /> 返回
-          </Button>
-        </div>
-      </nav>
-      {/* Spacer for fixed nav */}
-      <div className="h-16" />
-
+      <Header />
       <div className="container max-w-4xl py-8 space-y-8">
 
         {/* My level banner */}
