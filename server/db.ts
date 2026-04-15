@@ -1,7 +1,7 @@
 import { eq, desc, asc, and, gte, lte, gt, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1331,5 +1331,785 @@ export async function updatePaymentStatus(
   } catch (error) {
     console.error('[Database] Failed to update payment status:', error);
     return { success: false, error: '更新失敗，請稍後再試' };
+  }
+}
+
+// ── Seller Deposits (保證金) ──────────────────────────────────────────────
+
+/**
+ * Auto-create tables for seller deposits if they don't exist.
+ * Called once on first access.
+ */
+let _depositTablesChecked = false;
+async function ensureDepositTables() {
+  if (_depositTablesChecked) return;
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS seller_deposits (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        userId INT NOT NULL UNIQUE,
+        balance DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+        requiredDeposit DECIMAL(12,2) NOT NULL DEFAULT 500.00,
+        commissionRate DECIMAL(5,4) NOT NULL DEFAULT 0.0500,
+        isActive INT NOT NULL DEFAULT 1,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS deposit_transactions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        depositId INT NOT NULL,
+        userId INT NOT NULL,
+        type ENUM('top_up','commission','refund','adjustment') NOT NULL,
+        amount DECIMAL(12,2) NOT NULL,
+        balanceAfter DECIMAL(12,2) NOT NULL,
+        description TEXT,
+        relatedAuctionId INT,
+        createdBy INT,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    _depositTablesChecked = true;
+  } catch (error) {
+    console.error('[Database] Failed to ensure deposit tables:', error);
+  }
+}
+
+/**
+ * Get or create a seller deposit record for a user.
+ */
+export async function getOrCreateSellerDeposit(userId: number) {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    const existing = await db.select().from(sellerDeposits).where(eq(sellerDeposits.userId, userId)).limit(1);
+    if (existing.length > 0) return existing[0];
+
+    // Create new deposit record
+    await db.insert(sellerDeposits).values({ userId, balance: "0.00", requiredDeposit: "500.00", commissionRate: "0.0500", isActive: 1 });
+    const created = await db.select().from(sellerDeposits).where(eq(sellerDeposits.userId, userId)).limit(1);
+    return created[0] ?? null;
+  } catch (error) {
+    console.error('[Database] Failed to get/create seller deposit:', error);
+    return null;
+  }
+}
+
+/**
+ * Get all seller deposits (admin view).
+ */
+export async function getAllSellerDeposits() {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    const result = await db
+      .select({
+        id: sellerDeposits.id,
+        userId: sellerDeposits.userId,
+        userName: users.name,
+        userEmail: users.email,
+        balance: sellerDeposits.balance,
+        requiredDeposit: sellerDeposits.requiredDeposit,
+        commissionRate: sellerDeposits.commissionRate,
+        isActive: sellerDeposits.isActive,
+        createdAt: sellerDeposits.createdAt,
+        updatedAt: sellerDeposits.updatedAt,
+      })
+      .from(sellerDeposits)
+      .leftJoin(users, eq(sellerDeposits.userId, users.id))
+      .orderBy(desc(sellerDeposits.updatedAt));
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to get all seller deposits:', error);
+    return [];
+  }
+}
+
+/**
+ * Top up a seller's deposit balance.
+ */
+export async function topUpDeposit(userId: number, amount: number, description: string, adminId: number) {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+
+  try {
+    const deposit = await getOrCreateSellerDeposit(userId);
+    if (!deposit) throw new Error('Failed to get deposit record');
+
+    const currentBalance = parseFloat(deposit.balance.toString());
+    const newBalance = currentBalance + amount;
+
+    await db.update(sellerDeposits).set({ balance: newBalance.toFixed(2) }).where(eq(sellerDeposits.userId, userId));
+
+    await db.insert(depositTransactions).values({
+      depositId: deposit.id,
+      userId,
+      type: 'top_up',
+      amount: amount.toFixed(2),
+      balanceAfter: newBalance.toFixed(2),
+      description: description || `充值 $${amount.toFixed(2)}`,
+      createdBy: adminId,
+    });
+
+    return { success: true, newBalance };
+  } catch (error) {
+    console.error('[Database] Failed to top up deposit:', error);
+    throw error;
+  }
+}
+
+/**
+ * Deduct commission from a seller's deposit.
+ */
+export async function deductCommission(userId: number, amount: number, auctionId: number, description: string, adminId?: number) {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+
+  try {
+    const deposit = await getOrCreateSellerDeposit(userId);
+    if (!deposit) throw new Error('Failed to get deposit record');
+
+    const currentBalance = parseFloat(deposit.balance.toString());
+    const newBalance = currentBalance - amount;
+
+    await db.update(sellerDeposits).set({ balance: newBalance.toFixed(2) }).where(eq(sellerDeposits.userId, userId));
+
+    await db.insert(depositTransactions).values({
+      depositId: deposit.id,
+      userId,
+      type: 'commission',
+      amount: (-amount).toFixed(2),
+      balanceAfter: newBalance.toFixed(2),
+      description: description || `佣金扣除 $${amount.toFixed(2)}`,
+      relatedAuctionId: auctionId,
+      createdBy: adminId ?? null,
+    });
+
+    return { success: true, newBalance };
+  } catch (error) {
+    console.error('[Database] Failed to deduct commission:', error);
+    throw error;
+  }
+}
+
+/**
+ * Refund commission to a seller's deposit.
+ */
+export async function refundCommission(userId: number, amount: number, auctionId: number, description: string, adminId: number) {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+
+  try {
+    const deposit = await getOrCreateSellerDeposit(userId);
+    if (!deposit) throw new Error('Failed to get deposit record');
+
+    const currentBalance = parseFloat(deposit.balance.toString());
+    const newBalance = currentBalance + amount;
+
+    await db.update(sellerDeposits).set({ balance: newBalance.toFixed(2) }).where(eq(sellerDeposits.userId, userId));
+
+    await db.insert(depositTransactions).values({
+      depositId: deposit.id,
+      userId,
+      type: 'refund',
+      amount: amount.toFixed(2),
+      balanceAfter: newBalance.toFixed(2),
+      description: description || `佣金退還 $${amount.toFixed(2)}`,
+      relatedAuctionId: auctionId,
+      createdBy: adminId,
+    });
+
+    return { success: true, newBalance };
+  } catch (error) {
+    console.error('[Database] Failed to refund commission:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update seller deposit settings (required deposit, commission rate, active status).
+ */
+export async function updateSellerDepositSettings(
+  userId: number,
+  settings: { requiredDeposit?: number; commissionRate?: number; isActive?: number }
+) {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) return false;
+
+  try {
+    const deposit = await getOrCreateSellerDeposit(userId);
+    if (!deposit) return false;
+
+    const updateData: Record<string, unknown> = {};
+    if (settings.requiredDeposit !== undefined) updateData.requiredDeposit = settings.requiredDeposit.toFixed(2);
+    if (settings.commissionRate !== undefined) updateData.commissionRate = settings.commissionRate.toFixed(4);
+    if (settings.isActive !== undefined) updateData.isActive = settings.isActive;
+
+    if (Object.keys(updateData).length > 0) {
+      await db.update(sellerDeposits).set(updateData).where(eq(sellerDeposits.userId, userId));
+    }
+    return true;
+  } catch (error) {
+    console.error('[Database] Failed to update deposit settings:', error);
+    return false;
+  }
+}
+
+/**
+ * Get deposit transactions for a specific user.
+ */
+export async function getDepositTransactions(userId: number, limit = 50, offset = 0) {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    const result = await db
+      .select({
+        id: depositTransactions.id,
+        type: depositTransactions.type,
+        amount: depositTransactions.amount,
+        balanceAfter: depositTransactions.balanceAfter,
+        description: depositTransactions.description,
+        relatedAuctionId: depositTransactions.relatedAuctionId,
+        createdAt: depositTransactions.createdAt,
+      })
+      .from(depositTransactions)
+      .where(eq(depositTransactions.userId, userId))
+      .orderBy(desc(depositTransactions.createdAt))
+      .limit(limit)
+      .offset(offset);
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to get deposit transactions:', error);
+    return [];
+  }
+}
+
+/**
+ * Get all deposit transactions (admin view).
+ */
+export async function getAllDepositTransactions(limit = 100, offset = 0) {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    const result = await db
+      .select({
+        id: depositTransactions.id,
+        userId: depositTransactions.userId,
+        userName: users.name,
+        type: depositTransactions.type,
+        amount: depositTransactions.amount,
+        balanceAfter: depositTransactions.balanceAfter,
+        description: depositTransactions.description,
+        relatedAuctionId: depositTransactions.relatedAuctionId,
+        createdAt: depositTransactions.createdAt,
+      })
+      .from(depositTransactions)
+      .leftJoin(users, eq(depositTransactions.userId, users.id))
+      .orderBy(desc(depositTransactions.createdAt))
+      .limit(limit)
+      .offset(offset);
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to get all deposit transactions:', error);
+    return [];
+  }
+}
+
+/**
+ * Check if a seller can list (has sufficient deposit balance).
+ */
+export async function canSellerList(userId: number): Promise<{ canList: boolean; reason?: string; balance?: number; required?: number }> {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) return { canList: false, reason: 'Database not available' };
+
+  try {
+    const deposit = await getOrCreateSellerDeposit(userId);
+    if (!deposit) return { canList: false, reason: '無法取得保證金記錄' };
+
+    if (!deposit.isActive) {
+      return { canList: false, reason: '賣家帳戶已被停用', balance: parseFloat(deposit.balance.toString()), required: parseFloat(deposit.requiredDeposit.toString()) };
+    }
+
+    const balance = parseFloat(deposit.balance.toString());
+    const required = parseFloat(deposit.requiredDeposit.toString());
+
+    if (balance < required) {
+      return { canList: false, reason: `保證金不足（餘額 $${balance.toFixed(2)}，需要 $${required.toFixed(2)}）`, balance, required };
+    }
+
+    return { canList: true, balance, required };
+  } catch (error) {
+    console.error('[Database] Failed to check seller listing permission:', error);
+    return { canList: false, reason: '檢查保證金時發生錯誤' };
+  }
+}
+
+/**
+ * Admin adjustment (manual balance correction).
+ */
+export async function adjustDeposit(userId: number, amount: number, description: string, adminId: number) {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+
+  try {
+    const deposit = await getOrCreateSellerDeposit(userId);
+    if (!deposit) throw new Error('Failed to get deposit record');
+
+    const currentBalance = parseFloat(deposit.balance.toString());
+    const newBalance = currentBalance + amount;
+
+    await db.update(sellerDeposits).set({ balance: newBalance.toFixed(2) }).where(eq(sellerDeposits.userId, userId));
+
+    await db.insert(depositTransactions).values({
+      depositId: deposit.id,
+      userId,
+      type: 'adjustment',
+      amount: amount.toFixed(2),
+      balanceAfter: newBalance.toFixed(2),
+      description: description || `管理員調整 ${amount >= 0 ? '+' : ''}$${amount.toFixed(2)}`,
+      createdBy: adminId,
+    });
+
+    return { success: true, newBalance };
+  } catch (error) {
+    console.error('[Database] Failed to adjust deposit:', error);
+    throw error;
+  }
+}
+
+// ── Subscription Plans & User Subscriptions (訂閱分級) ──────────────────────
+
+let _subscriptionTablesChecked = false;
+async function ensureSubscriptionTables() {
+  if (_subscriptionTablesChecked) return;
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS subscription_plans (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        memberLevel ENUM('bronze','silver','gold','vip') NOT NULL,
+        monthlyPrice DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        yearlyPrice DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        maxListings INT NOT NULL DEFAULT 0,
+        commissionDiscount DECIMAL(5,4) NOT NULL DEFAULT 0.0000,
+        description TEXT,
+        benefits TEXT,
+        sortOrder INT NOT NULL DEFAULT 0,
+        isActive INT NOT NULL DEFAULT 1,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS user_subscriptions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        userId INT NOT NULL,
+        planId INT NOT NULL,
+        billingCycle ENUM('monthly','yearly') NOT NULL DEFAULT 'monthly',
+        status ENUM('pending','active','expired','cancelled','rejected') NOT NULL DEFAULT 'pending',
+        startDate TIMESTAMP NULL,
+        endDate TIMESTAMP NULL,
+        paymentMethod VARCHAR(100),
+        paymentReference VARCHAR(255),
+        paymentProofUrl TEXT,
+        adminNote TEXT,
+        approvedBy INT,
+        approvedAt TIMESTAMP NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+    _subscriptionTablesChecked = true;
+  } catch (error) {
+    console.error('[Database] Failed to ensure subscription tables:', error);
+  }
+}
+
+// ── Subscription Plans CRUD ──────────────────────────────────────────────
+
+export async function getActiveSubscriptionPlans() {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    return await db.select().from(subscriptionPlans)
+      .where(eq(subscriptionPlans.isActive, 1))
+      .orderBy(asc(subscriptionPlans.sortOrder), asc(subscriptionPlans.id));
+  } catch (error) {
+    console.error('[Database] Failed to get active subscription plans:', error);
+    return [];
+  }
+}
+
+export async function getAllSubscriptionPlans() {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    return await db.select().from(subscriptionPlans)
+      .orderBy(asc(subscriptionPlans.sortOrder), asc(subscriptionPlans.id));
+  } catch (error) {
+    console.error('[Database] Failed to get all subscription plans:', error);
+    return [];
+  }
+}
+
+export async function getSubscriptionPlanById(planId: number) {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) return null;
+  try {
+    const result = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, planId)).limit(1);
+    return result[0] ?? null;
+  } catch (error) {
+    console.error('[Database] Failed to get subscription plan:', error);
+    return null;
+  }
+}
+
+export async function createSubscriptionPlan(data: {
+  name: string;
+  memberLevel: 'bronze' | 'silver' | 'gold' | 'vip';
+  monthlyPrice: number;
+  yearlyPrice: number;
+  maxListings: number;
+  commissionDiscount: number;
+  description?: string;
+  benefits?: string;
+  sortOrder?: number;
+}) {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+  try {
+    await db.insert(subscriptionPlans).values({
+      name: data.name,
+      memberLevel: data.memberLevel,
+      monthlyPrice: data.monthlyPrice.toFixed(2),
+      yearlyPrice: data.yearlyPrice.toFixed(2),
+      maxListings: data.maxListings,
+      commissionDiscount: data.commissionDiscount.toFixed(4),
+      description: data.description ?? null,
+      benefits: data.benefits ?? null,
+      sortOrder: data.sortOrder ?? 0,
+      isActive: 1,
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('[Database] Failed to create subscription plan:', error);
+    throw error;
+  }
+}
+
+export async function updateSubscriptionPlan(planId: number, data: {
+  name?: string;
+  memberLevel?: 'bronze' | 'silver' | 'gold' | 'vip';
+  monthlyPrice?: number;
+  yearlyPrice?: number;
+  maxListings?: number;
+  commissionDiscount?: number;
+  description?: string;
+  benefits?: string;
+  sortOrder?: number;
+  isActive?: number;
+}) {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+  try {
+    const updateData: Record<string, unknown> = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.memberLevel !== undefined) updateData.memberLevel = data.memberLevel;
+    if (data.monthlyPrice !== undefined) updateData.monthlyPrice = data.monthlyPrice.toFixed(2);
+    if (data.yearlyPrice !== undefined) updateData.yearlyPrice = data.yearlyPrice.toFixed(2);
+    if (data.maxListings !== undefined) updateData.maxListings = data.maxListings;
+    if (data.commissionDiscount !== undefined) updateData.commissionDiscount = data.commissionDiscount.toFixed(4);
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.benefits !== undefined) updateData.benefits = data.benefits;
+    if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
+    if (data.isActive !== undefined) updateData.isActive = data.isActive;
+
+    if (Object.keys(updateData).length > 0) {
+      await db.update(subscriptionPlans).set(updateData).where(eq(subscriptionPlans.id, planId));
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('[Database] Failed to update subscription plan:', error);
+    throw error;
+  }
+}
+
+export async function deleteSubscriptionPlan(planId: number) {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+  try {
+    await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, planId));
+    return { success: true };
+  } catch (error) {
+    console.error('[Database] Failed to delete subscription plan:', error);
+    throw error;
+  }
+}
+
+// ── User Subscriptions ──────────────────────────────────────────────────
+
+export async function createUserSubscription(data: {
+  userId: number;
+  planId: number;
+  billingCycle: 'monthly' | 'yearly';
+  paymentMethod?: string;
+  paymentReference?: string;
+  paymentProofUrl?: string;
+}) {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+  try {
+    await db.insert(userSubscriptions).values({
+      userId: data.userId,
+      planId: data.planId,
+      billingCycle: data.billingCycle,
+      status: 'pending',
+      paymentMethod: data.paymentMethod ?? null,
+      paymentReference: data.paymentReference ?? null,
+      paymentProofUrl: data.paymentProofUrl ?? null,
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('[Database] Failed to create user subscription:', error);
+    throw error;
+  }
+}
+
+export async function getUserActiveSubscription(userId: number) {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) return null;
+  try {
+    const result = await db
+      .select({
+        id: userSubscriptions.id,
+        userId: userSubscriptions.userId,
+        planId: userSubscriptions.planId,
+        planName: subscriptionPlans.name,
+        memberLevel: subscriptionPlans.memberLevel,
+        billingCycle: userSubscriptions.billingCycle,
+        status: userSubscriptions.status,
+        startDate: userSubscriptions.startDate,
+        endDate: userSubscriptions.endDate,
+        paymentMethod: userSubscriptions.paymentMethod,
+      })
+      .from(userSubscriptions)
+      .leftJoin(subscriptionPlans, eq(userSubscriptions.planId, subscriptionPlans.id))
+      .where(and(
+        eq(userSubscriptions.userId, userId),
+        eq(userSubscriptions.status, 'active')
+      ))
+      .orderBy(desc(userSubscriptions.createdAt))
+      .limit(1);
+    return result[0] ?? null;
+  } catch (error) {
+    console.error('[Database] Failed to get user active subscription:', error);
+    return null;
+  }
+}
+
+export async function getUserSubscriptions(userId: number) {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    return await db
+      .select({
+        id: userSubscriptions.id,
+        planId: userSubscriptions.planId,
+        planName: subscriptionPlans.name,
+        memberLevel: subscriptionPlans.memberLevel,
+        billingCycle: userSubscriptions.billingCycle,
+        status: userSubscriptions.status,
+        startDate: userSubscriptions.startDate,
+        endDate: userSubscriptions.endDate,
+        paymentMethod: userSubscriptions.paymentMethod,
+        paymentReference: userSubscriptions.paymentReference,
+        createdAt: userSubscriptions.createdAt,
+      })
+      .from(userSubscriptions)
+      .leftJoin(subscriptionPlans, eq(userSubscriptions.planId, subscriptionPlans.id))
+      .where(eq(userSubscriptions.userId, userId))
+      .orderBy(desc(userSubscriptions.createdAt));
+  } catch (error) {
+    console.error('[Database] Failed to get user subscriptions:', error);
+    return [];
+  }
+}
+
+export async function getAllUserSubscriptions(statusFilter?: string) {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const conditions = statusFilter
+      ? [eq(userSubscriptions.status, statusFilter as any)]
+      : [];
+
+    return await db
+      .select({
+        id: userSubscriptions.id,
+        userId: userSubscriptions.userId,
+        userName: users.name,
+        userEmail: users.email,
+        planId: userSubscriptions.planId,
+        planName: subscriptionPlans.name,
+        memberLevel: subscriptionPlans.memberLevel,
+        billingCycle: userSubscriptions.billingCycle,
+        status: userSubscriptions.status,
+        startDate: userSubscriptions.startDate,
+        endDate: userSubscriptions.endDate,
+        paymentMethod: userSubscriptions.paymentMethod,
+        paymentReference: userSubscriptions.paymentReference,
+        paymentProofUrl: userSubscriptions.paymentProofUrl,
+        adminNote: userSubscriptions.adminNote,
+        createdAt: userSubscriptions.createdAt,
+      })
+      .from(userSubscriptions)
+      .leftJoin(users, eq(userSubscriptions.userId, users.id))
+      .leftJoin(subscriptionPlans, eq(userSubscriptions.planId, subscriptionPlans.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(userSubscriptions.createdAt));
+  } catch (error) {
+    console.error('[Database] Failed to get all user subscriptions:', error);
+    return [];
+  }
+}
+
+export async function approveSubscription(subscriptionId: number, adminId: number, adminNote?: string) {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+  try {
+    // Get the subscription
+    const subs = await db.select().from(userSubscriptions).where(eq(userSubscriptions.id, subscriptionId)).limit(1);
+    if (!subs[0]) throw new Error('找不到訂閱記錄');
+    const sub = subs[0];
+    if (sub.status !== 'pending') throw new Error('此訂閱不在待審核狀態');
+
+    // Get the plan
+    const plans = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, sub.planId)).limit(1);
+    if (!plans[0]) throw new Error('找不到訂閱計劃');
+    const plan = plans[0];
+
+    // Calculate dates
+    const now = new Date();
+    const endDate = new Date(now);
+    if (sub.billingCycle === 'yearly') {
+      endDate.setFullYear(endDate.getFullYear() + 1);
+    } else {
+      endDate.setMonth(endDate.getMonth() + 1);
+    }
+
+    // Update subscription
+    await db.update(userSubscriptions).set({
+      status: 'active',
+      startDate: now,
+      endDate: endDate,
+      approvedBy: adminId,
+      approvedAt: now,
+      adminNote: adminNote ?? null,
+    }).where(eq(userSubscriptions.id, subscriptionId));
+
+    // Update user's member level
+    await db.update(users).set({
+      memberLevel: plan.memberLevel,
+    }).where(eq(users.id, sub.userId));
+
+    return { success: true, memberLevel: plan.memberLevel };
+  } catch (error) {
+    console.error('[Database] Failed to approve subscription:', error);
+    throw error;
+  }
+}
+
+export async function rejectSubscription(subscriptionId: number, adminId: number, adminNote?: string) {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+  try {
+    const subs = await db.select().from(userSubscriptions).where(eq(userSubscriptions.id, subscriptionId)).limit(1);
+    if (!subs[0]) throw new Error('找不到訂閱記錄');
+    if (subs[0].status !== 'pending') throw new Error('此訂閱不在待審核狀態');
+
+    await db.update(userSubscriptions).set({
+      status: 'rejected',
+      adminNote: adminNote ?? null,
+      approvedBy: adminId,
+      approvedAt: new Date(),
+    }).where(eq(userSubscriptions.id, subscriptionId));
+
+    return { success: true };
+  } catch (error) {
+    console.error('[Database] Failed to reject subscription:', error);
+    throw error;
+  }
+}
+
+export async function cancelSubscription(subscriptionId: number, adminId: number, adminNote?: string) {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+  try {
+    const subs = await db.select().from(userSubscriptions).where(eq(userSubscriptions.id, subscriptionId)).limit(1);
+    if (!subs[0]) throw new Error('找不到訂閱記錄');
+
+    await db.update(userSubscriptions).set({
+      status: 'cancelled',
+      adminNote: adminNote ?? null,
+    }).where(eq(userSubscriptions.id, subscriptionId));
+
+    // Downgrade user back to bronze
+    await db.update(users).set({
+      memberLevel: 'bronze',
+    }).where(eq(users.id, subs[0].userId));
+
+    return { success: true };
+  } catch (error) {
+    console.error('[Database] Failed to cancel subscription:', error);
+    throw error;
+  }
+}
+
+export async function getSubscriptionStats() {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) return { total: 0, pending: 0, active: 0, expired: 0 };
+  try {
+    const all = await db.select({ status: userSubscriptions.status }).from(userSubscriptions);
+    const total = all.length;
+    const pending = all.filter((s: { status: string }) => s.status === 'pending').length;
+    const active = all.filter((s: { status: string }) => s.status === 'active').length;
+    const expired = all.filter((s: { status: string }) => s.status === 'expired').length;
+    return { total, pending, active, expired };
+  } catch (error) {
+    console.error('[Database] Failed to get subscription stats:', error);
+    return { total: 0, pending: 0, active: 0, expired: 0 };
   }
 }

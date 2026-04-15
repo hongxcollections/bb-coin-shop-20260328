@@ -6,7 +6,7 @@ import { z } from "zod";
 import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats } from "./db";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 
@@ -908,6 +908,307 @@ export const appRouter = router({
       .query(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can export bids' });
         return getAllBidsForExport(input.auctionId);
+      }),
+  }),
+
+  sellerDeposits: router({
+    // Get current user's deposit info
+    myDeposit: protectedProcedure
+      .query(async ({ ctx }) => {
+        const deposit = await getOrCreateSellerDeposit(ctx.user.id);
+        if (!deposit) return null;
+        return {
+          id: deposit.id,
+          balance: parseFloat(deposit.balance.toString()),
+          requiredDeposit: parseFloat(deposit.requiredDeposit.toString()),
+          commissionRate: parseFloat(deposit.commissionRate.toString()),
+          isActive: deposit.isActive === 1,
+        };
+      }),
+
+    // Check if current user can list
+    canList: protectedProcedure
+      .query(async ({ ctx }) => {
+        return canSellerList(ctx.user.id);
+      }),
+
+    // Admin: get all seller deposits
+    listAll: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        return getAllSellerDeposits();
+      }),
+
+    // Admin: get deposit for a specific user
+    getByUser: protectedProcedure
+      .input(z.object({ userId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const deposit = await getOrCreateSellerDeposit(input.userId);
+        if (!deposit) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到保證金記錄' });
+        return {
+          id: deposit.id,
+          userId: deposit.userId,
+          balance: parseFloat(deposit.balance.toString()),
+          requiredDeposit: parseFloat(deposit.requiredDeposit.toString()),
+          commissionRate: parseFloat(deposit.commissionRate.toString()),
+          isActive: deposit.isActive === 1,
+        };
+      }),
+
+    // Admin: top up deposit
+    topUp: protectedProcedure
+      .input(z.object({
+        userId: z.number().int().positive(),
+        amount: z.number().positive(),
+        description: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const result = await topUpDeposit(input.userId, input.amount, input.description ?? '', ctx.user.id);
+        return result;
+      }),
+
+    // Admin: deduct commission
+    deductCommission: protectedProcedure
+      .input(z.object({
+        userId: z.number().int().positive(),
+        amount: z.number().positive(),
+        auctionId: z.number().int().positive(),
+        description: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const result = await deductCommission(input.userId, input.amount, input.auctionId, input.description ?? '', ctx.user.id);
+        return result;
+      }),
+
+    // Admin: refund commission
+    refundCommission: protectedProcedure
+      .input(z.object({
+        userId: z.number().int().positive(),
+        amount: z.number().positive(),
+        auctionId: z.number().int().positive(),
+        description: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const result = await refundCommission(input.userId, input.amount, input.auctionId, input.description ?? '', ctx.user.id);
+        return result;
+      }),
+
+    // Admin: adjust deposit balance
+    adjust: protectedProcedure
+      .input(z.object({
+        userId: z.number().int().positive(),
+        amount: z.number(), // can be positive or negative
+        description: z.string().min(1, '請填寫調整原因'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const result = await adjustDeposit(input.userId, input.amount, input.description, ctx.user.id);
+        return result;
+      }),
+
+    // Admin: update deposit settings
+    updateSettings: protectedProcedure
+      .input(z.object({
+        userId: z.number().int().positive(),
+        requiredDeposit: z.number().min(0).optional(),
+        commissionRate: z.number().min(0).max(1).optional(),
+        isActive: z.number().int().min(0).max(1).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const ok = await updateSellerDepositSettings(input.userId, {
+          requiredDeposit: input.requiredDeposit,
+          commissionRate: input.commissionRate,
+          isActive: input.isActive,
+        });
+        if (!ok) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '更新失敗' });
+        return { success: true };
+      }),
+
+    // Admin: get transactions for a user
+    getTransactions: protectedProcedure
+      .input(z.object({
+        userId: z.number().int().positive(),
+        limit: z.number().int().min(1).max(200).default(50),
+        offset: z.number().int().min(0).default(0),
+      }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        return getDepositTransactions(input.userId, input.limit, input.offset);
+      }),
+
+    // Admin: get all transactions
+    getAllTransactions: protectedProcedure
+      .input(z.object({
+        limit: z.number().int().min(1).max(200).default(100),
+        offset: z.number().int().min(0).default(0),
+      }).optional())
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        return getAllDepositTransactions(input?.limit ?? 100, input?.offset ?? 0);
+      }),
+  }),
+
+  subscriptions: router({
+    // ── Public: Get active plans ──
+    getPlans: publicProcedure
+      .query(async () => {
+        return getActiveSubscriptionPlans();
+      }),
+
+    // ── User: Get my active subscription ──
+    mySubscription: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getUserActiveSubscription(ctx.user.id);
+      }),
+
+    // ── User: Get my subscription history ──
+    myHistory: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getUserSubscriptions(ctx.user.id);
+      }),
+
+    // ── User: Submit subscription request ──
+    subscribe: protectedProcedure
+      .input(z.object({
+        planId: z.number().int().positive(),
+        billingCycle: z.enum(['monthly', 'yearly']),
+        paymentMethod: z.string().optional(),
+        paymentReference: z.string().optional(),
+        paymentProofUrl: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Verify plan exists and is active
+        const plan = await getSubscriptionPlanById(input.planId);
+        if (!plan || !plan.isActive) throw new TRPCError({ code: 'NOT_FOUND', message: '\u8a02\u95b1\u8a08\u5283\u4e0d\u5b58\u5728\u6216\u5df2\u505c\u7528' });
+        return createUserSubscription({
+          userId: ctx.user.id,
+          planId: input.planId,
+          billingCycle: input.billingCycle,
+          paymentMethod: input.paymentMethod,
+          paymentReference: input.paymentReference,
+          paymentProofUrl: input.paymentProofUrl,
+        });
+      }),
+
+    // ── User: Upload payment proof image ──
+    uploadPaymentProof: protectedProcedure
+      .input(z.object({
+        base64: z.string(),
+        filename: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const buffer = Buffer.from(input.base64, 'base64');
+        const ext = input.filename.split('.').pop() || 'jpg';
+        const key = `payment-proofs/${ctx.user.id}/${Date.now()}.${ext}`;
+        const url = await storagePut(key, buffer, `image/${ext}`);
+        return { url };
+      }),
+
+    // ── Admin: Get all plans (including inactive) ──
+    adminListPlans: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        return getAllSubscriptionPlans();
+      }),
+
+    // ── Admin: Create plan ──
+    adminCreatePlan: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        memberLevel: z.enum(['bronze', 'silver', 'gold', 'vip']),
+        monthlyPrice: z.number().min(0),
+        yearlyPrice: z.number().min(0),
+        maxListings: z.number().int().min(0).default(0),
+        commissionDiscount: z.number().min(0).max(1).default(0),
+        description: z.string().optional(),
+        benefits: z.string().optional(),
+        sortOrder: z.number().int().default(0),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        return createSubscriptionPlan(input);
+      }),
+
+    // ── Admin: Update plan ──
+    adminUpdatePlan: protectedProcedure
+      .input(z.object({
+        planId: z.number().int().positive(),
+        name: z.string().min(1).optional(),
+        memberLevel: z.enum(['bronze', 'silver', 'gold', 'vip']).optional(),
+        monthlyPrice: z.number().min(0).optional(),
+        yearlyPrice: z.number().min(0).optional(),
+        maxListings: z.number().int().min(0).optional(),
+        commissionDiscount: z.number().min(0).max(1).optional(),
+        description: z.string().optional(),
+        benefits: z.string().optional(),
+        sortOrder: z.number().int().optional(),
+        isActive: z.number().int().min(0).max(1).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const { planId, ...data } = input;
+        return updateSubscriptionPlan(planId, data);
+      }),
+
+    // ── Admin: Delete plan ──
+    adminDeletePlan: protectedProcedure
+      .input(z.object({ planId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        return deleteSubscriptionPlan(input.planId);
+      }),
+
+    // ── Admin: List all subscriptions ──
+    adminListSubscriptions: protectedProcedure
+      .input(z.object({ status: z.string().optional() }).optional())
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        return getAllUserSubscriptions(input?.status);
+      }),
+
+    // ── Admin: Get subscription stats ──
+    adminStats: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        return getSubscriptionStats();
+      }),
+
+    // ── Admin: Approve subscription ──
+    adminApprove: protectedProcedure
+      .input(z.object({
+        subscriptionId: z.number().int().positive(),
+        adminNote: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        return approveSubscription(input.subscriptionId, ctx.user.id, input.adminNote);
+      }),
+
+    // ── Admin: Reject subscription ──
+    adminReject: protectedProcedure
+      .input(z.object({
+        subscriptionId: z.number().int().positive(),
+        adminNote: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        return rejectSubscription(input.subscriptionId, ctx.user.id, input.adminNote);
+      }),
+
+    // ── Admin: Cancel subscription ──
+    adminCancel: protectedProcedure
+      .input(z.object({
+        subscriptionId: z.number().int().positive(),
+        adminNote: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        return cancelSubscription(input.subscriptionId, ctx.user.id, input.adminNote);
       }),
   }),
 

@@ -580,6 +580,8 @@ export default function AdminAuctions() {
             <Link href="/admin/export-bids"><Button variant="ghost" size="sm" className="text-orange-600 hover:text-orange-800 hover:bg-orange-50">📥 匯出</Button></Link>
             <Link href="/admin/settings"><Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 hover:bg-gray-50">⚙️ 設定</Button></Link>
             <Link href="/admin/won-orders"><Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">🏆 得標訂單</Button></Link>
+            <Link href="/admin/deposits"><Button variant="ghost" size="sm" className="text-teal-600 hover:text-teal-800 hover:bg-teal-50">💰 保證金</Button></Link>
+            <Link href="/admin/subscriptions"><Button variant="ghost" size="sm" className="text-violet-600 hover:text-violet-800 hover:bg-violet-50">👑 訂閱</Button></Link>
             <Link href="/profile"><Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">{user?.name}</Button></Link>
             <Button variant="outline" size="sm" onClick={logout} className="border-red-200 text-red-600 hover:bg-red-50">
               <LogOut className="w-3.5 h-3.5 mr-1" /> 登出
@@ -608,6 +610,8 @@ export default function AdminAuctions() {
               { href: "/admin/export-bids", label: "📥 匯出記錄", cls: "text-orange-600" },
               { href: "/admin/settings", label: "⚙️ 站點設定", cls: "text-gray-600" },
               { href: "/admin/won-orders", label: "🏆 得標訂單", cls: "text-amber-700" },
+              { href: "/admin/deposits", label: "💰 保證金管理", cls: "text-teal-600" },
+              { href: "/admin/subscriptions", label: "👑 訂閱管理", cls: "text-violet-600" },
               { href: "/profile", label: user?.name ?? "個人資料", cls: "text-amber-700" },
             ].map(({ href, label, cls }) => (
               <Link key={href} href={href} onClick={() => setMobileMenuOpen(false)}>

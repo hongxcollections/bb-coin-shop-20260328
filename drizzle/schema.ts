@@ -211,3 +211,102 @@ export const siteSettings = mysqlTable("site_settings", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type InsertSiteSetting = typeof siteSettings.$inferInsert;
+
+// ── Seller Deposits (保證金) ──────────────────────────────────────────────
+// Each seller has a single deposit balance row
+export const sellerDeposits = mysqlTable("seller_deposits", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  balance: decimal("balance", { precision: 12, scale: 2 }).default("0.00").notNull(),
+  requiredDeposit: decimal("requiredDeposit", { precision: 12, scale: 2 }).default("500.00").notNull(),
+  commissionRate: decimal("commissionRate", { precision: 5, scale: 4 }).default("0.0500").notNull(), // 5%
+  isActive: int("isActive").default(1).notNull(), // 1 = can list
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SellerDeposit = typeof sellerDeposits.$inferSelect;
+export type InsertSellerDeposit = typeof sellerDeposits.$inferInsert;
+
+// Transaction log for every deposit change (top-up, commission deduction, refund)
+export const depositTransactions = mysqlTable("deposit_transactions", {
+  id: int("id").autoincrement().primaryKey(),
+  depositId: int("depositId").notNull(),
+  userId: int("userId").notNull(),
+  type: mysqlEnum("type", ["top_up", "commission", "refund", "adjustment"]).notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(), // positive = credit, negative = debit
+  balanceAfter: decimal("balanceAfter", { precision: 12, scale: 2 }).notNull(),
+  description: text("description"),
+  relatedAuctionId: int("relatedAuctionId"),
+  createdBy: int("createdBy"), // admin who performed the action
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type DepositTransaction = typeof depositTransactions.$inferSelect;
+export type InsertDepositTransaction = typeof depositTransactions.$inferInsert;
+
+export const sellerDepositsRelations = relations(sellerDeposits, ({ one, many }) => ({
+  user: one(users, { fields: [sellerDeposits.userId], references: [users.id] }),
+  transactions: many(depositTransactions),
+}));
+
+export const depositTransactionsRelations = relations(depositTransactions, ({ one }) => ({
+  deposit: one(sellerDeposits, { fields: [depositTransactions.depositId], references: [sellerDeposits.id] }),
+  user: one(users, { fields: [depositTransactions.userId], references: [users.id] }),
+  auction: one(auctions, { fields: [depositTransactions.relatedAuctionId], references: [auctions.id] }),
+}));
+
+// ── Subscription Plans (訂閱計劃) ─────────────────────────────────────────
+// Admin-defined subscription tiers
+export const subscriptionPlans = mysqlTable("subscription_plans", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  memberLevel: mysqlEnum("memberLevel", ["bronze", "silver", "gold", "vip"]).notNull(),
+  monthlyPrice: decimal("monthlyPrice", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  yearlyPrice: decimal("yearlyPrice", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  maxListings: int("maxListings").default(0).notNull(), // 0 = unlimited
+  commissionDiscount: decimal("commissionDiscount", { precision: 5, scale: 4 }).default("0.0000").notNull(), // e.g. 0.01 = 1% discount
+  description: text("description"),
+  benefits: text("benefits"), // JSON string of benefit list
+  sortOrder: int("sortOrder").default(0).notNull(),
+  isActive: int("isActive").default(1).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
+export type InsertSubscriptionPlan = typeof subscriptionPlans.$inferInsert;
+
+// ── User Subscriptions (用戶訂閱記錄) ────────────────────────────────────
+// Tracks each user's subscription lifecycle
+export const userSubscriptions = mysqlTable("user_subscriptions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  planId: int("planId").notNull(),
+  billingCycle: mysqlEnum("billingCycle", ["monthly", "yearly"]).default("monthly").notNull(),
+  status: mysqlEnum("status", ["pending", "active", "expired", "cancelled", "rejected"]).default("pending").notNull(),
+  startDate: timestamp("startDate"),
+  endDate: timestamp("endDate"),
+  paymentMethod: varchar("paymentMethod", { length: 100 }), // e.g. "bank_transfer", "payme", "fps"
+  paymentReference: varchar("paymentReference", { length: 255 }), // user-provided payment ref
+  paymentProofUrl: text("paymentProofUrl"), // screenshot of payment
+  adminNote: text("adminNote"),
+  approvedBy: int("approvedBy"), // admin who approved
+  approvedAt: timestamp("approvedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UserSubscription = typeof userSubscriptions.$inferSelect;
+export type InsertUserSubscription = typeof userSubscriptions.$inferInsert;
+
+// Relations
+export const subscriptionPlansRelations = relations(subscriptionPlans, ({ many }) => ({
+  subscriptions: many(userSubscriptions),
+}));
+
+export const userSubscriptionsRelations = relations(userSubscriptions, ({ one }) => ({
+  user: one(users, { fields: [userSubscriptions.userId], references: [users.id] }),
+  plan: one(subscriptionPlans, { fields: [userSubscriptions.planId], references: [subscriptionPlans.id] }),
+  approver: one(users, { fields: [userSubscriptions.approvedBy], references: [users.id] }),
+}));
