@@ -2113,3 +2113,110 @@ export async function getSubscriptionStats() {
     return { total: 0, pending: 0, active: 0, expired: 0 };
   }
 }
+
+// ─────────────────────────────────────────────
+// Admin User Management
+// ─────────────────────────────────────────────
+
+/**
+ * Get all users with extended info: phone, loginMethod, merchant (sellerDeposit) info
+ */
+export async function getAllUsersExtended() {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const result = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        phone: users.phone,
+        loginMethod: users.loginMethod,
+        role: users.role,
+        memberLevel: users.memberLevel,
+        createdAt: users.createdAt,
+        lastSignedIn: users.lastSignedIn,
+        depositId: sellerDeposits.id,
+        depositBalance: sellerDeposits.balance,
+        requiredDeposit: sellerDeposits.requiredDeposit,
+        commissionRate: sellerDeposits.commissionRate,
+        depositIsActive: sellerDeposits.isActive,
+      })
+      .from(users)
+      .leftJoin(sellerDeposits, eq(sellerDeposits.userId, users.id))
+      .orderBy(desc(users.createdAt));
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to get all users extended:', error);
+    return [];
+  }
+}
+
+/**
+ * Admin update any user's profile (name, email, phone)
+ */
+export async function adminUpdateUser(
+  userId: number,
+  data: { name?: string; email?: string; phone?: string }
+): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  try {
+    const updateData: Record<string, unknown> = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (Object.keys(updateData).length === 0) return true;
+    await db.update(users).set(updateData).where(eq(users.id, userId));
+    return true;
+  } catch (error) {
+    console.error('[Database] Failed to admin update user:', error);
+    return false;
+  }
+}
+
+/**
+ * Delete user and ALL related data (bids, favorites, proxy bids, subscriptions, deposits)
+ */
+export async function deleteUserAndData(userId: number): Promise<{ success: boolean; error?: string }> {
+  const db = await getDb();
+  if (!db) return { success: false, error: 'Database not available' };
+  try {
+    // Nullify highest bidder on any live auctions
+    await db.update(auctions)
+      .set({ highestBidderId: null } as Record<string, unknown>)
+      .where(eq(auctions.highestBidderId, userId));
+
+    // Delete proxy bid logs
+    await db.delete(proxyBidLogs).where(eq(proxyBidLogs.proxyUserId, userId));
+    await db.delete(proxyBidLogs).where(eq(proxyBidLogs.triggerUserId, userId));
+
+    // Delete proxy bids
+    await db.delete(proxyBids).where(eq(proxyBids.userId, userId));
+
+    // Delete bids
+    await db.delete(bids).where(eq(bids.userId, userId));
+
+    // Delete favorites
+    await db.delete(favorites).where(eq(favorites.userId, userId));
+
+    // Delete subscriptions
+    try {
+      await db.delete(userSubscriptions).where(eq(userSubscriptions.userId, userId));
+    } catch {}
+
+    // Delete deposit transactions and deposit
+    try {
+      await db.delete(depositTransactions).where(eq(depositTransactions.userId, userId));
+      await db.delete(sellerDeposits).where(eq(sellerDeposits.userId, userId));
+    } catch {}
+
+    // Finally delete the user
+    await db.delete(users).where(eq(users.id, userId));
+
+    return { success: true };
+  } catch (error) {
+    console.error('[Database] Failed to delete user and data:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
