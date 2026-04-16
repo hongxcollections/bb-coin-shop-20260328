@@ -9,10 +9,11 @@ let _db: any = null;
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
+  const dbUrl = ENV.databaseUrl || process.env.DATABASE_URL || "";
+  if (!_db && dbUrl) {
     try {
-      // Parse DATABASE_URL and add proper SSL config for TiDB Cloud
-      const url = new URL(process.env.DATABASE_URL);
+      // Parse database URL and add proper SSL config for TiDB Cloud / Railway MySQL
+      const url = new URL(dbUrl);
       const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
       const pool = createPool({
         host: url.hostname,

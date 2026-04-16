@@ -38,9 +38,10 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function runMigrations() {
-  if (!process.env.DATABASE_URL) return;
+  const dbUrl = process.env.BB_DATABASE_URL || process.env.DATABASE_URL || "";
+  if (!dbUrl) return;
   try {
-    const url = new URL(process.env.DATABASE_URL);
+    const url = new URL(dbUrl);
     const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
     const pool = createPool({
       host: url.hostname,

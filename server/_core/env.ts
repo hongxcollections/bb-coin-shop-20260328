@@ -1,10 +1,13 @@
 const _ownerOpenId = process.env.OWNER_OPEN_ID ?? "";
 console.log(`[ENV] OWNER_OPEN_ID loaded: "${_ownerOpenId}" (length: ${_ownerOpenId.length})`);
 
+// Support BB_DATABASE_URL as fallback (Replit reserves DATABASE_URL)
+const _databaseUrl = process.env.BB_DATABASE_URL || process.env.DATABASE_URL || "";
+
 export const ENV = {
   appId: process.env.VITE_APP_ID ?? "",
   cookieSecret: process.env.JWT_SECRET ?? "",
-  databaseUrl: process.env.DATABASE_URL ?? "",
+  databaseUrl: _databaseUrl,
   oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
   ownerOpenId: _ownerOpenId,
   isProduction: process.env.NODE_ENV === "production" && process.env.SANDBOX_MODE !== "true",
