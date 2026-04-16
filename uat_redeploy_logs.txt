@@ -1,8 +1,2 @@
-Starting Container
-[ENV] OWNER_OPEN_ID loaded: "google_117440196683357088677" (length: 28)
-[OAuth] Initialized with baseURL: https://bb-coin-shop-app-uat-uat-6c7e.up.railway.app
-[Migration] Running migrations from: /drizzle
-[Migration] Migration warning (continuing): Can't find meta/_journal.json file
-[Static] Checking path: /app/dist/public
-[Static] Found valid public directory at: /app/dist/public
-Server running on http://localhost:3000/
+UAT redeploy triggered: 2026-04-16T17:11:05.875Z
+feat: admin user management - buyer/merchant tabs, edit, delete
