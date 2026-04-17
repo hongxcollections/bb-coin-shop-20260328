@@ -2143,6 +2143,7 @@ export async function getAllUsersExtended() {
         requiredDeposit: sellerDeposits.requiredDeposit,
         commissionRate: sellerDeposits.commissionRate,
         depositIsActive: sellerDeposits.isActive,
+        wonCount: sql<number>`(SELECT COUNT(*) FROM auctions WHERE highestBidderId = ${users.id} AND status = 'ended')`,
       })
       .from(users)
       .leftJoin(sellerDeposits, eq(sellerDeposits.userId, users.id))
@@ -2150,6 +2151,31 @@ export async function getAllUsersExtended() {
     return result;
   } catch (error) {
     console.error('[Database] Failed to get all users extended:', error);
+    return [];
+  }
+}
+
+/**
+ * Get won auctions (ended + highestBidder) for a specific user — admin use
+ */
+export async function getWonAuctionsByUser(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    return await db
+      .select({
+        id: auctions.id,
+        title: auctions.title,
+        currentPrice: auctions.currentPrice,
+        currency: auctions.currency,
+        endTime: auctions.endTime,
+        paymentStatus: auctions.paymentStatus,
+      })
+      .from(auctions)
+      .where(and(eq(auctions.highestBidderId, userId), eq(auctions.status, 'ended')))
+      .orderBy(desc(auctions.endTime));
+  } catch (error) {
+    console.error('[Database] Failed to get won auctions by user:', error);
     return [];
   }
 }
