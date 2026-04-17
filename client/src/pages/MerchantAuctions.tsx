@@ -475,7 +475,9 @@ export default function MerchantAuctions() {
     d.setDate(d.getDate() + offset);
     const [hh, mm] = timeStr.split(":");
     d.setHours(parseInt(hh ?? "23", 10), parseInt(mm ?? "0", 10), 0, 0);
-    return d.toISOString().slice(0, 16);
+    // 用本地時間格式，避免 toISOString() 轉成 UTC 導致時差
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
   const openPublish = (a: AuctionItem) => {
