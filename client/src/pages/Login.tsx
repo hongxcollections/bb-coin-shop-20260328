@@ -183,6 +183,8 @@ export default function Login() {
       });
       const data = await res.json();
       if (!res.ok) { showError(data.error || "登入失敗"); return; }
+      // Set flag so BottomNav can show login success toast after redirect
+      localStorage.setItem("showLoginToast", identifier.includes("@") ? "email" : "phone");
       window.location.href = "/";
     } catch {
       showError("網絡錯誤，請稍後再試");

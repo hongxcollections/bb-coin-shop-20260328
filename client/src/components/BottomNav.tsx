@@ -39,6 +39,20 @@ export default function BottomNav() {
     }
   }, [showToast]);
 
+  // Show login success toast (localStorage flag set by Login.tsx)
+  useEffect(() => {
+    const method = localStorage.getItem("showLoginToast");
+    if (method === "phone" || method === "email") {
+      localStorage.removeItem("showLoginToast");
+      showToast({
+        icon: "✅",
+        title: method === "phone" ? "手機登入成功！" : "電郵登入成功！",
+        desc: "歡迎繼續瀏覽網站！",
+        durationMs: 4000,
+      });
+    }
+  }, [showToast]);
+
   const showComingSoon = useCallback((featureName: string) => {
     showToast({
       icon: "🚧",
