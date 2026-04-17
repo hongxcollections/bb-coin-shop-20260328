@@ -786,7 +786,7 @@ export default function MerchantAuctions() {
               <p className="text-sm text-foreground">
                 {deleteConfirm ? (deleteConfirm.title.length > 20 ? deleteConfirm.title.slice(0, 20) + "…" : deleteConfirm.title) : ""}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">刪除後不可復原。</p>
+              <p className="text-xs text-red-500 mt-1">刪除後不可復原。</p>
             </div>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setDeleteConfirm(null)}>取消</Button>
