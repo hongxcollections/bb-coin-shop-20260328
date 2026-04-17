@@ -194,6 +194,91 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
+  // POST /api/auth/forgot-password/send-otp — 忘記密碼：向已登記手機發送 OTP
+  app.post("/api/auth/forgot-password/send-otp", async (req: Request, res: Response) => {
+    try {
+      const { phone } = req.body;
+      if (!phone) { res.status(400).json({ error: "請提供手機號碼" }); return; }
+
+      const fmtErr = serverValidatePhone(phone);
+      if (fmtErr) { res.status(400).json({ error: fmtErr }); return; }
+
+      const database = await db.getDb();
+      if (!database) { res.status(500).json({ error: "數據庫不可用" }); return; }
+
+      const found = await database.select().from(users).where(eq(users.phone, phone)).limit(1);
+      if (found.length === 0 || !found[0].password) {
+        res.status(404).json({ error: "此手機號碼未曾登記，請重新確認" });
+        return;
+      }
+
+      if (isMainlandChina(phone) && !canResend(phone)) {
+        res.status(429).json({ error: "請稍候再重新發送驗證碼" });
+        return;
+      }
+
+      const code = generateOtp();
+      if (isMainlandChina(phone)) setOtp(phone, code);
+
+      const smsResult = await sendOtpSms(phone, code);
+      if (!smsResult.ok) {
+        console.error(`[Auth] forgot-pw OTP failed for ${phone}: ${smsResult.error}`);
+        res.status(500).json({ error: "驗證碼發送失敗", detail: smsResult.error });
+        return;
+      }
+      res.json({ success: true });
+    } catch (err) {
+      console.error("[Auth] forgot-password/send-otp error:", err);
+      res.status(500).json({ error: "發送失敗，請稍後再試" });
+    }
+  });
+
+  // POST /api/auth/forgot-password/reset — 忘記密碼：驗證 OTP 後更新密碼
+  app.post("/api/auth/forgot-password/reset", async (req: Request, res: Response) => {
+    try {
+      const { phone, otpCode, newPassword } = req.body;
+      if (!phone || !otpCode || !newPassword) {
+        res.status(400).json({ error: "資料不完整" }); return;
+      }
+      if (newPassword.length < 6) {
+        res.status(400).json({ error: "密碼須至少 6 個字元" }); return;
+      }
+
+      // Verify OTP
+      if (isMainlandChina(phone)) {
+        const result = verifyOtp(phone, otpCode);
+        if (result === "expired") {
+          res.status(400).json({ error: "驗證碼已過期，請重新發送", otpExpired: true }); return;
+        }
+        if (result === "too_many_attempts") {
+          res.status(400).json({ error: "驗證碼錯誤次數過多，請重新發送", otpExpired: true }); return;
+        }
+        if (result === "invalid") {
+          res.status(400).json({ error: "驗證碼不正確，請重新輸入" }); return;
+        }
+      } else {
+        const verifyResult = await checkViaTwilioVerify(phone, otpCode);
+        if (verifyResult === "error") {
+          res.status(500).json({ error: "驗證時出現錯誤，請稍後再試" }); return;
+        }
+        if (verifyResult !== "approved") {
+          res.status(400).json({ error: "驗證碼不正確或已過期，請重新發送" }); return;
+        }
+      }
+
+      const database = await db.getDb();
+      if (!database) { res.status(500).json({ error: "數據庫不可用" }); return; }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await database.update(users).set({ password: hashedPassword }).where(eq(users.phone, phone));
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error("[Auth] forgot-password/reset error:", err);
+      res.status(500).json({ error: "重設密碼失敗，請稍後再試" });
+    }
+  });
+
   // POST /api/auth/login — 登入
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {

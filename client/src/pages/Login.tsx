@@ -73,7 +73,7 @@ function validatePhoneFormat(countryCode: string, local: string): string | null 
 }
 
 export default function Login() {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
   const [registerMethod, setRegisterMethod] = useState<"email" | "phone">("email");
   const [step, setStep] = useState<"form" | "otp">("form");
 
@@ -96,6 +96,20 @@ export default function Login() {
   const countryDropdownRef = useRef<HTMLDivElement>(null);
 
   const [loading, setLoading] = useState(false);
+
+  // ─── Forgot password state ────────────────────────────────────────────────
+  const [fpStep, setFpStep] = useState<"identify" | "otp" | "newpw">("identify");
+  const [fpCountryCode, setFpCountryCode] = useState("+852");
+  const [fpLocalPhone, setFpLocalPhone] = useState("");
+  const [fpPhone, setFpPhone] = useState("");
+  const [fpShowCountryDropdown, setFpShowCountryDropdown] = useState(false);
+  const fpCountryDropdownRef = useRef<HTMLDivElement>(null);
+  const [fpPassword, setFpPassword] = useState("");
+  const [fpConfirmPassword, setFpConfirmPassword] = useState("");
+  const [fpShowPassword, setFpShowPassword] = useState(false);
+  const [fpShowConfirmPassword, setFpShowConfirmPassword] = useState(false);
+  const [fpLoading, setFpLoading] = useState(false);
+
   const { showToast } = useToast();
 
   const showError = (msg: string) => showToast({ icon: "⚠️", title: msg, durationMs: 4000 });
@@ -274,12 +288,101 @@ export default function Login() {
     }
   };
 
-  const switchMode = (newMode: "login" | "register") => {
+  const switchMode = (newMode: "login" | "register" | "forgot") => {
     setMode(newMode);
     setStep("form");
     setPassword(""); setConfirmPassword(""); setIdentifier("");
     setEmail(""); setPhone(""); setName("");
     setOtpDigits(["", "", "", "", "", ""]);
+    if (newMode === "forgot") {
+      setFpStep("identify"); setFpLocalPhone(""); setFpPhone("");
+      setFpPassword(""); setFpConfirmPassword(""); setCountdown(0);
+    }
+  };
+
+  // ─── Forgot password handlers ─────────────────────────────────────────────
+  const sendForgotOtp = async () => {
+    if (!fpLocalPhone) { showError("請輸入手機號碼"); return; }
+    const fmtErr = validatePhoneFormat(fpCountryCode, fpLocalPhone);
+    if (fmtErr) { showError(fmtErr); return; }
+    const fullPhone = fpCountryCode + fpLocalPhone.replace(/\D/g, "");
+    setFpLoading(true);
+    try {
+      const res = await fetch("/api/auth/forgot-password/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: fullPhone }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast({ icon: "⚠️", title: data.error || "發送失敗", desc: data.detail, durationMs: 5000 });
+        return;
+      }
+      setFpPhone(fullPhone);
+      setFpStep("otp");
+      setCountdown(60);
+      setOtpDigits(["", "", "", "", "", ""]);
+      setTimeout(() => otpRefs.current[0]?.focus(), 100);
+    } catch {
+      showError("網絡錯誤，請稍後再試");
+    } finally {
+      setFpLoading(false);
+    }
+  };
+
+  const resendForgotOtp = async () => {
+    if (countdown > 0) return;
+    setFpLoading(true);
+    try {
+      const res = await fetch("/api/auth/forgot-password/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: fpPhone }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast({ icon: "⚠️", title: data.error || "發送失敗", desc: data.detail, durationMs: 5000 });
+        return;
+      }
+      setCountdown(60);
+      setOtpDigits(["", "", "", "", "", ""]);
+      setTimeout(() => otpRefs.current[0]?.focus(), 100);
+    } catch {
+      showError("網絡錯誤，請稍後再試");
+    } finally {
+      setFpLoading(false);
+    }
+  };
+
+  const resetPassword = async () => {
+    const otpCode = otpDigits.join("");
+    if (otpCode.length < 6) { showError("請輸入完整的 6 位驗證碼"); return; }
+    if (!fpPassword) { showError("請輸入新密碼"); return; }
+    if (fpPassword.length < 6) { showError("密碼須至少 6 個字元"); return; }
+    if (fpPassword !== fpConfirmPassword) { showError("兩次輸入的密碼不一致，請重新確認"); return; }
+    setFpLoading(true);
+    try {
+      const res = await fetch("/api/auth/forgot-password/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: fpPhone, otpCode, newPassword: fpPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.otpExpired) {
+          setFpStep("otp");
+          setOtpDigits(["", "", "", "", "", ""]);
+        }
+        showToast({ icon: "⚠️", title: data.error || "重設失敗", durationMs: 5000 });
+        return;
+      }
+      showToast({ icon: "✅", title: "密碼重設成功！", desc: "請使用新密碼登入", durationMs: 4000 });
+      switchMode("login");
+    } catch {
+      showError("網絡錯誤，請稍後再試");
+    } finally {
+      setFpLoading(false);
+    }
   };
 
   const inputStyle = { background: "#fff", borderColor: "#E5E5E5", color: "#333" };
@@ -293,17 +396,193 @@ export default function Login() {
       <div className="text-center pt-[47px] pb-4">
         <p className="gold-gradient-text font-bold text-xl leading-snug">hongxcollections</p>
         <p className="text-sm font-medium mt-1" style={{ color: "#E07B00" }}>
-          {mode === "login" ? "歡迎回來" : "歡迎加入"}
+          {mode === "login" ? "歡迎回來" : mode === "forgot" ? "帳號安全" : "歡迎加入"}
         </p>
         <p className="text-base font-bold mt-1" style={{ color: "#222" }}>
-          {mode === "login" ? "登入帳號" : isPhoneRegister && step === "otp" ? "電話驗證" : "註冊帳號"}
+          {mode === "login" ? "登入帳號"
+            : mode === "forgot" ? (fpStep === "identify" ? "忘記密碼" : fpStep === "otp" ? "電話驗證" : "設定新密碼")
+            : isPhoneRegister && step === "otp" ? "電話驗證" : "註冊帳號"}
         </p>
       </div>
 
       <div className="px-6 pt-2 pb-24 max-w-sm mx-auto">
 
-        {/* === OTP STEP (phone register only) === */}
-        {isPhoneRegister && step === "otp" ? (
+        {/* === FORGOT PASSWORD FLOW === */}
+        {mode === "forgot" ? (
+          <div className="space-y-5">
+
+            {/* STEP 1: identify — enter phone */}
+            {fpStep === "identify" && (
+              <>
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-3" style={{ background: "#FFF3E0" }}>
+                    <Lock size={26} style={{ color: "#E07B00" }} />
+                  </div>
+                  <p className="text-sm" style={{ color: "#555" }}>輸入您登記的手機號碼</p>
+                  <p className="text-xs mt-1" style={{ color: "#999" }}>我們將發送驗證碼確認身份</p>
+                </div>
+
+                {/* Country code + phone */}
+                <div>
+                  <label className="block text-sm font-medium mb-1.5" style={{ color: "#333" }}>手機號碼</label>
+                  <div className="flex gap-2 items-stretch">
+                    <div className="relative flex-shrink-0" ref={fpCountryDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setFpShowCountryDropdown(v => !v)}
+                        className="flex items-center gap-1.5 px-3 py-3 rounded-xl border text-sm font-medium whitespace-nowrap h-full"
+                        style={{ background: "#fff", borderColor: "#E5E5E5", color: "#333", minWidth: "100px" }}
+                      >
+                        <span className="text-base leading-none">{COUNTRIES.find(c => c.code === fpCountryCode)?.flag}</span>
+                        <span>{fpCountryCode}</span>
+                        <ChevronDown size={13} className="ml-0.5 transition-transform duration-150"
+                          style={{ color: "#aaa", transform: fpShowCountryDropdown ? "rotate(180deg)" : "rotate(0deg)" }} />
+                      </button>
+                      {fpShowCountryDropdown && (
+                        <div className="absolute left-0 top-full mt-1.5 rounded-2xl border shadow-xl overflow-hidden z-[9999]"
+                          style={{ background: "#fff", borderColor: "#E5E5E5", minWidth: "210px", maxHeight: "260px", overflowY: "auto" }}>
+                          {COUNTRIES.map(c => {
+                            const sel = c.code === fpCountryCode;
+                            return (
+                              <button key={c.code} type="button"
+                                onClick={() => { setFpCountryCode(c.code); setFpShowCountryDropdown(false); }}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left"
+                                style={{ background: sel ? "#FFF3E0" : "transparent", color: sel ? "#E07B00" : "#333" }}>
+                                <span className="text-lg leading-none">{c.flag}</span>
+                                <span className="font-semibold w-10 flex-shrink-0">{c.code}</span>
+                                <span style={{ color: sel ? "#E07B00" : "#666" }}>{c.name}</span>
+                                {sel && <span className="ml-auto" style={{ color: "#E07B00" }}>✓</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <input type="tel" value={fpLocalPhone}
+                      onChange={e => setFpLocalPhone(e.target.value.replace(/\D/g, ""))}
+                      placeholder={fpCountryCode === "+852" ? "XXXX XXXX" : fpCountryCode === "+86" ? "1XX XXXX XXXX" : "電話號碼"}
+                      className="flex-1 px-3 py-3 rounded-xl border text-sm outline-none"
+                      style={{ background: "#fff", borderColor: "#E5E5E5", color: "#333" }}
+                    />
+                  </div>
+                </div>
+
+                <button onClick={sendForgotOtp} disabled={fpLoading}
+                  className="w-full py-3.5 rounded-2xl font-bold text-base text-white transition-opacity"
+                  style={{ background: "#E07B00", opacity: fpLoading ? 0.6 : 1 }}>
+                  {fpLoading ? "發送中..." : "發送驗證碼"}
+                </button>
+              </>
+            )}
+
+            {/* STEP 2: otp — verify code */}
+            {fpStep === "otp" && (
+              <>
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-3" style={{ background: "#FFF3E0" }}>
+                    <ShieldCheck size={28} style={{ color: "#E07B00" }} />
+                  </div>
+                  <p className="text-sm" style={{ color: "#555" }}>驗證碼已發送至</p>
+                  <p className="font-semibold mt-0.5" style={{ color: "#333" }}>{fpPhone}</p>
+                  <p className="text-xs mt-1" style={{ color: "#999" }}>請於 10 分鐘內輸入 6 位驗證碼</p>
+                </div>
+
+                <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
+                  {otpDigits.map((d, i) => (
+                    <input key={i} ref={el => { otpRefs.current[i] = el; }}
+                      type="text" inputMode="numeric" maxLength={1} value={d}
+                      onChange={e => handleOtpInput(i, e.target.value)}
+                      onKeyDown={e => handleOtpKeyDown(i, e)}
+                      className="w-11 text-center text-xl font-bold rounded-xl border-2 outline-none transition-all"
+                      style={{ height: "52px", borderColor: d ? "#E07B00" : "#E5E5E5", background: "#fff", color: "#333" }}
+                    />
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => { setFpStep("newpw"); setFpPassword(""); setFpConfirmPassword(""); }}
+                  disabled={otpDigits.join("").length < 6 || fpLoading}
+                  className="w-full py-3.5 rounded-2xl font-bold text-base text-white transition-opacity"
+                  style={{ background: "#E07B00", opacity: otpDigits.join("").length < 6 ? 0.5 : 1 }}>
+                  確認驗證碼
+                </button>
+
+                <div className="text-center space-y-2">
+                  <button type="button" onClick={resendForgotOtp} disabled={countdown > 0 || fpLoading}
+                    className="text-sm bg-transparent border-0 cursor-pointer"
+                    style={{ color: countdown > 0 ? "#aaa" : "#E07B00" }}>
+                    {countdown > 0 ? `重新發送（${countdown}秒）` : fpLoading ? "發送中..." : "重新發送驗證碼"}
+                  </button>
+                  <div>
+                    <button type="button" onClick={() => { setFpStep("identify"); setOtpDigits(["", "", "", "", "", ""]); }}
+                      className="text-xs bg-transparent border-0 cursor-pointer" style={{ color: "#aaa" }}>
+                      ← 修改手機號碼
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* STEP 3: newpw — set new password */}
+            {fpStep === "newpw" && (
+              <>
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-3" style={{ background: "#FFF3E0" }}>
+                    <Lock size={26} style={{ color: "#E07B00" }} />
+                  </div>
+                  <p className="text-sm" style={{ color: "#555" }}>設定您的新密碼</p>
+                  <p className="text-xs mt-1" style={{ color: "#999" }}>密碼須至少 6 個字元</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1.5" style={{ color: "#333" }}>新密碼</label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#aaa" }} />
+                    <input type={fpShowPassword ? "text" : "password"} value={fpPassword}
+                      onChange={e => setFpPassword(e.target.value)}
+                      placeholder="最少 6 個字元"
+                      className="w-full pl-9 pr-10 py-3 rounded-xl border text-sm outline-none"
+                      style={{ background: "#fff", borderColor: "#E5E5E5", color: "#333" }} />
+                    <button type="button" onClick={() => setFpShowPassword(!fpShowPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "#aaa" }}>
+                      {fpShowPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1.5" style={{ color: "#333" }}>確認新密碼</label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#aaa" }} />
+                    <input type={fpShowConfirmPassword ? "text" : "password"} value={fpConfirmPassword}
+                      onChange={e => setFpConfirmPassword(e.target.value)}
+                      placeholder="再次輸入新密碼"
+                      className="w-full pl-9 pr-10 py-3 rounded-xl border text-sm outline-none"
+                      style={{ background: "#fff", borderColor: "#E5E5E5", color: "#333" }} />
+                    <button type="button" onClick={() => setFpShowConfirmPassword(!fpShowConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "#aaa" }}>
+                      {fpShowConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <button onClick={resetPassword} disabled={fpLoading}
+                  className="w-full py-3.5 rounded-2xl font-bold text-base text-white transition-opacity"
+                  style={{ background: "#E07B00", opacity: fpLoading ? 0.6 : 1 }}>
+                  {fpLoading ? "重設中..." : "確認重設密碼"}
+                </button>
+              </>
+            )}
+
+            <div className="text-center mt-2">
+              <button onClick={() => switchMode("login")}
+                className="text-sm bg-transparent border-0 cursor-pointer" style={{ color: "#aaa" }}>
+                ← 返回登入
+              </button>
+            </div>
+          </div>
+
+        ) : isPhoneRegister && step === "otp" ? (
           <div className="space-y-5">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-3" style={{ background: "#FFF3E0" }}>
@@ -529,7 +808,14 @@ export default function Login() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1.5" style={{ color: "#333" }}>密碼</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-sm font-medium" style={{ color: "#333" }}>密碼</label>
+                    <button type="button" onClick={() => switchMode("forgot")}
+                      className="text-xs bg-transparent border-0 cursor-pointer p-0"
+                      style={{ color: "#E07B00" }}>
+                      忘記密碼？
+                    </button>
+                  </div>
                   <div className="relative">
                     <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#aaa" }} />
                     <input type={showPassword ? "text" : "password"} value={password}
@@ -563,7 +849,7 @@ export default function Login() {
         )}
 
         {/* Switch mode link */}
-        {!(isPhoneRegister && step === "otp") && (
+        {mode !== "forgot" && !(isPhoneRegister && step === "otp") && (
           <div className="text-center mt-5">
             <span className="text-sm" style={{ color: "#666" }}>
               {mode === "login" ? "還沒有帳號？" : "已有帳號？"}
