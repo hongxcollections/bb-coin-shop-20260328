@@ -118,19 +118,30 @@ export default function AuctionDetail() {
     prevPriceRef.current = latestPrice;
   }, [auction?.currentPrice]);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [fadeIn, setFadeIn] = useState(true);
+  // 滑動動畫狀態
+  const [outgoingImage, setOutgoingImage] = useState<number | null>(null);
+  const [slideDir, setSlideDir] = useState<'left' | 'right'>('left');
+  const selectedImageRef = useRef(0);
+  const isSlidingRef = useRef(false);
+  selectedImageRef.current = selectedImage;
+  isSlidingRef.current = outgoingImage !== null;
 
-  // 自動輪播：每 3.5 秒切換一張，fade-in/out 效果
+  function goToImage(nextIdx: number, dir: 'left' | 'right') {
+    if (nextIdx === selectedImageRef.current || isSlidingRef.current) return;
+    setOutgoingImage(selectedImageRef.current);
+    setSlideDir(dir);
+    setSelectedImage(nextIdx);
+    setTimeout(() => setOutgoingImage(null), 400);
+  }
+
+  // 自動輪播：每 4 秒自動切換下一張
   useEffect(() => {
     const imgList = (auction?.images ?? []) as Array<{ id: number; imageUrl: string }>;
     if (imgList.length <= 1) return;
     const timer = setInterval(() => {
-      setFadeIn(false);
-      setTimeout(() => {
-        setSelectedImage(prev => (prev + 1) % imgList.length);
-        setFadeIn(true);
-      }, 450);
-    }, 3500);
+      if (isSlidingRef.current) return;
+      goToImage((selectedImageRef.current + 1) % imgList.length, 'left');
+    }, 4000);
     return () => clearInterval(timer);
   }, [auction?.images]);
   const utils = trpc.useUtils();
@@ -339,30 +350,38 @@ export default function AuctionDetail() {
               onTouchStart={(e) => { touchStartXRef.current = e.touches[0].clientX; }}
               onTouchEnd={(e) => {
                 const diff = touchStartXRef.current - e.changedTouches[0].clientX;
-                if (Math.abs(diff) < 40) return; // 太短忽略
+                if (Math.abs(diff) < 40 || images.length <= 1) return;
                 const total = images.length;
-                if (total <= 1) return;
-                setFadeIn(false);
-                setTimeout(() => {
-                  setSelectedImage(prev =>
-                    diff > 0
-                      ? (prev + 1) % total          // 向左滑 → 下一張
-                      : (prev - 1 + total) % total  // 向右滑 → 上一張
-                  );
-                  setFadeIn(true);
-                }, 250);
+                if (diff > 0) {
+                  goToImage((selectedImage + 1) % total, 'left');
+                } else {
+                  goToImage((selectedImage - 1 + total) % total, 'right');
+                }
               }}
             >
               {images.length > 0 ? (
                 <>
+                  {/* 移出的舊圖片 */}
+                  {outgoingImage !== null && (
+                    <img
+                      key={`out-${outgoingImage}`}
+                      src={images[outgoingImage]?.imageUrl}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-contain"
+                      style={{
+                        animation: `${slideDir === 'left' ? 'img-slide-out-left' : 'img-slide-out-right'} 0.38s ease-in-out forwards`,
+                      }}
+                    />
+                  )}
+                  {/* 移入的新圖片 */}
                   <img
+                    key={`in-${selectedImage}-${slideDir}`}
                     src={images[selectedImage]?.imageUrl}
                     alt={auction.title}
                     className="w-full h-full object-contain"
-                    style={{
-                      opacity: fadeIn ? 1 : 0,
-                      transition: "opacity 0.45s ease-in-out",
-                    }}
+                    style={outgoingImage !== null ? {
+                      animation: `${slideDir === 'left' ? 'img-slide-in-from-right' : 'img-slide-in-from-left'} 0.38s ease-in-out forwards`,
+                    } : {}}
                   />
                   {/* 底部漸層遮罩 */}
                   <div
