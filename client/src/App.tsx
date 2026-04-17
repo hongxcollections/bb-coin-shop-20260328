@@ -72,7 +72,7 @@ function App() {
       <ThemeProvider defaultTheme="light" switchable={true}>
         <TooltipProvider>
           <ToastProvider>
-            <Toaster />
+            <Toaster position="top-center" richColors />
             <Router />
             <BottomNav />
           </ToastProvider>
