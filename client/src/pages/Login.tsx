@@ -95,7 +95,7 @@ export default function Login() {
         </p>
       </div>
 
-      <div className="px-6 pt-2 pb-5 max-w-sm mx-auto">
+      <div className="px-6 pt-2 pb-24 max-w-sm mx-auto">
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* === REGISTER FIELDS === */}
