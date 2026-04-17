@@ -1344,8 +1344,7 @@ export const appRouter = router({
         merchantName: z.string().min(1).max(100),
         selfIntro: z.string().min(10),
         whatsapp: z.string().min(5),
-        categories: z.array(z.string()).min(1),
-        samplePhotos: z.array(z.string()).min(3),
+        merchantIcon: z.string().url().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role === 'admin') {
@@ -1361,8 +1360,7 @@ export const appRouter = router({
           merchantName: input.merchantName,
           selfIntro: input.selfIntro,
           whatsapp: input.whatsapp,
-          categories: JSON.stringify(input.categories),
-          samplePhotos: JSON.stringify(input.samplePhotos),
+          merchantIcon: input.merchantIcon ?? null,
           status: 'pending',
         });
         return { success: true };

@@ -422,8 +422,6 @@ export default function AdminUsers() {
               {pendingMerchantApps.map(app => {
                 const expanded = expandedMerchantId === app.id;
                 const reviewing = merchantReviewId === app.id || merchantReviewId === -app.id;
-                const cats = (() => { try { return JSON.parse(app.categories); } catch { return []; } })();
-                const photos = (() => { try { return JSON.parse(app.samplePhotos); } catch { return []; } })();
                 return (
                   <div key={app.id} className="px-4 py-3 bg-white">
                     {/* Header row */}
@@ -447,7 +445,6 @@ export default function AdminUsers() {
                     <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
                       {app.contactName && <span>👤 {app.contactName}</span>}
                       <span>📞 {app.whatsapp}</span>
-                      <span>🏷 {Array.isArray(cats) ? cats.join("、") : cats}</span>
                       <span className="text-gray-400">
                         {new Date(app.createdAt!).toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
                       </span>
@@ -456,22 +453,21 @@ export default function AdminUsers() {
                     {/* Expanded details */}
                     {expanded && (
                       <div className="mt-3 space-y-3">
+                        {/* Merchant icon */}
+                        {app.merchantIcon && (
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={app.merchantIcon}
+                              alt="商戶圖示"
+                              className="w-14 h-14 rounded-xl object-cover border border-amber-100"
+                            />
+                            <span className="text-xs text-gray-400">商戶圖示</span>
+                          </div>
+                        )}
                         <div className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2">
                           <p className="text-xs font-medium text-gray-500 mb-1">自我介紹</p>
                           <p className="text-sm text-gray-700">{app.selfIntro}</p>
                         </div>
-                        {photos.length > 0 && (
-                          <div>
-                            <p className="text-xs font-medium text-gray-500 mb-1.5">樣本照片</p>
-                            <div className="flex gap-2 flex-wrap">
-                              {photos.map((url: string, i: number) => (
-                                <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                                  <img src={url} alt="" className="w-16 h-16 rounded-lg object-cover border border-amber-100 hover:opacity-80 transition-opacity" />
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                         <div className="text-xs text-gray-500 space-y-0.5">
                           {app.applicantEmail && <p>📧 {app.applicantEmail}</p>}
                           {app.applicantPhone && <p>📱 {app.applicantPhone}</p>}

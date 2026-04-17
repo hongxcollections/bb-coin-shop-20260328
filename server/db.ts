@@ -2301,6 +2301,7 @@ export async function getAllMerchantApplications() {
     selfIntro: merchantApplications.selfIntro,
     whatsapp: merchantApplications.whatsapp,
     yearsExperience: merchantApplications.yearsExperience,
+    merchantIcon: merchantApplications.merchantIcon,
     categories: merchantApplications.categories,
     samplePhotos: merchantApplications.samplePhotos,
     status: merchantApplications.status,

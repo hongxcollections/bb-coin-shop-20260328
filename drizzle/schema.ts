@@ -311,8 +311,9 @@ export const merchantApplications = mysqlTable("merchantApplications", {
   selfIntro: text("selfIntro").notNull(),
   whatsapp: varchar("whatsapp", { length: 30 }).notNull(),
   yearsExperience: varchar("yearsExperience", { length: 20 }),
-  categories: text("categories").notNull(),   // JSON string array
-  samplePhotos: text("samplePhotos").notNull(), // JSON string array of URLs
+  merchantIcon: varchar("merchantIcon", { length: 500 }),
+  categories: text("categories"),
+  samplePhotos: text("samplePhotos"),
   status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
   adminNote: text("adminNote"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
