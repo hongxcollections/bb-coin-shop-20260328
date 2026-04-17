@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Eye, EyeOff, Mail, Phone, Lock, User } from "lucide-react";
+import Header from "@/components/Header";
 
 export default function Login() {
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -81,26 +82,20 @@ export default function Login() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#FEF6EC" }}>
-      {/* Top header strip */}
-      <div className="text-center pt-8 pb-2">
-        <p className="text-xs" style={{ color: "#888" }}>Powered by 大BB錢幣店</p>
-        <p className="text-sm font-medium mt-0.5" style={{ color: "#E07B00" }}>
-          {mode === "login" ? "歡迎回來" : "建立您的帳號"}
+      <Header />
+
+      {/* Welcome banner — three centred lines */}
+      <div className="text-center pt-24 pb-4">
+        <p className="gold-gradient-text font-bold text-xl leading-snug">hongxcollections</p>
+        <p className="text-sm font-medium mt-1" style={{ color: "#E07B00" }}>
+          {mode === "login" ? "歡迎回來" : "歡迎加入"}
+        </p>
+        <p className="text-base font-bold mt-1" style={{ color: "#222" }}>
+          {mode === "login" ? "登入帳號" : "註冊帳號"}
         </p>
       </div>
 
-      <div className="px-6 pt-4 pb-10 max-w-sm mx-auto">
-        {/* Site name — only on login */}
-        {mode === "login" && (
-          <div className="text-center mb-5">
-            <h1 className="text-2xl font-bold" style={{ color: "#7A3B00" }}>hongxcollections</h1>
-          </div>
-        )}
-
-        {/* Page title */}
-        <h2 className="text-xl font-bold mb-5" style={{ color: "#222" }}>
-          {mode === "login" ? "登入帳號" : "註冊帳號"}
-        </h2>
+      <div className="px-6 pt-2 pb-10 max-w-sm mx-auto">
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* === REGISTER FIELDS === */}
