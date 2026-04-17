@@ -99,6 +99,8 @@ export default function Login() {
 
   // ─── Forgot password state ────────────────────────────────────────────────
   const [fpStep, setFpStep] = useState<"identify" | "otp" | "newpw">("identify");
+  const [fpMethod, setFpMethod] = useState<"phone" | "email">("phone");
+  const [fpEmail, setFpEmail] = useState("");
   const [fpCountryCode, setFpCountryCode] = useState("+852");
   const [fpLocalPhone, setFpLocalPhone] = useState("");
   const [fpPhone, setFpPhone] = useState("");
@@ -295,7 +297,8 @@ export default function Login() {
     setEmail(""); setPhone(""); setName("");
     setOtpDigits(["", "", "", "", "", ""]);
     if (newMode === "forgot") {
-      setFpStep("identify"); setFpLocalPhone(""); setFpPhone("");
+      setFpStep("identify"); setFpMethod("phone"); setFpEmail("");
+      setFpLocalPhone(""); setFpPhone("");
       setFpPassword(""); setFpConfirmPassword(""); setCountdown(0);
     }
   };
@@ -411,67 +414,117 @@ export default function Login() {
         {mode === "forgot" ? (
           <div className="space-y-5">
 
-            {/* STEP 1: identify — enter phone */}
+            {/* STEP 1: identify — phone or email */}
             {fpStep === "identify" && (
               <>
                 <div className="text-center">
                   <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-3" style={{ background: "#FFF3E0" }}>
                     <Lock size={26} style={{ color: "#E07B00" }} />
                   </div>
-                  <p className="text-sm" style={{ color: "#555" }}>輸入您登記的手機號碼</p>
-                  <p className="text-xs mt-1" style={{ color: "#999" }}>我們將發送驗證碼確認身份</p>
+                  <p className="text-sm" style={{ color: "#555" }}>請選擇重設方式</p>
                 </div>
 
-                {/* Country code + phone */}
-                <div>
-                  <label className="block text-sm font-medium mb-1.5" style={{ color: "#333" }}>手機號碼</label>
-                  <div className="flex gap-2 items-stretch">
-                    <div className="relative flex-shrink-0" ref={fpCountryDropdownRef}>
-                      <button
-                        type="button"
-                        onClick={() => setFpShowCountryDropdown(v => !v)}
-                        className="flex items-center gap-1.5 px-3 py-3 rounded-xl border text-sm font-medium whitespace-nowrap h-full"
-                        style={{ background: "#fff", borderColor: "#E5E5E5", color: "#333", minWidth: "100px" }}
-                      >
-                        <span className="text-base leading-none">{COUNTRIES.find(c => c.code === fpCountryCode)?.flag}</span>
-                        <span>{fpCountryCode}</span>
-                        <ChevronDown size={13} className="ml-0.5 transition-transform duration-150"
-                          style={{ color: "#aaa", transform: fpShowCountryDropdown ? "rotate(180deg)" : "rotate(0deg)" }} />
-                      </button>
-                      {fpShowCountryDropdown && (
-                        <div className="absolute left-0 top-full mt-1.5 rounded-2xl border shadow-xl overflow-hidden z-[9999]"
-                          style={{ background: "#fff", borderColor: "#E5E5E5", minWidth: "210px", maxHeight: "260px", overflowY: "auto" }}>
-                          {COUNTRIES.map(c => {
-                            const sel = c.code === fpCountryCode;
-                            return (
-                              <button key={c.code} type="button"
-                                onClick={() => { setFpCountryCode(c.code); setFpShowCountryDropdown(false); }}
-                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left"
-                                style={{ background: sel ? "#FFF3E0" : "transparent", color: sel ? "#E07B00" : "#333" }}>
-                                <span className="text-lg leading-none">{c.flag}</span>
-                                <span className="font-semibold w-10 flex-shrink-0">{c.code}</span>
-                                <span style={{ color: sel ? "#E07B00" : "#666" }}>{c.name}</span>
-                                {sel && <span className="ml-auto" style={{ color: "#E07B00" }}>✓</span>}
-                              </button>
-                            );
-                          })}
+                {/* Phone / Email toggle */}
+                <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: "#E5E5E5" }}>
+                  {(["phone", "email"] as const).map(m => (
+                    <button key={m} type="button"
+                      onClick={() => setFpMethod(m)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors"
+                      style={{ background: fpMethod === m ? "#E07B00" : "#fff", color: fpMethod === m ? "#fff" : "#555" }}>
+                      {m === "phone" ? <><Phone size={15} />手機驗證</> : <><Mail size={15} />電郵</>}
+                    </button>
+                  ))}
+                </div>
+
+                {/* ── PHONE METHOD ── */}
+                {fpMethod === "phone" && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5" style={{ color: "#333" }}>手機號碼</label>
+                      <div className="flex gap-2 items-stretch">
+                        <div className="relative flex-shrink-0" ref={fpCountryDropdownRef}>
+                          <button
+                            type="button"
+                            onClick={() => setFpShowCountryDropdown(v => !v)}
+                            className="flex items-center gap-1.5 px-3 py-3 rounded-xl border text-sm font-medium whitespace-nowrap h-full"
+                            style={{ background: "#fff", borderColor: "#E5E5E5", color: "#333", minWidth: "100px" }}
+                          >
+                            <span className="text-base leading-none">{COUNTRIES.find(c => c.code === fpCountryCode)?.flag}</span>
+                            <span>{fpCountryCode}</span>
+                            <ChevronDown size={13} className="ml-0.5 transition-transform duration-150"
+                              style={{ color: "#aaa", transform: fpShowCountryDropdown ? "rotate(180deg)" : "rotate(0deg)" }} />
+                          </button>
+                          {fpShowCountryDropdown && (
+                            <div className="absolute left-0 top-full mt-1.5 rounded-2xl border shadow-xl overflow-hidden z-[9999]"
+                              style={{ background: "#fff", borderColor: "#E5E5E5", minWidth: "210px", maxHeight: "260px", overflowY: "auto" }}>
+                              {COUNTRIES.map(c => {
+                                const sel = c.code === fpCountryCode;
+                                return (
+                                  <button key={c.code} type="button"
+                                    onClick={() => { setFpCountryCode(c.code); setFpShowCountryDropdown(false); }}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left"
+                                    style={{ background: sel ? "#FFF3E0" : "transparent", color: sel ? "#E07B00" : "#333" }}>
+                                    <span className="text-lg leading-none">{c.flag}</span>
+                                    <span className="font-semibold w-10 flex-shrink-0">{c.code}</span>
+                                    <span style={{ color: sel ? "#E07B00" : "#666" }}>{c.name}</span>
+                                    {sel && <span className="ml-auto" style={{ color: "#E07B00" }}>✓</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
-                      )}
+                        <input type="tel" value={fpLocalPhone}
+                          onChange={e => setFpLocalPhone(e.target.value.replace(/\D/g, ""))}
+                          placeholder={fpCountryCode === "+852" ? "XXXX XXXX" : fpCountryCode === "+86" ? "1XX XXXX XXXX" : "電話號碼"}
+                          className="flex-1 px-3 py-3 rounded-xl border text-sm outline-none"
+                          style={{ background: "#fff", borderColor: "#E5E5E5", color: "#333" }}
+                        />
+                      </div>
                     </div>
-                    <input type="tel" value={fpLocalPhone}
-                      onChange={e => setFpLocalPhone(e.target.value.replace(/\D/g, ""))}
-                      placeholder={fpCountryCode === "+852" ? "XXXX XXXX" : fpCountryCode === "+86" ? "1XX XXXX XXXX" : "電話號碼"}
-                      className="flex-1 px-3 py-3 rounded-xl border text-sm outline-none"
-                      style={{ background: "#fff", borderColor: "#E5E5E5", color: "#333" }}
-                    />
-                  </div>
-                </div>
+                    <button onClick={sendForgotOtp} disabled={fpLoading}
+                      className="w-full py-3.5 rounded-2xl font-bold text-base text-white transition-opacity"
+                      style={{ background: "#E07B00", opacity: fpLoading ? 0.6 : 1 }}>
+                      {fpLoading ? "發送中..." : "發送驗證碼"}
+                    </button>
+                  </>
+                )}
 
-                <button onClick={sendForgotOtp} disabled={fpLoading}
-                  className="w-full py-3.5 rounded-2xl font-bold text-base text-white transition-opacity"
-                  style={{ background: "#E07B00", opacity: fpLoading ? 0.6 : 1 }}>
-                  {fpLoading ? "發送中..." : "發送驗證碼"}
-                </button>
+                {/* ── EMAIL METHOD ── */}
+                {fpMethod === "email" && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5" style={{ color: "#333" }}>電郵地址</label>
+                      <div className="relative">
+                        <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#aaa" }} />
+                        <input type="email" value={fpEmail}
+                          onChange={e => setFpEmail(e.target.value)}
+                          placeholder="輸入您的登記電郵"
+                          className="w-full pl-9 pr-4 py-3 rounded-xl border text-sm outline-none"
+                          style={{ background: "#fff", borderColor: "#E5E5E5", color: "#333" }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Email reset notice */}
+                    <div className="rounded-2xl px-4 py-4 text-sm space-y-2" style={{ background: "#FFF8EE", border: "1px solid #F5DEB3" }}>
+                      <p className="font-semibold" style={{ color: "#B45309" }}>📧 電郵重設方式</p>
+                      <p style={{ color: "#666" }}>請將您的帳號電郵發送至客服：</p>
+                      <a href={`mailto:support@hongxcollections.com?subject=忘記密碼重設申請&body=登記電郵：${fpEmail}`}
+                        className="inline-block font-semibold text-sm"
+                        style={{ color: "#E07B00" }}>
+                        support@hongxcollections.com
+                      </a>
+                      <p className="text-xs" style={{ color: "#999" }}>客服將於 1 個工作天內協助您重設密碼。</p>
+                    </div>
+
+                    <a href={`mailto:support@hongxcollections.com?subject=忘記密碼重設申請&body=登記電郵：${fpEmail}`}
+                      className="block w-full py-3.5 rounded-2xl font-bold text-base text-white text-center transition-opacity"
+                      style={{ background: "#E07B00" }}>
+                      發送電郵至客服
+                    </a>
+                  </>
+                )}
               </>
             )}
 
