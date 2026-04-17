@@ -16,8 +16,12 @@ export default function MerchantSettings() {
     enabled: isAuthenticated,
   });
 
+  const utils = trpc.useUtils();
   const updateMutation = trpc.merchants.updateSettings.useMutation({
-    onSuccess: () => toast.success("設定已儲存！"),
+    onSuccess: () => {
+      toast.success("設定已儲存！");
+      utils.merchants.getSettings.invalidate();
+    },
     onError: (err) => toast.error(err.message || "儲存失敗"),
   });
 

@@ -2373,14 +2373,20 @@ export async function getMerchantSettings(userId: number): Promise<{ defaultEndD
   const db = await getDb();
   if (!db) return { defaultEndDayOffset: 7, defaultEndTime: '23:00' };
   try {
-    const rows = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
-    const data = (rows as unknown as { rows?: unknown[] }).rows ?? rows;
-    const row = Array.isArray(data) ? data[0] : null;
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    // Drizzle MySQL execute() returns [RowDataPacket[], FieldPacket[]] tuple
+    const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
+    // 兼容兩種格式：tuple[0] 是 rows 陣列，或直接是 rows 陣列
+    let row: Record<string, unknown> | null = null;
+    if (Array.isArray(rawRows[0])) {
+      row = rawRows[0][0] ?? null;  // tuple 格式：[rows[], fields[]]
+    } else if (Array.isArray(rawRows)) {
+      row = (rawRows as unknown as Array<Record<string, unknown>>)[0] ?? null;
+    }
     if (row && typeof row === 'object') {
-      const r = row as Record<string, unknown>;
       return {
-        defaultEndDayOffset: Number(r.defaultEndDayOffset ?? 7),
-        defaultEndTime: String(r.defaultEndTime ?? '23:00'),
+        defaultEndDayOffset: Number(row.defaultEndDayOffset ?? 7),
+        defaultEndTime: String(row.defaultEndTime ?? '23:00'),
       };
     }
     return { defaultEndDayOffset: 7, defaultEndTime: '23:00' };
