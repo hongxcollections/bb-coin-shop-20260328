@@ -332,21 +332,19 @@ export default function Auctions() {
                     </div>
 
                     {/* Price & Bidder & Timer */}
-                    <div className="flex items-center justify-between gap-2 mt-1">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                          目前出價
-                          {(auction as { highestBidderName?: string | null; highestBidderId?: number | null }).highestBidderName ? (
-                            <span className="text-[9px] text-red-500 font-semibold">({(auction as { highestBidderName?: string | null }).highestBidderName})</span>
-                          ) : !(auction as { highestBidderId?: number | null }).highestBidderId ? (
-                            <span className="text-[9px] text-gray-500 font-normal">(未有出價)</span>
-                          ) : null}
-                        </div>
-                        <div className="text-sm font-bold text-amber-600">
-                          {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
-                        </div>
+                    <div className="mt-1">
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        目前出價
+                        {(auction as { highestBidderName?: string | null; highestBidderId?: number | null }).highestBidderName ? (
+                          <span className="text-[9px] text-red-500 font-semibold">({(auction as { highestBidderName?: string | null }).highestBidderName})</span>
+                        ) : !(auction as { highestBidderId?: number | null }).highestBidderId ? (
+                          <span className="text-[9px] text-gray-500 font-normal">(未有出價)</span>
+                        ) : null}
                       </div>
-                      <div className="shrink-0 flex items-center gap-1.5">
+                      <div className="text-sm font-bold text-amber-600">
+                        {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
+                      </div>
+                      <div className="flex items-center justify-end gap-1.5 mt-0.5">
                         {new Date(auction.endTime).getTime() > Date.now() && (
                           <CountdownTimer endTime={new Date(auction.endTime)} />
                         )}
