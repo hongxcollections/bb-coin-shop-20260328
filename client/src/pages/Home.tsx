@@ -288,7 +288,7 @@ export default function Home() {
                 <Link key={auction.id} href={`/auctions/${auction.id}`}>
                   <div className="auction-list-item flex gap-3 p-3 border border-amber-100 rounded-lg hover:border-amber-300 hover:bg-amber-50/50 cursor-pointer transition-all">
                     {/* Left: Image */}
-                    <div className="w-20 h-20 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
+                    <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
                       {auction.images && (auction.images as Array<{ imageUrl: string }>).length > 0 ? (
                         <img
                           src={(auction.images as Array<{ imageUrl: string }>)[0].imageUrl}
@@ -297,6 +297,11 @@ export default function Home() {
                         />
                       ) : (
                         <span className="text-3xl">🪙</span>
+                      )}
+                      {(auction as { sellerName?: string | null }).sellerName && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/55 text-white text-[8px] leading-tight px-1 py-0.5 truncate text-left">
+                          {(auction as { sellerName?: string | null }).sellerName}
+                        </div>
                       )}
                     </div>
 

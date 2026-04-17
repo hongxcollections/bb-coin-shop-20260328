@@ -144,6 +144,7 @@ export async function getAuctions(limit = 20, offset = 0, category?: string) {
         currentPrice: auctions.currentPrice,
         highestBidderId: auctions.highestBidderId,
         highestBidderName: users.name,
+        sellerName: sql<string | null>`(SELECT name FROM users WHERE id = ${auctions.createdBy})`,
         endTime: auctions.endTime,
         status: auctions.status,
         fbPostUrl: auctions.fbPostUrl,
