@@ -537,7 +537,7 @@ export default function AuctionDetail() {
                     auction.createdBy === user?.id ? (
                       <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200">
                         <span className="text-amber-600 text-lg">🚫</span>
-                        <span className="text-sm text-amber-700 font-medium">你是此拍賣的商戶，不能競投自己的拍品</span>
+                        <span className="text-sm text-amber-700 font-medium">商戶自己的商品, 禁止出價</span>
                       </div>
                     ) : (
                     <div className="space-y-3">
