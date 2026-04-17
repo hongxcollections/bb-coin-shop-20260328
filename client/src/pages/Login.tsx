@@ -491,7 +491,13 @@ export default function Login() {
                 )}
 
                 {/* ── EMAIL METHOD ── */}
-                {fpMethod === "email" && (
+                {fpMethod === "email" && (() => {
+                  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fpEmail.trim());
+                  const hasInput = fpEmail.trim().length > 0;
+                  const borderColor = hasInput ? (emailOk ? "#22c55e" : "#ef4444") : "#E5E5E5";
+                  const hintColor  = hasInput ? (emailOk ? "#16a34a" : "#ef4444") : "transparent";
+                  const hintText   = hasInput ? (emailOk ? "✓ 格式正確" : "✗ 電郵格式不正確，例如：example@email.com") : "";
+                  return (
                   <>
                     <div>
                       <label className="block text-sm font-medium mb-1.5" style={{ color: "#333" }}>電郵地址</label>
@@ -500,31 +506,42 @@ export default function Login() {
                         <input type="email" value={fpEmail}
                           onChange={e => setFpEmail(e.target.value)}
                           placeholder="輸入您的登記電郵"
-                          className="w-full pl-9 pr-4 py-3 rounded-xl border text-sm outline-none"
-                          style={{ background: "#fff", borderColor: "#E5E5E5", color: "#333" }}
+                          className="w-full pl-9 pr-4 py-3 rounded-xl border text-sm outline-none transition-colors"
+                          style={{ background: "#fff", borderColor, color: "#333" }}
                         />
                       </div>
+                      {hasInput && (
+                        <p className="text-xs mt-1 pl-1" style={{ color: hintColor }}>{hintText}</p>
+                      )}
                     </div>
 
                     {/* Email reset notice */}
                     <div className="rounded-2xl px-4 py-4 text-sm space-y-2" style={{ background: "#FFF8EE", border: "1px solid #F5DEB3" }}>
                       <p className="font-semibold" style={{ color: "#B45309" }}>📧 電郵重設方式</p>
                       <p style={{ color: "#666" }}>請將您的帳號電郵發送至客服：</p>
-                      <a href={`mailto:support@hongxcollections.com?subject=忘記密碼重設申請&body=登記電郵：${fpEmail}`}
-                        className="inline-block font-semibold text-sm"
-                        style={{ color: "#E07B00" }}>
+                      <span className="inline-block font-semibold text-sm" style={{ color: "#E07B00" }}>
                         support@hongxcollections.com
-                      </a>
+                      </span>
                       <p className="text-xs" style={{ color: "#999" }}>客服將於 1 個工作天內協助您重設密碼。</p>
                     </div>
 
-                    <a href={`mailto:support@hongxcollections.com?subject=忘記密碼重設申請&body=登記電郵：${fpEmail}`}
-                      className="block w-full py-3.5 rounded-2xl font-bold text-base text-white text-center transition-opacity"
-                      style={{ background: "#E07B00" }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!fpEmail.trim()) { showError("請輸入電郵地址"); return; }
+                        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fpEmail.trim())) {
+                          showError("電郵格式不正確，請重新確認");
+                          return;
+                        }
+                        window.location.href = `mailto:support@hongxcollections.com?subject=${encodeURIComponent("忘記密碼重設申請")}&body=${encodeURIComponent(`登記電郵：${fpEmail.trim()}`)}`;
+                      }}
+                      className="w-full py-3.5 rounded-2xl font-bold text-base text-white transition-opacity"
+                      style={{ background: "#E07B00", opacity: emailOk ? 1 : 0.55 }}>
                       發送電郵至客服
-                    </a>
+                    </button>
                   </>
-                )}
+                  );
+                })()}
               </>
             )}
 
