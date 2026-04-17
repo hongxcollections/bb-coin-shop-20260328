@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info } from "lucide-react";
+import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag } from "lucide-react";
 
 export default function MerchantSettings() {
   const { isAuthenticated } = useAuth();
@@ -27,12 +27,14 @@ export default function MerchantSettings() {
 
   const [dayOffset, setDayOffset] = useState<string>("7");
   const [endTime, setEndTime] = useState<string>("23:00");
+  const [startingPrice, setStartingPrice] = useState<string>("0");
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     if (settings && !initialized) {
       setDayOffset(String(settings.defaultEndDayOffset));
       setEndTime(settings.defaultEndTime);
+      setStartingPrice(String(settings.defaultStartingPrice ?? 0));
       setInitialized(true);
     }
   }, [settings, initialized]);
@@ -65,7 +67,12 @@ export default function MerchantSettings() {
       toast.error("時間格式須為 HH:MM，例如 23:00");
       return;
     }
-    updateMutation.mutate({ defaultEndDayOffset: offset, defaultEndTime: endTime });
+    const sp = parseFloat(startingPrice);
+    if (isNaN(sp) || sp < 0) {
+      toast.error("起拍價預值不能為負數");
+      return;
+    }
+    updateMutation.mutate({ defaultEndDayOffset: offset, defaultEndTime: endTime, defaultStartingPrice: sp });
   };
 
   if (!isAuthenticated) {
@@ -104,7 +111,58 @@ export default function MerchantSettings() {
           </div>
         </div>
 
-        {/* 設定卡片 */}
+        {/* 起拍價預值卡片 */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Tag className="w-4 h-4 text-amber-500" />
+              預設起拍價
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {isLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground py-4">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm">載入中…</span>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="startingPrice">新增草稿時自動填入的起拍價</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">HK$</span>
+                    <Input
+                      id="startingPrice"
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={startingPrice}
+                      onChange={(e) => setStartingPrice(e.target.value)}
+                      className="w-32"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    新增草稿時，起拍價欄位將自動帶入此金額，你仍可在新增時自由修改。
+                  </p>
+                </div>
+                <div className="flex justify-end pt-1">
+                  <Button
+                    onClick={handleSave}
+                    disabled={updateMutation.isPending}
+                    className="gold-gradient text-white border-0 gap-1.5"
+                  >
+                    {updateMutation.isPending
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Save className="w-4 h-4" />}
+                    儲存設定
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 拍賣結束時間設定卡片 */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">

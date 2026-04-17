@@ -1732,9 +1732,10 @@ export const appRouter = router({
       .input(z.object({
         defaultEndDayOffset: z.number().int().min(1).max(365),
         defaultEndTime: z.string().regex(/^\d{2}:\d{2}$/, '時間格式須為 HH:MM'),
+        defaultStartingPrice: z.number().min(0),
       }))
       .mutation(async ({ input, ctx }) => {
-        await upsertMerchantSettings(ctx.user.id, input.defaultEndDayOffset, input.defaultEndTime);
+        await upsertMerchantSettings(ctx.user.id, input.defaultEndDayOffset, input.defaultEndTime, input.defaultStartingPrice);
         return { success: true };
       }),
   }),

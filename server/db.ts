@@ -2358,9 +2358,14 @@ async function ensureMerchantSettingsTable() {
         userId INT NOT NULL UNIQUE,
         defaultEndDayOffset INT NOT NULL DEFAULT 7,
         defaultEndTime VARCHAR(5) NOT NULL DEFAULT '23:00',
+        defaultStartingPrice DECIMAL(10,2) NOT NULL DEFAULT 0,
         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
+    `);
+    await db.execute(sql`
+      ALTER TABLE merchant_settings
+        ADD COLUMN IF NOT EXISTS defaultStartingPrice DECIMAL(10,2) NOT NULL DEFAULT 0
     `);
     _merchantSettingsTableChecked = true;
   } catch (error) {
@@ -2368,12 +2373,12 @@ async function ensureMerchantSettingsTable() {
   }
 }
 
-export async function getMerchantSettings(userId: number): Promise<{ defaultEndDayOffset: number; defaultEndTime: string }> {
+export async function getMerchantSettings(userId: number): Promise<{ defaultEndDayOffset: number; defaultEndTime: string; defaultStartingPrice: number }> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
-  if (!db) return { defaultEndDayOffset: 7, defaultEndTime: '23:00' };
+  if (!db) return { defaultEndDayOffset: 7, defaultEndTime: '23:00', defaultStartingPrice: 0 };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     // Drizzle MySQL execute() returns [RowDataPacket[], FieldPacket[]] tuple
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     // 兼容兩種格式：tuple[0] 是 rows 陣列，或直接是 rows 陣列
@@ -2387,25 +2392,27 @@ export async function getMerchantSettings(userId: number): Promise<{ defaultEndD
       return {
         defaultEndDayOffset: Number(row.defaultEndDayOffset ?? 7),
         defaultEndTime: String(row.defaultEndTime ?? '23:00'),
+        defaultStartingPrice: Number(row.defaultStartingPrice ?? 0),
       };
     }
-    return { defaultEndDayOffset: 7, defaultEndTime: '23:00' };
+    return { defaultEndDayOffset: 7, defaultEndTime: '23:00', defaultStartingPrice: 0 };
   } catch (error) {
     console.error('[Database] getMerchantSettings error:', error);
-    return { defaultEndDayOffset: 7, defaultEndTime: '23:00' };
+    return { defaultEndDayOffset: 7, defaultEndTime: '23:00', defaultStartingPrice: 0 };
   }
 }
 
-export async function upsertMerchantSettings(userId: number, defaultEndDayOffset: number, defaultEndTime: string): Promise<void> {
+export async function upsertMerchantSettings(userId: number, defaultEndDayOffset: number, defaultEndTime: string, defaultStartingPrice: number): Promise<void> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
   await db.execute(sql`
-    INSERT INTO merchant_settings (userId, defaultEndDayOffset, defaultEndTime)
-    VALUES (${userId}, ${defaultEndDayOffset}, ${defaultEndTime})
+    INSERT INTO merchant_settings (userId, defaultEndDayOffset, defaultEndTime, defaultStartingPrice)
+    VALUES (${userId}, ${defaultEndDayOffset}, ${defaultEndTime}, ${defaultStartingPrice})
     ON DUPLICATE KEY UPDATE
       defaultEndDayOffset = ${defaultEndDayOffset},
       defaultEndTime = ${defaultEndTime},
+      defaultStartingPrice = ${defaultStartingPrice},
       updatedAt = CURRENT_TIMESTAMP
   `);
 }

@@ -570,7 +570,7 @@ export default function MerchantAuctions() {
           <Button variant="outline" size="sm" onClick={() => { refetchActive(); refetchDrafts(); refetchArchived(); }} className="h-7 px-2 text-xs gap-1">
             <RefreshCw className="w-3 h-3" />刷新
           </Button>
-          <Button size="sm" className="gold-gradient text-white border-0 h-7 px-2.5 text-xs gap-1" onClick={() => { setEditId(null); setForm(defaultForm); setPendingImages([]); setUploadedImages([]); setFormOpen(true); }}>
+          <Button size="sm" className="gold-gradient text-white border-0 h-7 px-2.5 text-xs gap-1" onClick={() => { setEditId(null); setForm({ ...defaultForm, startingPrice: String(merchantSettings?.defaultStartingPrice ?? 0) }); setPendingImages([]); setUploadedImages([]); setFormOpen(true); }}>
             <Plus className="w-3.5 h-3.5" />建立草稿
           </Button>
         </div>
