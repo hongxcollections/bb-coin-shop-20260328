@@ -299,7 +299,7 @@ export default function Home() {
                         <span className="text-3xl">🪙</span>
                       )}
                       {(auction as { sellerName?: string | null }).sellerName && (
-                        <div className="absolute bottom-0 left-0 bg-black/60 text-white text-[10px] font-medium leading-tight px-1.5 py-1 max-w-full truncate">
+                        <div className="absolute bottom-[3px] left-[3px] bg-black/60 text-white text-[10px] font-medium leading-none px-2 py-1 rounded-full max-w-[calc(100%-6px)] truncate">
                           {(auction as { sellerName?: string | null }).sellerName}
                         </div>
                       )}
