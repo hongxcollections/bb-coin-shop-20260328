@@ -3,15 +3,14 @@ import { getLoginUrl } from "@/const";
 import { Link, useLocation } from "wouter";
 import { Home, Gavel, Store, User, MoreHorizontal, MessageCircle, Settings, Shield, LogOut, ShoppingBag } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function BottomNav() {
   const { user, isAuthenticated, logout } = useAuth();
   const [location] = useLocation();
   const [showMore, setShowMore] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [toastType, setToastType] = useState<"default" | "welcome">("default");
   const moreRef = useRef<HTMLDivElement>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { showToast } = useToast();
 
   // Close "more" menu when clicking outside
   useEffect(() => {
@@ -26,24 +25,28 @@ export default function BottomNav() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showMore]);
 
-  // Show welcome toast after phone registration
+  // Show welcome toast after phone registration (localStorage flag set by Login.tsx)
   useEffect(() => {
     const flag = localStorage.getItem("showWelcomeToast");
     if (flag === "phone") {
       localStorage.removeItem("showWelcomeToast");
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-      setToastType("welcome");
-      setToastMessage("手機號碼註冊成功！");
-      toastTimer.current = setTimeout(() => setToastMessage(null), 4000);
+      showToast({
+        icon: "✅",
+        title: "手機號碼註冊成功！",
+        desc: "歡迎繼續瀏覽網站！",
+        durationMs: 4000,
+      });
     }
-  }, []);
+  }, [showToast]);
 
   const showComingSoon = useCallback((featureName: string) => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToastType("default");
-    setToastMessage(featureName + " 功能暫未開通");
-    toastTimer.current = setTimeout(() => setToastMessage(null), 2500);
-  }, []);
+    showToast({
+      icon: "🚧",
+      title: featureName + " 功能暫未開通",
+      desc: "敬請期待，我們正在努力開發中！",
+      durationMs: 2500,
+    });
+  }, [showToast]);
 
   const isActive = (path: string) => {
     if (path === "/") return location === "/" || location === "/auctions";
@@ -88,25 +91,6 @@ export default function BottomNav() {
 
   return (
     <>
-      {/* Custom toast notification */}
-      {toastMessage && (
-        <div className="bottom-nav-toast">
-          <div className="bottom-nav-toast-inner">
-            <span className="bottom-nav-toast-icon">
-              {toastType === "welcome" ? "✅" : "🚧"}
-            </span>
-            <div>
-              <div className="bottom-nav-toast-title">{toastMessage}</div>
-              <div className="bottom-nav-toast-desc">
-                {toastType === "welcome"
-                  ? "歡迎繼續瀏覽網站！"
-                  : "敬請期待，我們正在努力開發中！"}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Fixed bottom navigation */}
       <nav className="bottom-nav-bar">
         <div className="bottom-nav-inner">

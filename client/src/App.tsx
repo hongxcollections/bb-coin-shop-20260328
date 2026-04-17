@@ -4,6 +4,7 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { ToastProvider } from "./contexts/ToastContext";
 import BottomNav from "./components/BottomNav";
 import Home from "./pages/Home";
 import Auctions from "./pages/Auctions";
@@ -68,9 +69,11 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light" switchable={true}>
         <TooltipProvider>
-          <Toaster />
-          <Router />
-          <BottomNav />
+          <ToastProvider>
+            <Toaster />
+            <Router />
+            <BottomNav />
+          </ToastProvider>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
