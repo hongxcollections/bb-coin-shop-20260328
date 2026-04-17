@@ -236,7 +236,7 @@ function AuctionCard({
             {formatDate(auction.endTime)}
           </p>
         )}
-        <div className="flex gap-1.5 mt-2 flex-wrap">
+        <div className="flex gap-1.5 mt-2 flex-nowrap overflow-x-auto">
           {tab === "草稿" && (
             <>
               <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={() => onEdit(auction)}>
