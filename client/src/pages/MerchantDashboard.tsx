@@ -2,7 +2,11 @@ import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Header from "@/components/Header";
-import { ChevronLeft, Store, Wallet, Gavel, Clock, CheckCircle2, XCircle, AlertCircle, TrendingUp } from "lucide-react";
+import {
+  ChevronLeft, Store, Wallet, Gavel, Clock, CheckCircle2, XCircle,
+  AlertCircle, TrendingUp, ArrowUpRight, ArrowDownLeft, ShoppingBag,
+} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 
 const HKD = (v: string | number) =>
   `HK$${parseFloat(String(v)).toLocaleString("zh-HK", { minimumFractionDigits: 0 })}`;
@@ -31,6 +35,31 @@ function StatusBadge({ status }: { status: string }) {
   return <span className="text-xs text-gray-400">{status}</span>;
 }
 
+type TxType = { type: string; amount: string | number; description?: string | null; createdAt?: Date | string | null };
+
+function TxRow({ tx }: { tx: TxType }) {
+  const amt = parseFloat(String(tx.amount));
+  const isIn = amt > 0;
+  return (
+    <div className="flex items-center gap-3 py-2.5 border-b last:border-0">
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isIn ? "bg-emerald-50" : "bg-red-50"}`}>
+        {isIn ? <ArrowDownLeft className="w-4 h-4 text-emerald-600" /> : <ArrowUpRight className="w-4 h-4 text-red-500" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-800 truncate">{tx.description ?? tx.type}</p>
+        {tx.createdAt && (
+          <p className="text-xs text-gray-400 mt-0.5">
+            {new Date(tx.createdAt).toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+          </p>
+        )}
+      </div>
+      <p className={`text-sm font-bold flex-shrink-0 ${isIn ? "text-emerald-600" : "text-red-500"}`}>
+        {isIn ? "+" : ""}{HKD(amt)}
+      </p>
+    </div>
+  );
+}
+
 export default function MerchantDashboard() {
   const { isAuthenticated, loading } = useAuth();
   const [, navigate] = useLocation();
@@ -44,6 +73,10 @@ export default function MerchantDashboard() {
   const { data: auctions, isLoading: loadingAuctions } = trpc.merchants.myAuctions.useQuery(undefined, {
     enabled: isAuthenticated && myApp?.status === "approved",
   });
+  const { data: txData } = trpc.merchants.myTransactions.useQuery(
+    { limit: 10, offset: 0 },
+    { enabled: isAuthenticated && myApp?.status === "approved" }
+  );
 
   const fmtDate = (d: Date | string | null) => d
     ? new Date(d).toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
@@ -78,6 +111,7 @@ export default function MerchantDashboard() {
   const balance = deposit ? parseFloat(String(deposit.balance)) : 0;
   const required = deposit ? parseFloat(String(deposit.requiredDeposit)) : 500;
   const depositOk = balance >= required;
+  const transactions = (txData ?? []) as TxType[];
 
   return (
     <div className="min-h-screen bg-background">
@@ -141,11 +175,62 @@ export default function MerchantDashboard() {
           </div>
         )}
 
-        {/* Auctions list */}
+        {/* ── 快速功能入口 ── */}
+        <div className="grid grid-cols-2 gap-3">
+          <Link href="/merchant-auctions">
+            <div className="rounded-2xl bg-white border border-amber-100 p-4 flex items-center gap-3 hover:border-amber-300 hover:bg-amber-50/50 transition-colors cursor-pointer">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <Gavel className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-amber-900">拍賣管理</p>
+                <p className="text-xs text-gray-400 mt-0.5">刊登 · 草稿 · 封存</p>
+              </div>
+            </div>
+          </Link>
+          <Link href="/merchant-orders">
+            <div className="rounded-2xl bg-white border border-amber-100 p-4 flex items-center gap-3 hover:border-amber-300 hover:bg-amber-50/50 transition-colors cursor-pointer">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <ShoppingBag className="w-5 h-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-gray-800">訂單管理</p>
+                <p className="text-xs text-gray-400 mt-0.5">追蹤付款 · 交收</p>
+              </div>
+            </div>
+          </Link>
+        </div>
+
+        {/* ── 保證金交易記錄 ── */}
+        <Card className="rounded-2xl border-amber-100">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-amber-600" />
+                <h2 className="font-semibold text-amber-900 text-sm">保證金交易記錄</h2>
+              </div>
+              <span className="text-xs text-gray-400">最近 10 筆</span>
+            </div>
+            {transactions.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-4">暫無交易記錄</p>
+            ) : (
+              <div>
+                {transactions.map((tx, i) => <TxRow key={i} tx={tx} />)}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── 近期拍賣 ── */}
         <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-amber-600" />
-            <h2 className="font-semibold text-amber-900 text-sm">我的拍賣</h2>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-amber-600" />
+              <h2 className="font-semibold text-amber-900 text-sm">我的拍賣</h2>
+            </div>
+            <Link href="/merchant-auctions">
+              <span className="text-xs text-amber-600 hover:underline cursor-pointer">全部管理 →</span>
+            </Link>
           </div>
 
           {loadingAuctions ? (
@@ -156,7 +241,7 @@ export default function MerchantDashboard() {
             </div>
           ) : (
             <div className="space-y-2">
-              {auctions.map((a) => (
+              {auctions.slice(0, 5).map((a) => (
                 <Link key={a.id} href={`/auction/${a.id}`}>
                   <div className="rounded-2xl bg-white border border-amber-100 px-4 py-3 hover:border-amber-300 transition-colors cursor-pointer">
                     <div className="flex items-start justify-between gap-2">
@@ -176,6 +261,13 @@ export default function MerchantDashboard() {
                   </div>
                 </Link>
               ))}
+              {auctions.length > 5 && (
+                <Link href="/merchant-auctions">
+                  <p className="text-xs text-center text-amber-600 hover:underline cursor-pointer py-1">
+                    查看全部 {auctions.length} 個拍賣 →
+                  </p>
+                </Link>
+              )}
             </div>
           )}
         </div>

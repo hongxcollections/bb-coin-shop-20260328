@@ -1286,6 +1286,34 @@ export async function getAllSiteSettings(): Promise<Record<string, string>> {
   }
 }
 
+// 商戶查看自己拍賣的得標訂單
+export async function getWonOrdersByCreator(creatorId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const result = await db
+      .select({
+        id: auctions.id,
+        title: auctions.title,
+        currentPrice: auctions.currentPrice,
+        currency: auctions.currency,
+        endTime: auctions.endTime,
+        paymentStatus: auctions.paymentStatus,
+        winnerName: sql<string>`(SELECT u.name FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`,
+        winnerOpenId: sql<string>`(SELECT u.openId FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`,
+        winnerPhone: sql<string>`(SELECT u.phone FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`,
+        winningAmount: sql<string>`(SELECT b.bidAmount FROM bids b WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`,
+      })
+      .from(auctions)
+      .where(and(eq(auctions.status, 'ended'), eq(auctions.createdBy, creatorId), eq(auctions.archived, 0)))
+      .orderBy(desc(auctions.endTime));
+    return result;
+  } catch (error) {
+    console.error('[Database] Failed to get won orders by creator:', error);
+    return [];
+  }
+}
+
 // 管理員查看所有得標訂單
 export async function getWonOrders() {
   const db = await getDb();

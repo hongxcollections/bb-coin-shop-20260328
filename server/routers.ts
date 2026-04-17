@@ -6,7 +6,7 @@ import { z } from "zod";
 import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator } from "./db";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 
@@ -1408,6 +1408,291 @@ export const appRouter = router({
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         await reviewMerchantApplication(input.id, input.status, input.adminNote);
         return { success: true };
+      }),
+
+    // ═══════════════════════════════════════════════════════
+    //  商戶：拍賣管理
+    // ═══════════════════════════════════════════════════════
+
+    /** 商戶建立草稿拍賣 */
+    createAuction: protectedProcedure
+      .input(z.object({
+        title: z.string().min(1).max(255),
+        description: z.string().default(''),
+        startingPrice: z.number().min(0),
+        bidIncrement: z.number().int().min(30).max(5000).default(30),
+        currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).default('HKD'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有已審批商戶才可刊登拍賣' });
+        }
+        const result = await createAuction({
+          title: input.title,
+          description: input.description,
+          startingPrice: input.startingPrice.toString(),
+          currentPrice: input.startingPrice.toString(),
+          endTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          status: 'draft',
+          bidIncrement: input.bidIncrement,
+          currency: input.currency,
+          createdBy: ctx.user.id,
+        });
+        return result;
+      }),
+
+    /** 商戶上傳圖片（只限自己的拍賣） */
+    uploadAuctionImage: protectedProcedure
+      .input(z.object({
+        auctionId: z.number().int().positive(),
+        imageData: z.string().min(1),
+        fileName: z.string().min(1),
+        displayOrder: z.number().int().min(0).default(0),
+        mimeType: z.string().default('image/jpeg'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const auction = await getAuctionById(input.auctionId);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只能為自己的拍賣上傳圖片' });
+        }
+        const buffer = Buffer.from(input.imageData, 'base64');
+        const ext = input.mimeType === 'image/png' ? 'png' : input.mimeType === 'image/gif' ? 'gif' : input.mimeType === 'image/webp' ? 'webp' : 'jpg';
+        const key = `auctions/${input.auctionId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { url: imageUrl } = await storagePut(key, buffer, input.mimeType);
+        await addAuctionImage({ auctionId: input.auctionId, imageUrl, displayOrder: input.displayOrder });
+        return { success: true, imageUrl };
+      }),
+
+    /** 商戶刪除圖片（只限自己的拍賣） */
+    deleteAuctionImage: protectedProcedure
+      .input(z.object({ auctionId: z.number(), imageId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const auction = await getAuctionById(input.auctionId);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只能刪除自己拍賣的圖片' });
+        }
+        await deleteAuctionImage(input.imageId);
+        return { success: true };
+      }),
+
+    /** 商戶更新草稿（只限 draft 且自己的） */
+    updateAuction: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        title: z.string().min(1).max(255).optional(),
+        description: z.string().optional(),
+        startingPrice: z.number().min(0).optional(),
+        bidIncrement: z.number().int().min(30).max(5000).optional(),
+        currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const auction = await getAuctionById(input.id);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只能編輯自己的拍賣' });
+        }
+        if (auction.status !== 'draft') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只能編輯草稿狀態的拍賣' });
+        }
+        const updateData: Record<string, unknown> = {};
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.description !== undefined) updateData.description = input.description;
+        if (input.startingPrice !== undefined) {
+          updateData.startingPrice = input.startingPrice.toString();
+          updateData.currentPrice = input.startingPrice.toString();
+        }
+        if (input.bidIncrement !== undefined) updateData.bidIncrement = input.bidIncrement;
+        if (input.currency !== undefined) updateData.currency = input.currency;
+        await updateAuction(input.id, updateData);
+        return { success: true };
+      }),
+
+    /** 商戶刪除草稿拍賣 */
+    deleteAuction: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const auction = await getAuctionById(input.id);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只能刪除自己的拍賣' });
+        }
+        if (auction.status !== 'draft') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只有草稿可被刪除' });
+        }
+        await deleteAuction(input.id);
+        return { success: true };
+      }),
+
+    /** 商戶查看自己的草稿 */
+    myDrafts: protectedProcedure
+      .query(async ({ ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        const draftList = await getDraftAuctions();
+        const mine = draftList.filter((a: { createdBy?: number }) => a.createdBy === ctx.user.id);
+        const withImages = await Promise.all(mine.map(async (a: { id: number; [key: string]: unknown }) => ({
+          ...a,
+          images: await getAuctionImages(a.id),
+        })));
+        return withImages;
+      }),
+
+    /** 商戶發佈草稿拍賣 */
+    publishDraft: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        endTime: z.date(),
+        title: z.string().min(1).optional(),
+        description: z.string().optional(),
+        startingPrice: z.number().min(0).optional(),
+        bidIncrement: z.number().int().min(30).max(5000).optional(),
+        currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const auction = await getAuctionById(input.id);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到草稿' });
+        if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只能發佈自己的草稿' });
+        }
+        if (auction.status !== 'draft') throw new TRPCError({ code: 'BAD_REQUEST', message: '此拍賣並非草稿狀態' });
+        if (input.endTime <= new Date()) throw new TRPCError({ code: 'BAD_REQUEST', message: '結束時間必須為未來時間' });
+        const updateData: Record<string, unknown> = { status: 'active', endTime: input.endTime };
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.description !== undefined) updateData.description = input.description;
+        if (input.startingPrice !== undefined) {
+          updateData.startingPrice = input.startingPrice.toString();
+          updateData.currentPrice = input.startingPrice.toString();
+        }
+        if (input.bidIncrement !== undefined) updateData.bidIncrement = input.bidIncrement;
+        if (input.currency !== undefined) updateData.currency = input.currency;
+        await updateAuction(input.id, updateData);
+        return { success: true };
+      }),
+
+    /** 商戶封存已結束的拍賣 */
+    archiveAuction: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const auction = await getAuctionById(input.id);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只能封存自己的拍賣' });
+        }
+        if (auction.status !== 'ended') throw new TRPCError({ code: 'BAD_REQUEST', message: '只有已結束的拍賣才能封存' });
+        await updateAuction(input.id, { archived: 1, archivedAt: new Date() });
+        return { success: true };
+      }),
+
+    /** 商戶查看自己的封存拍賣 */
+    myArchived: protectedProcedure
+      .query(async ({ ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        const allArchived = await getArchivedAuctions();
+        const mine = allArchived.filter((a: { createdBy?: number }) => a.createdBy === ctx.user.id);
+        const withImages = await Promise.all(mine.map(async (a: { id: number; [key: string]: unknown }) => ({
+          ...a,
+          images: await getAuctionImages(a.id),
+        })));
+        return withImages;
+      }),
+
+    /** 商戶恢復封存的拍賣 */
+    restoreAuction: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const auction = await getAuctionById(input.id);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只能恢復自己的封存拍賣' });
+        }
+        await updateAuction(input.id, { archived: 0, archivedAt: null });
+        return { success: true };
+      }),
+
+    /** 商戶重新刊登（複製為新草稿） */
+    relistAuction: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有已審批商戶才可重新刊登' });
+        }
+        const original = await getAuctionById(input.id);
+        if (!original) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (original.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只能重新刊登自己的拍賣' });
+        }
+        const newAuction = await createAuction({
+          title: original.title,
+          description: original.description ?? undefined,
+          startingPrice: original.startingPrice,
+          currentPrice: original.startingPrice,
+          endTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          status: 'draft',
+          bidIncrement: original.bidIncrement,
+          currency: original.currency,
+          createdBy: ctx.user.id,
+          relistSourceId: input.id,
+        });
+        const originalImages = await getAuctionImages(input.id);
+        for (const img of originalImages) {
+          await addAuctionImage({ auctionId: newAuction.id, imageUrl: img.imageUrl, displayOrder: img.displayOrder });
+        }
+        return { success: true, newAuctionId: newAuction.id };
+      }),
+
+    // ═══════════════════════════════════════════════════════
+    //  商戶：訂單管理
+    // ═══════════════════════════════════════════════════════
+
+    /** 商戶查看自己拍賣的得標訂單 */
+    myOrders: protectedProcedure
+      .query(async ({ ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        return getWonOrdersByCreator(ctx.user.id);
+      }),
+
+    /** 商戶更新自己拍賣的付款狀態 */
+    updateOrderStatus: protectedProcedure
+      .input(z.object({
+        auctionId: z.number().int().positive(),
+        status: z.enum(['pending_payment', 'paid', 'delivered']),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const auction = await getAuctionById(input.auctionId);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只能更新自己拍賣的付款狀態' });
+        }
+        const result = await updatePaymentStatus(input.auctionId, input.status, ctx.user.id, true);
+        if (!result.success) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error ?? '更新失敗' });
+        return { success: true };
+      }),
+
+    // ═══════════════════════════════════════════════════════
+    //  商戶：保證金交易流水
+    // ═══════════════════════════════════════════════════════
+
+    /** 商戶查看自己的保證金交易記錄 */
+    myTransactions: protectedProcedure
+      .input(z.object({ limit: z.number().int().min(1).max(100).default(50), offset: z.number().int().min(0).default(0) }))
+      .query(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        return getDepositTransactions(ctx.user.id, input.limit, input.offset);
       }),
   }),
 });
