@@ -6,8 +6,8 @@ import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 import { users } from "../../drizzle/schema";
 import { eq, or } from "drizzle-orm";
-import { sendOtpSms } from "./sms";
-import { generateOtp, setOtp, verifyOtp, hasValidOtp, canResend } from "./otpStore";
+import { sendOtpSms, checkViaTwilioVerify, isMainlandChina } from "./sms";
+import { generateOtp, setOtp, verifyOtp, canResend } from "./otpStore";
 
 export function registerAuthRoutes(app: Express) {
 
@@ -20,8 +20,8 @@ export function registerAuthRoutes(app: Express) {
         return;
       }
 
-      // Rate limit: 60s between resends
-      if (!canResend(phone)) {
+      // Rate limit: 60s between resends (only used for Alibaba/China flow)
+      if (isMainlandChina(phone) && !canResend(phone)) {
         res.status(429).json({ error: "請稍候再重新發送驗證碼" });
         return;
       }
@@ -35,8 +35,13 @@ export function registerAuthRoutes(app: Express) {
         return;
       }
 
+      // For China (+86): generate code ourselves + use Alibaba
+      // For others: Twilio Verify generates the code
       const code = generateOtp();
-      setOtp(phone, code);
+      if (isMainlandChina(phone)) {
+        setOtp(phone, code);
+      }
+
       const smsResult = await sendOtpSms(phone, code);
 
       if (!smsResult.ok) {
@@ -72,18 +77,33 @@ export function registerAuthRoutes(app: Express) {
           res.status(400).json({ error: "請輸入電話驗證碼", requireOtp: true });
           return;
         }
-        const result = verifyOtp(phone, otpCode);
-        if (result === "expired") {
-          res.status(400).json({ error: "驗證碼已過期，請重新發送", otpExpired: true });
-          return;
-        }
-        if (result === "too_many_attempts") {
-          res.status(400).json({ error: "驗證碼錯誤次數過多，請重新發送", otpExpired: true });
-          return;
-        }
-        if (result === "invalid") {
-          res.status(400).json({ error: "驗證碼不正確，請重新輸入" });
-          return;
+
+        if (isMainlandChina(phone)) {
+          // China: verify against our local OTP store (Alibaba sent it)
+          const result = verifyOtp(phone, otpCode);
+          if (result === "expired") {
+            res.status(400).json({ error: "驗證碼已過期，請重新發送", otpExpired: true });
+            return;
+          }
+          if (result === "too_many_attempts") {
+            res.status(400).json({ error: "驗證碼錯誤次數過多，請重新發送", otpExpired: true });
+            return;
+          }
+          if (result === "invalid") {
+            res.status(400).json({ error: "驗證碼不正確，請重新輸入" });
+            return;
+          }
+        } else {
+          // Non-China: verify via Twilio Verify API
+          const verifyResult = await checkViaTwilioVerify(phone, otpCode);
+          if (verifyResult === "error") {
+            res.status(500).json({ error: "驗證碼確認時出現錯誤，請稍後再試" });
+            return;
+          }
+          if (verifyResult !== "approved") {
+            res.status(400).json({ error: "驗證碼不正確或已過期，請重新發送" });
+            return;
+          }
         }
       }
 

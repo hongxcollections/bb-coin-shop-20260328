@@ -4,14 +4,14 @@ import * as OpenApi from "@alicloud/openapi-client";
 
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const TWILIO_FROM = process.env.TWILIO_FROM_NUMBER || process.env.TWILIO_MESSAGING_SERVICE_SID;
+const TWILIO_VERIFY_SID = process.env.TWILIO_VERIFY_SERVICE_SID; // VAxxxxxxxxxxxxxxxx
 
 const ALI_KEY_ID = process.env.ALIBABA_ACCESS_KEY_ID;
 const ALI_KEY_SECRET = process.env.ALIBABA_ACCESS_KEY_SECRET;
 const ALI_SIGN_NAME = process.env.ALIBABA_SMS_SIGN_NAME;
 const ALI_TEMPLATE_CODE = process.env.ALIBABA_SMS_TEMPLATE_CODE;
 
-function isMainlandChina(phone: string): boolean {
+export function isMainlandChina(phone: string): boolean {
   const cleaned = phone.replace(/\s+/g, "");
   return cleaned.startsWith("+86") || cleaned.startsWith("86");
 }
@@ -28,25 +28,59 @@ function getAliClient() {
   return new Dysmsapi(config);
 }
 
-async function sendViaTwilio(to: string, message: string): Promise<{ ok: boolean; error?: string }> {
+// ─── Twilio Verify ────────────────────────────────────────────────────────────
+
+async function sendViaTwilioVerify(phone: string): Promise<{ ok: boolean; error?: string }> {
   const client = getTwilioClient();
-  if (!client || !TWILIO_FROM) {
-    console.log(`[SMS DEV/Twilio] To: ${to} | ${message}`);
+
+  // No credentials at all — dev mode, just log
+  if (!client) {
+    console.log(`[SMS DEV/TwilioVerify] Would send verify to: ${phone}`);
     return { ok: true };
   }
+
+  // Verify Service SID not set — fall back to dev log
+  if (!TWILIO_VERIFY_SID) {
+    console.log(`[SMS DEV/TwilioVerify] TWILIO_VERIFY_SERVICE_SID not set. Phone: ${phone}`);
+    return { ok: true };
+  }
+
   try {
-    const fromOpts = TWILIO_FROM.startsWith("MG")
-      ? { messagingServiceSid: TWILIO_FROM }
-      : { from: TWILIO_FROM };
-    const msg = await client.messages.create({ body: message, to, ...fromOpts });
-    console.log(`[SMS/Twilio] Sent OK. SID: ${msg.sid}`);
+    const verification = await client.verify.v2
+      .services(TWILIO_VERIFY_SID)
+      .verifications.create({ to: phone, channel: "sms" });
+    console.log(`[SMS/TwilioVerify] Sent. Status: ${verification.status}`);
     return { ok: true };
   } catch (err: any) {
     const detail = err?.message || String(err);
-    console.error(`[SMS/Twilio] Failed to: ${to} | Error: ${detail}`);
-    return { ok: false, error: `Twilio: ${detail}` };
+    console.error(`[SMS/TwilioVerify] Failed to: ${phone} | ${detail}`);
+    return { ok: false, error: `Twilio Verify: ${detail}` };
   }
 }
+
+export async function checkViaTwilioVerify(phone: string, code: string): Promise<"approved" | "pending" | "failed" | "error"> {
+  const client = getTwilioClient();
+
+  // Dev mode (no credentials or no verify SID) — accept any 6-digit code
+  if (!client || !TWILIO_VERIFY_SID) {
+    console.log(`[SMS DEV/TwilioVerify] Skipping check for ${phone}, code: ${code}`);
+    return "approved";
+  }
+
+  try {
+    const check = await client.verify.v2
+      .services(TWILIO_VERIFY_SID)
+      .verificationChecks.create({ to: phone, code });
+    console.log(`[SMS/TwilioVerify] Check result: ${check.status}`);
+    return (check.status as "approved" | "pending") || "failed";
+  } catch (err: any) {
+    const detail = err?.message || String(err);
+    console.error(`[SMS/TwilioVerify] Check failed for ${phone}: ${detail}`);
+    return "error";
+  }
+}
+
+// ─── Alibaba Cloud (China +86) ────────────────────────────────────────────────
 
 async function sendViaAlibaba(phone: string, otpCode: string): Promise<{ ok: boolean; error?: string }> {
   const client = getAliClient();
@@ -72,26 +106,31 @@ async function sendViaAlibaba(phone: string, otpCode: string): Promise<{ ok: boo
     return { ok: true };
   } catch (err: any) {
     const detail = err?.message || String(err);
-    console.error(`[SMS/Alibaba] Failed to: ${phone} | Error: ${detail}`);
+    console.error(`[SMS/Alibaba] Failed to: ${phone} | ${detail}`);
     return { ok: false, error: `Alibaba: ${detail}` };
   }
 }
 
+// ─── Public API ───────────────────────────────────────────────────────────────
+
 /**
- * Send OTP SMS. Routes +86 to Alibaba Cloud, others to Twilio.
- * Returns { ok, error? } — error contains provider-specific message for logging.
+ * Send OTP SMS.
+ * - +86 China  → Alibaba Cloud (uses our own otpStore for verification)
+ * - Others     → Twilio Verify (Twilio manages the code + verification)
  */
-export async function sendOtpSms(phone: string, otpCode: string): Promise<{ ok: boolean; error?: string }> {
-  const message = `【大BB錢幣店】您的驗證碼為 ${otpCode}，10分鐘內有效，請勿洩露給他人。`;
+export async function sendOtpSms(
+  phone: string,
+  otpCode: string  // used only for Alibaba; Twilio Verify generates its own code
+): Promise<{ ok: boolean; error?: string }> {
   if (isMainlandChina(phone)) {
     return sendViaAlibaba(phone, otpCode);
   }
-  return sendViaTwilio(phone, message);
+  return sendViaTwilioVerify(phone);
 }
 
 export function getSmsProviderStatus() {
   return {
-    twilio: !!(TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM),
+    twilioVerify: !!(TWILIO_SID && TWILIO_TOKEN && TWILIO_VERIFY_SID),
     alibaba: !!(ALI_KEY_ID && ALI_KEY_SECRET && ALI_SIGN_NAME && ALI_TEMPLATE_CODE),
   };
 }
