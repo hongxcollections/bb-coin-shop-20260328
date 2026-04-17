@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Link, useLocation } from "wouter";
-import { Home, Gavel, Store, User, MoreHorizontal, MessageCircle, Settings, Shield, LogOut, ShoppingBag } from "lucide-react";
+import { Home, Gavel, Store, User, MoreHorizontal, MessageCircle, Settings, Shield, LogOut, ShoppingBag, LayoutDashboard } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/contexts/ToastContext";
 import { trpc } from "@/lib/trpc";
@@ -193,6 +193,16 @@ export default function BottomNav() {
                             <Settings className="w-4 h-4" />
                             <span>會員福利</span>
                           </Link>
+                          {isMerchant && (
+                            <Link
+                              href="/merchant-dashboard"
+                              onClick={() => setShowMore(false)}
+                              className="bottom-nav-more-item"
+                            >
+                              <LayoutDashboard className="w-4 h-4" />
+                              <span>商戶後台</span>
+                            </Link>
+                          )}
                           {!isMerchant && (
                             <Link
                               href="/merchant-apply"

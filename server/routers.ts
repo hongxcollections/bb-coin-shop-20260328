@@ -1371,6 +1371,26 @@ export const appRouter = router({
       return getMerchantApplicationByUser(ctx.user.id) ?? null;
     }),
 
+    // 商戶：查看自己的拍賣
+    myAuctions: protectedProcedure.query(async ({ ctx }) => {
+      const app = await getMerchantApplicationByUser(ctx.user.id);
+      if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+      }
+      const list = await getAuctionsByCreator(ctx.user.id);
+      const now = new Date();
+      const expiredIds = list
+        .filter((a: { status: string; endTime: Date | string }) => a.status === 'active' && new Date(a.endTime) <= now)
+        .map((a: { id: number }) => a.id);
+      if (expiredIds.length > 0) {
+        await Promise.all(expiredIds.map((id: number) => updateAuction(id, { status: 'ended' })));
+      }
+      return list.map((a) => ({
+        ...a,
+        status: expiredIds.includes(a.id) ? 'ended' : a.status,
+      }));
+    }),
+
     // 管理員：查看所有申請
     listAll: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
