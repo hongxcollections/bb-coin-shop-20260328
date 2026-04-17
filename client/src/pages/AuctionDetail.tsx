@@ -555,9 +555,9 @@ export default function AuctionDetail() {
                 </div>
 
                 {/* Countdown */}
-                <div className="flex items-end gap-2 mb-4">
+                <div className="inline-flex flex-col items-end mb-4">
                   <CountdownTimer endTime={new Date(auction.endTime)} />
-                  <span className="text-[0.68rem] text-muted-foreground leading-tight pb-0.5">
+                  <span className="text-[0.68rem] text-muted-foreground leading-tight mt-0.5">
                     結束：{formatDate(new Date(auction.endTime))}
                   </span>
                 </div>
