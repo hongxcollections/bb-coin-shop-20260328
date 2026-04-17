@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Clock, ChevronLeft, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X, EyeOff, AlertCircle, Heart } from "lucide-react";
+import { Clock, ChevronLeft, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X, EyeOff, AlertCircle, Heart, Share2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -395,14 +395,35 @@ export default function AuctionDetail() {
                       <span className="text-white text-xs font-medium drop-shadow">{auction.sellerName}</span>
                     </div>
                   )}
-                  {/* 右下：圖片計數 */}
-                  {images.length > 1 && (
-                    <div className="absolute bottom-2.5 right-3 pointer-events-none">
-                      <span className="text-white/90 text-xs font-semibold tabular-nums drop-shadow">
+                  {/* 右下：圖片計數 + 分享 */}
+                  <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
+                    {images.length > 1 && (
+                      <span className="text-white/90 text-xs font-semibold tabular-nums drop-shadow pointer-events-none">
                         {selectedImage + 1}/{images.length}
                       </span>
-                    </div>
-                  )}
+                    )}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const url = window.location.href;
+                        const title = auction.title;
+                        if (navigator.share) {
+                          try {
+                            await navigator.share({ title, url });
+                          } catch {
+                            // user cancelled — do nothing
+                          }
+                        } else {
+                          await navigator.clipboard.writeText(url);
+                          toast.success("連結已複製");
+                        }
+                      }}
+                      className="flex items-center justify-center w-7 h-7 rounded-full bg-black/35 hover:bg-black/55 transition-colors backdrop-blur-sm"
+                      title="分享"
+                    >
+                      <Share2 className="w-3.5 h-3.5 text-white" />
+                    </button>
+                  </div>
                 </>
               ) : (
                 <div className="w-full h-full coin-placeholder flex items-center justify-center">
