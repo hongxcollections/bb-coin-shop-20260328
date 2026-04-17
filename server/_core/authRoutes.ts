@@ -6,33 +6,89 @@ import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 import { users } from "../../drizzle/schema";
 import { eq, or } from "drizzle-orm";
+import { sendOtpSms } from "./sms";
+import { generateOtp, setOtp, verifyOtp, hasValidOtp, canResend } from "./otpStore";
 
-/**
- * Register email/phone + password auth routes
- */
 export function registerAuthRoutes(app: Express) {
-  // POST /api/auth/register - 註冊
+
+  // POST /api/auth/send-otp — 發送電話驗證碼
+  app.post("/api/auth/send-otp", async (req: Request, res: Response) => {
+    try {
+      const { phone } = req.body;
+      if (!phone) {
+        res.status(400).json({ error: "請提供手機號碼" });
+        return;
+      }
+
+      // Rate limit: 60s between resends
+      if (!canResend(phone)) {
+        res.status(429).json({ error: "請稍候再重新發送驗證碼" });
+        return;
+      }
+
+      // Check if phone already registered
+      const database = await db.getDb();
+      if (!database) { res.status(500).json({ error: "數據庫不可用" }); return; }
+      const existing = await database.select().from(users).where(eq(users.phone, phone)).limit(1);
+      if (existing.length > 0 && existing[0].password) {
+        res.status(400).json({ error: "此手機號碼已被註冊" });
+        return;
+      }
+
+      const code = generateOtp();
+      setOtp(phone, code);
+      const sent = await sendOtpSms(phone, code);
+
+      if (!sent) {
+        res.status(500).json({ error: "驗證碼發送失敗，請稍後再試" });
+        return;
+      }
+
+      res.json({ success: true, message: "驗證碼已發送" });
+    } catch (err) {
+      console.error("[Auth] send-otp error:", err);
+      res.status(500).json({ error: "發送失敗，請稍後再試" });
+    }
+  });
+
+  // POST /api/auth/register — 註冊（電話需已通過 OTP 驗證）
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
-      const { email, phone, password, name } = req.body;
+      const { email, phone, password, name, otpCode } = req.body;
 
       if (!password || password.length < 6) {
         res.status(400).json({ error: "密碼至少需要6個字符" });
         return;
       }
-
       if (!email && !phone) {
         res.status(400).json({ error: "請提供電郵或手機號碼" });
         return;
       }
 
-      const database = await db.getDb();
-      if (!database) {
-        res.status(500).json({ error: "數據庫不可用" });
-        return;
+      // Phone registration requires OTP verification
+      if (phone) {
+        if (!otpCode) {
+          res.status(400).json({ error: "請輸入電話驗證碼", requireOtp: true });
+          return;
+        }
+        const result = verifyOtp(phone, otpCode);
+        if (result === "expired") {
+          res.status(400).json({ error: "驗證碼已過期，請重新發送", otpExpired: true });
+          return;
+        }
+        if (result === "too_many_attempts") {
+          res.status(400).json({ error: "驗證碼錯誤次數過多，請重新發送", otpExpired: true });
+          return;
+        }
+        if (result === "invalid") {
+          res.status(400).json({ error: "驗證碼不正確，請重新輸入" });
+          return;
+        }
       }
 
-      // Check if email or phone already exists
+      const database = await db.getDb();
+      if (!database) { res.status(500).json({ error: "數據庫不可用" }); return; }
+
       if (email) {
         const existing = await database.select().from(users).where(eq(users.email, email)).limit(1);
         if (existing.length > 0 && existing[0].password) {
@@ -48,14 +104,10 @@ export function registerAuthRoutes(app: Express) {
         }
       }
 
-      // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
-
-      // Generate openId for email/phone users
       const identifier = email || phone;
       const openId = `local_${identifier}`;
 
-      // Create user
       await db.upsertUser({
         openId,
         name: name || (email ? email.split("@")[0] : phone) || null,
@@ -64,13 +116,11 @@ export function registerAuthRoutes(app: Express) {
         lastSignedIn: new Date(),
       });
 
-      // Update password and phone fields directly
       if (phone) {
         await database.update(users).set({ phone }).where(eq(users.openId, openId));
       }
       await database.update(users).set({ password: hashedPassword }).where(eq(users.openId, openId));
 
-      // Create session
       const sessionToken = await sdk.createSessionToken(openId, {
         name: name || identifier || "",
         expiresInMs: ONE_YEAR_MS,
@@ -85,7 +135,7 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
-  // POST /api/auth/login - 登入
+  // POST /api/auth/login — 登入
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
       const { identifier, password } = req.body;
@@ -96,12 +146,8 @@ export function registerAuthRoutes(app: Express) {
       }
 
       const database = await db.getDb();
-      if (!database) {
-        res.status(500).json({ error: "數據庫不可用" });
-        return;
-      }
+      if (!database) { res.status(500).json({ error: "數據庫不可用" }); return; }
 
-      // Find user by email or phone
       const result = await database
         .select()
         .from(users)
@@ -114,18 +160,14 @@ export function registerAuthRoutes(app: Express) {
       }
 
       const user = result[0];
-
-      // Verify password
       const isValid = await bcrypt.compare(password, user.password!);
       if (!isValid) {
         res.status(401).json({ error: "帳號或密碼不正確" });
         return;
       }
 
-      // Update last signed in
       await database.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, user.id));
 
-      // Create session
       const sessionToken = await sdk.createSessionToken(user.openId, {
         name: user.name || "",
         expiresInMs: ONE_YEAR_MS,
