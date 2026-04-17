@@ -879,6 +879,24 @@ export const appRouter = router({
         if (!result.success) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: result.error ?? '刪除失敗' });
         return { success: true };
       }),
+
+    // Admin: list pending email reset requests
+    getEmailResetRequests: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const { getPendingResetRequests } = await import('./_core/resetRequestStore');
+        return getPendingResetRequests();
+      }),
+
+    // Admin: mark a reset request as handled
+    dismissEmailResetRequest: protectedProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const { dismissResetRequest } = await import('./_core/resetRequestStore');
+        dismissResetRequest(input.id);
+        return { success: true };
+      }),
   }),
 
   favorites: router({

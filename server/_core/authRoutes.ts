@@ -8,6 +8,7 @@ import { users } from "../../drizzle/schema";
 import { eq, or } from "drizzle-orm";
 import { sendOtpSms, checkViaTwilioVerify, isMainlandChina } from "./sms";
 import { generateOtp, setOtp, verifyOtp, canResend } from "./otpStore";
+import { addResetRequest } from "./resetRequestStore";
 
 // ─── Server-side phone format validation ──────────────────────────────────────
 function serverValidatePhone(phone: string): string | null {
@@ -191,6 +192,54 @@ export function registerAuthRoutes(app: Express) {
     } catch (error) {
       console.error("[Auth] Register failed:", error);
       res.status(500).json({ error: "註冊失敗，請稍後再試" });
+    }
+  });
+
+  // POST /api/auth/email-reset-request — 電郵忘記密碼：驗證電郵、生成臨時密碼、通知管理員
+  app.post("/api/auth/email-reset-request", async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      if (!email || typeof email !== "string") {
+        res.status(400).json({ error: "請提供電郵地址" }); return;
+      }
+      const trimmed = email.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+        res.status(400).json({ error: "電郵格式不正確，請重新確認" }); return;
+      }
+
+      const database = await db.getDb();
+      if (!database) { res.status(500).json({ error: "數據庫不可用" }); return; }
+
+      const found = await database
+        .select({ id: users.id, name: users.name, email: users.email, password: users.password })
+        .from(users)
+        .where(eq(users.email, trimmed))
+        .limit(1);
+
+      if (found.length === 0 || !found[0].password) {
+        res.status(404).json({ error: "此電郵未曾登記，請重新確認" }); return;
+      }
+
+      // Generate an 8-char alphanumeric temp password
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+      let tempPassword = "";
+      for (let i = 0; i < 8; i++) tempPassword += chars[Math.floor(Math.random() * chars.length)];
+
+      const hashed = await bcrypt.hash(tempPassword, 10);
+      await database.update(users).set({ password: hashed }).where(eq(users.id, found[0].id));
+
+      addResetRequest({
+        email: trimmed,
+        userName: found[0].name,
+        tempPassword,
+        createdAt: new Date(),
+      });
+
+      console.log(`[Auth] Email reset request for ${trimmed} — temp pw generated (admin notified)`);
+      res.json({ success: true });
+    } catch (err) {
+      console.error("[Auth] email-reset-request error:", err);
+      res.status(500).json({ error: "處理失敗，請稍後再試" });
     }
   });
 

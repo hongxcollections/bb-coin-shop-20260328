@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Pencil, Trash2, Store, UserRound, ShieldAlert, ChevronDown, Gavel } from "lucide-react";
+import { Users, Pencil, Trash2, Store, UserRound, ShieldAlert, ChevronDown, Gavel, Mail, KeyRound, CheckCircle2, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { MemberBadge, type MemberLevel } from "@/components/MemberBadge";
 
@@ -121,6 +121,16 @@ export default function AdminUsers() {
     },
     onError: (err) => toast.error(err.message),
   });
+
+  // ─── Email reset requests ──────────────────────────────────────────────────
+  const { data: resetRequests, refetch: refetchResets } = trpc.users.getEmailResetRequests.useQuery(undefined, {
+    enabled: isAuthenticated && user?.role === "admin",
+    refetchInterval: 30000, // poll every 30s for new requests
+  });
+  const dismissReset = trpc.users.dismissEmailResetRequest.useMutation({
+    onSuccess: () => refetchResets(),
+  });
+  // ──────────────────────────────────────────────────────────────────────────
 
   const adminDelete = trpc.users.adminDelete.useMutation({
     onSuccess: () => {
@@ -314,6 +324,68 @@ export default function AdminUsers() {
             </p>
           </div>
         </div>
+
+        {/* ── Email Reset Requests Panel ── */}
+        {resetRequests && resetRequests.length > 0 && (
+          <div className="mb-5 rounded-2xl border-2 border-amber-400 overflow-hidden shadow-md">
+            <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: "#FEF3C7" }}>
+              <Mail className="w-4 h-4 text-amber-700" />
+              <span className="font-bold text-sm text-amber-900">
+                密碼重設申請 ({resetRequests.length})
+              </span>
+              <span className="ml-auto text-xs text-amber-600">請聯絡會員並告知臨時密碼</span>
+            </div>
+            <div className="divide-y divide-amber-100">
+              {resetRequests.map(req => (
+                <div key={req.id} className="px-4 py-3 bg-white flex flex-col gap-2">
+                  <div className="flex items-start gap-2 justify-between">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 text-sm font-medium text-gray-800">
+                        <UserRound className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                        <span>{req.userName ?? "未知用戶"}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                        <Mail className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{req.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1">
+                          <KeyRound className="w-3.5 h-3.5 text-amber-600" />
+                          <span className="font-mono font-bold text-sm text-amber-800 tracking-wider">
+                            {req.tempPassword}
+                          </span>
+                          <button
+                            type="button"
+                            className="ml-1 text-amber-500 hover:text-amber-700"
+                            onClick={() => {
+                              navigator.clipboard.writeText(req.tempPassword);
+                              toast.success("臨時密碼已複製");
+                            }}
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <span className="text-xs text-gray-400">
+                          {new Date(req.createdAt).toLocaleString("zh-HK", {
+                            month: "2-digit", day: "2-digit",
+                            hour: "2-digit", minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => dismissReset.mutate({ id: req.id })}
+                      className="flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5 hover:bg-emerald-100 transition-colors flex-shrink-0 mt-0.5"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      已處理
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <Tabs defaultValue="all">

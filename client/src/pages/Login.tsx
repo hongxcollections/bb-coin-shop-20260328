@@ -527,17 +527,35 @@ export default function Login() {
 
                     <button
                       type="button"
-                      onClick={() => {
+                      disabled={fpLoading}
+                      onClick={async () => {
                         if (!fpEmail.trim()) { showError("請輸入電郵地址"); return; }
                         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fpEmail.trim())) {
-                          showError("電郵格式不正確，請重新確認");
-                          return;
+                          showError("電郵格式不正確，請重新確認"); return;
                         }
-                        window.location.href = `mailto:support@hongxcollections.com?subject=${encodeURIComponent("忘記密碼重設申請")}&body=${encodeURIComponent(`登記電郵：${fpEmail.trim()}`)}`;
+                        setFpLoading(true);
+                        try {
+                          const res = await fetch("/api/auth/email-reset-request", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ email: fpEmail.trim() }),
+                          });
+                          const data = await res.json();
+                          if (!res.ok) {
+                            showToast({ icon: "⚠️", title: data.error || "提交失敗", durationMs: 5000 });
+                            return;
+                          }
+                          showToast({ icon: "✅", title: "申請已提交！", desc: "管理員將盡快聯絡您重設密碼", durationMs: 6000 });
+                          switchMode("login");
+                        } catch {
+                          showError("網絡錯誤，請稍後再試");
+                        } finally {
+                          setFpLoading(false);
+                        }
                       }}
                       className="w-full py-3.5 rounded-2xl font-bold text-base text-white transition-opacity"
-                      style={{ background: "#E07B00", opacity: emailOk ? 1 : 0.55 }}>
-                      發送電郵至客服
+                      style={{ background: "#E07B00", opacity: (emailOk && !fpLoading) ? 1 : 0.55 }}>
+                      {fpLoading ? "提交中..." : "提交重設申請"}
                     </button>
                   </>
                   );
