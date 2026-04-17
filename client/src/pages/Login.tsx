@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Eye, EyeOff, Mail, Phone, Lock, User, ShieldCheck, ChevronDown } from "lucide-react";
 import Header from "@/components/Header";
+import { useToast } from "@/contexts/ToastContext";
 
 const COUNTRIES = [
   { code: "+852", flag: "🇭🇰", name: "香港" },
@@ -39,8 +40,10 @@ export default function Login() {
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const countryDropdownRef = useRef<HTMLDivElement>(null);
 
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const { showToast } = useToast();
+
+  const showError = (msg: string) => showToast({ icon: "⚠️", title: msg, durationMs: 4000 });
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -90,8 +93,7 @@ export default function Login() {
   };
 
   const sendOtp = async () => {
-    setError("");
-    if (!localPhone) { setError("請輸入手機號碼"); return; }
+    if (!localPhone) { showError("請輸入手機號碼"); return; }
     setOtpSending(true);
     try {
       const res = await fetch("/api/auth/send-otp", {
@@ -100,13 +102,13 @@ export default function Login() {
         body: JSON.stringify({ phone }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "發送失敗"); return; }
+      if (!res.ok) { showError(data.error || "發送失敗"); return; }
       setStep("otp");
       setCountdown(60);
       setOtpDigits(["", "", "", "", "", ""]);
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
     } catch {
-      setError("網絡錯誤，請稍後再試");
+      showError("網絡錯誤，請稍後再試");
     } finally {
       setOtpSending(false);
     }
@@ -114,7 +116,6 @@ export default function Login() {
 
   const resendOtp = async () => {
     if (countdown > 0) return;
-    setError("");
     setOtpSending(true);
     try {
       const res = await fetch("/api/auth/send-otp", {
@@ -123,21 +124,20 @@ export default function Login() {
         body: JSON.stringify({ phone }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "發送失敗"); return; }
+      if (!res.ok) { showError(data.error || "發送失敗"); return; }
       setCountdown(60);
       setOtpDigits(["", "", "", "", "", ""]);
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
     } catch {
-      setError("網絡錯誤，請稍後再試");
+      showError("網絡錯誤，請稍後再試");
     } finally {
       setOtpSending(false);
     }
   };
 
   const handleRegister = async () => {
-    setError("");
-    if (password !== confirmPassword) { setError("兩次輸入的密碼不一致"); return; }
-    if (registerMethod === "phone" && otpCode.length < 6) { setError("請輸入完整的6位驗證碼"); return; }
+    if (password !== confirmPassword) { showError("兩次輸入的密碼不一致"); return; }
+    if (registerMethod === "phone" && otpCode.length < 6) { showError("請輸入完整的6位驗證碼"); return; }
 
     setLoading(true);
     try {
@@ -159,7 +159,7 @@ export default function Login() {
       const data = await res.json();
       if (!res.ok) {
         if (data.otpExpired) { setStep("form"); setOtpDigits(["", "", "", "", "", ""]); }
-        setError(data.error || "註冊失敗");
+        showError(data.error || "註冊失敗");
         return;
       }
       if (registerMethod === "phone") {
@@ -167,14 +167,13 @@ export default function Login() {
       }
       window.location.href = "/";
     } catch {
-      setError("網絡錯誤，請稍後再試");
+      showError("網絡錯誤，請稍後再試");
     } finally {
       setLoading(false);
     }
   };
 
   const handleLogin = async () => {
-    setError("");
     setLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
@@ -183,10 +182,10 @@ export default function Login() {
         body: JSON.stringify({ identifier, password }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "登入失敗"); return; }
+      if (!res.ok) { showError(data.error || "登入失敗"); return; }
       window.location.href = "/";
     } catch {
-      setError("網絡錯誤，請稍後再試");
+      showError("網絡錯誤，請稍後再試");
     } finally {
       setLoading(false);
     }
@@ -206,7 +205,6 @@ export default function Login() {
   const switchMode = (newMode: "login" | "register") => {
     setMode(newMode);
     setStep("form");
-    setError("");
     setPassword(""); setConfirmPassword(""); setIdentifier("");
     setEmail(""); setPhone(""); setName("");
     setOtpDigits(["", "", "", "", "", ""]);
@@ -262,8 +260,6 @@ export default function Login() {
               ))}
             </div>
 
-            {error && <div className="text-red-500 text-xs text-center">{error}</div>}
-
             <button
               onClick={handleRegister}
               disabled={loading || otpCode.length < 6}
@@ -288,7 +284,7 @@ export default function Login() {
               <div>
                 <button
                   type="button"
-                  onClick={() => { setStep("form"); setError(""); setOtpDigits(["", "", "", "", "", ""]); }}
+                  onClick={() => { setStep("form"); setOtpDigits(["", "", "", "", "", ""]); }}
                   className="text-xs bg-transparent border-0 cursor-pointer"
                   style={{ color: "#aaa" }}
                 >
@@ -476,8 +472,6 @@ export default function Login() {
                 </div>
               </>
             )}
-
-            {error && <div className="text-red-500 text-xs text-center py-1">{error}</div>}
 
             <button
               type="submit"
