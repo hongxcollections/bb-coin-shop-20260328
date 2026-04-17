@@ -36,6 +36,8 @@ export default function Login() {
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [countdown, setCountdown] = useState(0);
   const [otpSending, setOtpSending] = useState(false);
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const countryDropdownRef = useRef<HTMLDivElement>(null);
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -50,6 +52,18 @@ export default function Login() {
   useEffect(() => {
     setPhone(countryCode + localPhone);
   }, [countryCode, localPhone]);
+
+  // Close country dropdown on outside click
+  useEffect(() => {
+    if (!showCountryDropdown) return;
+    function handleOutside(e: MouseEvent) {
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(e.target as Node)) {
+        setShowCountryDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [showCountryDropdown]);
 
   const otpCode = otpDigits.join("");
 
@@ -334,23 +348,58 @@ export default function Login() {
                       <span className="ml-1.5 text-xs font-normal" style={{ color: "#999" }}>（需驗證）</span>
                     </label>
                     {/* Country code selector + phone number input */}
-                    <div className="flex rounded-xl border overflow-hidden" style={{ borderColor: inputStyle.borderColor, background: inputStyle.background }}>
-                      {/* Country code dropdown */}
-                      <div className="relative flex-shrink-0 border-r" style={{ borderColor: inputStyle.borderColor }}>
-                        <select
-                          value={countryCode}
-                          onChange={e => setCountryCode(e.target.value)}
-                          className="appearance-none h-full pl-3 pr-7 py-3 text-sm bg-transparent outline-none cursor-pointer font-medium"
-                          style={{ color: "#333" }}
+                    <div className="flex gap-2 items-stretch">
+                      {/* Custom country code dropdown */}
+                      <div className="relative flex-shrink-0" ref={countryDropdownRef}>
+                        <button
+                          type="button"
+                          onClick={() => setShowCountryDropdown(v => !v)}
+                          className="flex items-center gap-1.5 px-3 py-3 rounded-xl border text-sm font-medium whitespace-nowrap h-full"
+                          style={{ ...inputStyle, minWidth: "100px" }}
                         >
-                          {COUNTRIES.map(c => (
-                            <option key={c.code} value={c.code}>
-                              {c.flag} {c.code} {c.name}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#aaa" }} />
+                          <span className="text-base leading-none">
+                            {COUNTRIES.find(c => c.code === countryCode)?.flag}
+                          </span>
+                          <span>{countryCode}</span>
+                          <ChevronDown
+                            size={13}
+                            className="ml-0.5 transition-transform duration-150"
+                            style={{ color: "#aaa", transform: showCountryDropdown ? "rotate(180deg)" : "rotate(0deg)" }}
+                          />
+                        </button>
+
+                        {/* Dropdown list */}
+                        {showCountryDropdown && (
+                          <div
+                            className="absolute left-0 top-full mt-1.5 rounded-2xl border shadow-xl overflow-hidden z-[9999]"
+                            style={{ background: "#fff", borderColor: "#E5E5E5", minWidth: "210px", maxHeight: "300px", overflowY: "auto" }}
+                          >
+                            {COUNTRIES.map(c => {
+                              const selected = c.code === countryCode;
+                              return (
+                                <button
+                                  key={c.code}
+                                  type="button"
+                                  onClick={() => { setCountryCode(c.code); setShowCountryDropdown(false); }}
+                                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors"
+                                  style={{
+                                    background: selected ? "#FFF3E0" : "transparent",
+                                    color: selected ? "#E07B00" : "#333",
+                                  }}
+                                >
+                                  <span className="text-lg leading-none">{c.flag}</span>
+                                  <span className="font-semibold w-10 flex-shrink-0">{c.code}</span>
+                                  <span style={{ color: selected ? "#E07B00" : "#666" }}>{c.name}</span>
+                                  {selected && (
+                                    <span className="ml-auto text-base" style={{ color: "#E07B00" }}>✓</span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
+
                       {/* Local phone number */}
                       <input
                         type="tel"
@@ -358,8 +407,8 @@ export default function Login() {
                         onChange={e => setLocalPhone(e.target.value.replace(/\D/g, ""))}
                         placeholder={countryCode === "+852" ? "XXXX XXXX" : countryCode === "+86" ? "1XX XXXX XXXX" : "電話號碼"}
                         required
-                        className="flex-1 px-3 py-3 text-sm bg-transparent outline-none"
-                        style={{ color: "#333" }}
+                        className="flex-1 px-3 py-3 rounded-xl border text-sm outline-none"
+                        style={inputStyle}
                       />
                     </div>
                   </div>
