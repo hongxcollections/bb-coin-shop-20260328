@@ -1,7 +1,7 @@
 import { eq, desc, asc, and, gte, lte, gt, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2269,4 +2269,59 @@ export async function deleteUserAndData(userId: number): Promise<{ success: bool
     console.error('[Database] Failed to delete user and data:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
+}
+
+// ─── Merchant Applications ────────────────────────────────────────────────────
+
+export async function createMerchantApplication(data: InsertMerchantApplication) {
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const [result] = await db.insert(merchantApplications).values(data);
+  return result;
+}
+
+export async function getMerchantApplicationByUser(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(merchantApplications)
+    .where(eq(merchantApplications.userId, userId))
+    .orderBy(desc(merchantApplications.createdAt))
+    .limit(1);
+  return result[0];
+}
+
+export async function getAllMerchantApplications() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: merchantApplications.id,
+    userId: merchantApplications.userId,
+    merchantName: merchantApplications.merchantName,
+    selfIntro: merchantApplications.selfIntro,
+    whatsapp: merchantApplications.whatsapp,
+    yearsExperience: merchantApplications.yearsExperience,
+    categories: merchantApplications.categories,
+    samplePhotos: merchantApplications.samplePhotos,
+    status: merchantApplications.status,
+    adminNote: merchantApplications.adminNote,
+    createdAt: merchantApplications.createdAt,
+    updatedAt: merchantApplications.updatedAt,
+    applicantName: sql<string | null>`(SELECT name FROM users WHERE id = ${merchantApplications.userId})`,
+    applicantEmail: sql<string | null>`(SELECT email FROM users WHERE id = ${merchantApplications.userId})`,
+    applicantPhone: sql<string | null>`(SELECT phone FROM users WHERE id = ${merchantApplications.userId})`,
+  })
+  .from(merchantApplications)
+  .orderBy(desc(merchantApplications.createdAt));
+}
+
+export async function reviewMerchantApplication(
+  id: number,
+  status: 'approved' | 'rejected',
+  adminNote?: string
+) {
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  await db.update(merchantApplications)
+    .set({ status, adminNote: adminNote ?? null })
+    .where(eq(merchantApplications.id, id));
 }

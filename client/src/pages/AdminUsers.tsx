@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Pencil, Trash2, Store, UserRound, ShieldAlert, ChevronDown, Gavel, Mail, KeyRound, CheckCircle2, Copy } from "lucide-react";
+import { Users, Pencil, Trash2, Store, UserRound, ShieldAlert, ChevronDown, Gavel, Mail, KeyRound, CheckCircle2, Copy, Clock, XCircle, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { MemberBadge, type MemberLevel } from "@/components/MemberBadge";
 
@@ -125,11 +125,33 @@ export default function AdminUsers() {
   // ─── Email reset requests ──────────────────────────────────────────────────
   const { data: resetRequests, refetch: refetchResets } = trpc.users.getEmailResetRequests.useQuery(undefined, {
     enabled: isAuthenticated && user?.role === "admin",
-    refetchInterval: 30000, // poll every 30s for new requests
+    refetchInterval: 30000,
   });
   const dismissReset = trpc.users.dismissEmailResetRequest.useMutation({
     onSuccess: () => refetchResets(),
   });
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // ─── Merchant applications ─────────────────────────────────────────────────
+  const [merchantReviewId, setMerchantReviewId] = useState<number | null>(null);
+  const [merchantNote, setMerchantNote] = useState("");
+  const [expandedMerchantId, setExpandedMerchantId] = useState<number | null>(null);
+
+  const { data: merchantApps, refetch: refetchMerchantApps } = trpc.merchants.listAll.useQuery(undefined, {
+    enabled: isAuthenticated && user?.role === "admin",
+    refetchInterval: 60000,
+  });
+  const reviewMerchant = trpc.merchants.review.useMutation({
+    onSuccess: () => {
+      toast.success("審批已完成");
+      setMerchantReviewId(null);
+      setMerchantNote("");
+      refetchMerchantApps();
+      refetch(); // refresh user list
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const pendingMerchantApps = merchantApps?.filter(a => a.status === "pending") ?? [];
   // ──────────────────────────────────────────────────────────────────────────
 
   const adminDelete = trpc.users.adminDelete.useMutation({
@@ -383,6 +405,131 @@ export default function AdminUsers() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Merchant Application Review Panel ── */}
+        {pendingMerchantApps.length > 0 && (
+          <div className="mb-5 rounded-2xl border-2 border-amber-400 overflow-hidden shadow-md">
+            <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: "#FEF3C7" }}>
+              <Store className="w-4 h-4 text-amber-700" />
+              <span className="font-bold text-sm text-amber-900">
+                商戶申請審核 ({pendingMerchantApps.length})
+              </span>
+            </div>
+            <div className="divide-y divide-amber-100">
+              {pendingMerchantApps.map(app => {
+                const expanded = expandedMerchantId === app.id;
+                const reviewing = merchantReviewId === app.id || merchantReviewId === -app.id;
+                const cats = (() => { try { return JSON.parse(app.categories); } catch { return []; } })();
+                const photos = (() => { try { return JSON.parse(app.samplePhotos); } catch { return []; } })();
+                return (
+                  <div key={app.id} className="px-4 py-3 bg-white">
+                    {/* Header row */}
+                    <div className="flex items-center gap-2 justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Store className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                        <span className="font-semibold text-sm text-gray-800 truncate">{app.merchantName}</span>
+                        <span className="text-xs text-gray-400">— {app.applicantName ?? "未知"}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedMerchantId(expanded ? null : app.id)}
+                        className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800"
+                      >
+                        {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        {expanded ? "收起" : "詳細"}
+                      </button>
+                    </div>
+
+                    {/* Compact info */}
+                    <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
+                      <span>📞 {app.whatsapp}</span>
+                      <span>📅 {app.yearsExperience}</span>
+                      <span>🏷 {Array.isArray(cats) ? cats.join("、") : cats}</span>
+                      <span className="text-gray-400">
+                        {new Date(app.createdAt!).toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+
+                    {/* Expanded details */}
+                    {expanded && (
+                      <div className="mt-3 space-y-3">
+                        <div className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2">
+                          <p className="text-xs font-medium text-gray-500 mb-1">自我介紹</p>
+                          <p className="text-sm text-gray-700">{app.selfIntro}</p>
+                        </div>
+                        {photos.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 mb-1.5">樣本照片</p>
+                            <div className="flex gap-2 flex-wrap">
+                              {photos.map((url: string, i: number) => (
+                                <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                                  <img src={url} alt="" className="w-16 h-16 rounded-lg object-cover border border-amber-100 hover:opacity-80 transition-opacity" />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div className="text-xs text-gray-500 space-y-0.5">
+                          {app.applicantEmail && <p>📧 {app.applicantEmail}</p>}
+                          {app.applicantPhone && <p>📱 {app.applicantPhone}</p>}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Review actions */}
+                    {!reviewing ? (
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          onClick={() => { setMerchantReviewId(app.id); setMerchantNote(""); }}
+                          className="flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg px-3 py-1.5 hover:bg-emerald-100 transition-colors"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" /> 批准
+                        </button>
+                        <button
+                          onClick={() => { setMerchantReviewId(-app.id); setMerchantNote(""); }}
+                          className="flex items-center gap-1 text-xs bg-red-50 text-red-600 border border-red-200 rounded-lg px-3 py-1.5 hover:bg-red-100 transition-colors"
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> 拒絕
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-3 space-y-2">
+                        <p className="text-xs font-medium text-gray-600">
+                          {merchantReviewId > 0 ? "✅ 批准" : "❌ 拒絕"} — 備注（可選）
+                        </p>
+                        <input
+                          className="w-full text-sm rounded-lg border border-amber-200 px-3 py-1.5 focus:outline-none focus:border-amber-400"
+                          placeholder={merchantReviewId > 0 ? "例如：歡迎加入，保證金 HKD 500" : "例如：資料不足，請補充"}
+                          value={merchantNote}
+                          onChange={e => setMerchantNote(e.target.value)}
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            disabled={reviewMerchant.isPending}
+                            onClick={() => reviewMerchant.mutate({
+                              id: Math.abs(merchantReviewId!),
+                              status: merchantReviewId! > 0 ? "approved" : "rejected",
+                              adminNote: merchantNote || undefined,
+                            })}
+                            className="text-xs bg-amber-500 text-white rounded-lg px-3 py-1.5 hover:bg-amber-600 transition-colors disabled:opacity-50"
+                          >
+                            確認提交
+                          </button>
+                          <button
+                            onClick={() => { setMerchantReviewId(null); setMerchantNote(""); }}
+                            className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5"
+                          >
+                            取消
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

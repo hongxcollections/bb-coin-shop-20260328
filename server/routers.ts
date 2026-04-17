@@ -6,7 +6,7 @@ import { z } from "zod";
 import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication } from "./db";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 
@@ -1305,17 +1305,93 @@ export const appRouter = router({
   }),
 
   siteSettings: router({
-    // 取得所有站點設定（公開，前端用）
-    getAll: publicProcedure
-      .query(async () => {
-        return getAllSiteSettings();
-      }),
-    // 管理員設定值
+    getAll: publicProcedure.query(async () => getAllSiteSettings()),
     set: protectedProcedure
       .input(z.object({ key: z.string(), value: z.string() }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can change settings' });
         return setSiteSetting(input.key, input.value);
+      }),
+  }),
+
+  // ─── 商戶申請 ─────────────────────────────────────────────────────────────
+  merchants: router({
+    // 上傳樣本照片（任何已登入會員）
+    uploadPhoto: protectedProcedure
+      .input(z.object({
+        imageData: z.string(),   // base64
+        fileName: z.string(),
+        mimeType: z.string().default('image/jpeg'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
+        if (!allowedMimes.includes(input.mimeType)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '不支援此圖片格式' });
+        }
+        const buffer = Buffer.from(input.imageData, 'base64');
+        if (buffer.length > 8 * 1024 * 1024) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '圖片不可超過 8MB' });
+        }
+        const fileKey = `merchant-applications/${ctx.user.id}/${Date.now()}-${input.fileName}`;
+        const { url } = await storagePut(fileKey, buffer, input.mimeType);
+        return { url };
+      }),
+
+    // 提交申請
+    submit: protectedProcedure
+      .input(z.object({
+        merchantName: z.string().min(1).max(100),
+        selfIntro: z.string().min(10),
+        whatsapp: z.string().min(5),
+        yearsExperience: z.enum(['1年以下', '1-3年', '3-5年', '5年以上']),
+        categories: z.array(z.string()).min(1),
+        samplePhotos: z.array(z.string()).min(3),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // 不允許管理員申請
+        if (ctx.user.role === 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '管理員帳號無需申請商戶' });
+        }
+        // 已有待審申請則拒絕重複提交
+        const existing = await getMerchantApplicationByUser(ctx.user.id);
+        if (existing && existing.status === 'pending') {
+          throw new TRPCError({ code: 'CONFLICT', message: '你已有一份待審申請，請耐心等候' });
+        }
+        await createMerchantApplication({
+          userId: ctx.user.id,
+          merchantName: input.merchantName,
+          selfIntro: input.selfIntro,
+          whatsapp: input.whatsapp,
+          yearsExperience: input.yearsExperience,
+          categories: JSON.stringify(input.categories),
+          samplePhotos: JSON.stringify(input.samplePhotos),
+          status: 'pending',
+        });
+        return { success: true };
+      }),
+
+    // 查看自己的申請狀態
+    myApplication: protectedProcedure.query(async ({ ctx }) => {
+      return getMerchantApplicationByUser(ctx.user.id) ?? null;
+    }),
+
+    // 管理員：查看所有申請
+    listAll: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+      return getAllMerchantApplications();
+    }),
+
+    // 管理員：審批申請
+    review: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(['approved', 'rejected']),
+        adminNote: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        await reviewMerchantApplication(input.id, input.status, input.adminNote);
+        return { success: true };
       }),
   }),
 });

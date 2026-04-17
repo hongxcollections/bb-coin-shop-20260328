@@ -187,14 +187,14 @@ export default function BottomNav() {
                             <Settings className="w-4 h-4" />
                             <span>會員福利</span>
                           </Link>
-                          <button
-                            onClick={() => { setShowMore(false); showComingSoon("開通商戶"); }}
+                          <Link
+                            href="/merchant-apply"
+                            onClick={() => setShowMore(false)}
                             className="bottom-nav-more-item"
-                            style={{ background: "none", border: "none", cursor: "pointer", width: "100%" }}
                           >
                             <ShoppingBag className="w-4 h-4" />
                             <span>開通商戶</span>
-                          </button>
+                          </Link>
                           <button
                             onClick={() => { setShowMore(false); logout(); }}
                             className="bottom-nav-more-item"

@@ -30,6 +30,7 @@ import MemberBenefits from "./pages/MemberBenefits";
 import WebhookSetup from "./pages/WebhookSetup";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import MerchantApply from "./pages/MerchantApply";
 
 function Router() {
   return (
@@ -58,6 +59,7 @@ function Router() {
       <Route path={"/login"} component={Login} />
       <Route path={"/privacy"} component={Privacy} />
       <Route path={"/terms"} component={Terms} />
+      <Route path={"/merchant-apply"} component={MerchantApply} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
