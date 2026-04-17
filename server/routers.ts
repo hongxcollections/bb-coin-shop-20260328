@@ -1574,6 +1574,30 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    /** 商戶批量發佈草稿（同一結束時間） */
+    batchPublishDrafts: protectedProcedure
+      .input(z.object({
+        ids: z.array(z.number().int().positive()).min(1).max(50),
+        endTime: z.date(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (input.endTime <= new Date()) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '結束時間必須為未來時間' });
+        }
+        const results = await Promise.allSettled(
+          input.ids.map(async (id) => {
+            const auction = await getAuctionById(id);
+            if (!auction || auction.status !== 'draft') return { id, skipped: true };
+            if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') return { id, forbidden: true };
+            await updateAuction(id, { status: 'active', endTime: input.endTime });
+            return { id, success: true };
+          })
+        );
+        const succeeded = results.filter(r => r.status === 'fulfilled' && (r.value as { success?: boolean }).success).length;
+        const skipped = results.filter(r => r.status === 'fulfilled' && (r.value as { skipped?: boolean }).skipped).length;
+        return { succeeded, skipped, total: input.ids.length };
+      }),
+
     /** 商戶封存已結束的拍賣 */
     archiveAuction: protectedProcedure
       .input(z.object({ id: z.number().int().positive() }))

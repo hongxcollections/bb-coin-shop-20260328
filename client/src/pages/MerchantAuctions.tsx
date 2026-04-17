@@ -3,18 +3,18 @@ import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   Plus, Pencil, Trash2, Archive, RotateCcw, Upload, X,
   ImageIcon, CheckCircle2, AlertCircle, Loader2, ChevronLeft,
-  RefreshCw, Eye, Send,
+  RefreshCw, Eye, Send, CheckSquare, Square,
 } from "lucide-react";
 
 const MAX_IMAGES = 10;
@@ -184,10 +184,13 @@ function ImageUploadZone({
 
 // ─── Auction Card ─────────────────────────────────────────────────────────────
 function AuctionCard({
-  auction, tab, onEdit, onDelete, onPublish, onArchive, onRestore, onRelist,
+  auction, tab, selected, onToggleSelect,
+  onEdit, onDelete, onPublish, onArchive, onRestore, onRelist,
 }: {
   auction: AuctionItem;
   tab: string;
+  selected?: boolean;
+  onToggleSelect?: (id: number) => void;
   onEdit: (a: AuctionItem) => void;
   onDelete: (id: number) => void;
   onPublish: (a: AuctionItem) => void;
@@ -196,10 +199,22 @@ function AuctionCard({
   onRelist: (id: number) => void;
 }) {
   const img = auction.images?.[0]?.imageUrl;
+  const isDraft = tab === "草稿";
 
   return (
-    <div className="flex gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors">
-      <div className="w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
+    <div className={`flex gap-3 p-3 rounded-lg border transition-colors ${isDraft && selected ? "border-amber-400 bg-amber-50/60" : "bg-card hover:bg-accent/5"}`}>
+      {/* Checkbox（只在草稿 tab 顯示） */}
+      {isDraft && onToggleSelect && (
+        <div className="flex items-start pt-1 flex-shrink-0">
+          <Checkbox
+            checked={selected ?? false}
+            onCheckedChange={() => onToggleSelect(auction.id)}
+            className="border-amber-400 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+          />
+        </div>
+      )}
+
+      <div className="w-14 h-14 rounded-md overflow-hidden bg-muted flex-shrink-0">
         {img ? (
           <img src={img} alt="" className="w-full h-full object-cover" />
         ) : (
@@ -208,16 +223,17 @@ function AuctionCard({
           </div>
         )}
       </div>
+
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm truncate">{auction.title}</p>
         <p className="text-xs text-muted-foreground mt-0.5">
           起拍：{getCurrencySymbol(auction.currency ?? "HKD")}{Number(auction.startingPrice).toLocaleString()}
           {" · "}每口：{auction.currency ?? "HKD"}${auction.bidIncrement ?? 30}
         </p>
-        {auction.endTime && (
+        {auction.endTime && tab !== "草稿" && (
           <p className="text-xs text-muted-foreground mt-0.5">
             {tab === "進行中" ? "結束：" : tab === "已結束" ? "結標：" : ""}
-            {tab !== "草稿" && formatDate(auction.endTime)}
+            {formatDate(auction.endTime)}
           </p>
         )}
         <div className="flex gap-1.5 mt-2 flex-wrap">
@@ -274,7 +290,7 @@ function AuctionCard({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function MerchantAuctions() {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [tab, setTab] = useState<"進行中" | "草稿" | "已結束" | "封存">("草稿");
 
   // Create/Edit dialog
@@ -285,10 +301,15 @@ export default function MerchantAuctions() {
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Publish dialog
+  // Single publish dialog
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishTarget, setPublishTarget] = useState<AuctionItem | null>(null);
   const [publishEndTime, setPublishEndTime] = useState("");
+
+  // Batch publish
+  const [selectedDrafts, setSelectedDrafts] = useState<Set<number>>(new Set());
+  const [batchPublishOpen, setBatchPublishOpen] = useState(false);
+  const [batchEndTime, setBatchEndTime] = useState("");
 
   const { data: myAuctions, isLoading: loadingActive, refetch: refetchActive } = trpc.merchants.myAuctions.useQuery();
   const { data: myDrafts, isLoading: loadingDrafts, refetch: refetchDrafts } = trpc.merchants.myDrafts.useQuery();
@@ -336,8 +357,7 @@ export default function MerchantAuctions() {
     onSuccess: async (result) => {
       const uploaded = pendingImages.length > 0 && result?.id ? await uploadAllPending(result.id) : 0;
       toast.success(uploaded > 0 ? `草稿建立成功！已上傳 ${uploaded} 張圖片` : "草稿已建立");
-      closeForm();
-      refetchDrafts();
+      closeForm(); refetchDrafts();
     },
     onError: (err) => toast.error(err.message || "建立失敗"),
   });
@@ -346,8 +366,7 @@ export default function MerchantAuctions() {
     onSuccess: async () => {
       const uploaded = pendingImages.length > 0 && editId ? await uploadAllPending(editId) : 0;
       toast.success(uploaded > 0 ? `已更新，上傳了 ${uploaded} 張圖片` : "草稿已更新");
-      closeForm();
-      refetchDrafts();
+      closeForm(); refetchDrafts();
     },
     onError: (err) => toast.error(err.message || "更新失敗"),
   });
@@ -358,8 +377,25 @@ export default function MerchantAuctions() {
   });
 
   const publishMutation = trpc.merchants.publishDraft.useMutation({
-    onSuccess: () => { toast.success("拍賣已發佈！"); setPublishOpen(false); refetchDrafts(); refetchActive(); },
+    onSuccess: () => {
+      toast.success("拍賣已發佈！");
+      setPublishOpen(false);
+      refetchDrafts(); refetchActive();
+    },
     onError: (err) => toast.error(err.message || "發佈失敗"),
+  });
+
+  const batchPublishMutation = trpc.merchants.batchPublishDrafts.useMutation({
+    onSuccess: (data) => {
+      const msg = data.skipped > 0
+        ? `成功發佈 ${data.succeeded} 個，略過 ${data.skipped} 個`
+        : `成功發佈 ${data.succeeded} 個拍賣！`;
+      toast.success(msg);
+      setBatchPublishOpen(false);
+      setSelectedDrafts(new Set());
+      refetchDrafts(); refetchActive();
+    },
+    onError: (err) => toast.error(err.message || "批量發佈失敗"),
   });
 
   const archiveMutation = trpc.merchants.archiveAuction.useMutation({
@@ -373,7 +409,10 @@ export default function MerchantAuctions() {
   });
 
   const relistMutation = trpc.merchants.relistAuction.useMutation({
-    onSuccess: () => { toast.success("已建立重新刊登草稿！請前往草稿頁設定結束時間並發佈"); setTab("草稿"); refetchDrafts(); refetchActive(); refetchArchived(); },
+    onSuccess: () => {
+      toast.success("已建立重新刊登草稿！請前往草稿頁設定結束時間並發佈");
+      setTab("草稿"); refetchDrafts(); refetchActive(); refetchArchived();
+    },
     onError: (err) => toast.error(err.message || "重新刊登失敗"),
   });
 
@@ -441,6 +480,36 @@ export default function MerchantAuctions() {
     publishMutation.mutate({ id: publishTarget.id, endTime: new Date(publishEndTime) });
   };
 
+  const openBatchPublish = () => {
+    if (selectedDrafts.size === 0) { toast.error("請先選擇要發佈的草稿"); return; }
+    const d = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    setBatchEndTime(d.toISOString().slice(0, 16));
+    setBatchPublishOpen(true);
+  };
+
+  const handleBatchPublish = () => {
+    if (selectedDrafts.size === 0) return;
+    if (!batchEndTime) { toast.error("請選擇結束時間"); return; }
+    if (new Date(batchEndTime) <= new Date()) { toast.error("結束時間必須為未來時間"); return; }
+    batchPublishMutation.mutate({ ids: Array.from(selectedDrafts), endTime: new Date(batchEndTime) });
+  };
+
+  const toggleSelectDraft = (id: number) => {
+    setSelectedDrafts((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSelectAll = (drafts: AuctionItem[]) => {
+    if (selectedDrafts.size === drafts.length) {
+      setSelectedDrafts(new Set());
+    } else {
+      setSelectedDrafts(new Set(drafts.map((d) => d.id)));
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -469,6 +538,9 @@ export default function MerchantAuctions() {
   const currentList = tab === "進行中" ? activeAuctions : tab === "草稿" ? draftAuctions : tab === "已結束" ? endedAuctions : archivedAuctions;
   const isLoading = tab === "進行中" ? loadingActive : tab === "草稿" ? loadingDrafts : tab === "已結束" ? loadingActive : loadingArchived;
   const isMutating = createMutation.isPending || updateMutation.isPending || isUploading;
+
+  const allDraftSelected = draftAuctions.length > 0 && selectedDrafts.size === draftAuctions.length;
+  const someDraftSelected = selectedDrafts.size > 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -508,7 +580,7 @@ export default function MerchantAuctions() {
           {TABS.map((t) => (
             <button
               key={t.key}
-              onClick={() => setTab(t.key)}
+              onClick={() => { setTab(t.key); if (t.key !== "草稿") setSelectedDrafts(new Set()); }}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === t.key ? "border-amber-500 text-amber-600" : "border-transparent text-muted-foreground hover:text-foreground"}`}
             >
               {t.label}
@@ -518,6 +590,43 @@ export default function MerchantAuctions() {
             </button>
           ))}
         </div>
+
+        {/* ── 草稿 Tab 批量操作欄 ── */}
+        {tab === "草稿" && draftAuctions.length > 0 && (
+          <div className="flex items-center gap-3 px-1">
+            <button
+              onClick={() => handleSelectAll(draftAuctions)}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-amber-600 transition-colors"
+            >
+              {allDraftSelected
+                ? <CheckSquare className="w-4 h-4 text-amber-500" />
+                : <Square className="w-4 h-4" />}
+              {allDraftSelected ? "取消全選" : "全選"}
+            </button>
+
+            {someDraftSelected && (
+              <>
+                <span className="text-xs text-muted-foreground">已選 {selectedDrafts.size} 個</span>
+                <Button
+                  size="sm"
+                  className="h-8 px-3 text-xs gap-1.5 bg-green-600 hover:bg-green-700 text-white border-0"
+                  onClick={openBatchPublish}
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  一鍵批量發佈（{selectedDrafts.size}）
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => setSelectedDrafts(new Set())}
+                >
+                  清除選擇
+                </Button>
+              </>
+            )}
+          </div>
+        )}
 
         {/* 列表 */}
         <Card>
@@ -536,10 +645,17 @@ export default function MerchantAuctions() {
             ) : (
               <div className="space-y-3">
                 {currentList.map((a) => (
-                  <AuctionCard key={a.id} auction={a} tab={tab}
-                    onEdit={openEdit} onDelete={(id) => deleteMutation.mutate({ id })}
-                    onPublish={openPublish} onArchive={(id) => archiveMutation.mutate({ id })}
-                    onRestore={(id) => restoreMutation.mutate({ id })} onRelist={(id) => relistMutation.mutate({ id })} />
+                  <AuctionCard
+                    key={a.id} auction={a} tab={tab}
+                    selected={selectedDrafts.has(a.id)}
+                    onToggleSelect={tab === "草稿" ? toggleSelectDraft : undefined}
+                    onEdit={openEdit}
+                    onDelete={(id) => { deleteMutation.mutate({ id }); setSelectedDrafts((p) => { const n = new Set(p); n.delete(id); return n; }); }}
+                    onPublish={openPublish}
+                    onArchive={(id) => archiveMutation.mutate({ id })}
+                    onRestore={(id) => restoreMutation.mutate({ id })}
+                    onRelist={(id) => relistMutation.mutate({ id })}
+                  />
                 ))}
               </div>
             )}
@@ -604,7 +720,7 @@ export default function MerchantAuctions() {
         </DialogContent>
       </Dialog>
 
-      {/* ── 發佈 Dialog ── */}
+      {/* ── 單個發佈 Dialog ── */}
       <Dialog open={publishOpen} onOpenChange={(v) => { if (!v) setPublishOpen(false); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -615,13 +731,44 @@ export default function MerchantAuctions() {
             <div>
               <Label>結束時間 *</Label>
               <Input type="datetime-local" value={publishEndTime} onChange={(e) => setPublishEndTime(e.target.value)} />
-              <p className="text-xs text-muted-foreground mt-1">發佈後拍賣即刻開始，無法反悔</p>
+              <p className="text-xs text-muted-foreground mt-1">發佈後拍賣即刻開始</p>
             </div>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setPublishOpen(false)}>取消</Button>
               <Button onClick={handlePublish} disabled={publishMutation.isPending} className="bg-green-600 hover:bg-green-700 text-white border-0">
                 {publishMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Send className="w-4 h-4 mr-1.5" />}
                 確認發佈
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── 批量發佈 Dialog ── */}
+      <Dialog open={batchPublishOpen} onOpenChange={(v) => { if (!v) setBatchPublishOpen(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>批量發佈草稿</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
+              <p className="text-sm font-medium text-amber-800">
+                即將發佈 <span className="text-lg font-bold">{selectedDrafts.size}</span> 個草稿
+              </p>
+              <p className="text-xs text-amber-600 mt-0.5">所有選中的草稿將使用相同的結束時間</p>
+            </div>
+            <div>
+              <Label>統一結束時間 *</Label>
+              <Input type="datetime-local" value={batchEndTime} onChange={(e) => setBatchEndTime(e.target.value)} />
+              <p className="text-xs text-muted-foreground mt-1">發佈後所有拍賣同步開始，結束時間相同</p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setBatchPublishOpen(false)}>取消</Button>
+              <Button onClick={handleBatchPublish} disabled={batchPublishMutation.isPending} className="bg-green-600 hover:bg-green-700 text-white border-0 gap-1.5">
+                {batchPublishMutation.isPending
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <Send className="w-4 h-4" />}
+                確認批量發佈
               </Button>
             </div>
           </div>
