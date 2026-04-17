@@ -3,7 +3,6 @@ import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -202,10 +201,10 @@ function AuctionCard({
   const isDraft = tab === "草稿";
 
   return (
-    <div className={`flex gap-3 p-3 rounded-lg border transition-colors ${isDraft && selected ? "border-amber-400 bg-amber-50/60" : "bg-card hover:bg-accent/5"}`}>
+    <div className={`flex gap-2 p-2 rounded-lg border transition-colors ${isDraft && selected ? "border-amber-400 bg-amber-50/60" : "bg-card hover:bg-accent/5"}`}>
       {/* Checkbox（只在草稿 tab 顯示） */}
       {isDraft && onToggleSelect && (
-        <div className="flex items-start pt-1 flex-shrink-0">
+        <div className="flex items-center flex-shrink-0">
           <Checkbox
             checked={selected ?? false}
             onCheckedChange={() => onToggleSelect(auction.id)}
@@ -214,71 +213,71 @@ function AuctionCard({
         </div>
       )}
 
-      <div className="w-14 h-14 rounded-md overflow-hidden bg-muted flex-shrink-0">
+      <div className="w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
         {img ? (
           <img src={img} alt="" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <ImageIcon className="w-6 h-6 text-muted-foreground/40" />
+            <ImageIcon className="w-5 h-5 text-muted-foreground/40" />
           </div>
         )}
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm truncate">{auction.title}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          起拍：{getCurrencySymbol(auction.currency ?? "HKD")}{Number(auction.startingPrice).toLocaleString()}
-          {" · "}每口：{auction.currency ?? "HKD"}${auction.bidIncrement ?? 30}
+        <p className="font-medium text-sm truncate leading-snug">{auction.title}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+          起：{getCurrencySymbol(auction.currency ?? "HKD")}{Number(auction.startingPrice).toLocaleString()}
+          {" · "}口：${auction.bidIncrement ?? 30}
         </p>
         {auction.endTime && tab !== "草稿" && (
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {tab === "進行中" ? "結束：" : tab === "已結束" ? "結標：" : ""}
+          <p className="text-xs text-muted-foreground leading-snug">
+            {tab === "進行中" ? "結：" : "標："}
             {formatDate(auction.endTime)}
           </p>
         )}
-        <div className="flex gap-1.5 mt-2 flex-nowrap overflow-x-auto">
+        <div className="flex gap-1 mt-1 flex-nowrap">
           {tab === "草稿" && (
             <>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={() => onEdit(auction)}>
-                <Pencil className="w-3 h-3" />編輯
+              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5" onClick={() => onEdit(auction)}>
+                <Pencil className="w-2.5 h-2.5" />編輯
               </Button>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1 border-green-300 text-green-700 hover:bg-green-50" onClick={() => onPublish(auction)}>
-                <Send className="w-3 h-3" />發佈
+              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-green-300 text-green-700 hover:bg-green-50" onClick={() => onPublish(auction)}>
+                <Send className="w-2.5 h-2.5" />發佈
               </Button>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1 border-red-200 text-red-600 hover:bg-red-50" onClick={() => onDelete(auction.id)}>
-                <Trash2 className="w-3 h-3" />刪除
+              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-red-200 text-red-600 hover:bg-red-50" onClick={() => onDelete(auction.id)}>
+                <Trash2 className="w-2.5 h-2.5" />刪除
               </Button>
             </>
           )}
           {tab === "進行中" && (
             <Link href={`/auctions/${auction.id}`}>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1">
-                <Eye className="w-3 h-3" />查看
+              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5">
+                <Eye className="w-2.5 h-2.5" />查看
               </Button>
             </Link>
           )}
           {tab === "已結束" && (
             <>
               <Link href={`/auctions/${auction.id}`}>
-                <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1">
-                  <Eye className="w-3 h-3" />查看
+                <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5">
+                  <Eye className="w-2.5 h-2.5" />查看
                 </Button>
               </Link>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1 border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => onRelist(auction.id)}>
-                <RotateCcw className="w-3 h-3" />重新刊登
+              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => onRelist(auction.id)}>
+                <RotateCcw className="w-2.5 h-2.5" />重新刊登
               </Button>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1 border-gray-300 text-gray-600 hover:bg-gray-50" onClick={() => onArchive(auction.id)}>
-                <Archive className="w-3 h-3" />封存
+              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-gray-300 text-gray-600 hover:bg-gray-50" onClick={() => onArchive(auction.id)}>
+                <Archive className="w-2.5 h-2.5" />封存
               </Button>
             </>
           )}
           {tab === "封存" && (
             <>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1 border-amber-200 text-amber-700 hover:bg-amber-50" onClick={() => onRestore(auction.id)}>
-                <RotateCcw className="w-3 h-3" />取消封存
+              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-amber-200 text-amber-700 hover:bg-amber-50" onClick={() => onRestore(auction.id)}>
+                <RotateCcw className="w-2.5 h-2.5" />取消封存
               </Button>
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1 border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => onRelist(auction.id)}>
-                <RotateCcw className="w-3 h-3" />重新刊登
+              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => onRelist(auction.id)}>
+                <RotateCcw className="w-2.5 h-2.5" />重刊
               </Button>
             </>
           )}
@@ -555,63 +554,54 @@ export default function MerchantAuctions() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* 頂部導航 */}
+      {/* 頂部導航 — 把標題和按鈕整合進來，節省垂直空間 */}
       <div className="border-b bg-card fixed top-0 left-0 right-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-2 text-sm flex-wrap">
+        <div className="max-w-4xl mx-auto px-3 py-2 flex items-center gap-2">
           <Link href="/merchant-dashboard">
-            <span className="text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-1">
-              <ChevronLeft className="w-3.5 h-3.5" />商戶後台
+            <span className="text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-0.5 text-sm">
+              <ChevronLeft className="w-3.5 h-3.5" />後台
             </span>
           </Link>
-          <span className="text-muted-foreground">/</span>
-          <span className="font-medium text-amber-600">拍賣管理</span>
-        </div>
-      </div>
-      <div className="h-12" />
-
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
-        {/* 標題列 */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">拍賣管理</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">管理你的拍賣刊登</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => { refetchActive(); refetchDrafts(); refetchArchived(); }} className="gap-1.5">
-              <RefreshCw className="w-3.5 h-3.5" />刷新
-            </Button>
-            <Button size="sm" className="gold-gradient text-white border-0 gap-1.5" onClick={() => { setEditId(null); setForm(defaultForm); setPendingImages([]); setUploadedImages([]); setFormOpen(true); }}>
-              <Plus className="w-4 h-4" />建立草稿
-            </Button>
-          </div>
+          <span className="text-muted-foreground text-sm">/</span>
+          <span className="font-semibold text-amber-600 text-sm flex-1">拍賣管理</span>
+          <Button variant="outline" size="sm" onClick={() => { refetchActive(); refetchDrafts(); refetchArchived(); }} className="h-7 px-2 text-xs gap-1">
+            <RefreshCw className="w-3 h-3" />刷新
+          </Button>
+          <Button size="sm" className="gold-gradient text-white border-0 h-7 px-2.5 text-xs gap-1" onClick={() => { setEditId(null); setForm(defaultForm); setPendingImages([]); setUploadedImages([]); setFormOpen(true); }}>
+            <Plus className="w-3.5 h-3.5" />建立草稿
+          </Button>
         </div>
 
-        {/* Tab 列 */}
-        <div className="flex border-b gap-0">
+        {/* Tab 列 — 緊貼導航欄下方 */}
+        <div className="flex border-t gap-0 max-w-4xl mx-auto px-0">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => { setTab(t.key); if (t.key !== "草稿") setSelectedDrafts(new Set()); }}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === t.key ? "border-amber-500 text-amber-600" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+              className={`flex-1 px-2 py-1.5 text-xs font-medium border-b-2 transition-colors ${tab === t.key ? "border-amber-500 text-amber-600" : "border-transparent text-muted-foreground hover:text-foreground"}`}
             >
               {t.label}
-              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"}`}>
+              <span className={`ml-1 text-xs px-1 py-0.5 rounded-full ${tab === t.key ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"}`}>
                 {t.count}
               </span>
             </button>
           ))}
         </div>
+      </div>
+      {/* 固定頂欄高度補偿（導航 + Tab 兩行） */}
+      <div className="h-[72px]" />
 
+      <div className="max-w-4xl mx-auto px-2 pt-2 pb-20 space-y-1.5">
         {/* ── 草稿 Tab 批量操作欄 ── */}
         {tab === "草稿" && draftAuctions.length > 0 && (
-          <div className="flex items-center gap-3 px-1">
+          <div className="flex items-center gap-2 px-1 py-1">
             <button
               onClick={() => handleSelectAll(draftAuctions)}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-amber-600 transition-colors"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-amber-600 transition-colors"
             >
               {allDraftSelected
-                ? <CheckSquare className="w-4 h-4 text-amber-500" />
-                : <Square className="w-4 h-4" />}
+                ? <CheckSquare className="w-3.5 h-3.5 text-amber-500" />
+                : <Square className="w-3.5 h-3.5" />}
               {allDraftSelected ? "取消全選" : "全選"}
             </button>
 
@@ -620,58 +610,54 @@ export default function MerchantAuctions() {
                 <span className="text-xs text-muted-foreground">已選 {selectedDrafts.size} 個</span>
                 <Button
                   size="sm"
-                  className="h-8 px-3 text-xs gap-1.5 bg-green-600 hover:bg-green-700 text-white border-0"
+                  className="h-7 px-2.5 text-xs gap-1 bg-green-600 hover:bg-green-700 text-white border-0"
                   onClick={openBatchPublish}
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  一鍵批量發佈（{selectedDrafts.size}）
+                  <Send className="w-3 h-3" />
+                  批量發佈（{selectedDrafts.size}）
                 </Button>
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  className="h-7 px-1.5 text-xs text-muted-foreground hover:text-foreground"
                   onClick={() => setSelectedDrafts(new Set())}
                 >
-                  清除選擇
+                  清除
                 </Button>
               </>
             )}
           </div>
         )}
 
-        {/* 列表 */}
-        <Card>
-          <CardContent className="pt-4">
-            {isLoading ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-muted rounded-lg animate-pulse" />)}
-              </div>
-            ) : currentList.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                <p className="font-medium">
-                  {tab === "草稿" ? "還沒有草稿，點擊「建立草稿」開始刊登" : `沒有${tab}的拍賣`}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {currentList.map((a) => (
-                  <AuctionCard
-                    key={a.id} auction={a} tab={tab}
-                    selected={selectedDrafts.has(a.id)}
-                    onToggleSelect={tab === "草稿" ? toggleSelectDraft : undefined}
-                    onEdit={openEdit}
-                    onDelete={(id) => { deleteMutation.mutate({ id }); setSelectedDrafts((p) => { const n = new Set(p); n.delete(id); return n; }); }}
-                    onPublish={openPublish}
-                    onArchive={(id) => archiveMutation.mutate({ id })}
-                    onRestore={(id) => restoreMutation.mutate({ id })}
-                    onRelist={(id) => relistMutation.mutate({ id })}
-                  />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* 列表 — 移除 Card 外框，直接列出卡片節省空間 */}
+        {isLoading ? (
+          <div className="space-y-1.5 px-1">
+            {[...Array(4)].map((_, i) => <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />)}
+          </div>
+        ) : currentList.length === 0 ? (
+          <div className="text-center py-16 text-muted-foreground">
+            <ImageIcon className="w-10 h-10 mx-auto mb-2 opacity-20" />
+            <p className="text-sm font-medium">
+              {tab === "草稿" ? "還沒有草稿，點擊「建立草稿」開始刊登" : `沒有${tab}的拍賣`}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {currentList.map((a) => (
+              <AuctionCard
+                key={a.id} auction={a} tab={tab}
+                selected={selectedDrafts.has(a.id)}
+                onToggleSelect={tab === "草稿" ? toggleSelectDraft : undefined}
+                onEdit={openEdit}
+                onDelete={(id) => { deleteMutation.mutate({ id }); setSelectedDrafts((p) => { const n = new Set(p); n.delete(id); return n; }); }}
+                onPublish={openPublish}
+                onArchive={(id) => archiveMutation.mutate({ id })}
+                onRestore={(id) => restoreMutation.mutate({ id })}
+                onRelist={(id) => relistMutation.mutate({ id })}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── 建立 / 編輯 草稿 Dialog ── */}
