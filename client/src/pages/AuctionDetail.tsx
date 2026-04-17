@@ -307,7 +307,7 @@ export default function AuctionDetail() {
     <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Navigation */}
       <Header />
-      <div className="container py-8">
+      <div className="container pt-8 pb-24">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 mb-6 text-sm text-muted-foreground">
           <Link href="/auctions" className="flex items-center gap-1 hover:text-amber-700 transition-colors">
