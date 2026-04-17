@@ -191,7 +191,7 @@ function AuctionCard({
   selected?: boolean;
   onToggleSelect?: (id: number) => void;
   onEdit: (a: AuctionItem) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: number, title: string) => void;
   onPublish: (a: AuctionItem) => void;
   onArchive: (id: number) => void;
   onRestore: (id: number) => void;
@@ -244,7 +244,7 @@ function AuctionCard({
               <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-green-300 text-green-700 hover:bg-green-50" onClick={() => onPublish(auction)}>
                 <Send className="w-2.5 h-2.5" />發佈
               </Button>
-              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-red-200 text-red-600 hover:bg-red-50" onClick={() => onDelete(auction.id)}>
+              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-red-200 text-red-600 hover:bg-red-50" onClick={() => onDelete(auction.id, auction.title)}>
                 <Trash2 className="w-2.5 h-2.5" />刪除
               </Button>
             </>
@@ -306,7 +306,7 @@ export default function MerchantAuctions() {
   const [publishEndTime, setPublishEndTime] = useState("");
 
   // Delete confirm
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; title: string } | null>(null);
 
   // Batch publish
   const [selectedDrafts, setSelectedDrafts] = useState<Set<number>>(new Set());
@@ -652,7 +652,7 @@ export default function MerchantAuctions() {
                 selected={selectedDrafts.has(a.id)}
                 onToggleSelect={tab === "草稿" ? toggleSelectDraft : undefined}
                 onEdit={openEdit}
-                onDelete={(id) => setDeleteConfirmId(id)}
+                onDelete={(id, title) => setDeleteConfirm({ id, title })}
                 onPublish={openPublish}
                 onArchive={(id) => archiveMutation.mutate({ id })}
                 onRestore={(id) => restoreMutation.mutate({ id })}
@@ -776,23 +776,28 @@ export default function MerchantAuctions() {
       </Dialog>
 
       {/* ── 刪除草稿確認 Dialog ── */}
-      <Dialog open={deleteConfirmId !== null} onOpenChange={(v) => { if (!v) setDeleteConfirmId(null); }}>
+      <Dialog open={deleteConfirm !== null} onOpenChange={(v) => { if (!v) setDeleteConfirm(null); }}>
         <DialogContent className="max-w-xs">
           <DialogHeader>
-            <DialogTitle>確認刪除草稿？</DialogTitle>
+            <DialogTitle>確認刪除草稿</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-1">
-            <p className="text-sm text-muted-foreground">刪除後不可復原，確定要刪除這個草稿嗎？</p>
+            <div>
+              <p className="text-sm font-medium text-foreground leading-snug">
+                確認刪除草稿＋{deleteConfirm?.title}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">刪除後不可復原。</p>
+            </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>取消</Button>
+              <Button variant="outline" onClick={() => setDeleteConfirm(null)}>取消</Button>
               <Button
                 variant="destructive"
                 disabled={deleteMutation.isPending}
                 onClick={() => {
-                  if (deleteConfirmId === null) return;
-                  deleteMutation.mutate({ id: deleteConfirmId });
-                  setSelectedDrafts((p) => { const n = new Set(p); n.delete(deleteConfirmId); return n; });
-                  setDeleteConfirmId(null);
+                  if (!deleteConfirm) return;
+                  deleteMutation.mutate({ id: deleteConfirm.id });
+                  setSelectedDrafts((p) => { const n = new Set(p); n.delete(deleteConfirm.id); return n; });
+                  setDeleteConfirm(null);
                 }}
               >
                 {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
