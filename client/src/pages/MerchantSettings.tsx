@@ -28,6 +28,7 @@ export default function MerchantSettings() {
   const [dayOffset, setDayOffset] = useState<string>("7");
   const [endTime, setEndTime] = useState<string>("23:00");
   const [startingPrice, setStartingPrice] = useState<string>("0");
+  const [bidIncrement, setBidIncrement] = useState<string>("30");
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function MerchantSettings() {
       setDayOffset(String(settings.defaultEndDayOffset));
       setEndTime(settings.defaultEndTime);
       setStartingPrice(String(settings.defaultStartingPrice ?? 0));
+      setBidIncrement(String(settings.defaultBidIncrement ?? 30));
       setInitialized(true);
     }
   }, [settings, initialized]);
@@ -72,7 +74,12 @@ export default function MerchantSettings() {
       toast.error("起拍價預值不能為負數");
       return;
     }
-    updateMutation.mutate({ defaultEndDayOffset: offset, defaultEndTime: endTime, defaultStartingPrice: sp });
+    const bi = parseInt(bidIncrement, 10);
+    if (isNaN(bi) || bi < 1) {
+      toast.error("加幅預值請填 1 或以上的整數");
+      return;
+    }
+    updateMutation.mutate({ defaultEndDayOffset: offset, defaultEndTime: endTime, defaultStartingPrice: sp, defaultBidIncrement: bi });
   };
 
   if (!isAuthenticated) {
@@ -145,6 +152,27 @@ export default function MerchantSettings() {
                     新增草稿時，起拍價欄位將自動帶入此金額，你仍可在新增時自由修改。
                   </p>
                 </div>
+
+                {/* 每口加幅 */}
+                <div className="space-y-2">
+                  <Label htmlFor="bidIncrement">預設每口加幅</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">HK$</span>
+                    <Input
+                      id="bidIncrement"
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={bidIncrement}
+                      onChange={(e) => setBidIncrement(e.target.value)}
+                      className="w-32"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    新增草稿時，每口加幅欄位將自動帶入此金額。
+                  </p>
+                </div>
+
                 <div className="flex justify-end pt-1">
                   <Button
                     onClick={handleSave}

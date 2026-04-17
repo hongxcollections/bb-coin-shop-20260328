@@ -2359,6 +2359,7 @@ async function ensureMerchantSettingsTable() {
         defaultEndDayOffset INT NOT NULL DEFAULT 7,
         defaultEndTime VARCHAR(5) NOT NULL DEFAULT '23:00',
         defaultStartingPrice DECIMAL(10,2) NOT NULL DEFAULT 0,
+        defaultBidIncrement INT NOT NULL DEFAULT 30,
         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
@@ -2378,18 +2379,33 @@ async function ensureMerchantSettingsTable() {
           ADD COLUMN defaultStartingPrice DECIMAL(10,2) NOT NULL DEFAULT 0
       `);
     }
+    // Add defaultBidIncrement column if missing
+    const bidColCheck = await db.execute(sql`
+      SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'merchant_settings'
+        AND COLUMN_NAME = 'defaultBidIncrement'
+    `);
+    const bidColRows = bidColCheck as unknown as [Array<Record<string, unknown>>, unknown];
+    const bidColRow = Array.isArray(bidColRows[0]) ? bidColRows[0][0] : (bidColRows as unknown as Array<Record<string, unknown>>)[0];
+    if (bidColRow && Number(bidColRow.cnt) === 0) {
+      await db.execute(sql`
+        ALTER TABLE merchant_settings
+          ADD COLUMN defaultBidIncrement INT NOT NULL DEFAULT 30
+      `);
+    }
     _merchantSettingsTableChecked = true;
   } catch (error) {
     console.error('[Database] Failed to ensure merchant_settings table:', error);
   }
 }
 
-export async function getMerchantSettings(userId: number): Promise<{ defaultEndDayOffset: number; defaultEndTime: string; defaultStartingPrice: number }> {
+export async function getMerchantSettings(userId: number): Promise<{ defaultEndDayOffset: number; defaultEndTime: string; defaultStartingPrice: number; defaultBidIncrement: number }> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
-  if (!db) return { defaultEndDayOffset: 7, defaultEndTime: '23:00', defaultStartingPrice: 0 };
+  if (!db) return { defaultEndDayOffset: 7, defaultEndTime: '23:00', defaultStartingPrice: 0, defaultBidIncrement: 30 };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     // Drizzle MySQL execute() returns [RowDataPacket[], FieldPacket[]] tuple
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     // 兼容兩種格式：tuple[0] 是 rows 陣列，或直接是 rows 陣列
@@ -2404,26 +2420,28 @@ export async function getMerchantSettings(userId: number): Promise<{ defaultEndD
         defaultEndDayOffset: Number(row.defaultEndDayOffset ?? 7),
         defaultEndTime: String(row.defaultEndTime ?? '23:00'),
         defaultStartingPrice: Number(row.defaultStartingPrice ?? 0),
+        defaultBidIncrement: Number(row.defaultBidIncrement ?? 30),
       };
     }
-    return { defaultEndDayOffset: 7, defaultEndTime: '23:00', defaultStartingPrice: 0 };
+    return { defaultEndDayOffset: 7, defaultEndTime: '23:00', defaultStartingPrice: 0, defaultBidIncrement: 30 };
   } catch (error) {
     console.error('[Database] getMerchantSettings error:', error);
-    return { defaultEndDayOffset: 7, defaultEndTime: '23:00', defaultStartingPrice: 0 };
+    return { defaultEndDayOffset: 7, defaultEndTime: '23:00', defaultStartingPrice: 0, defaultBidIncrement: 30 };
   }
 }
 
-export async function upsertMerchantSettings(userId: number, defaultEndDayOffset: number, defaultEndTime: string, defaultStartingPrice: number): Promise<void> {
+export async function upsertMerchantSettings(userId: number, defaultEndDayOffset: number, defaultEndTime: string, defaultStartingPrice: number, defaultBidIncrement: number): Promise<void> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
   await db.execute(sql`
-    INSERT INTO merchant_settings (userId, defaultEndDayOffset, defaultEndTime, defaultStartingPrice)
-    VALUES (${userId}, ${defaultEndDayOffset}, ${defaultEndTime}, ${defaultStartingPrice})
+    INSERT INTO merchant_settings (userId, defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement)
+    VALUES (${userId}, ${defaultEndDayOffset}, ${defaultEndTime}, ${defaultStartingPrice}, ${defaultBidIncrement})
     ON DUPLICATE KEY UPDATE
       defaultEndDayOffset = ${defaultEndDayOffset},
       defaultEndTime = ${defaultEndTime},
       defaultStartingPrice = ${defaultStartingPrice},
+      defaultBidIncrement = ${defaultBidIncrement},
       updatedAt = CURRENT_TIMESTAMP
   `);
 }
