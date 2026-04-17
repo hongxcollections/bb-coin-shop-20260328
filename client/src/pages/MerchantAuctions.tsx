@@ -675,7 +675,7 @@ export default function MerchantAuctions() {
               <Label>描述</Label>
               <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="詳細描述…" rows={3} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 80px 1fr" }}>
               <div>
                 <Label>起拍價 *</Label>
                 <Input type="number" min="0" value={form.startingPrice} onChange={(e) => setForm((f) => ({ ...f, startingPrice: e.target.value }))} placeholder="0" />
@@ -683,21 +683,21 @@ export default function MerchantAuctions() {
               <div>
                 <Label>貨幣</Label>
                 <Select value={form.currency} onValueChange={(v) => setForm((f) => ({ ...f, currency: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="px-2"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {CURRENCY_OPTIONS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div>
-              <Label>每口加幅</Label>
-              <Select value={String(form.bidIncrement)} onValueChange={(v) => setForm((f) => ({ ...f, bidIncrement: Number(v) }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {BID_INCREMENT_OPTIONS.map((v) => <SelectItem key={v} value={String(v)}>{form.currency}${v}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <div>
+                <Label>每口加幅</Label>
+                <Select value={String(form.bidIncrement)} onValueChange={(v) => setForm((f) => ({ ...f, bidIncrement: Number(v) }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {BID_INCREMENT_OPTIONS.map((v) => <SelectItem key={v} value={String(v)}>{form.currency}${v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div>
               <Label>圖片</Label>
