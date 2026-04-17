@@ -44,6 +44,17 @@
 
 :root {
   --radius: 0.75rem;
+
+  /* ── 彈出訊息配色（客服 popup / 錯誤 toast 共用） ──────────────────────── *
+   * 如需更換整體彈出視窗風格，只需修改以下六個變數即可全站套用。             */
+  --popup-bg:         #1c1917;               /* 深棕黑底色                   */
+  --popup-text:       #fef3c7;               /* 暖米色主文字                 */
+  --popup-desc:       #d6d3d1;               /* 說明文字（淺灰）             */
+  --popup-border:     rgba(245, 158, 11, 0.3); /* 琥珀色半透明邊框            */
+  --popup-shadow:     0 8px 28px rgba(0, 0, 0, 0.32); /* 深色陰影            */
+  --popup-radius:     0.875rem;              /* 圓角大小                     */
+  /* ──────────────────────────────────────────────────────────────────────── */
+
   /* Gold theme primary */
   --primary: oklch(0.65 0.18 55);
   --primary-foreground: oklch(0.99 0 0);
@@ -604,19 +615,19 @@
   display: flex;
   align-items: flex-start;
   gap: 0.625rem;
-  background: #1c1917;
-  color: #fef3c7;
+  background: var(--popup-bg);
+  color: var(--popup-text);
   padding: 0.75rem 1.125rem;
-  border-radius: 0.875rem;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: var(--popup-radius);
+  box-shadow: var(--popup-shadow);
+  border: 1px solid var(--popup-border);
   max-width: min(320px, 84vw);
   width: max-content;
 }
 
 .dark .bottom-nav-toast-inner {
   background: #292524;
-  border-color: rgba(245, 158, 11, 0.3);
+  border-color: var(--popup-border);
 }
 
 .bottom-nav-toast-icon {
@@ -627,12 +638,12 @@
 .bottom-nav-toast-title {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #fef3c7;
+  color: var(--popup-text);
 }
 
 .bottom-nav-toast-desc {
   font-size: 0.75rem;
-  color: #d6d3d1;
+  color: var(--popup-desc);
   margin-top: 0.125rem;
 }
 
@@ -648,22 +659,22 @@
 }
 
 
-/* ─── Sonner error toast — matches 客服 popup style ─────────────────────── */
+/* ─── Sonner error toast — 引用 --popup-* 變數，與客服 popup 同一風格 ───── */
 [data-sonner-toast].bb-toast-err {
-  background: #1c1917 !important;
-  border-color: rgba(245, 158, 11, 0.3) !important;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32) !important;
-  border-radius: 0.875rem !important;
-  --normal-bg: #1c1917;
-  --normal-border: rgba(245, 158, 11, 0.3);
-  --normal-text: #fef3c7;
+  background: var(--popup-bg) !important;
+  border-color: var(--popup-border) !important;
+  box-shadow: var(--popup-shadow) !important;
+  border-radius: var(--popup-radius) !important;
+  --normal-bg: var(--popup-bg);
+  --normal-border: var(--popup-border);
+  --normal-text: var(--popup-text);
 }
 [data-sonner-toast].bb-toast-err [data-title] {
-  color: #fef3c7 !important;
+  color: var(--popup-text) !important;
   font-weight: 600 !important;
 }
 [data-sonner-toast].bb-toast-err [data-description] {
-  color: #d6d3d1 !important;
+  color: var(--popup-desc) !important;
 }
 [data-sonner-toast].bb-toast-err [data-icon] {
   color: #fbbf24 !important;
