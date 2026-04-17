@@ -783,8 +783,8 @@ export default function MerchantAuctions() {
           </DialogHeader>
           <div className="space-y-4 mt-1">
             <div>
-              <p className="text-sm font-medium text-foreground leading-snug">
-                確認刪除草稿＋{deleteConfirm?.title}
+              <p className="text-sm text-foreground">
+                {deleteConfirm ? (deleteConfirm.title.length > 20 ? deleteConfirm.title.slice(0, 20) + "…" : deleteConfirm.title) : ""}
               </p>
               <p className="text-xs text-muted-foreground mt-1">刪除後不可復原。</p>
             </div>
