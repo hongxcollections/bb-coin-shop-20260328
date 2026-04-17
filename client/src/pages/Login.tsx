@@ -1,6 +1,20 @@
 import { useState, useEffect, useRef } from "react";
-import { Eye, EyeOff, Mail, Phone, Lock, User, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Mail, Phone, Lock, User, ShieldCheck, ChevronDown } from "lucide-react";
 import Header from "@/components/Header";
+
+const COUNTRIES = [
+  { code: "+852", flag: "🇭🇰", name: "香港" },
+  { code: "+86",  flag: "🇨🇳", name: "中國大陸" },
+  { code: "+853", flag: "🇲🇴", name: "澳門" },
+  { code: "+886", flag: "🇹🇼", name: "台灣" },
+  { code: "+65",  flag: "🇸🇬", name: "新加坡" },
+  { code: "+60",  flag: "🇲🇾", name: "馬來西亞" },
+  { code: "+1",   flag: "🇺🇸", name: "美國/加拿大" },
+  { code: "+44",  flag: "🇬🇧", name: "英國" },
+  { code: "+61",  flag: "🇦🇺", name: "澳洲" },
+  { code: "+81",  flag: "🇯🇵", name: "日本" },
+  { code: "+82",  flag: "🇰🇷", name: "韓國" },
+];
 
 export default function Login() {
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -9,6 +23,8 @@ export default function Login() {
 
   const [identifier, setIdentifier] = useState("");
   const [email, setEmail] = useState("");
+  const [countryCode, setCountryCode] = useState("+852");
+  const [localPhone, setLocalPhone] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -29,6 +45,11 @@ export default function Login() {
     const t = setTimeout(() => setCountdown(c => c - 1), 1000);
     return () => clearTimeout(t);
   }, [countdown]);
+
+  // Sync combined phone number
+  useEffect(() => {
+    setPhone(countryCode + localPhone);
+  }, [countryCode, localPhone]);
 
   const otpCode = otpDigits.join("");
 
@@ -56,7 +77,7 @@ export default function Login() {
 
   const sendOtp = async () => {
     setError("");
-    if (!phone) { setError("請輸入手機號碼"); return; }
+    if (!localPhone) { setError("請輸入手機號碼"); return; }
     setOtpSending(true);
     try {
       const res = await fetch("/api/auth/send-otp", {
@@ -312,15 +333,35 @@ export default function Login() {
                       手機號碼
                       <span className="ml-1.5 text-xs font-normal" style={{ color: "#999" }}>（需驗證）</span>
                     </label>
-                    <div className="relative">
-                      <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#aaa" }} />
-                      <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                        placeholder="+852 XXXX XXXX 或 +86 1XX XXXX XXXX" required
-                        className="w-full pl-9 pr-4 py-3 rounded-xl border text-sm outline-none" style={inputStyle} />
+                    {/* Country code selector + phone number input */}
+                    <div className="flex rounded-xl border overflow-hidden" style={{ borderColor: inputStyle.borderColor, background: inputStyle.background }}>
+                      {/* Country code dropdown */}
+                      <div className="relative flex-shrink-0 border-r" style={{ borderColor: inputStyle.borderColor }}>
+                        <select
+                          value={countryCode}
+                          onChange={e => setCountryCode(e.target.value)}
+                          className="appearance-none h-full pl-3 pr-7 py-3 text-sm bg-transparent outline-none cursor-pointer font-medium"
+                          style={{ color: "#333" }}
+                        >
+                          {COUNTRIES.map(c => (
+                            <option key={c.code} value={c.code}>
+                              {c.flag} {c.code} {c.name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#aaa" }} />
+                      </div>
+                      {/* Local phone number */}
+                      <input
+                        type="tel"
+                        value={localPhone}
+                        onChange={e => setLocalPhone(e.target.value.replace(/\D/g, ""))}
+                        placeholder={countryCode === "+852" ? "XXXX XXXX" : countryCode === "+86" ? "1XX XXXX XXXX" : "電話號碼"}
+                        required
+                        className="flex-1 px-3 py-3 text-sm bg-transparent outline-none"
+                        style={{ color: "#333" }}
+                      />
                     </div>
-                    <p className="text-xs mt-1.5" style={{ color: "#aaa" }}>
-                      🇭🇰 +852 香港 · 🇨🇳 +86 大陸
-                    </p>
                   </div>
                 )}
 
