@@ -37,10 +37,11 @@ export function registerAuthRoutes(app: Express) {
 
       const code = generateOtp();
       setOtp(phone, code);
-      const sent = await sendOtpSms(phone, code);
+      const smsResult = await sendOtpSms(phone, code);
 
-      if (!sent) {
-        res.status(500).json({ error: "驗證碼發送失敗，請稍後再試" });
+      if (!smsResult.ok) {
+        console.error(`[Auth] OTP send failed for ${phone}: ${smsResult.error}`);
+        res.status(500).json({ error: `驗證碼發送失敗：${smsResult.error}` });
         return;
       }
 
