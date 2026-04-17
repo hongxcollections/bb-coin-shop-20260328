@@ -2344,6 +2344,66 @@ export async function getAllMerchantApplications() {
   .orderBy(desc(merchantApplications.createdAt));
 }
 
+// ── Merchant Settings ─────────────────────────────────────────────────────────
+
+let _merchantSettingsTableChecked = false;
+async function ensureMerchantSettingsTable() {
+  if (_merchantSettingsTableChecked) return;
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS merchant_settings (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        userId INT NOT NULL UNIQUE,
+        defaultEndDayOffset INT NOT NULL DEFAULT 7,
+        defaultEndTime VARCHAR(5) NOT NULL DEFAULT '23:00',
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+    _merchantSettingsTableChecked = true;
+  } catch (error) {
+    console.error('[Database] Failed to ensure merchant_settings table:', error);
+  }
+}
+
+export async function getMerchantSettings(userId: number): Promise<{ defaultEndDayOffset: number; defaultEndTime: string }> {
+  await ensureMerchantSettingsTable();
+  const db = await getDb();
+  if (!db) return { defaultEndDayOffset: 7, defaultEndTime: '23:00' };
+  try {
+    const rows = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const data = (rows as unknown as { rows?: unknown[] }).rows ?? rows;
+    const row = Array.isArray(data) ? data[0] : null;
+    if (row && typeof row === 'object') {
+      const r = row as Record<string, unknown>;
+      return {
+        defaultEndDayOffset: Number(r.defaultEndDayOffset ?? 7),
+        defaultEndTime: String(r.defaultEndTime ?? '23:00'),
+      };
+    }
+    return { defaultEndDayOffset: 7, defaultEndTime: '23:00' };
+  } catch (error) {
+    console.error('[Database] getMerchantSettings error:', error);
+    return { defaultEndDayOffset: 7, defaultEndTime: '23:00' };
+  }
+}
+
+export async function upsertMerchantSettings(userId: number, defaultEndDayOffset: number, defaultEndTime: string): Promise<void> {
+  await ensureMerchantSettingsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  await db.execute(sql`
+    INSERT INTO merchant_settings (userId, defaultEndDayOffset, defaultEndTime)
+    VALUES (${userId}, ${defaultEndDayOffset}, ${defaultEndTime})
+    ON DUPLICATE KEY UPDATE
+      defaultEndDayOffset = ${defaultEndDayOffset},
+      defaultEndTime = ${defaultEndTime},
+      updatedAt = CURRENT_TIMESTAMP
+  `);
+}
+
 export async function reviewMerchantApplication(
   id: number,
   status: 'approved' | 'rejected',

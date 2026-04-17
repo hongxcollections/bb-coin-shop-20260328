@@ -311,6 +311,7 @@ export default function MerchantAuctions() {
   const [batchPublishOpen, setBatchPublishOpen] = useState(false);
   const [batchEndTime, setBatchEndTime] = useState("");
 
+  const { data: merchantSettings } = trpc.merchants.getSettings.useQuery(undefined, { enabled: isAuthenticated });
   const { data: myAuctions, isLoading: loadingActive, refetch: refetchActive } = trpc.merchants.myAuctions.useQuery();
   const { data: myDrafts, isLoading: loadingDrafts, refetch: refetchDrafts } = trpc.merchants.myDrafts.useQuery();
   const { data: myArchived, isLoading: loadingArchived, refetch: refetchArchived } = trpc.merchants.myArchived.useQuery();
@@ -467,10 +468,19 @@ export default function MerchantAuctions() {
     }
   };
 
+  const calcDefaultEndTime = () => {
+    const offset = merchantSettings?.defaultEndDayOffset ?? 7;
+    const timeStr = merchantSettings?.defaultEndTime ?? "23:00";
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    const [hh, mm] = timeStr.split(":");
+    d.setHours(parseInt(hh ?? "23", 10), parseInt(mm ?? "0", 10), 0, 0);
+    return d.toISOString().slice(0, 16);
+  };
+
   const openPublish = (a: AuctionItem) => {
     setPublishTarget(a);
-    const d = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    setPublishEndTime(d.toISOString().slice(0, 16));
+    setPublishEndTime(calcDefaultEndTime());
     setPublishOpen(true);
   };
 
@@ -482,8 +492,7 @@ export default function MerchantAuctions() {
 
   const openBatchPublish = () => {
     if (selectedDrafts.size === 0) { toast.error("請先選擇要發佈的草稿"); return; }
-    const d = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    setBatchEndTime(d.toISOString().slice(0, 16));
+    setBatchEndTime(calcDefaultEndTime());
     setBatchPublishOpen(true);
   };
 

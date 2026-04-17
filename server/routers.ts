@@ -6,7 +6,7 @@ import { z } from "zod";
 import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings } from "./db";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 
@@ -1717,6 +1717,23 @@ export const appRouter = router({
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
         }
         return getDepositTransactions(ctx.user.id, input.limit, input.offset);
+      }),
+
+    /** 取得商戶個人設定 */
+    getSettings: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getMerchantSettings(ctx.user.id);
+      }),
+
+    /** 更新商戶個人設定 */
+    updateSettings: protectedProcedure
+      .input(z.object({
+        defaultEndDayOffset: z.number().int().min(1).max(365),
+        defaultEndTime: z.string().regex(/^\d{2}:\d{2}$/, '時間格式須為 HH:MM'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await upsertMerchantSettings(ctx.user.id, input.defaultEndDayOffset, input.defaultEndTime);
+        return { success: true };
       }),
   }),
 });

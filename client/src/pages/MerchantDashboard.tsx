@@ -4,7 +4,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import Header from "@/components/Header";
 import {
   ChevronLeft, Store, Wallet, Gavel, Clock, CheckCircle2, XCircle,
-  AlertCircle, TrendingUp, ArrowUpRight, ArrowDownLeft, ShoppingBag,
+  AlertCircle, TrendingUp, ArrowUpRight, ArrowDownLeft, ShoppingBag, Settings,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -196,6 +196,17 @@ export default function MerchantDashboard() {
               <div>
                 <p className="font-semibold text-sm text-gray-800">訂單管理</p>
                 <p className="text-xs text-gray-400 mt-0.5">追蹤付款 · 交收</p>
+              </div>
+            </div>
+          </Link>
+          <Link href="/merchant-settings">
+            <div className="rounded-2xl bg-white border border-gray-100 p-4 flex items-center gap-3 hover:border-amber-300 hover:bg-amber-50/50 transition-colors cursor-pointer col-span-2">
+              <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <Settings className="w-5 h-5 text-gray-500" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-gray-800">商戶管理</p>
+                <p className="text-xs text-gray-400 mt-0.5">預設拍賣結束日期 · 時間設定</p>
               </div>
             </div>
           </Link>

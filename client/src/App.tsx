@@ -34,6 +34,7 @@ import MerchantApply from "./pages/MerchantApply";
 import MerchantDashboard from "./pages/MerchantDashboard";
 import MerchantAuctions from "./pages/MerchantAuctions";
 import MerchantOrders from "./pages/MerchantOrders";
+import MerchantSettings from "./pages/MerchantSettings";
 
 function Router() {
   return (
@@ -66,6 +67,7 @@ function Router() {
       <Route path={"/merchant-dashboard"} component={MerchantDashboard} />
       <Route path={"/merchant-auctions"} component={MerchantAuctions} />
       <Route path={"/merchant-orders"} component={MerchantOrders} />
+      <Route path={"/merchant-settings"} component={MerchantSettings} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
