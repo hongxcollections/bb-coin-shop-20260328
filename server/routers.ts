@@ -1385,10 +1385,12 @@ export const appRouter = router({
       if (expiredIds.length > 0) {
         await Promise.all(expiredIds.map((id: number) => updateAuction(id, { status: 'ended' })));
       }
-      return list.map((a) => ({
+      const withImages = await Promise.all(list.map(async (a) => ({
         ...a,
         status: expiredIds.includes(a.id) ? 'ended' : a.status,
-      }));
+        images: await getAuctionImages(a.id),
+      })));
+      return withImages;
     }),
 
     // 管理員：查看所有申請
