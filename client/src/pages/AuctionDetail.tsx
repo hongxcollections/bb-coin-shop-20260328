@@ -535,6 +535,12 @@ export default function AuctionDetail() {
                 {/* Bid Input */}
                 {isActive && (
                   isAuthenticated ? (
+                    auction.createdBy === user?.id ? (
+                      <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200">
+                        <span className="text-amber-600 text-lg">🚫</span>
+                        <span className="text-sm text-amber-700 font-medium">你是此拍賣的商戶，不能競投自己的拍品</span>
+                      </div>
+                    ) : (
                     <div className="space-y-3">
                       {/* Active proxy bid banner */}
                       {myProxy?.isActive && (
@@ -698,6 +704,7 @@ export default function AuctionDetail() {
                         </>
                       )}
                     </div>
+                    )
                   ) : (
                     <a href="/login">
                       <Button className="w-full gold-gradient text-white border-0 shadow-md hover:opacity-90">

@@ -181,6 +181,11 @@ export const appRouter = router({
             if (t < cutoff) bidDebounceMap.delete(k);
           });
         }
+        // 商戶不能競投自己刊登的拍賣
+        const auctionForBid = await getAuctionById(input.auctionId);
+        if (auctionForBid && auctionForBid.createdBy === ctx.user.id) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不能競投自己刊登的拍賣' });
+        }
         try {
           const result = await placeBid(input.auctionId, ctx.user.id, input.bidAmount, input.origin ?? '', input.isAnonymous ?? 0);
           return { success: true, extended: result.extended ?? false, newEndTime: result.newEndTime, extendMinutes: result.extendMinutes };
@@ -592,6 +597,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const auction = await getAuctionById(input.auctionId);
         if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (auction.createdBy === ctx.user.id) throw new TRPCError({ code: 'FORBIDDEN', message: '不能競投自己刊登的拍賣' });
         if (auction.status !== 'active') throw new TRPCError({ code: 'BAD_REQUEST', message: '拍賣已結束，無法設定代理出價' });
         if (new Date() > auction.endTime) throw new TRPCError({ code: 'BAD_REQUEST', message: '拍賣已結束，無法設定代理出價' });
 
