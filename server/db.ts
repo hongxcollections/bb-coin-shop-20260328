@@ -188,7 +188,29 @@ export async function getAuctionById(id: number) {
 
   try {
     const result = await db
-      .select()
+      .select({
+        id: auctions.id,
+        title: auctions.title,
+        description: auctions.description,
+        startingPrice: auctions.startingPrice,
+        currentPrice: auctions.currentPrice,
+        highestBidderId: auctions.highestBidderId,
+        sellerName: sql<string | null>`(SELECT name FROM users WHERE id = ${auctions.createdBy})`,
+        endTime: auctions.endTime,
+        status: auctions.status,
+        fbPostUrl: auctions.fbPostUrl,
+        bidIncrement: auctions.bidIncrement,
+        currency: auctions.currency,
+        category: auctions.category,
+        createdBy: auctions.createdBy,
+        createdAt: auctions.createdAt,
+        updatedAt: auctions.updatedAt,
+        antiSnipeEnabled: auctions.antiSnipeEnabled,
+        antiSnipeMinutes: auctions.antiSnipeMinutes,
+        extendMinutes: auctions.extendMinutes,
+        antiSnipeMemberLevels: auctions.antiSnipeMemberLevels,
+        archived: auctions.archived,
+      })
       .from(auctions)
       .where(eq(auctions.id, id))
       .limit(1);

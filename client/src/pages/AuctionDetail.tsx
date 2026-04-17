@@ -117,6 +117,21 @@ export default function AuctionDetail() {
     prevPriceRef.current = latestPrice;
   }, [auction?.currentPrice]);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [fadeIn, setFadeIn] = useState(true);
+
+  // 自動輪播：每 3.5 秒切換一張，fade-in/out 效果
+  useEffect(() => {
+    const imgList = (auction?.images ?? []) as Array<{ id: number; imageUrl: string }>;
+    if (imgList.length <= 1) return;
+    const timer = setInterval(() => {
+      setFadeIn(false);
+      setTimeout(() => {
+        setSelectedImage(prev => (prev + 1) % imgList.length);
+        setFadeIn(true);
+      }, 450);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [auction?.images]);
   const utils = trpc.useUtils();
   const [editingPrice, setEditingPrice] = useState(false);
   const [newStartingPrice, setNewStartingPrice] = useState("");
@@ -318,13 +333,39 @@ export default function AuctionDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left: Images */}
           <div>
-            <div className="aspect-square rounded-2xl overflow-hidden bg-amber-50 border border-amber-100 mb-3">
+            <div className="aspect-square rounded-2xl overflow-hidden bg-amber-50 border border-amber-100 mb-3 relative">
               {images.length > 0 ? (
-                <img
-                  src={images[selectedImage]?.imageUrl}
-                  alt={auction.title}
-                  className="w-full h-full object-contain"
-                />
+                <>
+                  <img
+                    src={images[selectedImage]?.imageUrl}
+                    alt={auction.title}
+                    className="w-full h-full object-contain"
+                    style={{
+                      opacity: fadeIn ? 1 : 0,
+                      transition: "opacity 0.45s ease-in-out",
+                    }}
+                  />
+                  {/* 底部漸層遮罩 */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"
+                    style={{ background: "linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
+                  />
+                  {/* 左下：商戶名稱 */}
+                  {auction.sellerName && (
+                    <div className="absolute bottom-2.5 left-3 flex items-center gap-1.5 pointer-events-none">
+                      <User className="w-3 h-3 text-white/80" />
+                      <span className="text-white text-xs font-medium drop-shadow">{auction.sellerName}</span>
+                    </div>
+                  )}
+                  {/* 右下：圖片計數 */}
+                  {images.length > 1 && (
+                    <div className="absolute bottom-2.5 right-3 pointer-events-none">
+                      <span className="text-white/90 text-xs font-semibold tabular-nums drop-shadow">
+                        {selectedImage + 1}/{images.length}
+                      </span>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="w-full h-full coin-placeholder flex items-center justify-center">
                   <span className="text-8xl">🪙</span>
@@ -336,7 +377,10 @@ export default function AuctionDetail() {
                 {images.map((img, i) => (
                   <button
                     key={img.id}
-                    onClick={() => setSelectedImage(i)}
+                    onClick={() => {
+                      setFadeIn(false);
+                      setTimeout(() => { setSelectedImage(i); setFadeIn(true); }, 200);
+                    }}
                     className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${selectedImage === i ? "border-amber-500" : "border-transparent hover:border-amber-300"}`}
                   >
                     <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
