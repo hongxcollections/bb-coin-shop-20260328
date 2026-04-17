@@ -46,7 +46,7 @@ export function registerAuthRoutes(app: Express) {
 
       if (!smsResult.ok) {
         console.error(`[Auth] OTP send failed for ${phone}: ${smsResult.error}`);
-        res.status(500).json({ error: `驗證碼發送失敗：${smsResult.error}` });
+        res.status(500).json({ error: "驗證碼發送失敗", detail: smsResult.error });
         return;
       }
 

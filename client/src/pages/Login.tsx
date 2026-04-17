@@ -102,7 +102,10 @@ export default function Login() {
         body: JSON.stringify({ phone }),
       });
       const data = await res.json();
-      if (!res.ok) { showError(data.error || "發送失敗"); return; }
+      if (!res.ok) {
+        showToast({ icon: "⚠️", title: data.error || "發送失敗", desc: data.detail, durationMs: 5000 });
+        return;
+      }
       setStep("otp");
       setCountdown(60);
       setOtpDigits(["", "", "", "", "", ""]);
@@ -124,7 +127,10 @@ export default function Login() {
         body: JSON.stringify({ phone }),
       });
       const data = await res.json();
-      if (!res.ok) { showError(data.error || "發送失敗"); return; }
+      if (!res.ok) {
+        showToast({ icon: "⚠️", title: data.error || "發送失敗", desc: data.detail, durationMs: 5000 });
+        return;
+      }
       setCountdown(60);
       setOtpDigits(["", "", "", "", "", ""]);
       setTimeout(() => otpRefs.current[0]?.focus(), 100);

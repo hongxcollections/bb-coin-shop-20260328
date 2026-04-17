@@ -28,6 +28,20 @@ function getAliClient() {
   return new Dysmsapi(config);
 }
 
+// ─── Error helpers ─────────────────────────────────────────────────────────────
+
+function friendlyTwilioError(raw: string): string {
+  if (/Invalid parameter.*To|is not a valid phone number/i.test(raw))
+    return "電話號碼格式不正確，請重新確認";
+  if (/unverified|Trial account|not.*verified/i.test(raw))
+    return "此號碼尚未加入測試名單，請聯絡管理員";
+  if (/rate.?limit|too many request/i.test(raw))
+    return "發送次數過多，請稍後再試";
+  if (/Max.*attempts|already.*pending/i.test(raw))
+    return "驗證嘗試次數上限，請稍後再試";
+  return "短訊發送失敗，請稍後再試";
+}
+
 // ─── Twilio Verify ────────────────────────────────────────────────────────────
 
 async function sendViaTwilioVerify(phone: string): Promise<{ ok: boolean; error?: string }> {
@@ -54,7 +68,7 @@ async function sendViaTwilioVerify(phone: string): Promise<{ ok: boolean; error?
   } catch (err: any) {
     const detail = err?.message || String(err);
     console.error(`[SMS/TwilioVerify] Failed to: ${phone} | ${detail}`);
-    return { ok: false, error: `Twilio Verify: ${detail}` };
+    return { ok: false, error: friendlyTwilioError(detail) };
   }
 }
 
