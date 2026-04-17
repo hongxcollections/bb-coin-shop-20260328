@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag } from "lucide-react";
+
+const BID_INCREMENT_OPTIONS = [30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
 
 export default function MerchantSettings() {
   const { isAuthenticated } = useAuth();
@@ -155,19 +158,17 @@ export default function MerchantSettings() {
 
                 {/* 每口加幅 */}
                 <div className="space-y-2">
-                  <Label htmlFor="bidIncrement">預設每口加幅</Label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">HK$</span>
-                    <Input
-                      id="bidIncrement"
-                      type="number"
-                      min={1}
-                      step={1}
-                      value={bidIncrement}
-                      onChange={(e) => setBidIncrement(e.target.value)}
-                      className="w-32"
-                    />
-                  </div>
+                  <Label>預設每口加幅</Label>
+                  <Select value={bidIncrement} onValueChange={setBidIncrement}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BID_INCREMENT_OPTIONS.map((v) => (
+                        <SelectItem key={v} value={String(v)}>HK${v}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <p className="text-xs text-muted-foreground">
                     新增草稿時，每口加幅欄位將自動帶入此金額。
                   </p>
