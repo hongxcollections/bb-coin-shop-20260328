@@ -138,7 +138,7 @@ export default function MerchantSettings() {
             ) : (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="startingPrice">新增草稿時自動填入的起拍價</Label>
+                  <Label htmlFor="startingPrice">起拍價預設值</Label>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground whitespace-nowrap">HK$</span>
                     <Input
@@ -146,6 +146,7 @@ export default function MerchantSettings() {
                       type="number"
                       min={0}
                       step="any"
+                      placeholder="0"
                       value={startingPrice}
                       onChange={(e) => setStartingPrice(e.target.value)}
                       className="w-32"
