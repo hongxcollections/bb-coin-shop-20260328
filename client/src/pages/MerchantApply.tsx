@@ -11,6 +11,8 @@ import { ChevronLeft, Store, X, CheckCircle2, Clock, XCircle, ImagePlus } from "
 
 const CATEGORIES = ["港幣", "人民幣", "外幣", "紙幣", "金銀幣", "其他"];
 
+const errTop = (msg: string) => toast.error(msg, { position: "top-center" });
+
 function StatusBanner({ status, adminNote }: { status: string; adminNote?: string | null }) {
   if (status === "pending") return (
     <div className="rounded-2xl border border-amber-300 bg-amber-50 p-5 flex items-start gap-3">
@@ -58,7 +60,7 @@ export default function MerchantApply() {
       toast.success("申請已成功提交！我們會盡快審核。");
       refetch();
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => errTop(e.message),
   });
 
   const [form, setForm] = useState({
@@ -86,7 +88,7 @@ export default function MerchantApply() {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
     if (photos.length + files.length > 6) {
-      toast.error("最多上傳 6 張照片");
+      errTop("最多上傳 6 張照片");
       return;
     }
     setUploading(true);
@@ -108,7 +110,7 @@ export default function MerchantApply() {
         setPreviews(prev => [...prev, previewUrl]);
       }
     } catch (err: unknown) {
-      toast.error((err as { message?: string })?.message ?? "圖片上傳失敗");
+      errTop((err as { message?: string })?.message ?? "圖片上傳失敗");
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -122,12 +124,12 @@ export default function MerchantApply() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.contactName.trim()) return toast.error("請填寫聯繫姓名");
-    if (!form.merchantName.trim()) return toast.error("請填寫商戶名稱");
-    if (!form.selfIntro.trim() || form.selfIntro.trim().length < 10) return toast.error("自我介紹最少 10 個字");
-    if (!form.whatsapp.trim()) return toast.error("請填寫 WhatsApp 號碼");
-    if (form.categories.length === 0) return toast.error("請至少選擇一個貨品類別");
-    if (photos.length < 3) return toast.error("請上傳最少 3 張貨品樣本照片");
+    if (!form.contactName.trim()) return errTop("請填寫聯繫姓名");
+    if (!form.merchantName.trim()) return errTop("請填寫商戶名稱");
+    if (!form.selfIntro.trim() || form.selfIntro.trim().length < 10) return errTop("自我介紹最少 10 個字");
+    if (!form.whatsapp.trim()) return errTop("請填寫 WhatsApp 號碼");
+    if (form.categories.length === 0) return errTop("請至少選擇一個貨品類別");
+    if (photos.length < 3) return errTop("請上傳最少 3 張貨品樣本照片");
 
     submit.mutate({
       contactName: form.contactName.trim(),
