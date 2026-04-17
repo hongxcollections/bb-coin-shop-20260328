@@ -389,7 +389,6 @@ export default function AuctionDetail() {
                     </div>
                     <div className="text-3xl font-extrabold text-amber-600 price-tag">
                       {currencySymbol}{Number(auction.currentPrice).toLocaleString()}
-                      <span className="text-base font-normal text-amber-500 ml-1">{currency}</span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
                       起拍價：{currencySymbol}{Number(auction.startingPrice).toLocaleString()}
@@ -527,7 +526,7 @@ export default function AuctionDetail() {
                         </Button>
                       </div>
                     ) : (
-                      <p className="text-xs text-amber-600">目前起拍價：{currencySymbol}{Number(auction.startingPrice).toLocaleString()} {currency}（未有出價時可修改）</p>
+                      <p className="text-xs text-amber-600">目前起拍價：{currencySymbol}{Number(auction.startingPrice).toLocaleString()}（未有出價時可修改）</p>
                     )}
                   </div>
                 )}
