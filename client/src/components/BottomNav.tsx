@@ -9,6 +9,7 @@ export default function BottomNav() {
   const [location] = useLocation();
   const [showMore, setShowMore] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<"default" | "welcome">("default");
   const moreRef = useRef<HTMLDivElement>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -25,8 +26,21 @@ export default function BottomNav() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showMore]);
 
+  // Show welcome toast after phone registration
+  useEffect(() => {
+    const flag = localStorage.getItem("showWelcomeToast");
+    if (flag === "phone") {
+      localStorage.removeItem("showWelcomeToast");
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      setToastType("welcome");
+      setToastMessage("手機號碼註冊成功！");
+      toastTimer.current = setTimeout(() => setToastMessage(null), 4000);
+    }
+  }, []);
+
   const showComingSoon = useCallback((featureName: string) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToastType("default");
     setToastMessage(featureName + " 功能暫未開通");
     toastTimer.current = setTimeout(() => setToastMessage(null), 2500);
   }, []);
@@ -78,10 +92,16 @@ export default function BottomNav() {
       {toastMessage && (
         <div className="bottom-nav-toast">
           <div className="bottom-nav-toast-inner">
-            <span className="bottom-nav-toast-icon">🚧</span>
+            <span className="bottom-nav-toast-icon">
+              {toastType === "welcome" ? "✅" : "🚧"}
+            </span>
             <div>
               <div className="bottom-nav-toast-title">{toastMessage}</div>
-              <div className="bottom-nav-toast-desc">敬請期待，我們正在努力開發中！</div>
+              <div className="bottom-nav-toast-desc">
+                {toastType === "welcome"
+                  ? "歡迎繼續瀏覽網站！"
+                  : "敬請期待，我們正在努力開發中！"}
+              </div>
             </div>
           </div>
         </div>

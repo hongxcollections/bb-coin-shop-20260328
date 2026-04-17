@@ -127,6 +127,9 @@ export default function Login() {
         setError(data.error || "註冊失敗");
         return;
       }
+      if (registerMethod === "phone") {
+        localStorage.setItem("showWelcomeToast", "phone");
+      }
       window.location.href = "/";
     } catch {
       setError("網絡錯誤，請稍後再試");
