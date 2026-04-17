@@ -2323,7 +2323,19 @@ export async function reviewMerchantApplication(
 ) {
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
+
+  // Get the application to find the userId
+  const [app] = await db.select({ userId: merchantApplications.userId })
+    .from(merchantApplications)
+    .where(eq(merchantApplications.id, id))
+    .limit(1);
+
   await db.update(merchantApplications)
     .set({ status, adminNote: adminNote ?? null })
     .where(eq(merchantApplications.id, id));
+
+  // When approved, auto-create seller_deposits record so user appears in merchant list
+  if (status === 'approved' && app?.userId) {
+    await getOrCreateSellerDeposit(app.userId);
+  }
 }
