@@ -181,7 +181,7 @@ export default function AdminUsers() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
                     <span className="font-medium text-sm">{u.name ?? "未知用戶"}</span>
-                    <MemberBadge level={u.memberLevel} variant="badge" />
+                    <MemberBadge level={u.memberLevel} variant="badge" className="text-[0.5rem] px-1.5 py-0 gap-0.5" />
                     {u.role === "admin" && (
                       <Badge className="bg-amber-600 text-white text-[0.6rem] px-1.5 py-0">管理員</Badge>
                     )}
@@ -201,9 +201,8 @@ export default function AdminUsers() {
                         佣金 {(parseFloat(u.commissionRate ?? "0.05") * 100).toFixed(1)}%
                       </div>
                     )}
-                    <div className="text-gray-400">
-                      登入方式：{u.loginMethod ?? "—"} ｜ 加入：{formatDate(u.createdAt)}
-                    </div>
+                    <div className="text-gray-400">登入方式：{u.loginMethod ?? "—"}</div>
+                    <div className="text-gray-400">加入：{formatDate(u.createdAt)}</div>
                   </div>
                 </div>
               </div>
