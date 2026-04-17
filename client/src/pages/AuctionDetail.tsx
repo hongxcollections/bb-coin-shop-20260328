@@ -65,6 +65,7 @@ export default function AuctionDetail() {
   const [isFavorited, setIsFavorited] = useState(false);
   // 追蹤上一次已知的最高出價，用於偵測其他用戶的新出價
   const prevPriceRef = useRef<number | null>(null);
+  const touchStartXRef = useRef<number>(0);
   const [priceUpdated, setPriceUpdated] = useState(false);
 
   // 取得用戶預設匿名設定
@@ -333,7 +334,25 @@ export default function AuctionDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left: Images */}
           <div>
-            <div className="aspect-square rounded-2xl overflow-hidden bg-amber-50 border border-amber-100 mb-3 relative">
+            <div
+              className="aspect-square rounded-2xl overflow-hidden bg-amber-50 border border-amber-100 mb-3 relative select-none"
+              onTouchStart={(e) => { touchStartXRef.current = e.touches[0].clientX; }}
+              onTouchEnd={(e) => {
+                const diff = touchStartXRef.current - e.changedTouches[0].clientX;
+                if (Math.abs(diff) < 40) return; // 太短忽略
+                const total = images.length;
+                if (total <= 1) return;
+                setFadeIn(false);
+                setTimeout(() => {
+                  setSelectedImage(prev =>
+                    diff > 0
+                      ? (prev + 1) % total          // 向左滑 → 下一張
+                      : (prev - 1 + total) % total  // 向右滑 → 上一張
+                  );
+                  setFadeIn(true);
+                }, 250);
+              }}
+            >
               {images.length > 0 ? (
                 <>
                   <img
@@ -372,22 +391,6 @@ export default function AuctionDetail() {
                 </div>
               )}
             </div>
-            {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
-                {images.map((img, i) => (
-                  <button
-                    key={img.id}
-                    onClick={() => {
-                      setFadeIn(false);
-                      setTimeout(() => { setSelectedImage(i); setFadeIn(true); }, 200);
-                    }}
-                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${selectedImage === i ? "border-amber-500" : "border-transparent hover:border-amber-300"}`}
-                  >
-                    <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Right: Details */}
