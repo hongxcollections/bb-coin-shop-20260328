@@ -85,7 +85,7 @@ export default function Login() {
       <Header />
 
       {/* Welcome banner — three centred lines */}
-      <div className="text-center pt-[94px] pb-4">
+      <div className="text-center pt-[47px] pb-4">
         <p className="gold-gradient-text font-bold text-xl leading-snug">hongxcollections</p>
         <p className="text-sm font-medium mt-1" style={{ color: "#E07B00" }}>
           {mode === "login" ? "歡迎回來" : "歡迎加入"}
@@ -95,7 +95,7 @@ export default function Login() {
         </p>
       </div>
 
-      <div className="px-6 pt-2 pb-10 max-w-sm mx-auto">
+      <div className="px-6 pt-2 pb-5 max-w-sm mx-auto">
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* === REGISTER FIELDS === */}
