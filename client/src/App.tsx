@@ -77,6 +77,7 @@ function App() {
               toastOptions={{
                 classNames: {
                   error: 'bb-toast-err',
+                  success: 'bb-toast-success',
                 },
               }}
             />
