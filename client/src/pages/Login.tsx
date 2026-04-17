@@ -85,7 +85,7 @@ export default function Login() {
       <Header />
 
       {/* Welcome banner — three centred lines */}
-      <div className="text-center pt-24 pb-4">
+      <div className="text-center pt-[94px] pb-4">
         <p className="gold-gradient-text font-bold text-xl leading-snug">hongxcollections</p>
         <p className="text-sm font-medium mt-1" style={{ color: "#E07B00" }}>
           {mode === "login" ? "歡迎回來" : "歡迎加入"}
