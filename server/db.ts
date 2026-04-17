@@ -2363,10 +2363,21 @@ async function ensureMerchantSettingsTable() {
         updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
     `);
-    await db.execute(sql`
-      ALTER TABLE merchant_settings
-        ADD COLUMN IF NOT EXISTS defaultStartingPrice DECIMAL(10,2) NOT NULL DEFAULT 0
+    // Add defaultStartingPrice column if missing (migration for existing tables)
+    const colCheck = await db.execute(sql`
+      SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'merchant_settings'
+        AND COLUMN_NAME = 'defaultStartingPrice'
     `);
+    const colRows = colCheck as unknown as [Array<Record<string, unknown>>, unknown];
+    const colRow = Array.isArray(colRows[0]) ? colRows[0][0] : (colRows as unknown as Array<Record<string, unknown>>)[0];
+    if (colRow && Number(colRow.cnt) === 0) {
+      await db.execute(sql`
+        ALTER TABLE merchant_settings
+          ADD COLUMN defaultStartingPrice DECIMAL(10,2) NOT NULL DEFAULT 0
+      `);
+    }
     _merchantSettingsTableChecked = true;
   } catch (error) {
     console.error('[Database] Failed to ensure merchant_settings table:', error);
