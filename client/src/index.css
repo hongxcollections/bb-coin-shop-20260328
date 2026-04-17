@@ -648,6 +648,28 @@
 }
 
 
+/* ─── Sonner error toast — matches 客服 popup style ─────────────────────── */
+[data-sonner-toast].bb-toast-err {
+  background: #1c1917 !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32) !important;
+  border-radius: 0.875rem !important;
+  --normal-bg: #1c1917;
+  --normal-border: rgba(245, 158, 11, 0.3);
+  --normal-text: #fef3c7;
+}
+[data-sonner-toast].bb-toast-err [data-title] {
+  color: #fef3c7 !important;
+  font-weight: 600 !important;
+}
+[data-sonner-toast].bb-toast-err [data-description] {
+  color: #d6d3d1 !important;
+}
+[data-sonner-toast].bb-toast-err [data-icon] {
+  color: #fbbf24 !important;
+}
+/* ────────────────────────────────────────────────────────────────────────── */
+
 /* Auction List Item - Compact Left Image Right Content Layout */
 .auction-list-item {
   display: flex;

@@ -72,7 +72,14 @@ function App() {
       <ThemeProvider defaultTheme="light" switchable={true}>
         <TooltipProvider>
           <ToastProvider>
-            <Toaster position="top-center" richColors />
+            <Toaster
+              position="top-center"
+              toastOptions={{
+                classNames: {
+                  error: 'bb-toast-err',
+                },
+              }}
+            />
             <Router />
             <BottomNav />
           </ToastProvider>
