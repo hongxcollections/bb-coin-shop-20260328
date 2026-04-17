@@ -118,7 +118,7 @@ export default function AuctionDetail() {
     prevPriceRef.current = latestPrice;
   }, [auction?.currentPrice]);
   const [selectedImage, setSelectedImage] = useState(0);
-  // 滑動動畫狀態
+  // ── 手動滑動：滑入滑出動畫 ──────────────────────────────────────
   const [outgoingImage, setOutgoingImage] = useState<number | null>(null);
   const [slideDir, setSlideDir] = useState<'left' | 'right'>('left');
   const selectedImageRef = useRef(0);
@@ -127,20 +127,29 @@ export default function AuctionDetail() {
   isSlidingRef.current = outgoingImage !== null;
 
   function goToImage(nextIdx: number, dir: 'left' | 'right') {
-    if (nextIdx === selectedImageRef.current || isSlidingRef.current) return;
+    if (nextIdx === selectedImageRef.current || isSlidingRef.current || isFadingRef.current) return;
     setOutgoingImage(selectedImageRef.current);
     setSlideDir(dir);
     setSelectedImage(nextIdx);
     setTimeout(() => setOutgoingImage(null), 400);
   }
 
-  // 自動輪播：每 4 秒自動切換下一張
+  // ── 自動輪播：淡入淡出 ───────────────────────────────────────────
+  const [fadeVisible, setFadeVisible] = useState(true);
+  const isFadingRef = useRef(false);
+
   useEffect(() => {
     const imgList = (auction?.images ?? []) as Array<{ id: number; imageUrl: string }>;
     if (imgList.length <= 1) return;
     const timer = setInterval(() => {
-      if (isSlidingRef.current) return;
-      goToImage((selectedImageRef.current + 1) % imgList.length, 'left');
+      if (isSlidingRef.current || isFadingRef.current) return;
+      isFadingRef.current = true;
+      setFadeVisible(false);
+      setTimeout(() => {
+        setSelectedImage(prev => (prev + 1) % imgList.length);
+        setFadeVisible(true);
+        setTimeout(() => { isFadingRef.current = false; }, 420);
+      }, 380);
     }, 4000);
     return () => clearInterval(timer);
   }, [auction?.images]);
@@ -373,15 +382,20 @@ export default function AuctionDetail() {
                       }}
                     />
                   )}
-                  {/* 移入的新圖片 */}
+                  {/* 移入的新圖片 / 靜止圖片 */}
                   <img
                     key={`in-${selectedImage}-${slideDir}`}
                     src={images[selectedImage]?.imageUrl}
                     alt={auction.title}
                     className="w-full h-full object-contain"
                     style={outgoingImage !== null ? {
+                      // 手動滑動：滑入效果
                       animation: `${slideDir === 'left' ? 'img-slide-in-from-right' : 'img-slide-in-from-left'} 0.38s ease-in-out forwards`,
-                    } : {}}
+                    } : {
+                      // 自動輪播：淡入淡出
+                      opacity: fadeVisible ? 1 : 0,
+                      transition: 'opacity 0.38s ease-in-out',
+                    }}
                   />
                   {/* 底部漸層遮罩 */}
                   <div
