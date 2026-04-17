@@ -191,18 +191,23 @@ export default function AdminUsers() {
                       </Badge>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground space-y-0.5">
-                    {u.email && <div>📧 {u.email}</div>}
-                    {u.phone && <div>📱 {u.phone}</div>}
-                    {u.depositId && (
-                      <div className="text-amber-700">
-                        💰 保證金餘額 HK${parseFloat(u.depositBalance ?? "0").toFixed(0)} ／
-                        門檻 HK${parseFloat(u.requiredDeposit ?? "500").toFixed(0)} ／
-                        佣金 {(parseFloat(u.commissionRate ?? "0.05") * 100).toFixed(1)}%
+                  <div className="text-xs text-muted-foreground space-y-0.5 min-w-0">
+                    {u.email && (
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="flex-shrink-0">📧</span>
+                        <span className="truncate">{u.email}</span>
                       </div>
                     )}
-                    <div className="text-gray-400">登入方式：{u.loginMethod ?? "—"}</div>
-                    <div className="text-gray-400">加入：{formatDate(u.createdAt)}</div>
+                    {u.phone && (
+                      <div className="whitespace-nowrap">📱 {u.phone}</div>
+                    )}
+                    {u.depositId && (
+                      <div className="text-amber-700 whitespace-nowrap">
+                        💰 HK${parseFloat(u.depositBalance ?? "0").toFixed(0)} ／ 門檻 HK${parseFloat(u.requiredDeposit ?? "500").toFixed(0)} ／ 佣金 {(parseFloat(u.commissionRate ?? "0.05") * 100).toFixed(1)}%
+                      </div>
+                    )}
+                    <div className="text-gray-400 whitespace-nowrap">登入方式：{u.loginMethod ?? "—"}</div>
+                    <div className="text-gray-400 whitespace-nowrap">加入：{formatDate(u.createdAt)}</div>
                   </div>
                 </div>
               </div>
