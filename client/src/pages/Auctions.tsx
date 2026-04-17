@@ -294,7 +294,7 @@ export default function Auctions() {
                       <span className="text-3xl">🪙</span>
                     )}
                     {(auction as { sellerName?: string | null }).sellerName && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/55 text-white text-[8px] leading-tight px-1 py-0.5 truncate text-left">
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] font-medium leading-tight px-1.5 py-1 truncate text-left">
                         {(auction as { sellerName?: string | null }).sellerName}
                       </div>
                     )}
