@@ -4,9 +4,15 @@ import { Link, useLocation } from "wouter";
 import { Home, Gavel, Store, User, MoreHorizontal, MessageCircle, Settings, Shield, LogOut, ShoppingBag } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/contexts/ToastContext";
+import { trpc } from "@/lib/trpc";
 
 export default function BottomNav() {
   const { user, isAuthenticated, logout } = useAuth();
+  const { data: myApp } = trpc.merchants.myApplication.useQuery(undefined, {
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+  });
+  const isMerchant = myApp?.status === "approved";
   const [location] = useLocation();
   const [showMore, setShowMore] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -187,14 +193,16 @@ export default function BottomNav() {
                             <Settings className="w-4 h-4" />
                             <span>會員福利</span>
                           </Link>
-                          <Link
-                            href="/merchant-apply"
-                            onClick={() => setShowMore(false)}
-                            className="bottom-nav-more-item"
-                          >
-                            <ShoppingBag className="w-4 h-4" />
-                            <span>開通商戶</span>
-                          </Link>
+                          {!isMerchant && (
+                            <Link
+                              href="/merchant-apply"
+                              onClick={() => setShowMore(false)}
+                              className="bottom-nav-more-item"
+                            >
+                              <ShoppingBag className="w-4 h-4" />
+                              <span>開通商戶</span>
+                            </Link>
+                          )}
                           <button
                             onClick={() => { setShowMore(false); logout(); }}
                             className="bottom-nav-more-item"
