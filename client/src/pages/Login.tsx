@@ -151,6 +151,13 @@ export default function Login() {
     if (!localPhone) { showError("請輸入手機號碼"); return; }
     const fmtErr = validatePhoneFormat(countryCode, localPhone);
     if (fmtErr) { showError(fmtErr); return; }
+    // 註冊時：先驗表單再發 OTP，避免 OTP 發出後才發現密碼不符
+    if (mode === "register") {
+      if (!name.trim()) { showError("請輸入暱稱"); return; }
+      if (!password) { showError("請輸入密碼"); return; }
+      if (password.length < 6) { showError("密碼須至少 6 個字元"); return; }
+      if (password !== confirmPassword) { showError("兩次輸入的密碼不一致，請重新確認"); return; }
+    }
     setOtpSending(true);
     try {
       const res = await fetch("/api/auth/send-otp", {
