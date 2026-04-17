@@ -305,6 +305,9 @@ export default function MerchantAuctions() {
   const [publishTarget, setPublishTarget] = useState<AuctionItem | null>(null);
   const [publishEndTime, setPublishEndTime] = useState("");
 
+  // Delete confirm
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+
   // Batch publish
   const [selectedDrafts, setSelectedDrafts] = useState<Set<number>>(new Set());
   const [batchPublishOpen, setBatchPublishOpen] = useState(false);
@@ -649,7 +652,7 @@ export default function MerchantAuctions() {
                 selected={selectedDrafts.has(a.id)}
                 onToggleSelect={tab === "草稿" ? toggleSelectDraft : undefined}
                 onEdit={openEdit}
-                onDelete={(id) => { deleteMutation.mutate({ id }); setSelectedDrafts((p) => { const n = new Set(p); n.delete(id); return n; }); }}
+                onDelete={(id) => setDeleteConfirmId(id)}
                 onPublish={openPublish}
                 onArchive={(id) => archiveMutation.mutate({ id })}
                 onRestore={(id) => restoreMutation.mutate({ id })}
@@ -766,6 +769,34 @@ export default function MerchantAuctions() {
                   ? <Loader2 className="w-4 h-4 animate-spin" />
                   : <Send className="w-4 h-4" />}
                 確認批量發佈
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── 刪除草稿確認 Dialog ── */}
+      <Dialog open={deleteConfirmId !== null} onOpenChange={(v) => { if (!v) setDeleteConfirmId(null); }}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>確認刪除草稿？</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-1">
+            <p className="text-sm text-muted-foreground">刪除後不可復原，確定要刪除這個草稿嗎？</p>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>取消</Button>
+              <Button
+                variant="destructive"
+                disabled={deleteMutation.isPending}
+                onClick={() => {
+                  if (deleteConfirmId === null) return;
+                  deleteMutation.mutate({ id: deleteConfirmId });
+                  setSelectedDrafts((p) => { const n = new Set(p); n.delete(deleteConfirmId); return n; });
+                  setDeleteConfirmId(null);
+                }}
+              >
+                {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                確認刪除
               </Button>
             </div>
           </div>
