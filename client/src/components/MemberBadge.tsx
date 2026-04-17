@@ -6,6 +6,8 @@ interface MemberBadgeProps {
   level: MemberLevel | string | null | undefined;
   /** "badge" = pill with icon+text, "icon" = icon only, "full" = large card-style */
   variant?: "badge" | "icon" | "full";
+  /** "sm" = smaller pill for compact lists */
+  size?: "sm" | "md";
   className?: string;
 }
 
@@ -64,7 +66,7 @@ const LEVEL_CONFIG: Record<
   },
 };
 
-export function MemberBadge({ level, variant = "badge", className }: MemberBadgeProps) {
+export function MemberBadge({ level, variant = "badge", size = "md", className }: MemberBadgeProps) {
   const safeLevel = (level as MemberLevel) in LEVEL_CONFIG ? (level as MemberLevel) : "bronze";
   const cfg = LEVEL_CONFIG[safeLevel];
 
@@ -106,14 +108,19 @@ export function MemberBadge({ level, variant = "badge", className }: MemberBadge
   }
 
   // Default: "badge" variant
+  const sizeClasses = size === "sm"
+    ? "text-[0.6rem] px-1.5 py-px gap-0.5"
+    : "text-xs px-2 py-0.5 gap-1";
+
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border shadow-sm",
+        "inline-flex items-center rounded-full font-semibold border shadow-sm",
+        sizeClasses,
         cfg.bg,
         cfg.text,
         cfg.border,
-        `shadow-sm ${cfg.glow}`,
+        cfg.glow,
         className
       )}
     >

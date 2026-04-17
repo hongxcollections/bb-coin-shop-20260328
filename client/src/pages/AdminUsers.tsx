@@ -181,7 +181,7 @@ export default function AdminUsers() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
                     <span className="font-medium text-sm">{u.name ?? "未知用戶"}</span>
-                    <MemberBadge level={u.memberLevel} variant="badge" className="text-[0.5rem] px-1.5 py-0 gap-0.5" />
+                    <MemberBadge level={u.memberLevel} variant="badge" size="sm" />
                     {u.role === "admin" && (
                       <Badge className="bg-amber-600 text-white text-[0.6rem] px-1.5 py-0">管理員</Badge>
                     )}
