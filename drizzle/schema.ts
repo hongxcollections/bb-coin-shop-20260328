@@ -306,10 +306,11 @@ export type InsertUserSubscription = typeof userSubscriptions.$inferInsert;
 export const merchantApplications = mysqlTable("merchantApplications", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
+  contactName: varchar("contactName", { length: 100 }),
   merchantName: varchar("merchantName", { length: 100 }).notNull(),
   selfIntro: text("selfIntro").notNull(),
   whatsapp: varchar("whatsapp", { length: 30 }).notNull(),
-  yearsExperience: varchar("yearsExperience", { length: 20 }).notNull(),
+  yearsExperience: varchar("yearsExperience", { length: 20 }),
   categories: text("categories").notNull(),   // JSON string array
   samplePhotos: text("samplePhotos").notNull(), // JSON string array of URLs
   status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),

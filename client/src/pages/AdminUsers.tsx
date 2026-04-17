@@ -445,8 +445,8 @@ export default function AdminUsers() {
 
                     {/* Compact info */}
                     <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
+                      {app.contactName && <span>👤 {app.contactName}</span>}
                       <span>📞 {app.whatsapp}</span>
-                      <span>📅 {app.yearsExperience}</span>
                       <span>🏷 {Array.isArray(cats) ? cats.join("、") : cats}</span>
                       <span className="text-gray-400">
                         {new Date(app.createdAt!).toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}

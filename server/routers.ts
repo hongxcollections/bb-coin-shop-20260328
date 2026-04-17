@@ -1340,29 +1340,27 @@ export const appRouter = router({
     // 提交申請
     submit: protectedProcedure
       .input(z.object({
+        contactName: z.string().min(1).max(100),
         merchantName: z.string().min(1).max(100),
         selfIntro: z.string().min(10),
         whatsapp: z.string().min(5),
-        yearsExperience: z.enum(['1年以下', '1-3年', '3-5年', '5年以上']),
         categories: z.array(z.string()).min(1),
         samplePhotos: z.array(z.string()).min(3),
       }))
       .mutation(async ({ input, ctx }) => {
-        // 不允許管理員申請
         if (ctx.user.role === 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '管理員帳號無需申請商戶' });
         }
-        // 已有待審申請則拒絕重複提交
         const existing = await getMerchantApplicationByUser(ctx.user.id);
         if (existing && existing.status === 'pending') {
           throw new TRPCError({ code: 'CONFLICT', message: '你已有一份待審申請，請耐心等候' });
         }
         await createMerchantApplication({
           userId: ctx.user.id,
+          contactName: input.contactName,
           merchantName: input.merchantName,
           selfIntro: input.selfIntro,
           whatsapp: input.whatsapp,
-          yearsExperience: input.yearsExperience,
           categories: JSON.stringify(input.categories),
           samplePhotos: JSON.stringify(input.samplePhotos),
           status: 'pending',

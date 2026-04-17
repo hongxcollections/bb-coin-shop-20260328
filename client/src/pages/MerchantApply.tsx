@@ -7,10 +7,9 @@ import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ChevronLeft, Store, Upload, X, CheckCircle2, Clock, XCircle, ImagePlus } from "lucide-react";
+import { ChevronLeft, Store, X, CheckCircle2, Clock, XCircle, ImagePlus } from "lucide-react";
 
 const CATEGORIES = ["港幣", "人民幣", "外幣", "紙幣", "金銀幣", "其他"];
-const YEARS_OPTIONS = ["1年以下", "1-3年", "3-5年", "5年以上"] as const;
 
 function StatusBanner({ status, adminNote }: { status: string; adminNote?: string | null }) {
   if (status === "pending") return (
@@ -63,10 +62,10 @@ export default function MerchantApply() {
   });
 
   const [form, setForm] = useState({
+    contactName: "",
     merchantName: "",
     selfIntro: "",
     whatsapp: "",
-    yearsExperience: "" as typeof YEARS_OPTIONS[number] | "",
     categories: [] as string[],
   });
   const [photos, setPhotos] = useState<string[]>([]); // uploaded S3 URLs
@@ -123,18 +122,18 @@ export default function MerchantApply() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!form.contactName.trim()) return toast.error("請填寫聯繫姓名");
     if (!form.merchantName.trim()) return toast.error("請填寫商戶名稱");
     if (!form.selfIntro.trim() || form.selfIntro.trim().length < 10) return toast.error("自我介紹最少 10 個字");
     if (!form.whatsapp.trim()) return toast.error("請填寫 WhatsApp 號碼");
-    if (!form.yearsExperience) return toast.error("請選擇買賣年資");
     if (form.categories.length === 0) return toast.error("請至少選擇一個貨品類別");
     if (photos.length < 3) return toast.error("請上傳最少 3 張貨品樣本照片");
 
     submit.mutate({
+      contactName: form.contactName.trim(),
       merchantName: form.merchantName.trim(),
       selfIntro: form.selfIntro.trim(),
       whatsapp: form.whatsapp.trim(),
-      yearsExperience: form.yearsExperience as typeof YEARS_OPTIONS[number],
       categories: form.categories,
       samplePhotos: photos,
     });
@@ -187,9 +186,9 @@ export default function MerchantApply() {
             <StatusBanner status={myApp.status} adminNote={myApp.adminNote} />
             {myApp.status === "pending" && (
               <div className="mt-4 rounded-xl border border-amber-100 bg-white p-4 space-y-2 text-sm text-gray-600">
+                {myApp.contactName && <p><span className="font-medium text-gray-800">聯繫姓名：</span>{myApp.contactName}</p>}
                 <p><span className="font-medium text-gray-800">商戶名稱：</span>{myApp.merchantName}</p>
                 <p><span className="font-medium text-gray-800">WhatsApp：</span>{myApp.whatsapp}</p>
-                <p><span className="font-medium text-gray-800">買賣年資：</span>{myApp.yearsExperience}</p>
                 <p><span className="font-medium text-gray-800">類別：</span>{JSON.parse(myApp.categories).join("、")}</p>
               </div>
             )}
@@ -203,6 +202,16 @@ export default function MerchantApply() {
             {/* 商戶名稱 */}
             <div className="bg-white rounded-2xl border border-amber-100 p-4 space-y-3 shadow-sm">
               <h2 className="font-semibold text-amber-900 text-sm">基本資料</h2>
+              <div>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">聯繫姓名 *</label>
+                <Input
+                  placeholder="例如：陳大文"
+                  value={form.contactName}
+                  onChange={e => setForm(f => ({ ...f, contactName: e.target.value }))}
+                  maxLength={50}
+                  className="border-amber-200 focus:border-amber-400"
+                />
+              </div>
               <div>
                 <label className="text-xs font-medium text-gray-600 mb-1 block">商戶名稱 *</label>
                 <Input
@@ -236,26 +245,6 @@ export default function MerchantApply() {
                 maxLength={500}
               />
               <p className="text-xs text-gray-400 text-right">{form.selfIntro.length}/500</p>
-            </div>
-
-            {/* 買賣年資 */}
-            <div className="bg-white rounded-2xl border border-amber-100 p-4 space-y-3 shadow-sm">
-              <h2 className="font-semibold text-amber-900 text-sm">買賣年資 *</h2>
-              <div className="grid grid-cols-2 gap-2">
-                {YEARS_OPTIONS.map(y => (
-                  <button
-                    key={y} type="button"
-                    onClick={() => setForm(f => ({ ...f, yearsExperience: y }))}
-                    className={`rounded-xl border-2 py-2.5 text-sm font-medium transition-all ${
-                      form.yearsExperience === y
-                        ? "border-amber-500 bg-amber-50 text-amber-800"
-                        : "border-gray-100 bg-gray-50 text-gray-600 hover:border-amber-200"
-                    }`}
-                  >
-                    {y}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* 主要類別 */}

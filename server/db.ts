@@ -2296,6 +2296,7 @@ export async function getAllMerchantApplications() {
   return db.select({
     id: merchantApplications.id,
     userId: merchantApplications.userId,
+    contactName: merchantApplications.contactName,
     merchantName: merchantApplications.merchantName,
     selfIntro: merchantApplications.selfIntro,
     whatsapp: merchantApplications.whatsapp,
