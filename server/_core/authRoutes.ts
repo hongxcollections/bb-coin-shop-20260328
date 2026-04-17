@@ -9,6 +9,39 @@ import { eq, or } from "drizzle-orm";
 import { sendOtpSms, checkViaTwilioVerify, isMainlandChina } from "./sms";
 import { generateOtp, setOtp, verifyOtp, canResend } from "./otpStore";
 
+// ─── Server-side phone format validation ──────────────────────────────────────
+function serverValidatePhone(phone: string): string | null {
+  // phone is already in E.164 format e.g. +85261234567
+  if (!phone || !phone.startsWith("+")) return "電話號碼格式不正確";
+  const rest = phone.slice(1); // strip leading +
+  if (phone.startsWith("+852")) {
+    const local = rest.slice(3);
+    if (!/^[25689]\d{7}$/.test(local))
+      return "香港號碼須為 8 位數字，首位為 2、5、6 或 9";
+  } else if (phone.startsWith("+86")) {
+    const local = rest.slice(2);
+    if (!/^1\d{10}$/.test(local))
+      return "中國大陸號碼須為 11 位數字，首位為 1";
+  } else if (phone.startsWith("+853")) {
+    const local = rest.slice(3);
+    if (!/^6\d{7}$/.test(local)) return "澳門號碼須為 8 位數字，首位為 6";
+  } else if (phone.startsWith("+886")) {
+    const local = rest.slice(3);
+    if (!/^9\d{8}$/.test(local)) return "台灣號碼須為 9 位數字，首位為 9";
+  } else if (phone.startsWith("+65")) {
+    const local = rest.slice(2);
+    if (!/^[89]\d{7}$/.test(local))
+      return "新加坡號碼須為 8 位數字，首位為 8 或 9";
+  } else if (phone.startsWith("+60")) {
+    const local = rest.slice(2);
+    if (!/^1\d{8,9}$/.test(local)) return "馬來西亞號碼須為 9–10 位數字，首位為 1";
+  } else {
+    // Generic: total digits (excl +) should be 7–15 per E.164
+    if (rest.length < 7 || rest.length > 15) return "電話號碼位數不正確";
+  }
+  return null;
+}
+
 export function registerAuthRoutes(app: Express) {
 
   // POST /api/auth/send-otp — 發送電話驗證碼
@@ -17,6 +50,11 @@ export function registerAuthRoutes(app: Express) {
       const { phone } = req.body;
       if (!phone) {
         res.status(400).json({ error: "請提供手機號碼" });
+        return;
+      }
+      const fmtErr = serverValidatePhone(phone);
+      if (fmtErr) {
+        res.status(400).json({ error: fmtErr });
         return;
       }
 

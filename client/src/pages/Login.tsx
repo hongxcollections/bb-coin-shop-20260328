@@ -17,6 +17,61 @@ const COUNTRIES = [
   { code: "+82",  flag: "🇰🇷", name: "韓國" },
 ];
 
+// ─── Phone format validation ────────────────────────────────────────────────
+// Returns null if valid, or a Chinese error message if invalid.
+function validatePhoneFormat(countryCode: string, local: string): string | null {
+  const d = local.replace(/\D/g, "");
+  switch (countryCode) {
+    case "+852": // HK: 8 digits, start with 2/5/6/9
+      if (!/^[25689]\d{7}$/.test(d))
+        return `香港號碼須為 8 位數字，首位為 2、5、6 或 9（例如：6123 4567）`;
+      break;
+    case "+86":  // China: 11 digits, start with 1
+      if (!/^1\d{10}$/.test(d))
+        return `中國大陸號碼須為 11 位數字，首位為 1（例如：138 0000 0000）`;
+      break;
+    case "+853": // Macau: 8 digits, start with 6
+      if (!/^6\d{7}$/.test(d))
+        return `澳門號碼須為 8 位數字，首位為 6（例如：6123 4567）`;
+      break;
+    case "+886": // Taiwan: 9 digits, start with 9
+      if (!/^9\d{8}$/.test(d))
+        return `台灣號碼須為 9 位數字，首位為 9（例如：912 345 678）`;
+      break;
+    case "+65":  // Singapore: 8 digits, start with 8 or 9
+      if (!/^[89]\d{7}$/.test(d))
+        return `新加坡號碼須為 8 位數字，首位為 8 或 9（例如：9123 4567）`;
+      break;
+    case "+60":  // Malaysia: 9-10 digits, start with 1
+      if (!/^1\d{8,9}$/.test(d))
+        return `馬來西亞號碼須為 9–10 位數字，首位為 1（例如：12-345 6789）`;
+      break;
+    case "+1":   // US/Canada: exactly 10 digits
+      if (!/^\d{10}$/.test(d))
+        return `美國/加拿大號碼須為 10 位數字（例如：212 555 1234）`;
+      break;
+    case "+44":  // UK: 10 digits
+      if (!/^\d{10}$/.test(d))
+        return `英國號碼須為 10 位數字（例如：7911 123456）`;
+      break;
+    case "+61":  // Australia: 9 digits, start with 4
+      if (!/^4\d{8}$/.test(d))
+        return `澳洲號碼須為 9 位數字，首位為 4（例如：412 345 678）`;
+      break;
+    case "+81":  // Japan: 10-11 digits, start with 07/08/09
+      if (!/^0[789]\d{8,9}$/.test(d))
+        return `日本號碼須為 10–11 位數字，首兩位為 07/08/09（例如：090 1234 5678）`;
+      break;
+    case "+82":  // Korea: 10-11 digits, start with 01
+      if (!/^01\d{8,9}$/.test(d))
+        return `韓國號碼須為 10–11 位數字，首兩位為 01（例如：010 1234 5678）`;
+      break;
+    default:
+      if (d.length < 6) return "電話號碼位數不足，請重新確認";
+  }
+  return null;
+}
+
 export default function Login() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [registerMethod, setRegisterMethod] = useState<"email" | "phone">("email");
@@ -94,6 +149,8 @@ export default function Login() {
 
   const sendOtp = async () => {
     if (!localPhone) { showError("請輸入手機號碼"); return; }
+    const fmtErr = validatePhoneFormat(countryCode, localPhone);
+    if (fmtErr) { showError(fmtErr); return; }
     setOtpSending(true);
     try {
       const res = await fetch("/api/auth/send-otp", {
