@@ -685,7 +685,7 @@ export default function MerchantAuctions() {
                 <Select value={form.currency} onValueChange={(v) => setForm((f) => ({ ...f, currency: v }))}>
                   <SelectTrigger className="px-2"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {CURRENCY_OPTIONS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                    {CURRENCY_OPTIONS.map((c) => <SelectItem key={c.value} value={c.value} className="text-[10px] py-1">{c.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
