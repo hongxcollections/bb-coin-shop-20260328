@@ -5,7 +5,7 @@ import Header from "@/components/Header";
 import {
   ChevronLeft, Store, Wallet, Gavel, Clock, CheckCircle2, XCircle,
   AlertCircle, TrendingUp, ArrowUpRight, ArrowDownLeft, ShoppingBag, Settings,
-  RotateCcw, Layers,
+  RotateCcw, Layers, CreditCard,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -79,6 +79,9 @@ export default function MerchantDashboard() {
     { enabled: isAuthenticated && myApp?.status === "approved" }
   );
   const { data: quotaInfo } = trpc.merchants.getQuotaInfo.useQuery(undefined, {
+    enabled: isAuthenticated && myApp?.status === "approved",
+  });
+  const { data: mySubscription } = trpc.subscriptions.mySubscription.useQuery(undefined, {
     enabled: isAuthenticated && myApp?.status === "approved",
   });
 
@@ -252,6 +255,21 @@ export default function MerchantDashboard() {
               <div>
                 <p className="font-semibold text-sm text-gray-800">商戶管理</p>
                 <p className="text-xs text-gray-400 mt-0.5">預設拍賣結束日期 · 時間設定</p>
+              </div>
+            </div>
+          </Link>
+          <Link href="/subscriptions">
+            <div className="rounded-2xl bg-white border border-purple-100 p-4 flex items-center gap-3 hover:border-purple-300 hover:bg-purple-50/50 transition-colors cursor-pointer">
+              <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0">
+                <CreditCard className="w-5 h-5 text-purple-500" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-gray-800">訂閱計劃</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {mySubscription?.planName
+                    ? `目前：${mySubscription.planName}`
+                    : "選擇月費計劃"}
+                </p>
               </div>
             </div>
           </Link>
