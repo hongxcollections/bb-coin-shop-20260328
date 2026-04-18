@@ -177,23 +177,46 @@ export default function MerchantDashboard() {
           </div>
         </div>
 
-        {/* Quota card (only shown if subscription has a quota) */}
-        {quotaInfo && !quotaInfo.unlimited && (
-          <div className={`rounded-2xl bg-white border p-4 flex items-center justify-between ${quotaInfo.remainingQuota <= 0 ? "border-red-200" : quotaInfo.remainingQuota <= 5 ? "border-amber-200" : "border-blue-100"}`}>
+        {/* Quota card */}
+        {quotaInfo && (
+          <div className={`rounded-2xl bg-white border p-4 flex items-center justify-between ${
+            quotaInfo.unlimited ? "border-blue-100" :
+            quotaInfo.remainingQuota <= 0 ? "border-red-200" :
+            quotaInfo.remainingQuota <= 5 ? "border-amber-200" : "border-blue-100"
+          }`}>
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${quotaInfo.remainingQuota <= 0 ? "bg-red-50" : quotaInfo.remainingQuota <= 5 ? "bg-amber-50" : "bg-blue-50"}`}>
-                <Layers className={`w-5 h-5 ${quotaInfo.remainingQuota <= 0 ? "text-red-500" : quotaInfo.remainingQuota <= 5 ? "text-amber-500" : "text-blue-500"}`} />
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                quotaInfo.unlimited ? "bg-blue-50" :
+                quotaInfo.remainingQuota <= 0 ? "bg-red-50" :
+                quotaInfo.remainingQuota <= 5 ? "bg-amber-50" : "bg-blue-50"
+              }`}>
+                <Layers className={`w-5 h-5 ${
+                  quotaInfo.unlimited ? "text-blue-500" :
+                  quotaInfo.remainingQuota <= 0 ? "text-red-500" :
+                  quotaInfo.remainingQuota <= 5 ? "text-amber-500" : "text-blue-500"
+                }`} />
               </div>
               <div>
                 <p className="text-sm font-semibold text-gray-800">本期發佈次數</p>
                 <p className="text-xs text-gray-400 mt-0.5">{quotaInfo.planName}</p>
+                {quotaInfo.endDate && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    有效至 {new Date(quotaInfo.endDate).toLocaleDateString("zh-HK", { year: "numeric", month: "2-digit", day: "2-digit" })}
+                  </p>
+                )}
               </div>
             </div>
             <div className="text-right">
-              <p className={`text-2xl font-bold ${quotaInfo.remainingQuota <= 0 ? "text-red-600" : quotaInfo.remainingQuota <= 5 ? "text-amber-600" : "text-blue-600"}`}>
-                {quotaInfo.remainingQuota}
-              </p>
-              <p className="text-xs text-gray-400">/ {quotaInfo.maxListings} 次</p>
+              {quotaInfo.unlimited ? (
+                <p className="text-sm font-semibold text-blue-600">無限制</p>
+              ) : (
+                <>
+                  <p className={`text-2xl font-bold ${quotaInfo.remainingQuota <= 0 ? "text-red-600" : quotaInfo.remainingQuota <= 5 ? "text-amber-600" : "text-blue-600"}`}>
+                    {quotaInfo.remainingQuota}
+                  </p>
+                  <p className="text-xs text-gray-400">/ {quotaInfo.maxListings} 次</p>
+                </>
+              )}
             </div>
           </div>
         )}

@@ -2598,6 +2598,7 @@ export async function getListingQuotaInfo(userId: number): Promise<{
   maxListings: number;
   remainingQuota: number;
   unlimited: boolean;
+  endDate: Date | null;
 } | null> {
   const db = await getDb();
   if (!db) return null;
@@ -2607,6 +2608,7 @@ export async function getListingQuotaInfo(userId: number): Promise<{
       planName: subscriptionPlans.name,
       maxListings: subscriptionPlans.maxListings,
       remainingQuota: userSubscriptions.remainingQuota,
+      endDate: userSubscriptions.endDate,
     })
       .from(userSubscriptions)
       .leftJoin(subscriptionPlans, eq(userSubscriptions.planId, subscriptionPlans.id))
@@ -2625,6 +2627,7 @@ export async function getListingQuotaInfo(userId: number): Promise<{
       maxListings: max,
       remainingQuota: remaining,
       unlimited: max === 0,
+      endDate: row.endDate ?? null,
     };
   } catch {
     return null;
