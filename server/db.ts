@@ -2639,7 +2639,7 @@ export async function deductListingQuota(userId: number): Promise<{ success: boo
   const db = await getDb();
   if (!db) return { success: false, reason: '資料庫不可用' };
   const info = await getListingQuotaInfo(userId);
-  if (!info) return { success: true }; // no subscription = no quota limit (backward compat)
+  if (!info) return { success: false, reason: '您尚未訂閱月費計劃，請先訂閱後才可發佈拍賣' };
   if (info.unlimited) return { success: true }; // maxListings = 0 = unlimited
 
   if (info.remainingQuota <= 0) {
