@@ -42,14 +42,41 @@ function formatDate(d: Date | string) {
   });
 }
 
-type UploadStatus = "pending" | "uploading" | "success" | "error";
+type UploadStatus = "compressing" | "uploading" | "success" | "error";
 
 interface PendingImage {
+  id: string;
   file: File;
   previewUrl: string;
   status: UploadStatus;
   errorMsg?: string;
+  tempUrl?: string; // S3 URL after pre-upload
 }
+
+// Compress image client-side before upload (max 1600px, JPEG 82%)
+const compressImage = (file: File, maxPx = 1600, quality = 0.82): Promise<File> =>
+  new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) { resolve(file); return; }
+    const img = new Image();
+    const objUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl);
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height, 1));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(file); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob((blob) => {
+        if (!blob) { resolve(file); return; }
+        resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = () => resolve(file);
+    img.src = objUrl;
+  });
 
 interface UploadedImage {
   url: string;
@@ -159,29 +186,34 @@ function ImageUploadZone({
             </div>
           ))}
           {pendingImages.map((p, i) => (
-            <div key={`pend-${i}`} className="relative aspect-square rounded-md overflow-hidden border bg-muted group">
+            <div key={p.id} className="relative aspect-square rounded-md overflow-hidden border bg-muted group">
               <img src={p.previewUrl} alt="" className="w-full h-full object-cover" />
-              {p.status === "uploading" && (
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+              {(p.status === "compressing" || p.status === "uploading") && (
+                <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-1">
                   <Loader2 className="w-5 h-5 text-white animate-spin" />
+                  <span className="text-white text-[10px]">{p.status === "compressing" ? "壓縮中" : "上載中"}</span>
                 </div>
               )}
               {p.status === "error" && (
-                <div className="absolute bottom-0 left-0 right-0 bg-red-500/80 px-1 py-0.5">
-                  <AlertCircle className="w-3 h-3 text-white inline mr-0.5" />
-                  <span className="text-white text-xs">失敗</span>
+                <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-1">
+                  <AlertCircle className="w-5 h-5 text-red-400" />
+                  <span className="text-white text-[10px]">上載失敗</span>
+                  <button onClick={() => onRemovePending(i)}
+                    className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5">
+                    <X className="w-3 h-3 text-white" />
+                  </button>
                 </div>
               )}
               {p.status === "success" && (
-                <div className="absolute top-0.5 left-0.5 bg-green-500/80 rounded-full p-0.5">
-                  <CheckCircle2 className="w-3 h-3 text-white" />
-                </div>
-              )}
-              {p.status === "pending" && (
-                <button onClick={() => onRemovePending(i)}
-                  className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <X className="w-3 h-3 text-white" />
-                </button>
+                <>
+                  <div className="absolute top-0.5 left-0.5 bg-green-500/80 rounded-full p-0.5">
+                    <CheckCircle2 className="w-3 h-3 text-white" />
+                  </div>
+                  <button onClick={() => onRemovePending(i)}
+                    className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <X className="w-3 h-3 text-white" />
+                  </button>
+                </>
               )}
             </div>
           ))}
@@ -313,7 +345,7 @@ export default function MerchantAuctions() {
   const [form, setForm] = useState<AuctionFormData>(defaultForm);
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
+  const isUploading = pendingImages.some(p => p.status === "compressing" || p.status === "uploading");
 
   // Single publish dialog
   const [publishOpen, setPublishOpen] = useState(false);
@@ -340,6 +372,8 @@ export default function MerchantAuctions() {
 
   const uploadMutation = trpc.merchants.uploadAuctionImage.useMutation();
   const deleteImageMutation = trpc.merchants.deleteAuctionImage.useMutation();
+  const preSaveImageMutation = trpc.merchants.preSaveImage.useMutation();
+  const registerImagesMutation = trpc.merchants.registerPreSavedImages.useMutation();
 
   const fileToBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -349,37 +383,24 @@ export default function MerchantAuctions() {
       reader.readAsDataURL(file);
     });
 
-  const uploadAllPending = async (auctionId: number): Promise<number> => {
-    setIsUploading(true);
-    const toUpload = pendingImages.map((p, i) => ({ p, i })).filter(({ p }) => p.status === "pending");
-    if (toUpload.length === 0) { setIsUploading(false); return 0; }
-    setPendingImages((prev) => prev.map((p, idx) => toUpload.some(({ i }) => i === idx) ? { ...p, status: "uploading" } : p));
-    let ok = 0;
-    const results = await Promise.allSettled(toUpload.map(async ({ p, i }) => {
-      const base64 = await fileToBase64(p.file);
-      await uploadMutation.mutateAsync({ auctionId, imageData: base64, fileName: p.file.name, displayOrder: uploadedImages.length + i, mimeType: p.file.type || "image/jpeg" });
-      return i;
-    }));
-    const successIdx = new Set<number>();
-    const errorMap = new Map<number, string>();
-    results.forEach((r, j) => {
-      const { i } = toUpload[j];
-      if (r.status === "fulfilled") { successIdx.add(i); ok++; }
-      else errorMap.set(i, r.reason instanceof Error ? r.reason.message : "上傳失敗");
+  // Attach pre-uploaded images to an auction (images already on S3)
+  const attachPreSavedImages = async (auctionId: number, baseOrder: number): Promise<number> => {
+    const ready = pendingImages.filter(p => p.status === "success" && p.tempUrl);
+    if (ready.length === 0) return 0;
+    await registerImagesMutation.mutateAsync({
+      auctionId,
+      images: ready.map((p, i) => ({ url: p.tempUrl!, displayOrder: baseOrder + i })),
     });
-    setPendingImages((prev) => prev.map((p, idx) => {
-      if (successIdx.has(idx)) return { ...p, status: "success" };
-      if (errorMap.has(idx)) return { ...p, status: "error", errorMsg: errorMap.get(idx) };
-      return p;
-    }));
-    setIsUploading(false);
-    return ok;
+    return ready.length;
   };
 
   const createMutation = trpc.merchants.createAuction.useMutation({
     onSuccess: async (result) => {
-      const uploaded = pendingImages.length > 0 && result?.id ? await uploadAllPending(result.id) : 0;
-      toast.success(uploaded > 0 ? `草稿建立成功！已上傳 ${uploaded} 張圖片` : "草稿已建立");
+      let attached = 0;
+      if (result?.id && pendingImages.length > 0) {
+        attached = await attachPreSavedImages(result.id, 0);
+      }
+      toast.success(attached > 0 ? `草稿建立成功！已上傳 ${attached} 張圖片` : "草稿已建立");
       closeForm(); refetchDrafts();
     },
     onError: (err) => toast.error(err.message || "建立失敗"),
@@ -387,8 +408,11 @@ export default function MerchantAuctions() {
 
   const updateMutation = trpc.merchants.updateAuction.useMutation({
     onSuccess: async () => {
-      const uploaded = pendingImages.length > 0 && editId ? await uploadAllPending(editId) : 0;
-      toast.success(uploaded > 0 ? `已更新，上傳了 ${uploaded} 張圖片` : "草稿已更新");
+      let attached = 0;
+      if (editId && pendingImages.length > 0) {
+        attached = await attachPreSavedImages(editId, uploadedImages.length);
+      }
+      toast.success(attached > 0 ? `已更新，上傳了 ${attached} 張圖片` : "草稿已更新");
       closeForm(); refetchDrafts();
     },
     onError: (err) => toast.error(err.message || "更新失敗"),
@@ -451,11 +475,40 @@ export default function MerchantAuctions() {
   });
 
   const handleAddFiles = useCallback((files: File[]) => {
-    const newPending: PendingImage[] = files.map((f) => ({
-      file: f, previewUrl: URL.createObjectURL(f), status: "pending",
+    const newItems: PendingImage[] = files.map((f) => ({
+      id: Math.random().toString(36).slice(2) + Date.now(),
+      file: f,
+      previewUrl: URL.createObjectURL(f),
+      status: "compressing" as UploadStatus,
     }));
-    setPendingImages((prev) => [...prev, ...newPending]);
-  }, []);
+    setPendingImages((prev) => [...prev, ...newItems]);
+
+    // Compress + pre-upload each image immediately (parallel, while user fills form)
+    for (const item of newItems) {
+      (async () => {
+        const update = (patch: Partial<PendingImage>) =>
+          setPendingImages((prev) => prev.map(p => p.id === item.id ? { ...p, ...patch } : p));
+        try {
+          const compressed = await compressImage(item.file);
+          update({ status: 'uploading' });
+          const base64 = await new Promise<string>((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res((r.result as string).split(',')[1]);
+            r.onerror = rej;
+            r.readAsDataURL(compressed);
+          });
+          const result = await preSaveImageMutation.mutateAsync({
+            imageData: base64,
+            mimeType: 'image/jpeg',
+            fileName: compressed.name,
+          });
+          update({ status: 'success', tempUrl: result.url });
+        } catch {
+          update({ status: 'error', errorMsg: '上載失敗，請移除後重試' });
+        }
+      })();
+    }
+  }, [preSaveImageMutation]);
 
   const handleRemovePending = (idx: number) => {
     setPendingImages((prev) => { URL.revokeObjectURL(prev[idx].previewUrl); return prev.filter((_, i) => i !== idx); });
@@ -497,7 +550,9 @@ export default function MerchantAuctions() {
 
   const handleSubmit = () => {
     if (!form.title.trim() || !form.startingPrice) { toast.error("請填寫標題和起拍價"); return; }
-    const totalImages = uploadedImages.length + pendingImages.length;
+    const stillUploading = pendingImages.filter(p => p.status === "compressing" || p.status === "uploading");
+    if (stillUploading.length > 0) { toast.error(`仍有 ${stillUploading.length} 張圖片上載中，請稍後再提交`); return; }
+    const totalImages = uploadedImages.length + pendingImages.filter(p => p.status === "success").length;
     if (totalImages === 0) { toast.error("請上傳至少一幅圖片"); return; }
     const antiSnipeEnabled = form.antiSnipeEnabled ? 1 : 0;
     const antiSnipeMinutes = isNaN(form.antiSnipeMinutes) ? 0 : form.antiSnipeMinutes;

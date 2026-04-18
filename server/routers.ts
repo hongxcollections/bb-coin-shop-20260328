@@ -1582,6 +1582,43 @@ export const appRouter = router({
         return { success: true, imageUrl };
       }),
 
+    /** 預先上傳圖片到暫存位置（不需要 auctionId，填表期間並行上載） */
+    preSaveImage: protectedProcedure
+      .input(z.object({
+        imageData: z.string().min(1),
+        mimeType: z.string().default('image/jpeg'),
+        fileName: z.string().default('image.jpg'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const buffer = Buffer.from(input.imageData, 'base64');
+        const ext = input.mimeType === 'image/png' ? 'png' : input.mimeType === 'image/webp' ? 'webp' : 'jpg';
+        const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const key = `temp/${ctx.user.id}/${uid}.${ext}`;
+        const { url } = await storagePut(key, buffer, 'image/jpeg');
+        return { key, url };
+      }),
+
+    /** 批量關聯預先上傳的圖片 URL 到草稿（無需重新上傳） */
+    registerPreSavedImages: protectedProcedure
+      .input(z.object({
+        auctionId: z.number().int().positive(),
+        images: z.array(z.object({
+          url: z.string().min(1),
+          displayOrder: z.number().int().min(0),
+        })),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const auction = await getAuctionById(input.auctionId);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只能為自己的拍賣關聯圖片' });
+        }
+        for (const img of input.images) {
+          await addAuctionImage({ auctionId: input.auctionId, imageUrl: img.url, displayOrder: img.displayOrder });
+        }
+        return { success: true, count: input.images.length };
+      }),
+
     /** 商戶刪除圖片（只限自己的拍賣） */
     deleteAuctionImage: protectedProcedure
       .input(z.object({ auctionId: z.number(), imageId: z.number() }))
