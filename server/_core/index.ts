@@ -95,16 +95,34 @@ async function bootstrapMissingColumns() {
     );
   }
 
-  // merchantApplications: ensure all columns exist (production may be behind UAT)
+  // merchantApplications: ensure table + all columns exist (production may be behind UAT)
+  await alter(`CREATE TABLE IF NOT EXISTS \`merchantApplications\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`userId\` int NOT NULL,
+    \`contactName\` varchar(100) NULL,
+    \`merchantName\` varchar(100) NOT NULL,
+    \`selfIntro\` text NOT NULL,
+    \`whatsapp\` varchar(30) NOT NULL,
+    \`yearsExperience\` varchar(20) NULL,
+    \`merchantIcon\` varchar(500) NULL,
+    \`categories\` text NULL,
+    \`samplePhotos\` text NULL,
+    \`status\` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    \`adminNote\` text,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT \`merchantApplications_id\` PRIMARY KEY(\`id\`)
+  )`, 'Ensured merchantApplications table');
+
   if (!(await check('merchantApplications', 'contactName'))) {
     await alter(
-      'ALTER TABLE `merchantApplications` ADD COLUMN `contactName` varchar(100) NULL AFTER `userId`',
+      'ALTER TABLE `merchantApplications` ADD COLUMN `contactName` varchar(100) NULL',
       'Added contactName to merchantApplications'
     );
   }
   if (!(await check('merchantApplications', 'merchantIcon'))) {
     await alter(
-      'ALTER TABLE `merchantApplications` ADD COLUMN `merchantIcon` varchar(500) NULL AFTER `yearsExperience`',
+      'ALTER TABLE `merchantApplications` ADD COLUMN `merchantIcon` varchar(500) NULL',
       'Added merchantIcon to merchantApplications'
     );
   }
