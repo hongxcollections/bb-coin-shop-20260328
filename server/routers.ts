@@ -7,7 +7,7 @@ import { z } from "zod";
 import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest } from "./db";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 
@@ -1756,12 +1756,16 @@ export const appRouter = router({
         if (input.endTime <= new Date()) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '結束時間必須為未來時間' });
         }
-        // Determine how many valid drafts we're about to publish for quota check
-        let toPublishCount = 0;
-        const auctionChecks = await Promise.all(input.ids.map(id => getAuctionById(id)));
-        for (const a of auctionChecks) {
-          if (a && a.status === 'draft' && (a.createdBy === ctx.user.id || ctx.user.role === 'admin')) toPublishCount++;
-        }
+        // Determine how many valid drafts (with images) we're about to publish for quota check
+        const auctionChecks = await Promise.all(input.ids.map(async id => {
+          const a = await getAuctionById(id);
+          if (!a || a.status !== 'draft') return null;
+          if (a.createdBy !== ctx.user.id && ctx.user.role !== 'admin') return null;
+          const imgs = await getAuctionImages(id);
+          if (imgs.length === 0) return null;
+          return a;
+        }));
+        const toPublishCount = auctionChecks.filter(Boolean).length;
         if (ctx.user.role !== 'admin' && toPublishCount > 0) {
           const quotaInfo = await getListingQuotaInfo(ctx.user.id);
           if (quotaInfo && !quotaInfo.unlimited && quotaInfo.remainingQuota < toPublishCount) {
@@ -1776,21 +1780,21 @@ export const appRouter = router({
             const imgs = await getAuctionImages(id);
             if (imgs.length === 0) return { id, skipped: true, reason: 'no_image' };
             await updateAuction(id, { status: 'active', endTime: input.endTime });
-            if (ctx.user.role !== 'admin') await deductListingQuota(ctx.user.id).catch(() => {});
             return { id, success: true };
           })
         );
         const succeeded = results.filter(r => r.status === 'fulfilled' && (r.value as { success?: boolean }).success).length;
         const skipped = results.filter(r => r.status === 'fulfilled' && (r.value as { skipped?: boolean }).skipped).length;
-        // Return remaining quota after all deductions
+        // Atomically deduct all succeeded publications in one DB call (avoids race condition)
         let remainingQuota: number | null = null;
         let unlimitedQuota = false;
-        if (ctx.user.role !== 'admin') {
+        if (ctx.user.role !== 'admin' && succeeded > 0) {
+          const deductResult = await deductListingQuotaBulk(ctx.user.id, succeeded);
+          unlimitedQuota = deductResult.unlimited ?? false;
+          if (!unlimitedQuota) remainingQuota = deductResult.remaining ?? null;
+        } else if (ctx.user.role !== 'admin') {
           const qi = await getListingQuotaInfo(ctx.user.id);
-          if (qi) {
-            unlimitedQuota = qi.unlimited;
-            if (!qi.unlimited) remainingQuota = qi.remainingQuota;
-          }
+          if (qi) { unlimitedQuota = qi.unlimited; if (!qi.unlimited) remainingQuota = qi.remainingQuota; }
         }
         return { succeeded, skipped, total: input.ids.length, remainingQuota, unlimitedQuota };
       }),

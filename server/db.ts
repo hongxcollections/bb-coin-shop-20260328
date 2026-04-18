@@ -2655,6 +2655,28 @@ export async function deductListingQuota(userId: number): Promise<{ success: boo
   return { success: true, remaining: newRemaining };
 }
 
+/**
+ * Atomically deduct N listing quotas in a single SQL UPDATE (avoids race condition in batch publish).
+ * Uses remainingQuota = remainingQuota - count at the DB level so parallel calls don't clobber each other.
+ */
+export async function deductListingQuotaBulk(userId: number, count: number): Promise<{ success: boolean; remaining?: number; unlimited?: boolean; reason?: string }> {
+  if (count <= 0) return { success: true, remaining: undefined };
+  const db = await getDb();
+  if (!db) return { success: false, reason: '資料庫不可用' };
+  const info = await getListingQuotaInfo(userId);
+  if (!info) return { success: false, reason: '您尚未訂閱月費計劃' };
+  if (info.unlimited) return { success: true, unlimited: true };
+  if (info.remainingQuota < count) {
+    return { success: false, reason: `發佈次數不足（剩餘 ${info.remainingQuota}，需要 ${count}）` };
+  }
+  // Single atomic UPDATE: remainingQuota = remainingQuota - count
+  await db.execute(
+    sql`UPDATE userSubscriptions SET remainingQuota = remainingQuota - ${count} WHERE id = ${info.subscriptionId} AND remainingQuota >= ${count}`
+  );
+  const newRemaining = info.remainingQuota - count;
+  return { success: true, remaining: newRemaining };
+}
+
 export async function adminSetSubscriptionQuota(subscriptionId: number, remainingQuota: number): Promise<{ success: boolean }> {
   const db = await getDb();
   if (!db) throw new Error('Database not available');
