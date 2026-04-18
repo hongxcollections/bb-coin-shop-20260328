@@ -662,16 +662,7 @@ export default function AdminUsers() {
 
               {editState.isMerchant && (
                 <div className="border border-amber-100 rounded-lg p-3 space-y-3 bg-amber-50/50">
-                  <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">商戶保證金設定</p>
-                  <div className="space-y-1.5">
-                    <Label>保證金門檻 (HKD)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={editState.requiredDeposit}
-                      onChange={(e) => setEditState({ ...editState, requiredDeposit: e.target.value })}
-                    />
-                  </div>
+                  <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">商戶設定</p>
                   <div className="space-y-1.5">
                     <Label>佣金率 (%)</Label>
                     <Input
