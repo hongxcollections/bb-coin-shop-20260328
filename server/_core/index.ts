@@ -3,7 +3,6 @@ import { migrate } from "drizzle-orm/mysql2/migrator";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
 import path from "path";
-import { fileURLToPath } from "url";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
@@ -37,6 +36,67 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
+async function bootstrapMissingColumns() {
+  const dbUrl = process.env.BB_DATABASE_URL || process.env.DATABASE_URL || "";
+  if (!dbUrl) return;
+  try {
+    const url = new URL(dbUrl);
+    const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    const pool = createPool({
+      host: url.hostname,
+      port: parseInt(url.port || (isLocalhost ? '3306' : '4000')),
+      user: url.username,
+      password: url.password || undefined,
+      database: url.pathname.slice(1),
+      ssl: isLocalhost ? undefined : { rejectUnauthorized: false },
+    });
+
+    const check = async (table: string, column: string): Promise<boolean> => {
+      const [rows]: any = await pool.execute(
+        `SELECT COUNT(*) as cnt FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+        [table, column]
+      );
+      return rows[0].cnt > 0;
+    };
+
+    if (!(await check('seller_deposits', 'warningDeposit'))) {
+      await pool.execute(
+        'ALTER TABLE `seller_deposits` ADD COLUMN `warningDeposit` decimal(12,2) NOT NULL DEFAULT 1000.00'
+      );
+      console.log('[Bootstrap] Added warningDeposit to seller_deposits');
+    }
+
+    if (!(await check('user_subscriptions', 'remainingQuota'))) {
+      await pool.execute(
+        'ALTER TABLE `user_subscriptions` ADD COLUMN `remainingQuota` int NOT NULL DEFAULT 0'
+      );
+      console.log('[Bootstrap] Added remainingQuota to user_subscriptions');
+    }
+
+    await pool.execute(`CREATE TABLE IF NOT EXISTS \`commissionRefundRequests\` (
+      \`id\` int AUTO_INCREMENT NOT NULL,
+      \`auctionId\` int NOT NULL,
+      \`userId\` int NOT NULL,
+      \`commissionAmount\` decimal(12,2) NOT NULL,
+      \`reason\` enum('buyer_missing','buyer_refused','mutual_cancel','other') NOT NULL,
+      \`reasonDetail\` text,
+      \`status\` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+      \`adminNote\` text,
+      \`reviewedBy\` int,
+      \`reviewedAt\` timestamp NULL,
+      \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+      \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+      CONSTRAINT \`commissionRefundRequests_id\` PRIMARY KEY(\`id\`)
+    )`);
+    console.log('[Bootstrap] Schema bootstrap completed');
+
+    await pool.end();
+  } catch (error) {
+    console.warn('[Bootstrap] Bootstrap warning (continuing):', (error as Error).message);
+  }
+}
+
 async function runMigrations() {
   const dbUrl = process.env.BB_DATABASE_URL || process.env.DATABASE_URL || "";
   if (!dbUrl) return;
@@ -53,8 +113,7 @@ async function runMigrations() {
       multipleStatements: true,
     });
     const db = drizzle(pool);
-    const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    const migrationsFolder = path.resolve(__dirname, '../../drizzle');
+    const migrationsFolder = path.resolve(process.cwd(), 'drizzle');
     console.log('[Migration] Running migrations from:', migrationsFolder);
     await migrate(db, { migrationsFolder });
     console.log('[Migration] Migrations completed successfully');
@@ -65,6 +124,7 @@ async function runMigrations() {
 }
 
 async function startServer() {
+  await bootstrapMissingColumns();
   await runMigrations();
   const app = express();
   const server = createServer(app);
