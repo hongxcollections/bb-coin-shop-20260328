@@ -2082,7 +2082,7 @@ export async function approveSubscription(subscriptionId: number, adminId: numbe
       endDate.setMonth(endDate.getMonth() + 1);
     }
 
-    // Update subscription
+    // Update subscription — also initialise remainingQuota from plan.maxListings
     await db.update(userSubscriptions).set({
       status: 'active',
       startDate: now,
@@ -2090,6 +2090,7 @@ export async function approveSubscription(subscriptionId: number, adminId: numbe
       approvedBy: adminId,
       approvedAt: now,
       adminNote: adminNote ?? null,
+      remainingQuota: plan.maxListings,  // 0 = unlimited; >0 = limited
     }).where(eq(userSubscriptions.id, subscriptionId));
 
     // Update user's member level
@@ -2614,11 +2615,15 @@ export async function getListingQuotaInfo(userId: number): Promise<{
       .limit(1);
     if (!row) return null;
     const max = row.maxListings ?? 0;
+    // If remainingQuota is null (legacy records before fix), treat as full quota
+    const remaining = row.remainingQuota !== null && row.remainingQuota !== undefined
+      ? row.remainingQuota
+      : max;
     return {
       subscriptionId: row.id,
       planName: row.planName ?? '',
       maxListings: max,
-      remainingQuota: row.remainingQuota ?? 0,
+      remainingQuota: remaining,
       unlimited: max === 0,
     };
   } catch {

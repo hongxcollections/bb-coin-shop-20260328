@@ -74,6 +74,19 @@ async function bootstrapMissingColumns() {
       console.log('[Bootstrap] Added remainingQuota to user_subscriptions');
     }
 
+    // One-time repair: initialise remainingQuota for active subscriptions
+    // that still have 0 because approveSubscription never set it.
+    // Safe: no quota was ever properly deducted before this fix.
+    await pool.execute(`
+      UPDATE user_subscriptions us
+      JOIN subscription_plans sp ON us.planId = sp.id
+      SET us.remainingQuota = sp.maxListings
+      WHERE us.status = 'active'
+        AND sp.maxListings > 0
+        AND us.remainingQuota = 0
+    `);
+    console.log('[Bootstrap] Repaired remainingQuota for active subscriptions');
+
     await pool.execute(`CREATE TABLE IF NOT EXISTS \`commissionRefundRequests\` (
       \`id\` int AUTO_INCREMENT NOT NULL,
       \`auctionId\` int NOT NULL,
