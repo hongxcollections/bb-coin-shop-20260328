@@ -329,6 +329,7 @@ export default function MerchantAuctions() {
   const [batchEndTime, setBatchEndTime] = useState("");
 
   const { data: merchantSettings } = trpc.merchants.getSettings.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: canListData } = trpc.sellerDeposits.canList.useQuery(undefined, { enabled: isAuthenticated });
   const { data: myAuctions, isLoading: loadingActive, refetch: refetchActive } = trpc.merchants.myAuctions.useQuery();
   const { data: myDrafts, isLoading: loadingDrafts, refetch: refetchDrafts } = trpc.merchants.myDrafts.useQuery();
   const { data: myArchived, isLoading: loadingArchived, refetch: refetchArchived } = trpc.merchants.myArchived.useQuery();
@@ -503,7 +504,16 @@ export default function MerchantAuctions() {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
+  const checkCanPublish = () => {
+    if (canListData && !canListData.canList) {
+      toast.error("商戶暫已被停用，請聯繫客服了解情況");
+      return false;
+    }
+    return true;
+  };
+
   const openPublish = (a: AuctionItem) => {
+    if (!checkCanPublish()) return;
     setPublishTarget(a);
     setPublishEndTime(calcDefaultEndTime());
     setPublishOpen(true);
@@ -517,6 +527,7 @@ export default function MerchantAuctions() {
 
   const openBatchPublish = () => {
     if (selectedDrafts.size === 0) { toast.error("請先選擇要發佈的草稿"); return; }
+    if (!checkCanPublish()) return;
     setBatchEndTime(calcDefaultEndTime());
     setBatchPublishOpen(true);
   };
