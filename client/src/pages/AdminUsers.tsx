@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Pencil, Trash2, Store, UserRound, ShieldAlert, ChevronDown, Gavel, Mail, KeyRound, CheckCircle2, Copy, Clock, XCircle, ChevronUp } from "lucide-react";
+import { Users, Pencil, Trash2, Store, UserRound, ShieldAlert, ChevronDown, Gavel, Mail, KeyRound, CheckCircle2, Copy, Clock, XCircle, ChevronUp, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { MemberBadge, type MemberLevel } from "@/components/MemberBadge";
 
@@ -101,6 +101,12 @@ export default function AdminUsers() {
   const [editState, setEditState] = useState<EditState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
   const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
+  const [newUserOpen, setNewUserOpen] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({
+    name: "", phone: "", email: "", password: "",
+    memberLevel: "bronze" as MemberLevel, role: "user" as "user" | "admin",
+    isMerchant: false, merchantName: "",
+  });
 
   const { data: users, isLoading, refetch } = trpc.users.listAllExtended.useQuery(undefined, {
     enabled: isAuthenticated && user?.role === "admin",
@@ -158,6 +164,16 @@ export default function AdminUsers() {
     onSuccess: () => {
       toast.success("用戶及所有相關資料已刪除");
       setDeleteTarget(null);
+      refetch();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const adminCreateUser = trpc.users.adminCreateUser.useMutation({
+    onSuccess: () => {
+      toast.success("會員已建立");
+      setNewUserOpen(false);
+      setNewUserForm({ name: "", phone: "", email: "", password: "", memberLevel: "bronze", role: "user", isMerchant: false, merchantName: "" });
       refetch();
     },
     onError: (err) => toast.error(err.message),
@@ -339,12 +355,15 @@ export default function AdminUsers() {
           <div className="w-10 h-10 gold-gradient rounded-xl flex items-center justify-center">
             <Users className="w-5 h-5 text-white" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold text-amber-900">會員管理</h1>
             <p className="text-sm text-muted-foreground">
               共 {allUsers.length} 人 ｜ 買家 {buyers.length} ｜ 商戶 {merchants.length}
             </p>
           </div>
+          <Button size="sm" className="gold-gradient text-white border-0 gap-1.5" onClick={() => setNewUserOpen(true)}>
+            <UserPlus className="w-4 h-4" />新增會員
+          </Button>
         </div>
 
         {/* ── Email Reset Requests Panel ── */}
@@ -727,6 +746,102 @@ export default function AdminUsers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 新增會員 Dialog */}
+      <Dialog open={newUserOpen} onOpenChange={setNewUserOpen}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-amber-600" />新增會員
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>會員稱呼 *</Label>
+              <Input placeholder="例：王大明" value={newUserForm.name} onChange={(e) => setNewUserForm(f => ({ ...f, name: e.target.value }))} className="border-amber-200" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>登入手機</Label>
+              <Input placeholder="例：91234567" value={newUserForm.phone} onChange={(e) => setNewUserForm(f => ({ ...f, phone: e.target.value }))} className="border-amber-200" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>登入電郵</Label>
+              <Input type="email" placeholder="例：test@example.com" value={newUserForm.email} onChange={(e) => setNewUserForm(f => ({ ...f, email: e.target.value }))} className="border-amber-200" />
+              <p className="text-xs text-muted-foreground">手機或電郵至少填一項</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>密碼 *</Label>
+              <Input type="text" placeholder="初始密碼" value={newUserForm.password} onChange={(e) => setNewUserForm(f => ({ ...f, password: e.target.value }))} className="border-amber-200" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>會員等級</Label>
+                <Select value={newUserForm.memberLevel} onValueChange={(v) => setNewUserForm(f => ({ ...f, memberLevel: v as MemberLevel }))}>
+                  <SelectTrigger className="border-amber-200"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bronze">銅牌</SelectItem>
+                    <SelectItem value="silver">銀牌</SelectItem>
+                    <SelectItem value="gold">金牌</SelectItem>
+                    <SelectItem value="vip">VIP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>角色</Label>
+                <Select value={newUserForm.role} onValueChange={(v) => setNewUserForm(f => ({ ...f, role: v as "user" | "admin" }))}>
+                  <SelectTrigger className="border-amber-200"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">普通會員</SelectItem>
+                    <SelectItem value="admin">管理員</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-amber-800">開通商戶資格</Label>
+                <button
+                  type="button"
+                  onClick={() => setNewUserForm(f => ({ ...f, isMerchant: !f.isMerchant }))}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${newUserForm.isMerchant ? 'bg-amber-500' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${newUserForm.isMerchant ? 'translate-x-4' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              {newUserForm.isMerchant && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-amber-700">商戶名稱</Label>
+                  <Input placeholder="例：大明古幣店" value={newUserForm.merchantName} onChange={(e) => setNewUserForm(f => ({ ...f, merchantName: e.target.value }))} className="border-amber-200 h-8 text-sm" />
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewUserOpen(false)}>取消</Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5"
+              disabled={adminCreateUser.isPending}
+              onClick={() => {
+                if (!newUserForm.name.trim()) return toast.error("請填寫會員稱呼");
+                if (!newUserForm.password.trim()) return toast.error("請填寫密碼");
+                if (!newUserForm.phone.trim() && !newUserForm.email.trim()) return toast.error("請填寫手機或電郵");
+                adminCreateUser.mutate({
+                  name: newUserForm.name.trim(),
+                  phone: newUserForm.phone.trim() || undefined,
+                  email: newUserForm.email.trim() || undefined,
+                  password: newUserForm.password,
+                  memberLevel: newUserForm.memberLevel,
+                  role: newUserForm.role,
+                  isMerchant: newUserForm.isMerchant,
+                  merchantName: newUserForm.merchantName.trim() || undefined,
+                });
+              }}
+            >
+              {adminCreateUser.isPending ? "建立中…" : "建立帳號"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -878,6 +879,62 @@ export const appRouter = router({
         const result = await deleteUserAndData(input.userId);
         if (!result.success) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: result.error ?? '刪除失敗' });
         return { success: true };
+      }),
+
+    // Admin: create a new user account directly
+    adminCreateUser: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1).max(100),
+        phone: z.string().max(20).optional(),
+        email: z.string().email().optional(),
+        password: z.string().min(1).max(128),
+        memberLevel: z.enum(["bronze", "silver", "gold", "vip"]).default("bronze"),
+        role: z.enum(["user", "admin"]).default("user"),
+        isMerchant: z.boolean().default(false),
+        merchantName: z.string().max(100).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!input.phone && !input.email) throw new TRPCError({ code: 'BAD_REQUEST', message: '請提供手機或電郵' });
+        const identifier = input.phone ?? input.email!;
+        const openId = `local_${identifier}`;
+        const db = await (await import('./db')).getDb();
+        const { users: usersTable } = await import('../drizzle/schema');
+        const { eq } = await import('drizzle-orm');
+        // Check duplicate
+        const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.openId, openId)).limit(1);
+        if (existing.length > 0) throw new TRPCError({ code: 'CONFLICT', message: '該手機或電郵已有帳號' });
+        const hashedPassword = await bcrypt.hash(input.password, 10);
+        const [result] = await db.insert(usersTable).values({
+          openId,
+          name: input.name,
+          phone: input.phone ?? null,
+          email: input.email ?? null,
+          password: hashedPassword,
+          loginMethod: 'phone',
+          role: input.role,
+          memberLevel: input.memberLevel,
+        });
+        const newUserId = (result as { insertId: number }).insertId;
+        if (input.isMerchant) {
+          await getOrCreateSellerDeposit(newUserId);
+          if (input.merchantName) {
+            await createMerchantApplication({
+              userId: newUserId,
+              contactName: input.name,
+              merchantName: input.merchantName,
+              selfIntro: '',
+              whatsapp: input.phone ?? '',
+              yearsExperience: '0',
+              merchantIcon: null,
+              categories: '[]',
+              samplePhotos: '[]',
+              status: 'approved' as const,
+              adminNote: '管理員直接建立',
+            });
+          }
+        }
+        return { success: true, userId: newUserId };
       }),
 
     // Admin: list pending email reset requests
