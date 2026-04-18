@@ -64,6 +64,13 @@
       "when": 1776271313986,
       "tag": "0008_polite_ikaris",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1776491400000,
+      "tag": "0012_ensure_merchant_applications",
+      "breakpoints": true
     }
   ]
 }
