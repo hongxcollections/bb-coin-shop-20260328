@@ -2669,10 +2669,11 @@ export async function deductListingQuotaBulk(userId: number, count: number): Pro
   if (info.remainingQuota < count) {
     return { success: false, reason: `發佈次數不足（剩餘 ${info.remainingQuota}，需要 ${count}）` };
   }
-  // Single atomic UPDATE: remainingQuota = remainingQuota - count
-  await db.execute(
-    sql`UPDATE userSubscriptions SET remainingQuota = remainingQuota - ${count} WHERE id = ${info.subscriptionId} AND remainingQuota >= ${count}`
-  );
+  // Single atomic UPDATE using Drizzle ORM (handles table/column naming automatically)
+  // remainingQuota = remainingQuota - count, only if remainingQuota >= count
+  await db.update(userSubscriptions)
+    .set({ remainingQuota: sql`${userSubscriptions.remainingQuota} - ${count}` })
+    .where(and(eq(userSubscriptions.id, info.subscriptionId), gte(userSubscriptions.remainingQuota, count)));
   const newRemaining = info.remainingQuota - count;
   return { success: true, remaining: newRemaining };
 }
