@@ -1632,6 +1632,11 @@ export const appRouter = router({
         }
         if (auction.status !== 'draft') throw new TRPCError({ code: 'BAD_REQUEST', message: '此拍賣並非草稿狀態' });
         if (input.endTime <= new Date()) throw new TRPCError({ code: 'BAD_REQUEST', message: '結束時間必須為未來時間' });
+        // Check merchant active status (admin bypasses)
+        if (ctx.user.role !== 'admin') {
+          const listCheck = await canSellerList(ctx.user.id);
+          if (!listCheck.canList) throw new TRPCError({ code: 'FORBIDDEN', message: listCheck.reason ?? '商戶帳戶不可發佈拍賣' });
+        }
         const updateData: Record<string, unknown> = { status: 'active', endTime: input.endTime };
         if (input.title !== undefined) updateData.title = input.title;
         if (input.description !== undefined) updateData.description = input.description;
@@ -1654,6 +1659,11 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         if (input.endTime <= new Date()) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '結束時間必須為未來時間' });
+        }
+        // Check merchant active status (admin bypasses)
+        if (ctx.user.role !== 'admin') {
+          const listCheck = await canSellerList(ctx.user.id);
+          if (!listCheck.canList) throw new TRPCError({ code: 'FORBIDDEN', message: listCheck.reason ?? '商戶帳戶不可發佈拍賣' });
         }
         const results = await Promise.allSettled(
           input.ids.map(async (id) => {
