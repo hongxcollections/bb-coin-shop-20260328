@@ -526,6 +526,10 @@ export default function MerchantAuctions() {
 
   const openPublish = async (a: AuctionItem) => {
     if (!(await checkCanPublish())) return;
+    if (!a.images || a.images.length === 0) {
+      toast.error("請先上傳至少一幅圖片才能發佈");
+      return;
+    }
     setPublishTarget(a);
     setPublishEndTime(calcDefaultEndTime());
     setPublishOpen(true);
@@ -540,6 +544,12 @@ export default function MerchantAuctions() {
   const openBatchPublish = async () => {
     if (selectedDrafts.size === 0) { toast.error("請先選擇要發佈的草稿"); return; }
     if (!(await checkCanPublish())) return;
+    const noImageDrafts = draftAuctions.filter(a => selectedDrafts.has(a.id) && (!a.images || a.images.length === 0));
+    if (noImageDrafts.length > 0) {
+      const titles = noImageDrafts.map(a => `「${a.title}」`).join("、");
+      toast.error(`以下草稿尚未上傳圖片，請先上傳：${titles}`);
+      return;
+    }
     setBatchEndTime(calcDefaultEndTime());
     setBatchPublishOpen(true);
   };

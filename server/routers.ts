@@ -1673,6 +1673,9 @@ export const appRouter = router({
         }
         if (auction.status !== 'draft') throw new TRPCError({ code: 'BAD_REQUEST', message: '此拍賣並非草稿狀態' });
         if (input.endTime <= new Date()) throw new TRPCError({ code: 'BAD_REQUEST', message: '結束時間必須為未來時間' });
+        // Require at least one image
+        const images = await getAuctionImages(input.id);
+        if (images.length === 0) throw new TRPCError({ code: 'BAD_REQUEST', message: '請先上傳至少一幅圖片才能發佈' });
         // Check + deduct listing quota (admin bypasses)
         let remainingQuota: number | null = null;
         let unlimitedQuota = false;
@@ -1722,6 +1725,8 @@ export const appRouter = router({
             const auction = await getAuctionById(id);
             if (!auction || auction.status !== 'draft') return { id, skipped: true };
             if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') return { id, forbidden: true };
+            const imgs = await getAuctionImages(id);
+            if (imgs.length === 0) return { id, skipped: true, reason: 'no_image' };
             await updateAuction(id, { status: 'active', endTime: input.endTime });
             if (ctx.user.role !== 'admin') await deductListingQuota(ctx.user.id).catch(() => {});
             return { id, success: true };
