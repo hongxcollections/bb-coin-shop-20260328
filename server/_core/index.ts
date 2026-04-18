@@ -74,6 +74,20 @@ async function bootstrapMissingColumns() {
       console.log('[Bootstrap] Added remainingQuota to user_subscriptions');
     }
 
+    // merchantApplications: ensure all columns exist (production may be behind UAT)
+    if (!(await check('merchantApplications', 'contactName'))) {
+      await pool.execute(
+        'ALTER TABLE `merchantApplications` ADD COLUMN `contactName` varchar(100) NULL AFTER `userId`'
+      );
+      console.log('[Bootstrap] Added contactName to merchantApplications');
+    }
+    if (!(await check('merchantApplications', 'merchantIcon'))) {
+      await pool.execute(
+        'ALTER TABLE `merchantApplications` ADD COLUMN `merchantIcon` varchar(500) NULL AFTER `yearsExperience`'
+      );
+      console.log('[Bootstrap] Added merchantIcon to merchantApplications');
+    }
+
     // One-time repair: initialise remainingQuota for active subscriptions
     // that still have 0 because approveSubscription never set it.
     // Safe: no quota was ever properly deducted before this fix.
