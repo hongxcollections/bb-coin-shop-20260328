@@ -42,6 +42,8 @@ type Subscription = {
   planId: number;
   planName: string | null;
   memberLevel: string | null;
+  maxListings: number | null;
+  remainingQuota: number | null;
   billingCycle: string;
   status: string;
   startDate: Date | null;
@@ -410,6 +412,17 @@ export default function AdminSubscriptions() {
                               </div>
                               <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
                                 <p>計劃：{sub.planName ?? "未知"} | 週期：{sub.billingCycle === "yearly" ? "年繳" : "月繳"}</p>
+                                {sub.status === "active" && (
+                                  <p>
+                                    發佈限額結餘：
+                                    {(sub.maxListings ?? 0) === 0
+                                      ? <span className="text-green-600 font-medium">無限制</span>
+                                      : <span className={`font-medium ${(sub.remainingQuota ?? 0) <= 0 ? "text-red-600" : (sub.remainingQuota ?? 0) <= 5 ? "text-amber-600" : "text-blue-600"}`}>
+                                          {sub.remainingQuota ?? 0} / {sub.maxListings} 次
+                                        </span>
+                                    }
+                                  </p>
+                                )}
                                 <p>付款方式：{PAYMENT_METHODS.find(m => m.value === sub.paymentMethod)?.label ?? sub.paymentMethod ?? "未指定"}</p>
                                 {sub.paymentReference && <p>付款參考：{sub.paymentReference}</p>}
                                 <p>申請時間：{formatDate(sub.createdAt)}</p>

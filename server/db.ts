@@ -2034,6 +2034,8 @@ export async function getAllUserSubscriptions(statusFilter?: string) {
         planId: userSubscriptions.planId,
         planName: subscriptionPlans.name,
         memberLevel: subscriptionPlans.memberLevel,
+        maxListings: subscriptionPlans.maxListings,
+        remainingQuota: userSubscriptions.remainingQuota,
         billingCycle: userSubscriptions.billingCycle,
         status: userSubscriptions.status,
         startDate: userSubscriptions.startDate,
