@@ -742,8 +742,10 @@ export default function MerchantAuctions() {
                 <div className="flex-1">
                   <Label className="text-xs text-amber-700">結束前 X 分鐘觸發</Label>
                   <div className="flex items-center gap-1 mt-0.5">
-                    <Input type="number" min={0} max={60} value={form.antiSnipeMinutes}
-                      onChange={(e) => setForm((f) => ({ ...f, antiSnipeMinutes: Math.max(0, Math.min(60, parseInt(e.target.value) || 0)) }))}
+                    <Input type="number" min={0} max={60}
+                      value={isNaN(form.antiSnipeMinutes) ? "" : form.antiSnipeMinutes}
+                      onChange={(e) => setForm((f) => ({ ...f, antiSnipeMinutes: e.target.value === "" ? NaN : parseInt(e.target.value) }))}
+                      onBlur={() => setForm((f) => ({ ...f, antiSnipeMinutes: isNaN(f.antiSnipeMinutes) ? 0 : Math.min(60, Math.max(0, f.antiSnipeMinutes)) }))}
                       className="h-7 w-16 text-center text-xs border-amber-200" />
                     <span className="text-xs text-amber-600">分鐘</span>
                   </div>
@@ -751,8 +753,10 @@ export default function MerchantAuctions() {
                 <div className="flex-1">
                   <Label className="text-xs text-amber-700">每次延長 Y 分鐘</Label>
                   <div className="flex items-center gap-1 mt-0.5">
-                    <Input type="number" min={1} max={60} value={form.extendMinutes}
-                      onChange={(e) => setForm((f) => ({ ...f, extendMinutes: Math.max(1, Math.min(60, parseInt(e.target.value) || 1)) }))}
+                    <Input type="number" min={1} max={60}
+                      value={isNaN(form.extendMinutes) ? "" : form.extendMinutes}
+                      onChange={(e) => setForm((f) => ({ ...f, extendMinutes: e.target.value === "" ? NaN : parseInt(e.target.value) }))}
+                      onBlur={() => setForm((f) => ({ ...f, extendMinutes: isNaN(f.extendMinutes) || f.extendMinutes < 1 ? 1 : Math.min(60, f.extendMinutes) }))}
                       className="h-7 w-16 text-center text-xs border-amber-200" />
                     <span className="text-xs text-amber-600">分鐘</span>
                   </div>
