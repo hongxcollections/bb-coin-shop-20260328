@@ -274,6 +274,12 @@ export default function AuctionDetail() {
       setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 5600);
       return;
     }
+    if (amount < minBid) {
+      setBidMsgExiting(false);
+      setBidMessage({ type: "error", text: `❌ 最低出價 ${currencySymbol}${minBid.toLocaleString()}（${hasExistingBid ? `現價 + 每口加幅 ${currencySymbol}${bidIncrement}` : `起拍價`}）` });
+      setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 5600);
+      return;
+    }
     // 顯示確認彈窗
     setPendingBidAmount(amount);
     setShowBidConfirm(true);
@@ -496,15 +502,26 @@ export default function AuctionDetail() {
                     </div>
                   </div>
                   <div className="text-right space-y-1 relative">
-                    {/* Bid Message — floating pop-up above 出價次數 */}
+                    {/* Bid Message — floating pop-up above 出價次數, uses --popup-* theme */}
                     {bidMessage && (
-                      <div className={`absolute bottom-full right-0 mb-2 z-20 w-64 rounded-lg text-xs font-medium border shadow-lg overflow-hidden ${
-                        bidMessage.type === "success"
-                          ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                          : bidMessage.type === "info"
-                          ? "bg-blue-50 border-blue-200 text-blue-700 bid-processing-card"
-                          : "bg-red-50 border-red-200 text-red-700"
-                      } ${bidMsgExiting ? "bid-msg-exit" : "bid-msg-enter"}`}>
+                      <div
+                        className={`absolute bottom-full right-0 mb-2 z-20 w-64 text-xs font-medium border overflow-hidden ${
+                          bidMessage.type === "info" ? "bid-processing-card" : ""
+                        } ${bidMsgExiting ? "bid-msg-exit" : "bid-msg-enter"}`}
+                        style={{
+                          background: "var(--popup-bg)",
+                          color: "var(--popup-text)",
+                          borderColor: bidMessage.type === "success"
+                            ? "rgba(52,211,153,0.45)"
+                            : bidMessage.type === "error"
+                            ? "rgba(248,113,113,0.45)"
+                            : "var(--popup-border)",
+                          boxShadow: "var(--popup-shadow)",
+                          borderRadius: "var(--popup-radius)",
+                          borderWidth: "1px",
+                          borderStyle: "solid",
+                        }}
+                      >
                         <div className="px-3 py-2 flex items-center justify-between">
                           {bidMessage.type === "info" ? (
                             <span className="flex items-center gap-1.5">
@@ -517,11 +534,12 @@ export default function AuctionDetail() {
                               </span>
                             </span>
                           ) : (
-                            <span className="flex-1">{bidMessage.text}</span>
+                            <span className="flex-1" style={{ color: "var(--popup-text)" }}>{bidMessage.text}</span>
                           )}
                           <button
                             onClick={dismissBidMessage}
-                            className="ml-2 opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
+                            className="ml-2 opacity-40 hover:opacity-80 transition-opacity flex-shrink-0"
+                            style={{ color: "var(--popup-desc)" }}
                             aria-label="關閉"
                           >✕</button>
                         </div>
