@@ -2655,6 +2655,15 @@ export async function deductListingQuota(userId: number): Promise<{ success: boo
   return { success: true, remaining: newRemaining };
 }
 
+export async function adminSetSubscriptionQuota(subscriptionId: number, remainingQuota: number): Promise<{ success: boolean }> {
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+  await db.update(userSubscriptions)
+    .set({ remainingQuota })
+    .where(eq(userSubscriptions.id, subscriptionId));
+  return { success: true };
+}
+
 // ─── Commission Refund Requests ───────────────────────────────────────────────
 
 export async function createRefundRequest(data: {
