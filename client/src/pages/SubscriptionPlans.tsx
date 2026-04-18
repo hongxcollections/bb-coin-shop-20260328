@@ -347,7 +347,7 @@ export default function SubscriptionPlans() {
                     {/* Features */}
                     {plan.maxListings > 0 && (
                       <div className="text-xs text-center text-amber-700 mb-2">
-                        上架限制：{plan.maxListings} 件
+                        發佈限制：{plan.maxListings} 件
                       </div>
                     )}
                     {parseFloat(plan.commissionDiscount.toString()) > 0 && (

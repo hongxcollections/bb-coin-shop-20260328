@@ -511,7 +511,7 @@ export default function AdminSubscriptions() {
                               <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
                                 <p>月費：{formatCurrency(plan.monthlyPrice)} | 年費：{formatCurrency(plan.yearlyPrice)}</p>
                                 <p>
-                                  上架限制：{plan.maxListings === 0 ? "無限制" : `${plan.maxListings} 件`} |
+                                  發佈限制：{plan.maxListings === 0 ? "無限制" : `${plan.maxListings} 件`} |
                                   佣金折扣：{(parseFloat(plan.commissionDiscount.toString()) * 100).toFixed(2)}%
                                 </p>
                                 {plan.description && <p>{plan.description}</p>}
@@ -640,7 +640,7 @@ export default function AdminSubscriptions() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>上架數量限制</Label>
+                <Label>發佈數量限制</Label>
                 <Input
                   type="number"
                   value={planForm.maxListings}
