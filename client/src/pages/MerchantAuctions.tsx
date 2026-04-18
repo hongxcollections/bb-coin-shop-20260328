@@ -791,6 +791,19 @@ export default function MerchantAuctions() {
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
+              <div className="flex items-center gap-1.5 mb-1">
+                <Label>圖片</Label>
+                <span className="text-xs text-red-500 font-medium">（必須至少一幅）</span>
+                {uploadedImages.length + pendingImages.length === 0 && (
+                  <span className="text-xs text-red-400 ml-auto">⚠ 尚未上傳圖片</span>
+                )}
+              </div>
+              <ImageUploadZone
+                pendingImages={pendingImages} uploadedImages={uploadedImages}
+                onAddFiles={handleAddFiles} onRemovePending={handleRemovePending}
+                onRemoveUploaded={handleRemoveUploaded} isUploading={isUploading} />
+            </div>
+            <div>
               <Label>標題 *</Label>
               <Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="拍賣品名稱" />
             </div>
@@ -870,19 +883,6 @@ export default function MerchantAuctions() {
               </p>
             </div>
 
-            <div>
-              <div className="flex items-center gap-1.5 mb-1">
-                <Label>圖片</Label>
-                <span className="text-xs text-red-500 font-medium">（必須至少一幅）</span>
-                {uploadedImages.length + pendingImages.length === 0 && (
-                  <span className="text-xs text-red-400 ml-auto">⚠ 尚未上傳圖片</span>
-                )}
-              </div>
-              <ImageUploadZone
-                pendingImages={pendingImages} uploadedImages={uploadedImages}
-                onAddFiles={handleAddFiles} onRemovePending={handleRemovePending}
-                onRemoveUploaded={handleRemoveUploaded} isUploading={isUploading} />
-            </div>
             <div className="flex gap-2 justify-end pt-2">
               <Button variant="outline" onClick={closeForm}>取消</Button>
               <Button onClick={handleSubmit} disabled={isMutating} className="gold-gradient text-white border-0">
