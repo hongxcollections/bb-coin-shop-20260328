@@ -1260,7 +1260,7 @@ export const appRouter = router({
         const buffer = Buffer.from(input.base64, 'base64');
         const ext = input.filename.split('.').pop() || 'jpg';
         const key = `payment-proofs/${ctx.user.id}/${Date.now()}.${ext}`;
-        const url = await storagePut(key, buffer, `image/${ext}`);
+        const { url } = await storagePut(key, buffer, `image/${ext}`);
         return { url };
       }),
 
