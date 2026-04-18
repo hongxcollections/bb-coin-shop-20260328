@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
@@ -62,6 +63,9 @@ interface AuctionFormData {
   startingPrice: string;
   bidIncrement: number;
   currency: string;
+  antiSnipeEnabled: boolean;
+  antiSnipeMinutes: number;
+  extendMinutes: number;
 }
 
 const defaultForm: AuctionFormData = {
@@ -70,6 +74,9 @@ const defaultForm: AuctionFormData = {
   startingPrice: "",
   bidIncrement: 30,
   currency: "HKD",
+  antiSnipeEnabled: true,
+  antiSnipeMinutes: 3,
+  extendMinutes: 3,
 };
 
 type AuctionItem = {
@@ -84,6 +91,9 @@ type AuctionItem = {
   currency: string | null;
   highestBidderId: number | null;
   archived?: number | null;
+  antiSnipeEnabled?: number | null;
+  antiSnipeMinutes?: number | null;
+  extendMinutes?: number | null;
   images: Array<{ id?: number; imageUrl: string; displayOrder: number }>;
 };
 
@@ -228,6 +238,11 @@ function AuctionCard({
         <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
           起：{getCurrencySymbol(auction.currency ?? "HKD")}{Number(auction.startingPrice).toLocaleString()}
           {" · "}口：${auction.bidIncrement ?? 30}
+          {tab === "草稿" && (
+            (auction.antiSnipeEnabled ?? 1) === 1
+              ? <span className="ml-1 text-amber-500">🛡️{auction.antiSnipeMinutes ?? 3}+{auction.extendMinutes ?? 3}分</span>
+              : <span className="ml-1 text-gray-400">🛡️停用</span>
+          )}
         </p>
         {auction.endTime && tab !== "草稿" && (
           <p className="text-xs text-muted-foreground leading-snug">
@@ -455,6 +470,9 @@ export default function MerchantAuctions() {
       title: a.title, description: a.description ?? "",
       startingPrice: String(a.startingPrice),
       bidIncrement: a.bidIncrement ?? 30, currency: a.currency ?? "HKD",
+      antiSnipeEnabled: (a.antiSnipeEnabled ?? 1) === 1,
+      antiSnipeMinutes: a.antiSnipeMinutes ?? 3,
+      extendMinutes: a.extendMinutes ?? 3,
     });
     setUploadedImages((a.images ?? []).map((img) => ({ url: img.imageUrl, displayOrder: img.displayOrder, imageId: img.id })));
     setPendingImages([]);
@@ -463,10 +481,13 @@ export default function MerchantAuctions() {
 
   const handleSubmit = () => {
     if (!form.title.trim() || !form.startingPrice) { toast.error("請填寫標題和起拍價"); return; }
+    const antiSnipeEnabled = form.antiSnipeEnabled ? 1 : 0;
+    const antiSnipeMinutes = form.antiSnipeMinutes;
+    const extendMinutes = form.extendMinutes;
     if (editId) {
-      updateMutation.mutate({ id: editId, title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never });
+      updateMutation.mutate({ id: editId, title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes });
     } else {
-      createMutation.mutate({ title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never });
+      createMutation.mutate({ title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes });
     }
   };
 
@@ -570,7 +591,7 @@ export default function MerchantAuctions() {
           <Button variant="outline" size="sm" onClick={() => { refetchActive(); refetchDrafts(); refetchArchived(); }} className="h-7 px-2 text-xs gap-1">
             <RefreshCw className="w-3 h-3" />刷新
           </Button>
-          <Button size="sm" className="gold-gradient text-white border-0 h-7 px-2.5 text-xs gap-1" onClick={() => { setEditId(null); setForm({ ...defaultForm, startingPrice: String(merchantSettings?.defaultStartingPrice ?? 0), bidIncrement: merchantSettings?.defaultBidIncrement ?? 30 }); setPendingImages([]); setUploadedImages([]); setFormOpen(true); }}>
+          <Button size="sm" className="gold-gradient text-white border-0 h-7 px-2.5 text-xs gap-1" onClick={() => { setEditId(null); setForm({ ...defaultForm, startingPrice: String(merchantSettings?.defaultStartingPrice ?? 0), bidIncrement: merchantSettings?.defaultBidIncrement ?? 30, antiSnipeEnabled: (merchantSettings?.defaultAntiSnipeEnabled ?? 1) === 1, antiSnipeMinutes: merchantSettings?.defaultAntiSnipeMinutes ?? 3, extendMinutes: merchantSettings?.defaultExtendMinutes ?? 3 }); setPendingImages([]); setUploadedImages([]); setFormOpen(true); }}>
             <Plus className="w-3.5 h-3.5" />建立草稿
           </Button>
         </div>
@@ -702,6 +723,48 @@ export default function MerchantAuctions() {
                 </Select>
               </div>
             </div>
+            {/* 反狙擊延時設定 */}
+            <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-amber-700">🛡️ 反狙擊延時</p>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs ${form.antiSnipeEnabled ? 'text-emerald-600' : 'text-gray-400'}`}>
+                    {form.antiSnipeEnabled ? '啟用' : '停用'}
+                  </span>
+                  <Switch
+                    checked={form.antiSnipeEnabled}
+                    onCheckedChange={(v) => setForm((f) => ({ ...f, antiSnipeEnabled: v }))}
+                    className="data-[state=checked]:bg-amber-500"
+                  />
+                </div>
+              </div>
+              <div className={`flex gap-3 transition-opacity ${form.antiSnipeEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+                <div className="flex-1">
+                  <Label className="text-xs text-amber-700">結束前 X 分鐘觸發</Label>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <Input type="number" min={0} max={60} value={form.antiSnipeMinutes}
+                      onChange={(e) => setForm((f) => ({ ...f, antiSnipeMinutes: Math.max(0, Math.min(60, parseInt(e.target.value) || 0)) }))}
+                      className="h-7 w-16 text-center text-xs border-amber-200" />
+                    <span className="text-xs text-amber-600">分鐘</span>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <Label className="text-xs text-amber-700">每次延長 Y 分鐘</Label>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <Input type="number" min={1} max={60} value={form.extendMinutes}
+                      onChange={(e) => setForm((f) => ({ ...f, extendMinutes: Math.max(1, Math.min(60, parseInt(e.target.value) || 1)) }))}
+                      className="h-7 w-16 text-center text-xs border-amber-200" />
+                    <span className="text-xs text-amber-600">分鐘</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-amber-500">
+                {form.antiSnipeEnabled
+                  ? (form.antiSnipeMinutes === 0 ? '⚠️ X 設為 0 即不觸發' : `結束前 ${form.antiSnipeMinutes} 分鐘內有出價，自動延長 ${form.extendMinutes} 分鐘`)
+                  : '已停用，出價不會觸發延時'}
+              </p>
+            </div>
+
             <div>
               <Label>圖片</Label>
               <ImageUploadZone

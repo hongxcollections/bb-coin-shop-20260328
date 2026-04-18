@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag } from "lucide-react";
+import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag, ShieldCheck } from "lucide-react";
 
 const BID_INCREMENT_OPTIONS = [30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
 
@@ -32,6 +33,9 @@ export default function MerchantSettings() {
   const [endTime, setEndTime] = useState<string>("23:00");
   const [startingPrice, setStartingPrice] = useState<string>("0");
   const [bidIncrement, setBidIncrement] = useState<string>("30");
+  const [antiSnipeEnabled, setAntiSnipeEnabled] = useState(true);
+  const [antiSnipeMinutes, setAntiSnipeMinutes] = useState<string>("3");
+  const [extendMinutes, setExtendMinutes] = useState<string>("3");
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
@@ -40,6 +44,9 @@ export default function MerchantSettings() {
       setEndTime(settings.defaultEndTime);
       setStartingPrice(String(settings.defaultStartingPrice ?? 0));
       setBidIncrement(String(settings.defaultBidIncrement ?? 30));
+      setAntiSnipeEnabled((settings.defaultAntiSnipeEnabled ?? 1) === 1);
+      setAntiSnipeMinutes(String(settings.defaultAntiSnipeMinutes ?? 3));
+      setExtendMinutes(String(settings.defaultExtendMinutes ?? 3));
       setInitialized(true);
     }
   }, [settings, initialized]);
@@ -82,7 +89,11 @@ export default function MerchantSettings() {
       toast.error("加幅預值請填 1 或以上的整數");
       return;
     }
-    updateMutation.mutate({ defaultEndDayOffset: offset, defaultEndTime: endTime, defaultStartingPrice: sp, defaultBidIncrement: bi });
+    const asm = parseInt(antiSnipeMinutes, 10);
+    const exm = parseInt(extendMinutes, 10);
+    if (isNaN(asm) || asm < 0 || asm > 60) { toast.error("反狙擊觸發時間請填 0–60 分鐘"); return; }
+    if (isNaN(exm) || exm < 1 || exm > 60) { toast.error("延長時間請填 1–60 分鐘"); return; }
+    updateMutation.mutate({ defaultEndDayOffset: offset, defaultEndTime: endTime, defaultStartingPrice: sp, defaultBidIncrement: bi, defaultAntiSnipeEnabled: antiSnipeEnabled ? 1 : 0, defaultAntiSnipeMinutes: asm, defaultExtendMinutes: exm });
   };
 
   if (!isAuthenticated) {
@@ -184,6 +195,76 @@ export default function MerchantSettings() {
                     {updateMutation.isPending
                       ? <Loader2 className="w-4 h-4 animate-spin" />
                       : <Save className="w-4 h-4" />}
+                    儲存設定
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 反狙擊延時預設值卡片 */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-amber-500" />
+              預設反狙擊延時
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {isLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground py-4">
+                <Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">載入中…</span>
+              </div>
+            ) : (
+              <>
+                {/* 開關 */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>預設啟用反狙擊延時</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">新增草稿時自動套用此設定</p>
+                  </div>
+                  <Switch
+                    checked={antiSnipeEnabled}
+                    onCheckedChange={setAntiSnipeEnabled}
+                    className="data-[state=checked]:bg-amber-500"
+                  />
+                </div>
+                {/* X / Y */}
+                <div className={`flex gap-4 transition-opacity ${antiSnipeEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs text-amber-700">結束前 X 分鐘觸發（X）</Label>
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number" min={0} max={60}
+                        value={antiSnipeMinutes}
+                        onChange={(e) => setAntiSnipeMinutes(String(Math.max(0, Math.min(60, parseInt(e.target.value) || 0))))}
+                        className="h-8 w-20 text-center border-amber-200"
+                      />
+                      <span className="text-xs text-amber-600">分鐘</span>
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs text-amber-700">每次延長時間（Y）</Label>
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number" min={1} max={60}
+                        value={extendMinutes}
+                        onChange={(e) => setExtendMinutes(String(Math.max(1, Math.min(60, parseInt(e.target.value) || 1))))}
+                        className="h-8 w-20 text-center border-amber-200"
+                      />
+                      <span className="text-xs text-amber-600">分鐘</span>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-amber-500">
+                  {antiSnipeEnabled
+                    ? (parseInt(antiSnipeMinutes) === 0 ? '⚠️ X 設為 0 即不觸發延時' : `結束前 ${antiSnipeMinutes} 分鐘內有出價，自動延長 ${extendMinutes} 分鐘`)
+                    : '預設停用，新增草稿時反狙擊延時為關閉'}
+                </p>
+                <div className="flex justify-end pt-1">
+                  <Button onClick={handleSave} disabled={updateMutation.isPending} className="gold-gradient text-white border-0 gap-1.5">
+                    {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     儲存設定
                   </Button>
                 </div>

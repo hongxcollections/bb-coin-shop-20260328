@@ -1424,6 +1424,9 @@ export const appRouter = router({
         startingPrice: z.number().min(0),
         bidIncrement: z.number().int().min(30).max(5000).default(30),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).default('HKD'),
+        antiSnipeEnabled: z.number().int().min(0).max(1).default(1),
+        antiSnipeMinutes: z.number().int().min(0).max(60).default(3),
+        extendMinutes: z.number().int().min(1).max(60).default(3),
       }))
       .mutation(async ({ input, ctx }) => {
         const app = await getMerchantApplicationByUser(ctx.user.id);
@@ -1440,6 +1443,9 @@ export const appRouter = router({
           bidIncrement: input.bidIncrement,
           currency: input.currency,
           createdBy: ctx.user.id,
+          antiSnipeEnabled: input.antiSnipeEnabled,
+          antiSnipeMinutes: input.antiSnipeMinutes,
+          extendMinutes: input.extendMinutes,
         });
         return result;
       }),
@@ -1489,6 +1495,9 @@ export const appRouter = router({
         startingPrice: z.number().min(0).optional(),
         bidIncrement: z.number().int().min(30).max(5000).optional(),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).optional(),
+        antiSnipeEnabled: z.number().int().min(0).max(1).optional(),
+        antiSnipeMinutes: z.number().int().min(0).max(60).optional(),
+        extendMinutes: z.number().int().min(1).max(60).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const auction = await getAuctionById(input.id);
@@ -1508,6 +1517,9 @@ export const appRouter = router({
         }
         if (input.bidIncrement !== undefined) updateData.bidIncrement = input.bidIncrement;
         if (input.currency !== undefined) updateData.currency = input.currency;
+        if (input.antiSnipeEnabled !== undefined) updateData.antiSnipeEnabled = input.antiSnipeEnabled;
+        if (input.antiSnipeMinutes !== undefined) updateData.antiSnipeMinutes = input.antiSnipeMinutes;
+        if (input.extendMinutes !== undefined) updateData.extendMinutes = input.extendMinutes;
         await updateAuction(input.id, updateData);
         return { success: true };
       }),
@@ -1734,9 +1746,12 @@ export const appRouter = router({
         defaultEndTime: z.string().regex(/^\d{2}:\d{2}$/, '時間格式須為 HH:MM'),
         defaultStartingPrice: z.number().min(0),
         defaultBidIncrement: z.number().int().min(1),
+        defaultAntiSnipeEnabled: z.number().int().min(0).max(1),
+        defaultAntiSnipeMinutes: z.number().int().min(0).max(60),
+        defaultExtendMinutes: z.number().int().min(1).max(60),
       }))
       .mutation(async ({ input, ctx }) => {
-        await upsertMerchantSettings(ctx.user.id, input.defaultEndDayOffset, input.defaultEndTime, input.defaultStartingPrice, input.defaultBidIncrement);
+        await upsertMerchantSettings(ctx.user.id, input.defaultEndDayOffset, input.defaultEndTime, input.defaultStartingPrice, input.defaultBidIncrement, input.defaultAntiSnipeEnabled, input.defaultAntiSnipeMinutes, input.defaultExtendMinutes);
         return { success: true };
       }),
   }),

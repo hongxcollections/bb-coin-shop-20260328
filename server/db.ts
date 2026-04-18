@@ -2360,6 +2360,9 @@ async function ensureMerchantSettingsTable() {
         defaultEndTime VARCHAR(5) NOT NULL DEFAULT '23:00',
         defaultStartingPrice DECIMAL(10,2) NOT NULL DEFAULT 0,
         defaultBidIncrement INT NOT NULL DEFAULT 30,
+        defaultAntiSnipeEnabled INT NOT NULL DEFAULT 1,
+        defaultAntiSnipeMinutes INT NOT NULL DEFAULT 3,
+        defaultExtendMinutes INT NOT NULL DEFAULT 3,
         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
@@ -2394,18 +2397,37 @@ async function ensureMerchantSettingsTable() {
           ADD COLUMN defaultBidIncrement INT NOT NULL DEFAULT 30
       `);
     }
+    // Add antiSnipe default columns if missing
+    for (const [colName, colDef] of [
+      ['defaultAntiSnipeEnabled', 'INT NOT NULL DEFAULT 1'],
+      ['defaultAntiSnipeMinutes', 'INT NOT NULL DEFAULT 3'],
+      ['defaultExtendMinutes', 'INT NOT NULL DEFAULT 3'],
+    ] as [string, string][]) {
+      const chk = await db.execute(sql`
+        SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'merchant_settings'
+          AND COLUMN_NAME = ${colName}
+      `);
+      const chkRows = chk as unknown as [Array<Record<string, unknown>>, unknown];
+      const chkRow = Array.isArray(chkRows[0]) ? chkRows[0][0] : (chkRows as unknown as Array<Record<string, unknown>>)[0];
+      if (chkRow && Number(chkRow.cnt) === 0) {
+        await db.execute(sql.raw(`ALTER TABLE merchant_settings ADD COLUMN ${colName} ${colDef}`));
+      }
+    }
     _merchantSettingsTableChecked = true;
   } catch (error) {
     console.error('[Database] Failed to ensure merchant_settings table:', error);
   }
 }
 
-export async function getMerchantSettings(userId: number): Promise<{ defaultEndDayOffset: number; defaultEndTime: string; defaultStartingPrice: number; defaultBidIncrement: number }> {
+const MERCHANT_SETTINGS_DEFAULTS = { defaultEndDayOffset: 7, defaultEndTime: '23:00', defaultStartingPrice: 0, defaultBidIncrement: 30, defaultAntiSnipeEnabled: 1, defaultAntiSnipeMinutes: 3, defaultExtendMinutes: 3 };
+export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
-  if (!db) return { defaultEndDayOffset: 7, defaultEndTime: '23:00', defaultStartingPrice: 0, defaultBidIncrement: 30 };
+  if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     // Drizzle MySQL execute() returns [RowDataPacket[], FieldPacket[]] tuple
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     // 兼容兩種格式：tuple[0] 是 rows 陣列，或直接是 rows 陣列
@@ -2421,27 +2443,33 @@ export async function getMerchantSettings(userId: number): Promise<{ defaultEndD
         defaultEndTime: String(row.defaultEndTime ?? '23:00'),
         defaultStartingPrice: Number(row.defaultStartingPrice ?? 0),
         defaultBidIncrement: Number(row.defaultBidIncrement ?? 30),
+        defaultAntiSnipeEnabled: Number(row.defaultAntiSnipeEnabled ?? 1),
+        defaultAntiSnipeMinutes: Number(row.defaultAntiSnipeMinutes ?? 3),
+        defaultExtendMinutes: Number(row.defaultExtendMinutes ?? 3),
       };
     }
-    return { defaultEndDayOffset: 7, defaultEndTime: '23:00', defaultStartingPrice: 0, defaultBidIncrement: 30 };
+    return { ...MERCHANT_SETTINGS_DEFAULTS };
   } catch (error) {
     console.error('[Database] getMerchantSettings error:', error);
-    return { defaultEndDayOffset: 7, defaultEndTime: '23:00', defaultStartingPrice: 0, defaultBidIncrement: 30 };
+    return { ...MERCHANT_SETTINGS_DEFAULTS };
   }
 }
 
-export async function upsertMerchantSettings(userId: number, defaultEndDayOffset: number, defaultEndTime: string, defaultStartingPrice: number, defaultBidIncrement: number): Promise<void> {
+export async function upsertMerchantSettings(userId: number, defaultEndDayOffset: number, defaultEndTime: string, defaultStartingPrice: number, defaultBidIncrement: number, defaultAntiSnipeEnabled: number, defaultAntiSnipeMinutes: number, defaultExtendMinutes: number): Promise<void> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
   await db.execute(sql`
-    INSERT INTO merchant_settings (userId, defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement)
-    VALUES (${userId}, ${defaultEndDayOffset}, ${defaultEndTime}, ${defaultStartingPrice}, ${defaultBidIncrement})
+    INSERT INTO merchant_settings (userId, defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes)
+    VALUES (${userId}, ${defaultEndDayOffset}, ${defaultEndTime}, ${defaultStartingPrice}, ${defaultBidIncrement}, ${defaultAntiSnipeEnabled}, ${defaultAntiSnipeMinutes}, ${defaultExtendMinutes})
     ON DUPLICATE KEY UPDATE
       defaultEndDayOffset = ${defaultEndDayOffset},
       defaultEndTime = ${defaultEndTime},
       defaultStartingPrice = ${defaultStartingPrice},
       defaultBidIncrement = ${defaultBidIncrement},
+      defaultAntiSnipeEnabled = ${defaultAntiSnipeEnabled},
+      defaultAntiSnipeMinutes = ${defaultAntiSnipeMinutes},
+      defaultExtendMinutes = ${defaultExtendMinutes},
       updatedAt = CURRENT_TIMESTAMP
   `);
 }
