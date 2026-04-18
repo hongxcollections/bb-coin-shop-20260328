@@ -35,7 +35,7 @@ export default function AdminNotifications() {
 
 FPS 轉數快：請轉帳至 [電話號碼/電郵]，並備注拍賣編號。
 八達通：請到店拍打八達通付款。
-微信支付 / 支付寶 / BOCPay / Visa：請到店或聯絡賣家安排。`;
+微信支付 / 支付寶 / BOCPay / Visa：請到店或聯絡商戶安排。`;
 
   const DEFAULT_DELIVERY = `交收安排：
 1. 建議順豐到付（買家承擔運費）

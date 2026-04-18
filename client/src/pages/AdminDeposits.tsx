@@ -263,9 +263,9 @@ export default function AdminDeposits() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-xl font-bold text-amber-900 flex items-center gap-2">
-              <Wallet className="w-5 h-5" /> 賣家保證金管理
+              <Wallet className="w-5 h-5" /> 商戶保證金管理
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">管理賣家保證金餘額、佣金率及交易記錄</p>
+            <p className="text-sm text-muted-foreground mt-1">管理商戶保證金餘額、佣金率及交易記錄</p>
           </div>
           <div className="flex gap-2">
             <Link href="/admin/refund-requests">
@@ -285,12 +285,12 @@ export default function AdminDeposits() {
             <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="gold-gradient text-white border-0">
-                  <Plus className="w-4 h-4 mr-1" /> 新增賣家
+                  <Plus className="w-4 h-4 mr-1" /> 新增商戶
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>新增賣家保證金帳戶</DialogTitle>
+                  <DialogTitle>新增商戶保證金帳戶</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 pt-4">
                   <div className="space-y-2">
@@ -321,7 +321,7 @@ export default function AdminDeposits() {
               <div className="text-sm text-blue-800">
                 <p className="font-semibold mb-1">保證金機制說明</p>
                 <p className="text-blue-700">
-                  賣家需繳納保證金才能上架商品。拍賣成交後，系統會根據佣金率從保證金中扣除佣金。
+                  商戶需繳納保證金才能上架商品。拍賣成交後，系統會根據佣金率從保證金中扣除佣金。
                   管理員可手動充值、扣除、退還或調整保證金餘額。
                 </p>
               </div>
@@ -334,13 +334,13 @@ export default function AdminDeposits() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <DollarSign className="w-4 h-4 text-amber-600" />
-              賣家保證金列表
+              商戶保證金列表
             </CardTitle>
-            <CardDescription>共 {deposits?.length ?? 0} 位賣家</CardDescription>
+            <CardDescription>共 {deposits?.length ?? 0} 位商戶</CardDescription>
           </CardHeader>
           <CardContent>
             {!deposits || deposits.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">尚無賣家保證金記錄</p>
+              <p className="text-center text-muted-foreground py-8">尚無商戶保證金記錄</p>
             ) : (
               <div className="space-y-3">
                 {(deposits as DepositRow[]).map((deposit) => {
@@ -492,7 +492,7 @@ export default function AdminDeposits() {
                   <div className="flex items-center justify-between p-3 rounded-lg border border-amber-200 bg-amber-50/50">
                     <div>
                       <Label className="text-sm font-medium">帳戶狀態</Label>
-                      <p className="text-xs text-muted-foreground">停用後賣家無法上架商品</p>
+                      <p className="text-xs text-muted-foreground">停用後商戶無法上架商品</p>
                     </div>
                     <Switch
                       checked={settingsIsActive}

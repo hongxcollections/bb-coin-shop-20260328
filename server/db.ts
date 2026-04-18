@@ -1696,7 +1696,7 @@ export async function canSellerList(userId: number): Promise<{ canList: boolean;
     if (!deposit) return { canList: false, reason: '無法取得保證金記錄' };
 
     if (!deposit.isActive) {
-      return { canList: false, reason: '賣家帳戶已被停用', balance: parseFloat(deposit.balance.toString()), required: parseFloat(deposit.requiredDeposit.toString()) };
+      return { canList: false, reason: '商戶帳戶已被停用', balance: parseFloat(deposit.balance.toString()), required: parseFloat(deposit.requiredDeposit.toString()) };
     }
 
     const balance = parseFloat(deposit.balance.toString());

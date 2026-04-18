@@ -41,7 +41,7 @@ export default function Terms() {
           <section>
             <h2 className="text-xl font-semibold mb-3">5. 付款與交收</h2>
             <p>
-              得標後，買家須在指定時間內完成付款。具體付款方式和交收安排將由賣家另行通知。
+              得標後，買家須在指定時間內完成付款。具體付款方式和交收安排將由商戶另行通知。
             </p>
           </section>
 

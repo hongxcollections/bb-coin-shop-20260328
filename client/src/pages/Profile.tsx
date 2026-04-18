@@ -349,7 +349,7 @@ export default function Profile() {
             </div>
             <div className="flex items-start gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
               <EyeOff className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-              <span>匿名出價時，競標歷史將顯示「🕵️ 匿名買家」。管理員仍可查看真實身份。得標後賣家將以真實資料聯絡您。</span>
+              <span>匿名出價時，競標歷史將顯示「🕵️ 匿名買家」。管理員仍可查看真實身份。得標後商戶將以真實資料聯絡您。</span>
             </div>
           </CardContent>
         </Card>
