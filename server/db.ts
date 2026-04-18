@@ -2635,12 +2635,12 @@ export async function getListingQuotaInfo(userId: number): Promise<{
  * Deduct 1 listing quota from the merchant's active subscription.
  * Returns false if no quota available (subscription expired or quota exhausted).
  */
-export async function deductListingQuota(userId: number): Promise<{ success: boolean; remaining?: number; reason?: string }> {
+export async function deductListingQuota(userId: number): Promise<{ success: boolean; remaining?: number; unlimited?: boolean; reason?: string }> {
   const db = await getDb();
   if (!db) return { success: false, reason: '資料庫不可用' };
   const info = await getListingQuotaInfo(userId);
   if (!info) return { success: false, reason: '您尚未訂閱月費計劃，請先訂閱後才可發佈拍賣' };
-  if (info.unlimited) return { success: true }; // maxListings = 0 = unlimited
+  if (info.unlimited) return { success: true, unlimited: true }; // maxListings = 0 = unlimited
 
   if (info.remainingQuota <= 0) {
     return { success: false, reason: `發佈次數已用盡（訂閱方案：${info.planName}）` };

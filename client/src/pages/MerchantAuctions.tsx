@@ -396,8 +396,14 @@ export default function MerchantAuctions() {
   });
 
   const publishMutation = trpc.merchants.publishDraft.useMutation({
-    onSuccess: () => {
-      toast.success("拍賣已發佈！");
+    onSuccess: (data) => {
+      let msg = "拍賣已發佈！";
+      if (data.unlimitedQuota) {
+        msg += "　發佈次數：無限制";
+      } else if (data.remainingQuota !== null && data.remainingQuota !== undefined) {
+        msg += `　發佈額餘數：${data.remainingQuota} 次`;
+      }
+      toast.success(msg);
       setPublishOpen(false);
       refetchDrafts(); refetchActive();
     },
@@ -406,9 +412,14 @@ export default function MerchantAuctions() {
 
   const batchPublishMutation = trpc.merchants.batchPublishDrafts.useMutation({
     onSuccess: (data) => {
-      const msg = data.skipped > 0
+      let msg = data.skipped > 0
         ? `成功發佈 ${data.succeeded} 個，略過 ${data.skipped} 個`
         : `成功發佈 ${data.succeeded} 個拍賣！`;
+      if (data.unlimitedQuota) {
+        msg += "　發佈次數：無限制";
+      } else if (data.remainingQuota !== null && data.remainingQuota !== undefined) {
+        msg += `　發佈額餘數：${data.remainingQuota} 次`;
+      }
       toast.success(msg);
       setBatchPublishOpen(false);
       setSelectedDrafts(new Set());

@@ -1674,9 +1674,13 @@ export const appRouter = router({
         if (auction.status !== 'draft') throw new TRPCError({ code: 'BAD_REQUEST', message: '此拍賣並非草稿狀態' });
         if (input.endTime <= new Date()) throw new TRPCError({ code: 'BAD_REQUEST', message: '結束時間必須為未來時間' });
         // Check + deduct listing quota (admin bypasses)
+        let remainingQuota: number | null = null;
+        let unlimitedQuota = false;
         if (ctx.user.role !== 'admin') {
           const quotaResult = await deductListingQuota(ctx.user.id);
           if (!quotaResult.success) throw new TRPCError({ code: 'FORBIDDEN', message: quotaResult.reason ?? '發佈次數不足' });
+          if (quotaResult.remaining !== undefined) remainingQuota = quotaResult.remaining;
+          if (quotaResult.unlimited) unlimitedQuota = true;
         }
         const updateData: Record<string, unknown> = { status: 'active', endTime: input.endTime };
         if (input.title !== undefined) updateData.title = input.title;
@@ -1688,7 +1692,7 @@ export const appRouter = router({
         if (input.bidIncrement !== undefined) updateData.bidIncrement = input.bidIncrement;
         if (input.currency !== undefined) updateData.currency = input.currency;
         await updateAuction(input.id, updateData);
-        return { success: true };
+        return { success: true, remainingQuota, unlimitedQuota };
       }),
 
     /** 商戶批量發佈草稿（同一結束時間） */
@@ -1725,7 +1729,17 @@ export const appRouter = router({
         );
         const succeeded = results.filter(r => r.status === 'fulfilled' && (r.value as { success?: boolean }).success).length;
         const skipped = results.filter(r => r.status === 'fulfilled' && (r.value as { skipped?: boolean }).skipped).length;
-        return { succeeded, skipped, total: input.ids.length };
+        // Return remaining quota after all deductions
+        let remainingQuota: number | null = null;
+        let unlimitedQuota = false;
+        if (ctx.user.role !== 'admin') {
+          const qi = await getListingQuotaInfo(ctx.user.id);
+          if (qi) {
+            unlimitedQuota = qi.unlimited;
+            if (!qi.unlimited) remainingQuota = qi.remainingQuota;
+          }
+        }
+        return { succeeded, skipped, total: input.ids.length, remainingQuota, unlimitedQuota };
       }),
 
     /** 商戶封存已結束的拍賣 */
