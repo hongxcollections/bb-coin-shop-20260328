@@ -329,7 +329,7 @@ export default function MerchantAuctions() {
   const [batchEndTime, setBatchEndTime] = useState("");
 
   const { data: merchantSettings } = trpc.merchants.getSettings.useQuery(undefined, { enabled: isAuthenticated });
-  const { data: canListData, refetch: refetchCanList } = trpc.sellerDeposits.canList.useQuery(undefined, { enabled: isAuthenticated, staleTime: 0, refetchOnWindowFocus: true });
+  const { refetch: refetchMyDeposit } = trpc.sellerDeposits.myDeposit.useQuery(undefined, { enabled: isAuthenticated, staleTime: 0, refetchOnWindowFocus: true });
   const { data: myAuctions, isLoading: loadingActive, refetch: refetchActive } = trpc.merchants.myAuctions.useQuery();
   const { data: myDrafts, isLoading: loadingDrafts, refetch: refetchDrafts } = trpc.merchants.myDrafts.useQuery();
   const { data: myArchived, isLoading: loadingArchived, refetch: refetchArchived } = trpc.merchants.myArchived.useQuery();
@@ -505,8 +505,8 @@ export default function MerchantAuctions() {
   };
 
   const checkCanPublish = async (): Promise<boolean> => {
-    const { data: fresh } = await refetchCanList();
-    if (fresh && !fresh.canList) {
+    const { data: fresh } = await refetchMyDeposit();
+    if (fresh && fresh.isActive === false) {
       toast.error("商戶暫已被停用，請聯繫客服了解情況");
       return false;
     }
