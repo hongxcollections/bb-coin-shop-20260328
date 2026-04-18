@@ -482,8 +482,8 @@ export default function MerchantAuctions() {
   const handleSubmit = () => {
     if (!form.title.trim() || !form.startingPrice) { toast.error("請填寫標題和起拍價"); return; }
     const antiSnipeEnabled = form.antiSnipeEnabled ? 1 : 0;
-    const antiSnipeMinutes = form.antiSnipeMinutes;
-    const extendMinutes = form.extendMinutes;
+    const antiSnipeMinutes = isNaN(form.antiSnipeMinutes) ? 0 : form.antiSnipeMinutes;
+    const extendMinutes = isNaN(form.extendMinutes) || form.extendMinutes < 1 ? 1 : form.extendMinutes;
     if (editId) {
       updateMutation.mutate({ id: editId, title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes });
     } else {
@@ -764,7 +764,9 @@ export default function MerchantAuctions() {
               </div>
               <p className="text-xs text-amber-500">
                 {form.antiSnipeEnabled
-                  ? (form.antiSnipeMinutes === 0 ? '⚠️ X 設為 0 即不觸發' : `結束前 ${form.antiSnipeMinutes} 分鐘內有出價，自動延長 ${form.extendMinutes} 分鐘`)
+                  ? (isNaN(form.antiSnipeMinutes) || form.antiSnipeMinutes === 0
+                      ? '⚠️ X 設為 0 即不觸發'
+                      : `結束前 ${form.antiSnipeMinutes} 分鐘內有出價，自動延長 ${isNaN(form.extendMinutes) ? 1 : form.extendMinutes} 分鐘`)
                   : '已停用，出價不會觸發延時'}
               </p>
             </div>
