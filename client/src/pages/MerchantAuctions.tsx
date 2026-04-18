@@ -493,6 +493,8 @@ export default function MerchantAuctions() {
 
   const handleSubmit = () => {
     if (!form.title.trim() || !form.startingPrice) { toast.error("請填寫標題和起拍價"); return; }
+    const totalImages = uploadedImages.length + pendingImages.length;
+    if (totalImages === 0) { toast.error("請上傳至少一幅圖片"); return; }
     const antiSnipeEnabled = form.antiSnipeEnabled ? 1 : 0;
     const antiSnipeMinutes = isNaN(form.antiSnipeMinutes) ? 0 : form.antiSnipeMinutes;
     const extendMinutes = isNaN(form.extendMinutes) || form.extendMinutes < 1 ? 1 : form.extendMinutes;
@@ -805,7 +807,13 @@ export default function MerchantAuctions() {
             </div>
 
             <div>
-              <Label>圖片</Label>
+              <div className="flex items-center gap-1.5 mb-1">
+                <Label>圖片</Label>
+                <span className="text-xs text-red-500 font-medium">（必須至少一幅）</span>
+                {uploadedImages.length + pendingImages.length === 0 && (
+                  <span className="text-xs text-red-400 ml-auto">⚠ 尚未上傳圖片</span>
+                )}
+              </div>
               <ImageUploadZone
                 pendingImages={pendingImages} uploadedImages={uploadedImages}
                 onAddFiles={handleAddFiles} onRemovePending={handleRemovePending}
