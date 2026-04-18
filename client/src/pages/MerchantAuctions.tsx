@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import {
   Plus, Pencil, Trash2, Archive, RotateCcw, Upload, X,
   ImageIcon, CheckCircle2, AlertCircle, Loader2, ChevronLeft,
-  RefreshCw, Eye, Send, CheckSquare, Square,
+  RefreshCw, Eye, Send, CheckSquare, Square, CreditCard,
 } from "lucide-react";
 
 const MAX_IMAGES = 10;
@@ -328,8 +328,12 @@ export default function MerchantAuctions() {
   const [batchPublishOpen, setBatchPublishOpen] = useState(false);
   const [batchEndTime, setBatchEndTime] = useState("");
 
+  // No-subscription dialog
+  const [noSubDialogOpen, setNoSubDialogOpen] = useState(false);
+
   const { data: merchantSettings } = trpc.merchants.getSettings.useQuery(undefined, { enabled: isAuthenticated });
   const { refetch: refetchMyDeposit } = trpc.sellerDeposits.myDeposit.useQuery(undefined, { enabled: isAuthenticated, staleTime: 0, refetchOnWindowFocus: true });
+  const { data: mySubscription } = trpc.subscriptions.mySubscription.useQuery(undefined, { enabled: isAuthenticated, staleTime: 60_000 });
   const { data: myAuctions, isLoading: loadingActive, refetch: refetchActive } = trpc.merchants.myAuctions.useQuery();
   const { data: myDrafts, isLoading: loadingDrafts, refetch: refetchDrafts } = trpc.merchants.myDrafts.useQuery();
   const { data: myArchived, isLoading: loadingArchived, refetch: refetchArchived } = trpc.merchants.myArchived.useQuery();
@@ -518,6 +522,11 @@ export default function MerchantAuctions() {
   };
 
   const checkCanPublish = async (): Promise<boolean> => {
+    // Check subscription first
+    if (!mySubscription) {
+      setNoSubDialogOpen(true);
+      return false;
+    }
     const { data: fresh } = await refetchMyDeposit();
     if (fresh && fresh.isActive === false) {
       toast.error("商戶暫已被停用，請聯繫客服了解情況");
@@ -880,6 +889,38 @@ export default function MerchantAuctions() {
                   : <Send className="w-4 h-4" />}
                 確認批量發佈
               </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── 未訂閱提示 Dialog ── */}
+      <Dialog open={noSubDialogOpen} onOpenChange={setNoSubDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <CreditCard className="w-5 h-5" />
+              需要訂閱月費計劃
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-1">
+            <p className="text-sm text-foreground leading-relaxed">
+              發佈拍賣需要有效的月費訂閱計劃。請先訂閱合適的計劃，審批通過後即可開始發佈。
+            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 space-y-1">
+              <p className="font-medium">如何訂閱？</p>
+              <p>1. 前往「訂閱計劃」頁面選擇計劃</p>
+              <p>2. 上傳付款憑證提交申請</p>
+              <p>3. 等待管理員審批（通常 1 個工作天）</p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setNoSubDialogOpen(false)}>關閉</Button>
+              <Link href="/subscriptions">
+                <Button className="bg-amber-500 hover:bg-amber-600 text-white border-0 gap-1.5" onClick={() => setNoSubDialogOpen(false)}>
+                  <CreditCard className="w-4 h-4" />
+                  前往訂閱
+                </Button>
+              </Link>
             </div>
           </div>
         </DialogContent>
