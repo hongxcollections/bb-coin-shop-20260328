@@ -1430,7 +1430,7 @@ export const appRouter = router({
     updateProfile: protectedProcedure
       .input(z.object({
         merchantName: z.string().min(1).max(100),
-        selfIntro: z.string().min(1).max(1000),
+        selfIntro: z.string().max(1000).default(""),
         whatsapp: z.string().min(1).max(50),
         merchantIcon: z.string().url().nullable().optional(),
       }))
