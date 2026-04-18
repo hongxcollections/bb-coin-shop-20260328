@@ -1,11 +1,12 @@
 -- Migration 0013: quota system, warning deposit, commission refund requests
+-- Note: Uses standard MySQL syntax (no ADD COLUMN IF NOT EXISTS - that is MariaDB-only)
 
--- 1. Add warningDeposit to seller_deposits (per-merchant configurable)
-ALTER TABLE `seller_deposits` ADD COLUMN IF NOT EXISTS `warningDeposit` decimal(12,2) NOT NULL DEFAULT 1000.00 AFTER `requiredDeposit`;
-
+-- 1. Add warningDeposit to seller_deposits
+ALTER TABLE `seller_deposits` ADD COLUMN `warningDeposit` decimal(12,2) NOT NULL DEFAULT 1000.00;
+--> statement-breakpoint
 -- 2. Add remainingQuota to user_subscriptions
-ALTER TABLE `user_subscriptions` ADD COLUMN IF NOT EXISTS `remainingQuota` int NOT NULL DEFAULT 0 AFTER `adminNote`;
-
+ALTER TABLE `user_subscriptions` ADD COLUMN `remainingQuota` int NOT NULL DEFAULT 0;
+--> statement-breakpoint
 -- 3. Create commissionRefundRequests table
 CREATE TABLE IF NOT EXISTS `commissionRefundRequests` (
   `id` int AUTO_INCREMENT NOT NULL,
