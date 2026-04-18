@@ -2308,6 +2308,22 @@ export async function createMerchantApplication(data: InsertMerchantApplication)
   return result;
 }
 
+export async function updateMerchantProfile(
+  userId: number,
+  data: { merchantName: string; selfIntro: string; whatsapp: string; merchantIcon?: string | null }
+) {
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  await db.update(merchantApplications)
+    .set({
+      merchantName: data.merchantName,
+      selfIntro: data.selfIntro,
+      whatsapp: data.whatsapp,
+      ...(data.merchantIcon !== undefined ? { merchantIcon: data.merchantIcon } : {}),
+    })
+    .where(and(eq(merchantApplications.userId, userId), eq(merchantApplications.status, 'approved')));
+}
+
 export async function getMerchantApplicationByUser(userId: number) {
   const db = await getDb();
   if (!db) return undefined;

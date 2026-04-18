@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag, ShieldCheck } from "lucide-react";
+import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag, ShieldCheck, Store, Camera, X } from "lucide-react";
 
 const BID_INCREMENT_OPTIONS = [30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
 
@@ -17,6 +18,9 @@ export default function MerchantSettings() {
   const { isAuthenticated } = useAuth();
 
   const { data: settings, isLoading } = trpc.merchants.getSettings.useQuery(undefined, {
+    enabled: isAuthenticated,
+  });
+  const { data: myApp, isLoading: loadingApp } = trpc.merchants.myApplication.useQuery(undefined, {
     enabled: isAuthenticated,
   });
 
@@ -28,6 +32,62 @@ export default function MerchantSettings() {
     },
     onError: (err) => toast.error(err.message || "儲存失敗"),
   });
+
+  // ── 商戶資料 ──
+  const [profileMerchantName, setProfileMerchantName] = useState("");
+  const [profileSelfIntro, setProfileSelfIntro] = useState("");
+  const [profileWhatsapp, setProfileWhatsapp] = useState("");
+  const [profileIcon, setProfileIcon] = useState<string | null>(null);
+  const [profileInitialized, setProfileInitialized] = useState(false);
+  const [iconUploading, setIconUploading] = useState(false);
+  const iconInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (myApp && !profileInitialized) {
+      setProfileMerchantName(myApp.merchantName ?? "");
+      setProfileSelfIntro(myApp.selfIntro ?? "");
+      setProfileWhatsapp(myApp.whatsapp ?? "");
+      setProfileIcon(myApp.merchantIcon ?? null);
+      setProfileInitialized(true);
+    }
+  }, [myApp, profileInitialized]);
+
+  const uploadPhotoMutation = trpc.merchants.uploadPhoto.useMutation({
+    onSuccess: ({ url }) => { setProfileIcon(url); setIconUploading(false); toast.success("圖片上傳成功"); },
+    onError: (err) => { setIconUploading(false); toast.error(err.message || "圖片上傳失敗"); },
+  });
+
+  const updateProfileMutation = trpc.merchants.updateProfile.useMutation({
+    onSuccess: () => {
+      toast.success("商戶資料已更新！");
+      utils.merchants.myApplication.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "更新失敗"),
+  });
+
+  const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIconUploading(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = (reader.result as string).split(",")[1];
+      uploadPhotoMutation.mutate({ imageData: base64, fileName: file.name, mimeType: file.type });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleSaveProfile = () => {
+    if (!profileMerchantName.trim()) { toast.error("請填寫商戶名稱"); return; }
+    if (!profileWhatsapp.trim()) { toast.error("請填寫 WhatsApp"); return; }
+    updateProfileMutation.mutate({
+      merchantName: profileMerchantName.trim(),
+      selfIntro: profileSelfIntro.trim(),
+      whatsapp: profileWhatsapp.trim(),
+      merchantIcon: profileIcon,
+    });
+  };
 
   const [dayOffset, setDayOffset] = useState<string>("7");
   const [endTime, setEndTime] = useState<string>("23:00");
@@ -128,9 +188,125 @@ export default function MerchantSettings() {
           </div>
           <div>
             <h1 className="text-xl font-bold">商戶管理</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">設定拍賣預設參數</p>
+            <p className="text-sm text-muted-foreground mt-0.5">設定商戶資料及拍賣預設參數</p>
           </div>
         </div>
+
+        {/* 商戶資料卡片 */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Store className="w-4 h-4 text-amber-500" />
+              商戶資料
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {loadingApp ? (
+              <div className="flex items-center gap-2 text-muted-foreground py-4">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm">載入中…</span>
+              </div>
+            ) : (
+              <>
+                {/* 商戶圖標 */}
+                <div className="space-y-2">
+                  <Label>商戶圖標</Label>
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border-2 border-amber-200 bg-amber-50 flex items-center justify-center flex-shrink-0">
+                      {iconUploading ? (
+                        <Loader2 className="w-6 h-6 animate-spin text-amber-400" />
+                      ) : profileIcon ? (
+                        <>
+                          <img src={profileIcon} alt="商戶圖標" className="w-full h-full object-cover" />
+                          <button
+                            onClick={() => setProfileIcon(null)}
+                            className="absolute top-0.5 right-0.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center"
+                          >
+                            <X className="w-3 h-3 text-white" />
+                          </button>
+                        </>
+                      ) : (
+                        <Store className="w-7 h-7 text-amber-300" />
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <input
+                        ref={iconInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={handleIconChange}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 border-amber-200 text-amber-700 hover:bg-amber-50"
+                        onClick={() => iconInputRef.current?.click()}
+                        disabled={iconUploading}
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        上傳圖片
+                      </Button>
+                      <p className="text-xs text-muted-foreground">支援 JPG / PNG / WebP，最大 8MB</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 商戶名稱 */}
+                <div className="space-y-2">
+                  <Label htmlFor="profileMerchantName">商戶名稱 *</Label>
+                  <Input
+                    id="profileMerchantName"
+                    value={profileMerchantName}
+                    onChange={(e) => setProfileMerchantName(e.target.value)}
+                    maxLength={100}
+                    placeholder="請輸入商戶名稱"
+                  />
+                </div>
+
+                {/* WhatsApp */}
+                <div className="space-y-2">
+                  <Label htmlFor="profileWhatsapp">WhatsApp 聯絡號碼 *</Label>
+                  <Input
+                    id="profileWhatsapp"
+                    value={profileWhatsapp}
+                    onChange={(e) => setProfileWhatsapp(e.target.value)}
+                    maxLength={50}
+                    placeholder="例：+852 9123 4567"
+                  />
+                </div>
+
+                {/* 商戶簡介 */}
+                <div className="space-y-2">
+                  <Label htmlFor="profileSelfIntro">商戶簡介</Label>
+                  <Textarea
+                    id="profileSelfIntro"
+                    value={profileSelfIntro}
+                    onChange={(e) => setProfileSelfIntro(e.target.value)}
+                    maxLength={1000}
+                    rows={4}
+                    placeholder="介紹你的商戶、專業範疇及特色…"
+                  />
+                  <p className="text-xs text-muted-foreground text-right">{profileSelfIntro.length}/1000</p>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <Button
+                    onClick={handleSaveProfile}
+                    disabled={updateProfileMutation.isPending || iconUploading}
+                    className="gold-gradient text-white border-0 gap-1.5"
+                  >
+                    {updateProfileMutation.isPending
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Save className="w-4 h-4" />}
+                    儲存資料
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
         {/* 起拍價預值卡片 */}
         <Card>

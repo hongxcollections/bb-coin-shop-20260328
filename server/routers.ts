@@ -7,7 +7,7 @@ import { z } from "zod";
 import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, updateMerchantProfile } from "./db";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 
@@ -1425,6 +1425,28 @@ export const appRouter = router({
     myApplication: protectedProcedure.query(async ({ ctx }) => {
       return getMerchantApplicationByUser(ctx.user.id) ?? null;
     }),
+
+    // 商戶更新自己的資料
+    updateProfile: protectedProcedure
+      .input(z.object({
+        merchantName: z.string().min(1).max(100),
+        selfIntro: z.string().min(1).max(1000),
+        whatsapp: z.string().min(1).max(50),
+        merchantIcon: z.string().url().nullable().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (!app || app.status !== 'approved') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有已審核商戶才能修改資料' });
+        }
+        await updateMerchantProfile(ctx.user.id, {
+          merchantName: input.merchantName,
+          selfIntro: input.selfIntro,
+          whatsapp: input.whatsapp,
+          merchantIcon: input.merchantIcon ?? null,
+        });
+        return { success: true };
+      }),
 
     // 快速檢查是否為商戶（不建立任何記錄）
     isMerchant: protectedProcedure.query(async ({ ctx }) => {
