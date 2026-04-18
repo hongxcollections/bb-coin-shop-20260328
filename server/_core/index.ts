@@ -39,10 +39,12 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function bootstrapMissingColumns() {
   const dbUrl = process.env.BB_DATABASE_URL || process.env.DATABASE_URL || "";
   if (!dbUrl) return;
+
+  let pool: any;
   try {
     const url = new URL(dbUrl);
     const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
-    const pool = createPool({
+    pool = createPool({
       host: url.hostname,
       port: parseInt(url.port || (isLocalhost ? '3306' : '4000')),
       user: url.username,
@@ -50,78 +52,92 @@ async function bootstrapMissingColumns() {
       database: url.pathname.slice(1),
       ssl: isLocalhost ? undefined : { rejectUnauthorized: false },
     });
+  } catch (error) {
+    console.warn('[Bootstrap] Could not create pool:', (error as Error).message);
+    return;
+  }
 
-    const check = async (table: string, column: string): Promise<boolean> => {
+  const check = async (table: string, column: string): Promise<boolean> => {
+    try {
       const [rows]: any = await pool.execute(
         `SELECT COUNT(*) as cnt FROM information_schema.COLUMNS
          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
         [table, column]
       );
       return rows[0].cnt > 0;
-    };
-
-    if (!(await check('seller_deposits', 'warningDeposit'))) {
-      await pool.execute(
-        'ALTER TABLE `seller_deposits` ADD COLUMN `warningDeposit` decimal(12,2) NOT NULL DEFAULT 1000.00'
-      );
-      console.log('[Bootstrap] Added warningDeposit to seller_deposits');
+    } catch {
+      return false;
     }
+  };
 
-    if (!(await check('user_subscriptions', 'remainingQuota'))) {
-      await pool.execute(
-        'ALTER TABLE `user_subscriptions` ADD COLUMN `remainingQuota` int NOT NULL DEFAULT 0'
-      );
-      console.log('[Bootstrap] Added remainingQuota to user_subscriptions');
+  const alter = async (sql: string, label: string) => {
+    try {
+      await pool.execute(sql);
+      console.log(`[Bootstrap] ${label}`);
+    } catch (error) {
+      console.warn(`[Bootstrap] Skipped (${label}):`, (error as Error).message);
     }
+  };
 
-    // merchantApplications: ensure all columns exist (production may be behind UAT)
-    if (!(await check('merchantApplications', 'contactName'))) {
-      await pool.execute(
-        'ALTER TABLE `merchantApplications` ADD COLUMN `contactName` varchar(100) NULL AFTER `userId`'
-      );
-      console.log('[Bootstrap] Added contactName to merchantApplications');
-    }
-    if (!(await check('merchantApplications', 'merchantIcon'))) {
-      await pool.execute(
-        'ALTER TABLE `merchantApplications` ADD COLUMN `merchantIcon` varchar(500) NULL AFTER `yearsExperience`'
-      );
-      console.log('[Bootstrap] Added merchantIcon to merchantApplications');
-    }
-
-    // One-time repair: initialise remainingQuota for active subscriptions
-    // that still have 0 because approveSubscription never set it.
-    // Safe: no quota was ever properly deducted before this fix.
-    await pool.execute(`
-      UPDATE user_subscriptions us
-      JOIN subscription_plans sp ON us.planId = sp.id
-      SET us.remainingQuota = sp.maxListings
-      WHERE us.status = 'active'
-        AND sp.maxListings > 0
-        AND us.remainingQuota = 0
-    `);
-    console.log('[Bootstrap] Repaired remainingQuota for active subscriptions');
-
-    await pool.execute(`CREATE TABLE IF NOT EXISTS \`commissionRefundRequests\` (
-      \`id\` int AUTO_INCREMENT NOT NULL,
-      \`auctionId\` int NOT NULL,
-      \`userId\` int NOT NULL,
-      \`commissionAmount\` decimal(12,2) NOT NULL,
-      \`reason\` enum('buyer_missing','buyer_refused','mutual_cancel','other') NOT NULL,
-      \`reasonDetail\` text,
-      \`status\` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
-      \`adminNote\` text,
-      \`reviewedBy\` int,
-      \`reviewedAt\` timestamp NULL,
-      \`createdAt\` timestamp NOT NULL DEFAULT (now()),
-      \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
-      CONSTRAINT \`commissionRefundRequests_id\` PRIMARY KEY(\`id\`)
-    )`);
-    console.log('[Bootstrap] Schema bootstrap completed');
-
-    await pool.end();
-  } catch (error) {
-    console.warn('[Bootstrap] Bootstrap warning (continuing):', (error as Error).message);
+  // seller_deposits
+  if (!(await check('seller_deposits', 'warningDeposit'))) {
+    await alter(
+      'ALTER TABLE `seller_deposits` ADD COLUMN `warningDeposit` decimal(12,2) NOT NULL DEFAULT 1000.00',
+      'Added warningDeposit to seller_deposits'
+    );
   }
+
+  // user_subscriptions
+  if (!(await check('user_subscriptions', 'remainingQuota'))) {
+    await alter(
+      'ALTER TABLE `user_subscriptions` ADD COLUMN `remainingQuota` int NOT NULL DEFAULT 0',
+      'Added remainingQuota to user_subscriptions'
+    );
+  }
+
+  // merchantApplications: ensure all columns exist (production may be behind UAT)
+  if (!(await check('merchantApplications', 'contactName'))) {
+    await alter(
+      'ALTER TABLE `merchantApplications` ADD COLUMN `contactName` varchar(100) NULL AFTER `userId`',
+      'Added contactName to merchantApplications'
+    );
+  }
+  if (!(await check('merchantApplications', 'merchantIcon'))) {
+    await alter(
+      'ALTER TABLE `merchantApplications` ADD COLUMN `merchantIcon` varchar(500) NULL AFTER `yearsExperience`',
+      'Added merchantIcon to merchantApplications'
+    );
+  }
+
+  // One-time repair: initialise remainingQuota for active subscriptions
+  await alter(`
+    UPDATE user_subscriptions us
+    JOIN subscription_plans sp ON us.planId = sp.id
+    SET us.remainingQuota = sp.maxListings
+    WHERE us.status = 'active'
+      AND sp.maxListings > 0
+      AND us.remainingQuota = 0
+  `, 'Repaired remainingQuota for active subscriptions');
+
+  // commissionRefundRequests table
+  await alter(`CREATE TABLE IF NOT EXISTS \`commissionRefundRequests\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`auctionId\` int NOT NULL,
+    \`userId\` int NOT NULL,
+    \`commissionAmount\` decimal(12,2) NOT NULL,
+    \`reason\` enum('buyer_missing','buyer_refused','mutual_cancel','other') NOT NULL,
+    \`reasonDetail\` text,
+    \`status\` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    \`adminNote\` text,
+    \`reviewedBy\` int,
+    \`reviewedAt\` timestamp NULL,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT \`commissionRefundRequests_id\` PRIMARY KEY(\`id\`)
+  )`, 'Ensured commissionRefundRequests table');
+
+  console.log('[Bootstrap] Schema bootstrap completed');
+  try { await pool.end(); } catch {}
 }
 
 async function runMigrations() {
