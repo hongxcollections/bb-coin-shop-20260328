@@ -1673,11 +1673,8 @@ export const appRouter = router({
         }
         if (auction.status !== 'draft') throw new TRPCError({ code: 'BAD_REQUEST', message: '此拍賣並非草稿狀態' });
         if (input.endTime <= new Date()) throw new TRPCError({ code: 'BAD_REQUEST', message: '結束時間必須為未來時間' });
-        // Check merchant active status (admin bypasses)
+        // Check + deduct listing quota (admin bypasses)
         if (ctx.user.role !== 'admin') {
-          const listCheck = await canSellerList(ctx.user.id);
-          if (!listCheck.canList) throw new TRPCError({ code: 'FORBIDDEN', message: listCheck.reason ?? '商戶帳戶不可發佈拍賣' });
-          // Check + deduct listing quota
           const quotaResult = await deductListingQuota(ctx.user.id);
           if (!quotaResult.success) throw new TRPCError({ code: 'FORBIDDEN', message: quotaResult.reason ?? '發佈次數不足' });
         }
@@ -1703,11 +1700,6 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         if (input.endTime <= new Date()) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '結束時間必須為未來時間' });
-        }
-        // Check merchant active status (admin bypasses)
-        if (ctx.user.role !== 'admin') {
-          const listCheck = await canSellerList(ctx.user.id);
-          if (!listCheck.canList) throw new TRPCError({ code: 'FORBIDDEN', message: listCheck.reason ?? '商戶帳戶不可發佈拍賣' });
         }
         // Determine how many valid drafts we're about to publish for quota check
         let toPublishCount = 0;
