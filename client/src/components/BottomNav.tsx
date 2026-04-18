@@ -8,11 +8,11 @@ import { trpc } from "@/lib/trpc";
 
 export default function BottomNav() {
   const { user, isAuthenticated, logout } = useAuth();
-  const { data: myApp } = trpc.merchants.myApplication.useQuery(undefined, {
+  const { data: isMerchantData } = trpc.merchants.isMerchant.useQuery(undefined, {
     enabled: isAuthenticated,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
   });
-  const isMerchant = myApp?.status === "approved";
+  const isMerchant = isMerchantData === true;
   const [location] = useLocation();
   const [showMore, setShowMore] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);

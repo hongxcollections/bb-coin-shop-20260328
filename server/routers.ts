@@ -918,21 +918,19 @@ export const appRouter = router({
         const newUserId = (result as { insertId: number }).insertId;
         if (input.isMerchant) {
           await getOrCreateSellerDeposit(newUserId);
-          if (input.merchantName) {
-            await createMerchantApplication({
-              userId: newUserId,
-              contactName: input.name,
-              merchantName: input.merchantName,
-              selfIntro: '',
-              whatsapp: input.phone ?? '',
-              yearsExperience: '0',
-              merchantIcon: null,
-              categories: '[]',
-              samplePhotos: '[]',
-              status: 'approved' as const,
-              adminNote: '管理員直接建立',
-            });
-          }
+          await createMerchantApplication({
+            userId: newUserId,
+            contactName: input.name,
+            merchantName: input.merchantName || input.name,
+            selfIntro: '',
+            whatsapp: input.phone ?? '',
+            yearsExperience: '0',
+            merchantIcon: null,
+            categories: '[]',
+            samplePhotos: '[]',
+            status: 'approved' as const,
+            adminNote: '管理員直接建立',
+          });
         }
         return { success: true, userId: newUserId };
       }),
@@ -1426,6 +1424,19 @@ export const appRouter = router({
     // 查看自己的申請狀態
     myApplication: protectedProcedure.query(async ({ ctx }) => {
       return getMerchantApplicationByUser(ctx.user.id) ?? null;
+    }),
+
+    // 快速檢查是否為商戶（不建立任何記錄）
+    isMerchant: protectedProcedure.query(async ({ ctx }) => {
+      const app = await getMerchantApplicationByUser(ctx.user.id);
+      if (app?.status === 'approved') return true;
+      // 管理員直接建立的商戶可能沒有申請記錄，改用 sellerDeposits 判斷
+      const db = await (await import('./db')).getDb();
+      if (!db) return false;
+      const { sellerDeposits: sdTable } = await import('../drizzle/schema');
+      const { eq } = await import('drizzle-orm');
+      const rows = await db.select({ id: sdTable.id }).from(sdTable).where(eq(sdTable.userId, ctx.user.id)).limit(1);
+      return rows.length > 0;
     }),
 
     // 商戶：查看自己的拍賣
