@@ -1,7 +1,7 @@
 import { eq, desc, asc, and, gte, lte, gt, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1442,8 +1442,8 @@ export async function getOrCreateSellerDeposit(userId: number) {
     const existing = await db.select().from(sellerDeposits).where(eq(sellerDeposits.userId, userId)).limit(1);
     if (existing.length > 0) return existing[0];
 
-    // Create new deposit record
-    await db.insert(sellerDeposits).values({ userId, balance: "0.00", requiredDeposit: "500.00", commissionRate: "0.0500", isActive: 1 });
+    // Create new deposit record (warningDeposit = requiredDeposit × 2 by default)
+    await db.insert(sellerDeposits).values({ userId, balance: "0.00", requiredDeposit: "500.00", warningDeposit: "1000.00", commissionRate: "0.0500", isActive: 1 });
     const created = await db.select().from(sellerDeposits).where(eq(sellerDeposits.userId, userId)).limit(1);
     return created[0] ?? null;
   } catch (error) {
@@ -1593,7 +1593,7 @@ export async function refundCommission(userId: number, amount: number, auctionId
  */
 export async function updateSellerDepositSettings(
   userId: number,
-  settings: { requiredDeposit?: number; commissionRate?: number; isActive?: number }
+  settings: { requiredDeposit?: number; warningDeposit?: number; commissionRate?: number; isActive?: number }
 ) {
   await ensureDepositTables();
   const db = await getDb();
@@ -1605,6 +1605,7 @@ export async function updateSellerDepositSettings(
 
     const updateData: Record<string, unknown> = {};
     if (settings.requiredDeposit !== undefined) updateData.requiredDeposit = settings.requiredDeposit.toFixed(2);
+    if (settings.warningDeposit !== undefined) updateData.warningDeposit = settings.warningDeposit.toFixed(2);
     if (settings.commissionRate !== undefined) updateData.commissionRate = settings.commissionRate.toFixed(4);
     if (settings.isActive !== undefined) updateData.isActive = settings.isActive;
 
@@ -2511,5 +2512,234 @@ export async function reviewMerchantApplication(
   // When approved, auto-create seller_deposits record so user appears in merchant list
   if (status === 'approved' && app?.userId) {
     await getOrCreateSellerDeposit(app.userId);
+  }
+}
+
+// ─── Commission Auto-Deduction ────────────────────────────────────────────────
+
+/**
+ * Idempotent: deduct commission from the auction creator's deposit when auction ends.
+ * Safe to call multiple times — skips if already deducted for this auction.
+ */
+export async function autoDeductCommissionOnAuctionEnd(auctionId: number): Promise<{ deducted: boolean; amount?: number; newBalance?: number; belowWarning?: boolean }> {
+  const db = await getDb();
+  if (!db) return { deducted: false };
+
+  // Check if commission already deducted for this auction
+  const existing = await db.select({ id: depositTransactions.id })
+    .from(depositTransactions)
+    .where(and(eq(depositTransactions.relatedAuctionId, auctionId), eq(depositTransactions.type, 'commission')))
+    .limit(1);
+  if (existing.length > 0) return { deducted: false }; // already done
+
+  // Get auction details
+  const [auction] = await db.select({
+    id: auctions.id,
+    createdBy: auctions.createdBy,
+    currentPrice: auctions.currentPrice,
+    highestBidderId: auctions.highestBidderId,
+    status: auctions.status,
+  }).from(auctions).where(eq(auctions.id, auctionId)).limit(1);
+
+  if (!auction || !auction.highestBidderId || !auction.currentPrice) return { deducted: false };
+  if (auction.status !== 'ended') return { deducted: false };
+
+  const finalPrice = parseFloat(String(auction.currentPrice));
+  if (finalPrice <= 0) return { deducted: false };
+
+  const deposit = await getOrCreateSellerDeposit(auction.createdBy);
+  if (!deposit) return { deducted: false };
+
+  const rate = parseFloat(deposit.commissionRate.toString());
+  const commission = parseFloat((finalPrice * rate).toFixed(2));
+  if (commission <= 0) return { deducted: false };
+
+  const currentBalance = parseFloat(deposit.balance.toString());
+  const newBalance = parseFloat((currentBalance - commission).toFixed(2));
+
+  await db.update(sellerDeposits).set({ balance: newBalance.toFixed(2) }).where(eq(sellerDeposits.userId, auction.createdBy));
+  await db.insert(depositTransactions).values({
+    depositId: deposit.id,
+    userId: auction.createdBy,
+    type: 'commission',
+    amount: (-commission).toFixed(2),
+    balanceAfter: newBalance.toFixed(2),
+    description: `拍賣 #${auctionId} 成交傭金 (成交價 $${finalPrice.toFixed(0)} × ${(rate * 100).toFixed(1)}%)`,
+    relatedAuctionId: auctionId,
+    createdBy: null,
+  });
+
+  const warningDeposit = parseFloat(deposit.warningDeposit?.toString() ?? '1000');
+  const belowWarning = newBalance < warningDeposit;
+
+  // If balance drops below requiredDeposit, disable listing
+  const required = parseFloat(deposit.requiredDeposit.toString());
+  if (newBalance < required) {
+    await db.update(sellerDeposits).set({ isActive: 0 }).where(eq(sellerDeposits.userId, auction.createdBy));
+    console.log(`[Deposit] Merchant ${auction.createdBy} balance $${newBalance} below required $${required} — listing disabled`);
+  }
+
+  console.log(`[Commission] Auction #${auctionId}: deducted $${commission} from merchant ${auction.createdBy}, balance $${currentBalance} → $${newBalance}${belowWarning ? ' ⚠️ below warning' : ''}`);
+  return { deducted: true, amount: commission, newBalance, belowWarning };
+}
+
+// ─── Listing Quota ────────────────────────────────────────────────────────────
+
+/**
+ * Get the active subscription's quota info for a merchant.
+ * Returns null if no active quota-based subscription.
+ */
+export async function getListingQuotaInfo(userId: number): Promise<{
+  subscriptionId: number;
+  planName: string;
+  maxListings: number;
+  remainingQuota: number;
+  unlimited: boolean;
+} | null> {
+  const db = await getDb();
+  if (!db) return null;
+  try {
+    const [row] = await db.select({
+      id: userSubscriptions.id,
+      planName: subscriptionPlans.name,
+      maxListings: subscriptionPlans.maxListings,
+      remainingQuota: userSubscriptions.remainingQuota,
+    })
+      .from(userSubscriptions)
+      .leftJoin(subscriptionPlans, eq(userSubscriptions.planId, subscriptionPlans.id))
+      .where(and(eq(userSubscriptions.userId, userId), eq(userSubscriptions.status, 'active')))
+      .orderBy(desc(userSubscriptions.createdAt))
+      .limit(1);
+    if (!row) return null;
+    const max = row.maxListings ?? 0;
+    return {
+      subscriptionId: row.id,
+      planName: row.planName ?? '',
+      maxListings: max,
+      remainingQuota: row.remainingQuota ?? 0,
+      unlimited: max === 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Deduct 1 listing quota from the merchant's active subscription.
+ * Returns false if no quota available (subscription expired or quota exhausted).
+ */
+export async function deductListingQuota(userId: number): Promise<{ success: boolean; remaining?: number; reason?: string }> {
+  const db = await getDb();
+  if (!db) return { success: false, reason: '資料庫不可用' };
+  const info = await getListingQuotaInfo(userId);
+  if (!info) return { success: true }; // no subscription = no quota limit (backward compat)
+  if (info.unlimited) return { success: true }; // maxListings = 0 = unlimited
+
+  if (info.remainingQuota <= 0) {
+    return { success: false, reason: `發佈次數已用盡（訂閱方案：${info.planName}）` };
+  }
+  const newRemaining = info.remainingQuota - 1;
+  await db.update(userSubscriptions)
+    .set({ remainingQuota: newRemaining })
+    .where(eq(userSubscriptions.id, info.subscriptionId));
+  return { success: true, remaining: newRemaining };
+}
+
+// ─── Commission Refund Requests ───────────────────────────────────────────────
+
+export async function createRefundRequest(data: {
+  auctionId: number;
+  userId: number;
+  commissionAmount: number;
+  reason: 'buyer_missing' | 'buyer_refused' | 'mutual_cancel' | 'other';
+  reasonDetail?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+
+  // Check: only one pending/approved request per auction per user
+  const existing = await db.select({ id: commissionRefundRequests.id })
+    .from(commissionRefundRequests)
+    .where(and(eq(commissionRefundRequests.auctionId, data.auctionId), eq(commissionRefundRequests.userId, data.userId)))
+    .limit(1);
+  if (existing.length > 0) throw new Error('此拍賣已提交過退傭申請');
+
+  const [result] = await db.insert(commissionRefundRequests).values({
+    auctionId: data.auctionId,
+    userId: data.userId,
+    commissionAmount: data.commissionAmount.toFixed(2),
+    reason: data.reason,
+    reasonDetail: data.reasonDetail ?? null,
+    status: 'pending',
+  });
+  return result;
+}
+
+export async function getMyRefundRequests(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: commissionRefundRequests.id,
+    auctionId: commissionRefundRequests.auctionId,
+    commissionAmount: commissionRefundRequests.commissionAmount,
+    reason: commissionRefundRequests.reason,
+    reasonDetail: commissionRefundRequests.reasonDetail,
+    status: commissionRefundRequests.status,
+    adminNote: commissionRefundRequests.adminNote,
+    reviewedAt: commissionRefundRequests.reviewedAt,
+    createdAt: commissionRefundRequests.createdAt,
+    auctionTitle: sql<string | null>`(SELECT title FROM auctions WHERE id = ${commissionRefundRequests.auctionId})`,
+  })
+    .from(commissionRefundRequests)
+    .where(eq(commissionRefundRequests.userId, userId))
+    .orderBy(desc(commissionRefundRequests.createdAt));
+}
+
+export async function getAllRefundRequests() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: commissionRefundRequests.id,
+    auctionId: commissionRefundRequests.auctionId,
+    userId: commissionRefundRequests.userId,
+    commissionAmount: commissionRefundRequests.commissionAmount,
+    reason: commissionRefundRequests.reason,
+    reasonDetail: commissionRefundRequests.reasonDetail,
+    status: commissionRefundRequests.status,
+    adminNote: commissionRefundRequests.adminNote,
+    reviewedAt: commissionRefundRequests.reviewedAt,
+    createdAt: commissionRefundRequests.createdAt,
+    merchantName: sql<string | null>`(SELECT name FROM users WHERE id = ${commissionRefundRequests.userId})`,
+    auctionTitle: sql<string | null>`(SELECT title FROM auctions WHERE id = ${commissionRefundRequests.auctionId})`,
+  })
+    .from(commissionRefundRequests)
+    .orderBy(desc(commissionRefundRequests.createdAt));
+}
+
+export async function reviewRefundRequest(
+  id: number,
+  status: 'approved' | 'rejected',
+  adminNote: string | undefined,
+  adminId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+
+  const [req] = await db.select().from(commissionRefundRequests)
+    .where(eq(commissionRefundRequests.id, id)).limit(1);
+  if (!req) throw new Error('找不到申請');
+  if (req.status !== 'pending') throw new Error('此申請已審核');
+
+  await db.update(commissionRefundRequests).set({
+    status,
+    adminNote: adminNote ?? null,
+    reviewedBy: adminId,
+    reviewedAt: new Date(),
+  }).where(eq(commissionRefundRequests.id, id));
+
+  // If approved: refund the commission back to merchant's deposit
+  if (status === 'approved') {
+    const amount = parseFloat(req.commissionAmount.toString());
+    await refundCommission(req.userId, amount, req.auctionId, `退傭申請 #${id} 已批准`, adminId);
   }
 }

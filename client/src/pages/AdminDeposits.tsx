@@ -20,6 +20,7 @@ type DepositRow = {
   userEmail: string | null;
   balance: string;
   requiredDeposit: string;
+  warningDeposit: string;
   commissionRate: string;
   isActive: number;
   createdAt: Date;
@@ -67,6 +68,7 @@ export default function AdminDeposits() {
   const [actionDescription, setActionDescription] = useState("");
   const [actionAuctionId, setActionAuctionId] = useState("");
   const [settingsRequiredDeposit, setSettingsRequiredDeposit] = useState("");
+  const [settingsWarningDeposit, setSettingsWarningDeposit] = useState("");
   const [settingsCommissionRate, setSettingsCommissionRate] = useState("");
   const [settingsIsActive, setSettingsIsActive] = useState(true);
   const [showTransactions, setShowTransactions] = useState(false);
@@ -174,8 +176,9 @@ export default function AdminDeposits() {
       if (!actionDescription.trim()) { toast.error("請填寫調整原因"); return; }
       adjustMutation.mutate({ userId: selectedUserId, amount, description: actionDescription });
     } else if (actionType === "settings") {
-      const updates: { requiredDeposit?: number; commissionRate?: number; isActive?: number } = {};
+      const updates: { requiredDeposit?: number; warningDeposit?: number; commissionRate?: number; isActive?: number } = {};
       if (settingsRequiredDeposit) updates.requiredDeposit = parseFloat(settingsRequiredDeposit);
+      if (settingsWarningDeposit) updates.warningDeposit = parseFloat(settingsWarningDeposit);
       if (settingsCommissionRate) updates.commissionRate = parseFloat(settingsCommissionRate) / 100;
       updates.isActive = settingsIsActive ? 1 : 0;
       updateSettingsMutation.mutate({ userId: selectedUserId, ...updates });
@@ -186,6 +189,7 @@ export default function AdminDeposits() {
     setSelectedUserId(deposit.userId);
     setActionType("settings");
     setSettingsRequiredDeposit(deposit.requiredDeposit.toString());
+    setSettingsWarningDeposit(deposit.warningDeposit?.toString() ?? "");
     setSettingsCommissionRate((parseFloat(deposit.commissionRate.toString()) * 100).toFixed(2));
     setSettingsIsActive(deposit.isActive === 1);
   };
@@ -264,6 +268,11 @@ export default function AdminDeposits() {
             <p className="text-sm text-muted-foreground mt-1">管理賣家保證金餘額、佣金率及交易記錄</p>
           </div>
           <div className="flex gap-2">
+            <Link href="/admin/refund-requests">
+              <Button variant="outline" size="sm" className="border-orange-200 text-orange-600 hover:bg-orange-50">
+                <AlertCircle className="w-4 h-4 mr-1" /> 退傭申請
+              </Button>
+            </Link>
             <Button
               variant="outline"
               size="sm"
@@ -456,6 +465,16 @@ export default function AdminDeposits() {
                       value={settingsRequiredDeposit}
                       onChange={(e) => setSettingsRequiredDeposit(e.target.value)}
                       placeholder="500.00"
+                      className="border-amber-200"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>預警門檻 (HK$) <span className="text-xs text-amber-500 ml-1">低於此值顯示警告</span></Label>
+                    <Input
+                      type="number"
+                      value={settingsWarningDeposit}
+                      onChange={(e) => setSettingsWarningDeposit(e.target.value)}
+                      placeholder="1000.00"
                       className="border-amber-200"
                     />
                   </div>

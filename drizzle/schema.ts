@@ -221,6 +221,7 @@ export const sellerDeposits = mysqlTable("seller_deposits", {
   userId: int("userId").notNull().unique(),
   balance: decimal("balance", { precision: 12, scale: 2 }).default("0.00").notNull(),
   requiredDeposit: decimal("requiredDeposit", { precision: 12, scale: 2 }).default("500.00").notNull(),
+  warningDeposit: decimal("warningDeposit", { precision: 12, scale: 2 }).default("1000.00").notNull(), // warn when balance < this
   commissionRate: decimal("commissionRate", { precision: 5, scale: 4 }).default("0.0500").notNull(), // 5%
   isActive: int("isActive").default(1).notNull(), // 1 = can list
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -293,6 +294,7 @@ export const userSubscriptions = mysqlTable("user_subscriptions", {
   paymentReference: varchar("paymentReference", { length: 255 }), // user-provided payment ref
   paymentProofUrl: text("paymentProofUrl"), // screenshot of payment
   adminNote: text("adminNote"),
+  remainingQuota: int("remainingQuota").default(0).notNull(), // remaining listing credits for this subscription period
   approvedBy: int("approvedBy"), // admin who approved
   approvedAt: timestamp("approvedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -301,6 +303,25 @@ export const userSubscriptions = mysqlTable("user_subscriptions", {
 
 export type UserSubscription = typeof userSubscriptions.$inferSelect;
 export type InsertUserSubscription = typeof userSubscriptions.$inferInsert;
+
+// ── Commission Refund Requests (傭金退款申請) ─────────────────────────────
+export const commissionRefundRequests = mysqlTable("commissionRefundRequests", {
+  id: int("id").autoincrement().primaryKey(),
+  auctionId: int("auctionId").notNull(),
+  userId: int("userId").notNull(), // merchant
+  commissionAmount: decimal("commissionAmount", { precision: 12, scale: 2 }).notNull(),
+  reason: mysqlEnum("reason", ["buyer_missing", "buyer_refused", "mutual_cancel", "other"]).notNull(),
+  reasonDetail: text("reasonDetail"),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  adminNote: text("adminNote"),
+  reviewedBy: int("reviewedBy"),
+  reviewedAt: timestamp("reviewedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CommissionRefundRequest = typeof commissionRefundRequests.$inferSelect;
+export type InsertCommissionRefundRequest = typeof commissionRefundRequests.$inferInsert;
 
 // ─── Merchant Applications ────────────────────────────────────────────────────
 export const merchantApplications = mysqlTable("merchantApplications", {

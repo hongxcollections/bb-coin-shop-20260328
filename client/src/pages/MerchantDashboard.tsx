@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import {
   ChevronLeft, Store, Wallet, Gavel, Clock, CheckCircle2, XCircle,
   AlertCircle, TrendingUp, ArrowUpRight, ArrowDownLeft, ShoppingBag, Settings,
+  RotateCcw, Layers,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -77,6 +78,9 @@ export default function MerchantDashboard() {
     { limit: 10, offset: 0 },
     { enabled: isAuthenticated && myApp?.status === "approved" }
   );
+  const { data: quotaInfo } = trpc.merchants.getQuotaInfo.useQuery(undefined, {
+    enabled: isAuthenticated && myApp?.status === "approved",
+  });
 
   const fmtDate = (d: Date | string | null) => d
     ? new Date(d).toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
@@ -110,7 +114,9 @@ export default function MerchantDashboard() {
   const totalCount = auctions?.length ?? 0;
   const balance = deposit ? parseFloat(String(deposit.balance)) : 0;
   const required = deposit ? parseFloat(String(deposit.requiredDeposit)) : 500;
+  const warningThreshold = deposit ? parseFloat(String((deposit as { warningDeposit?: string | number }).warningDeposit ?? "1000")) : 1000;
   const depositOk = balance >= required;
+  const belowWarning = depositOk && balance < warningThreshold;
   const transactions = (txData ?? []) as TxType[];
 
   return (
@@ -152,8 +158,8 @@ export default function MerchantDashboard() {
             <p className="text-2xl font-bold text-amber-900">{activeCount}</p>
             <p className="text-xs text-gray-400">共 {totalCount} 個</p>
           </div>
-          <div className={`rounded-2xl bg-white border p-4 space-y-1 ${depositOk ? "border-emerald-100" : "border-red-100"}`}>
-            <div className={`flex items-center gap-1.5 ${depositOk ? "text-emerald-600" : "text-red-500"}`}>
+          <div className={`rounded-2xl bg-white border p-4 space-y-1 ${depositOk ? (belowWarning ? "border-amber-200" : "border-emerald-100") : "border-red-100"}`}>
+            <div className={`flex items-center gap-1.5 ${depositOk ? (belowWarning ? "text-amber-500" : "text-emerald-600") : "text-red-500"}`}>
               <Wallet className="w-4 h-4" />
               <span className="text-xs font-medium">保證金餘額</span>
             </div>
@@ -161,17 +167,45 @@ export default function MerchantDashboard() {
               <p className="text-sm text-gray-400">載入中…</p>
             ) : (
               <>
-                <p className={`text-2xl font-bold ${depositOk ? "text-emerald-700" : "text-red-600"}`}>{HKD(balance)}</p>
+                <p className={`text-2xl font-bold ${depositOk ? (belowWarning ? "text-amber-600" : "text-emerald-700") : "text-red-600"}`}>{HKD(balance)}</p>
                 <p className="text-xs text-gray-400">最低要求 {HKD(required)}</p>
               </>
             )}
           </div>
         </div>
 
+        {/* Quota card (only shown if subscription has a quota) */}
+        {quotaInfo && !quotaInfo.unlimited && (
+          <div className={`rounded-2xl bg-white border p-4 flex items-center justify-between ${quotaInfo.remainingQuota <= 0 ? "border-red-200" : quotaInfo.remainingQuota <= 5 ? "border-amber-200" : "border-blue-100"}`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${quotaInfo.remainingQuota <= 0 ? "bg-red-50" : quotaInfo.remainingQuota <= 5 ? "bg-amber-50" : "bg-blue-50"}`}>
+                <Layers className={`w-5 h-5 ${quotaInfo.remainingQuota <= 0 ? "text-red-500" : quotaInfo.remainingQuota <= 5 ? "text-amber-500" : "text-blue-500"}`} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-800">本期發佈次數</p>
+                <p className="text-xs text-gray-400 mt-0.5">{quotaInfo.planName}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className={`text-2xl font-bold ${quotaInfo.remainingQuota <= 0 ? "text-red-600" : quotaInfo.remainingQuota <= 5 ? "text-amber-600" : "text-blue-600"}`}>
+                {quotaInfo.remainingQuota}
+              </p>
+              <p className="text-xs text-gray-400">/ {quotaInfo.maxListings} 次</p>
+            </div>
+          </div>
+        )}
+
+        {/* Warning banners */}
         {!depositOk && deposit && (
           <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 flex items-start gap-2 text-sm text-red-600">
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <span>保證金不足，請聯絡管理員補交以恢復刊登資格。</span>
+          </div>
+        )}
+        {belowWarning && deposit && (
+          <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2 text-sm text-amber-700">
+            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span>保證金餘額低於預警門檻（{HKD(warningThreshold)}），建議盡快補交以避免帳戶受限。</span>
           </div>
         )}
 
@@ -199,8 +233,19 @@ export default function MerchantDashboard() {
               </div>
             </div>
           </Link>
+          <Link href="/merchant-refund-requests">
+            <div className="rounded-2xl bg-white border border-gray-100 p-4 flex items-center gap-3 hover:border-amber-300 hover:bg-amber-50/50 transition-colors cursor-pointer">
+              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
+                <RotateCcw className="w-5 h-5 text-orange-500" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-gray-800">退傭申請</p>
+                <p className="text-xs text-gray-400 mt-0.5">查看 · 新申請</p>
+              </div>
+            </div>
+          </Link>
           <Link href="/merchant-settings">
-            <div className="rounded-2xl bg-white border border-gray-100 p-4 flex items-center gap-3 hover:border-amber-300 hover:bg-amber-50/50 transition-colors cursor-pointer col-span-2">
+            <div className="rounded-2xl bg-white border border-gray-100 p-4 flex items-center gap-3 hover:border-amber-300 hover:bg-amber-50/50 transition-colors cursor-pointer">
               <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
                 <Settings className="w-5 h-5 text-gray-500" />
               </div>

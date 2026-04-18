@@ -7,7 +7,7 @@ import { z } from "zod";
 import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, updateMerchantProfile } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest } from "./db";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 
@@ -40,7 +40,10 @@ export const appRouter = router({
         const origin = ctx.req.headers.origin || ctx.req.headers.referer?.replace(/\/[^/]*$/, '') || '';
         closeExpiredAuctions().then(closedIds => {
           if (closedIds.length > 0) {
-            closedIds.forEach(id => notifyWon(id, origin).catch(() => {}));
+            closedIds.forEach(id => {
+              notifyWon(id, origin).catch(() => {});
+              autoDeductCommissionOnAuctionEnd(id).catch(() => {});
+            });
           }
         }).catch(() => {});
         const auctionList = await getAuctions(input.limit, input.offset, input.category);
@@ -60,7 +63,10 @@ export const appRouter = router({
         const origin = ctx.req.headers.origin || ctx.req.headers.referer?.replace(/\/[^/]*$/, '') || '';
         closeExpiredAuctions().then(closedIds => {
           if (closedIds.length > 0) {
-            closedIds.forEach(id => notifyWon(id, origin).catch(() => {}));
+            closedIds.forEach(id => {
+              notifyWon(id, origin).catch(() => {});
+              autoDeductCommissionOnAuctionEnd(id).catch(() => {});
+            });
           }
         }).catch(() => {});
         const auction = await getAuctionById(input.id);
@@ -1162,6 +1168,7 @@ export const appRouter = router({
       .input(z.object({
         userId: z.number().int().positive(),
         requiredDeposit: z.number().min(0).optional(),
+        warningDeposit: z.number().min(0).optional(),
         commissionRate: z.number().min(0).max(1).optional(),
         isActive: z.number().int().min(0).max(1).optional(),
       }))
@@ -1169,6 +1176,7 @@ export const appRouter = router({
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         const ok = await updateSellerDepositSettings(input.userId, {
           requiredDeposit: input.requiredDeposit,
+          warningDeposit: input.warningDeposit,
           commissionRate: input.commissionRate,
           isActive: input.isActive,
         });
@@ -1669,6 +1677,9 @@ export const appRouter = router({
         if (ctx.user.role !== 'admin') {
           const listCheck = await canSellerList(ctx.user.id);
           if (!listCheck.canList) throw new TRPCError({ code: 'FORBIDDEN', message: listCheck.reason ?? '商戶帳戶不可發佈拍賣' });
+          // Check + deduct listing quota
+          const quotaResult = await deductListingQuota(ctx.user.id);
+          if (!quotaResult.success) throw new TRPCError({ code: 'FORBIDDEN', message: quotaResult.reason ?? '發佈次數不足' });
         }
         const updateData: Record<string, unknown> = { status: 'active', endTime: input.endTime };
         if (input.title !== undefined) updateData.title = input.title;
@@ -1698,12 +1709,25 @@ export const appRouter = router({
           const listCheck = await canSellerList(ctx.user.id);
           if (!listCheck.canList) throw new TRPCError({ code: 'FORBIDDEN', message: listCheck.reason ?? '商戶帳戶不可發佈拍賣' });
         }
+        // Determine how many valid drafts we're about to publish for quota check
+        let toPublishCount = 0;
+        const auctionChecks = await Promise.all(input.ids.map(id => getAuctionById(id)));
+        for (const a of auctionChecks) {
+          if (a && a.status === 'draft' && (a.createdBy === ctx.user.id || ctx.user.role === 'admin')) toPublishCount++;
+        }
+        if (ctx.user.role !== 'admin' && toPublishCount > 0) {
+          const quotaInfo = await getListingQuotaInfo(ctx.user.id);
+          if (quotaInfo && !quotaInfo.unlimited && quotaInfo.remainingQuota < toPublishCount) {
+            throw new TRPCError({ code: 'FORBIDDEN', message: `發佈次數不足（剩餘 ${quotaInfo.remainingQuota}，需要 ${toPublishCount}）` });
+          }
+        }
         const results = await Promise.allSettled(
           input.ids.map(async (id) => {
             const auction = await getAuctionById(id);
             if (!auction || auction.status !== 'draft') return { id, skipped: true };
             if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') return { id, forbidden: true };
             await updateAuction(id, { status: 'active', endTime: input.endTime });
+            if (ctx.user.role !== 'admin') await deductListingQuota(ctx.user.id).catch(() => {});
             return { id, success: true };
           })
         );
@@ -1853,6 +1877,90 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         await upsertMerchantSettings(ctx.user.id, input.defaultEndDayOffset, input.defaultEndTime, input.defaultStartingPrice, input.defaultBidIncrement, input.defaultAntiSnipeEnabled, input.defaultAntiSnipeMinutes, input.defaultExtendMinutes);
         return { success: true };
+      }),
+
+    // ═══════════════════════════════════════════════════════
+    //  商戶：發佈配額
+    // ═══════════════════════════════════════════════════════
+
+    /** 取得本人發佈配額資訊 */
+    getQuotaInfo: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getListingQuotaInfo(ctx.user.id);
+      }),
+
+    // ═══════════════════════════════════════════════════════
+    //  商戶：退傭申請
+    // ═══════════════════════════════════════════════════════
+
+    /** 商戶提交退傭申請 */
+    submitRefundRequest: protectedProcedure
+      .input(z.object({
+        auctionId: z.number().int().positive(),
+        reason: z.enum(['buyer_missing', 'buyer_refused', 'mutual_cancel', 'other']),
+        reasonDetail: z.string().max(500).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        // Verify this auction belongs to the merchant and has ended
+        const auction = await getAuctionById(input.auctionId);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只能申請自己的拍賣' });
+        }
+        if (auction.status !== 'ended') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只有已結束的拍賣才能申請退傭' });
+        }
+        if (!auction.highestBidderId) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '流拍拍賣不需申請退傭（無成交傭金）' });
+        }
+        const deposit = await getOrCreateSellerDeposit(ctx.user.id);
+        if (!deposit) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '找不到保證金記錄' });
+        const rate = parseFloat(deposit.commissionRate.toString());
+        const commission = parseFloat((parseFloat(String(auction.currentPrice)) * rate).toFixed(2));
+        try {
+          await createRefundRequest({ auctionId: input.auctionId, userId: ctx.user.id, commissionAmount: commission, reason: input.reason, reasonDetail: input.reasonDetail });
+          return { success: true };
+        } catch (e: unknown) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: e instanceof Error ? e.message : '申請失敗' });
+        }
+      }),
+
+    /** 商戶查看自己的退傭申請 */
+    myRefundRequests: protectedProcedure
+      .query(async ({ ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        return getMyRefundRequests(ctx.user.id);
+      }),
+
+    /** Admin: 查看所有退傭申請 */
+    adminGetRefundRequests: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        return getAllRefundRequests();
+      }),
+
+    /** Admin: 審批退傭申請 */
+    adminReviewRefundRequest: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        status: z.enum(['approved', 'rejected']),
+        adminNote: z.string().max(500).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        try {
+          await reviewRefundRequest(input.id, input.status, input.adminNote, ctx.user.id);
+          return { success: true };
+        } catch (e: unknown) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: e instanceof Error ? e.message : '審批失敗' });
+        }
       }),
   }),
 });
