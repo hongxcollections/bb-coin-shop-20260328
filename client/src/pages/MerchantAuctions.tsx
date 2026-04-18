@@ -329,7 +329,7 @@ export default function MerchantAuctions() {
   const [batchEndTime, setBatchEndTime] = useState("");
 
   const { data: merchantSettings } = trpc.merchants.getSettings.useQuery(undefined, { enabled: isAuthenticated });
-  const { data: canListData } = trpc.sellerDeposits.canList.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: canListData, refetch: refetchCanList } = trpc.sellerDeposits.canList.useQuery(undefined, { enabled: isAuthenticated, staleTime: 0, refetchOnWindowFocus: true });
   const { data: myAuctions, isLoading: loadingActive, refetch: refetchActive } = trpc.merchants.myAuctions.useQuery();
   const { data: myDrafts, isLoading: loadingDrafts, refetch: refetchDrafts } = trpc.merchants.myDrafts.useQuery();
   const { data: myArchived, isLoading: loadingArchived, refetch: refetchArchived } = trpc.merchants.myArchived.useQuery();
@@ -504,16 +504,17 @@ export default function MerchantAuctions() {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
-  const checkCanPublish = () => {
-    if (canListData && !canListData.canList) {
+  const checkCanPublish = async (): Promise<boolean> => {
+    const { data: fresh } = await refetchCanList();
+    if (fresh && !fresh.canList) {
       toast.error("商戶暫已被停用，請聯繫客服了解情況");
       return false;
     }
     return true;
   };
 
-  const openPublish = (a: AuctionItem) => {
-    if (!checkCanPublish()) return;
+  const openPublish = async (a: AuctionItem) => {
+    if (!(await checkCanPublish())) return;
     setPublishTarget(a);
     setPublishEndTime(calcDefaultEndTime());
     setPublishOpen(true);
@@ -525,9 +526,9 @@ export default function MerchantAuctions() {
     publishMutation.mutate({ id: publishTarget.id, endTime: new Date(publishEndTime) });
   };
 
-  const openBatchPublish = () => {
+  const openBatchPublish = async () => {
     if (selectedDrafts.size === 0) { toast.error("請先選擇要發佈的草稿"); return; }
-    if (!checkCanPublish()) return;
+    if (!(await checkCanPublish())) return;
     setBatchEndTime(calcDefaultEndTime());
     setBatchPublishOpen(true);
   };
