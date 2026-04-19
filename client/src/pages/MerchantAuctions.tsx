@@ -268,6 +268,14 @@ function AuctionCard({
 
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm truncate leading-snug">{auction.title}</p>
+        {tab === "已結束" && (
+          <p className="text-xs mt-0.5 leading-snug">
+            <span className="text-gray-400">中標者（最高出價）：</span>
+            <span className="font-medium text-amber-700">
+              {auction.highestBidderName ?? "—"}
+            </span>
+          </p>
+        )}
         <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
           起：{getCurrencySymbol(auction.currency ?? "HKD")}{Number(auction.startingPrice).toLocaleString()}
           {" · "}口：${auction.bidIncrement ?? 30}
