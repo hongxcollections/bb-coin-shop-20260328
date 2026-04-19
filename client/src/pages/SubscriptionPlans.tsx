@@ -219,7 +219,7 @@ export default function SubscriptionPlans() {
         </div>
       </div>
 
-      <div className="container max-w-4xl py-8 space-y-8">
+      <div className="container max-w-4xl pt-8 pb-28 space-y-8">
         {/* Header */}
         <div className="text-center">
           <h1 className="text-3xl font-extrabold text-amber-900 mb-2 flex items-center justify-center gap-2">
