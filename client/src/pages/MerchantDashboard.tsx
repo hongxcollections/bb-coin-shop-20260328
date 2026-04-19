@@ -243,7 +243,7 @@ export default function MerchantDashboard() {
             ) : (
               <>
                 <p className={`text-2xl font-bold ${depositOk ? (belowWarning ? "text-amber-600" : "text-emerald-700") : "text-red-600"}`}>{HKD(balance)}</p>
-                <p className="text-xs text-gray-400">最低要求 {HKD(required)}</p>
+                <p className="text-xs text-gray-400">需維持水平 {HKD(required)}</p>
               </>
             )}
           </div>

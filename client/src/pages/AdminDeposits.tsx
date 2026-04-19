@@ -547,7 +547,7 @@ export default function AdminDeposits() {
                             {formatCurrency(deposit.balance)}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            最低要求：{formatCurrency(deposit.requiredDeposit)} | 佣金率：{(rate * 100).toFixed(2)}%
+                            需維持水平：{formatCurrency(deposit.requiredDeposit)} | 佣金率：{(rate * 100).toFixed(2)}%
                           </div>
                         </div>
                       </div>
