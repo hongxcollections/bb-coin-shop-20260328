@@ -172,15 +172,15 @@ function GenerateListingsPanel({ userId, userName }: { userId: number; userName:
   );
 }
 
-/** 管理員為任意會員生成測試結標貨品 */
+/** 管理員為任意會員生成測試結標貨品（該用戶為商戶，中標者隨機抽取） */
 function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userName: string }) {
   const [open, setOpen] = useState(false);
-  const [result, setResult] = useState<{ auctionId: number; winningPrice: number; title: string } | null>(null);
+  const [result, setResult] = useState<{ auctionId: number; winningPrice: number; title: string; winnerName: string } | null>(null);
 
   const genMutation = trpc.auctions.adminGenerateTestWonAuction.useMutation({
     onSuccess: (data) => {
       setResult(data);
-      toast.success(`已為 ${userName} 生成測試結標：#${data.auctionId}`);
+      toast.success(`已生成測試結標 #${data.auctionId}，中標者：${data.winnerName}`);
     },
     onError: (err) => toast.error(err.message),
   });
@@ -205,15 +205,15 @@ function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userNam
               <Gavel size={11} className="text-white" />
             </div>
             <span className="text-xs font-semibold" style={{ color: "#92400E" }}>生成測試結標貨品</span>
-            <span className="text-xs text-gray-400 ml-auto">中標者：{userName}</span>
+            <span className="text-xs text-gray-400 ml-auto">商戶：{userName}</span>
           </div>
           <p className="text-xs text-amber-700">
-            系統將隨機建立一個已結標拍賣（隨機商戶、隨機金額），並指定 <strong>{userName}</strong> 為中標者。
+            以 <strong>{userName}</strong> 為商戶，系統隨機抽取另一位會員作中標者，並生成一個已結標拍賣（隨機金額）。
           </p>
           <button
             type="button"
             disabled={genMutation.isPending}
-            onClick={() => genMutation.mutate({ winnerUserId: userId })}
+            onClick={() => genMutation.mutate({ merchantUserId: userId })}
             className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-semibold text-white transition-opacity disabled:opacity-50"
             style={{ background: "linear-gradient(135deg, #D97706, #B45309)" }}
           >
@@ -222,10 +222,10 @@ function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userNam
               : <><span>🏆</span>立即生成結標記錄</>}
           </button>
           {result && (
-            <div className="flex items-center gap-1.5 rounded-lg px-2.5 py-2" style={{ background: "#D1FAE5", border: "1px solid #6EE7B7" }}>
-              <CheckCircle2 size={13} style={{ color: "#059669", flexShrink: 0 }} />
+            <div className="flex items-start gap-1.5 rounded-lg px-2.5 py-2" style={{ background: "#D1FAE5", border: "1px solid #6EE7B7" }}>
+              <CheckCircle2 size={13} style={{ color: "#059669", flexShrink: 0, marginTop: 1 }} />
               <span className="text-xs font-medium" style={{ color: "#065F46" }}>
-                已建立拍賣 #{result.auctionId}「{result.title}」— 成交 HKD ${result.winningPrice.toLocaleString()}
+                拍賣 #{result.auctionId}「{result.title}」已建立，成交 HKD ${result.winningPrice.toLocaleString()}，中標者：<strong>{result.winnerName}</strong>
               </span>
             </div>
           )}

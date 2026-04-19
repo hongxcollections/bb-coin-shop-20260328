@@ -433,23 +433,27 @@ export const appRouter = router({
       }),
 
     adminGenerateTestWonAuction: protectedProcedure
-      .input(z.object({ winnerUserId: z.number().int().positive() }))
+      .input(z.object({ merchantUserId: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         const db = await getDb();
         if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
 
+        const { users: usersTable } = await import('../drizzle/schema');
+        const { ne, and } = await import('drizzle-orm');
 
-        // Pick a creator: prefer an approved merchant, fallback to admin, fallback to winner
-        const merchantRows = await db
-          .select({ userId: merchantAppsTable.userId })
-          .from(merchantAppsTable)
-          .where(eq(merchantAppsTable.status, 'approved'))
-          .limit(5);
-        const merchantUserIds = merchantRows.map(r => r.userId).filter(id => id !== input.winnerUserId);
-        const creatorUserId = merchantUserIds.length > 0
-          ? merchantUserIds[Math.floor(Math.random() * merchantUserIds.length)]
-          : input.winnerUserId;
+        // The user in the row is the auction creator (merchant)
+        const creatorUserId = input.merchantUserId;
+
+        // Pick a RANDOM winner from all users — excluding the creator and the admin
+        const allUsers = await db
+          .select({ id: usersTable.id, name: usersTable.name })
+          .from(usersTable)
+          .where(and(ne(usersTable.id, creatorUserId), ne(usersTable.id, ctx.user.id)));
+        if (allUsers.length === 0) throw new TRPCError({ code: 'BAD_REQUEST', message: '資料庫內沒有其他會員，無法隨機選取中標者' });
+        const randomWinner = allUsers[Math.floor(Math.random() * allUsers.length)];
+        const winnerUserId = randomWinner.id;
+        const winnerName = randomWinner.name ?? `用戶 #${randomWinner.id}`;
 
         // Random auction data
         const testItems = [
@@ -475,7 +479,7 @@ export const appRouter = router({
           description: `${template.desc}｜系統測試用，已結標`,
           startingPrice: startingPrice.toString(),
           currentPrice: winningPrice.toString(),
-          highestBidderId: input.winnerUserId,
+          highestBidderId: winnerUserId,
           endTime,
           bidIncrement: 30,
           currency: 'HKD' as const,
@@ -485,15 +489,15 @@ export const appRouter = router({
         });
         await addAuctionImage({ auctionId: newAuction.id, imageUrl, displayOrder: 0 });
 
-        // Create bid record
+        // Create bid record for the random winner
         await dbPlaceBid({
           auctionId: newAuction.id,
-          userId: input.winnerUserId,
+          userId: winnerUserId,
           bidAmount: winningPrice.toString(),
           isAnonymous: 0,
         });
 
-        return { auctionId: newAuction.id, winningPrice, title: `【測試結標】${template.title}` };
+        return { auctionId: newAuction.id, winningPrice, title: `【測試結標】${template.title}`, winnerName };
       }),
 
     adminGenerateTestListings: protectedProcedure
