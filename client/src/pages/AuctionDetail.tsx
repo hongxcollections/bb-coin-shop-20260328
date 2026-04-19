@@ -486,16 +486,18 @@ export default function AuctionDetail() {
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <div className="text-xs text-muted-foreground mb-1 flex flex-wrap items-center gap-1">
-                       當前最高出價
-                       {bids.length > 0 ? (
-                         <span className="text-[9px] text-red-500 font-semibold">({displayName(bids[0], user?.id)})</span>
-                       ) : (
-                         <span className="text-[9px] text-black font-normal">(未有出價)</span>
-                       )}
-                       {bids.length > 0 && bids[0].userId === user?.id && bids[0].isAnonymous !== 1 && (
-                         <span className="text-emerald-600 font-bold leading-none" style={{ fontSize: "20px" }}>（我本人）</span>
-                       )}
+                    <div className="text-xs text-muted-foreground mb-1">
+                      <div className="flex items-center gap-1">
+                        當前最高出價
+                        {bids.length > 0 ? (
+                          <span className="text-[9px] text-red-500 font-semibold">({displayName(bids[0], user?.id)})</span>
+                        ) : (
+                          <span className="text-[9px] text-black font-normal">(未有出價)</span>
+                        )}
+                      </div>
+                      {bids.length > 0 && bids[0].userId === user?.id && bids[0].isAnonymous !== 1 && (
+                        <div className="text-emerald-600 font-bold mt-0.5 leading-tight" style={{ fontSize: "20px" }}>（我本人）</div>
+                      )}
                     </div>
                     <div className="text-3xl font-extrabold text-amber-600 price-tag">
                       {currencySymbol}{Number(auction.currentPrice).toLocaleString()}
