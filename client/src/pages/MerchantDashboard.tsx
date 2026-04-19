@@ -286,29 +286,28 @@ export default function MerchantDashboard() {
               <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0">
                 <CreditCard className="w-5 h-5 text-purple-500" />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm text-gray-800">訂閱計劃</p>
-                <p className="text-xs text-gray-400 mt-0.5">
+              <div className="min-w-0">
+                <p className="font-semibold text-sm text-gray-800 truncate">訂閱計劃</p>
+                <p className="text-xs text-gray-400 mt-0.5 truncate">
                   {mySubscription?.planName
-                    ? `目前：${mySubscription.planName}`
+                    ? `${mySubscription.planName}`
                     : "選擇月費計劃"}
                 </p>
+                {mySubscription && (
+                  <p className={`text-xs font-semibold mt-0.5 ${
+                    quotaInfo?.unlimited ? "text-green-600"
+                    : quotaInfo && quotaInfo.remainingQuota <= 0 ? "text-red-600"
+                    : quotaInfo && quotaInfo.remainingQuota <= 5 ? "text-amber-600"
+                    : "text-blue-600"
+                  }`}>
+                    {quotaInfo?.unlimited
+                      ? "無限制"
+                      : quotaInfo
+                        ? `${quotaInfo.remainingQuota} / ${quotaInfo.maxListings} 次`
+                        : ""}
+                  </p>
+                )}
               </div>
-              {mySubscription && (
-                <div className="text-right flex-shrink-0">
-                  {quotaInfo?.unlimited
-                    ? <p className="text-xs font-medium text-green-600">無限制</p>
-                    : quotaInfo
-                      ? <>
-                          <p className={`text-sm font-bold ${quotaInfo.remainingQuota <= 0 ? "text-red-600" : quotaInfo.remainingQuota <= 5 ? "text-amber-600" : "text-blue-600"}`}>
-                            {quotaInfo.remainingQuota}
-                          </p>
-                          <p className="text-xs text-gray-400">/ {quotaInfo.maxListings} 次</p>
-                        </>
-                      : null
-                  }
-                </div>
-              )}
             </div>
           </Link>
         </div>
