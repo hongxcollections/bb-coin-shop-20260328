@@ -598,34 +598,36 @@ export default function AdminAuctions() {
         </div>
         {/* Mobile dropdown menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-amber-100 bg-background/98 backdrop-blur px-4 py-3 flex flex-col gap-0.5 shadow-lg">
-            {[
-              { href: "/auctions", label: "所有拍賣", cls: "text-amber-700" },
-              { href: "/admin/drafts", label: "📘 草稿審核", cls: "text-blue-600" },
-              { href: "/admin/archive", label: "📦 封存區", cls: "text-gray-600" },
-              { href: "/admin/notifications", label: "🔔 通知設定", cls: "text-gray-600" },
-              { href: "/admin/users", label: "👥 會員管理", cls: "text-violet-600" },
-              { href: "/admin/anonymous-bids", label: "🕵️ 匿名出價", cls: "text-slate-600" },
-              { href: "/admin/dashboard", label: "📊 統計儀表板", cls: "text-emerald-600" },
-              { href: "/admin/export-bids", label: "📥 匯出記錄", cls: "text-orange-600" },
-              { href: "/admin/settings", label: "⚙️ 站點設定", cls: "text-gray-600" },
-              { href: "/admin/won-orders", label: "🏆 得標訂單", cls: "text-amber-700" },
-              { href: "/admin/deposits", label: "💰 保證金管理", cls: "text-teal-600" },
-              { href: "/admin/subscriptions", label: "👑 訂閱管理", cls: "text-violet-600" },
-              { href: "/profile", label: user?.name ?? "個人資料", cls: "text-amber-700" },
-            ].map(({ href, label, cls }) => (
-              <Link key={href} href={href} onClick={() => setMobileMenuOpen(false)}>
-                <button className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-amber-50 transition-colors ${cls}`}>
-                  {label}
-                </button>
-              </Link>
-            ))}
-            <div className="pt-1 mt-1 border-t border-amber-100">
+          <div className="md:hidden border-t border-amber-100 bg-background/98 backdrop-blur px-4 py-4 shadow-lg">
+            <div className="flex flex-wrap gap-2 mb-3">
+              {[
+                { href: "/auctions", label: "所有拍賣", bg: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" },
+                { href: "/admin/drafts", label: "📘 草稿審核", bg: "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100" },
+                { href: "/admin/archive", label: "📦 封存區", bg: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100" },
+                { href: "/admin/notifications", label: "🔔 通知設定", bg: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100" },
+                { href: "/admin/users", label: "👥 會員管理", bg: "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100" },
+                { href: "/admin/anonymous-bids", label: "🕵️ 匿名出價", bg: "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100" },
+                { href: "/admin/dashboard", label: "📊 統計儀表板", bg: "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100" },
+                { href: "/admin/export-bids", label: "📥 匯出記錄", bg: "bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100" },
+                { href: "/admin/settings", label: "⚙️ 站點設定", bg: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100" },
+                { href: "/admin/won-orders", label: "🏆 得標訂單", bg: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" },
+                { href: "/admin/deposits", label: "💰 保證金管理", bg: "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100" },
+                { href: "/admin/subscriptions", label: "👑 訂閱管理", bg: "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100" },
+                { href: "/profile", label: "👤 " + (user?.name ?? "個人資料"), bg: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" },
+              ].map(({ href, label, bg }) => (
+                <Link key={href} href={href} onClick={() => setMobileMenuOpen(false)}>
+                  <button className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${bg}`}>
+                    {label}
+                  </button>
+                </Link>
+              ))}
+            </div>
+            <div className="border-t border-amber-100 pt-3">
               <button
                 onClick={() => { setMobileMenuOpen(false); logout(); }}
-                className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                className="px-3 py-1.5 rounded-full text-sm font-medium border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors flex items-center gap-1.5"
               >
-                <LogOut className="w-4 h-4" /> 登出
+                <LogOut className="w-3.5 h-3.5" /> 登出
               </button>
             </div>
           </div>
