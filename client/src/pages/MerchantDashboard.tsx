@@ -183,31 +183,37 @@ function printTxReport(
   </table>
   </body></html>`;
 
-  // Use hidden iframe — works in Firefox, Chrome, Safari without popup/blob restrictions
-  const existing = document.getElementById("__tx-print-frame__");
-  if (existing) existing.remove();
+  // Inject report into current page and call window.print() directly —
+  // most reliable cross-browser method (Firefox blocks iframe/blob print)
+  const PRINT_ID = "__tx-print-overlay__";
+  const STYLE_ID = "__tx-print-style__";
 
-  const iframe = document.createElement("iframe");
-  iframe.id = "__tx-print-frame__";
-  iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;opacity:0;pointer-events:none";
-  document.body.appendChild(iframe);
+  // Clean up any previous instance
+  document.getElementById(PRINT_ID)?.remove();
+  document.getElementById(STYLE_ID)?.remove();
 
-  iframe.onload = () => {
-    try {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-    } catch {
-      // fallback: open new tab
-      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-    }
-    setTimeout(() => iframe.remove(), 5000);
-  };
+  // Inject print-only CSS: hide everything except the report overlay
+  const style = document.createElement("style");
+  style.id = STYLE_ID;
+  style.textContent = `@media print { body > *:not(#${PRINT_ID}) { display: none !important; } #${PRINT_ID} { display: block !important; } }`;
+  document.head.appendChild(style);
 
-  // srcdoc is the most reliable cross-browser way to set iframe content
-  iframe.srcdoc = html;
+  // Inject report HTML as a hidden div (visible only during print)
+  const overlay = document.createElement("div");
+  overlay.id = PRINT_ID;
+  overlay.style.display = "none";
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+
+  // Small delay to ensure DOM is ready, then print
+  setTimeout(() => {
+    window.print();
+    // Clean up after print dialog closes
+    setTimeout(() => {
+      document.getElementById(PRINT_ID)?.remove();
+      document.getElementById(STYLE_ID)?.remove();
+    }, 2000);
+  }, 100);
 }
 
 export default function MerchantDashboard() {
