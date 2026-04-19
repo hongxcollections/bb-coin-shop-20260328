@@ -403,9 +403,6 @@ export default function AdminUsers() {
 
                     {/* Won auctions expandable list */}
                     {expandedUserId === u.id && <WonAuctionsList userId={u.id} />}
-
-                    {/* Generate test listings — merchants only */}
-                    {u.depositId && <GenerateListingsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
                   </div>
                 </div>
               </div>
@@ -434,6 +431,8 @@ export default function AdminUsers() {
                 </div>
               )}
             </div>
+            {/* Generate test listings — full width below the flex row, merchants only */}
+            {u.depositId && <GenerateListingsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
           </div>
         ))}
       </div>
