@@ -175,7 +175,8 @@ function GenerateListingsPanel({ userId, userName }: { userId: number; userName:
 /** 管理員為任意會員生成測試結標貨品（該用戶為商戶，中標者隨機抽取） */
 function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userName: string }) {
   const [open, setOpen] = useState(false);
-  const [count, setCount] = useState(1);
+  const [countStr, setCountStr] = useState("1");
+  const count = Math.min(30, Math.max(1, parseInt(countStr, 10) || 1));
   const [results, setResults] = useState<{ auctionId: number; winningPrice: number; title: string; winnerName: string }[]>([]);
 
   const genMutation = trpc.auctions.adminGenerateTestWonAuction.useMutation({
@@ -218,7 +219,7 @@ function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userNam
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => setCount(c => Math.max(1, c - 1))}
+                onClick={() => setCountStr(String(Math.max(1, count - 1)))}
                 disabled={count <= 1}
                 className="w-6 h-6 rounded flex items-center justify-center text-sm font-bold transition-colors disabled:opacity-30"
                 style={{ background: "#FDE68A", color: "#92400E" }}
@@ -227,17 +228,15 @@ function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userNam
                 type="number"
                 min={1}
                 max={30}
-                value={count}
-                onChange={(e) => {
-                  const v = parseInt(e.target.value, 10);
-                  if (!isNaN(v)) setCount(Math.min(30, Math.max(1, v)));
-                }}
+                value={countStr}
+                onChange={(e) => setCountStr(e.target.value)}
+                onBlur={() => setCountStr(String(count))}
                 className="w-12 h-6 rounded border text-center text-xs font-semibold focus:outline-none"
                 style={{ borderColor: "#FCD34D", color: "#92400E" }}
               />
               <button
                 type="button"
-                onClick={() => setCount(c => Math.min(30, c + 1))}
+                onClick={() => setCountStr(String(Math.min(30, count + 1)))}
                 disabled={count >= 30}
                 className="w-6 h-6 rounded flex items-center justify-center text-sm font-bold transition-colors disabled:opacity-30"
                 style={{ background: "#FDE68A", color: "#92400E" }}
