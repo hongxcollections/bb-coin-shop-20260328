@@ -228,13 +228,14 @@ export default function Auctions() {
         {/* ── Marquee Ticker ── Strictly show only active auctions with future end time */}
         {!isLoading && (auctions ?? []).filter(a => a.status === 'active' && new Date(a.endTime).getTime() > Date.now()).length > 0 && (
           <div className="marquee-wrapper mb-4 border border-amber-100 rounded-xl bg-amber-50/60 py-2 overflow-hidden">
-            <div className="marquee-track flex">
-              {(() => {
-                const activeAuctions = (auctions ?? []).filter(a => 
-                  a.status === 'active' && new Date(a.endTime).getTime() > Date.now()
-                );
-                // Duplicate items for seamless infinite scroll
-                return [...activeAuctions, ...activeAuctions].map((auction, idx) => (
+            {(() => {
+              const activeAuctions = (auctions ?? []).filter(a =>
+                a.status === 'active' && new Date(a.endTime).getTime() > Date.now()
+              );
+              const duration = `${Math.max(8, activeAuctions.length * 2.5)}s`;
+              return (
+            <div className="marquee-track flex" style={{ animationDuration: duration }}>
+              {[...activeAuctions, ...activeAuctions].map((auction, idx) => (
                   <Link
                     key={`${auction.id}-${idx}`}
                     href={`/auctions/${auction.id}`}
@@ -264,9 +265,10 @@ export default function Auctions() {
                       </div>
                     </div>
                   </Link>
-                ));
-              })()}
+                ))}
             </div>
+              );
+            })()}
           </div>
         )}
 
