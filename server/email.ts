@@ -176,7 +176,48 @@ export async function sendEndingSoonEmail(params: EndingSoonEmailParams): Promis
   return sendEmail({ to, senderName, senderEmail, subject: `【即將結束】${auctionTitle} — 還剩 ${timeLabel}`, html: baseLayout("拍賣即將結束通知", body) });
 }
 
-// ─── Core send function ───────────────────────────────────────────────────────
+// ─── Email: merchant won (auction ended, notify seller) ──────────────────────
+
+export interface MerchantWonEmailParams extends EmailOptions {
+  merchantName: string;
+  auctionTitle: string;
+  auctionId: number;
+  finalPrice: number;
+  currency: string;
+  winnerName: string;
+  winnerPhone: string | null;
+  auctionUrl: string;
+}
+
+export async function sendMerchantWonEmail(params: MerchantWonEmailParams): Promise<boolean> {
+  const { to, senderName, senderEmail, merchantName, auctionTitle, auctionId, finalPrice, currency, winnerName, winnerPhone, auctionUrl } = params;
+
+  const body = `
+    <h2>🏆 您的拍賣已結標！</h2>
+    <p>親愛的 <strong>${merchantName}</strong>，</p>
+    <p>您的拍賣品已成功結標，以下是得標者資訊：</p>
+
+    <div class="highlight">
+      <div class="label">得標拍賣品</div>
+      <div style="font-size:16px;font-weight:600;color:#333;margin-top:4px;">${auctionTitle}</div>
+    </div>
+    <div class="highlight">
+      <div class="label">成交價格</div>
+      <div class="value">${currency} ${finalPrice.toLocaleString()}</div>
+    </div>
+    <div class="highlight">
+      <div class="label">得標者</div>
+      <div style="font-size:16px;font-weight:600;color:#333;margin-top:4px;">${winnerName}</div>
+      ${winnerPhone ? `<div style="font-size:13px;color:#6b7280;margin-top:4px;">📞 ${winnerPhone}</div>` : ''}
+    </div>
+
+    <p style="margin-top:20px;font-size:13px;color:#6b7280;">請盡快與得標者聯絡安排付款及交收事宜。</p>
+    <a href="${auctionUrl}" class="btn">查看拍賣詳情 →</a>
+  `;
+  return sendEmail({ to, senderName, senderEmail, subject: `🏆 【拍賣結標】${auctionTitle} — 成交價 ${currency} ${finalPrice.toLocaleString()}`, html: baseLayout("拍賣結標通知", body) });
+}
+
+// ─── Internal send ────────────────────────────────────────────────────────────
 
 async function sendEmail(opts: {
   to: string;

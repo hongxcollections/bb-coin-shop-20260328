@@ -1218,6 +1218,8 @@ export async function getMyWonAuctions(userId: number) {
         bidCount: sql<number>`(SELECT COUNT(*) FROM bids WHERE bids.auctionId = ${auctions.id})`,
         winningAmount: sql<string>`(SELECT bidAmount FROM bids WHERE bids.auctionId = ${auctions.id} ORDER BY bidAmount DESC, createdAt ASC LIMIT 1)`,
         paymentStatus: auctions.paymentStatus,
+        sellerName: sql<string | null>`(SELECT name FROM users WHERE id = ${auctions.createdBy})`,
+        sellerWhatsapp: sql<string | null>`(SELECT whatsapp FROM merchantApplications WHERE userId = ${auctions.createdBy} AND status = 'approved' LIMIT 1)`,
       })
       .from(auctions)
       .where(

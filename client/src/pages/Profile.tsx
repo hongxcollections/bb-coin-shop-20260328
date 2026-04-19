@@ -23,7 +23,13 @@ const PAYMENT_STATUS_CONFIG = {
   delivered: { label: '已交收', color: 'bg-green-100 text-green-800 border-green-200', icon: '✅' },
 } as const;
 
-type WonAuctionItemType = { id: number; title: string; currency: string; winningAmount: string; endTime: number; category?: string | null; bidCount: number; paymentStatus?: string | null };
+type WonAuctionItemType = { id: number; title: string; currency: string; winningAmount: string; endTime: number; category?: string | null; bidCount: number; paymentStatus?: string | null; sellerName?: string | null; sellerWhatsapp?: string | null };
+
+function toWhatsAppUrl(phone: string, message: string): string {
+  let digits = phone.replace(/\D/g, '');
+  if (digits.length === 8) digits = '852' + digits;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
 
 function WonAuctionItem({ item }: { item: WonAuctionItemType }) {
   const utils = trpc.useUtils();
@@ -78,6 +84,17 @@ function WonAuctionItem({ item }: { item: WonAuctionItemType }) {
           >
             {updateStatus.isPending ? '更新中...' : '✓ 標記已付款'}
           </button>
+        )}
+        {/* 聯絡商戶 WhatsApp */}
+        {item.sellerWhatsapp && (
+          <a
+            href={toWhatsAppUrl(item.sellerWhatsapp, `您好，我在大BB錢幣店以 ${item.currency}$${Number(item.winningAmount).toLocaleString()} 得標「${item.title}」，想查詢付款及交收安排，謝謝！`)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+          >
+            💬 聯絡商戶
+          </a>
         )}
       </div>
     </div>
@@ -687,7 +704,7 @@ export default function Profile() {
               </div>
             ) : (
               <div className="space-y-3">
-                {(wonAuctions as Array<{ id: number; title: string; currency: string; winningAmount: string; endTime: number; category?: string | null; bidCount: number; paymentStatus?: string | null }>).map((item) => (
+                {(wonAuctions as WonAuctionItemType[]).map((item) => (
                   <WonAuctionItem key={item.id} item={item} />
                 ))}
               </div>

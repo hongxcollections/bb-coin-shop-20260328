@@ -1,7 +1,7 @@
 import { getDb, getAuctionById, getBidHistory, placeBid as dbPlaceBid, getAuctions as dbGetAuctions, getActiveProxiesForAuction, insertProxyBidLog, getNotificationSettings, getBiddersForAuction } from './db';
-import { auctions as auctionsTable, users } from '../drizzle/schema';
+import { auctions as auctionsTable, users, merchantApplications } from '../drizzle/schema';
 import { eq } from 'drizzle-orm';
-import { sendOutbidEmail, sendWonEmail, sendEndingSoonEmail } from './email';
+import { sendOutbidEmail, sendWonEmail, sendEndingSoonEmail, sendMerchantWonEmail } from './email';
 import { getUserById } from './db';
 
 // Track which auctions have had ending-soon notifications sent (in-memory, resets on restart)
@@ -196,6 +196,53 @@ export async function notifyWon(auctionId: number, origin: string) {
     });
   } catch (err) {
     console.error('[Email] Won notification error:', err);
+  }
+}
+
+/**
+ * Notify the merchant (auction creator) when their auction ends with winner details.
+ */
+export async function notifyMerchantWon(auctionId: number, origin: string) {
+  try {
+    const settings = await getNotificationSettings();
+    if (!settings || !settings.senderEmail) return;
+
+    const auction = await getAuctionById(auctionId);
+    if (!auction || !auction.highestBidderId || !auction.createdBy) return;
+
+    const db = await getDb();
+    if (!db) return;
+
+    // Get merchant info
+    const merchantRows = await db
+      .select({ email: users.email, name: users.name })
+      .from(users)
+      .where(eq(users.id, auction.createdBy));
+    const merchant = merchantRows[0];
+    if (!merchant?.email) return;
+
+    // Get winner info
+    const winnerRows = await db
+      .select({ name: users.name, phone: users.phone })
+      .from(users)
+      .where(eq(users.id, auction.highestBidderId));
+    const winner = winnerRows[0];
+
+    await sendMerchantWonEmail({
+      to: merchant.email,
+      senderName: settings.senderName,
+      senderEmail: settings.senderEmail,
+      merchantName: merchant.name ?? `商戶 #${auction.createdBy}`,
+      auctionTitle: auction.title,
+      auctionId,
+      finalPrice: parseFloat(auction.currentPrice.toString()),
+      currency: auction.currency,
+      winnerName: winner?.name ?? `用戶 #${auction.highestBidderId}`,
+      winnerPhone: winner?.phone ?? null,
+      auctionUrl: `${origin}/auctions/${auctionId}`,
+    });
+  } catch (err) {
+    console.error('[Email] Merchant won notification error:', err);
   }
 }
 

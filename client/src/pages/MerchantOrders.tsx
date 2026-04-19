@@ -10,6 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Trophy, Search, RefreshCw, ChevronLeft, Loader2, Phone } from "lucide-react";
 import { toast } from "sonner";
 
+function toWhatsAppUrl(phone: string, message: string): string {
+  let digits = phone.replace(/\D/g, '');
+  if (digits.length === 8) digits = '852' + digits;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
+
 const PAYMENT_STATUS_CONFIG = {
   pending_payment: { label: "待付款", badgeClass: "border-yellow-300 bg-yellow-50 text-yellow-800" },
   paid: { label: "已付款", badgeClass: "border-blue-300 bg-blue-50 text-blue-800" },
@@ -76,9 +82,20 @@ function OrderRow({ order, onUpdate }: { order: MerchantOrder; onUpdate: () => v
         <p className="text-xs text-muted-foreground">得標者</p>
         <p className="text-sm font-medium truncate">{order.winnerName ?? "—"}</p>
         {order.winnerPhone && (
-          <p className="text-xs text-muted-foreground flex items-center gap-0.5 mt-0.5">
-            <Phone className="w-3 h-3" />{order.winnerPhone}
-          </p>
+          <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+            <p className="text-xs text-muted-foreground flex items-center gap-0.5">
+              <Phone className="w-3 h-3" />{order.winnerPhone}
+            </p>
+            <a
+              href={toWhatsAppUrl(order.winnerPhone, `您好，我是大BB錢幣店的商戶。您在拍賣「${order.title}」中以 ${order.currency}$${order.winningAmount ? Number(order.winningAmount).toLocaleString() : ''} 得標，請問方便安排付款及交收嗎？`)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button size="sm" variant="outline" className="h-5 px-1.5 text-[10px] border-green-400 text-green-700 hover:bg-green-50">
+                💬 WhatsApp
+              </Button>
+            </a>
+          </div>
         )}
       </div>
 
