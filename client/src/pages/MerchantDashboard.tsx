@@ -122,9 +122,9 @@ export default function MerchantDashboard() {
   });
 
   const { data: siteSettings } = trpc.siteSettings.getAll.useQuery();
-  const depositPaymentInfo = siteSettings
-    ? (siteSettings as Record<string, string>)["subscription_payment_methods"] ?? ""
-    : "";
+  const ss = (siteSettings as Record<string, string> | undefined) ?? {};
+  const depositPaymentInfo = ss["subscription_payment_methods"] ?? "";
+  const depositWarningMessage = ss["depositWarningMessage"] ?? "保證金水平維持不足，可以自行申請保證金充值或者聯絡管理員補交, 以免影響商戶一切正常運作。";
 
   const uploadReceiptMutation = trpc.subscriptions.uploadPaymentProof.useMutation({
     onSuccess: ({ url }) => { setTopUpReceiptUrl(url); setTopUpReceiptUploading(false); toast.success("收據已上傳"); },
@@ -374,7 +374,7 @@ export default function MerchantDashboard() {
         {!depositOk && deposit && (
           <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 flex items-start gap-2 text-sm text-red-600">
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <span>保證金不足，請盡快聯絡管理員補交以免影響戶口一切正常運作。</span>
+            <span>{depositWarningMessage}</span>
           </div>
         )}
         {belowWarning && deposit && (

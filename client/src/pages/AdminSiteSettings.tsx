@@ -52,6 +52,9 @@ export default function AdminSiteSettings() {
   // 登入歡迎訊息
   const [loginWelcomeDesc, setLoginWelcomeDesc] = useState("歡迎繼續瀏覽網站！");
 
+  // 保證金警告信息
+  const [depositWarningMessage, setDepositWarningMessage] = useState("保證金水平維持不足，可以自行申請保證金充值或者聯絡管理員補交, 以免影響商戶一切正常運作。");
+
   useEffect(() => {
     if (!settings) return;
     if (s.announcementEnabled) setAnnouncementEnabled(s.announcementEnabled === "true");
@@ -65,6 +68,7 @@ export default function AdminSiteSettings() {
     if (s.bidSuccessExtendedMessage) setBidSuccessExtendedMessage(s.bidSuccessExtendedMessage);
     if (s.notLoggedInBidText) setNotLoggedInBidText(s.notLoggedInBidText);
     if (s.loginWelcomeDesc) setLoginWelcomeDesc(s.loginWelcomeDesc);
+    if (s.depositWarningMessage) setDepositWarningMessage(s.depositWarningMessage);
   }, [settings]);
 
   if (!isAuthenticated || user?.role !== 'admin') {
@@ -414,6 +418,36 @@ export default function AdminSiteSettings() {
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   {popupPreview(loginWelcomeDesc)}
                   <SaveBtn onClick={() => save('loginWelcomeDesc', loginWelcomeDesc, () => !loginWelcomeDesc.trim() ? "說明文字不可為空" : null)} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 保證金警告信息 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-500" />
+                  <CardTitle className="text-lg">保證金警告信息</CardTitle>
+                </div>
+                <CardDescription>當商戶保證金餘額低於門檻時，商戶後台顯示的紅色警告提示文字</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="flex items-center gap-2 mb-2"><AlertCircle className="w-4 h-4 text-red-500" />警告信息內容</Label>
+                  <Textarea
+                    value={depositWarningMessage}
+                    onChange={(e) => setDepositWarningMessage(e.target.value)}
+                    rows={3}
+                    placeholder="保證金水平維持不足，可以自行申請保證金充值或者聯絡管理員補交, 以免影響商戶一切正常運作。"
+                    className="resize-none"
+                  />
+                </div>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-2.5 flex items-start gap-2 text-sm text-red-600 max-w-sm">
+                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span>{depositWarningMessage || "（空白）"}</span>
+                  </div>
+                  <SaveBtn onClick={() => save('depositWarningMessage', depositWarningMessage, () => !depositWarningMessage.trim() ? "警告信息不可為空" : null)} />
                 </div>
               </CardContent>
             </Card>
