@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -55,6 +55,11 @@ export default function Auctions() {
   const [merchantFilter, setMerchantFilter] = useState("all");
   const [page, setPage] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const scrollRestoredRef = useRef(false);
+
+  const saveScrollPosition = () => {
+    sessionStorage.setItem("auctions-scroll", String(window.scrollY));
+  };
 
   const CATEGORIES = [
     { value: "all", label: "全部", emoji: "🪙" },
@@ -88,6 +93,20 @@ export default function Auctions() {
   });
   const _endingSoonRaw = parseInt((siteSettings as Record<string, string> | undefined)?.endingSoonMinutes ?? '30', 10);
   const endingSoonMs = (isNaN(_endingSoonRaw) || _endingSoonRaw < 1 ? 30 : _endingSoonRaw) * 60 * 1000;
+
+  // Restore scroll position when returning from auction detail
+  useEffect(() => {
+    if (auctions && !scrollRestoredRef.current) {
+      const saved = sessionStorage.getItem("auctions-scroll");
+      if (saved) {
+        scrollRestoredRef.current = true;
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: parseInt(saved), behavior: "instant" });
+          sessionStorage.removeItem("auctions-scroll");
+        });
+      }
+    }
+  }, [auctions]);
 
   // Unique merchant list from active auctions
   const merchants = Array.from(
@@ -337,7 +356,7 @@ export default function Auctions() {
         ) : paginated.length > 0 ? (
           <div className="space-y-4">
             {paginated.map((auction) => (
-              <Link key={auction.id} href={`/auctions/${auction.id}`}>
+              <Link key={auction.id} href={`/auctions/${auction.id}`} onClick={saveScrollPosition}>
                 <div className="auction-list-item flex gap-3 p-3 border border-amber-100 rounded-lg hover:border-amber-300 hover:bg-amber-50/50 cursor-pointer transition-all">
                   {/* Left: Image */}
                   <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
