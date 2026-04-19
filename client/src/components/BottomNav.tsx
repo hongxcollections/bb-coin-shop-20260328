@@ -12,7 +12,7 @@ export default function BottomNav() {
     enabled: isAuthenticated,
     staleTime: 0,
   });
-  const { data: _siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const { data: _siteSettings, isSuccess: _settingsLoaded } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const _ss = (_siteSettings as Record<string, string> | undefined) ?? {};
   const loginWelcomeDesc = _ss.loginWelcomeDesc || "歡迎繼續瀏覽網站！";
   const isMerchant = isMerchantData === true;
@@ -48,8 +48,9 @@ export default function BottomNav() {
     }
   }, [showToast]);
 
-  // Show login success toast (localStorage flag set by Login.tsx)
+  // Show login success toast — wait for siteSettings to load first so loginWelcomeDesc is up-to-date
   useEffect(() => {
+    if (!_settingsLoaded) return;
     const method = localStorage.getItem("showLoginToast");
     if (method === "phone" || method === "email") {
       localStorage.removeItem("showLoginToast");
@@ -60,7 +61,7 @@ export default function BottomNav() {
         durationMs: 4000,
       });
     }
-  }, [showToast, loginWelcomeDesc]);
+  }, [showToast, loginWelcomeDesc, _settingsLoaded]);
 
   const showComingSoon = useCallback((featureName: string) => {
     showToast({
