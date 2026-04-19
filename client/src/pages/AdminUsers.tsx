@@ -494,10 +494,9 @@ export default function AdminUsers() {
                 </div>
               )}
             </div>
-            {/* Generate test listings — merchants only */}
+            {/* Generate test listings / won auction — merchants only */}
             {u.depositId && <GenerateListingsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
-            {/* Generate test won auction — all users */}
-            <GenerateWonAuctionPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />
+            {u.depositId && <GenerateWonAuctionPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
           </div>
         ))}
       </div>
