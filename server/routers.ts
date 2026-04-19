@@ -428,6 +428,53 @@ export const appRouter = router({
         return { succeeded, total: input.ids.length };
       }),
 
+    adminGenerateTestListings: protectedProcedure
+      .input(z.object({
+        merchantUserId: z.number().int().positive(),
+        count: z.number().int().min(1).max(50),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can generate test listings' });
+        }
+        const testItems = [
+          { title: '1981年香港五毫硬幣', desc: '英女皇頭像，品相良好' },
+          { title: '1967年香港一毫', desc: '英女皇頭像，流通品' },
+          { title: '1975年香港一元', desc: '皇冠獅子圖案，原光' },
+          { title: '1978年香港二毫', desc: '英女皇頭像，少見年份' },
+          { title: '1985年香港五元', desc: '港督時代發行，普通品' },
+          { title: '1993年香港十元', desc: '回歸前版本，品相極佳' },
+          { title: '1997年香港金紫荊紀念幣', desc: '回歸紀念，原盒附證書' },
+          { title: '1941年香港一仙', desc: '二戰前發行，稀有' },
+          { title: '1863年香港一仙銅幣', desc: '早期殖民地幣，珍貴' },
+          { title: '1935年香港一毫銀幣', desc: '喬治五世頭像，銀光好' },
+        ];
+        const prices = [50, 80, 100, 120, 150, 200, 250, 300, 380, 500];
+        const increments = [10, 20, 30, 50];
+        const created: number[] = [];
+        for (let i = 0; i < input.count; i++) {
+          const template = testItems[i % testItems.length];
+          const suffix = input.count > testItems.length ? ` (${Math.floor(i / testItems.length) + 1})` : '';
+          const startingPrice = prices[i % prices.length];
+          const bidIncrement = increments[i % increments.length];
+          const newAuction = await createAuction({
+            title: `【測試】${template.title}${suffix}`,
+            description: `${template.desc}｜系統測試用拍品，請勿出價`,
+            startingPrice: startingPrice.toString(),
+            currentPrice: startingPrice.toString(),
+            bidIncrement,
+            currency: 'HKD',
+            status: 'draft',
+            createdBy: input.merchantUserId,
+            antiSnipeEnabled: 1,
+            antiSnipeMinutes: 3,
+            extendMinutes: 3,
+          } as never);
+          created.push(newAuction.id);
+        }
+        return { created: created.length, ids: created };
+      }),
+
     relist: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {

@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Pencil, Trash2, Store, UserRound, ShieldAlert, ChevronDown, Gavel, Mail, KeyRound, CheckCircle2, Copy, Clock, XCircle, ChevronUp, UserPlus } from "lucide-react";
+import { Users, Pencil, Trash2, Store, UserRound, ShieldAlert, ChevronDown, Gavel, Mail, KeyRound, CheckCircle2, Copy, Clock, XCircle, ChevronUp, UserPlus, Wrench, Loader2, PackagePlus } from "lucide-react";
 import { toast } from "sonner";
 import { MemberBadge, type MemberLevel } from "@/components/MemberBadge";
 
@@ -78,6 +78,73 @@ function WonAuctionsList({ userId }: { userId: number }) {
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+/** 管理員為商戶生成測試草稿商品 */
+function GenerateListingsPanel({ userId, userName }: { userId: number; userName: string }) {
+  const [open, setOpen] = useState(false);
+  const [count, setCount] = useState(5);
+  const [lastResult, setLastResult] = useState<number | null>(null);
+
+  const generateMutation = trpc.auctions.adminGenerateTestListings.useMutation({
+    onSuccess: (data) => {
+      setLastResult(data.created);
+      toast.success(`已為 ${userName} 生成 ${data.created} 個測試草稿`);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  return (
+    <div className="mt-1.5">
+      <button
+        type="button"
+        onClick={() => { setOpen(!open); setLastResult(null); }}
+        className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium transition-colors whitespace-nowrap"
+        style={{ background: open ? "#EDE9FE" : "#F5F5F5", color: open ? "#6D28D9" : "#666" }}
+      >
+        <Wrench size={10} />
+        生成測試商品
+        <ChevronDown size={11} style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }} />
+      </button>
+
+      {open && (
+        <div className="mt-1.5 rounded-lg px-3 py-2.5 space-y-2" style={{ background: "#F5F3FF", border: "1px solid #DDD6FE" }}>
+          <p className="text-xs font-semibold" style={{ color: "#6D28D9" }}>
+            <PackagePlus size={11} className="inline mr-1" />
+            生成測試草稿（用作系統測試，標題帶【測試】前綴）
+          </p>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500 whitespace-nowrap">數量</label>
+            <input
+              type="number"
+              min={1}
+              max={50}
+              value={count}
+              onChange={(e) => setCount(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
+              className="w-16 h-7 rounded border border-violet-200 text-center text-xs px-1 focus:outline-none focus:ring-1 focus:ring-violet-400"
+            />
+            <span className="text-xs text-gray-400">(1–50)</span>
+            <button
+              type="button"
+              disabled={generateMutation.isPending}
+              onClick={() => generateMutation.mutate({ merchantUserId: userId, count })}
+              className="flex items-center gap-1 h-7 px-3 rounded text-xs font-semibold text-white transition-opacity disabled:opacity-60"
+              style={{ background: "#7C3AED" }}
+            >
+              {generateMutation.isPending
+                ? <><Loader2 size={11} className="animate-spin" />生成中…</>
+                : <>⚡ 立即生成</>}
+            </button>
+          </div>
+          {lastResult !== null && (
+            <p className="text-xs font-medium" style={{ color: "#059669" }}>
+              ✅ 成功建立 {lastResult} 個測試草稿（狀態：草稿，可在商戶拍賣管理查看）
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -313,6 +380,9 @@ export default function AdminUsers() {
 
                     {/* Won auctions expandable list */}
                     {expandedUserId === u.id && <WonAuctionsList userId={u.id} />}
+
+                    {/* Generate test listings — merchants only */}
+                    {u.depositId && <GenerateListingsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
                   </div>
                 </div>
               </div>
