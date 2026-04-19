@@ -1485,6 +1485,7 @@ export async function getAllSellerDeposits() {
         userEmail: users.email,
         balance: sellerDeposits.balance,
         requiredDeposit: sellerDeposits.requiredDeposit,
+        warningDeposit: sellerDeposits.warningDeposit,
         commissionRate: sellerDeposits.commissionRate,
         isActive: sellerDeposits.isActive,
         createdAt: sellerDeposits.createdAt,
