@@ -7,7 +7,7 @@ import {
   ChevronLeft, Store, Wallet, Gavel, Clock, CheckCircle2, XCircle,
   AlertCircle, ArrowUpRight, ArrowDownLeft, ShoppingBag, Settings,
   RotateCcw, Layers, CreditCard, PlusCircle, Send, ChevronDown, Loader2,
-  Upload, X, ImageIcon,
+  Upload, X, ImageIcon, Printer, Search,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -62,29 +62,129 @@ function StatusBadge({ status }: { status: string }) {
   return <span className="text-xs text-gray-400">{status}</span>;
 }
 
-type TxType = { type: string; amount: string | number; description?: string | null; createdAt?: Date | string | null };
+type TxType = {
+  id?: number;
+  type: string;
+  amount: string | number;
+  balanceAfter?: string | number | null;
+  description?: string | null;
+  relatedAuctionId?: number | null;
+  createdAt?: Date | string | null;
+};
 
-function TxRow({ tx }: { tx: TxType }) {
+const TX_LABEL: Record<string, string> = {
+  top_up: "充值",
+  commission: "傭金扣除",
+  refund: "退傭",
+  adjustment: "人工調整",
+};
+
+function TxRow({ tx, showBalance }: { tx: TxType; showBalance?: boolean }) {
   const amt = parseFloat(String(tx.amount));
   const isIn = amt > 0;
+  const bal = tx.balanceAfter != null ? parseFloat(String(tx.balanceAfter)) : null;
   return (
-    <div className="flex items-center gap-3 py-2.5 border-b last:border-0">
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isIn ? "bg-emerald-50" : "bg-red-50"}`}>
-        {isIn ? <ArrowDownLeft className="w-4 h-4 text-emerald-600" /> : <ArrowUpRight className="w-4 h-4 text-red-500" />}
+    <div className="flex items-center gap-3 py-2 border-b last:border-0">
+      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${isIn ? "bg-emerald-50" : "bg-red-50"}`}>
+        {isIn ? <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600" /> : <ArrowUpRight className="w-3.5 h-3.5 text-red-500" />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-800 truncate">{tx.description ?? tx.type}</p>
+        <p className="text-xs font-medium text-gray-800 truncate">{tx.description ?? TX_LABEL[tx.type] ?? tx.type}</p>
         {tx.createdAt && (
           <p className="text-xs text-gray-400 mt-0.5">
-            {new Date(tx.createdAt).toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+            {new Date(tx.createdAt).toLocaleString("zh-HK", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
           </p>
         )}
       </div>
-      <p className={`text-sm font-bold flex-shrink-0 ${isIn ? "text-emerald-600" : "text-red-500"}`}>
-        {isIn ? "+" : ""}{HKD(amt)}
-      </p>
+      <div className="text-right flex-shrink-0">
+        <p className={`text-xs font-bold ${isIn ? "text-emerald-600" : "text-red-500"}`}>
+          {isIn ? "+" : ""}{HKD(amt)}
+        </p>
+        {showBalance && bal != null && (
+          <p className="text-xs text-gray-400">餘：{HKD(bal)}</p>
+        )}
+      </div>
     </div>
   );
+}
+
+function printTxReport(
+  transactions: TxType[],
+  fromDate: string | undefined,
+  toDate: string | undefined,
+  merchantName: string,
+) {
+  const totalIn = transactions.filter(t => parseFloat(String(t.amount)) > 0).reduce((s, t) => s + parseFloat(String(t.amount)), 0);
+  const totalOut = transactions.filter(t => parseFloat(String(t.amount)) < 0).reduce((s, t) => s + parseFloat(String(t.amount)), 0);
+  const net = totalIn + totalOut;
+
+  const byType: Record<string, number> = {};
+  transactions.forEach(t => {
+    const key = TX_LABEL[t.type] ?? t.type;
+    byType[key] = (byType[key] ?? 0) + parseFloat(String(t.amount));
+  });
+
+  const rows = transactions.map(tx => {
+    const amt = parseFloat(String(tx.amount));
+    const bal = tx.balanceAfter != null ? parseFloat(String(tx.balanceAfter)) : null;
+    const date = tx.createdAt ? new Date(tx.createdAt).toLocaleString("zh-HK", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
+    return `<tr>
+      <td>${date}</td>
+      <td>${TX_LABEL[tx.type] ?? tx.type}</td>
+      <td>${tx.description ?? "—"}</td>
+      <td style="text-align:right;color:${amt >= 0 ? "#059669" : "#dc2626"};font-weight:600">${amt >= 0 ? "+" : ""}HK$${Math.abs(amt).toLocaleString()}</td>
+      <td style="text-align:right">${bal != null ? "HK$" + bal.toLocaleString() : "—"}</td>
+    </tr>`;
+  }).join("");
+
+  const summaryRows = Object.entries(byType).map(([k, v]) =>
+    `<tr><td>${k}</td><td style="text-align:right;color:${v >= 0 ? "#059669" : "#dc2626"};font-weight:600">${v >= 0 ? "+" : ""}HK$${Math.abs(v).toLocaleString()}</td></tr>`
+  ).join("");
+
+  const period = fromDate || toDate
+    ? `${fromDate ?? "—"} 至 ${toDate ?? "—"}`
+    : "全部記錄";
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>傭金報表</title>
+  <style>
+    body{font-family:sans-serif;padding:24px;color:#1f2937}
+    h1{font-size:18px;margin-bottom:4px}
+    .sub{font-size:12px;color:#6b7280;margin-bottom:20px}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px}
+    th,td{border:1px solid #e5e7eb;padding:6px 8px;text-align:left}
+    th{background:#fef3c7;font-weight:600}
+    .summary-box{display:flex;gap:16px;margin-bottom:20px}
+    .summary-card{border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;flex:1}
+    .summary-card .label{font-size:11px;color:#6b7280}
+    .summary-card .value{font-size:16px;font-weight:700;margin-top:2px}
+    .green{color:#059669}.red{color:#dc2626}.amber{color:#d97706}
+    @media print{button{display:none}}
+  </style></head><body>
+  <h1>保證金傭金報表 — ${merchantName}</h1>
+  <div class="sub">期間：${period} ／ 共 ${transactions.length} 筆記錄 ／ 列印日期：${new Date().toLocaleString("zh-HK")}</div>
+
+  <div class="summary-box">
+    <div class="summary-card"><div class="label">總充值</div><div class="value green">+HK$${totalIn.toLocaleString()}</div></div>
+    <div class="summary-card"><div class="label">總傭金扣除</div><div class="value red">HK$${Math.abs(totalOut).toLocaleString()}</div></div>
+    <div class="summary-card"><div class="label">期間淨變動</div><div class="value ${net >= 0 ? "green" : "red"}">${net >= 0 ? "+" : ""}HK$${net.toLocaleString()}</div></div>
+  </div>
+
+  <h2 style="font-size:14px;margin-bottom:8px">按類型匯總</h2>
+  <table style="width:auto;min-width:280px;margin-bottom:20px">
+    <tr><th>類型</th><th>金額</th></tr>
+    ${summaryRows}
+  </table>
+
+  <h2 style="font-size:14px;margin-bottom:8px">逐筆記錄</h2>
+  <table>
+    <tr><th>日期時間</th><th>類型</th><th>描述</th><th style="text-align:right">金額</th><th style="text-align:right">結餘後</th></tr>
+    ${rows}
+  </table>
+  <script>window.onload=function(){window.print()}</script>
+  </body></html>`;
+
+  const w = window.open("", "_blank");
+  if (w) { w.document.write(html); w.document.close(); }
 }
 
 export default function MerchantDashboard() {
@@ -94,6 +194,12 @@ export default function MerchantDashboard() {
   // Top-up request form state
   const [showTopUpForm, setShowTopUpForm] = useState(false);
   const [showTopUpHistory, setShowTopUpHistory] = useState(false);
+
+  // Transaction filter state
+  const [txFromInput, setTxFromInput] = useState("");
+  const [txToInput, setTxToInput] = useState("");
+  const [txFromDate, setTxFromDate] = useState<string | undefined>(undefined);
+  const [txToDate, setTxToDate] = useState<string | undefined>(undefined);
   const [topUpAmount, setTopUpAmount] = useState("");
   const [topUpPaymentMethod, setTopUpPaymentMethod] = useState("");
   const [topUpRef, setTopUpRef] = useState("");
@@ -146,8 +252,8 @@ export default function MerchantDashboard() {
   const { data: auctions } = trpc.merchants.myAuctions.useQuery(undefined, {
     enabled: isAuthenticated && myApp?.status === "approved",
   });
-  const { data: txData } = trpc.merchants.myTransactions.useQuery(
-    { limit: 10, offset: 0 },
+  const { data: txData, isFetching: txFetching } = trpc.merchants.myTransactions.useQuery(
+    { limit: 500, offset: 0, fromDate: txFromDate, toDate: txToDate },
     { enabled: isAuthenticated && myApp?.status === "approved" }
   );
   const { data: quotaInfo } = trpc.merchants.getQuotaInfo.useQuery(undefined, {
@@ -499,21 +605,110 @@ export default function MerchantDashboard() {
 
         {/* ── 保證金交易記錄 ── */}
         <Card className="rounded-2xl border-amber-100">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
+          <CardContent className="p-4 space-y-3">
+
+            {/* Header */}
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Wallet className="w-4 h-4 text-amber-600" />
                 <h2 className="font-semibold text-amber-900 text-sm">保證金交易記錄</h2>
               </div>
-              <span className="text-xs text-gray-400">最近 10 筆</span>
+              {transactions.length > 0 && (
+                <button
+                  onClick={() => printTxReport(transactions, txFromDate, txToDate, myApp?.merchantName ?? "商戶")}
+                  className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 rounded-lg px-2.5 py-1 transition-colors"
+                >
+                  <Printer className="w-3 h-3" />列印 / PDF
+                </button>
+              )}
             </div>
-            {transactions.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">暫無交易記錄</p>
+
+            {/* Date range filter */}
+            <div className="flex items-end gap-2 flex-wrap">
+              <div className="flex-1 min-w-[120px]">
+                <p className="text-xs text-gray-400 mb-1">由</p>
+                <Input
+                  type="date"
+                  value={txFromInput}
+                  onChange={e => setTxFromInput(e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="flex-1 min-w-[120px]">
+                <p className="text-xs text-gray-400 mb-1">至</p>
+                <Input
+                  type="date"
+                  value={txToInput}
+                  onChange={e => setTxToInput(e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <button
+                onClick={() => { setTxFromDate(txFromInput || undefined); setTxToDate(txToInput || undefined); }}
+                className="h-8 px-3 rounded-lg text-xs font-medium bg-amber-500 text-white hover:bg-amber-600 flex items-center gap-1 transition-colors flex-shrink-0"
+              >
+                <Search className="w-3 h-3" />查詢
+              </button>
+              {(txFromDate || txToDate) && (
+                <button
+                  onClick={() => { setTxFromInput(""); setTxToInput(""); setTxFromDate(undefined); setTxToDate(undefined); }}
+                  className="h-8 px-2.5 rounded-lg text-xs text-gray-500 hover:text-gray-700 border border-gray-200 flex items-center gap-1 transition-colors flex-shrink-0"
+                >
+                  <X className="w-3 h-3" />清除
+                </button>
+              )}
+            </div>
+
+            {/* Summary stats */}
+            {transactions.length > 0 && (() => {
+              const totalIn  = transactions.filter(t => parseFloat(String(t.amount)) > 0).reduce((s, t) => s + parseFloat(String(t.amount)), 0);
+              const totalOut = transactions.filter(t => parseFloat(String(t.amount)) < 0).reduce((s, t) => s + parseFloat(String(t.amount)), 0);
+              const net = totalIn + totalOut;
+              return (
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2 text-center">
+                    <p className="text-xs text-gray-400">總充值</p>
+                    <p className="text-sm font-bold text-emerald-600 mt-0.5">+{HKD(totalIn)}</p>
+                  </div>
+                  <div className="rounded-xl bg-red-50 border border-red-100 px-3 py-2 text-center">
+                    <p className="text-xs text-gray-400">總傭金</p>
+                    <p className="text-sm font-bold text-red-500 mt-0.5">{HKD(totalOut)}</p>
+                  </div>
+                  <div className={`rounded-xl border px-3 py-2 text-center ${net >= 0 ? "bg-emerald-50 border-emerald-100" : "bg-red-50 border-red-100"}`}>
+                    <p className="text-xs text-gray-400">淨變動</p>
+                    <p className={`text-sm font-bold mt-0.5 ${net >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                      {net >= 0 ? "+" : ""}{HKD(net)}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Record count / loading */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-400">
+                {txFetching ? "載入中…" : `共 ${transactions.length} 筆記錄`}
+                {(txFromDate || txToDate) && !txFetching && (
+                  <span className="ml-1 text-amber-600">（已篩選）</span>
+                )}
+              </span>
+            </div>
+
+            {/* Transaction list */}
+            {txFetching ? (
+              <div className="flex items-center justify-center py-6 gap-2 text-gray-400">
+                <Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">載入中…</span>
+              </div>
+            ) : transactions.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-4">
+                {txFromDate || txToDate ? "此日期範圍內無記錄" : "暫無交易記錄"}
+              </p>
             ) : (
               <div>
-                {transactions.map((tx, i) => <TxRow key={i} tx={tx} />)}
+                {transactions.map((tx, i) => <TxRow key={i} tx={tx} showBalance />)}
               </div>
             )}
+
           </CardContent>
         </Card>
 

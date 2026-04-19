@@ -2160,13 +2160,20 @@ export const appRouter = router({
 
     /** 商戶查看自己的保證金交易記錄 */
     myTransactions: protectedProcedure
-      .input(z.object({ limit: z.number().int().min(1).max(100).default(50), offset: z.number().int().min(0).default(0) }))
+      .input(z.object({
+        limit: z.number().int().min(1).max(500).default(50),
+        offset: z.number().int().min(0).default(0),
+        fromDate: z.string().optional(),
+        toDate: z.string().optional(),
+      }))
       .query(async ({ input, ctx }) => {
         const app = await getMerchantApplicationByUser(ctx.user.id);
         if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
         }
-        return getDepositTransactions(ctx.user.id, input.limit, input.offset);
+        const fromDate = input.fromDate ? new Date(input.fromDate) : undefined;
+        const toDate = input.toDate ? new Date(input.toDate) : undefined;
+        return getDepositTransactions(ctx.user.id, input.limit, input.offset, fromDate, toDate);
       }),
 
     /** 取得商戶個人設定 */

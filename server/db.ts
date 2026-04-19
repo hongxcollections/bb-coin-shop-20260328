@@ -1639,12 +1639,26 @@ export async function updateSellerDepositSettings(
 /**
  * Get deposit transactions for a specific user.
  */
-export async function getDepositTransactions(userId: number, limit = 50, offset = 0) {
+export async function getDepositTransactions(
+  userId: number,
+  limit = 50,
+  offset = 0,
+  fromDate?: Date,
+  toDate?: Date,
+) {
   await ensureDepositTables();
   const db = await getDb();
   if (!db) return [];
 
   try {
+    const conditions = [eq(depositTransactions.userId, userId)];
+    if (fromDate) conditions.push(gte(depositTransactions.createdAt, fromDate));
+    if (toDate) {
+      const end = new Date(toDate);
+      end.setHours(23, 59, 59, 999);
+      conditions.push(lte(depositTransactions.createdAt, end));
+    }
+
     const result = await db
       .select({
         id: depositTransactions.id,
@@ -1656,7 +1670,7 @@ export async function getDepositTransactions(userId: number, limit = 50, offset 
         createdAt: depositTransactions.createdAt,
       })
       .from(depositTransactions)
-      .where(eq(depositTransactions.userId, userId))
+      .where(and(...conditions))
       .orderBy(desc(depositTransactions.createdAt))
       .limit(limit)
       .offset(offset);
