@@ -145,77 +145,69 @@ function printTxReport(
     ? `${fromDate ?? "—"} 至 ${toDate ?? "—"}`
     : "全部記錄";
 
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>傭金報表 — ${merchantName}</title>
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
   <style>
     *{box-sizing:border-box}
-    body{font-family:"Helvetica Neue",Arial,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;padding:0;color:#1f2937;background:#f9fafb}
-    /* ── top bar (hidden in print) ── */
-    .topbar{position:fixed;top:0;left:0;right:0;background:#1f2937;color:#fff;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,.25)}
-    .topbar-title{font-size:13px;font-weight:600}
-    .topbar-hint{font-size:11px;opacity:.65;margin-top:2px}
-    .save-btn{background:#d97706;color:#fff;border:none;padding:9px 22px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s}
-    .save-btn:hover{background:#b45309}
-    .spacer{height:56px}
-    /* ── report body ── */
-    .wrap{max-width:860px;margin:0 auto;padding:24px}
+    body{font-family:"Helvetica Neue",Arial,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;padding:20px;color:#1f2937;background:#fff}
     h1{font-size:18px;margin:0 0 4px}
     .sub{font-size:12px;color:#6b7280;margin-bottom:20px}
     .summary-box{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
-    .summary-card{border:1px solid #e5e7eb;border-radius:10px;padding:10px 16px;flex:1;min-width:140px;background:#fff}
+    .summary-card{border:1px solid #e5e7eb;border-radius:10px;padding:10px 16px;flex:1;min-width:140px}
     .summary-card .label{font-size:11px;color:#6b7280}
     .summary-card .value{font-size:18px;font-weight:700;margin-top:4px}
-    table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px;background:#fff}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px}
     th,td{border:1px solid #e5e7eb;padding:6px 8px;text-align:left}
     th{background:#fef3c7;font-weight:600}
     tr:nth-child(even){background:#fafafa}
     h2{font-size:14px;font-weight:700;margin-bottom:8px;color:#92400e}
     .green{color:#059669}.red{color:#dc2626}
-    /* ── print styles ── */
-    @media print{
-      .topbar,.spacer,.save-btn{display:none!important}
-      body{background:#fff}
-      .wrap{padding:0}
-      table{page-break-inside:auto}
-      tr{page-break-inside:avoid}
-    }
+    table{page-break-inside:auto}
+    tr{page-break-inside:avoid}
   </style></head><body>
-  <div class="topbar">
-    <div>
-      <div class="topbar-title">📄 傭金報表已就緒</div>
-      <div class="topbar-hint">按「儲存 PDF」→ 目的地選「另存為 PDF」→ 儲存</div>
-    </div>
-    <button class="save-btn" onclick="window.print()">🖨️&nbsp;&nbsp;儲存 PDF</button>
+  <h1>保證金傭金報表 &mdash; ${merchantName}</h1>
+  <div class="sub">期間：${period} &nbsp;／&nbsp; 共 ${transactions.length} 筆記錄 &nbsp;／&nbsp; 生成日期：${new Date().toLocaleString("zh-HK")}</div>
+  <div class="summary-box">
+    <div class="summary-card"><div class="label">總充值</div><div class="value green">+HK$${totalIn.toLocaleString()}</div></div>
+    <div class="summary-card"><div class="label">總傭金扣除</div><div class="value red">-HK$${Math.abs(totalOut).toLocaleString()}</div></div>
+    <div class="summary-card"><div class="label">期間淨變動</div><div class="value ${net >= 0 ? "green" : "red"}">${net >= 0 ? "+" : ""}HK$${net.toLocaleString()}</div></div>
   </div>
-  <div class="spacer"></div>
-
-  <div class="wrap">
-    <h1>保證金傭金報表 &mdash; ${merchantName}</h1>
-    <div class="sub">期間：${period} &nbsp;／&nbsp; 共 ${transactions.length} 筆記錄 &nbsp;／&nbsp; 生成日期：${new Date().toLocaleString("zh-HK")}</div>
-
-    <div class="summary-box">
-      <div class="summary-card"><div class="label">總充值</div><div class="value green">+HK$${totalIn.toLocaleString()}</div></div>
-      <div class="summary-card"><div class="label">總傭金扣除</div><div class="value red">-HK$${Math.abs(totalOut).toLocaleString()}</div></div>
-      <div class="summary-card"><div class="label">期間淨變動</div><div class="value ${net >= 0 ? "green" : "red"}">${net >= 0 ? "+" : ""}HK$${net.toLocaleString()}</div></div>
-    </div>
-
-    <h2>按類型匯總</h2>
-    <table style="width:auto;min-width:300px">
-      <tr><th>類型</th><th style="text-align:right">金額</th></tr>
-      ${summaryRows}
-    </table>
-
-    <h2>逐筆記錄</h2>
-    <table>
-      <tr><th>日期時間</th><th>類型</th><th>描述</th><th style="text-align:right">金額</th><th style="text-align:right">結餘後</th></tr>
-      ${rows}
-    </table>
-  </div>
+  <h2>按類型匯總</h2>
+  <table style="width:auto;min-width:300px">
+    <tr><th>類型</th><th style="text-align:right">金額</th></tr>
+    ${summaryRows}
+  </table>
+  <h2>逐筆記錄</h2>
+  <table>
+    <tr><th>日期時間</th><th>類型</th><th>描述</th><th style="text-align:right">金額</th><th style="text-align:right">結餘後</th></tr>
+    ${rows}
+  </table>
   </body></html>`;
 
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  // Use hidden iframe — works in Firefox, Chrome, Safari without popup/blob restrictions
+  const existing = document.getElementById("__tx-print-frame__");
+  if (existing) existing.remove();
+
+  const iframe = document.createElement("iframe");
+  iframe.id = "__tx-print-frame__";
+  iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;opacity:0;pointer-events:none";
+  document.body.appendChild(iframe);
+
+  iframe.onload = () => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch {
+      // fallback: open new tab
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+    setTimeout(() => iframe.remove(), 5000);
+  };
+
+  // srcdoc is the most reliable cross-browser way to set iframe content
+  iframe.srcdoc = html;
 }
 
 export default function MerchantDashboard() {
