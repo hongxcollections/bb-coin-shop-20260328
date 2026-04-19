@@ -492,7 +492,7 @@ export default function AuctionDetail() {
                         <span className="text-[9px] text-black font-normal">(未有出價)</span>
                       )}
                       {bids.length > 0 && bids[0].userId === user?.id && bids[0].isAnonymous !== 1 ? (
-                        <span className="text-emerald-600 font-bold" style={{ fontSize: "15px" }}>我本人</span>
+                        <span className="text-emerald-600 font-bold" style={{ fontSize: "15px" }}>(我本人)</span>
                       ) : bids.length > 0 && (
                         <span className="text-[9px] text-red-500 font-semibold">({displayName(bids[0], user?.id)})</span>
                       )}
