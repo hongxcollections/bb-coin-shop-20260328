@@ -181,7 +181,7 @@ export default function MerchantSettings() {
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-lg mx-auto px-4 pt-8 pb-28 space-y-6">
         {/* 標題 */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">

@@ -744,7 +744,7 @@ export default function MerchantAuctions() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-2 pt-2 pb-20 space-y-1.5">
+      <div className="max-w-4xl mx-auto px-2 pt-2 pb-28 space-y-1.5">
         {/* ── 草稿 Tab 批量操作欄 ── */}
         {tab === "草稿" && draftAuctions.length > 0 && (
           <div className="flex items-center gap-2 px-1 py-1">
