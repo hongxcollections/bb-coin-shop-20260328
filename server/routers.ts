@@ -1920,10 +1920,26 @@ export const appRouter = router({
         // Require at least one image
         const images = await getAuctionImages(input.id);
         if (images.length === 0) throw new TRPCError({ code: 'BAD_REQUEST', message: '請先上傳至少一幅圖片才能發佈' });
-        // Check + deduct listing quota (admin bypasses)
+        // Check both publish conditions (admin bypasses)
         let remainingQuota: number | null = null;
         let unlimitedQuota = false;
         if (ctx.user.role !== 'admin') {
+          const [depositCheck, quotaInfo] = await Promise.all([
+            canSellerList(ctx.user.id),
+            getListingQuotaInfo(ctx.user.id),
+          ]);
+          const hasQuota = !quotaInfo || quotaInfo.unlimited || quotaInfo.remainingQuota >= 1;
+          const failReasons: string[] = [];
+          if (!hasQuota) {
+            failReasons.push(`條件一：發佈次數不足（剩餘 ${quotaInfo?.remainingQuota ?? 0} 次）`);
+          }
+          if (!depositCheck.canList) {
+            failReasons.push(`條件二：${depositCheck.reason ?? '保證金條件不符'}`);
+          }
+          if (failReasons.length > 0) {
+            throw new TRPCError({ code: 'FORBIDDEN', message: failReasons.join('；') });
+          }
+          // Both conditions passed — deduct quota
           const quotaResult = await deductListingQuota(ctx.user.id);
           if (!quotaResult.success) throw new TRPCError({ code: 'FORBIDDEN', message: quotaResult.reason ?? '發佈次數不足' });
           if (quotaResult.remaining !== undefined) remainingQuota = quotaResult.remaining;
@@ -1963,9 +1979,20 @@ export const appRouter = router({
         }));
         const toPublishCount = auctionChecks.filter(Boolean).length;
         if (ctx.user.role !== 'admin' && toPublishCount > 0) {
-          const quotaInfo = await getListingQuotaInfo(ctx.user.id);
-          if (quotaInfo && !quotaInfo.unlimited && quotaInfo.remainingQuota < toPublishCount) {
-            throw new TRPCError({ code: 'FORBIDDEN', message: `發佈次數不足（剩餘 ${quotaInfo.remainingQuota}，需要 ${toPublishCount}）` });
+          const [depositCheck, quotaInfo] = await Promise.all([
+            canSellerList(ctx.user.id),
+            getListingQuotaInfo(ctx.user.id),
+          ]);
+          const hasQuota = !quotaInfo || quotaInfo.unlimited || quotaInfo.remainingQuota >= toPublishCount;
+          const failReasons: string[] = [];
+          if (!hasQuota) {
+            failReasons.push(`條件一：發佈次數不足（剩餘 ${quotaInfo?.remainingQuota ?? 0} 次，需要 ${toPublishCount} 次）`);
+          }
+          if (!depositCheck.canList) {
+            failReasons.push(`條件二：${depositCheck.reason ?? '保證金條件不符'}`);
+          }
+          if (failReasons.length > 0) {
+            throw new TRPCError({ code: 'FORBIDDEN', message: failReasons.join('；') });
           }
         }
         const results = await Promise.allSettled(
