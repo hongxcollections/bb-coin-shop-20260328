@@ -452,6 +452,7 @@ export const appRouter = router({
         const prices = [50, 80, 100, 120, 150, 200, 250, 300, 380, 500];
         const increments = [10, 20, 30, 50];
         const created: number[] = [];
+        const placeholderEndTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days placeholder
         for (let i = 0; i < input.count; i++) {
           const template = testItems[i % testItems.length];
           const suffix = input.count > testItems.length ? ` (${Math.floor(i / testItems.length) + 1})` : '';
@@ -462,14 +463,12 @@ export const appRouter = router({
             description: `${template.desc}｜系統測試用拍品，請勿出價`,
             startingPrice: startingPrice.toString(),
             currentPrice: startingPrice.toString(),
+            endTime: placeholderEndTime,
             bidIncrement,
-            currency: 'HKD',
-            status: 'draft',
+            currency: 'HKD' as const,
+            status: 'draft' as const,
             createdBy: input.merchantUserId,
-            antiSnipeEnabled: 1,
-            antiSnipeMinutes: 3,
-            extendMinutes: 3,
-          } as never);
+          });
           created.push(newAuction.id);
         }
         return { created: created.length, ids: created };
