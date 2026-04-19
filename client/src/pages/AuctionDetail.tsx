@@ -353,6 +353,18 @@ export default function AuctionDetail() {
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
+      {/* No-bid floating popup — fixed top-center, only when active with zero bids */}
+      {isActive && bids.length === 0 && (
+        <div className="bottom-nav-toast" style={{ zIndex: 9999 }}>
+          <div className="bottom-nav-toast-inner">
+            <span className="bottom-nav-toast-icon">🪙</span>
+            <div>
+              <div className="bottom-nav-toast-title">{noBidMessage}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Navigation */}
       <Header />
       <div className="container pt-8 pb-24">
@@ -588,22 +600,6 @@ export default function AuctionDetail() {
                     結束：{formatDate(new Date(auction.endTime))}
                   </span>
                 </div>
-
-                {/* No-bid message — only when active and no bids yet */}
-                {isActive && bids.length === 0 && (
-                  <div
-                    className="mt-3 px-4 py-3 rounded-xl text-sm border"
-                    style={{
-                      background: "var(--popup-bg)",
-                      color: "var(--popup-text)",
-                      borderColor: "var(--popup-border)",
-                      boxShadow: "var(--popup-shadow)",
-                      borderRadius: "var(--popup-radius)",
-                    }}
-                  >
-                    {noBidMessage}
-                  </div>
-                )}
 
                 {/* Ended Notice */}
                 {!isActive && (
