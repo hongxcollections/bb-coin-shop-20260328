@@ -380,7 +380,7 @@ export default function MerchantDashboard() {
         {belowWarning && deposit && (
           <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2 text-sm text-amber-700">
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <span>保證金餘額低於預警門檻（{HKD(warningThreshold)}），建議盡快補交以避免帳戶受限。</span>
+            <span>保證金餘額低於維持水平/預警門檻（{HKD(warningThreshold)}），建議盡快補交以避免帳戶受限。</span>
           </div>
         )}
 

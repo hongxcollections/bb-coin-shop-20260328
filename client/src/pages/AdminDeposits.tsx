@@ -531,7 +531,7 @@ export default function AdminDeposits() {
                                 sufficient ? (
                                   <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">正常</Badge>
                                 ) : (
-                                  <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs">餘額不足</Badge>
+                                  <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs">維持水平不足</Badge>
                                 )
                               ) : (
                                 <Badge className="bg-red-100 text-red-700 border-red-200 text-xs">已停用</Badge>
@@ -632,7 +632,7 @@ export default function AdminDeposits() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>預警門檻 (HK$) <span className="text-xs text-amber-500 ml-1">低於此值顯示警告</span></Label>
+                    <Label>維持水平/預警門檻 (HK$) <span className="text-xs text-amber-500 ml-1">低於此值顯示警告</span></Label>
                     <Input
                       type="number"
                       value={settingsWarningDeposit}
