@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import AdminHeader from "@/components/AdminHeader";
 import { Plus, Pencil, Trash2, TrendingUp, Clock, LogOut, Upload, X, ImageIcon, CheckCircle2, AlertCircle, Loader2, Facebook, Menu } from "lucide-react";
 
 const MAX_IMAGES = 10;
@@ -561,96 +562,7 @@ export default function AdminAuctions() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="nav-glass fixed top-0 left-0 right-0 z-50">
-        <div className="container flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-1.5 shrink-0 no-underline">
-            <span className="text-xl leading-none" style={{ marginTop: "-2px" }}>💰</span>
-            <div className="flex flex-col items-end">
-              <span className="gold-gradient-text font-bold text-lg leading-none tracking-tight">
-                hongxcollections
-              </span>
-              <span
-                className="block"
-                style={{
-                  fontSize: "6px",
-                  color: "rgba(180, 130, 50, 0.5)",
-                  lineHeight: 1,
-                  letterSpacing: "0.02em",
-                  marginTop: "0px",
-                }}
-              >
-                Powered by 大BB錢幣店
-              </span>
-            </div>
-          </Link>
-          {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-1 flex-wrap justify-end">
-            <Link href="/auctions"><Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">所有拍賣</Button></Link>
-            <Link href="/admin/drafts"><Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 gap-1"><Facebook className="w-3.5 h-3.5" /> 草稿審核</Button></Link>
-            <Link href="/admin/archive"><Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 hover:bg-gray-100">📦 封存區</Button></Link>
-            <Link href="/admin/notifications"><Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 hover:bg-gray-100">🔔 通知設定</Button></Link>
-            <Link href="/admin/users"><Button variant="ghost" size="sm" className="text-violet-600 hover:text-violet-800 hover:bg-violet-50">👥 會員管理</Button></Link>
-            <Link href="/admin/anonymous-bids"><Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-800 hover:bg-slate-100">🕵️ 匿名出價</Button></Link>
-            <Link href="/admin/dashboard"><Button variant="ghost" size="sm" className="text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50">📊 統計</Button></Link>
-            <Link href="/admin/export-bids"><Button variant="ghost" size="sm" className="text-orange-600 hover:text-orange-800 hover:bg-orange-50">📥 匯出</Button></Link>
-            <Link href="/admin/settings"><Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800 hover:bg-gray-50">⚙️ 設定</Button></Link>
-            <Link href="/admin/won-orders"><Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">🏆 得標訂單</Button></Link>
-            <Link href="/admin/deposits"><Button variant="ghost" size="sm" className="text-teal-600 hover:text-teal-800 hover:bg-teal-50">💰 保證金</Button></Link>
-            <Link href="/admin/subscriptions"><Button variant="ghost" size="sm" className="text-violet-600 hover:text-violet-800 hover:bg-violet-50">👑 訂閱</Button></Link>
-            <Link href="/profile"><Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">{user?.name}</Button></Link>
-            <Button variant="outline" size="sm" onClick={logout} className="border-red-200 text-red-600 hover:bg-red-50">
-              <LogOut className="w-3.5 h-3.5 mr-1" /> 登出
-            </Button>
-          </div>
-          {/* Mobile hamburger button */}
-          <button
-            className="md:hidden p-2 rounded-lg hover:bg-amber-50 transition-colors"
-            onClick={() => setMobileMenuOpen((v) => !v)}
-            aria-label="開啟選單"
-          >
-            <Menu className="w-5 h-5 text-amber-700" />
-          </button>
-        </div>
-        {/* Mobile dropdown menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-amber-100 bg-background/98 backdrop-blur px-4 py-4 shadow-lg">
-            <div className="flex flex-wrap gap-2 mb-3">
-              {[
-                { href: "/auctions", label: "所有拍賣", bg: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" },
-                { href: "/admin/drafts", label: "📘 草稿審核", bg: "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100" },
-                { href: "/admin/archive", label: "📦 封存區", bg: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100" },
-                { href: "/admin/notifications", label: "🔔 通知設定", bg: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100" },
-                { href: "/admin/users", label: "👥 會員管理", bg: "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100" },
-                { href: "/admin/anonymous-bids", label: "🕵️ 匿名出價", bg: "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100" },
-                { href: "/admin/dashboard", label: "📊 統計儀表板", bg: "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100" },
-                { href: "/admin/export-bids", label: "📥 匯出記錄", bg: "bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100" },
-                { href: "/admin/settings", label: "⚙️ 站點設定", bg: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100" },
-                { href: "/admin/won-orders", label: "🏆 得標訂單", bg: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" },
-                { href: "/admin/deposits", label: "💰 保證金管理", bg: "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100" },
-                { href: "/admin/subscriptions", label: "👑 訂閱管理", bg: "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100" },
-                { href: "/profile", label: "👤 " + (user?.name ?? "個人資料"), bg: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" },
-              ].map(({ href, label, bg }) => (
-                <Link key={href} href={href} onClick={() => setMobileMenuOpen(false)}>
-                  <button className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${bg}`}>
-                    {label}
-                  </button>
-                </Link>
-              ))}
-            </div>
-            <div className="border-t border-amber-100 pt-3">
-              <button
-                onClick={() => { setMobileMenuOpen(false); logout(); }}
-                className="px-3 py-1.5 rounded-full text-sm font-medium border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors flex items-center gap-1.5"
-              >
-                <LogOut className="w-3.5 h-3.5" /> 登出
-              </button>
-            </div>
-          </div>
-        )}
-      </nav>
-      {/* Spacer for fixed nav */}
-      <div className="h-16" />
+      <AdminHeader />
 
       <div className="container py-8">
         {/* Header */}

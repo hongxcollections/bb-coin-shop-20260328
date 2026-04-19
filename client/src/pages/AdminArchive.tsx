@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import AdminHeader from "@/components/AdminHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -237,33 +238,7 @@ export default function AdminArchive() {
 
   return (
     <div className="min-h-screen bg-background pb-28">
-      {/* Navigation */}
-      <nav className="nav-glass fixed top-0 left-0 right-0 z-50">
-        <div className="container flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl">
-            <span className="text-2xl">💰</span>
-            <span className="gold-gradient-text">大BB錢幣店</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link href="/admin">
-              <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">管理後台</Button>
-            </Link>
-            <Link href="/admin/drafts">
-              <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 gap-1">
-                <Facebook className="w-3.5 h-3.5" /> 草稿審核
-              </Button>
-            </Link>
-            <Link href="/profile">
-              <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">{user?.name}</Button>
-            </Link>
-            <Button variant="outline" size="sm" onClick={logout} className="border-red-200 text-red-600 hover:bg-red-50">
-              <LogOut className="w-3.5 h-3.5 mr-1" /> 登出
-            </Button>
-          </div>
-        </div>
-      </nav>
-      {/* Spacer for fixed nav */}
-      <div className="h-16" />
+      <AdminHeader />
 
       <div className="container py-8">
         {/* Header */}

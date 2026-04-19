@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import AdminHeader from "@/components/AdminHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -118,34 +119,7 @@ export default function AdminSiteSettings() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="bg-amber-900 text-white px-4 py-3">
-        <div className="max-w-6xl mx-auto flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Link href="/admin/auctions">
-              <Button variant="ghost" size="sm" className="text-amber-100 hover:text-white hover:bg-amber-800 gap-1">
-                <ChevronLeft className="w-4 h-4" />拍賣管理
-              </Button>
-            </Link>
-            <span className="text-amber-300">|</span>
-            <Link href="/admin/dashboard">
-              <Button variant="ghost" size="sm" className="text-amber-100 hover:text-white hover:bg-amber-800">📊 統計儀表板</Button>
-            </Link>
-            <Link href="/admin/users">
-              <Button variant="ghost" size="sm" className="text-amber-100 hover:text-white hover:bg-amber-800">👥 用戶管理</Button>
-            </Link>
-            <Link href="/admin/anonymous-bids">
-              <Button variant="ghost" size="sm" className="text-amber-100 hover:text-white hover:bg-amber-800">🕵️ 匿名出價</Button>
-            </Link>
-            <Link href="/admin/export-bids">
-              <Button variant="ghost" size="sm" className="text-amber-100 hover:text-white hover:bg-amber-800">📥 匯出記錄</Button>
-            </Link>
-            <Link href="/admin/settings">
-              <Button variant="ghost" size="sm" className="text-white bg-amber-700 hover:bg-amber-600">⚙️ 站點設定</Button>
-            </Link>
-          </div>
-          <Badge variant="outline" className="text-amber-200 border-amber-500">管理員：{user?.name}</Badge>
-        </div>
-      </div>
+      <AdminHeader />
 
       <div className="max-w-3xl mx-auto px-4 py-8">
         <div className="flex items-center gap-3 mb-8">

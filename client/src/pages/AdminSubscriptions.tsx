@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
+import AdminHeader from "@/components/AdminHeader";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -323,29 +324,7 @@ export default function AdminSubscriptions() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="nav-glass fixed top-0 left-0 right-0 z-50">
-        <div className="container flex items-center justify-between h-16">
-          <div className="flex items-center gap-3">
-            <Link href="/admin">
-              <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">
-                <ArrowLeft className="w-4 h-4 mr-1" /> 後台
-              </Button>
-            </Link>
-            <span className="text-muted-foreground">/</span>
-            <span className="font-semibold text-amber-800 flex items-center gap-1.5">
-              <Crown className="w-4 h-4" /> 訂閱管理
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            {pendingSubs.length > 0 && (
-              <Badge className="bg-red-500 text-white animate-pulse">{pendingSubs.length} 待審核</Badge>
-            )}
-            <Badge className="bg-amber-600 text-white text-xs">管理員</Badge>
-          </div>
-        </div>
-      </nav>
-      <div className="h-16" />
+      <AdminHeader />
 
       <div className="container py-8 max-w-5xl">
         {/* Stats */}

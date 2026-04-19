@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import AdminHeader from "@/components/AdminHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -162,7 +163,9 @@ export default function AdminDrafts() {
   }
 
   return (
-    <div className="container py-8 max-w-5xl">
+    <>
+      <AdminHeader />
+      <div className="container py-8 max-w-5xl">
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -488,5 +491,6 @@ export default function AdminDrafts() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </>
   );
 }

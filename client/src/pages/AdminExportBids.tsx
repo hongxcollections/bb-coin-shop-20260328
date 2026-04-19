@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import AdminHeader from "@/components/AdminHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -93,53 +94,7 @@ export default function AdminExportBids() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="nav-glass fixed top-0 left-0 right-0 z-50">
-        <div className="container flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl">
-            <span className="text-2xl">💰</span>
-            <span className="gold-gradient-text">大BB錢幣店</span>
-          </Link>
-          <div className="flex items-center gap-1 flex-wrap">
-            <Link href="/admin">
-              <Button variant="ghost" size="sm" className="text-amber-700 hover:text-amber-900 hover:bg-amber-50">管理後台</Button>
-            </Link>
-            <Link href="/admin/drafts">
-              <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 gap-1">
-                <Facebook className="w-3.5 h-3.5" /> 草稿審核
-              </Button>
-            </Link>
-            <Link href="/admin/archive">
-              <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 gap-1">
-                📦 封存區
-              </Button>
-            </Link>
-            <Link href="/admin/users">
-              <Button variant="ghost" size="sm" className="text-violet-600 hover:text-violet-800 hover:bg-violet-50 gap-1">
-                👥 會員管理
-              </Button>
-            </Link>
-            <Link href="/admin/anonymous-bids">
-              <Button variant="ghost" size="sm" className="text-slate-600 hover:text-slate-800 hover:bg-slate-100 gap-1">
-                🕵️ 匿名出價
-              </Button>
-            </Link>
-            <Link href="/admin/dashboard">
-              <Button variant="ghost" size="sm" className="text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 gap-1">
-                📊 統計儀表板
-              </Button>
-            </Link>
-            <Button variant="ghost" size="sm" className="text-orange-600 bg-orange-50 gap-1" disabled>
-              📥 匯出記錄
-            </Button>
-            <Button variant="outline" size="sm" onClick={logout} className="border-red-200 text-red-600 hover:bg-red-50">
-              <LogOut className="w-3.5 h-3.5 mr-1" /> 登出
-            </Button>
-          </div>
-        </div>
-      </nav>
-      {/* Spacer for fixed nav */}
-      <div className="h-16" />
+      <AdminHeader />
 
       <div className="container py-8 max-w-4xl">
         <div className="mb-6">

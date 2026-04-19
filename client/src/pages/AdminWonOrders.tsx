@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import AdminHeader from "@/components/AdminHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -194,28 +195,7 @@ export default function AdminWonOrders() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* 後台導航 */}
-      <div className="border-b bg-card fixed top-0 left-0 right-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3 flex-wrap text-sm">
-          <Link href="/admin"><span className="text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-1"><ChevronLeft className="w-3.5 h-3.5" />後台</span></Link>
-          <span className="text-muted-foreground">/</span>
-          <Link href="/admin/auctions"><span className="text-muted-foreground hover:text-foreground cursor-pointer">拍賣管理</span></Link>
-          <span className="text-muted-foreground">/</span>
-          <Link href="/admin/dashboard"><span className="text-muted-foreground hover:text-foreground cursor-pointer">📊 統計儀表板</span></Link>
-          <span className="text-muted-foreground">/</span>
-          <Link href="/admin/anonymous-bids"><span className="text-muted-foreground hover:text-foreground cursor-pointer">🕵️ 匿名出價</span></Link>
-          <span className="text-muted-foreground">/</span>
-          <Link href="/admin/export-bids"><span className="text-muted-foreground hover:text-foreground cursor-pointer">📥 匯出記錄</span></Link>
-          <span className="text-muted-foreground">/</span>
-          <Link href="/admin/users"><span className="text-muted-foreground hover:text-foreground cursor-pointer">👥 用戶管理</span></Link>
-          <span className="text-muted-foreground">/</span>
-          <Link href="/admin/settings"><span className="text-muted-foreground hover:text-foreground cursor-pointer">⚙️ 站點設定</span></Link>
-          <span className="text-muted-foreground">/</span>
-          <span className="font-medium text-amber-600">🏆 得標訂單</span>
-        </div>
-      </div>
-      {/* Spacer for fixed nav */}
-      <div className="h-12" />
+      <AdminHeader />
 
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         {/* 標題 */}
