@@ -173,57 +173,60 @@ export default function Auctions() {
             </DropdownMenuContent>
           </DropdownMenu>
           
-          {/* Merchant filter dropdown */}
-          {merchants.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={`border-amber-200 hover:bg-amber-50 flex items-center gap-1.5 rounded-full px-3 h-8 shadow-sm transition-all active:scale-95 text-xs ${merchantFilter !== "all" ? "bg-amber-50 text-amber-900 font-bold" : "text-amber-800"}`}
-                >
-                  <Store className="w-3.5 h-3.5 text-amber-500" />
-                  <span className="font-semibold max-w-[7rem] truncate">
-                    {merchantFilter === "all" ? "全部商戶" : merchantFilter}
-                  </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-amber-400" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-52 bg-white border-amber-100 rounded-xl shadow-xl z-[100]">
-                <DropdownMenuLabel className="text-amber-900 font-bold px-3 py-2">選擇商戶</DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-amber-50" />
-                <DropdownMenuItem
-                  onClick={() => { setMerchantFilter("all"); setPage(0); }}
-                  className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${merchantFilter === "all" ? "bg-amber-50 text-amber-900 font-bold" : "text-amber-800 hover:bg-amber-50/50"}`}
-                >
-                  <Store className="w-4 h-4 text-amber-400" />
-                  <span className="text-sm">全部商戶</span>
-                  {merchantFilter === "all" && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]" />}
-                </DropdownMenuItem>
-                {merchants.map((name) => (
+          {/* Merchant filter + clear button grouped tightly */}
+          <div className="flex items-center gap-1">
+            {merchants.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={`border-amber-200 hover:bg-amber-50 flex items-center gap-1.5 rounded-full px-3 h-8 shadow-sm transition-all active:scale-95 text-xs ${merchantFilter !== "all" ? "bg-amber-50 text-amber-900 font-bold" : "text-amber-800"}`}
+                  >
+                    <Store className="w-3.5 h-3.5 text-amber-500" />
+                    <span className="font-semibold max-w-[7rem] truncate">
+                      {merchantFilter === "all" ? "全部商戶" : merchantFilter}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5 text-amber-400" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-52 bg-white border-amber-100 rounded-xl shadow-xl z-[100]">
+                  <DropdownMenuLabel className="text-amber-900 font-bold px-3 py-2">選擇商戶</DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-amber-50" />
                   <DropdownMenuItem
-                    key={name}
-                    onClick={() => { setMerchantFilter(name); setPage(0); }}
-                    className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${merchantFilter === name ? "bg-amber-50 text-amber-900 font-bold" : "text-amber-800 hover:bg-amber-50/50"}`}
+                    onClick={() => { setMerchantFilter("all"); setPage(0); }}
+                    className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${merchantFilter === "all" ? "bg-amber-50 text-amber-900 font-bold" : "text-amber-800 hover:bg-amber-50/50"}`}
                   >
                     <Store className="w-4 h-4 text-amber-400" />
-                    <span className="text-sm truncate">{name}</span>
-                    {merchantFilter === name && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]" />}
+                    <span className="text-sm">全部商戶</span>
+                    {merchantFilter === "all" && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]" />}
                   </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+                  {merchants.map((name) => (
+                    <DropdownMenuItem
+                      key={name}
+                      onClick={() => { setMerchantFilter(name); setPage(0); }}
+                      className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${merchantFilter === name ? "bg-amber-50 text-amber-900 font-bold" : "text-amber-800 hover:bg-amber-50/50"}`}
+                    >
+                      <Store className="w-4 h-4 text-amber-400" />
+                      <span className="text-sm truncate">{name}</span>
+                      {merchantFilter === name && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
-          {(category !== "all" || merchantFilter !== "all") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { setCategory("all"); setMerchantFilter("all"); setPage(0); }}
-              className="text-amber-600 hover:text-amber-800 hover:bg-amber-50 text-xs font-medium rounded-full"
-            >
-              清除篩選
-            </Button>
-          )}
+            {(category !== "all" || merchantFilter !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setCategory("all"); setMerchantFilter("all"); setPage(0); }}
+                className="text-amber-500 hover:text-amber-700 hover:bg-amber-50 font-medium rounded-full px-2 h-7"
+                style={{ fontSize: "0.5rem" }}
+              >
+                清除篩選
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Search & Filter */}
