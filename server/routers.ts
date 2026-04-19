@@ -433,7 +433,10 @@ export const appRouter = router({
       }),
 
     adminGenerateTestWonAuction: protectedProcedure
-      .input(z.object({ merchantUserId: z.number().int().positive() }))
+      .input(z.object({
+        merchantUserId: z.number().int().positive(),
+        count: z.number().int().min(1).max(30).default(1),
+      }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         const db = await getDb();
@@ -442,62 +445,64 @@ export const appRouter = router({
         const { users: usersTable } = await import('../drizzle/schema');
         const { ne, and } = await import('drizzle-orm');
 
-        // The user in the row is the auction creator (merchant)
         const creatorUserId = input.merchantUserId;
 
-        // Pick a RANDOM winner from all users — excluding the creator and the admin
+        // Fetch eligible winners once
         const allUsers = await db
           .select({ id: usersTable.id, name: usersTable.name })
           .from(usersTable)
           .where(and(ne(usersTable.id, creatorUserId), ne(usersTable.id, ctx.user.id)));
         if (allUsers.length === 0) throw new TRPCError({ code: 'BAD_REQUEST', message: '資料庫內沒有其他會員，無法隨機選取中標者' });
-        const randomWinner = allUsers[Math.floor(Math.random() * allUsers.length)];
-        const winnerUserId = randomWinner.id;
-        const winnerName = randomWinner.name ?? `用戶 #${randomWinner.id}`;
 
-        // Random auction data
         const testItems = [
           { title: '1997年香港金紫荊紀念幣', desc: '回歸紀念，原盒附證書', category: '紀念幣' as const },
           { title: '1981年香港五毫硬幣', desc: '英女皇頭像，品相良好', category: '古幣' as const },
           { title: '1935年香港一毫銀幣', desc: '喬治五世頭像，銀光好', category: '銀幣' as const },
           { title: '1967年香港一毫', desc: '英女皇頭像，流通品', category: '古幣' as const },
           { title: '1863年香港一仙銅幣', desc: '早期殖民地幣，珍貴', category: '古幣' as const },
+          { title: '2000年千禧紀念金幣', desc: '千禧年紀念版，附原裝盒', category: '紀念幣' as const },
+          { title: '1975年香港一元', desc: '皇冠獅子圖案，原光', category: '古幣' as const },
+          { title: '1993年香港十元', desc: '回歸前版本，品相極佳', category: '古幣' as const },
         ];
-        const template = testItems[Math.floor(Math.random() * testItems.length)];
-        const prices = [280, 350, 480, 600, 750, 900, 1200, 1500];
-        const winningPrice = prices[Math.floor(Math.random() * prices.length)];
-        const startingPrice = Math.floor(winningPrice * 0.5);
-
-        const endTime = new Date(Date.now() - 60 * 60 * 1000); // 1 hour ago
-
+        const prices = [280, 350, 480, 600, 750, 900, 1200, 1500, 1800, 2200];
         const existingImageUrl = await getAnyExistingImageUrl();
         const imageUrl = existingImageUrl ?? 'https://placehold.co/400x400/d4af37/ffffff?text=TEST';
+        const endTime = new Date(Date.now() - 60 * 60 * 1000);
 
-        // Create ended auction
-        const newAuction = await createAuction({
-          title: `【測試結標】${template.title}`,
-          description: `${template.desc}｜系統測試用，已結標`,
-          startingPrice: startingPrice.toString(),
-          currentPrice: winningPrice.toString(),
-          highestBidderId: winnerUserId,
-          endTime,
-          bidIncrement: 30,
-          currency: 'HKD' as const,
-          status: 'ended' as const,
-          createdBy: creatorUserId,
-          category: template.category,
-        });
-        await addAuctionImage({ auctionId: newAuction.id, imageUrl, displayOrder: 0 });
+        const results: { auctionId: number; winningPrice: number; title: string; winnerName: string }[] = [];
 
-        // Create bid record for the random winner
-        await dbPlaceBid({
-          auctionId: newAuction.id,
-          userId: winnerUserId,
-          bidAmount: winningPrice.toString(),
-          isAnonymous: 0,
-        });
+        for (let i = 0; i < input.count; i++) {
+          const randomWinner = allUsers[Math.floor(Math.random() * allUsers.length)];
+          const winnerUserId = randomWinner.id;
+          const winnerName = randomWinner.name ?? `用戶 #${randomWinner.id}`;
+          const template = testItems[Math.floor(Math.random() * testItems.length)];
+          const winningPrice = prices[Math.floor(Math.random() * prices.length)];
+          const startingPrice = Math.floor(winningPrice * 0.5);
 
-        return { auctionId: newAuction.id, winningPrice, title: `【測試結標】${template.title}`, winnerName };
+          const newAuction = await createAuction({
+            title: `【測試結標】${template.title}`,
+            description: `${template.desc}｜系統測試用，已結標`,
+            startingPrice: startingPrice.toString(),
+            currentPrice: winningPrice.toString(),
+            highestBidderId: winnerUserId,
+            endTime,
+            bidIncrement: 30,
+            currency: 'HKD' as const,
+            status: 'ended' as const,
+            createdBy: creatorUserId,
+            category: template.category,
+          });
+          await addAuctionImage({ auctionId: newAuction.id, imageUrl, displayOrder: 0 });
+          await dbPlaceBid({
+            auctionId: newAuction.id,
+            userId: winnerUserId,
+            bidAmount: winningPrice.toString(),
+            isAnonymous: 0,
+          });
+          results.push({ auctionId: newAuction.id, winningPrice, title: `【測試結標】${template.title}`, winnerName });
+        }
+
+        return { items: results, count: results.length };
       }),
 
     adminGenerateTestListings: protectedProcedure

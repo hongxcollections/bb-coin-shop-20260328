@@ -175,12 +175,13 @@ function GenerateListingsPanel({ userId, userName }: { userId: number; userName:
 /** 管理員為任意會員生成測試結標貨品（該用戶為商戶，中標者隨機抽取） */
 function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userName: string }) {
   const [open, setOpen] = useState(false);
-  const [result, setResult] = useState<{ auctionId: number; winningPrice: number; title: string; winnerName: string } | null>(null);
+  const [count, setCount] = useState(1);
+  const [results, setResults] = useState<{ auctionId: number; winningPrice: number; title: string; winnerName: string }[]>([]);
 
   const genMutation = trpc.auctions.adminGenerateTestWonAuction.useMutation({
     onSuccess: (data) => {
-      setResult(data);
-      toast.success(`已生成測試結標 #${data.auctionId}，中標者：${data.winnerName}`);
+      setResults(data.items);
+      toast.success(`已生成 ${data.count} 個測試結標記錄`);
     },
     onError: (err) => toast.error(err.message),
   });
@@ -189,7 +190,7 @@ function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userNam
     <div className="mt-1.5">
       <button
         type="button"
-        onClick={() => { setOpen(!open); setResult(null); }}
+        onClick={() => { setOpen(!open); setResults([]); }}
         className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium transition-colors whitespace-nowrap"
         style={{ background: open ? "#FEF3C7" : "#F5F5F5", color: open ? "#92400E" : "#666" }}
       >
@@ -208,25 +209,69 @@ function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userNam
             <span className="text-xs text-gray-400 ml-auto">商戶：{userName}</span>
           </div>
           <p className="text-xs text-amber-700">
-            以 <strong>{userName}</strong> 為商戶，系統隨機抽取另一位會員作中標者，並生成一個已結標拍賣（隨機金額）。
+            以 <strong>{userName}</strong> 為商戶，系統隨機抽取會員作中標者，生成已結標拍賣（隨機金額）。
           </p>
+
+          {/* Count input */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-amber-800 flex-shrink-0">生成數目：</span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setCount(c => Math.max(1, c - 1))}
+                disabled={count <= 1}
+                className="w-6 h-6 rounded flex items-center justify-center text-sm font-bold transition-colors disabled:opacity-30"
+                style={{ background: "#FDE68A", color: "#92400E" }}
+              >−</button>
+              <input
+                type="number"
+                min={1}
+                max={30}
+                value={count}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!isNaN(v)) setCount(Math.min(30, Math.max(1, v)));
+                }}
+                className="w-12 h-6 rounded border text-center text-xs font-semibold focus:outline-none"
+                style={{ borderColor: "#FCD34D", color: "#92400E" }}
+              />
+              <button
+                type="button"
+                onClick={() => setCount(c => Math.min(30, c + 1))}
+                disabled={count >= 30}
+                className="w-6 h-6 rounded flex items-center justify-center text-sm font-bold transition-colors disabled:opacity-30"
+                style={{ background: "#FDE68A", color: "#92400E" }}
+              >+</button>
+            </div>
+            <span className="text-xs text-gray-400">（最多 30 個）</span>
+          </div>
+
           <button
             type="button"
             disabled={genMutation.isPending}
-            onClick={() => genMutation.mutate({ merchantUserId: userId })}
+            onClick={() => { setResults([]); genMutation.mutate({ merchantUserId: userId, count }); }}
             className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-semibold text-white transition-opacity disabled:opacity-50"
             style={{ background: "linear-gradient(135deg, #D97706, #B45309)" }}
           >
             {genMutation.isPending
               ? <><Loader2 size={12} className="animate-spin" />生成中…</>
-              : <><span>🏆</span>立即生成結標記錄</>}
+              : <><span>🏆</span>立即生成 {count} 個結標記錄</>}
           </button>
-          {result && (
-            <div className="flex items-start gap-1.5 rounded-lg px-2.5 py-2" style={{ background: "#D1FAE5", border: "1px solid #6EE7B7" }}>
-              <CheckCircle2 size={13} style={{ color: "#059669", flexShrink: 0, marginTop: 1 }} />
-              <span className="text-xs font-medium" style={{ color: "#065F46" }}>
-                拍賣 #{result.auctionId}「{result.title}」已建立，成交 HKD ${result.winningPrice.toLocaleString()}，中標者：<strong>{result.winnerName}</strong>
-              </span>
+
+          {results.length > 0 && (
+            <div className="rounded-lg overflow-hidden" style={{ border: "1px solid #6EE7B7" }}>
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5" style={{ background: "#D1FAE5" }}>
+                <CheckCircle2 size={13} style={{ color: "#059669" }} />
+                <span className="text-xs font-semibold" style={{ color: "#065F46" }}>已生成 {results.length} 個結標記錄</span>
+              </div>
+              <div className="max-h-36 overflow-y-auto divide-y" style={{ divideColor: "#A7F3D0" }}>
+                {results.map((r) => (
+                  <div key={r.auctionId} className="px-2.5 py-1.5 text-xs" style={{ background: "#ECFDF5", color: "#065F46" }}>
+                    <span className="font-medium">#{r.auctionId}</span> {r.title.replace("【測試結標】", "")}
+                    {" "}— HKD ${r.winningPrice.toLocaleString()} · {r.winnerName}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
