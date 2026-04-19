@@ -448,6 +448,20 @@ export async function addAuctionImage(data: InsertAuctionImage) {
   }
 }
 
+/** Return any one existing auction image URL from the DB (used for seeding test listings) */
+export async function getAnyExistingImageUrl(): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  try {
+    const rows = await db.select({ imageUrl: auctionImages.imageUrl })
+      .from(auctionImages)
+      .limit(1);
+    return rows[0]?.imageUrl ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function deleteAuctionImage(imageId: number) {
   const db = await getDb();
   if (!db) throw new Error('Database not available');
