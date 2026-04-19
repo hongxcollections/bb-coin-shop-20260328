@@ -499,6 +499,7 @@ export const appRouter = router({
             bidAmount: winningPrice.toString(),
             isAnonymous: 0,
           });
+          await autoDeductCommissionOnAuctionEnd(newAuction.id).catch(() => {});
           results.push({ auctionId: newAuction.id, winningPrice, title: `【測試結標】${template.title}`, winnerName });
         }
 
