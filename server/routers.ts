@@ -1931,7 +1931,11 @@ export const appRouter = router({
           const hasQuota = !quotaInfo || quotaInfo.unlimited || quotaInfo.remainingQuota >= 1;
           const failReasons: string[] = [];
           if (!hasQuota) {
-            failReasons.push(`條件一：發佈次數不足（剩餘 ${quotaInfo?.remainingQuota ?? 0} 次）`);
+            const quotaTmpl = await getSiteSetting('publishQuotaErrorMsg') ?? '發佈點數不足（剩餘 {remaining} 次，需要 {required} 次）';
+            const quotaErrMsg = quotaTmpl
+              .replace('{remaining}', String(quotaInfo?.remainingQuota ?? 0))
+              .replace('{required}', '1');
+            failReasons.push(`條件一：${quotaErrMsg}`);
           }
           if (!depositCheck.canList) {
             let depositErrMsg: string;
@@ -1995,7 +1999,11 @@ export const appRouter = router({
           const hasQuota = !quotaInfo || quotaInfo.unlimited || quotaInfo.remainingQuota >= toPublishCount;
           const failReasons: string[] = [];
           if (!hasQuota) {
-            failReasons.push(`條件一：發佈次數不足（剩餘 ${quotaInfo?.remainingQuota ?? 0} 次，需要 ${toPublishCount} 次）`);
+            const quotaTmpl = await getSiteSetting('publishQuotaErrorMsg') ?? '發佈點數不足（剩餘 {remaining} 次，需要 {required} 次）';
+            const quotaErrMsg = quotaTmpl
+              .replace('{remaining}', String(quotaInfo?.remainingQuota ?? 0))
+              .replace('{required}', String(toPublishCount));
+            failReasons.push(`條件一：${quotaErrMsg}`);
           }
           if (!depositCheck.canList) {
             let depositErrMsg: string;

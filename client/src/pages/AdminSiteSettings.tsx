@@ -55,6 +55,9 @@ export default function AdminSiteSettings() {
   // 保證金警告信息
   const [depositWarningMessage, setDepositWarningMessage] = useState("保證金水平維持不足，可以自行申請保證金充值或者聯絡管理員補交, 以免影響商戶一切正常運作。");
 
+  // 發佈點數不足錯誤信息模板
+  const [publishQuotaErrorMsg, setPublishQuotaErrorMsg] = useState("發佈點數不足（剩餘 {remaining} 次，需要 {required} 次）");
+
   // 發佈保證金不足錯誤信息模板
   const [publishDepositErrorMsg, setPublishDepositErrorMsg] = useState("保證金維持水平不足（餘額 {balance}，需要 {required}）");
 
@@ -72,6 +75,7 @@ export default function AdminSiteSettings() {
     if (s.notLoggedInBidText) setNotLoggedInBidText(s.notLoggedInBidText);
     if (s.loginWelcomeDesc) setLoginWelcomeDesc(s.loginWelcomeDesc);
     if (s.depositWarningMessage) setDepositWarningMessage(s.depositWarningMessage);
+    if (s.publishQuotaErrorMsg) setPublishQuotaErrorMsg(s.publishQuotaErrorMsg);
     if (s.publishDepositErrorMsg) setPublishDepositErrorMsg(s.publishDepositErrorMsg);
   }, [settings]);
 
@@ -452,6 +456,40 @@ export default function AdminSiteSettings() {
                     <span>{depositWarningMessage || "（空白）"}</span>
                   </div>
                   <SaveBtn onClick={() => save('depositWarningMessage', depositWarningMessage, () => !depositWarningMessage.trim() ? "警告信息不可為空" : null)} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 發佈點數不足錯誤信息 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-blue-500" />
+                  <CardTitle className="text-lg">發佈點數不足錯誤信息（條件一）</CardTitle>
+                </div>
+                <CardDescription>
+                  商戶發佈拍賣時，若發佈點數不足所顯示的「條件一」錯誤信息。
+                  用 <code className="bg-muted px-1 rounded text-xs">&#123;remaining&#125;</code> 代表剩餘點數，
+                  <code className="bg-muted px-1 rounded text-xs">&#123;required&#125;</code> 代表需要點數。
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="flex items-center gap-2 mb-2"><AlertCircle className="w-4 h-4 text-blue-500" />錯誤信息模板</Label>
+                  <Input
+                    value={publishQuotaErrorMsg}
+                    onChange={(e) => setPublishQuotaErrorMsg(e.target.value)}
+                    placeholder="發佈點數不足（剩餘 {remaining} 次，需要 {required} 次）"
+                  />
+                </div>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-sm text-blue-800 max-w-sm">
+                    <span className="font-semibold">條件一：</span>
+                    {publishQuotaErrorMsg
+                      .replace('{remaining}', '0')
+                      .replace('{required}', '3') || "（空白）"}
+                  </div>
+                  <SaveBtn onClick={() => save('publishQuotaErrorMsg', publishQuotaErrorMsg, () => !publishQuotaErrorMsg.trim() ? "錯誤信息不可為空" : null)} />
                 </div>
               </CardContent>
             </Card>
