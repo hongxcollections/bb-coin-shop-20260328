@@ -172,6 +172,69 @@ function GenerateListingsPanel({ userId, userName }: { userId: number; userName:
   );
 }
 
+/** 管理員為任意會員生成測試結標貨品 */
+function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userName: string }) {
+  const [open, setOpen] = useState(false);
+  const [result, setResult] = useState<{ auctionId: number; winningPrice: number; title: string } | null>(null);
+
+  const genMutation = trpc.auctions.adminGenerateTestWonAuction.useMutation({
+    onSuccess: (data) => {
+      setResult(data);
+      toast.success(`已為 ${userName} 生成測試結標：#${data.auctionId}`);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  return (
+    <div className="mt-1.5">
+      <button
+        type="button"
+        onClick={() => { setOpen(!open); setResult(null); }}
+        className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium transition-colors whitespace-nowrap"
+        style={{ background: open ? "#FEF3C7" : "#F5F5F5", color: open ? "#92400E" : "#666" }}
+      >
+        <Gavel size={10} />
+        生成測試結標
+        <ChevronDown size={11} style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }} />
+      </button>
+
+      {open && (
+        <div className="mt-1.5 rounded-xl p-3 space-y-2.5" style={{ background: "#FFFBEB", border: "1px solid #FCD34D" }}>
+          <div className="flex items-center gap-1.5">
+            <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: "#D97706" }}>
+              <Gavel size={11} className="text-white" />
+            </div>
+            <span className="text-xs font-semibold" style={{ color: "#92400E" }}>生成測試結標貨品</span>
+            <span className="text-xs text-gray-400 ml-auto">中標者：{userName}</span>
+          </div>
+          <p className="text-xs text-amber-700">
+            系統將隨機建立一個已結標拍賣（隨機商戶、隨機金額），並指定 <strong>{userName}</strong> 為中標者。
+          </p>
+          <button
+            type="button"
+            disabled={genMutation.isPending}
+            onClick={() => genMutation.mutate({ winnerUserId: userId })}
+            className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-semibold text-white transition-opacity disabled:opacity-50"
+            style={{ background: "linear-gradient(135deg, #D97706, #B45309)" }}
+          >
+            {genMutation.isPending
+              ? <><Loader2 size={12} className="animate-spin" />生成中…</>
+              : <><span>🏆</span>立即生成結標記錄</>}
+          </button>
+          {result && (
+            <div className="flex items-center gap-1.5 rounded-lg px-2.5 py-2" style={{ background: "#D1FAE5", border: "1px solid #6EE7B7" }}>
+              <CheckCircle2 size={13} style={{ color: "#059669", flexShrink: 0 }} />
+              <span className="text-xs font-medium" style={{ color: "#065F46" }}>
+                已建立拍賣 #{result.auctionId}「{result.title}」— 成交 HKD ${result.winningPrice.toLocaleString()}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 type EditState = {
   userId: number;
   name: string;
@@ -431,8 +494,10 @@ export default function AdminUsers() {
                 </div>
               )}
             </div>
-            {/* Generate test listings — full width below the flex row, merchants only */}
+            {/* Generate test listings — merchants only */}
             {u.depositId && <GenerateListingsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
+            {/* Generate test won auction — all users */}
+            <GenerateWonAuctionPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />
           </div>
         ))}
       </div>

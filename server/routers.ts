@@ -4,8 +4,10 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl } from "./db";
+import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl } from "./db";
 import type { Auction } from "../drizzle/schema";
+import { merchantApplications as merchantAppsTable } from "../drizzle/schema";
+import { eq } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
 import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest } from "./db";
 import { storagePut } from "./storage";
@@ -428,6 +430,70 @@ export const appRouter = router({
         );
         const succeeded = results.filter(r => r.status === 'fulfilled' && (r.value as { success?: boolean }).success).length;
         return { succeeded, total: input.ids.length };
+      }),
+
+    adminGenerateTestWonAuction: protectedProcedure
+      .input(z.object({ winnerUserId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+
+
+        // Pick a creator: prefer an approved merchant, fallback to admin, fallback to winner
+        const merchantRows = await db
+          .select({ userId: merchantAppsTable.userId })
+          .from(merchantAppsTable)
+          .where(eq(merchantAppsTable.status, 'approved'))
+          .limit(5);
+        const merchantUserIds = merchantRows.map(r => r.userId).filter(id => id !== input.winnerUserId);
+        const creatorUserId = merchantUserIds.length > 0
+          ? merchantUserIds[Math.floor(Math.random() * merchantUserIds.length)]
+          : input.winnerUserId;
+
+        // Random auction data
+        const testItems = [
+          { title: '1997年香港金紫荊紀念幣', desc: '回歸紀念，原盒附證書', category: '紀念幣' as const },
+          { title: '1981年香港五毫硬幣', desc: '英女皇頭像，品相良好', category: '古幣' as const },
+          { title: '1935年香港一毫銀幣', desc: '喬治五世頭像，銀光好', category: '銀幣' as const },
+          { title: '1967年香港一毫', desc: '英女皇頭像，流通品', category: '古幣' as const },
+          { title: '1863年香港一仙銅幣', desc: '早期殖民地幣，珍貴', category: '古幣' as const },
+        ];
+        const template = testItems[Math.floor(Math.random() * testItems.length)];
+        const prices = [280, 350, 480, 600, 750, 900, 1200, 1500];
+        const winningPrice = prices[Math.floor(Math.random() * prices.length)];
+        const startingPrice = Math.floor(winningPrice * 0.5);
+
+        const endTime = new Date(Date.now() - 60 * 60 * 1000); // 1 hour ago
+
+        const existingImageUrl = await getAnyExistingImageUrl();
+        const imageUrl = existingImageUrl ?? 'https://placehold.co/400x400/d4af37/ffffff?text=TEST';
+
+        // Create ended auction
+        const newAuction = await createAuction({
+          title: `【測試結標】${template.title}`,
+          description: `${template.desc}｜系統測試用，已結標`,
+          startingPrice: startingPrice.toString(),
+          currentPrice: winningPrice.toString(),
+          highestBidderId: input.winnerUserId,
+          endTime,
+          bidIncrement: 30,
+          currency: 'HKD' as const,
+          status: 'ended' as const,
+          createdBy: creatorUserId,
+          category: template.category,
+        });
+        await addAuctionImage({ auctionId: newAuction.id, imageUrl, displayOrder: 0 });
+
+        // Create bid record
+        await dbPlaceBid({
+          auctionId: newAuction.id,
+          userId: input.winnerUserId,
+          bidAmount: winningPrice.toString(),
+          isAnonymous: 0,
+        });
+
+        return { auctionId: newAuction.id, winningPrice, title: `【測試結標】${template.title}` };
       }),
 
     adminGenerateTestListings: protectedProcedure
