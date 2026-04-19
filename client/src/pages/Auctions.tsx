@@ -91,8 +91,10 @@ export default function Auctions() {
   const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, {
     staleTime: 5 * 60 * 1000, // 緩存 5 分鐘
   });
-  const _endingSoonRaw = parseInt((siteSettings as Record<string, string> | undefined)?.endingSoonMinutes ?? '30', 10);
+  const _ss = (siteSettings as Record<string, string> | undefined) ?? {};
+  const _endingSoonRaw = parseInt(_ss.endingSoonMinutes ?? '30', 10);
   const endingSoonMs = (isNaN(_endingSoonRaw) || _endingSoonRaw < 1 ? 30 : _endingSoonRaw) * 60 * 1000;
+  const endingSoonText = _ss.endingSoonText || "⏰ 即將結束";
 
   // Restore scroll position when returning from auction detail
   useEffect(() => {
@@ -400,7 +402,7 @@ export default function Auctions() {
                             <>
                               {isEndingSoon && (
                                 <Badge className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 animate-pulse">
-                                  ⏰ 即將結束
+                                  {endingSoonText}
                                 </Badge>
                               )}
                               <Badge className={`text-[9px] px-1.5 py-0.5 ${!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>

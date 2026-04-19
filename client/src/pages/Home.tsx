@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
 import { Link } from "wouter";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -92,8 +92,24 @@ export default function Home() {
   const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, {
     staleTime: 5 * 60 * 1000,
   });
-  const _endingSoonRaw = parseInt((siteSettings as Record<string, string> | undefined)?.endingSoonMinutes ?? '30', 10);
+  const ss = (siteSettings as Record<string, string> | undefined) ?? {};
+  const _endingSoonRaw = parseInt(ss.endingSoonMinutes ?? '30', 10);
   const endingSoonMs = (isNaN(_endingSoonRaw) || _endingSoonRaw < 1 ? 30 : _endingSoonRaw) * 60 * 1000;
+  const endingSoonText = ss.endingSoonText || "⏰ 即將結束";
+
+  // 首頁歡迎 popup — once per browser session
+  const welcomeShownRef = useRef(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+  useEffect(() => {
+    if (welcomeShownRef.current) return;
+    if (ss.homeWelcomeEnabled !== "true" || !ss.homeWelcomeMessage?.trim()) return;
+    if (sessionStorage.getItem("homeWelcomeShown") === "1") return;
+    welcomeShownRef.current = true;
+    sessionStorage.setItem("homeWelcomeShown", "1");
+    setShowWelcome(true);
+    const t = setTimeout(() => setShowWelcome(false), 5000);
+    return () => clearTimeout(t);
+  }, [ss.homeWelcomeEnabled, ss.homeWelcomeMessage]);
 
   const activeCount = (auctions ?? []).filter(a => a.status === "active" && new Date(a.endTime).getTime() > Date.now()).length;
 
@@ -121,6 +137,23 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
+      {/* 首頁歡迎 popup */}
+      {showWelcome && (
+        <div className="bottom-nav-toast" style={{ zIndex: 9999 }}>
+          <div className="bottom-nav-toast-inner">
+            <span className="bottom-nav-toast-icon">🪙</span>
+            <div>
+              <div className="bottom-nav-toast-title">{ss.homeWelcomeMessage}</div>
+            </div>
+            <button
+              onClick={() => setShowWelcome(false)}
+              className="ml-2 opacity-40 hover:opacity-80 transition-opacity flex-shrink-0 text-sm"
+              style={{ color: "var(--popup-desc)" }}
+              aria-label="關閉"
+            >✕</button>
+          </div>
+        </div>
+      )}
       {/* Navigation */}
       <Header />
       {/* ── Section 1: Stats (Top) ── */}
@@ -330,7 +363,7 @@ export default function Home() {
                               <>
                                 {isEndingSoon && (
                                   <Badge className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 animate-pulse">
-                                    ⏰ 即將結束
+                                    {endingSoonText}
                                   </Badge>
                                 )}
                                 <Badge className="bg-emerald-500 text-white text-[9px] px-1.5 py-0.5">

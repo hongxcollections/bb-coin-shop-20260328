@@ -6,6 +6,8 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import BottomNav from "./components/BottomNav";
+import { trpc } from "@/lib/trpc";
+import { useState } from "react";
 import Home from "./pages/Home";
 import Auctions from "./pages/Auctions";
 import AuctionDetail from "./pages/AuctionDetail";
@@ -37,6 +39,35 @@ import MerchantOrders from "./pages/MerchantOrders";
 import MerchantSettings from "./pages/MerchantSettings";
 import MerchantRefundRequests from "./pages/MerchantRefundRequests";
 import AdminRefundRequests from "./pages/AdminRefundRequests";
+
+function AnnouncementBanner() {
+  const { data: settings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 60 * 1000 });
+  const s = (settings as Record<string, string> | undefined) ?? {};
+  const [dismissed, setDismissed] = useState(() => sessionStorage.getItem("announcementDismissed") === s.announcementText);
+
+  if (s.announcementEnabled !== "true" || !s.announcementText?.trim()) return null;
+  if (dismissed) return null;
+
+  return (
+    <div className="bottom-nav-toast" style={{ zIndex: 99998 }}>
+      <div className="bottom-nav-toast-inner" style={{ maxWidth: "min(400px, 90vw)" }}>
+        <span className="bottom-nav-toast-icon">📢</span>
+        <div className="flex-1">
+          <div className="bottom-nav-toast-title">{s.announcementText}</div>
+        </div>
+        <button
+          onClick={() => {
+            sessionStorage.setItem("announcementDismissed", s.announcementText);
+            setDismissed(true);
+          }}
+          className="ml-2 opacity-40 hover:opacity-80 transition-opacity flex-shrink-0 text-sm"
+          style={{ color: "var(--popup-desc)" }}
+          aria-label="關閉"
+        >✕</button>
+      </div>
+    </div>
+  );
+}
 
 function Router() {
   return (
@@ -93,6 +124,7 @@ function App() {
                 },
               }}
             />
+            <AnnouncementBanner />
             <Router />
             <BottomNav />
           </ToastProvider>

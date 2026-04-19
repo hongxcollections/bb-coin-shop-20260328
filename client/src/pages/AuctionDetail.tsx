@@ -214,8 +214,11 @@ export default function AuctionDetail() {
   const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, {
     staleTime: 5 * 60 * 1000,
   });
-  const noBidMessage = (siteSettings as Record<string, string> | undefined)?.noBidMessage
-    ?? "暫時未有出價 喜歡來一口的隨時就可以帶回家了 😁";
+  const _ss = (siteSettings as Record<string, string> | undefined) ?? {};
+  const noBidMessage = _ss.noBidMessage ?? "暫時未有出價 喜歡來一口的隨時就可以帶回家了 😁";
+  const bidSuccessMessage = _ss.bidSuccessMessage ?? "✅ 出價成功！您目前是最高出價者";
+  const bidSuccessExtendedMessage = _ss.bidSuccessExtendedMessage ?? "✅ 出價成功！🛡️ 拍賣已延長 {minutes} 分鐘";
+  const notLoggedInBidText = _ss.notLoggedInBidText ?? "登入後出價";
 
   const handleProxyBid = () => {
     const amount = parseFloat(proxyAmount);
@@ -237,9 +240,9 @@ export default function AuctionDetail() {
     onSuccess: (data) => {
       setBidMsgExiting(false);
       if (data.extended) {
-        setBidMessage({ type: "success", text: `✅ 出價成功！🛡️ 拍賣已延長 ${data.extendMinutes ?? 3} 分鐘` });
+        setBidMessage({ type: "success", text: bidSuccessExtendedMessage.replace("{minutes}", String(data.extendMinutes ?? 3)) });
       } else {
-        setBidMessage({ type: "success", text: "✅ 出價成功！您目前是最高出價者" });
+        setBidMessage({ type: "success", text: bidSuccessMessage });
       }
       setBidAmount("");
       setPriceUpdated(false);
@@ -847,7 +850,7 @@ export default function AuctionDetail() {
                   ) : (
                     <a href="/login">
                       <Button className="w-full gold-gradient text-white border-0 shadow-md hover:opacity-90">
-                        登入後出價
+                        {notLoggedInBidText}
                       </Button>
                     </a>
                   )

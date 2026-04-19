@@ -12,6 +12,9 @@ export default function BottomNav() {
     enabled: isAuthenticated,
     staleTime: 0,
   });
+  const { data: _siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const _ss = (_siteSettings as Record<string, string> | undefined) ?? {};
+  const loginWelcomeDesc = _ss.loginWelcomeDesc || "歡迎繼續瀏覽網站！";
   const isMerchant = isMerchantData === true;
   const [location] = useLocation();
   const [showMore, setShowMore] = useState(false);
@@ -53,11 +56,11 @@ export default function BottomNav() {
       showToast({
         icon: "✅",
         title: method === "phone" ? "手機登入成功！" : "電郵登入成功！",
-        desc: "歡迎繼續瀏覽網站！",
+        desc: loginWelcomeDesc,
         durationMs: 4000,
       });
     }
-  }, [showToast]);
+  }, [showToast, loginWelcomeDesc]);
 
   const showComingSoon = useCallback((featureName: string) => {
     showToast({

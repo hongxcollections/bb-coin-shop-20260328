@@ -8,34 +8,63 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Settings, Bell, Clock, ChevronLeft, Save, AlertCircle, MessageSquare } from "lucide-react";
+import {
+  Settings, Bell, Clock, ChevronLeft, Save, AlertCircle,
+  MessageSquare, Megaphone, Home, CheckCircle, Tag, LogIn, Sparkles
+} from "lucide-react";
 
 export default function AdminSiteSettings() {
   const { user, isAuthenticated } = useAuth();
-  // 讀取所有站點設定
   const { data: settings, isLoading, refetch } = trpc.siteSettings.getAll.useQuery();
   const setSetting = trpc.siteSettings.set.useMutation({
-    onSuccess: () => {
-      refetch();
-      toast.success("設定已儲存，站點設定已成功更新");
-    },
-    onError: (err) => {
-      toast.error(err.message || "儲存失敗");
-    },
+    onSuccess: () => { refetch(); toast.success("設定已儲存"); },
+    onError: (err) => { toast.error(err.message || "儲存失敗"); },
   });
 
-  // 倒數提醒閾值（分鐘）
+  const s = (settings as Record<string, string> | undefined) ?? {};
+
+  // 全站公告
+  const [announcementEnabled, setAnnouncementEnabled] = useState(false);
+  const [announcementText, setAnnouncementText] = useState("");
+
+  // 首頁歡迎訊息
+  const [homeWelcomeEnabled, setHomeWelcomeEnabled] = useState(false);
+  const [homeWelcomeMessage, setHomeWelcomeMessage] = useState("歡迎蒞臨 大BB錢幣店 🪙 每週更新精選藏品");
+
+  // 倒數提醒閾值
   const [endingSoonMinutes, setEndingSoonMinutes] = useState("30");
-  // 未有出價提示訊息
+
+  // 即將結束標籤文字
+  const [endingSoonText, setEndingSoonText] = useState("⏰ 即將結束");
+
+  // 未有出價提示
   const [noBidMessage, setNoBidMessage] = useState("暫時未有出價 喜歡來一口的隨時就可以帶回家了 😁");
 
+  // 出價成功訊息
+  const [bidSuccessMessage, setBidSuccessMessage] = useState("✅ 出價成功！您目前是最高出價者");
+  const [bidSuccessExtendedMessage, setBidSuccessExtendedMessage] = useState("✅ 出價成功！🛡️ 拍賣已延長 {minutes} 分鐘");
+
+  // 未登入出價按鈕
+  const [notLoggedInBidText, setNotLoggedInBidText] = useState("登入後出價");
+
+  // 登入歡迎訊息
+  const [loginWelcomeDesc, setLoginWelcomeDesc] = useState("歡迎繼續瀏覽網站！");
+
   useEffect(() => {
-    if (settings) {
-      const s = settings as Record<string, string>;
-      if (s.endingSoonMinutes) setEndingSoonMinutes(s.endingSoonMinutes);
-      if (s.noBidMessage) setNoBidMessage(s.noBidMessage);
-    }
+    if (!settings) return;
+    if (s.announcementEnabled) setAnnouncementEnabled(s.announcementEnabled === "true");
+    if (s.announcementText) setAnnouncementText(s.announcementText);
+    if (s.homeWelcomeEnabled) setHomeWelcomeEnabled(s.homeWelcomeEnabled === "true");
+    if (s.homeWelcomeMessage) setHomeWelcomeMessage(s.homeWelcomeMessage);
+    if (s.endingSoonMinutes) setEndingSoonMinutes(s.endingSoonMinutes);
+    if (s.endingSoonText) setEndingSoonText(s.endingSoonText);
+    if (s.noBidMessage) setNoBidMessage(s.noBidMessage);
+    if (s.bidSuccessMessage) setBidSuccessMessage(s.bidSuccessMessage);
+    if (s.bidSuccessExtendedMessage) setBidSuccessExtendedMessage(s.bidSuccessExtendedMessage);
+    if (s.notLoggedInBidText) setNotLoggedInBidText(s.notLoggedInBidText);
+    if (s.loginWelcomeDesc) setLoginWelcomeDesc(s.loginWelcomeDesc);
   }, [settings]);
 
   if (!isAuthenticated || user?.role !== 'admin') {
@@ -51,26 +80,32 @@ export default function AdminSiteSettings() {
     );
   }
 
-  const handleSaveEndingSoon = () => {
-    const val = parseInt(endingSoonMinutes, 10);
-    if (isNaN(val) || val < 1 || val > 1440) {
-      toast.error("請輸入 1 至 1440 分鐘之間的數值");
-      return;
+  const save = (key: string, value: string, validate?: () => string | null) => {
+    if (validate) {
+      const err = validate();
+      if (err) { toast.error(err); return; }
     }
-    setSetting.mutate({ key: 'endingSoonMinutes', value: String(val) });
+    setSetting.mutate({ key, value });
   };
 
-  const handleSaveNoBidMessage = () => {
-    if (!noBidMessage.trim()) {
-      toast.error("訊息不可為空");
-      return;
-    }
-    setSetting.mutate({ key: 'noBidMessage', value: noBidMessage.trim() });
-  };
+  const SaveBtn = ({ onClick }: { onClick: () => void }) => (
+    <Button onClick={onClick} disabled={setSetting.isPending} className="bg-amber-600 hover:bg-amber-700 text-white gap-2">
+      <Save className="w-4 h-4" />
+      {setSetting.isPending ? "儲存中..." : "儲存"}
+    </Button>
+  );
+
+  const popupPreview = (text: string) => (
+    <div className="text-sm px-4 py-2.5 rounded-xl border max-w-xs" style={{
+      background: "var(--popup-bg)", color: "var(--popup-text)",
+      borderColor: "var(--popup-border)", boxShadow: "var(--popup-shadow)",
+    }}>
+      🪙 {text || "（空白）"}
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background">
-      {/* 後台導航 */}
       <div className="bg-amber-900 text-white px-4 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3 flex-wrap">
@@ -96,9 +131,7 @@ export default function AdminSiteSettings() {
               <Button variant="ghost" size="sm" className="text-white bg-amber-700 hover:bg-amber-600">⚙️ 站點設定</Button>
             </Link>
           </div>
-          <Badge variant="outline" className="text-amber-200 border-amber-500">
-            管理員：{user?.name}
-          </Badge>
+          <Badge variant="outline" className="text-amber-200 border-amber-500">管理員：{user?.name}</Badge>
         </div>
       </div>
 
@@ -107,7 +140,7 @@ export default function AdminSiteSettings() {
           <Settings className="w-7 h-7 text-amber-600" />
           <div>
             <h1 className="text-2xl font-bold">站點設定</h1>
-            <p className="text-muted-foreground text-sm">管理拍賣平台的全局設定</p>
+            <p className="text-muted-foreground text-sm">管理拍賣平台的全局彈出訊息與標籤文字</p>
           </div>
         </div>
 
@@ -115,70 +148,151 @@ export default function AdminSiteSettings() {
           <div className="text-center py-12 text-muted-foreground">載入設定中...</div>
         ) : (
           <div className="space-y-6">
-            {/* 倒數提醒設定 */}
+
+            {/* 全站公告橫幅 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Megaphone className="w-5 h-5 text-red-500" />
+                  <CardTitle className="text-lg">全站公告橫幅</CardTitle>
+                </div>
+                <CardDescription>開啟後在所有頁面頂部顯示公告訊息（適合系統維護、假期通知等）</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={announcementEnabled}
+                    onCheckedChange={(v) => {
+                      setAnnouncementEnabled(v);
+                      setSetting.mutate({ key: 'announcementEnabled', value: v ? "true" : "false" });
+                    }}
+                  />
+                  <Label className="cursor-pointer">
+                    {announcementEnabled ? <span className="text-emerald-600 font-semibold">已開啟</span> : <span className="text-muted-foreground">已關閉</span>}
+                  </Label>
+                </div>
+                <div>
+                  <Label className="flex items-center gap-2 mb-2"><Megaphone className="w-4 h-4 text-red-500" />公告內容</Label>
+                  <Textarea
+                    value={announcementText}
+                    onChange={(e) => setAnnouncementText(e.target.value)}
+                    rows={2}
+                    placeholder="例如：🔧 系統將於今晚 23:00 進行維護，期間暫停出價服務"
+                    className="resize-none"
+                  />
+                </div>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  {popupPreview(announcementText || "公告訊息預覽")}
+                  <SaveBtn onClick={() => save('announcementText', announcementText, () => !announcementText.trim() ? "公告內容不可為空" : null)} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 首頁歡迎訊息 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Home className="w-5 h-5 text-blue-500" />
+                  <CardTitle className="text-lg">首頁歡迎訊息</CardTitle>
+                </div>
+                <CardDescription>訪客進入首頁時在頂部彈出一次的歡迎訊息（每次瀏覽器 session 只顯示一次）</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={homeWelcomeEnabled}
+                    onCheckedChange={(v) => {
+                      setHomeWelcomeEnabled(v);
+                      setSetting.mutate({ key: 'homeWelcomeEnabled', value: v ? "true" : "false" });
+                    }}
+                  />
+                  <Label className="cursor-pointer">
+                    {homeWelcomeEnabled ? <span className="text-emerald-600 font-semibold">已開啟</span> : <span className="text-muted-foreground">已關閉</span>}
+                  </Label>
+                </div>
+                <div>
+                  <Label className="flex items-center gap-2 mb-2"><Home className="w-4 h-4 text-blue-500" />歡迎訊息內容</Label>
+                  <Textarea
+                    value={homeWelcomeMessage}
+                    onChange={(e) => setHomeWelcomeMessage(e.target.value)}
+                    rows={2}
+                    placeholder="歡迎蒞臨 大BB錢幣店 🪙 每週更新精選藏品"
+                    className="resize-none"
+                  />
+                </div>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  {popupPreview(homeWelcomeMessage)}
+                  <SaveBtn onClick={() => save('homeWelcomeMessage', homeWelcomeMessage, () => !homeWelcomeMessage.trim() ? "訊息不可為空" : null)} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 拍賣倒數提醒 */}
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Bell className="w-5 h-5 text-orange-500" />
-                  <CardTitle className="text-lg">拍賣倒數提醒</CardTitle>
+                  <CardTitle className="text-lg">拍賣倒數提醒閾值</CardTitle>
                 </div>
-                <CardDescription>
-                  當拍賣剩餘時間少於設定值時，拍賣列表卡片會顯示橙色閃爍「⏰ 即將結束」標記
-                </CardDescription>
+                <CardDescription>當拍賣剩餘時間少於設定值時，列表卡片顯示「即將結束」標記</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-end gap-4">
                   <div className="flex-1">
                     <Label htmlFor="endingSoonMinutes" className="flex items-center gap-2 mb-2">
-                      <Clock className="w-4 h-4 text-orange-500" />
-                      提醒閾值（分鐘）
+                      <Clock className="w-4 h-4 text-orange-500" />提醒閾值（分鐘）
                     </Label>
                     <Input
                       id="endingSoonMinutes"
-                      type="number"
-                      min={1}
-                      max={1440}
+                      type="number" min={1} max={1440}
                       value={endingSoonMinutes}
                       onChange={(e) => setEndingSoonMinutes(e.target.value)}
-                      className="max-w-[180px]"
-                      placeholder="30"
+                      className="max-w-[180px]" placeholder="30"
                     />
                     <p className="text-xs text-muted-foreground mt-1.5">
-                      範圍：1 至 1440 分鐘（24 小時）。目前設定：
-                      <span className="font-semibold text-orange-600">
-                        {endingSoonMinutes} 分鐘
-                      </span>
+                      目前設定：<span className="font-semibold text-orange-600">{endingSoonMinutes} 分鐘</span>
                       {parseInt(endingSoonMinutes) >= 60 && (
-                        <span className="text-muted-foreground">
-                          （即 {Math.floor(parseInt(endingSoonMinutes) / 60)} 小時
-                          {parseInt(endingSoonMinutes) % 60 > 0 ? ` ${parseInt(endingSoonMinutes) % 60} 分鐘` : ''}）
-                        </span>
+                        <span>（即 {Math.floor(parseInt(endingSoonMinutes)/60)} 小時{parseInt(endingSoonMinutes)%60>0?` ${parseInt(endingSoonMinutes)%60} 分鐘`:''}）</span>
                       )}
                     </p>
                   </div>
-                  <Button
-                    onClick={handleSaveEndingSoon}
-                    disabled={setSetting.isPending}
-                    className="bg-amber-600 hover:bg-amber-700 text-white gap-2 mb-6"
-                  >
-                    <Save className="w-4 h-4" />
-                    {setSetting.isPending ? "儲存中..." : "儲存設定"}
-                  </Button>
-                </div>
-
-                {/* 預覽效果 */}
-                <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
-                  <p className="text-sm font-medium text-orange-700 dark:text-orange-400 mb-2">效果預覽</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">拍賣卡片標記：</span>
-                    <Badge className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5 animate-pulse">
-                      ⏰ 即將結束
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">（橙色閃爍）</span>
+                  <div className="mb-6">
+                    <SaveBtn onClick={() => save('endingSoonMinutes', endingSoonMinutes, () => {
+                      const v = parseInt(endingSoonMinutes, 10);
+                      return (isNaN(v) || v < 1 || v > 1440) ? "請輸入 1 至 1440 分鐘之間的數值" : null;
+                    })} />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    當拍賣距離結標時間少於 <strong>{endingSoonMinutes} 分鐘</strong>時，此標記會顯示在拍賣列表卡片右上角
-                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 即將結束標籤文字 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-orange-500" />
+                  <CardTitle className="text-lg">即將結束標籤文字</CardTitle>
+                </div>
+                <CardDescription>拍賣列表卡片右上角的「即將結束」閃爍標籤顯示文字</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="flex items-center gap-2 mb-2"><Tag className="w-4 h-4 text-orange-500" />標籤文字</Label>
+                  <Input
+                    value={endingSoonText}
+                    onChange={(e) => setEndingSoonText(e.target.value)}
+                    placeholder="⏰ 即將結束"
+                    className="max-w-xs"
+                  />
+                </div>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">預覽：</span>
+                    <Badge className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5 animate-pulse">
+                      {endingSoonText || "⏰ 即將結束"}
+                    </Badge>
+                  </div>
+                  <SaveBtn onClick={() => save('endingSoonText', endingSoonText, () => !endingSoonText.trim() ? "標籤文字不可為空" : null)} />
                 </div>
               </CardContent>
             </Card>
@@ -190,18 +304,12 @@ export default function AdminSiteSettings() {
                   <MessageSquare className="w-5 h-5 text-amber-500" />
                   <CardTitle className="text-lg">未有出價提示訊息</CardTitle>
                 </div>
-                <CardDescription>
-                  當拍賣商品暫時未有任何出價時，在商品頁顯示的提示訊息
-                </CardDescription>
+                <CardDescription>商品頁活躍拍賣暫未有出價時，頁面頂部顯示的浮動提示</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="noBidMessage" className="flex items-center gap-2 mb-2">
-                    <MessageSquare className="w-4 h-4 text-amber-500" />
-                    提示訊息內容
-                  </Label>
+                  <Label className="flex items-center gap-2 mb-2"><MessageSquare className="w-4 h-4 text-amber-500" />提示訊息內容</Label>
                   <Textarea
-                    id="noBidMessage"
                     value={noBidMessage}
                     onChange={(e) => setNoBidMessage(e.target.value)}
                     rows={3}
@@ -209,31 +317,108 @@ export default function AdminSiteSettings() {
                     className="resize-none"
                   />
                 </div>
-                <div className="flex items-center justify-between">
-                  <div
-                    className="text-sm px-4 py-2.5 rounded-xl border max-w-sm"
-                    style={{
-                      background: "var(--popup-bg)",
-                      color: "var(--popup-text)",
-                      borderColor: "var(--popup-border)",
-                      boxShadow: "var(--popup-shadow)",
-                    }}
-                  >
-                    {noBidMessage || "（空白）"}
-                  </div>
-                  <Button
-                    onClick={handleSaveNoBidMessage}
-                    disabled={setSetting.isPending}
-                    className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
-                  >
-                    <Save className="w-4 h-4" />
-                    {setSetting.isPending ? "儲存中..." : "儲存設定"}
-                  </Button>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  {popupPreview(noBidMessage)}
+                  <SaveBtn onClick={() => save('noBidMessage', noBidMessage, () => !noBidMessage.trim() ? "訊息不可為空" : null)} />
                 </div>
               </CardContent>
             </Card>
 
-            {/* 目前所有設定值 */}
+            {/* 出價成功訊息 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-emerald-500" />
+                  <CardTitle className="text-lg">出價成功訊息</CardTitle>
+                </div>
+                <CardDescription>用戶出價成功後在商品頁出現的彈出訊息</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="flex items-center gap-2 mb-2"><CheckCircle className="w-4 h-4 text-emerald-500" />一般出價成功</Label>
+                  <Input
+                    value={bidSuccessMessage}
+                    onChange={(e) => setBidSuccessMessage(e.target.value)}
+                    placeholder="✅ 出價成功！您目前是最高出價者"
+                  />
+                </div>
+                <div>
+                  <Label className="flex items-center gap-2 mb-2">
+                    <CheckCircle className="w-4 h-4 text-blue-500" />拍賣延長時（用 <code className="bg-muted px-1 rounded text-xs">&#123;minutes&#125;</code> 代表延長分鐘數）
+                  </Label>
+                  <Input
+                    value={bidSuccessExtendedMessage}
+                    onChange={(e) => setBidSuccessExtendedMessage(e.target.value)}
+                    placeholder="✅ 出價成功！🛡️ 拍賣已延長 {minutes} 分鐘"
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <SaveBtn onClick={() => {
+                    if (!bidSuccessMessage.trim()) { toast.error("一般出價成功訊息不可為空"); return; }
+                    if (!bidSuccessExtendedMessage.trim()) { toast.error("延長訊息不可為空"); return; }
+                    setSetting.mutate({ key: 'bidSuccessMessage', value: bidSuccessMessage.trim() });
+                    setSetting.mutate({ key: 'bidSuccessExtendedMessage', value: bidSuccessExtendedMessage.trim() });
+                  }} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 未登入出價按鈕文字 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <LogIn className="w-5 h-5 text-indigo-500" />
+                  <CardTitle className="text-lg">未登入出價按鈕文字</CardTitle>
+                </div>
+                <CardDescription>訪客瀏覽商品頁時，出價區域顯示的登入引導按鈕文字</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="flex items-center gap-2 mb-2"><LogIn className="w-4 h-4 text-indigo-500" />按鈕文字</Label>
+                  <Input
+                    value={notLoggedInBidText}
+                    onChange={(e) => setNotLoggedInBidText(e.target.value)}
+                    placeholder="登入後出價"
+                    className="max-w-xs"
+                  />
+                </div>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium inline-flex">
+                    {notLoggedInBidText || "登入後出價"}
+                  </div>
+                  <SaveBtn onClick={() => save('notLoggedInBidText', notLoggedInBidText, () => !notLoggedInBidText.trim() ? "按鈕文字不可為空" : null)} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 登入歡迎訊息 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-purple-500" />
+                  <CardTitle className="text-lg">登入歡迎訊息</CardTitle>
+                </div>
+                <CardDescription>用戶登入成功後，底部彈出 toast 訊息的說明文字</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="flex items-center gap-2 mb-2"><Sparkles className="w-4 h-4 text-purple-500" />說明文字（副標題）</Label>
+                  <Input
+                    value={loginWelcomeDesc}
+                    onChange={(e) => setLoginWelcomeDesc(e.target.value)}
+                    placeholder="歡迎繼續瀏覽網站！"
+                    className="max-w-sm"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1.5">標題「手機登入成功！」或「電郵登入成功！」由系統自動生成</p>
+                </div>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  {popupPreview(loginWelcomeDesc)}
+                  <SaveBtn onClick={() => save('loginWelcomeDesc', loginWelcomeDesc, () => !loginWelcomeDesc.trim() ? "說明文字不可為空" : null)} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 所有設定值 */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">目前所有設定值</CardTitle>
@@ -243,9 +428,9 @@ export default function AdminSiteSettings() {
                 {settings && Object.keys(settings as Record<string, string>).length > 0 ? (
                   <div className="space-y-2">
                     {Object.entries(settings as Record<string, string>).map(([key, value]) => (
-                      <div key={key} className="flex items-center justify-between py-2 border-b last:border-0">
-                        <span className="text-sm font-mono text-muted-foreground">{key}</span>
-                        <Badge variant="outline" className="font-mono">{value}</Badge>
+                      <div key={key} className="flex items-center justify-between py-2 border-b last:border-0 gap-2">
+                        <span className="text-sm font-mono text-muted-foreground shrink-0">{key}</span>
+                        <Badge variant="outline" className="font-mono truncate max-w-[200px]" title={value}>{value}</Badge>
                       </div>
                     ))}
                   </div>
@@ -254,6 +439,7 @@ export default function AdminSiteSettings() {
                 )}
               </CardContent>
             </Card>
+
           </div>
         )}
       </div>
