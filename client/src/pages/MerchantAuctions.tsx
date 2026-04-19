@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Link } from "wouter";
+import Header from "@/components/Header";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -707,8 +708,9 @@ export default function MerchantAuctions() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* 頂部導航 — 把標題和按鈕整合進來，節省垂直空間 */}
-      <div className="border-b bg-card fixed top-0 left-0 right-0 z-10">
+      <Header />
+      {/* 吸附在主頭部導航下方的操作欄 + Tab 列 */}
+      <div className="border-b bg-card sticky top-16 z-10">
         <div className="max-w-4xl mx-auto px-3 py-2 flex items-center gap-2">
           <Link href="/merchant-dashboard">
             <span className="text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-0.5 text-sm">
@@ -725,7 +727,7 @@ export default function MerchantAuctions() {
           </Button>
         </div>
 
-        {/* Tab 列 — 緊貼導航欄下方 */}
+        {/* Tab 列 */}
         <div className="flex border-t gap-0 max-w-4xl mx-auto px-0">
           {TABS.map((t) => (
             <button
@@ -741,8 +743,6 @@ export default function MerchantAuctions() {
           ))}
         </div>
       </div>
-      {/* 固定頂欄高度補偿（導航 + Tab 兩行） */}
-      <div className="h-[72px]" />
 
       <div className="max-w-4xl mx-auto px-2 pt-2 pb-20 space-y-1.5">
         {/* ── 草稿 Tab 批量操作欄 ── */}
