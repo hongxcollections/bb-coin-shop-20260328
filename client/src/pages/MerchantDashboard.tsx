@@ -5,7 +5,7 @@ import Header from "@/components/Header";
 import { useState } from "react";
 import {
   ChevronLeft, Store, Wallet, Gavel, Clock, CheckCircle2, XCircle,
-  AlertCircle, TrendingUp, ArrowUpRight, ArrowDownLeft, ShoppingBag, Settings,
+  AlertCircle, ArrowUpRight, ArrowDownLeft, ShoppingBag, Settings,
   RotateCcw, Layers, CreditCard, PlusCircle, Send, ChevronDown, Loader2,
   Upload, X, ImageIcon,
 } from "lucide-react";
@@ -143,7 +143,7 @@ export default function MerchantDashboard() {
     reader.readAsDataURL(file);
   }
 
-  const { data: auctions, isLoading: loadingAuctions } = trpc.merchants.myAuctions.useQuery(undefined, {
+  const { data: auctions } = trpc.merchants.myAuctions.useQuery(undefined, {
     enabled: isAuthenticated && myApp?.status === "approved",
   });
   const { data: txData } = trpc.merchants.myTransactions.useQuery(
@@ -516,57 +516,6 @@ export default function MerchantDashboard() {
             )}
           </CardContent>
         </Card>
-
-        {/* ── 近期拍賣 ── */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-amber-600" />
-              <h2 className="font-semibold text-amber-900 text-sm">我的拍賣</h2>
-            </div>
-            <Link href="/merchant-auctions">
-              <span className="text-xs text-amber-600 hover:underline cursor-pointer">全部管理 →</span>
-            </Link>
-          </div>
-
-          {loadingAuctions ? (
-            <div className="text-sm text-gray-400 text-center py-6">載入中…</div>
-          ) : !auctions || auctions.length === 0 ? (
-            <div className="rounded-2xl bg-amber-50 border border-amber-100 p-6 text-center text-sm text-amber-600">
-              暫無拍賣記錄
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {auctions.slice(0, 5).map((a) => (
-                <Link key={a.id} href={`/auctions/${a.id}`}>
-                  <div className="rounded-2xl bg-white border border-amber-100 px-4 py-3 hover:border-amber-300 transition-colors cursor-pointer">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-gray-800 text-sm truncate">{a.title}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {a.status === "active"
-                            ? `截止：${fmtDate(a.endTime)}`
-                            : `結束：${fmtDate(a.endTime)}`}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        <StatusBadge status={a.status} />
-                        <p className="text-sm font-bold text-amber-700">{HKD(a.currentPrice)}</p>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-              {auctions.length > 5 && (
-                <Link href="/merchant-auctions">
-                  <p className="text-xs text-center text-amber-600 hover:underline cursor-pointer py-1">
-                    查看全部 {auctions.length} 個拍賣 →
-                  </p>
-                </Link>
-              )}
-            </div>
-          )}
-        </div>
 
       </div>
     </div>
