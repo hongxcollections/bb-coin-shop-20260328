@@ -155,7 +155,7 @@ function GenerateListingsPanel({ userId, userName }: { userId: number; userName:
         style={{ background: open ? "#EDE9FE" : "#F5F5F5", color: open ? "#6D28D9" : "#666" }}
       >
         <Wrench size={10} />
-        生成測試商品
+        生成測試草稿
         <ChevronDown size={11} style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }} />
       </button>
 
