@@ -9,7 +9,7 @@ import type { Auction } from "../drizzle/schema";
 import { merchantApplications as merchantAppsTable } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest } from "./db";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 
@@ -1344,6 +1344,55 @@ export const appRouter = router({
       .query(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         return getAllDepositTransactions(input?.limit ?? 100, input?.offset ?? 0);
+      }),
+
+    // ── Deposit Top-Up Requests (merchant self-service) ──
+
+    // Merchant: submit a top-up request
+    submitTopUpRequest: protectedProcedure
+      .input(z.object({
+        amount: z.number().positive('金額必須大於 0'),
+        referenceNo: z.string().min(1, '請填寫轉帳參考號').max(100),
+        bank: z.string().max(100).optional(),
+        note: z.string().max(500).optional(),
+        receiptUrl: z.string().url().max(500).optional().or(z.literal('')),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const result = await createDepositTopUpRequest({
+          userId: ctx.user.id,
+          amount: input.amount,
+          referenceNo: input.referenceNo,
+          bank: input.bank,
+          note: input.note,
+          receiptUrl: input.receiptUrl || undefined,
+        });
+        return result;
+      }),
+
+    // Merchant: get own top-up requests
+    myTopUpRequests: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getMyDepositTopUpRequests(ctx.user.id);
+      }),
+
+    // Admin: get all top-up requests
+    allTopUpRequests: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        return getAllDepositTopUpRequests();
+      }),
+
+    // Admin: approve or reject a top-up request
+    reviewTopUpRequest: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        status: z.enum(['approved', 'rejected']),
+        adminNote: z.string().max(500).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        await reviewDepositTopUpRequest(input.id, input.status, input.adminNote, ctx.user.id);
+        return { success: true };
       }),
   }),
 

@@ -1,7 +1,7 @@
 import { eq, desc, asc, and, gte, lte, gt, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2876,5 +2876,93 @@ export async function reviewRefundRequest(
   if (status === 'approved') {
     const amount = parseFloat(req.commissionAmount.toString());
     await refundCommission(req.userId, amount, req.auctionId, `退傭申請 #${id} 已批准`, adminId);
+  }
+}
+
+// ─── Deposit Top-Up Requests ──────────────────────────────────────────────────
+
+export async function createDepositTopUpRequest(data: {
+  userId: number;
+  amount: number;
+  referenceNo: string;
+  bank?: string;
+  note?: string;
+  receiptUrl?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const [result] = await db.insert(depositTopUpRequests).values({
+    userId: data.userId,
+    amount: data.amount.toFixed(2),
+    referenceNo: data.referenceNo.trim(),
+    bank: data.bank?.trim() || null,
+    note: data.note?.trim() || null,
+    receiptUrl: data.receiptUrl?.trim() || null,
+    status: 'pending',
+  });
+  return { id: (result as { insertId?: number })?.insertId ?? 0 };
+}
+
+export async function getMyDepositTopUpRequests(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(depositTopUpRequests)
+    .where(eq(depositTopUpRequests.userId, userId))
+    .orderBy(desc(depositTopUpRequests.createdAt))
+    .limit(20);
+}
+
+export async function getAllDepositTopUpRequests() {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select({
+      id: depositTopUpRequests.id,
+      userId: depositTopUpRequests.userId,
+      amount: depositTopUpRequests.amount,
+      referenceNo: depositTopUpRequests.referenceNo,
+      bank: depositTopUpRequests.bank,
+      note: depositTopUpRequests.note,
+      receiptUrl: depositTopUpRequests.receiptUrl,
+      status: depositTopUpRequests.status,
+      adminNote: depositTopUpRequests.adminNote,
+      reviewedBy: depositTopUpRequests.reviewedBy,
+      reviewedAt: depositTopUpRequests.reviewedAt,
+      createdAt: depositTopUpRequests.createdAt,
+      userName: users.name,
+      userPhone: users.phone,
+    })
+    .from(depositTopUpRequests)
+    .leftJoin(users, eq(depositTopUpRequests.userId, users.id))
+    .orderBy(desc(depositTopUpRequests.createdAt))
+    .limit(200);
+  return rows;
+}
+
+export async function reviewDepositTopUpRequest(
+  id: number,
+  status: 'approved' | 'rejected',
+  adminNote: string | undefined,
+  adminId: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+
+  const [req] = await db.select().from(depositTopUpRequests)
+    .where(eq(depositTopUpRequests.id, id)).limit(1);
+  if (!req) throw new Error('找不到申請');
+  if (req.status !== 'pending') throw new Error('此申請已審核');
+
+  await db.update(depositTopUpRequests).set({
+    status,
+    adminNote: adminNote ?? null,
+    reviewedBy: adminId,
+    reviewedAt: new Date(),
+  }).where(eq(depositTopUpRequests.id, id));
+
+  // If approved: actually top up the merchant's deposit
+  if (status === 'approved') {
+    const amount = parseFloat(req.amount.toString());
+    await topUpDeposit(req.userId, amount, `商戶自助申請充值 (參考號: ${req.referenceNo})`, adminId);
   }
 }

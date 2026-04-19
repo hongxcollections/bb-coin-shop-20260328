@@ -323,6 +323,26 @@ export const commissionRefundRequests = mysqlTable("commissionRefundRequests", {
 export type CommissionRefundRequest = typeof commissionRefundRequests.$inferSelect;
 export type InsertCommissionRefundRequest = typeof commissionRefundRequests.$inferInsert;
 
+// ─── Deposit Top-Up Requests (merchant self-service) ─────────────────────────
+export const depositTopUpRequests = mysqlTable("depositTopUpRequests", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  referenceNo: varchar("referenceNo", { length: 100 }).notNull(),
+  bank: varchar("bank", { length: 100 }),
+  note: text("note"),
+  receiptUrl: varchar("receiptUrl", { length: 500 }),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  adminNote: text("adminNote"),
+  reviewedBy: int("reviewedBy"),
+  reviewedAt: timestamp("reviewedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DepositTopUpRequest = typeof depositTopUpRequests.$inferSelect;
+export type InsertDepositTopUpRequest = typeof depositTopUpRequests.$inferInsert;
+
 // ─── Merchant Applications ────────────────────────────────────────────────────
 export const merchantApplications = mysqlTable("merchantApplications", {
   id: int("id").autoincrement().primaryKey(),
