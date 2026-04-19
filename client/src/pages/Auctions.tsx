@@ -53,12 +53,18 @@ export default function Auctions() {
   const [filter, setFilter] = useState<"active" | "myBids">("active");
   const [category, setCategory] = useState("all");
   const [merchantFilter, setMerchantFilter] = useState("all");
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(() => {
+    // Only restore page if we also have a saved scroll position (i.e. returning from detail)
+    const hasScroll = sessionStorage.getItem("auctions-scroll");
+    const savedPage = sessionStorage.getItem("auctions-page");
+    return (hasScroll && savedPage) ? parseInt(savedPage, 10) : 0;
+  });
   const [showSuggestions, setShowSuggestions] = useState(false);
   const scrollRestoredRef = useRef(false);
 
   const saveScrollPosition = () => {
     sessionStorage.setItem("auctions-scroll", String(window.scrollY));
+    sessionStorage.setItem("auctions-page", String(page));
   };
 
   const CATEGORIES = [
@@ -96,16 +102,22 @@ export default function Auctions() {
   const endingSoonMs = (isNaN(_endingSoonRaw) || _endingSoonRaw < 1 ? 30 : _endingSoonRaw) * 60 * 1000;
   const endingSoonText = _ss.endingSoonText || "⏰ 即將結束";
 
-  // Restore scroll position when returning from auction detail
+  // Restore scroll position (and page) when returning from auction detail
   useEffect(() => {
     if (auctions && !scrollRestoredRef.current) {
-      const saved = sessionStorage.getItem("auctions-scroll");
-      if (saved) {
+      const savedScroll = sessionStorage.getItem("auctions-scroll");
+      if (savedScroll) {
         scrollRestoredRef.current = true;
+        // Page is already restored via useState initializer; just scroll after paint
         requestAnimationFrame(() => {
-          window.scrollTo({ top: parseInt(saved), behavior: "instant" });
+          window.scrollTo({ top: parseInt(savedScroll), behavior: "instant" });
           sessionStorage.removeItem("auctions-scroll");
+          sessionStorage.removeItem("auctions-page");
         });
+      } else {
+        // Fresh visit — clear any stale page state
+        scrollRestoredRef.current = true;
+        sessionStorage.removeItem("auctions-page");
       }
     }
   }, [auctions]);
