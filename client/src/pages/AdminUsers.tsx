@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Pencil, Trash2, Store, UserRound, ShieldAlert, ChevronDown, Gavel, Mail, KeyRound, CheckCircle2, Copy, Clock, XCircle, ChevronUp, UserPlus, Wrench, Loader2, PackagePlus } from "lucide-react";
+import { Users, Pencil, Trash2, Store, UserRound, ShieldAlert, ChevronDown, Gavel, Mail, KeyRound, CheckCircle2, Copy, Clock, XCircle, ChevronUp, UserPlus, Wrench, Loader2, PackagePlus, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { MemberBadge, type MemberLevel } from "@/components/MemberBadge";
 
@@ -227,6 +227,102 @@ function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userNam
               <span className="text-xs font-medium" style={{ color: "#065F46" }}>
                 拍賣 #{result.auctionId}「{result.title}」已建立，成交 HKD ${result.winningPrice.toLocaleString()}，中標者：<strong>{result.winnerName}</strong>
               </span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 管理員清空商戶所有拍賣相關數據（保留帳號本身） */
+function PurgeMerchantDataPanel({ userId, userName, onDone }: { userId: number; userName: string; onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [result, setResult] = useState<{ deletedAuctions: number; deletedBids: number; deletedImages: number; deletedExternalBids: number } | null>(null);
+
+  const purgeMutation = trpc.users.adminPurgeMerchantData.useMutation({
+    onSuccess: (data) => {
+      setResult(data);
+      setConfirmText("");
+      toast.success(`已清空 ${userName} 的拍賣數據`);
+      onDone();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const isConfirmed = confirmText.trim() === userName.trim();
+
+  return (
+    <div className="mt-1.5">
+      <button
+        type="button"
+        onClick={() => { setOpen(!open); setConfirmText(""); setResult(null); }}
+        className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium transition-colors whitespace-nowrap"
+        style={{ background: open ? "#FEE2E2" : "#F5F5F5", color: open ? "#991B1B" : "#666" }}
+      >
+        <AlertTriangle size={10} />
+        清空拍賣數據
+        <ChevronDown size={11} style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }} />
+      </button>
+
+      {open && (
+        <div className="mt-1.5 rounded-xl p-3 space-y-2.5" style={{ background: "#FFF5F5", border: "1px solid #FCA5A5" }}>
+          <div className="flex items-center gap-1.5">
+            <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: "#DC2626" }}>
+              <AlertTriangle size={11} className="text-white" />
+            </div>
+            <span className="text-xs font-semibold" style={{ color: "#991B1B" }}>清空商戶拍賣數據</span>
+            <span className="text-xs text-gray-400 ml-auto">⚠️ 不可復原</span>
+          </div>
+
+          <div className="rounded-lg p-2.5 text-xs space-y-1" style={{ background: "#FEE2E2", border: "1px solid #FECACA" }}>
+            <p className="font-semibold" style={{ color: "#991B1B" }}>以下數據將永久刪除：</p>
+            <ul className="list-disc list-inside space-y-0.5 text-red-700">
+              <li>此商戶創建的<strong>所有拍賣</strong>（包括草稿、進行中、已結標）</li>
+              <li>這些拍賣的所有<strong>出價記錄、代理出價、圖片</strong></li>
+              <li>相關的<strong>保證金交易、退款申請、收藏記錄</strong></li>
+              <li>此用戶在其他拍賣的所有<strong>出價記錄</strong></li>
+            </ul>
+            <p className="text-red-600 mt-1">用戶帳號本身將保留。</p>
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-xs text-gray-600">輸入用戶名稱 <strong>「{userName}」</strong> 以確認：</p>
+            <input
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={userName}
+              className="w-full h-8 rounded-lg border px-2 text-xs focus:outline-none focus:ring-2"
+              style={{
+                borderColor: isConfirmed ? "#EF4444" : "#D1D5DB",
+                focusRingColor: "#EF4444",
+              }}
+            />
+          </div>
+
+          <button
+            type="button"
+            disabled={!isConfirmed || purgeMutation.isPending}
+            onClick={() => purgeMutation.mutate({ merchantUserId: userId })}
+            className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-semibold text-white transition-opacity disabled:opacity-40"
+            style={{ background: "linear-gradient(135deg, #DC2626, #B91C1C)" }}
+          >
+            {purgeMutation.isPending
+              ? <><Loader2 size={12} className="animate-spin" />清空中…</>
+              : <><Trash2 size={12} />確認清空所有拍賣數據</>}
+          </button>
+
+          {result && (
+            <div className="rounded-lg px-2.5 py-2 space-y-0.5" style={{ background: "#D1FAE5", border: "1px solid #6EE7B7" }}>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 size={13} style={{ color: "#059669" }} />
+                <span className="text-xs font-semibold" style={{ color: "#065F46" }}>清空完成</span>
+              </div>
+              <p className="text-xs" style={{ color: "#065F46" }}>
+                已刪除：{result.deletedAuctions} 個拍賣、{result.deletedBids} 條出價、{result.deletedImages} 張圖片、{result.deletedExternalBids} 條外部出價
+              </p>
             </div>
           )}
         </div>
@@ -497,6 +593,8 @@ export default function AdminUsers() {
             {/* Generate test listings / won auction — merchants only */}
             {u.depositId && <GenerateListingsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
             {u.depositId && <GenerateWonAuctionPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
+            {/* Danger zone: purge all auction data for this merchant */}
+            {u.depositId && <PurgeMerchantDataPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} onDone={refetch} />}
           </div>
         ))}
       </div>

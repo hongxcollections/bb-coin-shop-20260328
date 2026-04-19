@@ -2274,8 +2274,85 @@ export async function adminUpdateUser(
 }
 
 /**
- * Delete user and ALL related data (bids, favorites, proxy bids, subscriptions, deposits)
+ * Purge all auction-related data for a merchant:
+ * 1. All auctions created by them + every child record (bids, images, proxy bids/logs, favorites, deposit txns, refund requests)
+ * 2. All bids placed BY this user on other auctions, and reset those auctions' highestBidderId where needed
  */
+export async function purgeMerchantAuctionData(merchantUserId: number): Promise<{
+  success: boolean;
+  deletedAuctions: number;
+  deletedBids: number;
+  deletedImages: number;
+  deletedProxyBids: number;
+  deletedFavorites: number;
+  deletedDepositTxns: number;
+  deletedRefundRequests: number;
+  deletedExternalBids: number;
+  error?: string;
+}> {
+  const db = await getDb();
+  const zero = { success: false, deletedAuctions: 0, deletedBids: 0, deletedImages: 0, deletedProxyBids: 0, deletedFavorites: 0, deletedDepositTxns: 0, deletedRefundRequests: 0, deletedExternalBids: 0 };
+  if (!db) return { ...zero, error: 'Database not available' };
+
+  try {
+    // ── 1. Get all auction IDs created by this merchant ──────────────────────
+    const ownAuctions = await db
+      .select({ id: auctions.id })
+      .from(auctions)
+      .where(eq(auctions.createdBy, merchantUserId));
+    const ownAuctionIds = ownAuctions.map(a => a.id);
+
+    let deletedBids = 0, deletedImages = 0, deletedProxyBids = 0, deletedFavorites = 0;
+    let deletedDepositTxns = 0, deletedRefundRequests = 0;
+
+    if (ownAuctionIds.length > 0) {
+      // Delete in dependency order (children first)
+      const [plr] = await db.delete(proxyBidLogs).where(inArray(proxyBidLogs.auctionId, ownAuctionIds));
+      const [pbr] = await db.delete(proxyBids).where(inArray(proxyBids.auctionId, ownAuctionIds));
+      const [br] = await db.delete(bids).where(inArray(bids.auctionId, ownAuctionIds));
+      const [ir] = await db.delete(auctionImages).where(inArray(auctionImages.auctionId, ownAuctionIds));
+      const [fr] = await db.delete(favorites).where(inArray(favorites.auctionId, ownAuctionIds));
+      const [dtr] = await db.delete(depositTransactions).where(inArray(depositTransactions.relatedAuctionId, ownAuctionIds));
+      const [crr] = await db.delete(commissionRefundRequests).where(inArray(commissionRefundRequests.auctionId, ownAuctionIds));
+
+      deletedBids = (br as { affectedRows?: number })?.affectedRows ?? 0;
+      deletedImages = (ir as { affectedRows?: number })?.affectedRows ?? 0;
+      deletedProxyBids = ((plr as { affectedRows?: number })?.affectedRows ?? 0) + ((pbr as { affectedRows?: number })?.affectedRows ?? 0);
+      deletedFavorites = (fr as { affectedRows?: number })?.affectedRows ?? 0;
+      deletedDepositTxns = (dtr as { affectedRows?: number })?.affectedRows ?? 0;
+      deletedRefundRequests = (crr as { affectedRows?: number })?.affectedRows ?? 0;
+    }
+
+    // ── 2. Bids placed BY this user on OTHER auctions ────────────────────────
+    // Reset highestBidderId on any auction (not created by this user) where this user was the winner
+    await db.update(auctions)
+      .set({ highestBidderId: null, paymentStatus: null } as Record<string, unknown>)
+      .where(eq(auctions.highestBidderId, merchantUserId));
+
+    // Delete remaining bids placed BY this user (on other auctions)
+    const [ebr] = await db.delete(bids).where(eq(bids.userId, merchantUserId));
+    const deletedExternalBids = (ebr as { affectedRows?: number })?.affectedRows ?? 0;
+
+    // Delete remaining proxy bids/logs by this user on other auctions
+    await db.delete(proxyBids).where(eq(proxyBids.userId, merchantUserId));
+    await db.delete(proxyBidLogs).where(eq(proxyBidLogs.proxyUserId, merchantUserId));
+    await db.delete(proxyBidLogs).where(eq(proxyBidLogs.triggerUserId, merchantUserId));
+
+    // ── 3. Delete the auctions themselves ────────────────────────────────────
+    const deletedAuctions = ownAuctionIds.length;
+    if (ownAuctionIds.length > 0) {
+      await db.delete(auctions).where(inArray(auctions.id, ownAuctionIds));
+    }
+
+    console.log(`[PurgeMerchant] userId=${merchantUserId}: auctions=${deletedAuctions}, bids=${deletedBids}, images=${deletedImages}, extBids=${deletedExternalBids}`);
+
+    return { success: true, deletedAuctions, deletedBids, deletedImages, deletedProxyBids, deletedFavorites, deletedDepositTxns, deletedRefundRequests, deletedExternalBids };
+  } catch (error) {
+    console.error('[Database] purgeMerchantAuctionData failed:', error);
+    return { ...zero, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
 export async function deleteUserAndData(userId: number): Promise<{ success: boolean; error?: string }> {
   const db = await getDb();
   if (!db) return { success: false, error: 'Database not available' };
