@@ -232,7 +232,7 @@ export default function Auctions() {
               const activeAuctions = (auctions ?? []).filter(a =>
                 a.status === 'active' && new Date(a.endTime).getTime() > Date.now()
               );
-              const duration = `${Math.max(8, activeAuctions.length * 2.5)}s`;
+              const duration = `${Math.max(10, activeAuctions.length * 5)}s`;
               return (
             <div className="marquee-track flex" style={{ animationDuration: duration }}>
               {[...activeAuctions, ...activeAuctions].map((auction, idx) => (
