@@ -353,7 +353,7 @@ export default function MerchantDashboard() {
           ) : (
             <div className="space-y-2">
               {auctions.slice(0, 5).map((a) => (
-                <Link key={a.id} href={`/auction/${a.id}`}>
+                <Link key={a.id} href={`/auctions/${a.id}`}>
                   <div className="rounded-2xl bg-white border border-amber-100 px-4 py-3 hover:border-amber-300 transition-colors cursor-pointer">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
