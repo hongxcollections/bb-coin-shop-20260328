@@ -10,7 +10,17 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Wallet, Plus, Minus, RefreshCw, Settings, History, DollarSign, AlertCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Wallet, Plus, Minus, RefreshCw, Settings, History, DollarSign, AlertCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp, ImageIcon } from "lucide-react";
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  bank_transfer: "銀行轉帳",
+  payme: "PayMe",
+  fps: "轉數快 FPS",
+  alipay_hk: "支付寶 HK",
+  wechat_pay: "微信支付",
+  cash: "現金",
+  other: "其他",
+};
 import { toast } from "sonner";
 
 type DepositRow = {
@@ -37,6 +47,21 @@ type TransactionRow = {
   createdAt: Date;
   userId?: number;
   userName?: string | null;
+};
+
+type TopUpRequestRow = {
+  id: number;
+  userId: number;
+  userName: string | null;
+  userPhone: string | null;
+  amount: string | number;
+  referenceNo: string | null;
+  bank: string | null;
+  note: string | null;
+  receiptUrl: string | null;
+  status: string;
+  adminNote: string | null;
+  createdAt: Date | string | null;
 };
 
 function formatCurrency(val: string | number) {
@@ -347,18 +372,19 @@ export default function AdminDeposits() {
           </CardContent>
         </Card>
 
-        {/* ── 商戶充值申請 ── */}
+        {/* ── 商戶保證金充值申請 ── */}
         {(() => {
-          const pending = (topUpRequests ?? []).filter(r => r.status === 'pending');
-          const reviewed = (topUpRequests ?? []).filter(r => r.status !== 'pending');
+          const pending = (topUpRequests as TopUpRequestRow[] ?? []).filter((r: TopUpRequestRow) => r.status === 'pending');
+          const reviewed = (topUpRequests as TopUpRequestRow[] ?? []).filter((r: TopUpRequestRow) => r.status !== 'pending');
           const fmtDate = (d: Date | string | null) => d ? new Date(d).toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
+          const bankLabel = (b: string | null) => b ? (PAYMENT_METHOD_LABELS[b] ?? b) : null;
           return (
             <Card className={`mb-6 ${pending.length > 0 ? "border-emerald-300" : "border-emerald-100"}`}>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center justify-between text-base">
                   <span className="flex items-center gap-2">
                     <Wallet className="w-4 h-4 text-emerald-600" />
-                    商戶充值申請
+                    商戶保證金充值申請
                     {pending.length > 0 && (
                       <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold text-white" style={{ background: "#059669" }}>
                         {pending.length}
@@ -377,7 +403,7 @@ export default function AdminDeposits() {
                   )}
 
                   {/* Pending */}
-                  {pending.map(req => (
+                  {pending.map((req: TopUpRequestRow) => (
                     <div key={req.id} className="rounded-xl p-3 space-y-2" style={{ background: "#F0FDF4", border: "1px solid #6EE7B7" }}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="space-y-0.5 min-w-0">
@@ -386,13 +412,24 @@ export default function AdminDeposits() {
                             {req.userPhone && <span className="text-xs text-gray-400 ml-1.5">{req.userPhone}</span>}
                           </p>
                           <p className="text-lg font-bold text-emerald-700">HKD {parseFloat(String(req.amount)).toLocaleString()}</p>
-                          <p className="text-xs text-gray-500">參考號：<span className="font-mono font-semibold text-gray-700">{req.referenceNo}</span></p>
-                          {req.bank && <p className="text-xs text-gray-500">銀行：{req.bank}</p>}
+                          {req.referenceNo && <p className="text-xs text-gray-500">參考號：<span className="font-mono font-semibold text-gray-700">{req.referenceNo}</span></p>}
+                          {bankLabel(req.bank) && <p className="text-xs text-gray-500">付款方式：{bankLabel(req.bank)}</p>}
                           {req.note && <p className="text-xs text-gray-500">備注：{req.note}</p>}
                           <p className="text-xs text-gray-400">{fmtDate(req.createdAt)}</p>
                         </div>
                         <span className="text-xs font-medium border rounded-full px-2 py-0.5 bg-amber-50 text-amber-700 border-amber-200 flex-shrink-0">待審核</span>
                       </div>
+                      {/* Receipt image */}
+                      {req.receiptUrl && (
+                        <div className="rounded-lg overflow-hidden border border-emerald-200 bg-gray-50">
+                          <p className="text-xs font-medium text-gray-500 px-2 pt-2 pb-1 flex items-center gap-1">
+                            <ImageIcon className="w-3 h-3" /> 付款收據
+                          </p>
+                          <a href={req.receiptUrl} target="_blank" rel="noopener noreferrer">
+                            <img src={req.receiptUrl} alt="付款收據" className="w-full max-h-52 object-contain cursor-pointer hover:opacity-90 transition-opacity" />
+                          </a>
+                        </div>
+                      )}
                       <div className="flex items-center gap-2">
                         <Input
                           placeholder="管理員備注（選填）"
@@ -429,7 +466,7 @@ export default function AdminDeposits() {
                         過往記錄（{reviewed.length} 筆）
                       </summary>
                       <div className="mt-2 space-y-1.5">
-                        {reviewed.map(req => {
+                        {reviewed.map((req: TopUpRequestRow) => {
                           const s = req.status === 'approved'
                             ? { label: "已批准", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" }
                             : { label: "已拒絕", cls: "bg-red-50 text-red-600 border-red-200" };
@@ -437,7 +474,9 @@ export default function AdminDeposits() {
                             <div key={req.id} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 flex items-start justify-between gap-2">
                               <div className="min-w-0">
                                 <p className="text-xs font-semibold text-gray-700">{req.userName ?? `用戶 #${req.userId}`} — HKD {parseFloat(String(req.amount)).toLocaleString()}</p>
-                                <p className="text-xs text-gray-400">參考號：{req.referenceNo} · {fmtDate(req.createdAt)}</p>
+                                {req.referenceNo && <p className="text-xs text-gray-400">參考號：{req.referenceNo}</p>}
+                                {bankLabel(req.bank) && <p className="text-xs text-gray-400">付款：{bankLabel(req.bank)}</p>}
+                                <p className="text-xs text-gray-400">{fmtDate(req.createdAt)}</p>
                                 {req.adminNote && <p className="text-xs text-gray-500 mt-0.5">備注：{req.adminNote}</p>}
                               </div>
                               <span className={`text-xs font-medium border rounded-full px-2 py-0.5 flex-shrink-0 ${s.cls}`}>{s.label}</span>
