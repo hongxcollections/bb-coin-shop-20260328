@@ -214,7 +214,12 @@ export default function BottomNav() {
                             </Link>
                           )}
                           <button
-                            onClick={() => { setShowMore(false); logout(); }}
+                            onClick={() => {
+                              const name = user?.name ?? "你";
+                              setShowMore(false);
+                              showToast({ icon: "👋", title: `再見，${name}！`, desc: "歡迎下次再回來", durationMs: 3500 });
+                              logout();
+                            }}
                             className="bottom-nav-more-item"
                             style={{ background: "none", border: "none", cursor: "pointer", width: "100%", borderTop: "1px solid rgba(0,0,0,0.06)", marginTop: "2px", paddingTop: "6px" }}
                           >
