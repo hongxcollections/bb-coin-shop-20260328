@@ -225,7 +225,7 @@ export default function MerchantDashboard() {
         {!depositOk && deposit && (
           <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 flex items-start gap-2 text-sm text-red-600">
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <span>保證金不足，請聯絡管理員補交以恢復刊登資格。</span>
+            <span>保證金不足，請盡快聯絡管理員補交以免影響戶口一切正常運作。</span>
           </div>
         )}
         {belowWarning && deposit && (
