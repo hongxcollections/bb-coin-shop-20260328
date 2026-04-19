@@ -55,6 +55,9 @@ export default function AdminSiteSettings() {
   // 保證金警告信息
   const [depositWarningMessage, setDepositWarningMessage] = useState("保證金水平維持不足，可以自行申請保證金充值或者聯絡管理員補交, 以免影響商戶一切正常運作。");
 
+  // 發佈保證金不足錯誤信息模板
+  const [publishDepositErrorMsg, setPublishDepositErrorMsg] = useState("保證金維持水平不足（餘額 {balance}，需要 {required}）");
+
   useEffect(() => {
     if (!settings) return;
     if (s.announcementEnabled) setAnnouncementEnabled(s.announcementEnabled === "true");
@@ -69,6 +72,7 @@ export default function AdminSiteSettings() {
     if (s.notLoggedInBidText) setNotLoggedInBidText(s.notLoggedInBidText);
     if (s.loginWelcomeDesc) setLoginWelcomeDesc(s.loginWelcomeDesc);
     if (s.depositWarningMessage) setDepositWarningMessage(s.depositWarningMessage);
+    if (s.publishDepositErrorMsg) setPublishDepositErrorMsg(s.publishDepositErrorMsg);
   }, [settings]);
 
   if (!isAuthenticated || user?.role !== 'admin') {
@@ -448,6 +452,40 @@ export default function AdminSiteSettings() {
                     <span>{depositWarningMessage || "（空白）"}</span>
                   </div>
                   <SaveBtn onClick={() => save('depositWarningMessage', depositWarningMessage, () => !depositWarningMessage.trim() ? "警告信息不可為空" : null)} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 發佈保證金不足錯誤信息 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-500" />
+                  <CardTitle className="text-lg">發佈保證金不足錯誤信息</CardTitle>
+                </div>
+                <CardDescription>
+                  商戶發佈拍賣時，若保證金未達維持水平所顯示的「條件二」錯誤信息。
+                  用 <code className="bg-muted px-1 rounded text-xs">&#123;balance&#125;</code> 代表餘額，
+                  <code className="bg-muted px-1 rounded text-xs">&#123;required&#125;</code> 代表需維持水平。
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="flex items-center gap-2 mb-2"><AlertCircle className="w-4 h-4 text-amber-500" />錯誤信息模板</Label>
+                  <Input
+                    value={publishDepositErrorMsg}
+                    onChange={(e) => setPublishDepositErrorMsg(e.target.value)}
+                    placeholder="保證金維持水平不足（餘額 {balance}，需要 {required}）"
+                  />
+                </div>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800 max-w-sm">
+                    <span className="font-semibold">條件二：</span>
+                    {publishDepositErrorMsg
+                      .replace('{balance}', '$499.00')
+                      .replace('{required}', '$500.00') || "（空白）"}
+                  </div>
+                  <SaveBtn onClick={() => save('publishDepositErrorMsg', publishDepositErrorMsg, () => !publishDepositErrorMsg.trim() ? "錯誤信息不可為空" : null)} />
                 </div>
               </CardContent>
             </Card>

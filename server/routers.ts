@@ -1934,7 +1934,16 @@ export const appRouter = router({
             failReasons.push(`條件一：發佈次數不足（剩餘 ${quotaInfo?.remainingQuota ?? 0} 次）`);
           }
           if (!depositCheck.canList) {
-            failReasons.push(`條件二：${depositCheck.reason ?? '保證金條件不符'}`);
+            let depositErrMsg: string;
+            if (depositCheck.balance !== undefined && depositCheck.required !== undefined) {
+              const tmpl = await getSiteSetting('publishDepositErrorMsg') ?? '保證金維持水平不足（餘額 {balance}，需要 {required}）';
+              depositErrMsg = tmpl
+                .replace('{balance}', `$${depositCheck.balance.toFixed(2)}`)
+                .replace('{required}', `$${depositCheck.required.toFixed(2)}`);
+            } else {
+              depositErrMsg = depositCheck.reason ?? '保證金條件不符';
+            }
+            failReasons.push(`條件二：${depositErrMsg}`);
           }
           if (failReasons.length > 0) {
             throw new TRPCError({ code: 'FORBIDDEN', message: failReasons.join('；') });
@@ -1989,7 +1998,16 @@ export const appRouter = router({
             failReasons.push(`條件一：發佈次數不足（剩餘 ${quotaInfo?.remainingQuota ?? 0} 次，需要 ${toPublishCount} 次）`);
           }
           if (!depositCheck.canList) {
-            failReasons.push(`條件二：${depositCheck.reason ?? '保證金條件不符'}`);
+            let depositErrMsg: string;
+            if (depositCheck.balance !== undefined && depositCheck.required !== undefined) {
+              const tmpl = await getSiteSetting('publishDepositErrorMsg') ?? '保證金維持水平不足（餘額 {balance}，需要 {required}）';
+              depositErrMsg = tmpl
+                .replace('{balance}', `$${depositCheck.balance.toFixed(2)}`)
+                .replace('{required}', `$${depositCheck.required.toFixed(2)}`);
+            } else {
+              depositErrMsg = depositCheck.reason ?? '保證金條件不符';
+            }
+            failReasons.push(`條件二：${depositErrMsg}`);
           }
           if (failReasons.length > 0) {
             throw new TRPCError({ code: 'FORBIDDEN', message: failReasons.join('；') });
