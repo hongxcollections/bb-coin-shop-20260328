@@ -2884,7 +2884,7 @@ export async function reviewRefundRequest(
 export async function createDepositTopUpRequest(data: {
   userId: number;
   amount: number;
-  referenceNo: string;
+  referenceNo?: string;
   bank?: string;
   note?: string;
   receiptUrl?: string;
@@ -2894,7 +2894,7 @@ export async function createDepositTopUpRequest(data: {
   const [result] = await db.insert(depositTopUpRequests).values({
     userId: data.userId,
     amount: data.amount.toFixed(2),
-    referenceNo: data.referenceNo.trim(),
+    referenceNo: data.referenceNo?.trim() || '',
     bank: data.bank?.trim() || null,
     note: data.note?.trim() || null,
     receiptUrl: data.receiptUrl?.trim() || null,

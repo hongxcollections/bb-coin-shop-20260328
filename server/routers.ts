@@ -1352,7 +1352,7 @@ export const appRouter = router({
     submitTopUpRequest: protectedProcedure
       .input(z.object({
         amount: z.number().positive('金額必須大於 0'),
-        referenceNo: z.string().min(1, '請填寫轉帳參考號').max(100),
+        referenceNo: z.string().max(100).optional(),
         bank: z.string().max(100).optional(),
         note: z.string().max(500).optional(),
         receiptUrl: z.string().url().max(500).optional().or(z.literal('')),

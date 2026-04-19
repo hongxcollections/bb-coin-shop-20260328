@@ -293,198 +293,6 @@ export default function MerchantDashboard() {
           </div>
         )}
 
-        {/* Warning banners */}
-        {!depositOk && deposit && (
-          <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 flex items-start gap-2 text-sm text-red-600">
-            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <span>保證金不足，請盡快聯絡管理員補交以免影響戶口一切正常運作。</span>
-          </div>
-        )}
-        {belowWarning && deposit && (
-          <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2 text-sm text-amber-700">
-            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <span>保證金餘額低於預警門檻（{HKD(warningThreshold)}），建議盡快補交以避免帳戶受限。</span>
-          </div>
-        )}
-
-        {/* ── 保證金充值申請 ── */}
-        <Card className="rounded-2xl border-amber-100">
-          <CardContent className="p-4 space-y-3">
-            {/* ── Header row ── */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <PlusCircle className="w-4 h-4 text-amber-600" />
-                <h2 className="font-semibold text-amber-900 text-sm">保證金充值申請</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowTopUpForm(v => !v)}
-                className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200"
-              >
-                <ChevronDown size={11} style={{ transform: showTopUpForm ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
-                {showTopUpForm ? "收起" : "提交申請"}
-              </button>
-            </div>
-
-            {/* ── 提交表單 (subscription-style) ── */}
-            {showTopUpForm && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-4">
-
-                {/* Payment methods info */}
-                {depositPaymentInfo && (
-                  <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-                    <p className="text-xs font-semibold text-blue-800 mb-1 flex items-center gap-1">
-                      <CreditCard className="w-3 h-3" /> 付款資訊
-                    </p>
-                    <div className="text-xs text-blue-700 whitespace-pre-line leading-relaxed">
-                      {depositPaymentInfo}
-                    </div>
-                  </div>
-                )}
-
-                {/* Amount */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-amber-900">充值金額 (HKD) *</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={topUpAmount}
-                    onChange={e => setTopUpAmount(e.target.value)}
-                    placeholder="例如：500"
-                    className="border-amber-200 focus-visible:ring-amber-400 bg-white"
-                  />
-                </div>
-
-                {/* Payment method */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-amber-900">付款方式 *</Label>
-                  <Select value={topUpPaymentMethod} onValueChange={setTopUpPaymentMethod}>
-                    <SelectTrigger className="border-amber-200 bg-white">
-                      <SelectValue placeholder="選擇付款方式" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DEPOSIT_PAYMENT_METHODS.map(m => (
-                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Reference no */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-amber-900">轉帳參考號 *</Label>
-                  <Input
-                    value={topUpRef}
-                    onChange={e => setTopUpRef(e.target.value)}
-                    placeholder="例如：TXN123456"
-                    className="border-amber-200 focus-visible:ring-amber-400 bg-white"
-                  />
-                </div>
-
-                {/* Receipt upload */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-amber-900">付款收據截圖（選填）</Label>
-                  {topUpReceiptUrl ? (
-                    <div className="relative rounded-lg overflow-hidden border border-amber-200">
-                      <img src={topUpReceiptUrl} alt="收據" className="w-full max-h-40 object-contain bg-gray-50" />
-                      <button
-                        type="button"
-                        onClick={() => setTopUpReceiptUrl("")}
-                        className="absolute top-1 right-1 bg-white rounded-full p-0.5 shadow border border-gray-200 hover:bg-red-50"
-                      >
-                        <X className="w-3.5 h-3.5 text-gray-500" />
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-amber-200 rounded-lg p-4 cursor-pointer hover:bg-amber-50 transition-colors bg-white">
-                      {topUpReceiptUploading
-                        ? <Loader2 className="w-5 h-5 animate-spin text-amber-500" />
-                        : <><Upload className="w-5 h-5 text-amber-400" /><span className="text-xs text-amber-700">點擊上傳收據</span></>
-                      }
-                      <input type="file" accept="image/*" className="hidden" onChange={handleReceiptFile} disabled={topUpReceiptUploading} />
-                    </label>
-                  )}
-                </div>
-
-                {/* Note */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-amber-900">備注（選填）</Label>
-                  <Textarea
-                    value={topUpNote}
-                    onChange={e => setTopUpNote(e.target.value)}
-                    placeholder="如有其他說明"
-                    rows={2}
-                    className="border-amber-200 focus-visible:ring-amber-400 bg-white resize-none"
-                  />
-                </div>
-
-                {/* Submit button */}
-                <button
-                  type="button"
-                  disabled={submitTopUp.isPending || !topUpAmount || !topUpRef || !topUpPaymentMethod}
-                  onClick={() => {
-                    const amount = parseFloat(topUpAmount);
-                    if (isNaN(amount) || amount <= 0) return toast.error("請輸入有效金額");
-                    if (!topUpPaymentMethod) return toast.error("請選擇付款方式");
-                    if (!topUpRef.trim()) return toast.error("請填寫轉帳參考號");
-                    submitTopUp.mutate({
-                      amount,
-                      referenceNo: topUpRef,
-                      bank: topUpPaymentMethod,
-                      note: topUpNote || undefined,
-                      receiptUrl: topUpReceiptUrl || undefined,
-                    });
-                  }}
-                  className="w-full flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-opacity"
-                  style={{ background: "linear-gradient(135deg, #d97706, #b45309)" }}
-                >
-                  {submitTopUp.isPending
-                    ? <><Loader2 size={14} className="animate-spin" />提交中…</>
-                    : <><Send size={14} />確認提交充值申請</>}
-                </button>
-              </div>
-            )}
-
-            {/* ── 過往申請記錄 ── */}
-            {(myTopUpRequests?.length ?? 0) > 0 && (
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setShowTopUpHistory(v => !v)}
-                  className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 font-medium transition-colors"
-                >
-                  <ChevronDown size={13} style={{ transform: showTopUpHistory ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
-                  過往充值記錄（{myTopUpRequests?.length} 筆）
-                </button>
-                {showTopUpHistory && (
-                  <div className="mt-2 space-y-2">
-                    {myTopUpRequests?.map((r: { id: number; amount: string | number; referenceNo: string; bank: string | null; status: string; adminNote: string | null }) => {
-                      const sb = topUpStatusBadge(r.status);
-                      const pmLabel = DEPOSIT_PAYMENT_METHODS.find(m => m.value === r.bank)?.label ?? r.bank;
-                      return (
-                        <div key={r.id} className="rounded-xl border border-amber-100 bg-white px-3 py-2.5 flex items-start justify-between gap-2">
-                          <div className="min-w-0 space-y-0.5">
-                            <p className="text-sm font-bold text-amber-900">HKD {parseFloat(String(r.amount)).toLocaleString()}</p>
-                            {pmLabel && <p className="text-xs text-gray-500">付款：{pmLabel}</p>}
-                            <p className="text-xs text-gray-400">參考號：{r.referenceNo}</p>
-                            {r.adminNote && (
-                              <p className="text-xs text-gray-500 bg-gray-50 rounded px-2 py-0.5 mt-1">管理員：{r.adminNote}</p>
-                            )}
-                          </div>
-                          <span className={`text-xs font-medium border rounded-full px-2 py-0.5 flex items-center gap-1 flex-shrink-0 ${sb.cls}`}>
-                            {sb.icon}{sb.label}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* ── 快速功能入口 ── */}
         <div className="grid grid-cols-2 gap-3">
           <Link href="/merchant-auctions">
@@ -561,6 +369,133 @@ export default function MerchantDashboard() {
             </div>
           </Link>
         </div>
+
+        {/* ── 保證金警告提示 ── */}
+        {!depositOk && deposit && (
+          <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 flex items-start gap-2 text-sm text-red-600">
+            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span>保證金不足，請盡快聯絡管理員補交以免影響戶口一切正常運作。</span>
+          </div>
+        )}
+        {belowWarning && deposit && (
+          <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2 text-sm text-amber-700">
+            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span>保證金餘額低於預警門檻（{HKD(warningThreshold)}），建議盡快補交以避免帳戶受限。</span>
+          </div>
+        )}
+
+        {/* ── 保證金充值申請 (moved above transactions) ── */}
+        <Card className="rounded-2xl border-amber-100">
+          <CardContent className="p-4 space-y-3">
+            {/* ── Header row ── */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <PlusCircle className="w-4 h-4 text-amber-600" />
+                <h2 className="font-semibold text-amber-900 text-sm">保證金充值申請</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTopUpForm(v => !v)}
+                className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200"
+              >
+                <ChevronDown size={11} style={{ transform: showTopUpForm ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+                {showTopUpForm ? "收起" : "提交申請"}
+              </button>
+            </div>
+
+            {/* ── 提交表單 ── */}
+            {showTopUpForm && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-4">
+                {depositPaymentInfo && (
+                  <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                    <p className="text-xs font-semibold text-blue-800 mb-1 flex items-center gap-1">
+                      <CreditCard className="w-3 h-3" /> 付款資訊
+                    </p>
+                    <div className="text-xs text-blue-700 whitespace-pre-line leading-relaxed">{depositPaymentInfo}</div>
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-amber-900">充值金額 (HKD) *</Label>
+                  <Input type="number" min="1" step="1" value={topUpAmount} onChange={e => setTopUpAmount(e.target.value)} placeholder="例如：500" className="border-amber-200 focus-visible:ring-amber-400 bg-white" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-amber-900">付款方式 *</Label>
+                  <Select value={topUpPaymentMethod} onValueChange={setTopUpPaymentMethod}>
+                    <SelectTrigger className="border-amber-200 bg-white"><SelectValue placeholder="選擇付款方式" /></SelectTrigger>
+                    <SelectContent>{DEPOSIT_PAYMENT_METHODS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-amber-900">轉帳參考號（選填）</Label>
+                  <Input value={topUpRef} onChange={e => setTopUpRef(e.target.value)} placeholder="例如：TXN123456" className="border-amber-200 focus-visible:ring-amber-400 bg-white" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-amber-900">付款收據截圖（選填）</Label>
+                  {topUpReceiptUrl ? (
+                    <div className="relative rounded-lg overflow-hidden border border-amber-200">
+                      <img src={topUpReceiptUrl} alt="收據" className="w-full max-h-40 object-contain bg-gray-50" />
+                      <button type="button" onClick={() => setTopUpReceiptUrl("")} className="absolute top-1 right-1 bg-white rounded-full p-0.5 shadow border border-gray-200 hover:bg-red-50">
+                        <X className="w-3.5 h-3.5 text-gray-500" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-amber-200 rounded-lg p-4 cursor-pointer hover:bg-amber-50 transition-colors bg-white">
+                      {topUpReceiptUploading ? <Loader2 className="w-5 h-5 animate-spin text-amber-500" /> : <><Upload className="w-5 h-5 text-amber-400" /><span className="text-xs text-amber-700">點擊上傳收據</span></>}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleReceiptFile} disabled={topUpReceiptUploading} />
+                    </label>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-amber-900">備注（選填）</Label>
+                  <Textarea value={topUpNote} onChange={e => setTopUpNote(e.target.value)} placeholder="如有其他說明" rows={2} className="border-amber-200 focus-visible:ring-amber-400 bg-white resize-none" />
+                </div>
+                <button
+                  type="button"
+                  disabled={submitTopUp.isPending || !topUpAmount || !topUpPaymentMethod}
+                  onClick={() => {
+                    const amount = parseFloat(topUpAmount);
+                    if (isNaN(amount) || amount <= 0) return toast.error("請輸入有效金額");
+                    if (!topUpPaymentMethod) return toast.error("請選擇付款方式");
+                    submitTopUp.mutate({ amount, referenceNo: topUpRef || undefined, bank: topUpPaymentMethod, note: topUpNote || undefined, receiptUrl: topUpReceiptUrl || undefined });
+                  }}
+                  className="w-full flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-opacity"
+                  style={{ background: "linear-gradient(135deg, #d97706, #b45309)" }}
+                >
+                  {submitTopUp.isPending ? <><Loader2 size={14} className="animate-spin" />提交中…</> : <><Send size={14} />確認提交充值申請</>}
+                </button>
+              </div>
+            )}
+
+            {/* ── 過往充值記錄 ── */}
+            {(myTopUpRequests?.length ?? 0) > 0 && (
+              <div>
+                <button type="button" onClick={() => setShowTopUpHistory(v => !v)} className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 font-medium transition-colors">
+                  <ChevronDown size={13} style={{ transform: showTopUpHistory ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+                  過往充值記錄（{myTopUpRequests?.length} 筆）
+                </button>
+                {showTopUpHistory && (
+                  <div className="mt-2 space-y-2">
+                    {myTopUpRequests?.map((r: { id: number; amount: string | number; referenceNo: string; bank: string | null; status: string; adminNote: string | null }) => {
+                      const sb = topUpStatusBadge(r.status);
+                      const pmLabel = DEPOSIT_PAYMENT_METHODS.find(m => m.value === r.bank)?.label ?? r.bank;
+                      return (
+                        <div key={r.id} className="rounded-xl border border-amber-100 bg-white px-3 py-2.5 flex items-start justify-between gap-2">
+                          <div className="min-w-0 space-y-0.5">
+                            <p className="text-sm font-bold text-amber-900">HKD {parseFloat(String(r.amount)).toLocaleString()}</p>
+                            {pmLabel && <p className="text-xs text-gray-500">付款：{pmLabel}</p>}
+                            {r.referenceNo && <p className="text-xs text-gray-400">參考號：{r.referenceNo}</p>}
+                            {r.adminNote && <p className="text-xs text-gray-500 bg-gray-50 rounded px-2 py-0.5 mt-1">管理員：{r.adminNote}</p>}
+                          </div>
+                          <span className={`text-xs font-medium border rounded-full px-2 py-0.5 flex items-center gap-1 flex-shrink-0 ${sb.cls}`}>{sb.icon}{sb.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* ── 保證金交易記錄 ── */}
         <Card className="rounded-2xl border-amber-100">
