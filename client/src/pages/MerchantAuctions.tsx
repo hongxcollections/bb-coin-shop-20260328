@@ -270,9 +270,11 @@ function AuctionCard({
         <p className="font-medium text-sm truncate leading-snug">{auction.title}</p>
         {tab === "已結束" && (
           <p className="text-xs mt-0.5 leading-snug">
-            <span className="text-gray-400">中標者（最高出價）：</span>
+            <span className="text-gray-400">中標：</span>
             <span className="font-medium text-amber-700">
-              {auction.highestBidderName ?? "—"}
+              {auction.highestBidderName
+                ? `${auction.highestBidderName} (${getCurrencySymbol(auction.currency ?? "HKD")}${Number(auction.currentPrice).toLocaleString()})`
+                : "無人出價"}
             </span>
           </p>
         )}
