@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Pencil, Trash2, Store, UserRound, ShieldAlert, ChevronDown, Gavel, Mail, KeyRound, CheckCircle2, Copy, Clock, XCircle, ChevronUp, UserPlus, Wrench, Loader2, PackagePlus, AlertTriangle } from "lucide-react";
+import { Users, Pencil, Trash2, Store, UserRound, ShieldAlert, ChevronDown, Gavel, Mail, KeyRound, CheckCircle2, Copy, Clock, XCircle, ChevronUp, UserPlus, Wrench, Loader2, PackagePlus, AlertTriangle, Wallet, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { MemberBadge, type MemberLevel } from "@/components/MemberBadge";
 
@@ -274,6 +274,147 @@ function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userNam
               </div>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 管理員直接修改商戶保證金（充值 / 調整） */
+function DepositModifyPanel({ userId, currentBalance, onDone }: { userId: number; currentBalance: string; onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"topup" | "adjust">("topup");
+  const [amount, setAmount] = useState("");
+  const [desc, setDesc] = useState("");
+
+  const topUpMutation = trpc.sellerDeposits.topUp.useMutation({
+    onSuccess: (data) => {
+      toast.success(`充值成功，新餘額：HK$${data.newBalance.toFixed(2)}`);
+      setAmount(""); setDesc(""); onDone();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const adjustMutation = trpc.sellerDeposits.adjust.useMutation({
+    onSuccess: () => {
+      toast.success("調整成功");
+      setAmount(""); setDesc(""); onDone();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const isPending = topUpMutation.isPending || adjustMutation.isPending;
+  const balance = parseFloat(currentBalance || "0");
+  const isTopUp = tab === "topup";
+
+  function handleSubmit() {
+    const n = parseFloat(amount);
+    if (isNaN(n) || n === 0) return toast.error("請輸入有效金額");
+    if (!desc.trim()) return toast.error("請填寫說明");
+    if (isTopUp) {
+      if (n <= 0) return toast.error("充值金額必須大於 0");
+      topUpMutation.mutate({ userId, amount: n, description: desc });
+    } else {
+      adjustMutation.mutate({ userId, amount: n, description: desc });
+    }
+  }
+
+  return (
+    <div className="mt-1.5">
+      <button
+        type="button"
+        onClick={() => { setOpen(!open); setAmount(""); setDesc(""); }}
+        className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium transition-colors whitespace-nowrap"
+        style={{ background: open ? "#DBEAFE" : "#F5F5F5", color: open ? "#1E40AF" : "#666" }}
+      >
+        <Wallet size={10} />
+        修改保證金
+        <ChevronDown size={11} style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }} />
+      </button>
+
+      {open && (
+        <div className="mt-1.5 rounded-xl p-3 space-y-2.5" style={{ background: "#EFF6FF", border: "1px solid #BFDBFE" }}>
+          {/* Header + balance */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: "#2563EB" }}>
+                <Wallet size={11} className="text-white" />
+              </div>
+              <span className="text-xs font-semibold text-blue-900">修改商戶保證金</span>
+            </div>
+            <span className="text-xs text-blue-600 font-medium">現有：HK${balance.toLocaleString()}</span>
+          </div>
+
+          {/* Tab switcher */}
+          <div className="flex rounded-lg overflow-hidden border border-blue-200 text-xs font-medium">
+            <button
+              type="button"
+              onClick={() => { setTab("topup"); setAmount(""); }}
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 transition-colors"
+              style={{ background: isTopUp ? "#2563EB" : "#EFF6FF", color: isTopUp ? "#fff" : "#3B82F6" }}
+            >
+              <Plus size={11} /> 充值
+            </button>
+            <button
+              type="button"
+              onClick={() => { setTab("adjust"); setAmount(""); }}
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 transition-colors"
+              style={{ background: !isTopUp ? "#2563EB" : "#EFF6FF", color: !isTopUp ? "#fff" : "#3B82F6" }}
+            >
+              <Minus size={11} /> 調整
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            <div>
+              <label className="text-xs font-medium text-blue-800 block mb-1">
+                {isTopUp ? "充值金額 (HKD)" : "調整金額（正數增加 / 負數扣減）"}
+              </label>
+              <input
+                type="number"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                placeholder={isTopUp ? "例如：500" : "例如：-200 或 300"}
+                step={isTopUp ? "1" : "any"}
+                min={isTopUp ? "1" : undefined}
+                className="w-full h-8 rounded-lg border border-blue-200 px-2.5 text-xs focus:outline-none focus:border-blue-400"
+              />
+              {!isTopUp && amount && !isNaN(parseFloat(amount)) && (
+                <p className="text-xs mt-0.5" style={{ color: parseFloat(amount) >= 0 ? "#059669" : "#DC2626" }}>
+                  調整後餘額：HK${(balance + parseFloat(amount)).toLocaleString("zh-HK", { minimumFractionDigits: 0 })}
+                </p>
+              )}
+              {isTopUp && amount && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0 && (
+                <p className="text-xs mt-0.5 text-emerald-600">
+                  充值後餘額：HK${(balance + parseFloat(amount)).toLocaleString("zh-HK", { minimumFractionDigits: 0 })}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-medium text-blue-800 block mb-1">說明 *</label>
+              <input
+                type="text"
+                value={desc}
+                onChange={e => setDesc(e.target.value)}
+                placeholder={isTopUp ? "例如：商戶補交保證金" : "例如：手動修正餘額"}
+                className="w-full h-8 rounded-lg border border-blue-200 px-2.5 text-xs focus:outline-none focus:border-blue-400"
+              />
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled={isPending || !amount || !desc}
+            onClick={handleSubmit}
+            className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-semibold text-white transition-opacity disabled:opacity-40"
+            style={{ background: "linear-gradient(135deg, #2563EB, #1D4ED8)" }}
+          >
+            {isPending
+              ? <><Loader2 size={12} className="animate-spin" />處理中…</>
+              : isTopUp
+              ? <><Plus size={12} />確認充值</>
+              : <><Wallet size={12} />確認調整</>}
+          </button>
         </div>
       )}
     </div>
@@ -635,6 +776,8 @@ export default function AdminUsers() {
                 </div>
               )}
             </div>
+            {/* Deposit modify — merchants only */}
+            {u.depositId && <DepositModifyPanel userId={u.id} currentBalance={u.depositBalance ?? "0"} onDone={refetch} />}
             {/* Generate test listings / won auction — merchants only */}
             {u.depositId && <GenerateListingsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
             {u.depositId && <GenerateWonAuctionPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
