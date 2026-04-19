@@ -211,6 +211,12 @@ export default function AuctionDetail() {
     },
   });
 
+  const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+  });
+  const noBidMessage = (siteSettings as Record<string, string> | undefined)?.noBidMessage
+    ?? "暫時未有出價 喜歡來一口的隨時就可以帶回家了 😁";
+
   const handleProxyBid = () => {
     const amount = parseFloat(proxyAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -582,6 +588,22 @@ export default function AuctionDetail() {
                     結束：{formatDate(new Date(auction.endTime))}
                   </span>
                 </div>
+
+                {/* No-bid message — only when active and no bids yet */}
+                {isActive && bids.length === 0 && (
+                  <div
+                    className="mt-3 px-4 py-3 rounded-xl text-sm border"
+                    style={{
+                      background: "var(--popup-bg)",
+                      color: "var(--popup-text)",
+                      borderColor: "var(--popup-border)",
+                      boxShadow: "var(--popup-shadow)",
+                      borderRadius: "var(--popup-radius)",
+                    }}
+                  >
+                    {noBidMessage}
+                  </div>
+                )}
 
                 {/* Ended Notice */}
                 {!isActive && (

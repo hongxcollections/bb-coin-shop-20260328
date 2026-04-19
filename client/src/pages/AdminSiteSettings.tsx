@@ -5,10 +5,11 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Settings, Bell, Clock, ChevronLeft, Save, AlertCircle } from "lucide-react";
+import { Settings, Bell, Clock, ChevronLeft, Save, AlertCircle, MessageSquare } from "lucide-react";
 
 export default function AdminSiteSettings() {
   const { user, isAuthenticated } = useAuth();
@@ -26,11 +27,14 @@ export default function AdminSiteSettings() {
 
   // 倒數提醒閾值（分鐘）
   const [endingSoonMinutes, setEndingSoonMinutes] = useState("30");
+  // 未有出價提示訊息
+  const [noBidMessage, setNoBidMessage] = useState("暫時未有出價 喜歡來一口的隨時就可以帶回家了 😁");
 
   useEffect(() => {
     if (settings) {
       const s = settings as Record<string, string>;
       if (s.endingSoonMinutes) setEndingSoonMinutes(s.endingSoonMinutes);
+      if (s.noBidMessage) setNoBidMessage(s.noBidMessage);
     }
   }, [settings]);
 
@@ -54,6 +58,14 @@ export default function AdminSiteSettings() {
       return;
     }
     setSetting.mutate({ key: 'endingSoonMinutes', value: String(val) });
+  };
+
+  const handleSaveNoBidMessage = () => {
+    if (!noBidMessage.trim()) {
+      toast.error("訊息不可為空");
+      return;
+    }
+    setSetting.mutate({ key: 'noBidMessage', value: noBidMessage.trim() });
   };
 
   return (
@@ -167,6 +179,56 @@ export default function AdminSiteSettings() {
                   <p className="text-xs text-muted-foreground mt-2">
                     當拍賣距離結標時間少於 <strong>{endingSoonMinutes} 分鐘</strong>時，此標記會顯示在拍賣列表卡片右上角
                   </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 未有出價提示訊息 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-amber-500" />
+                  <CardTitle className="text-lg">未有出價提示訊息</CardTitle>
+                </div>
+                <CardDescription>
+                  當拍賣商品暫時未有任何出價時，在商品頁顯示的提示訊息
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="noBidMessage" className="flex items-center gap-2 mb-2">
+                    <MessageSquare className="w-4 h-4 text-amber-500" />
+                    提示訊息內容
+                  </Label>
+                  <Textarea
+                    id="noBidMessage"
+                    value={noBidMessage}
+                    onChange={(e) => setNoBidMessage(e.target.value)}
+                    rows={3}
+                    placeholder="暫時未有出價 喜歡來一口的隨時就可以帶回家了 😁"
+                    className="resize-none"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div
+                    className="text-sm px-4 py-2.5 rounded-xl border max-w-sm"
+                    style={{
+                      background: "var(--popup-bg)",
+                      color: "var(--popup-text)",
+                      borderColor: "var(--popup-border)",
+                      boxShadow: "var(--popup-shadow)",
+                    }}
+                  >
+                    {noBidMessage || "（空白）"}
+                  </div>
+                  <Button
+                    onClick={handleSaveNoBidMessage}
+                    disabled={setSetting.isPending}
+                    className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    {setSetting.isPending ? "儲存中..." : "儲存設定"}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
