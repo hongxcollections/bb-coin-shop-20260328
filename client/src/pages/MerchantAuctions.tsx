@@ -365,6 +365,8 @@ export default function MerchantAuctions() {
 
   const { data: merchantSettings } = trpc.merchants.getSettings.useQuery(undefined, { enabled: isAuthenticated });
   const { refetch: refetchMyDeposit } = trpc.sellerDeposits.myDeposit.useQuery(undefined, { enabled: isAuthenticated, staleTime: 0, refetchOnWindowFocus: true });
+  const { refetch: refetchCanList } = trpc.sellerDeposits.canList.useQuery(undefined, { enabled: false, staleTime: 0 });
+  const { refetch: refetchQuotaInfo } = trpc.merchants.getQuotaInfo.useQuery(undefined, { enabled: false, staleTime: 0 });
   const { data: mySubscription } = trpc.subscriptions.mySubscription.useQuery(undefined, { enabled: isAuthenticated, staleTime: 60_000 });
   const { data: myAuctions, isLoading: loadingActive, refetch: refetchActive } = trpc.merchants.myAuctions.useQuery();
   const { data: myDrafts, isLoading: loadingDrafts, refetch: refetchDrafts } = trpc.merchants.myDrafts.useQuery();
@@ -576,7 +578,7 @@ export default function MerchantAuctions() {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
-  const checkCanPublish = async (): Promise<boolean> => {
+  const checkCanPublish = async (requiredCount = 1): Promise<boolean> => {
     // Check subscription first
     if (!mySubscription) {
       setNoSubDialogOpen(true);
@@ -587,6 +589,34 @@ export default function MerchantAuctions() {
       toast.error("商戶暫已被停用，請聯繫客服了解情況");
       return false;
     }
+
+    // Check both publish conditions in parallel
+    const [quotaResult, depositResult] = await Promise.all([
+      refetchQuotaInfo(),
+      refetchCanList(),
+    ]);
+    const quota = quotaResult.data;
+    const deposit = depositResult.data;
+
+    const failReasons: string[] = [];
+
+    // 條件一：發佈點數
+    if (quota && !quota.unlimited && (quota.remainingQuota ?? 0) < requiredCount) {
+      failReasons.push(`條件一：發佈點數不足（剩餘 ${quota.remainingQuota ?? 0} 次，需要 ${requiredCount} 次）`);
+    }
+
+    // 條件二：保證金維持水平
+    if (deposit && !deposit.canList) {
+      const balance = (deposit.balance ?? 0).toFixed(2);
+      const required = (deposit.required ?? 0).toFixed(2);
+      failReasons.push(`條件二：保證金維持水平不足（餘額 $${balance}，需要 $${required}）`);
+    }
+
+    if (failReasons.length > 0) {
+      toast.error(failReasons.join('；'), { duration: 6000 });
+      return false;
+    }
+
     return true;
   };
 
@@ -609,7 +639,7 @@ export default function MerchantAuctions() {
 
   const openBatchPublish = async () => {
     if (selectedDrafts.size === 0) { toast.error("請先選擇要發佈的草稿"); return; }
-    if (!(await checkCanPublish())) return;
+    if (!(await checkCanPublish(selectedDrafts.size))) return;
     const noImageDrafts = draftAuctions.filter(a => selectedDrafts.has(a.id) && (!a.images || a.images.length === 0));
     if (noImageDrafts.length > 0) {
       const titles = noImageDrafts.map(a => `「${a.title}」`).join("、");
