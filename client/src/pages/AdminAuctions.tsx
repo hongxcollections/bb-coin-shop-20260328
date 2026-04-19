@@ -564,9 +564,25 @@ export default function AdminAuctions() {
       {/* Navigation */}
       <nav className="nav-glass fixed top-0 left-0 right-0 z-50">
         <div className="container flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl shrink-0">
-            <span className="text-2xl">💰</span>
-            <span className="gold-gradient-text">大BB錢幣店</span>
+          <Link href="/" className="flex items-center gap-1.5 shrink-0 no-underline">
+            <span className="text-xl leading-none" style={{ marginTop: "-2px" }}>💰</span>
+            <div className="flex flex-col items-end">
+              <span className="gold-gradient-text font-bold text-lg leading-none tracking-tight">
+                hongxcollections
+              </span>
+              <span
+                className="block"
+                style={{
+                  fontSize: "6px",
+                  color: "rgba(180, 130, 50, 0.5)",
+                  lineHeight: 1,
+                  letterSpacing: "0.02em",
+                  marginTop: "0px",
+                }}
+              >
+                Powered by 大BB錢幣店
+              </span>
+            </div>
           </Link>
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-1 flex-wrap justify-end">
