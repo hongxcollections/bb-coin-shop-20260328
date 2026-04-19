@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -166,8 +167,9 @@ export default function MerchantSettings() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* 頂部導航 */}
-      <div className="border-b bg-card fixed top-0 left-0 right-0 z-10">
+      <Header />
+      {/* 吸附在主頭部導航下方的麵包屑欄 */}
+      <div className="border-b bg-card sticky top-16 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-2 text-sm flex-wrap">
           <Link href="/merchant-dashboard">
             <span className="text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-1">
@@ -178,7 +180,6 @@ export default function MerchantSettings() {
           <span className="font-medium text-amber-600">商戶管理</span>
         </div>
       </div>
-      <div className="h-12" />
 
       <div className="max-w-lg mx-auto px-4 py-8 space-y-6">
         {/* 標題 */}
