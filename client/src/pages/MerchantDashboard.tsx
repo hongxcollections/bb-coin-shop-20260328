@@ -212,8 +212,10 @@ function printTxReport(
   </div>
   </body></html>`;
 
-  const w = window.open("", "_blank");
-  if (w) { w.document.write(html); w.document.close(); }
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 export default function MerchantDashboard() {
