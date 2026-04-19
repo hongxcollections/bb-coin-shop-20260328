@@ -85,8 +85,11 @@ function WonAuctionsList({ userId }: { userId: number }) {
 /** 管理員為商戶生成測試草稿商品 */
 function GenerateListingsPanel({ userId, userName }: { userId: number; userName: string }) {
   const [open, setOpen] = useState(false);
-  const [count, setCount] = useState(5);
+  const [countStr, setCountStr] = useState("5");
   const [lastResult, setLastResult] = useState<number | null>(null);
+
+  const parsedCount = Math.max(1, Math.min(50, parseInt(countStr) || 1));
+  const isValid = /^\d+$/.test(countStr) && parsedCount >= 1 && parsedCount <= 50;
 
   const generateMutation = trpc.auctions.adminGenerateTestListings.useMutation({
     onSuccess: (data) => {
@@ -110,38 +113,58 @@ function GenerateListingsPanel({ userId, userName }: { userId: number; userName:
       </button>
 
       {open && (
-        <div className="mt-1.5 rounded-lg px-3 py-2.5 space-y-2" style={{ background: "#F5F3FF", border: "1px solid #DDD6FE" }}>
-          <p className="text-xs font-semibold" style={{ color: "#6D28D9" }}>
-            <PackagePlus size={11} className="inline mr-1" />
-            生成測試草稿（用作系統測試，標題帶【測試】前綴）
-          </p>
+        <div className="mt-1.5 rounded-xl p-3 space-y-2.5" style={{ background: "#F5F3FF", border: "1px solid #C4B5FD" }}>
+          {/* Header */}
+          <div className="flex items-center gap-1.5">
+            <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: "#7C3AED" }}>
+              <PackagePlus size={11} className="text-white" />
+            </div>
+            <span className="text-xs font-semibold" style={{ color: "#5B21B6" }}>生成測試草稿</span>
+            <span className="text-xs text-gray-400 ml-auto">標題帶【測試】前綴</span>
+          </div>
+
+          {/* Count row */}
           <div className="flex items-center gap-2">
-            <label className="text-xs text-gray-500 whitespace-nowrap">數量</label>
+            <span className="text-xs text-gray-500 flex-shrink-0">生成數量</span>
             <input
               type="number"
               min={1}
               max={50}
-              value={count}
-              onChange={(e) => setCount(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
-              className="w-16 h-7 rounded border border-violet-200 text-center text-xs px-1 focus:outline-none focus:ring-1 focus:ring-violet-400"
+              value={countStr}
+              onChange={(e) => { setCountStr(e.target.value); setLastResult(null); }}
+              onBlur={() => setCountStr(String(parsedCount))}
+              className="w-14 h-8 rounded-lg border text-center text-sm font-semibold focus:outline-none focus:ring-2"
+              style={{
+                borderColor: isValid ? "#A78BFA" : "#FCA5A5",
+                color: "#5B21B6",
+                background: "#fff",
+                boxShadow: "inset 0 1px 3px rgba(0,0,0,0.06)",
+              }}
             />
-            <span className="text-xs text-gray-400">(1–50)</span>
-            <button
-              type="button"
-              disabled={generateMutation.isPending}
-              onClick={() => generateMutation.mutate({ merchantUserId: userId, count })}
-              className="flex items-center gap-1 h-7 px-3 rounded text-xs font-semibold text-white transition-opacity disabled:opacity-60"
-              style={{ background: "#7C3AED" }}
-            >
-              {generateMutation.isPending
-                ? <><Loader2 size={11} className="animate-spin" />生成中…</>
-                : <>⚡ 立即生成</>}
-            </button>
+            <span className="text-xs text-gray-400">件（1–50）</span>
           </div>
+
+          {/* Generate button */}
+          <button
+            type="button"
+            disabled={generateMutation.isPending || !isValid}
+            onClick={() => generateMutation.mutate({ merchantUserId: userId, count: parsedCount })}
+            className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-semibold text-white transition-opacity disabled:opacity-50"
+            style={{ background: "linear-gradient(135deg, #7C3AED, #6D28D9)" }}
+          >
+            {generateMutation.isPending
+              ? <><Loader2 size={12} className="animate-spin" />生成中…</>
+              : <><span>⚡</span>立即生成 {isValid ? parsedCount : ""} 個草稿</>}
+          </button>
+
+          {/* Result */}
           {lastResult !== null && (
-            <p className="text-xs font-medium" style={{ color: "#059669" }}>
-              ✅ 成功建立 {lastResult} 個測試草稿（狀態：草稿，可在商戶拍賣管理查看）
-            </p>
+            <div className="flex items-center gap-1.5 rounded-lg px-2.5 py-2" style={{ background: "#D1FAE5", border: "1px solid #6EE7B7" }}>
+              <CheckCircle2 size={13} style={{ color: "#059669", flexShrink: 0 }} />
+              <span className="text-xs font-medium" style={{ color: "#065F46" }}>
+                成功建立 {lastResult} 個草稿，可在商戶拍賣管理查看
+              </span>
+            </div>
           )}
         </div>
       )}
