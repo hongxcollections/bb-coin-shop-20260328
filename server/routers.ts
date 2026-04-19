@@ -962,6 +962,13 @@ export const appRouter = router({
         return getWonAuctionsByUser(input.userId);
       }),
 
+    getMerchantOrders: protectedProcedure
+      .input(z.object({ merchantUserId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        return getWonOrdersByCreator(input.merchantUserId);
+      }),
+
     // Admin: update any user's profile (name, email, phone, memberLevel)
     adminUpdate: protectedProcedure
       .input(z.object({

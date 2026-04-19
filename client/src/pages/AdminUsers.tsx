@@ -82,6 +82,52 @@ function WonAuctionsList({ userId }: { userId: number }) {
   );
 }
 
+/** Expandable list of seller orders for a merchant — fetches on demand */
+type MerchantOrderRow = {
+  id: number;
+  title: string;
+  currentPrice: string;
+  currency: string;
+  endTime: Date | string | null;
+  paymentStatus: string | null;
+  winnerName: string | null;
+  winningAmount: string | null;
+};
+
+function MerchantOrdersList({ merchantUserId }: { merchantUserId: number }) {
+  const { data, isLoading } = trpc.users.getMerchantOrders.useQuery({ merchantUserId });
+  const fmt = (d: Date | null | string) => d ? new Date(d).toLocaleDateString("zh-HK", { year: "2-digit", month: "2-digit", day: "2-digit" }) : "—";
+  const payLabel: Record<string, string> = { pending_payment: "待付款", paid: "已付款", delivered: "已交收" };
+
+  if (isLoading) return <div className="text-xs text-gray-400 py-1 pl-1">載入中…</div>;
+  if (!data || data.length === 0) return <div className="text-xs text-gray-400 py-1 pl-1">暫無已售訂單</div>;
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      {(data as MerchantOrderRow[]).map((a) => (
+        <div key={a.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs" style={{ background: "#F0FDF4", border: "1px solid #BBF7D0" }}>
+          <Store size={11} className="flex-shrink-0" style={{ color: "#16A34A" }} />
+          <span className="flex-1 font-medium truncate" style={{ color: "#333" }}>{a.title}</span>
+          <span className="flex-shrink-0 font-semibold" style={{ color: "#16A34A" }}>
+            {a.currency} {a.winningAmount ? parseFloat(a.winningAmount).toLocaleString() : parseFloat(a.currentPrice).toLocaleString()}
+          </span>
+          <span className="flex-shrink-0 text-gray-400">{fmt(a.endTime)}</span>
+          {a.winnerName && (
+            <span className="flex-shrink-0 text-gray-500 truncate max-w-[60px]">{a.winnerName}</span>
+          )}
+          <span className="flex-shrink-0 px-1.5 py-0.5 rounded-full text-[0.6rem] font-semibold"
+            style={{
+              background: a.paymentStatus === "paid" ? "#D1FAE5" : a.paymentStatus === "delivered" ? "#DBEAFE" : "#FEF3C7",
+              color: a.paymentStatus === "paid" ? "#065F46" : a.paymentStatus === "delivered" ? "#1E40AF" : "#92400E",
+            }}>
+            {a.paymentStatus ? (payLabel[a.paymentStatus] ?? a.paymentStatus) : "待付款"}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** 管理員為商戶生成測試草稿商品 */
 function GenerateListingsPanel({ userId, userName }: { userId: number; userName: string }) {
   const [open, setOpen] = useState(false);
@@ -535,6 +581,7 @@ export default function AdminUsers() {
   const [editState, setEditState] = useState<EditState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
   const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
+  const [expandedMerchantOrdersId, setExpandedMerchantOrdersId] = useState<number | null>(null);
   const [newUserOpen, setNewUserOpen] = useState(false);
   const [newUserForm, setNewUserForm] = useState({
     name: "", phone: "", email: "", password: "",
@@ -747,6 +794,29 @@ export default function AdminUsers() {
 
                     {/* Won auctions expandable list */}
                     {expandedUserId === u.id && <WonAuctionsList userId={u.id} />}
+
+                    {/* Merchant sold orders toggle — only for merchants */}
+                    {u.depositId && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedMerchantOrdersId(expandedMerchantOrdersId === u.id ? null : u.id)}
+                          className="flex items-center gap-1 mt-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium transition-colors"
+                          style={{
+                            background: expandedMerchantOrdersId === u.id ? "#F0FDF4" : "#F5F5F5",
+                            color: expandedMerchantOrdersId === u.id ? "#16A34A" : "#666",
+                          }}
+                        >
+                          <Store size={10} />
+                          商戶訂單
+                          <ChevronDown
+                            size={11}
+                            style={{ transform: expandedMerchantOrdersId === u.id ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
+                          />
+                        </button>
+                        {expandedMerchantOrdersId === u.id && <MerchantOrdersList merchantUserId={u.id} />}
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
