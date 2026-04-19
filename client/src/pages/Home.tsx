@@ -142,12 +142,14 @@ export default function Home() {
         <div className="container">
           {!isLoading && (auctions ?? []).filter(a => a.status === 'active' && new Date(a.endTime).getTime() > Date.now()).length > 0 && (
             <div className="marquee-wrapper border border-amber-100 rounded-2xl bg-white py-3 overflow-hidden shadow-sm">
-              <div className="marquee-track flex" style={{ animationDuration: '6s' }}>
-                {(() => {
-                  const activeAuctions = (auctions ?? []).filter(a => 
-                    a.status === 'active' && new Date(a.endTime).getTime() > Date.now()
-                  );
-                  return [...activeAuctions, ...activeAuctions].map((auction, idx) => (
+              {(() => {
+                const activeAuctions = (auctions ?? []).filter(a =>
+                  a.status === 'active' && new Date(a.endTime).getTime() > Date.now()
+                );
+                const duration = `${Math.max(8, activeAuctions.length * 2.5)}s`;
+                return (
+              <div className="marquee-track flex" style={{ animationDuration: duration }}>
+                {[...activeAuctions, ...activeAuctions].map((auction, idx) => (
                     <Link
                       key={`${auction.id}-${idx}`}
                       href={`/auctions/${auction.id}`}
@@ -177,9 +179,10 @@ export default function Home() {
                         </div>
                       </div>
                     </Link>
-                  ));
-                })()}
+                  ))}
               </div>
+                );
+              })()}
             </div>
           )}
         </div>
