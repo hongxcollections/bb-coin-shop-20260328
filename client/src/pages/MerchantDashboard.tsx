@@ -554,9 +554,9 @@ export default function MerchantDashboard() {
                 )}
 
                 {/* ── 套餐選擇 ── */}
-                {activeTiers && activeTiers.length > 0 && (
+                {activeTiers && activeTiers.length > 0 ? (
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-amber-900">選擇套餐（選填）</Label>
+                    <Label className="text-xs font-medium text-amber-900">請選擇套餐 *</Label>
                     <div className="grid grid-cols-1 gap-2">
                       {(activeTiers as { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; description: string | null }[]).map(tier => {
                         const amt = parseFloat(tier.amount);
@@ -568,13 +568,8 @@ export default function MerchantDashboard() {
                             key={tier.id}
                             type="button"
                             onClick={() => {
-                              if (isSelected) {
-                                setSelectedTierId(null);
-                                setTopUpAmount("");
-                              } else {
-                                setSelectedTierId(tier.id);
-                                setTopUpAmount(amt.toString());
-                              }
+                              setSelectedTierId(tier.id);
+                              setTopUpAmount(amt.toString());
                             }}
                             className={`w-full text-left rounded-xl border px-3 py-2.5 transition-all ${isSelected ? "border-amber-500 bg-amber-100 ring-1 ring-amber-400" : "border-amber-200 bg-white hover:border-amber-400 hover:bg-amber-50"}`}
                           >
@@ -584,9 +579,9 @@ export default function MerchantDashboard() {
                                   <span className="text-sm font-semibold text-amber-900">{tier.name}</span>
                                   <span className="text-sm font-bold text-amber-700">HK${amt.toLocaleString()}</span>
                                 </div>
-                                <div className="flex gap-3 mt-0.5 text-xs text-gray-500">
-                                  <span>維持水平 <strong className="text-emerald-700">{mPct}%</strong>（≥ HK${(amt * mPct / 100).toLocaleString()}）</span>
-                                  <span>預警 <strong className="text-amber-600">{wPct}%</strong>（≤ HK${(amt * wPct / 100).toLocaleString()}）</span>
+                                <div className="mt-0.5 text-xs text-gray-500 space-y-0.5">
+                                  <div>維持水平 <strong className="text-emerald-700">{mPct}%</strong>（≥ HK${(amt * mPct / 100).toLocaleString()}）</div>
+                                  <div>預警 <strong className="text-amber-600">{wPct}%</strong>（≤ HK${(amt * wPct / 100).toLocaleString()}）</div>
                                 </div>
                                 {tier.description && <p className="text-xs text-gray-400 mt-0.5">{tier.description}</p>}
                               </div>
@@ -596,14 +591,13 @@ export default function MerchantDashboard() {
                         );
                       })}
                     </div>
-                    <p className="text-xs text-gray-400">選擇套餐後金額自動填入，亦可自行輸入其他金額</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-amber-900">充值金額 (HKD) *</Label>
+                    <Input type="number" min="1" step="1" value={topUpAmount} onChange={e => setTopUpAmount(e.target.value)} placeholder="例如：500" className="border-amber-200 focus-visible:ring-amber-400 bg-white" />
                   </div>
                 )}
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-amber-900">充值金額 (HKD) *</Label>
-                  <Input type="number" min="1" step="1" value={topUpAmount} onChange={e => { setTopUpAmount(e.target.value); setSelectedTierId(null); }} placeholder="例如：500" className="border-amber-200 focus-visible:ring-amber-400 bg-white" />
-                </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-amber-900">付款方式 *</Label>
                   <Select value={topUpPaymentMethod} onValueChange={setTopUpPaymentMethod}>
@@ -637,8 +631,9 @@ export default function MerchantDashboard() {
                 </div>
                 <button
                   type="button"
-                  disabled={submitTopUp.isPending || !topUpAmount || !topUpPaymentMethod}
+                  disabled={submitTopUp.isPending || !topUpAmount || !topUpPaymentMethod || (activeTiers && activeTiers.length > 0 && !selectedTierId)}
                   onClick={() => {
+                    if (activeTiers && (activeTiers as { id: number }[]).length > 0 && !selectedTierId) return toast.error("請選擇套餐");
                     const amount = parseFloat(topUpAmount);
                     if (isNaN(amount) || amount <= 0) return toast.error("請輸入有效金額");
                     if (!topUpPaymentMethod) return toast.error("請選擇付款方式");
