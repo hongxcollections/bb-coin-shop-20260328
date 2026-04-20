@@ -2356,6 +2356,15 @@ export const appRouter = router({
           { title: '美國1921年摩根銀元', desc: '品相MS62，原光未流通', category: '外幣', price: 1500 },
           { title: '英國1887年維多利亞女皇金幣', desc: '22K黃金鑄造，歷史珍品', category: '金幣', price: 8800 },
         ];
+        // ── 檢查商戶公佈額度是否足夠 ─────────────────────────────────────────
+        const quotaInfo = await getListingQuotaInfo(input.merchantUserId);
+        if (quotaInfo && !quotaInfo.unlimited && quotaInfo.remainingQuota < input.count) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: `商戶公佈額度不足（剩餘 ${quotaInfo.remainingQuota} 次，需要 ${input.count} 次）`,
+          });
+        }
+
         const imageUrl = 'https://placehold.co/400x400/d4af37/ffffff?text=商品';
         const created: number[] = [];
         for (let i = 0; i < input.count; i++) {
@@ -2376,6 +2385,12 @@ export const appRouter = router({
           });
           created.push(id);
         }
+
+        // ── 扣減商戶公佈額度（有限額時才扣） ────────────────────────────────
+        if (quotaInfo && !quotaInfo.unlimited && created.length > 0) {
+          await deductListingQuotaBulk(input.merchantUserId, created.length);
+        }
+
         return { created: created.length, ids: created };
       }),
 
