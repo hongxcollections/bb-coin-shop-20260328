@@ -256,12 +256,9 @@ export default function Home() {
             className="w-full mb-3 flex items-center justify-between gap-2 group focus:outline-none"
             aria-expanded={auctionListOpen}
           >
-            <div className="flex items-baseline gap-2">
-              <h1 className="text-xl font-bold text-amber-900">{resolvedTitle}</h1>
-              <p className="text-sm text-muted-foreground">(共 {activeCount} 件拍品)</p>
-            </div>
-            <div className={`flex items-center gap-1 text-xs text-amber-500 font-medium transition-all border border-amber-200 rounded-full px-2.5 py-1 group-hover:bg-amber-50 ${auctionListOpen ? "" : "bg-amber-50"}`}>
-              <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${auctionListOpen ? "rotate-180" : "rotate-0"}`} />
+            <h1 className="text-xl font-bold text-amber-900">{resolvedTitle}</h1>
+            <div className={`ml-auto flex items-center gap-1 text-[10px] text-amber-500 font-medium transition-all border border-amber-200 rounded-full px-2.5 py-1 group-hover:bg-amber-50 ${auctionListOpen ? "" : "bg-amber-50"}`}>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${auctionListOpen ? "rotate-180" : "rotate-0"}`} />
               <span>{auctionListOpen ? "收起" : "展開"}</span>
             </div>
           </button>
