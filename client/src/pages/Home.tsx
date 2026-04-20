@@ -257,14 +257,25 @@ export default function Home() {
           <div className="flex items-center gap-3 mb-3">
             <h1
               className="text-xl font-bold"
-              style={{
-                background: "linear-gradient(135deg, #b45309 0%, #f59e0b 40%, #fcd34d 60%, #d97706 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-                filter: "drop-shadow(0 1px 3px rgba(180,83,9,0.35))",
-              }}
-            >{resolvedTitle}</h1>
+              style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.28))" }}
+            >
+              {(() => {
+                const spaceIdx = resolvedTitle.indexOf(' ');
+                const icon = spaceIdx > -1 ? resolvedTitle.slice(0, spaceIdx) : '';
+                const text = spaceIdx > -1 ? resolvedTitle.slice(spaceIdx + 1) : resolvedTitle;
+                return (
+                  <>
+                    <span>{icon} </span>
+                    <span style={{
+                      background: "linear-gradient(135deg, #b45309 0%, #f59e0b 40%, #fcd34d 60%, #d97706 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                    }}>{text}</span>
+                  </>
+                );
+              })()}
+            </h1>
             <button
               onClick={() => setAuctionListOpen(o => !o)}
               className={`flex items-center gap-1 text-[7px] text-amber-500 font-medium transition-all border border-amber-200 rounded-full px-2.5 py-1 hover:bg-amber-50 focus:outline-none ${auctionListOpen ? "" : "bg-amber-50"}`}
