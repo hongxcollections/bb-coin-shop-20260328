@@ -553,6 +553,93 @@ function DepositModifyPanel({ userId, currentBalance, onDone }: { userId: number
   );
 }
 
+/** 管理員清除商戶所有出售商品 */
+function ClearProductsPanel({ userId, userName }: { userId: number; userName: string }) {
+  const [open, setOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [result, setResult] = useState<{ deleted: number } | null>(null);
+  const utils = trpc.useUtils();
+
+  const clearMutation = trpc.merchants.adminClearMerchantProducts.useMutation({
+    onSuccess: (data) => {
+      setResult(data);
+      setConfirmText("");
+      toast.success(`已清除 ${userName} 的 ${data.deleted} 件出售商品`);
+      utils.merchants.listProducts.invalidate();
+      utils.merchants.listApprovedMerchants.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const isConfirmed = confirmText.trim() === userName.trim();
+
+  return (
+    <div className="mt-1.5">
+      <button
+        type="button"
+        onClick={() => { setOpen(!open); setConfirmText(""); setResult(null); }}
+        className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium transition-colors whitespace-nowrap"
+        style={{ background: open ? "#FEF3C7" : "#F5F5F5", color: open ? "#92400E" : "#666" }}
+      >
+        <Package size={10} />
+        清除所有出售商品
+        <ChevronDown size={11} style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }} />
+      </button>
+
+      {open && (
+        <div className="mt-1.5 rounded-xl p-3 space-y-2.5" style={{ background: "#FFFBEB", border: "1px solid #FCD34D" }}>
+          <div className="flex items-center gap-1.5">
+            <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: "#D97706" }}>
+              <Package size={11} className="text-white" />
+            </div>
+            <span className="text-xs font-semibold" style={{ color: "#92400E" }}>清除商戶所有出售商品</span>
+            <span className="text-xs text-gray-400 ml-auto">不可復原</span>
+          </div>
+
+          <div className="rounded-lg p-2.5 text-xs space-y-1" style={{ background: "#FEF3C7", border: "1px solid #FDE68A" }}>
+            <p className="font-semibold" style={{ color: "#92400E" }}>以下數據將永久刪除：</p>
+            <ul className="list-disc list-inside space-y-0.5 text-amber-800">
+              <li>此商戶在商戶市集上架的<strong>所有出售商品</strong></li>
+              <li>包括上架中、已下架及已售出的商品</li>
+            </ul>
+            <p className="text-amber-700 mt-1">拍賣相關數據不受影響。用戶帳號本身將保留。</p>
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-xs text-gray-600">輸入用戶名稱 <strong>「{userName}」</strong> 以確認：</p>
+            <input
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={userName}
+              className="w-full h-8 rounded-lg border px-2 text-xs focus:outline-none focus:ring-2"
+              style={{ borderColor: isConfirmed ? "#D97706" : "#D1D5DB" }}
+            />
+          </div>
+
+          <button
+            type="button"
+            disabled={!isConfirmed || clearMutation.isPending}
+            onClick={() => clearMutation.mutate({ merchantUserId: userId })}
+            className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-semibold text-white transition-opacity disabled:opacity-40"
+            style={{ background: "linear-gradient(135deg, #D97706, #B45309)" }}
+          >
+            {clearMutation.isPending
+              ? <><Loader2 size={12} className="animate-spin" />清除中…</>
+              : <><Trash2 size={12} />確認清除所有出售商品</>}
+          </button>
+
+          {result && (
+            <div className="rounded-lg p-2 text-xs text-center font-medium" style={{ background: "#D1FAE5", color: "#065F46" }}>
+              ✅ 已成功清除 {result.deleted} 件出售商品
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** 管理員清空商戶所有拍賣相關數據（保留帳號本身） */
 function PurgeMerchantDataPanel({ userId, userName, onDone }: { userId: number; userName: string; onDone: () => void }) {
   const [open, setOpen] = useState(false);
@@ -938,6 +1025,8 @@ export default function AdminUsers() {
             {u.depositId && <GenerateListingsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
             {u.depositId && <GenerateProductsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
             {u.depositId && <GenerateWonAuctionPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
+            {/* Clear all merchant marketplace products */}
+            {u.depositId && <ClearProductsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
             {/* Danger zone: purge all auction data for this merchant */}
             {u.depositId && <PurgeMerchantDataPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} onDone={refetch} />}
           </div>
