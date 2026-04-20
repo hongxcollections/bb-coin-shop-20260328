@@ -1496,7 +1496,7 @@ export default function AdminUsers() {
                   </div>
                   <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 space-y-0.5">
                     <p className="text-xs font-medium text-amber-800">系統將自動設定：</p>
-                    <p className="text-[11px] text-amber-700">• 隨機選擇保證金套餐（設定所需保證金及傭金率）</p>
+                    <p className="text-[11px] text-amber-700">• 隨機選擇保證金套餐（設定所需保證金及傭金率，初始餘額 = 套餐金額 ×2）</p>
                     <p className="text-[11px] text-amber-700">• 隨機選擇月費訂閱計劃（即時啟動，有效期 1 個月）</p>
                     <p className="text-[11px] text-amber-700">• 商戶狀態設為已開通</p>
                   </div>

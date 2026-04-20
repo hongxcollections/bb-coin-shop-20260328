@@ -1091,10 +1091,15 @@ export const appRouter = router({
             if (tiers.length > 0) {
               const tier = tiers[Math.floor(Math.random() * tiers.length)];
               const settings: { requiredDeposit?: number; commissionRate?: number } = {};
-              if (tier.amount) settings.requiredDeposit = parseFloat(String(tier.amount));
+              const tierAmount = tier.amount ? parseFloat(String(tier.amount)) : 0;
+              if (tierAmount > 0) settings.requiredDeposit = tierAmount;
               if (tier.commissionRate) settings.commissionRate = parseFloat(String(tier.commissionRate));
               await updateSellerDepositSettings(newUserId, settings);
-              console.log(`[adminCreateUser] Applied deposit tier "${tier.name}" to user ${newUserId}`);
+              // 初始保證金餘額 = 套餐所需金額 × 2
+              if (tierAmount > 0) {
+                await topUpDeposit(newUserId, tierAmount * 2, `管理員建立商戶，初始保證金（套餐金額 ×2）`, ctx.user.id);
+              }
+              console.log(`[adminCreateUser] Applied deposit tier "${tier.name}" to user ${newUserId}, initial balance = ${tierAmount * 2}`);
             }
           } catch (err) {
             console.error('[adminCreateUser] Failed to apply deposit tier:', err);
