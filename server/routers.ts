@@ -1056,7 +1056,7 @@ export const appRouter = router({
 
     // Admin: export deposit tier presets + subscription plans as JSON
     adminExportPackages: protectedProcedure
-      .query(async ({ ctx }) => {
+      .mutation(async ({ ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         return exportPackagesData();
       }),

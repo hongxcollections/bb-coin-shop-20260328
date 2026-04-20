@@ -65,24 +65,27 @@ export default function AdminSiteSettings() {
 
   // 套餐資料同步
   const [importLoading, setImportLoading] = useState(false);
-  const exportPackages = trpc.adminExportPackages.useQuery(undefined, { enabled: false });
+  const exportPackagesMut = trpc.adminExportPackages.useMutation();
   const importPackagesMut = trpc.adminImportPackages.useMutation({
     onSuccess: (r) => toast.success(`匯入成功！保證金套餐 ${r.tiersImported} 個，月費套餐 ${r.plansImported} 個`),
     onError: (e) => toast.error(e.message || "匯入失敗"),
   });
 
   async function handleExportPackages() {
-    const res = await exportPackages.refetch();
-    if (!res.data) { toast.error("匯出失敗"); return; }
-    const json = JSON.stringify(res.data, null, 2);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `bb-packages-${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("套餐設定已下載");
+    try {
+      const data = await exportPackagesMut.mutateAsync();
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `bb-packages-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("套餐設定已下載");
+    } catch (e: any) {
+      toast.error(e?.message || "匯出失敗");
+    }
   }
 
   async function handleImportPackages(e: React.ChangeEvent<HTMLInputElement>) {
@@ -559,10 +562,10 @@ export default function AdminSiteSettings() {
                   variant="outline"
                   className="border-blue-200 text-blue-700 hover:bg-blue-50"
                   onClick={handleExportPackages}
-                  disabled={exportPackages.isFetching}
+                  disabled={exportPackagesMut.isPending}
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  {exportPackages.isFetching ? "匯出中…" : "匯出套餐設定 JSON"}
+                  {exportPackagesMut.isPending ? "匯出中…" : "匯出套餐設定 JSON"}
                 </Button>
                 <label>
                   <Button
