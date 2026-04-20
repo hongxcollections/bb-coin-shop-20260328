@@ -389,32 +389,33 @@ export default function MerchantProducts() {
                   )}
                 </div>
                 {/* 公佈額度狀態 */}
-                <div className={`rounded-lg p-2.5 flex items-start gap-2 ${
-                  !depositCheck?.canList
-                    ? "bg-red-50 border border-red-200"
-                    : quotaInfo && !quotaInfo.unlimited && quotaInfo.remainingQuota <= 0
-                    ? "bg-red-50 border border-red-200"
-                    : "bg-green-50 border border-green-200"
-                }`}>
-                  <span className="text-base leading-none mt-0.5">
-                    {!depositCheck?.canList || (quotaInfo && !quotaInfo.unlimited && quotaInfo.remainingQuota <= 0) ? "⚠️" : "✅"}
-                  </span>
-                  <div className="text-xs space-y-0.5">
-                    {!depositCheck?.canList ? (
-                      <p className="text-red-700 font-medium">{depositCheck?.reason ?? "保證金不足，無法上架"}</p>
-                    ) : quotaInfo && !quotaInfo.unlimited && quotaInfo.remainingQuota <= 0 ? (
-                      <p className="text-red-700 font-medium">公佈額度已用盡，請先購買月費計劃</p>
-                    ) : quotaInfo ? (
-                      <p className="text-green-700">
-                        {quotaInfo.unlimited
-                          ? `公佈額度正常（無限制）（${quotaInfo.planName}）`
-                          : `公佈額度正常（剩餘 ${quotaInfo.remainingQuota} 次）`}
-                      </p>
-                    ) : (
-                      <p className="text-green-700">公佈額度正常</p>
-                    )}
-                  </div>
-                </div>
+                {(() => {
+                  const remaining = quotaInfo ? Number(quotaInfo.remainingQuota) : null;
+                  const quotaOk = !quotaInfo || quotaInfo.unlimited || (remaining !== null && remaining >= 1);
+                  const isError = !depositCheck?.canList || !quotaOk;
+                  return (
+                    <div className={`rounded-lg p-2.5 flex items-start gap-2 ${isError ? "bg-red-50 border border-red-200" : "bg-green-50 border border-green-200"}`}>
+                      <span className="text-base leading-none mt-0.5">{isError ? "⚠️" : "✅"}</span>
+                      <div className="text-xs space-y-0.5">
+                        {!depositCheck?.canList ? (
+                          <p className="text-red-700 font-medium">{depositCheck?.reason ?? "保證金不足，無法上架"}</p>
+                        ) : !quotaOk ? (
+                          <p className="text-red-700 font-medium">
+                            公佈額度不足（剩餘 {Math.max(0, remaining ?? 0)} 次），請先購買月費計劃
+                          </p>
+                        ) : quotaInfo ? (
+                          <p className="text-green-700">
+                            {quotaInfo.unlimited
+                              ? `公佈額度正常（無限制）`
+                              : `公佈額度正常（剩餘 ${Math.max(0, remaining ?? 0)} 次）`}
+                          </p>
+                        ) : (
+                          <p className="text-green-700">公佈額度正常</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
                 <p className="text-xs text-gray-400">確認後商品將立即公開顯示於商戶市集，並扣減 1 次公佈額度。</p>
               </div>
             </AlertDialogDescription>
@@ -423,7 +424,7 @@ export default function MerchantProducts() {
             <AlertDialogCancel disabled={saving}>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => { e.preventDefault(); doSubmit(); }}
-              disabled={saving || !depositCheck?.canList || (!!quotaInfo && !quotaInfo.unlimited && quotaInfo.remainingQuota <= 0)}
+              disabled={saving || !depositCheck?.canList || (!!quotaInfo && !quotaInfo.unlimited && Number(quotaInfo.remainingQuota) < 1)}
               className="bg-green-600 hover:bg-green-700 text-white"
             >
               {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />上架中…</> : "確認上架"}
