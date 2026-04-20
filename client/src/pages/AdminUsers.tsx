@@ -936,9 +936,7 @@ export default function AdminUsers() {
       <div className="divide-y divide-amber-50">
         {list.map((u) => (
           <div key={u.id} className="px-4 py-3 hover:bg-amber-50/40 transition-colors">
-            <div className="flex items-start justify-between gap-2">
-              {/* Avatar + info */}
-              <div className="flex items-start gap-3 min-w-0 flex-1">
+            <div className="flex items-start gap-3 min-w-0">
                 <div className="w-10 h-10 gold-gradient rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0 mt-0.5">
                   {u.depositId
                     ? <Store className="w-4 h-4" />
@@ -1020,44 +1018,43 @@ export default function AdminUsers() {
                         {expandedMerchantOrdersId === u.id && <MerchantOrdersList merchantUserId={u.id} />}
                       </>
                     )}
+
+                    {/* Action buttons — inside info column so they never crowd the name */}
+                    {u.role !== "admin" && (
+                      <div className="flex gap-1.5 mt-2 flex-wrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-2.5 border-amber-200 text-amber-700 hover:bg-amber-50"
+                          onClick={() => openEdit(u)}
+                        >
+                          <Pencil className="w-3.5 h-3.5 mr-1" />
+                          修改
+                        </Button>
+                        {u.depositId && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-2.5 border-orange-200 text-orange-600 hover:bg-orange-50"
+                            onClick={() => setRevokeTarget({ id: u.id, name: u.name ?? "此商戶" })}
+                          >
+                            <Store className="w-3.5 h-3.5 mr-1" />
+                            撤銷商戶
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-2.5 border-red-200 text-red-600 hover:bg-red-50"
+                          onClick={() => setDeleteTarget({ id: u.id, name: u.name ?? "此用戶" })}
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mr-1" />
+                          拆除
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-
-              {/* Action buttons */}
-              {u.role !== "admin" && (
-                <div className="flex gap-1.5 flex-shrink-0 mt-1 flex-wrap justify-end">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 px-2.5 border-amber-200 text-amber-700 hover:bg-amber-50"
-                    onClick={() => openEdit(u)}
-                  >
-                    <Pencil className="w-3.5 h-3.5 mr-1" />
-                    修改
-                  </Button>
-                  {u.depositId && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 px-2.5 border-orange-200 text-orange-600 hover:bg-orange-50"
-                      onClick={() => setRevokeTarget({ id: u.id, name: u.name ?? "此商戶" })}
-                    >
-                      <Store className="w-3.5 h-3.5 mr-1" />
-                      撤銷商戶
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 px-2.5 border-red-200 text-red-600 hover:bg-red-50"
-                    onClick={() => setDeleteTarget({ id: u.id, name: u.name ?? "此用戶" })}
-                  >
-                    <Trash2 className="w-3.5 h-3.5 mr-1" />
-                    拆除
-                  </Button>
-                </div>
-              )}
             </div>
             {/* Deposit modify — merchants only */}
             {u.depositId && <DepositModifyPanel userId={u.id} currentBalance={u.depositBalance ?? "0"} onDone={refetch} />}
