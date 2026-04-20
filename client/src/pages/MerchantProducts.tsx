@@ -112,13 +112,14 @@ export default function MerchantProducts() {
     if (!file) return;
     setUploading(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(",")[1];
-        const { url } = await uploadImage.mutateAsync({ imageData: base64, fileName: file.name, mimeType: file.type });
-        setForm(f => ({ ...f, images: [...f.images, url] }));
-      };
-      reader.readAsDataURL(file);
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = () => reject(new Error("讀取圖片失敗"));
+        reader.readAsDataURL(file);
+      });
+      const { url } = await uploadImage.mutateAsync({ imageData: base64, fileName: file.name, mimeType: file.type });
+      setForm(f => ({ ...f, images: [...f.images, url] }));
     } catch (err: any) {
       toast.error(err.message ?? "上傳失敗");
     } finally {

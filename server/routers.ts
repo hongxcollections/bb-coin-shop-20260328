@@ -1640,9 +1640,10 @@ export const appRouter = router({
         mimeType: z.string().default('image/jpeg'),
       }))
       .mutation(async ({ input, ctx }) => {
-        const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
-        if (!allowedMimes.includes(input.mimeType)) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: '不支援此圖片格式' });
+        const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif', 'image/bmp'];
+        const mimeToUse = (input.mimeType || 'image/jpeg').toLowerCase();
+        if (!allowedMimes.includes(mimeToUse)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `不支援此圖片格式（${mimeToUse}），請使用 JPG、PNG 或 WebP` });
         }
         const buffer = Buffer.from(input.imageData, 'base64');
         if (buffer.length > 8 * 1024 * 1024) {
@@ -2534,16 +2535,17 @@ export const appRouter = router({
         if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
         }
-        const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
-        if (!allowedMimes.includes(input.mimeType)) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: '不支援此圖片格式' });
+        const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif', 'image/bmp'];
+        const mimeToUse = (input.mimeType || 'image/jpeg').toLowerCase();
+        if (!allowedMimes.includes(mimeToUse)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `不支援此圖片格式（${mimeToUse}），請使用 JPG、PNG 或 WebP` });
         }
         const buffer = Buffer.from(input.imageData, 'base64');
         if (buffer.length > 8 * 1024 * 1024) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '圖片不可超過 8MB' });
         }
         const fileKey = `merchant-products/${ctx.user.id}/${Date.now()}-${input.fileName}`;
-        const { url } = await storagePut(fileKey, buffer, input.mimeType);
+        const { url } = await storagePut(fileKey, buffer, mimeToUse);
         return { url };
       }),
   }),
