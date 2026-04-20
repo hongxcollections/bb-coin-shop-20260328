@@ -70,6 +70,9 @@ type TxType = {
   description?: string | null;
   relatedAuctionId?: number | null;
   createdAt?: Date | string | null;
+  auctionTitle?: string | null;
+  auctionCurrentPrice?: string | number | null;
+  auctionWinnerName?: string | null;
 };
 
 const TX_LABEL: Record<string, string> = {
@@ -83,13 +86,25 @@ function TxRow({ tx, showBalance }: { tx: TxType; showBalance?: boolean }) {
   const amt = parseFloat(String(tx.amount));
   const isIn = amt > 0;
   const bal = tx.balanceAfter != null ? parseFloat(String(tx.balanceAfter)) : null;
-  return (
-    <div className="flex items-center gap-3 py-2 border-b last:border-0">
-      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${isIn ? "bg-emerald-50" : "bg-red-50"}`}>
+  const hasAuction = !!tx.relatedAuctionId && !!tx.auctionTitle;
+  const winPrice = tx.auctionCurrentPrice != null ? parseFloat(String(tx.auctionCurrentPrice)) : null;
+
+  const inner = (
+    <div className={`flex items-start gap-3 py-2.5 border-b last:border-0 ${hasAuction ? "cursor-pointer hover:bg-amber-50/60 rounded-lg px-1 -mx-1 transition-colors" : ""}`}>
+      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${isIn ? "bg-emerald-50" : "bg-red-50"}`}>
         {isIn ? <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600" /> : <ArrowUpRight className="w-3.5 h-3.5 text-red-500" />}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium text-gray-800 truncate">{tx.description ?? TX_LABEL[tx.type] ?? tx.type}</p>
+        {hasAuction && (
+          <div className="mt-0.5 space-y-0.5">
+            <p className="text-xs text-amber-700 font-medium truncate">📦 {tx.auctionTitle}</p>
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              {tx.auctionWinnerName && <span>中標：<span className="text-gray-700 font-medium">{tx.auctionWinnerName}</span></span>}
+              {winPrice != null && <span>中標價：<span className="text-gray-700 font-medium">{HKD(winPrice)}</span></span>}
+            </div>
+          </div>
+        )}
         {tx.createdAt && (
           <p className="text-xs text-gray-400 mt-0.5">
             {new Date(tx.createdAt).toLocaleString("zh-HK", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
@@ -106,6 +121,10 @@ function TxRow({ tx, showBalance }: { tx: TxType; showBalance?: boolean }) {
       </div>
     </div>
   );
+
+  return hasAuction ? (
+    <Link href={`/auction/${tx.relatedAuctionId}`}>{inner}</Link>
+  ) : inner;
 }
 
 function printTxReport(
@@ -128,10 +147,14 @@ function printTxReport(
     const amt = parseFloat(String(tx.amount));
     const bal = tx.balanceAfter != null ? parseFloat(String(tx.balanceAfter)) : null;
     const date = tx.createdAt ? new Date(tx.createdAt).toLocaleString("zh-HK", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
+    const winPrice = tx.auctionCurrentPrice != null ? parseFloat(String(tx.auctionCurrentPrice)) : null;
     return `<tr>
       <td>${date}</td>
       <td>${TX_LABEL[tx.type] ?? tx.type}</td>
       <td>${tx.description ?? "—"}</td>
+      <td>${tx.auctionTitle ?? "—"}</td>
+      <td>${tx.auctionWinnerName ?? "—"}</td>
+      <td style="text-align:right">${winPrice != null ? "HK$" + winPrice.toLocaleString() : "—"}</td>
       <td style="text-align:right;color:${amt >= 0 ? "#059669" : "#dc2626"};font-weight:600">${amt >= 0 ? "+" : ""}HK$${Math.abs(amt).toLocaleString()}</td>
       <td style="text-align:right">${bal != null ? "HK$" + bal.toLocaleString() : "—"}</td>
     </tr>`;
@@ -178,7 +201,7 @@ function printTxReport(
   </table>
   <h2>逐筆記錄</h2>
   <table>
-    <tr><th>日期時間</th><th>類型</th><th>描述</th><th style="text-align:right">金額</th><th style="text-align:right">結餘後</th></tr>
+    <tr><th>日期時間</th><th>類型</th><th>描述</th><th>商品名稱</th><th>中標會員</th><th style="text-align:right">中標金額</th><th style="text-align:right">金額</th><th style="text-align:right">結餘後</th></tr>
     ${rows}
   </table>
   </body></html>`;

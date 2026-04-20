@@ -1682,8 +1682,13 @@ export async function getDepositTransactions(
         description: depositTransactions.description,
         relatedAuctionId: depositTransactions.relatedAuctionId,
         createdAt: depositTransactions.createdAt,
+        auctionTitle: auctions.title,
+        auctionCurrentPrice: auctions.currentPrice,
+        auctionWinnerName: users.name,
       })
       .from(depositTransactions)
+      .leftJoin(auctions, eq(depositTransactions.relatedAuctionId, auctions.id))
+      .leftJoin(users, eq(auctions.highestBidderId, users.id))
       .where(and(...conditions))
       .orderBy(desc(depositTransactions.createdAt))
       .limit(limit)
