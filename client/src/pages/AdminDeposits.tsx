@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Wallet, Plus, Minus, RefreshCw, Settings, History, DollarSign, AlertCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp, ImageIcon } from "lucide-react";
+import { ArrowLeft, Wallet, Plus, Minus, RefreshCw, Settings, History, DollarSign, AlertCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp, ImageIcon, Layers, Pencil, Trash2 } from "lucide-react";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   bank_transfer: "銀行轉帳",
@@ -121,6 +121,77 @@ export default function AdminDeposits() {
 
   const [showTopUpRequests, setShowTopUpRequests] = useState(true);
   const [reviewNotes, setReviewNotes] = useState<Record<number, string>>({});
+
+  // ── Tier preset state ──
+  const [showTiers, setShowTiers] = useState(true);
+  const [tierDialogOpen, setTierDialogOpen] = useState(false);
+  const [editingTierId, setEditingTierId] = useState<number | null>(null);
+  const [tierName, setTierName] = useState("");
+  const [tierAmount, setTierAmount] = useState("");
+  const [tierMaintenancePct, setTierMaintenancePct] = useState("80");
+  const [tierWarningPct, setTierWarningPct] = useState("60");
+  const [tierDescription, setTierDescription] = useState("");
+  const [tierIsActive, setTierIsActive] = useState(true);
+  const [tierSortOrder, setTierSortOrder] = useState("0");
+
+  // ── Tier queries & mutations ──
+  const { data: tiers, refetch: refetchTiers } = trpc.depositTiers.listAll.useQuery(
+    undefined,
+    { enabled: isAuthenticated && user?.role === "admin" }
+  );
+
+  const upsertTierMutation = trpc.depositTiers.upsert.useMutation({
+    onSuccess: () => {
+      toast.success(editingTierId ? "套餐已更新" : "套餐已新增");
+      refetchTiers();
+      setTierDialogOpen(false);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteTierMutation = trpc.depositTiers.delete.useMutation({
+    onSuccess: () => { toast.success("套餐已刪除"); refetchTiers(); },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const openNewTier = () => {
+    setEditingTierId(null);
+    setTierName(""); setTierAmount(""); setTierMaintenancePct("80");
+    setTierWarningPct("60"); setTierDescription(""); setTierIsActive(true); setTierSortOrder("0");
+    setTierDialogOpen(true);
+  };
+
+  const openEditTier = (t: { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; description: string | null; isActive: number; sortOrder: number }) => {
+    setEditingTierId(t.id);
+    setTierName(t.name);
+    setTierAmount(parseFloat(t.amount).toString());
+    setTierMaintenancePct(parseFloat(t.maintenancePct).toString());
+    setTierWarningPct(parseFloat(t.warningPct).toString());
+    setTierDescription(t.description ?? "");
+    setTierIsActive(t.isActive === 1);
+    setTierSortOrder(t.sortOrder.toString());
+    setTierDialogOpen(true);
+  };
+
+  const saveTier = () => {
+    const amount = parseFloat(tierAmount);
+    const maintenancePct = parseFloat(tierMaintenancePct);
+    const warningPct = parseFloat(tierWarningPct);
+    if (!tierName.trim()) { toast.error("請輸入套餐名稱"); return; }
+    if (!amount || amount <= 0) { toast.error("請輸入有效金額"); return; }
+    if (isNaN(maintenancePct) || maintenancePct < 0 || maintenancePct > 100) { toast.error("維持水平需在 0–100%"); return; }
+    if (isNaN(warningPct) || warningPct < 0 || warningPct > 100) { toast.error("預警百分比需在 0–100%"); return; }
+    upsertTierMutation.mutate({
+      id: editingTierId ?? undefined,
+      name: tierName.trim(),
+      amount,
+      maintenancePct,
+      warningPct,
+      description: tierDescription.trim() || null,
+      isActive: tierIsActive ? 1 : 0,
+      sortOrder: parseInt(tierSortOrder) || 0,
+    });
+  };
 
   const { data: topUpRequests, refetch: refetchTopUpRequests } = trpc.sellerDeposits.allTopUpRequests.useQuery(
     undefined,
@@ -355,6 +426,121 @@ export default function AdminDeposits() {
             </div>
           </CardContent>
         </Card>
+
+        {/* ── 保證金套餐設定 ── */}
+        <Card className="mb-6 border-violet-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-base">
+              <span className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-violet-600" />
+                保證金套餐設定
+              </span>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" className="h-7 px-2 text-xs border-violet-200 text-violet-700 hover:bg-violet-50" onClick={openNewTier}>
+                  <Plus className="w-3 h-3 mr-1" /> 新增套餐
+                </Button>
+                <button type="button" onClick={() => setShowTiers(v => !v)} className="text-gray-400 hover:text-gray-600">
+                  {showTiers ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+              </div>
+            </CardTitle>
+            <CardDescription className="text-xs">設定不同保證金金額、維持水平及預警百分比，商戶充值時可選擇套餐</CardDescription>
+          </CardHeader>
+          {showTiers && (
+            <CardContent>
+              {(!tiers || tiers.length === 0) ? (
+                <p className="text-sm text-muted-foreground text-center py-6">尚未設定任何套餐，點擊「新增套餐」開始</p>
+              ) : (
+                <div className="space-y-2">
+                  {(tiers as { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; description: string | null; isActive: number; sortOrder: number }[]).map(tier => {
+                    const amt = parseFloat(tier.amount);
+                    const mPct = parseFloat(tier.maintenancePct);
+                    const wPct = parseFloat(tier.warningPct);
+                    return (
+                      <div key={tier.id} className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3 border ${tier.isActive === 1 ? "bg-violet-50 border-violet-200" : "bg-gray-50 border-gray-200 opacity-60"}`}>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-sm text-violet-900">{tier.name}</span>
+                            <span className="font-bold text-amber-700 text-sm">HK${amt.toLocaleString()}</span>
+                            {tier.isActive !== 1 && <span className="text-xs text-gray-400 border rounded-full px-2 py-0.5 bg-white">停用</span>}
+                          </div>
+                          <div className="flex gap-3 mt-0.5 text-xs text-gray-500">
+                            <span>維持水平：<strong className="text-emerald-700">{mPct}%</strong>（≥ HK${(amt * mPct / 100).toLocaleString()}）</span>
+                            <span>預警：<strong className="text-amber-600">{wPct}%</strong>（≤ HK${(amt * wPct / 100).toLocaleString()}）</span>
+                          </div>
+                          {tier.description && <p className="text-xs text-gray-400 mt-0.5">{tier.description}</p>}
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-gray-400 hover:text-violet-600" onClick={() => openEditTier(tier)}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-gray-400 hover:text-red-500"
+                            onClick={() => { if (confirm(`確定刪除套餐「${tier.name}」？`)) deleteTierMutation.mutate({ id: tier.id }); }}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          )}
+        </Card>
+
+        {/* Tier Upsert Dialog */}
+        <Dialog open={tierDialogOpen} onOpenChange={setTierDialogOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>{editingTierId ? "編輯套餐" : "新增套餐"}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 pt-2">
+              <div className="space-y-1">
+                <Label className="text-xs">套餐名稱 *</Label>
+                <Input value={tierName} onChange={e => setTierName(e.target.value)} placeholder="例如：基礎套餐" className="border-violet-200" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">保證金金額 (HKD) *</Label>
+                <Input type="number" min="1" value={tierAmount} onChange={e => setTierAmount(e.target.value)} placeholder="例如：5000" className="border-violet-200" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">維持水平 % *</Label>
+                  <Input type="number" min="0" max="100" value={tierMaintenancePct} onChange={e => setTierMaintenancePct(e.target.value)} placeholder="80" className="border-violet-200" />
+                  <p className="text-xs text-gray-400">餘額低於此%即不能上架</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">預警 % *</Label>
+                  <Input type="number" min="0" max="100" value={tierWarningPct} onChange={e => setTierWarningPct(e.target.value)} placeholder="60" className="border-violet-200" />
+                  <p className="text-xs text-gray-400">餘額低於此%顯示警告</p>
+                </div>
+              </div>
+              {tierAmount && tierMaintenancePct && tierWarningPct && (
+                <div className="rounded-lg bg-violet-50 border border-violet-100 px-3 py-2 text-xs text-violet-700 space-y-0.5">
+                  <p>維持水平門檻：HK${(parseFloat(tierAmount || "0") * parseFloat(tierMaintenancePct || "0") / 100).toLocaleString(undefined, { minimumFractionDigits: 0 })}</p>
+                  <p>預警門檻：HK${(parseFloat(tierAmount || "0") * parseFloat(tierWarningPct || "0") / 100).toLocaleString(undefined, { minimumFractionDigits: 0 })}</p>
+                </div>
+              )}
+              <div className="space-y-1">
+                <Label className="text-xs">描述（選填）</Label>
+                <Input value={tierDescription} onChange={e => setTierDescription(e.target.value)} placeholder="套餐說明" className="border-violet-200" />
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="space-y-1 flex-1">
+                  <Label className="text-xs">排序</Label>
+                  <Input type="number" value={tierSortOrder} onChange={e => setTierSortOrder(e.target.value)} className="border-violet-200" />
+                </div>
+                <div className="space-y-1 flex items-center gap-2 pt-5">
+                  <Switch checked={tierIsActive} onCheckedChange={setTierIsActive} />
+                  <Label className="text-xs">{tierIsActive ? "啟用" : "停用"}</Label>
+                </div>
+              </div>
+              <Button onClick={saveTier} disabled={upsertTierMutation.isPending} className="w-full bg-violet-600 hover:bg-violet-700 text-white">
+                {upsertTierMutation.isPending ? "儲存中…" : "儲存套餐"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* ── 商戶保證金充值申請 ── */}
         {(() => {

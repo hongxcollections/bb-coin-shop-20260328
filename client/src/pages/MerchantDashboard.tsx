@@ -235,6 +235,7 @@ export default function MerchantDashboard() {
   const [topUpNote, setTopUpNote] = useState("");
   const [topUpReceiptUrl, setTopUpReceiptUrl] = useState("");
   const [topUpReceiptUploading, setTopUpReceiptUploading] = useState(false);
+  const [selectedTierId, setSelectedTierId] = useState<number | null>(null);
 
   const { data: myApp, isLoading: loadingApp } = trpc.merchants.myApplication.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -242,6 +243,7 @@ export default function MerchantDashboard() {
   const { data: deposit, isLoading: loadingDeposit } = trpc.sellerDeposits.myDeposit.useQuery(undefined, {
     enabled: isAuthenticated,
   });
+  const { data: activeTiers } = trpc.depositTiers.listActive.useQuery(undefined, { enabled: isAuthenticated });
   const { data: myTopUpRequests, refetch: refetchTopUpRequests } = trpc.sellerDeposits.myTopUpRequests.useQuery(undefined, {
     enabled: isAuthenticated,
   });
@@ -250,7 +252,7 @@ export default function MerchantDashboard() {
     onSuccess: () => {
       toast.success("充值申請已提交，管理員確認後將更新餘額");
       setShowTopUpForm(false);
-      setTopUpAmount(""); setTopUpPaymentMethod(""); setTopUpRef(""); setTopUpNote(""); setTopUpReceiptUrl("");
+      setTopUpAmount(""); setTopUpPaymentMethod(""); setTopUpRef(""); setTopUpNote(""); setTopUpReceiptUrl(""); setSelectedTierId(null);
       refetchTopUpRequests();
     },
     onError: (err) => toast.error(err.message),
@@ -549,9 +551,57 @@ export default function MerchantDashboard() {
                     <div className="text-xs text-blue-700 whitespace-pre-line leading-relaxed">{depositPaymentInfo}</div>
                   </div>
                 )}
+
+                {/* ── 套餐選擇 ── */}
+                {activeTiers && activeTiers.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-amber-900">選擇套餐（選填）</Label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {(activeTiers as { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; description: string | null }[]).map(tier => {
+                        const amt = parseFloat(tier.amount);
+                        const mPct = parseFloat(tier.maintenancePct);
+                        const wPct = parseFloat(tier.warningPct);
+                        const isSelected = selectedTierId === tier.id;
+                        return (
+                          <button
+                            key={tier.id}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedTierId(null);
+                                setTopUpAmount("");
+                              } else {
+                                setSelectedTierId(tier.id);
+                                setTopUpAmount(amt.toString());
+                              }
+                            }}
+                            className={`w-full text-left rounded-xl border px-3 py-2.5 transition-all ${isSelected ? "border-amber-500 bg-amber-100 ring-1 ring-amber-400" : "border-amber-200 bg-white hover:border-amber-400 hover:bg-amber-50"}`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold text-amber-900">{tier.name}</span>
+                                  <span className="text-sm font-bold text-amber-700">HK${amt.toLocaleString()}</span>
+                                </div>
+                                <div className="flex gap-3 mt-0.5 text-xs text-gray-500">
+                                  <span>維持水平 <strong className="text-emerald-700">{mPct}%</strong>（≥ HK${(amt * mPct / 100).toLocaleString()}）</span>
+                                  <span>預警 <strong className="text-amber-600">{wPct}%</strong>（≤ HK${(amt * wPct / 100).toLocaleString()}）</span>
+                                </div>
+                                {tier.description && <p className="text-xs text-gray-400 mt-0.5">{tier.description}</p>}
+                              </div>
+                              {isSelected && <div className="w-4 h-4 rounded-full bg-amber-500 flex-shrink-0 flex items-center justify-center"><div className="w-2 h-2 rounded-full bg-white" /></div>}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-gray-400">選擇套餐後金額自動填入，亦可自行輸入其他金額</p>
+                  </div>
+                )}
+
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-amber-900">充值金額 (HKD) *</Label>
-                  <Input type="number" min="1" step="1" value={topUpAmount} onChange={e => setTopUpAmount(e.target.value)} placeholder="例如：500" className="border-amber-200 focus-visible:ring-amber-400 bg-white" />
+                  <Input type="number" min="1" step="1" value={topUpAmount} onChange={e => { setTopUpAmount(e.target.value); setSelectedTierId(null); }} placeholder="例如：500" className="border-amber-200 focus-visible:ring-amber-400 bg-white" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-amber-900">付款方式 *</Label>
@@ -591,7 +641,9 @@ export default function MerchantDashboard() {
                     const amount = parseFloat(topUpAmount);
                     if (isNaN(amount) || amount <= 0) return toast.error("請輸入有效金額");
                     if (!topUpPaymentMethod) return toast.error("請選擇付款方式");
-                    submitTopUp.mutate({ amount, referenceNo: topUpRef || undefined, bank: topUpPaymentMethod, note: topUpNote || undefined, receiptUrl: topUpReceiptUrl || undefined });
+                    const selectedTierName = selectedTierId ? (activeTiers as { id: number; name: string }[] | undefined)?.find(t => t.id === selectedTierId)?.name : null;
+                    const noteWithTier = [selectedTierName ? `套餐：${selectedTierName}` : null, topUpNote || null].filter(Boolean).join("｜") || undefined;
+                    submitTopUp.mutate({ amount, referenceNo: topUpRef || undefined, bank: topUpPaymentMethod, note: noteWithTier, receiptUrl: topUpReceiptUrl || undefined });
                   }}
                   className="w-full flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-opacity"
                   style={{ background: "linear-gradient(135deg, #d97706, #b45309)" }}

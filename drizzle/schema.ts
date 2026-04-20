@@ -343,6 +343,24 @@ export const depositTopUpRequests = mysqlTable("depositTopUpRequests", {
 export type DepositTopUpRequest = typeof depositTopUpRequests.$inferSelect;
 export type InsertDepositTopUpRequest = typeof depositTopUpRequests.$inferInsert;
 
+// ─── Deposit Tier Presets (保證金套餐) ────────────────────────────────────────
+// Admin-defined top-up tiers merchants can choose when submitting a top-up request
+export const depositTierPresets = mysqlTable("depositTierPresets", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(), // e.g. "基礎套餐"
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(), // top-up / required deposit amount
+  maintenancePct: decimal("maintenancePct", { precision: 5, scale: 2 }).default("80.00").notNull(), // 維持水平 %
+  warningPct: decimal("warningPct", { precision: 5, scale: 2 }).default("60.00").notNull(), // 預警 %
+  description: text("description"),
+  isActive: int("isActive").default(1).notNull(),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DepositTierPreset = typeof depositTierPresets.$inferSelect;
+export type InsertDepositTierPreset = typeof depositTierPresets.$inferInsert;
+
 // ─── Merchant Applications ────────────────────────────────────────────────────
 export const merchantApplications = mysqlTable("merchantApplications", {
   id: int("id").autoincrement().primaryKey(),

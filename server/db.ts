@@ -1,7 +1,7 @@
 import { eq, desc, asc, and, gte, lte, gt, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1438,6 +1438,20 @@ async function ensureDepositTables() {
         relatedAuctionId INT,
         createdBy INT,
         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS depositTierPresets (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        amount DECIMAL(12,2) NOT NULL,
+        maintenancePct DECIMAL(5,2) NOT NULL DEFAULT 80.00,
+        warningPct DECIMAL(5,2) NOT NULL DEFAULT 60.00,
+        description TEXT,
+        isActive INT NOT NULL DEFAULT 1,
+        sortOrder INT NOT NULL DEFAULT 0,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
     `);
     _depositTablesChecked = true;
@@ -2980,4 +2994,61 @@ export async function reviewDepositTopUpRequest(
     const amount = parseFloat(req.amount.toString());
     await topUpDeposit(req.userId, amount, `商戶自助申請充值 (參考號: ${req.referenceNo})`, adminId);
   }
+}
+
+// ─── Deposit Tier Presets ─────────────────────────────────────────────────────
+
+export async function listDepositTierPresets(onlyActive = false) {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const rows = await db
+      .select()
+      .from(depositTierPresets)
+      .where(onlyActive ? eq(depositTierPresets.isActive, 1) : undefined)
+      .orderBy(asc(depositTierPresets.sortOrder), asc(depositTierPresets.id));
+    return rows;
+  } catch (error) {
+    console.error('[Database] Failed to list deposit tier presets:', error);
+    return [];
+  }
+}
+
+export async function upsertDepositTierPreset(data: {
+  id?: number;
+  name: string;
+  amount: number;
+  maintenancePct: number;
+  warningPct: number;
+  description?: string | null;
+  isActive?: number;
+  sortOrder?: number;
+}) {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const payload = {
+    name: data.name,
+    amount: data.amount.toFixed(2),
+    maintenancePct: data.maintenancePct.toFixed(2),
+    warningPct: data.warningPct.toFixed(2),
+    description: data.description ?? null,
+    isActive: data.isActive ?? 1,
+    sortOrder: data.sortOrder ?? 0,
+  };
+  if (data.id) {
+    await db.update(depositTierPresets).set(payload).where(eq(depositTierPresets.id, data.id));
+    return data.id;
+  } else {
+    const [result] = await db.insert(depositTierPresets).values(payload);
+    return (result as any).insertId as number;
+  }
+}
+
+export async function deleteDepositTierPreset(id: number) {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  await db.delete(depositTierPresets).where(eq(depositTierPresets.id, id));
 }
