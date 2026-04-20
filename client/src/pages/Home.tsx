@@ -258,11 +258,11 @@ export default function Home() {
             <h1 className="text-xl font-bold text-amber-900">{resolvedTitle}</h1>
             <button
               onClick={() => setAuctionListOpen(o => !o)}
-              className={`flex items-center gap-1 text-[10px] text-amber-500 font-medium transition-all border border-amber-200 rounded-full px-2.5 py-1 hover:bg-amber-50 focus:outline-none ${auctionListOpen ? "" : "bg-amber-50"}`}
-              style={{ marginBottom: "5px" }}
+              className={`flex items-center gap-1 text-[5px] text-amber-500 font-medium transition-all border border-amber-200 rounded-full px-2.5 py-1 hover:bg-amber-50 focus:outline-none ${auctionListOpen ? "" : "bg-amber-50"}`}
+              style={{ marginBottom: "0px" }}
               aria-expanded={auctionListOpen}
             >
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${auctionListOpen ? "rotate-180" : "rotate-0"}`} />
+              <ChevronDown className={`w-2 h-2 transition-transform duration-300 ${auctionListOpen ? "rotate-180" : "rotate-0"}`} />
               <span>{auctionListOpen ? "收起" : "展開"}</span>
             </button>
           </div>
