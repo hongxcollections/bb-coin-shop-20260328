@@ -5,58 +5,156 @@ import { Store, MessageCircle, Package, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const CATEGORIES = ["全部", "古幣", "紀念幣", "外幣", "銀幣", "金幣", "其他"];
+type LayoutMode = "list" | "grid2" | "grid3" | "big";
 
-function ProductCard({ product }: { product: any }) {
-  const images: string[] = (() => {
-    try { return product.images ? JSON.parse(product.images) : []; } catch { return []; }
-  })();
-  const price = parseFloat(product.price ?? "0");
-  const currency = product.currency ?? "HKD";
-
-  const whatsappLink = product.whatsapp
-    ? `https://wa.me/${product.whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`你好，我想查詢商品：${product.title}`)}`
-    : null;
-
+function WhatsAppBtn({ whatsapp, title }: { whatsapp: string; title: string }) {
+  const link = `https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`你好，我想查詢商品：${title}`)}`;
   return (
-    <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col">
-      {images.length > 0 ? (
-        <div className="aspect-square w-full overflow-hidden bg-amber-50">
-          <img src={images[0]} alt={product.title} className="w-full h-full object-cover" />
-        </div>
-      ) : (
-        <div className="aspect-square w-full bg-amber-50 flex items-center justify-center">
-          <Package className="w-12 h-12 text-amber-200" />
-        </div>
-      )}
-      <div className="p-3 flex flex-col gap-1 flex-1">
-        <div className="flex items-start justify-between gap-1">
-          <h3 className="text-sm font-semibold text-gray-800 leading-snug line-clamp-2 flex-1">{product.title}</h3>
-          {product.category && (
-            <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">{product.category}</span>
-          )}
-        </div>
-        {product.description && (
-          <p className="text-xs text-gray-500 line-clamp-2">{product.description}</p>
-        )}
-        <div className="mt-auto pt-2 flex items-center justify-between gap-2">
-          <span className="font-bold text-amber-600 text-base">
-            {currency} ${price.toLocaleString()}
-          </span>
-          {product.stock <= 0 ? (
-            <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>
-          ) : whatsappLink ? (
-            <a
-              href={whatsappLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs bg-green-500 hover:bg-green-600 text-white px-2.5 py-1.5 rounded-full transition-colors"
-            >
-              <MessageCircle className="w-3 h-3" />
-              WhatsApp
-            </a>
-          ) : null}
-        </div>
+    <a href={link} target="_blank" rel="noopener noreferrer"
+      className="flex items-center gap-1 text-xs bg-green-500 hover:bg-green-600 text-white px-2.5 py-1.5 rounded-full transition-colors shrink-0">
+      <MessageCircle className="w-3 h-3" />WhatsApp
+    </a>
+  );
+}
+
+function ProductsGrid({ products, layout, whatsapp }: { products: any[]; layout: LayoutMode; whatsapp: string }) {
+  if (layout === "list") {
+    return (
+      <div className="space-y-2">
+        {products.map((p: any) => {
+          const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
+          const price = parseFloat(p.price ?? "0");
+          return (
+            <div key={p.id} className="bg-white rounded-xl border border-amber-100 shadow-sm p-3 flex gap-3 items-start">
+              {imgs[0] ? (
+                <img src={imgs[0]} alt={p.title} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-16 h-16 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+                  <Package className="w-6 h-6 text-amber-200" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-gray-800 line-clamp-1">{p.title}</h3>
+                {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{p.category}</span>}
+                {p.description && <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{p.description}</p>}
+                <div className="flex items-center justify-between mt-1.5">
+                  <span className="font-bold text-amber-600 text-sm">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
+                  {p.stock > 0 && whatsapp ? <WhatsAppBtn whatsapp={whatsapp} title={p.title} /> : p.stock <= 0 ? <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span> : null}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
+    );
+  }
+
+  if (layout === "big") {
+    return (
+      <div className="space-y-4">
+        {products.map((p: any) => {
+          const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
+          const price = parseFloat(p.price ?? "0");
+          return (
+            <div key={p.id} className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden">
+              {imgs[0] ? (
+                <img src={imgs[0]} alt={p.title} className="w-full h-56 object-cover" />
+              ) : (
+                <div className="w-full h-56 bg-amber-50 flex items-center justify-center">
+                  <Package className="w-10 h-10 text-amber-200" />
+                </div>
+              )}
+              {imgs.length > 1 && (
+                <div className="flex gap-1.5 px-3 pt-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                  {imgs.slice(1).map((u, i) => (
+                    <img key={i} src={u} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0 border border-amber-100" />
+                  ))}
+                </div>
+              )}
+              <div className="p-3 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold text-gray-800 line-clamp-2 text-sm flex-1">{p.title}</h3>
+                  {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">{p.category}</span>}
+                </div>
+                {p.description && <p className="text-xs text-gray-500 line-clamp-3">{p.description}</p>}
+                <div className="flex items-center justify-between pt-1">
+                  <span className="font-bold text-amber-600 text-base">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
+                  {p.stock > 0 && whatsapp ? <WhatsAppBtn whatsapp={whatsapp} title={p.title} /> : p.stock <= 0 ? <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span> : null}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (layout === "grid3") {
+    return (
+      <div className="grid grid-cols-3 gap-2">
+        {products.map((p: any) => {
+          const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
+          const price = parseFloat(p.price ?? "0");
+          return (
+            <div key={p.id} className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col">
+              {imgs[0] ? (
+                <img src={imgs[0]} alt={p.title} className="w-full aspect-square object-cover" />
+              ) : (
+                <div className="w-full aspect-square bg-amber-50 flex items-center justify-center">
+                  <Package className="w-5 h-5 text-amber-200" />
+                </div>
+              )}
+              <div className="p-1.5 flex flex-col gap-0.5 flex-1">
+                <h3 className="text-[10px] font-semibold text-gray-800 line-clamp-2 leading-tight">{p.title}</h3>
+                <span className="text-[10px] font-bold text-amber-600">${price.toLocaleString()}</span>
+                {p.stock > 0 && whatsapp ? (
+                  <a href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`你好，我想查詢商品：${p.title}`)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="mt-auto text-[9px] py-0.5 bg-green-50 text-green-600 rounded text-center">
+                    WhatsApp
+                  </a>
+                ) : p.stock <= 0 ? (
+                  <span className="mt-auto text-[9px] py-0.5 bg-gray-100 text-gray-400 rounded text-center">已售出</span>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // grid2 (default)
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {products.map((p: any) => {
+        const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
+        const price = parseFloat(p.price ?? "0");
+        return (
+          <div key={p.id} className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col">
+            {imgs[0] ? (
+              <div className="aspect-square w-full overflow-hidden bg-amber-50">
+                <img src={imgs[0]} alt={p.title} className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="aspect-square w-full bg-amber-50 flex items-center justify-center">
+                <Package className="w-10 h-10 text-amber-200" />
+              </div>
+            )}
+            <div className="p-2.5 flex flex-col gap-1 flex-1">
+              <div className="flex items-start justify-between gap-1">
+                <h3 className="text-xs font-semibold text-gray-800 leading-snug line-clamp-2 flex-1">{p.title}</h3>
+                {p.category && <span className="text-[10px] bg-amber-100 text-amber-700 px-1 py-0.5 rounded-full shrink-0">{p.category}</span>}
+              </div>
+              {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
+              <div className="mt-auto pt-1.5 flex items-center justify-between gap-1">
+                <span className="font-bold text-amber-600 text-xs">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
+                {p.stock > 0 && whatsapp ? <WhatsAppBtn whatsapp={whatsapp} title={p.title} /> : p.stock <= 0 ? <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span> : null}
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -67,6 +165,7 @@ function MerchantSection({ merchant, selectedCategory }: { merchant: any; select
     category: selectedCategory !== "全部" ? selectedCategory : undefined,
   });
 
+  const layout: LayoutMode = (merchant.listingLayout as LayoutMode) ?? "grid2";
   const visible = products.filter((p: any) => p.status === "active" && p.stock > 0);
   if (!isLoading && visible.length === 0) return null;
 
@@ -88,9 +187,7 @@ function MerchantSection({ merchant, selectedCategory }: { merchant: any; select
       {isLoading ? (
         <div className="text-center py-6 text-2xl animate-spin">💰</div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
-          {visible.map((p: any) => <ProductCard key={p.id} product={p} />)}
-        </div>
+        <ProductsGrid products={visible} layout={layout} whatsapp={merchant.whatsapp ?? ""} />
       )}
     </div>
   );
@@ -130,26 +227,18 @@ export default function Merchants() {
         {/* 商戶篩選列 */}
         {!isLoading && merchants.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-2 mb-3" style={{ scrollbarWidth: "none" }}>
-            {/* 全部 */}
             <button
               onClick={() => setSelectedMerchantId(null)}
               className={`shrink-0 flex flex-col items-center gap-1 px-2 pt-1.5 pb-1 rounded-xl transition-colors ${
-                selectedMerchantId === null
-                  ? "bg-amber-500 shadow-sm"
-                  : "bg-white border border-amber-100 hover:bg-amber-50"
+                selectedMerchantId === null ? "bg-amber-500 shadow-sm" : "bg-white border border-amber-100 hover:bg-amber-50"
               }`}
             >
-              <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
-                selectedMerchantId === null ? "bg-amber-400" : "bg-amber-100"
-              }`}>
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center ${selectedMerchantId === null ? "bg-amber-400" : "bg-amber-100"}`}>
                 <Store className={`w-4 h-4 ${selectedMerchantId === null ? "text-white" : "text-amber-500"}`} />
               </div>
-              <span className={`text-xs font-medium whitespace-nowrap ${selectedMerchantId === null ? "text-white" : "text-gray-600"}`}>
-                全部
-              </span>
+              <span className={`text-xs font-medium whitespace-nowrap ${selectedMerchantId === null ? "text-white" : "text-gray-600"}`}>全部</span>
             </button>
 
-            {/* 各商戶 */}
             {(merchants as any[]).map((m) => {
               const active = selectedMerchantId === m.userId;
               return (
@@ -157,17 +246,11 @@ export default function Merchants() {
                   key={m.userId}
                   onClick={() => setSelectedMerchantId(active ? null : m.userId)}
                   className={`shrink-0 flex flex-col items-center gap-1 px-2 pt-1.5 pb-1 rounded-xl transition-colors ${
-                    active
-                      ? "bg-amber-500 shadow-sm"
-                      : "bg-white border border-amber-100 hover:bg-amber-50"
+                    active ? "bg-amber-500 shadow-sm" : "bg-white border border-amber-100 hover:bg-amber-50"
                   }`}
                 >
                   {m.merchantIcon ? (
-                    <img
-                      src={m.merchantIcon}
-                      alt={m.merchantName}
-                      className={`w-9 h-9 rounded-full object-cover border-2 ${active ? "border-white/60" : "border-amber-200"}`}
-                    />
+                    <img src={m.merchantIcon} alt={m.merchantName} className={`w-9 h-9 rounded-full object-cover border-2 ${active ? "border-white/60" : "border-amber-200"}`} />
                   ) : (
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center ${active ? "bg-amber-400" : "bg-amber-100"}`}>
                       <Store className={`w-4 h-4 ${active ? "text-white" : "text-amber-500"}`} />
@@ -182,7 +265,7 @@ export default function Merchants() {
           </div>
         )}
 
-        {/* 類別篩選 — 下拉選單 */}
+        {/* 類別篩選 */}
         <div className="mb-4">
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
             <SelectTrigger className="bg-white border-amber-200 text-amber-800 h-9 text-sm">

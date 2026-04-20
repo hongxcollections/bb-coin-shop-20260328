@@ -57,11 +57,6 @@ export default function MerchantProducts() {
     return (localStorage.getItem("mp_layout") as LayoutMode) ?? "list";
   });
 
-  function changeLayout(m: LayoutMode) {
-    setLayout(m);
-    localStorage.setItem("mp_layout", m);
-  }
-
   const { data: products = [], isLoading } = trpc.merchants.myProducts.useQuery(undefined, {
     enabled: isAuthenticated,
   });
@@ -74,6 +69,14 @@ export default function MerchantProducts() {
   const { data: depositCheck } = trpc.sellerDeposits.canList.useQuery(undefined, {
     enabled: isAuthenticated,
   });
+
+  const setListingLayoutMutation = trpc.merchants.setListingLayout.useMutation();
+
+  function changeLayout(m: LayoutMode) {
+    setLayout(m);
+    localStorage.setItem("mp_layout", m);
+    setListingLayoutMutation.mutate({ layout: m });
+  }
 
   const addProduct = trpc.merchants.addProduct.useMutation({
     onSuccess: () => {

@@ -2565,25 +2565,35 @@ async function ensureMerchantSettingsTable() {
         await db.execute(sql.raw(`ALTER TABLE merchant_settings ADD COLUMN ${colName} ${colDef}`));
       }
     }
+    // Add listingLayout column if missing
+    const layoutColCheck = await db.execute(sql`
+      SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'merchant_settings'
+        AND COLUMN_NAME = 'listingLayout'
+    `);
+    const layoutColRows = layoutColCheck as unknown as [Array<Record<string, unknown>>, unknown];
+    const layoutColRow = Array.isArray(layoutColRows[0]) ? layoutColRows[0][0] : (layoutColRows as unknown as Array<Record<string, unknown>>)[0];
+    if (layoutColRow && Number(layoutColRow.cnt) === 0) {
+      await db.execute(sql`ALTER TABLE merchant_settings ADD COLUMN listingLayout VARCHAR(10) NOT NULL DEFAULT 'grid2'`);
+    }
     _merchantSettingsTableChecked = true;
   } catch (error) {
     console.error('[Database] Failed to ensure merchant_settings table:', error);
   }
 }
 
-const MERCHANT_SETTINGS_DEFAULTS = { defaultEndDayOffset: 7, defaultEndTime: '23:00', defaultStartingPrice: 0, defaultBidIncrement: 30, defaultAntiSnipeEnabled: 1, defaultAntiSnipeMinutes: 3, defaultExtendMinutes: 3 };
+const MERCHANT_SETTINGS_DEFAULTS = { defaultEndDayOffset: 7, defaultEndTime: '23:00', defaultStartingPrice: 0, defaultBidIncrement: 30, defaultAntiSnipeEnabled: 1, defaultAntiSnipeMinutes: 3, defaultExtendMinutes: 3, listingLayout: 'grid2' };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
-    // Drizzle MySQL execute() returns [RowDataPacket[], FieldPacket[]] tuple
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
-    // 兼容兩種格式：tuple[0] 是 rows 陣列，或直接是 rows 陣列
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
-      row = rawRows[0][0] ?? null;  // tuple 格式：[rows[], fields[]]
+      row = rawRows[0][0] ?? null;
     } else if (Array.isArray(rawRows)) {
       row = (rawRows as unknown as Array<Record<string, unknown>>)[0] ?? null;
     }
@@ -2596,6 +2606,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         defaultAntiSnipeEnabled: Number(row.defaultAntiSnipeEnabled ?? 1),
         defaultAntiSnipeMinutes: Number(row.defaultAntiSnipeMinutes ?? 3),
         defaultExtendMinutes: Number(row.defaultExtendMinutes ?? 3),
+        listingLayout: String(row.listingLayout ?? 'grid2'),
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -2603,6 +2614,17 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
     console.error('[Database] getMerchantSettings error:', error);
     return { ...MERCHANT_SETTINGS_DEFAULTS };
   }
+}
+
+export async function setMerchantListingLayout(userId: number, listingLayout: string): Promise<void> {
+  await ensureMerchantSettingsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  await db.execute(sql`
+    INSERT INTO merchant_settings (userId, listingLayout)
+    VALUES (${userId}, ${listingLayout})
+    ON DUPLICATE KEY UPDATE listingLayout = ${listingLayout}, updatedAt = CURRENT_TIMESTAMP
+  `);
 }
 
 export async function upsertMerchantSettings(userId: number, defaultEndDayOffset: number, defaultEndTime: string, defaultStartingPrice: number, defaultBidIncrement: number, defaultAntiSnipeEnabled: number, defaultAntiSnipeMinutes: number, defaultExtendMinutes: number): Promise<void> {
@@ -3183,18 +3205,28 @@ export async function deleteMerchantProduct(id: number, merchantId: number): Pro
 }
 
 export async function listApprovedMerchants(): Promise<Array<{
-  userId: number; merchantName: string; selfIntro: string; merchantIcon: string | null; whatsapp: string; categories: string | null;
+  userId: number; merchantName: string; selfIntro: string; merchantIcon: string | null; whatsapp: string; categories: string | null; listingLayout: string;
 }>> {
+  await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
-  const rows = await db.select({
-    userId: merchantApplications.userId,
-    merchantName: merchantApplications.merchantName,
-    selfIntro: merchantApplications.selfIntro,
-    merchantIcon: merchantApplications.merchantIcon,
-    whatsapp: merchantApplications.whatsapp,
-    categories: merchantApplications.categories,
-  }).from(merchantApplications).where(eq(merchantApplications.status, 'approved'))
-    .orderBy(asc(merchantApplications.merchantName));
-  return rows as any;
+  const result = await db.execute(sql`
+    SELECT ma.userId, ma.merchantName, ma.selfIntro, ma.merchantIcon, ma.whatsapp, ma.categories,
+           COALESCE(ms.listingLayout, 'grid2') as listingLayout
+    FROM merchant_applications ma
+    LEFT JOIN merchant_settings ms ON ms.userId = ma.userId
+    WHERE ma.status = 'approved'
+    ORDER BY ma.merchantName ASC
+  `);
+  const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
+  const rows = Array.isArray(rawRows[0]) ? rawRows[0] : (rawRows as unknown as Array<Record<string, unknown>>);
+  return (rows as any[]).map(r => ({
+    userId: Number(r.userId),
+    merchantName: String(r.merchantName ?? ''),
+    selfIntro: String(r.selfIntro ?? ''),
+    merchantIcon: r.merchantIcon ? String(r.merchantIcon) : null,
+    whatsapp: String(r.whatsapp ?? ''),
+    categories: r.categories ? String(r.categories) : null,
+    listingLayout: String(r.listingLayout ?? 'grid2'),
+  }));
 }
