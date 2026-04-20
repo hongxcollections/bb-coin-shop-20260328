@@ -25,7 +25,8 @@ function ProductsList({ products, layout, whatsapp }: { products: any[]; layout:
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
           return (
-            <div key={p.id} className="bg-white rounded-xl border border-amber-100 shadow-sm p-3 flex gap-3 items-start">
+            <Link key={p.id} href={`/merchant-products/${p.id}`}>
+            <div className="bg-white rounded-xl border border-amber-100 shadow-sm p-3 flex gap-3 items-start cursor-pointer hover:border-amber-300 transition-colors">
               {imgs[0] ? (
                 <img src={imgs[0]} alt={p.title} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
               ) : (
@@ -43,6 +44,7 @@ function ProductsList({ products, layout, whatsapp }: { products: any[]; layout:
                 </div>
               </div>
             </div>
+            </Link>
           );
         })}
       </div>
@@ -56,7 +58,8 @@ function ProductsList({ products, layout, whatsapp }: { products: any[]; layout:
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
           return (
-            <div key={p.id} className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden">
+            <Link key={p.id} href={`/merchant-products/${p.id}`}>
+            <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden cursor-pointer hover:border-amber-300 transition-colors">
               {imgs[0] ? (
                 <img src={imgs[0]} alt={p.title} className="w-full h-56 object-cover" />
               ) : (
@@ -83,6 +86,7 @@ function ProductsList({ products, layout, whatsapp }: { products: any[]; layout:
                 </div>
               </div>
             </div>
+            </Link>
           );
         })}
       </div>
@@ -96,7 +100,8 @@ function ProductsList({ products, layout, whatsapp }: { products: any[]; layout:
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
           return (
-            <div key={p.id} className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col">
+            <Link key={p.id} href={`/merchant-products/${p.id}`}>
+            <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-amber-300 transition-colors">
               {imgs[0] ? (
                 <img src={imgs[0]} alt={p.title} className="w-full aspect-square object-cover" />
               ) : (
@@ -118,6 +123,7 @@ function ProductsList({ products, layout, whatsapp }: { products: any[]; layout:
                 ) : null}
               </div>
             </div>
+            </Link>
           );
         })}
       </div>
@@ -130,7 +136,8 @@ function ProductsList({ products, layout, whatsapp }: { products: any[]; layout:
         const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
         const price = parseFloat(p.price ?? "0");
         return (
-          <div key={p.id} className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col">
+          <Link key={p.id} href={`/merchant-products/${p.id}`}>
+          <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-amber-300 transition-colors">
             {imgs[0] ? (
               <div className="aspect-square w-full overflow-hidden bg-amber-50">
                 <img src={imgs[0]} alt={p.title} className="w-full h-full object-cover" />
@@ -152,6 +159,7 @@ function ProductsList({ products, layout, whatsapp }: { products: any[]; layout:
               </div>
             </div>
           </div>
+          </Link>
         );
       })}
     </div>

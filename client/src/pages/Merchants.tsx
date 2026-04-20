@@ -21,7 +21,7 @@ function WhatsAppBtn({ whatsapp, title }: { whatsapp: string; title: string }) {
 function ProductCard({ p, layout, whatsapp, merchantId }: { p: any; layout: LayoutMode; whatsapp: string; merchantId: number }) {
   const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
   const price = parseFloat(p.price ?? "0");
-  const href = `/merchants/${merchantId}`;
+  const href = `/merchant-products/${p.id}`;
 
   if (layout === "list") return (
     <Link href={href}>

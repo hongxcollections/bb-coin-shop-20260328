@@ -42,6 +42,7 @@ import AdminRefundRequests from "./pages/AdminRefundRequests";
 import Merchants from "./pages/Merchants";
 import MerchantProducts from "./pages/MerchantProducts";
 import MerchantStore from "./pages/MerchantStore";
+import MerchantProductDetail from "./pages/MerchantProductDetail";
 
 function AnnouncementBanner() {
   const { data: settings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 60 * 1000 });
@@ -108,6 +109,7 @@ function Router() {
       <Route path={"/admin/refund-requests"} component={AdminRefundRequests} />
       <Route path={"/merchants"} component={Merchants} />
       <Route path={"/merchants/:userId"} component={MerchantStore} />
+      <Route path={"/merchant-products/:id"} component={MerchantProductDetail} />
       <Route path={"/merchant-products"} component={MerchantProducts} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />

@@ -2468,6 +2468,15 @@ export const appRouter = router({
         }
       }),
 
+    /** 公開：取得單一出售商品詳情 */
+    getPublicProduct: publicProcedure
+      .input(z.object({ id: z.number().int() }))
+      .query(async ({ input }) => {
+        const product = await getMerchantProduct(input.id);
+        if (!product || product.status === 'hidden') throw new TRPCError({ code: 'NOT_FOUND', message: '商品不存在' });
+        return product;
+      }),
+
     /** 公開：取得商品列表（可按 merchantId / category 篩選） */
     listProducts: publicProcedure
       .input(z.object({

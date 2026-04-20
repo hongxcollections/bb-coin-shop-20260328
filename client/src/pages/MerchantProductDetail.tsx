@@ -1,0 +1,282 @@
+import { useState } from "react";
+import { useParams, Link } from "wouter";
+import { trpc } from "@/lib/trpc";
+import Header from "@/components/Header";
+import {
+  Store, MessageCircle, Package, Gavel, ChevronLeft,
+  Clock, Tag, ShoppingBag, ChevronLeft as Prev, ChevronRight as Next,
+} from "lucide-react";
+
+function AuctionCountdown({ endTime }: { endTime: string | Date }) {
+  const end = new Date(endTime);
+  const now = new Date();
+  const diff = end.getTime() - now.getTime();
+  if (diff <= 0) return <span className="text-red-500 text-[10px]">已結束</span>;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  if (h >= 24) return <span className="text-gray-500 text-[10px]">{Math.floor(h / 24)}天後</span>;
+  if (h >= 1) return <span className="text-amber-600 text-[10px]">{h}時{m}分</span>;
+  return <span className="text-red-500 text-[10px] font-semibold">{m}分鐘</span>;
+}
+
+export default function MerchantProductDetail() {
+  const params = useParams<{ id: string }>();
+  const productId = parseInt(params.id ?? "0", 10);
+  const [imgIdx, setImgIdx] = useState(0);
+
+  const { data: product, isLoading, error } = trpc.merchants.getPublicProduct.useQuery(
+    { id: productId },
+    { enabled: productId > 0 }
+  );
+
+  const { data: allProducts = [] } = trpc.merchants.listProducts.useQuery(
+    { merchantId: product?.merchantId },
+    { enabled: !!product?.merchantId }
+  );
+
+  const { data: auctionItems = [] } = trpc.merchants.getMerchantAuctions.useQuery(
+    { userId: product?.merchantId ?? 0 },
+    { enabled: !!product?.merchantId }
+  );
+
+  const { data: allMerchants = [] } = trpc.merchants.listApprovedMerchants.useQuery();
+  const merchantInfo = (allMerchants as any[]).find((m: any) => m.userId === product?.merchantId);
+
+  const imgs: string[] = (() => {
+    try { return product?.images ? JSON.parse(product.images) : []; } catch { return []; }
+  })();
+
+  const otherProducts = (allProducts as any[]).filter(
+    (p: any) => p.id !== productId && p.status === "active" && p.stock > 0
+  );
+
+  if (!productId || error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="flex flex-col items-center justify-center py-24 gap-3 text-gray-400">
+          <Package className="w-10 h-10 opacity-30" />
+          <p>找不到此商品</p>
+          <Link href="/merchants" className="text-amber-600 text-sm underline">返回商戶市集</Link>
+        </div>
+      </div>
+    );
+  }
+
+  const price = parseFloat(product?.price ?? "0");
+  const whatsapp = product?.whatsapp ?? merchantInfo?.whatsapp ?? "";
+  const waLink = whatsapp
+    ? `https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`你好，我想查詢商品：${product?.title}`)}`
+    : "";
+
+  return (
+    <div className="min-h-screen bg-background pb-28">
+      <Header />
+
+      <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
+        {/* 返回 */}
+        <button onClick={() => history.back()} className="flex items-center gap-1 text-sm text-gray-500 hover:text-amber-600 transition-colors">
+          <ChevronLeft className="w-4 h-4" />返回
+        </button>
+
+        {isLoading ? (
+          <div className="bg-white rounded-2xl border border-amber-100 p-5 animate-pulse space-y-3">
+            <div className="w-full aspect-square bg-amber-50 rounded-xl" />
+            <div className="h-4 bg-amber-50 rounded w-3/4" />
+            <div className="h-3 bg-amber-50 rounded w-1/2" />
+          </div>
+        ) : product ? (
+          <>
+            {/* ── 商品主卡 ── */}
+            <div className="bg-white rounded-2xl border border-amber-100 shadow-sm overflow-hidden">
+              {/* 圖片 gallery */}
+              {imgs.length > 0 ? (
+                <div className="relative">
+                  <div className="w-full aspect-square bg-amber-50 overflow-hidden">
+                    <img src={imgs[imgIdx]} alt={product.title} className="w-full h-full object-cover" />
+                  </div>
+                  {imgs.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => setImgIdx(i => (i - 1 + imgs.length) % imgs.length)}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center shadow"
+                      ><Prev className="w-4 h-4 text-gray-600" /></button>
+                      <button
+                        onClick={() => setImgIdx(i => (i + 1) % imgs.length)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center shadow"
+                      ><Next className="w-4 h-4 text-gray-600" /></button>
+                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                        {imgs.map((_, i) => (
+                          <button key={i} onClick={() => setImgIdx(i)}
+                            className={`w-1.5 h-1.5 rounded-full transition-colors ${i === imgIdx ? "bg-amber-500" : "bg-white/60"}`} />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {imgs.length > 1 && (
+                    <div className="absolute top-2 right-2 bg-black/40 text-white text-xs px-1.5 py-0.5 rounded-full">
+                      {imgIdx + 1}/{imgs.length}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="w-full aspect-square bg-amber-50 flex items-center justify-center">
+                  <Package className="w-16 h-16 text-amber-200" />
+                </div>
+              )}
+
+              {/* 縮圖列 */}
+              {imgs.length > 1 && (
+                <div className="flex gap-1.5 px-3 pt-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                  {imgs.map((u, i) => (
+                    <button key={i} onClick={() => setImgIdx(i)}
+                      className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-colors ${i === imgIdx ? "border-amber-400" : "border-transparent"}`}>
+                      <img src={u} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* 商品資料 */}
+              <div className="p-4 space-y-3">
+                {/* 商戶名稱行 */}
+                <Link href={`/merchants/${product.merchantId}`}>
+                  <div className="flex items-center gap-2 hover:opacity-75 transition-opacity">
+                    {product.merchantIcon ? (
+                      <img src={product.merchantIcon} alt={product.merchantName} className="w-7 h-7 rounded-full object-cover border border-amber-200" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center">
+                        <Store className="w-3.5 h-3.5 text-amber-500" />
+                      </div>
+                    )}
+                    <span className="text-sm text-amber-700 font-medium">{product.merchantName}</span>
+                    <span className="text-xs text-gray-400 ml-auto">查看商戶 →</span>
+                  </div>
+                </Link>
+
+                <div className="h-px bg-gray-100" />
+
+                {/* 標題 + 類別 */}
+                <div className="flex items-start gap-2 justify-between">
+                  <h1 className="font-bold text-gray-900 text-base leading-snug flex-1">{product.title}</h1>
+                  {product.category && (
+                    <span className="flex items-center gap-0.5 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full shrink-0">
+                      <Tag className="w-3 h-3" />{product.category}
+                    </span>
+                  )}
+                </div>
+
+                {/* 描述 */}
+                {product.description && (
+                  <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{product.description}</p>
+                )}
+
+                {/* 價格 + 庫存 */}
+                <div className="flex items-end justify-between pt-1">
+                  <div>
+                    <span className="text-2xl font-bold text-amber-600">{product.currency} ${price.toLocaleString()}</span>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      {product.stock > 0 ? `庫存 ${product.stock} 件` : "已售出"}
+                    </div>
+                  </div>
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                    product.stock > 0 ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                  }`}>
+                    {product.stock > 0 ? "有貨" : "售罄"}
+                  </span>
+                </div>
+
+                {/* WhatsApp 查詢 */}
+                {product.stock > 0 && waLink && (
+                  <a href={waLink} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-colors">
+                    <MessageCircle className="w-4 h-4" />WhatsApp 查詢 / 購買
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* ── 同商戶其他出售商品 ── */}
+            {otherProducts.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <ShoppingBag className="w-4 h-4 text-amber-500" />
+                  <h2 className="font-semibold text-sm text-gray-800">更多出售商品</h2>
+                  <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full ml-auto">{otherProducts.length} 件</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {otherProducts.map((p: any) => {
+                    const pImgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
+                    const pPrice = parseFloat(p.price ?? "0");
+                    return (
+                      <Link key={p.id} href={`/merchant-products/${p.id}`}>
+                        <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-amber-300 transition-colors">
+                          {pImgs[0] ? (
+                            <div className="aspect-square w-full overflow-hidden bg-amber-50">
+                              <img src={pImgs[0]} alt={p.title} className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className="aspect-square w-full bg-amber-50 flex items-center justify-center">
+                              <Package className="w-8 h-8 text-amber-200" />
+                            </div>
+                          )}
+                          <div className="p-2 flex flex-col gap-0.5 flex-1">
+                            <h3 className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">{p.title}</h3>
+                            {p.category && <span className="text-[10px] text-amber-600">{p.category}</span>}
+                            <span className="font-bold text-amber-600 text-xs mt-auto">{p.currency ?? "HKD"} ${pPrice.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── 同商戶拍賣中商品 ── */}
+            {(auctionItems as any[]).length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Gavel className="w-4 h-4 text-purple-500" />
+                  <h2 className="font-semibold text-sm text-gray-800">拍賣中商品</h2>
+                  <span className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full ml-auto">{(auctionItems as any[]).length} 件</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {(auctionItems as any[]).map((a: any) => {
+                    const aPrice = parseFloat(a.currentPrice ?? a.startingPrice ?? "0");
+                    return (
+                      <Link key={a.id} href={`/auctions/${a.id}`}>
+                        <div className="bg-white rounded-xl border border-purple-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-purple-300 transition-colors">
+                          {a.coverImage ? (
+                            <div className="aspect-square w-full overflow-hidden bg-purple-50">
+                              <img src={a.coverImage} alt={a.title} className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className="aspect-square w-full bg-purple-50 flex items-center justify-center">
+                              <Gavel className="w-8 h-8 text-purple-200" />
+                            </div>
+                          )}
+                          <div className="p-2 flex flex-col gap-0.5 flex-1">
+                            <h3 className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">{a.title}</h3>
+                            {a.category && <span className="text-[10px] text-purple-500">{a.category}</span>}
+                            <div className="flex items-center justify-between mt-auto pt-0.5">
+                              <span className="font-bold text-amber-600 text-xs">{a.currency ?? "HKD"} ${aPrice.toLocaleString()}</span>
+                              <span className="flex items-center gap-0.5 text-[10px] text-gray-400">
+                                <Clock className="w-2.5 h-2.5" />
+                                <AuctionCountdown endTime={a.endTime} />
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
