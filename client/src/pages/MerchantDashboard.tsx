@@ -7,7 +7,7 @@ import {
   ChevronLeft, Store, Wallet, Gavel, Clock, CheckCircle2, XCircle,
   AlertCircle, ArrowUpRight, ArrowDownLeft, ShoppingBag, Settings,
   RotateCcw, Layers, CreditCard, PlusCircle, Send, ChevronDown, Loader2,
-  Upload, X, ImageIcon, Printer, Search,
+  Upload, X, ImageIcon, Printer, Search, HelpCircle,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -237,6 +237,7 @@ export default function MerchantDashboard() {
   const [topUpReceiptUrl, setTopUpReceiptUrl] = useState("");
   const [topUpReceiptUploading, setTopUpReceiptUploading] = useState(false);
   const [selectedTierId, setSelectedTierId] = useState<number | null>(null);
+  const [showTierInfo, setShowTierInfo] = useState(false);
 
   const { data: myApp, isLoading: loadingApp } = trpc.merchants.myApplication.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -556,7 +557,29 @@ export default function MerchantDashboard() {
                 {/* ── 套餐選擇 ── */}
                 {activeTiers && activeTiers.length > 0 ? (
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-amber-900">請選擇套餐 *</Label>
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium text-amber-900">請選擇套餐 *</Label>
+                      <button
+                        type="button"
+                        onClick={() => setShowTierInfo(v => !v)}
+                        className="text-amber-400 hover:text-amber-600 transition-colors flex-shrink-0"
+                        aria-label="套餐說明"
+                      >
+                        <HelpCircle size={14} />
+                      </button>
+                    </div>
+                    {showTierInfo && (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 space-y-1.5 leading-relaxed">
+                        <div className="flex gap-2">
+                          <span className="text-amber-500 font-bold flex-shrink-0">1.</span>
+                          <span>如保證金水平低於<strong>維持水平</strong>，發佈商品將會受到限制。</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="text-amber-500 font-bold flex-shrink-0">2.</span>
+                          <span>如保證金餘額低於<strong>預警水平</strong>，商戶後台會顯示預警訊息，提醒商戶考慮自行充值或聯繫管理員處理。</span>
+                        </div>
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 gap-2">
                       {(activeTiers as { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; description: string | null }[]).map(tier => {
                         const amt = parseFloat(tier.amount);
