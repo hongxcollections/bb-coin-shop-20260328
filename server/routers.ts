@@ -2430,13 +2430,12 @@ export const appRouter = router({
       .input(z.object({ userId: z.number().int() }))
       .query(async ({ input }) => {
         const db = await getDb();
-        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
+        if (!db) return null;
         const { and } = await import('drizzle-orm');
         const rows = await db.select().from(merchantAppsTable)
           .where(and(eq(merchantAppsTable.userId, input.userId), eq(merchantAppsTable.status, 'approved')))
           .limit(1);
-        if (!rows[0]) throw new TRPCError({ code: 'NOT_FOUND', message: '商戶不存在' });
-        return rows[0];
+        return rows[0] ?? null;
       }),
 
     /** 公開：取得某商戶拍賣中商品（含封面圖） */
