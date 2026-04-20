@@ -123,7 +123,7 @@ function TxRow({ tx, showBalance }: { tx: TxType; showBalance?: boolean }) {
   );
 
   return hasAuction ? (
-    <Link href={`/auction/${tx.relatedAuctionId}`}>{inner}</Link>
+    <Link href={`/auctions/${tx.relatedAuctionId}`}>{inner}</Link>
   ) : inner;
 }
 
