@@ -67,36 +67,39 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
     const images = await getAuctionImages(auctionId);
     const imageUrl = images.length > 0 ? images[0].imageUrl : "";
     const currSymbol = getCurrencySymbol((auction as { currency?: string }).currency ?? "HKD");
-    const price = Number(auction.currentPrice).toLocaleString();
+    const startPrice = Number(auction.startingPrice).toLocaleString();
+    const currPrice = Number(auction.currentPrice).toLocaleString();
     const endTimeStr = formatEndTime(new Date(auction.endTime));
 
     // Facebook large-image preview ONLY shows og:title (not description/site_name).
     // So we pack all key info into og:title for maximum visibility.
-    const ogTitle = `大BB錢幣店｜${auction.title} — ${currSymbol}${price}｜結標：${endTimeStr}｜快來競拍！`;
-    const ogDesc = `【大BB錢幣店】${auction.title}｜目前出價 ${currSymbol}${price}｜結標時間：${endTimeStr}｜快來競拍！`;
+    const ogTitle = `${auction.title} ｜ 起拍 ${currSymbol}${startPrice}｜結標：${endTimeStr}`;
+    const ogDesc = `【大BB錢幣店】${auction.title}\n起拍價：${currSymbol}${startPrice}｜目前出價：${currSymbol}${currPrice}\n結標：${endTimeStr}\n快來競拍！`;
     const fullUrl = `${protocol}://${host}${reqPath}`;
 
-    const esc = (s: string) => s.replace(/"/g, "&quot;").replace(/</g, "&lt;");
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
     const ogMeta = [
-      `<meta property="og:type" content="product" />`,
+      `<meta property="og:type" content="website" />`,
       `<meta property="og:site_name" content="大BB錢幣店" />`,
       `<meta property="og:title" content="${esc(ogTitle)}" />`,
       `<meta property="og:description" content="${esc(ogDesc)}" />`,
       `<meta property="og:url" content="${esc(fullUrl)}" />`,
-      imageUrl ? `<meta property="og:image" content="${imageUrl}" />` : "",
-      imageUrl ? `<meta property="og:image:width" content="1200" />` : "",
-      imageUrl ? `<meta property="og:image:height" content="630" />` : "",
-      `<meta name="twitter:card" content="summary_large_image" />`,
+      // Image — do NOT declare width/height unless actual dimensions are known.
+      // Facebook will measure the image itself; wrong hints cause it to reject the image.
+      imageUrl ? `<meta property="og:image" content="${esc(imageUrl)}" />` : "",
+      imageUrl ? `<meta property="og:image:secure_url" content="${esc(imageUrl)}" />` : "",
+      `<meta name="twitter:card" content="${imageUrl ? "summary_large_image" : "summary"}" />`,
       `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
       `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
-      imageUrl ? `<meta name="twitter:image" content="${imageUrl}" />` : "",
+      imageUrl ? `<meta name="twitter:image" content="${esc(imageUrl)}" />` : "",
       `<title>${esc(ogTitle)}</title>`,
     ].filter(Boolean).join("\n    ");
 
     // Replace existing <title> and inject OG meta before </head>
     let result = html.replace(/<title>[^<]*<\/title>/, "");
     result = result.replace("</head>", `    ${ogMeta}\n  </head>`);
+    console.log(`[OG Meta] Injected for auction ${auctionId}: "${ogTitle}"`);
     return result;
   } catch (err) {
     console.error("[OG Meta] Error generating OG tags:", err);
@@ -136,7 +139,23 @@ export async function setupVite(app: Express, server: Server) {
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`
       );
-      const page = await vite.transformIndexHtml(url, template);
+
+      // Inject OG meta for social media bots (dev mode)
+      const forwardedProto = req.headers["x-forwarded-proto"];
+      const protocol = typeof forwardedProto === "string" ? forwardedProto.split(",")[0].trim() : req.protocol;
+      const host = req.get("host") || "";
+      const ogHtml = await injectOgMeta(template, req.path, protocol, host);
+      if (ogHtml) {
+        // For bots: serve injected HTML directly (skip Vite transform to preserve tags)
+        const ua = req.headers["user-agent"] ?? "";
+        const isBot = /facebookexternalhit|Twitterbot|LinkedInBot|WhatsApp|Discordbot|TelegramBot|Slackbot|ia_archiver|msnbot|googlebot|bingbot/i.test(ua);
+        if (isBot) {
+          res.status(200).set({ "Content-Type": "text/html" }).end(ogHtml);
+          return;
+        }
+      }
+
+      const page = await vite.transformIndexHtml(url, ogHtml ?? template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
