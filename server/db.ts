@@ -1687,12 +1687,11 @@ export async function getDepositTransactions(
         relatedAuctionId: depositTransactions.relatedAuctionId,
         createdAt: depositTransactions.createdAt,
         auctionTitle: auctions.title,
-        auctionCurrentPrice: auctions.currentPrice,
-        auctionWinnerName: users.name,
+        auctionCurrentPrice: sql<string>`(SELECT b.bidAmount FROM bids b WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`,
+        auctionWinnerName: sql<string>`(SELECT u.name FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`,
       })
       .from(depositTransactions)
       .leftJoin(auctions, eq(depositTransactions.relatedAuctionId, auctions.id))
-      .leftJoin(users, eq(auctions.highestBidderId, users.id))
       .where(and(...conditions))
       .orderBy(desc(depositTransactions.createdAt))
       .limit(limit)
