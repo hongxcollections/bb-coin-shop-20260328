@@ -3207,26 +3207,48 @@ export async function deleteMerchantProduct(id: number, merchantId: number): Pro
 export async function listApprovedMerchants(): Promise<Array<{
   userId: number; merchantName: string; selfIntro: string; merchantIcon: string | null; whatsapp: string; categories: string | null; listingLayout: string;
 }>> {
-  await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
-  const result = await db.execute(sql`
-    SELECT ma.userId, ma.merchantName, ma.selfIntro, ma.merchantIcon, ma.whatsapp, ma.categories,
-           COALESCE(ms.listingLayout, 'grid2') as listingLayout
-    FROM merchant_applications ma
-    LEFT JOIN merchant_settings ms ON ms.userId = ma.userId
-    WHERE ma.status = 'approved'
-    ORDER BY ma.merchantName ASC
-  `);
-  const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
-  const rows = Array.isArray(rawRows[0]) ? rawRows[0] : (rawRows as unknown as Array<Record<string, unknown>>);
-  return (rows as any[]).map(r => ({
-    userId: Number(r.userId),
-    merchantName: String(r.merchantName ?? ''),
-    selfIntro: String(r.selfIntro ?? ''),
-    merchantIcon: r.merchantIcon ? String(r.merchantIcon) : null,
-    whatsapp: String(r.whatsapp ?? ''),
-    categories: r.categories ? String(r.categories) : null,
-    listingLayout: String(r.listingLayout ?? 'grid2'),
-  }));
+
+  // Try LEFT JOIN with merchant_settings to get listingLayout
+  try {
+    await ensureMerchantSettingsTable();
+    const result = await db.execute(sql`
+      SELECT ma.userId, ma.merchantName, ma.selfIntro, ma.merchantIcon, ma.whatsapp, ma.categories,
+             COALESCE(ms.listingLayout, 'grid2') as listingLayout
+      FROM merchant_applications ma
+      LEFT JOIN merchant_settings ms ON ms.userId = ma.userId
+      WHERE ma.status = 'approved'
+      ORDER BY ma.merchantName ASC
+    `);
+    const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
+    const rows: Array<Record<string, unknown>> = Array.isArray(rawRows[0])
+      ? (rawRows[0] as Array<Record<string, unknown>>)
+      : (rawRows as unknown as Array<Record<string, unknown>>);
+    if (Array.isArray(rows)) {
+      return rows.map(r => ({
+        userId: Number(r.userId),
+        merchantName: String(r.merchantName ?? ''),
+        selfIntro: String(r.selfIntro ?? ''),
+        merchantIcon: r.merchantIcon ? String(r.merchantIcon) : null,
+        whatsapp: String(r.whatsapp ?? ''),
+        categories: r.categories ? String(r.categories) : null,
+        listingLayout: String(r.listingLayout ?? 'grid2'),
+      }));
+    }
+  } catch (err) {
+    console.error('[Database] listApprovedMerchants with layout failed, using fallback:', err);
+  }
+
+  // Fallback: Drizzle ORM query without layout
+  const rows = await db.select({
+    userId: merchantApplications.userId,
+    merchantName: merchantApplications.merchantName,
+    selfIntro: merchantApplications.selfIntro,
+    merchantIcon: merchantApplications.merchantIcon,
+    whatsapp: merchantApplications.whatsapp,
+    categories: merchantApplications.categories,
+  }).from(merchantApplications).where(eq(merchantApplications.status, 'approved'))
+    .orderBy(asc(merchantApplications.merchantName));
+  return (rows as any[]).map(r => ({ ...r, listingLayout: 'grid2' }));
 }
