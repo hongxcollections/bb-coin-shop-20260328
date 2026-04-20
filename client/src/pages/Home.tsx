@@ -93,7 +93,7 @@ export default function Home() {
   const [category, setCategory] = useState("all");
   const [page, setPage] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [auctionListOpen, setAuctionListOpen] = useState(true);
+  const [auctionListOpen, setAuctionListOpen] = useState(false);
   // 隨機索引在 mount 時固定，避免重新 render 時跳字
   const [randomIdx] = useState(() => Math.floor(Math.random() * 10000));
 
@@ -254,17 +254,18 @@ export default function Home() {
       <section className="py-3 bg-white">
         <div className="container">
           {/* Collapsible Header */}
-          <button
-            onClick={() => setAuctionListOpen(o => !o)}
-            className="w-full mb-3 flex items-center justify-between gap-2 group focus:outline-none"
-            aria-expanded={auctionListOpen}
-          >
+          <div className="flex items-center gap-3 mb-3">
             <h1 className="text-xl font-bold text-amber-900">{resolvedTitle}</h1>
-            <div className={`ml-auto flex items-center gap-1 text-[10px] text-amber-500 font-medium transition-all border border-amber-200 rounded-full px-2.5 py-1 group-hover:bg-amber-50 ${auctionListOpen ? "" : "bg-amber-50"}`}>
+            <button
+              onClick={() => setAuctionListOpen(o => !o)}
+              className={`flex items-center gap-1 text-[10px] text-amber-500 font-medium transition-all border border-amber-200 rounded-full px-2.5 py-1 hover:bg-amber-50 focus:outline-none ${auctionListOpen ? "" : "bg-amber-50"}`}
+              style={{ marginBottom: "7px" }}
+              aria-expanded={auctionListOpen}
+            >
               <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${auctionListOpen ? "rotate-180" : "rotate-0"}`} />
               <span>{auctionListOpen ? "收起" : "展開"}</span>
-            </div>
-          </button>
+            </button>
+          </div>
 
           {/* Collapsible Body */}
           <div
