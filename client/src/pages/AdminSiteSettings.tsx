@@ -65,8 +65,8 @@ export default function AdminSiteSettings() {
 
   // 套餐資料同步
   const [importLoading, setImportLoading] = useState(false);
-  const exportPackagesMut = trpc.adminExportPackages.useMutation();
-  const importPackagesMut = trpc.adminImportPackages.useMutation({
+  const exportPackagesMut = trpc.users.adminExportPackages.useMutation();
+  const importPackagesMut = trpc.users.adminImportPackages.useMutation({
     onSuccess: (r) => toast.success(`匯入成功！保證金套餐 ${r.tiersImported} 個，月費套餐 ${r.plansImported} 個`),
     onError: (e) => toast.error(e.message || "匯入失敗"),
   });
