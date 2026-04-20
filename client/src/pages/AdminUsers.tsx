@@ -1060,22 +1060,24 @@ export default function AdminUsers() {
       <AdminHeader />
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 gold-gradient rounded-xl flex items-center justify-center">
+        <div className="flex items-start gap-3 mb-6">
+          <div className="w-10 h-10 gold-gradient rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
             <Users className="w-5 h-5 text-white" />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold text-amber-900">會員管理</h1>
             <p className="text-sm text-muted-foreground">
               共 {allUsers.length} 人 ｜ 買家 {buyers.length} ｜ 商戶 {merchants.length}
             </p>
+            <div className="flex gap-2 mt-2 flex-wrap">
+              <Button size="sm" variant="outline" className="border-red-200 text-red-600 hover:bg-red-50 gap-1.5" onClick={() => setCleanOrphanOpen(true)}>
+                <Wrench className="w-4 h-4" />清理孤兒資料
+              </Button>
+              <Button size="sm" className="gold-gradient text-white border-0 gap-1.5" onClick={() => setNewUserOpen(true)}>
+                <UserPlus className="w-4 h-4" />新增會員
+              </Button>
+            </div>
           </div>
-          <Button size="sm" variant="outline" className="border-red-200 text-red-600 hover:bg-red-50 gap-1.5" onClick={() => setCleanOrphanOpen(true)}>
-            <Wrench className="w-4 h-4" />清理孤兒資料
-          </Button>
-          <Button size="sm" className="gold-gradient text-white border-0 gap-1.5" onClick={() => setNewUserOpen(true)}>
-            <UserPlus className="w-4 h-4" />新增會員
-          </Button>
         </div>
 
         {/* ── Email Reset Requests Panel ── */}
