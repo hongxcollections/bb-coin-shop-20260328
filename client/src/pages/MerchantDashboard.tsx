@@ -223,6 +223,7 @@ export default function MerchantDashboard() {
   // Top-up request form state
   const [showTopUpForm, setShowTopUpForm] = useState(false);
   const [showTopUpHistory, setShowTopUpHistory] = useState(false);
+  const [showAllTx, setShowAllTx] = useState(false);
 
   // Transaction filter state
   const [txFromInput, setTxFromInput] = useState("");
@@ -725,14 +726,14 @@ export default function MerchantDashboard() {
                 />
               </div>
               <button
-                onClick={() => { setTxFromDate(txFromInput || undefined); setTxToDate(txToInput || undefined); }}
+                onClick={() => { setTxFromDate(txFromInput || undefined); setTxToDate(txToInput || undefined); setShowAllTx(false); }}
                 className="h-8 px-3 rounded-lg text-xs font-medium bg-amber-500 text-white hover:bg-amber-600 flex items-center gap-1 transition-colors flex-shrink-0"
               >
                 <Search className="w-3 h-3" />查詢
               </button>
               {(txFromDate || txToDate) && (
                 <button
-                  onClick={() => { setTxFromInput(""); setTxToInput(""); setTxFromDate(undefined); setTxToDate(undefined); }}
+                  onClick={() => { setTxFromInput(""); setTxToInput(""); setTxFromDate(undefined); setTxToDate(undefined); setShowAllTx(false); }}
                   className="h-8 px-2.5 rounded-lg text-xs text-gray-500 hover:text-gray-700 border border-gray-200 flex items-center gap-1 transition-colors flex-shrink-0"
                 >
                   <X className="w-3 h-3" />清除
@@ -786,7 +787,19 @@ export default function MerchantDashboard() {
               </p>
             ) : (
               <div>
-                {transactions.map((tx, i) => <TxRow key={i} tx={tx} showBalance />)}
+                {(showAllTx ? transactions : transactions.slice(0, 5)).map((tx, i) => (
+                  <TxRow key={i} tx={tx} showBalance />
+                ))}
+                {transactions.length > 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllTx(v => !v)}
+                    className="w-full mt-2 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors"
+                  >
+                    <ChevronDown size={13} style={{ transform: showAllTx ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+                    {showAllTx ? "收起" : `顯示全部 ${transactions.length} 筆記錄`}
+                  </button>
+                )}
               </div>
             )}
 
