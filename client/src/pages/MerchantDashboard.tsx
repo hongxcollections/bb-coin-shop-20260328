@@ -7,7 +7,7 @@ import {
   ChevronLeft, Store, Wallet, Gavel, Clock, CheckCircle2, XCircle,
   AlertCircle, ArrowUpRight, ArrowDownLeft, ShoppingBag, Settings,
   RotateCcw, Layers, CreditCard, PlusCircle, Send, ChevronDown, Loader2,
-  Upload, X, ImageIcon, Printer, Search, HelpCircle,
+  Upload, X, ImageIcon, Printer, Search, HelpCircle, Package,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -465,6 +465,17 @@ export default function MerchantDashboard() {
               <div>
                 <p className="font-semibold text-sm text-amber-900">拍賣管理</p>
                 <p className="text-xs text-gray-400 mt-0.5">刊登 · 草稿 · 封存</p>
+              </div>
+            </div>
+          </Link>
+          <Link href="/merchant-products">
+            <div className="rounded-2xl bg-white border border-green-100 p-4 flex items-center gap-3 hover:border-green-300 hover:bg-green-50/50 transition-colors cursor-pointer">
+              <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
+                <Package className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-green-900">商品管理</p>
+                <p className="text-xs text-gray-400 mt-0.5">上架 · 定價 · 管理</p>
               </div>
             </div>
           </Link>

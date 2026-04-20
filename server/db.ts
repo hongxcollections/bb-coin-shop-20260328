@@ -1,7 +1,7 @@
 import { eq, desc, asc, and, gte, lte, gt, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, merchantProducts, MerchantProduct } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -3078,4 +3078,123 @@ export async function deleteDepositTierPreset(id: number) {
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
   await db.delete(depositTierPresets).where(eq(depositTierPresets.id, id));
+}
+
+// ─── Merchant Products ────────────────────────────────────────────────────────
+
+async function ensureMerchantProductsTable() {
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS merchantProducts (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      merchantId INT NOT NULL,
+      merchantName VARCHAR(100) NOT NULL,
+      merchantIcon VARCHAR(500),
+      whatsapp VARCHAR(30),
+      title VARCHAR(200) NOT NULL,
+      description TEXT,
+      price DECIMAL(10,2) NOT NULL,
+      currency VARCHAR(10) NOT NULL DEFAULT 'HKD',
+      category VARCHAR(50),
+      images TEXT,
+      stock INT NOT NULL DEFAULT 1,
+      status ENUM('active','sold','hidden') NOT NULL DEFAULT 'active',
+      createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+}
+
+export async function listMerchantProducts(opts: { merchantId?: number; category?: string; status?: string } = {}): Promise<MerchantProduct[]> {
+  await ensureMerchantProductsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const conditions: any[] = [];
+  if (opts.merchantId) conditions.push(eq(merchantProducts.merchantId, opts.merchantId));
+  if (opts.category) conditions.push(eq(merchantProducts.category, opts.category));
+  if (opts.status && opts.status !== 'all') conditions.push(eq(merchantProducts.status, opts.status as any));
+  else if (!opts.status) conditions.push(eq(merchantProducts.status, 'active'));
+  const rows = await db.select().from(merchantProducts)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(desc(merchantProducts.createdAt));
+  return rows as MerchantProduct[];
+}
+
+export async function getMerchantProduct(id: number): Promise<MerchantProduct | null> {
+  await ensureMerchantProductsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const rows = await db.select().from(merchantProducts).where(eq(merchantProducts.id, id));
+  return (rows[0] as MerchantProduct) ?? null;
+}
+
+export async function createMerchantProduct(data: {
+  merchantId: number; merchantName: string; merchantIcon?: string; whatsapp?: string;
+  title: string; description?: string; price: number; currency?: string;
+  category?: string; images?: string; stock?: number;
+}): Promise<number> {
+  await ensureMerchantProductsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const [result] = await db.insert(merchantProducts).values({
+    merchantId: data.merchantId,
+    merchantName: data.merchantName,
+    merchantIcon: data.merchantIcon ?? null,
+    whatsapp: data.whatsapp ?? null,
+    title: data.title,
+    description: data.description ?? null,
+    price: data.price.toFixed(2) as any,
+    currency: data.currency ?? 'HKD',
+    category: data.category ?? null,
+    images: data.images ?? null,
+    stock: data.stock ?? 1,
+    status: 'active',
+  });
+  return (result as any).insertId as number;
+}
+
+export async function updateMerchantProduct(id: number, merchantId: number, data: Partial<{
+  title: string; description: string; price: number; currency: string;
+  category: string; images: string; stock: number; status: string;
+}>): Promise<void> {
+  await ensureMerchantProductsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const payload: any = {};
+  if (data.title !== undefined) payload.title = data.title;
+  if (data.description !== undefined) payload.description = data.description;
+  if (data.price !== undefined) payload.price = data.price.toFixed(2);
+  if (data.currency !== undefined) payload.currency = data.currency;
+  if (data.category !== undefined) payload.category = data.category;
+  if (data.images !== undefined) payload.images = data.images;
+  if (data.stock !== undefined) payload.stock = data.stock;
+  if (data.status !== undefined) payload.status = data.status;
+  await db.update(merchantProducts).set(payload)
+    .where(and(eq(merchantProducts.id, id), eq(merchantProducts.merchantId, merchantId)));
+}
+
+export async function deleteMerchantProduct(id: number, merchantId: number): Promise<void> {
+  await ensureMerchantProductsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  await db.delete(merchantProducts)
+    .where(and(eq(merchantProducts.id, id), eq(merchantProducts.merchantId, merchantId)));
+}
+
+export async function listApprovedMerchants(): Promise<Array<{
+  userId: number; merchantName: string; selfIntro: string; merchantIcon: string | null; whatsapp: string; categories: string | null;
+}>> {
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const rows = await db.select({
+    userId: merchantApplications.userId,
+    merchantName: merchantApplications.merchantName,
+    selfIntro: merchantApplications.selfIntro,
+    merchantIcon: merchantApplications.merchantIcon,
+    whatsapp: merchantApplications.whatsapp,
+    categories: merchantApplications.categories,
+  }).from(merchantApplications).where(eq(merchantApplications.status, 'approved'))
+    .orderBy(asc(merchantApplications.merchantName));
+  return rows as any;
 }

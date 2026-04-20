@@ -9,7 +9,7 @@ import type { Auction } from "../drizzle/schema";
 import { merchantApplications as merchantAppsTable } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants } from "./db";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 
@@ -2326,6 +2326,124 @@ export const appRouter = router({
         } catch (e: unknown) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: e instanceof Error ? e.message : '審批失敗' });
         }
+      }),
+
+    // ── 商戶市集 ─────────────────────────────────────────────────────────────
+
+    /** 公開：取得所有已批准商戶列表 */
+    listApprovedMerchants: publicProcedure.query(async () => {
+      return listApprovedMerchants();
+    }),
+
+    /** 公開：取得商品列表（可按 merchantId / category 篩選） */
+    listProducts: publicProcedure
+      .input(z.object({
+        merchantId: z.number().int().optional(),
+        category: z.string().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return listMerchantProducts({ merchantId: input?.merchantId, category: input?.category });
+      }),
+
+    /** 商戶：取得自己的商品（包括 hidden/sold） */
+    myProducts: protectedProcedure.query(async ({ ctx }) => {
+      const app = await getMerchantApplicationByUser(ctx.user.id);
+      if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+      }
+      return listMerchantProducts({ merchantId: ctx.user.id, status: 'all' });
+    }),
+
+    /** 商戶：新增商品 */
+    addProduct: protectedProcedure
+      .input(z.object({
+        title: z.string().min(1).max(200),
+        description: z.string().max(2000).optional(),
+        price: z.number().positive(),
+        currency: z.string().default('HKD'),
+        category: z.string().max(50).optional(),
+        images: z.string().optional(),
+        stock: z.number().int().min(1).default(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        const id = await createMerchantProduct({
+          merchantId: ctx.user.id,
+          merchantName: app?.merchantName ?? ctx.user.name ?? '商戶',
+          merchantIcon: app?.merchantIcon ?? undefined,
+          whatsapp: app?.whatsapp ?? undefined,
+          title: input.title,
+          description: input.description,
+          price: input.price,
+          currency: input.currency,
+          category: input.category,
+          images: input.images,
+          stock: input.stock,
+        });
+        return { id };
+      }),
+
+    /** 商戶：更新商品 */
+    updateProduct: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        title: z.string().min(1).max(200).optional(),
+        description: z.string().max(2000).optional(),
+        price: z.number().positive().optional(),
+        currency: z.string().optional(),
+        category: z.string().max(50).optional(),
+        images: z.string().optional(),
+        stock: z.number().int().min(0).optional(),
+        status: z.enum(['active', 'sold', 'hidden']).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        const { id, ...data } = input;
+        await updateMerchantProduct(id, ctx.user.id, data as any);
+        return { success: true };
+      }),
+
+    /** 商戶：刪除商品 */
+    deleteProduct: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        await deleteMerchantProduct(input.id, ctx.user.id);
+        return { success: true };
+      }),
+
+    /** 商戶：上傳商品圖片 */
+    uploadProductImage: protectedProcedure
+      .input(z.object({
+        imageData: z.string(),
+        fileName: z.string(),
+        mimeType: z.string().default('image/jpeg'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
+        if (!allowedMimes.includes(input.mimeType)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '不支援此圖片格式' });
+        }
+        const buffer = Buffer.from(input.imageData, 'base64');
+        if (buffer.length > 8 * 1024 * 1024) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '圖片不可超過 8MB' });
+        }
+        const fileKey = `merchant-products/${ctx.user.id}/${Date.now()}-${input.fileName}`;
+        const { url } = await storagePut(fileKey, buffer, input.mimeType);
+        return { url };
       }),
   }),
 });

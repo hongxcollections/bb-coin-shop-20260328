@@ -74,6 +74,7 @@ export default function BottomNav() {
 
   const isActive = (path: string) => {
     if (path === "/") return location === "/" || location === "/auctions";
+    if (path === "/merchants") return location === "/merchants" || location.startsWith("/merchants/") || location === "/merchant-products";
     return location === path || location.startsWith(path + "/");
   };
 
@@ -100,10 +101,10 @@ export default function BottomNav() {
       type: "center" as const,
     },
     {
-      label: "商店",
+      label: "商戶",
       icon: Store,
-      path: null,
-      type: "disabled" as const,
+      path: "/merchants",
+      type: "link" as const,
     },
     {
       label: "更多",

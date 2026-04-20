@@ -384,6 +384,28 @@ export const merchantApplications = mysqlTable("merchantApplications", {
 export type MerchantApplication = typeof merchantApplications.$inferSelect;
 export type InsertMerchantApplication = typeof merchantApplications.$inferInsert;
 
+// ─── Merchant Products (fixed-price store listings) ──────────────────────────
+export const merchantProducts = mysqlTable("merchantProducts", {
+  id: int("id").autoincrement().primaryKey(),
+  merchantId: int("merchantId").notNull(),
+  merchantName: varchar("merchantName", { length: 100 }).notNull(),
+  merchantIcon: varchar("merchantIcon", { length: 500 }),
+  whatsapp: varchar("whatsapp", { length: 30 }),
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description"),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 10 }).default("HKD").notNull(),
+  category: varchar("category", { length: 50 }),
+  images: text("images"),
+  stock: int("stock").default(1).notNull(),
+  status: mysqlEnum("status", ["active", "sold", "hidden"]).default("active").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MerchantProduct = typeof merchantProducts.$inferSelect;
+export type InsertMerchantProduct = typeof merchantProducts.$inferInsert;
+
 // Relations
 export const subscriptionPlansRelations = relations(subscriptionPlans, ({ many }) => ({
   subscriptions: many(userSubscriptions),
