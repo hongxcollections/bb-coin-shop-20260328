@@ -6,7 +6,7 @@ import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl } from "./db";
 import type { Auction } from "../drizzle/schema";
-import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable } from "../drizzle/schema";
+import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
 import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants } from "./db";
@@ -2422,6 +2422,51 @@ export const appRouter = router({
     listApprovedMerchants: publicProcedure.query(async () => {
       return listApprovedMerchants();
     }),
+
+    /** 公開：取得單一已批准商戶資料 */
+    getPublicMerchant: publicProcedure
+      .input(z.object({ userId: z.number().int() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
+        const { and } = await import('drizzle-orm');
+        const rows = await db.select().from(merchantAppsTable)
+          .where(and(eq(merchantAppsTable.userId, input.userId), eq(merchantAppsTable.status, 'approved')))
+          .limit(1);
+        if (!rows[0]) throw new TRPCError({ code: 'NOT_FOUND', message: '商戶不存在' });
+        return rows[0];
+      }),
+
+    /** 公開：取得某商戶拍賣中商品（含封面圖） */
+    getMerchantAuctions: publicProcedure
+      .input(z.object({ userId: z.number().int() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        const { sql: drizzleSql, desc: drizzleDesc, and: drizzleAnd } = await import('drizzle-orm');
+        const { auctionImages } = await import('../drizzle/schema');
+        try {
+          const rows = await db.select({
+            id: auctions.id,
+            title: auctions.title,
+            currentPrice: auctions.currentPrice,
+            startingPrice: auctions.startingPrice,
+            endTime: auctions.endTime,
+            status: auctions.status,
+            currency: auctions.currency,
+            category: auctions.category,
+            bidIncrement: auctions.bidIncrement,
+            createdBy: auctions.createdBy,
+            coverImage: drizzleSql<string | null>`(SELECT imageUrl FROM auction_images WHERE auctionId = ${auctions.id} ORDER BY displayOrder LIMIT 1)`,
+          }).from(auctions)
+            .where(drizzleAnd(eq(auctions.createdBy, input.userId), eq(auctions.status, 'active'), eq(auctions.archived, 0)))
+            .orderBy(auctions.endTime);
+          return rows;
+        } catch (err) {
+          console.error('[getMerchantAuctions] error:', err);
+          return [];
+        }
+      }),
 
     /** 公開：取得商品列表（可按 merchantId / category 篩選） */
     listProducts: publicProcedure
