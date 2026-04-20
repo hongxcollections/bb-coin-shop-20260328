@@ -7,10 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   ChevronLeft, Plus, Package, Pencil, Trash2, Eye, EyeOff,
-  ImageIcon, X, Loader2, MessageCircle,
+  ImageIcon, X, Loader2,
 } from "lucide-react";
 
 const CATEGORIES = ["古幣", "紀念幣", "外幣", "銀幣", "金幣", "其他"];
@@ -45,6 +50,7 @@ export default function MerchantProducts() {
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const { data: products = [], isLoading } = trpc.merchants.myProducts.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -109,13 +115,19 @@ export default function MerchantProducts() {
     }
   }
 
-  async function handleSubmit() {
+  function handleSubmit() {
     if (!form.title.trim()) return toast.error("請輸入商品名稱");
     const price = parseFloat(form.price);
     if (isNaN(price) || price <= 0) return toast.error("請輸入有效售價");
     const stock = parseInt(form.stock);
     if (isNaN(stock) || stock < 0) return toast.error("請輸入有效庫存量");
+    // 編輯時直接提交，新增時才顯示確認彈窗
+    if (editingId) { doSubmit(); } else { setConfirmOpen(true); }
+  }
 
+  async function doSubmit() {
+    const price = parseFloat(form.price);
+    const stock = parseInt(form.stock);
     const payload = {
       title: form.title.trim(),
       description: form.description.trim() || undefined,
@@ -125,7 +137,6 @@ export default function MerchantProducts() {
       images: form.images.length > 0 ? JSON.stringify(form.images) : undefined,
       stock,
     };
-
     setSaving(true);
     try {
       if (editingId) {
@@ -135,6 +146,7 @@ export default function MerchantProducts() {
       }
     } finally {
       setSaving(false);
+      setConfirmOpen(false);
     }
   }
 
@@ -325,6 +337,59 @@ export default function MerchantProducts() {
           </div>
         )}
       </div>
+
+      {/* 確認上架彈窗 */}
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-green-600" />
+              確認上架商品
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-gray-700 pt-1">
+                <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">商品名稱</span>
+                    <span className="font-medium text-right max-w-[60%]">{form.title}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">售價</span>
+                    <span className="font-bold text-amber-600">{form.currency} ${parseFloat(form.price || "0").toLocaleString()}</span>
+                  </div>
+                  {form.category && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">類別</span>
+                      <span>{form.category}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">庫存</span>
+                    <span>{form.stock} 件</span>
+                  </div>
+                  {form.images.length > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">圖片</span>
+                      <span>{form.images.length} 張</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400">確認後商品將立即公開顯示於商戶市集。</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); doSubmit(); }}
+              disabled={saving}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />上架中…</> : "確認上架"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
