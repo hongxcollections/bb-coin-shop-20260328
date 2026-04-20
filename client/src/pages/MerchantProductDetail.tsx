@@ -46,7 +46,7 @@ export default function MerchantProductDetail() {
 
   const { data: merchantDetail, isLoading: merchantLoading } = trpc.merchants.getPublicMerchant.useQuery(
     { userId: product?.merchantId ?? 0 },
-    { enabled: merchantOpen && !!product?.merchantId }
+    { enabled: !!product?.merchantId }
   );
 
   const imgs: string[] = (() => {
@@ -74,6 +74,10 @@ export default function MerchantProductDetail() {
   const whatsapp = product?.whatsapp ?? merchantInfo?.whatsapp ?? "";
   const waLink = whatsapp
     ? `https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`你好，我想查詢商品：${product?.title}`)}`
+    : "";
+  const fbRaw = (merchantDetail as any)?.facebook ?? "";
+  const messengerLink = fbRaw
+    ? (fbRaw.startsWith("http") ? fbRaw : `https://m.me/${fbRaw}`)
     : "";
 
   return (
@@ -222,15 +226,21 @@ export default function MerchantProductDetail() {
                           )}
 
                           {/* 聯絡 + 跳頁 */}
-                          <div className="flex gap-2 pt-1">
+                          <div className="flex gap-2 pt-1 flex-wrap">
                             {waLink && (
                               <a href={waLink} target="_blank" rel="noopener noreferrer"
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-green-500 text-white text-xs font-semibold rounded-lg">
-                                <Phone className="w-3.5 h-3.5" />WhatsApp 聯絡
+                                className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 bg-green-500 text-white text-xs font-semibold rounded-lg">
+                                <Phone className="w-3.5 h-3.5" />WhatsApp
+                              </a>
+                            )}
+                            {messengerLink && (
+                              <a href={messengerLink} target="_blank" rel="noopener noreferrer"
+                                className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg">
+                                <MessageCircle className="w-3.5 h-3.5" />Messenger
                               </a>
                             )}
                             <Link href={`/merchants/${product.merchantId}`}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg">
+                              className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg">
                               <Store className="w-3.5 h-3.5" />商戶主頁
                             </Link>
                           </div>
@@ -274,12 +284,22 @@ export default function MerchantProductDetail() {
                   </span>
                 </div>
 
-                {/* WhatsApp 查詢 */}
-                {product.stock > 0 && waLink && (
-                  <a href={waLink} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-colors">
-                    <MessageCircle className="w-4 h-4" />WhatsApp 查詢 / 購買
-                  </a>
+                {/* 聯絡按鈕 */}
+                {product.stock > 0 && (waLink || messengerLink) && (
+                  <div className={`flex gap-2 ${waLink && messengerLink ? "flex-row" : ""}`}>
+                    {waLink && (
+                      <a href={waLink} target="_blank" rel="noopener noreferrer"
+                        className={`flex items-center justify-center gap-2 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-colors ${messengerLink ? "flex-1" : "w-full"}`}>
+                        <MessageCircle className="w-4 h-4" />WhatsApp
+                      </a>
+                    )}
+                    {messengerLink && (
+                      <a href={messengerLink} target="_blank" rel="noopener noreferrer"
+                        className={`flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors ${waLink ? "flex-1" : "w-full"}`}>
+                        <MessageCircle className="w-4 h-4" />Messenger
+                      </a>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

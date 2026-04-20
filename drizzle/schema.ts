@@ -371,6 +371,7 @@ export const merchantApplications = mysqlTable("merchantApplications", {
   merchantName: varchar("merchantName", { length: 100 }).notNull(),
   selfIntro: text("selfIntro").notNull(),
   whatsapp: varchar("whatsapp", { length: 30 }).notNull(),
+  facebook: varchar("facebook", { length: 500 }),
   yearsExperience: varchar("yearsExperience", { length: 20 }),
   merchantIcon: varchar("merchantIcon", { length: 500 }),
   categories: text("categories"),

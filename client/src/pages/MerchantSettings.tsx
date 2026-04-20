@@ -38,6 +38,7 @@ export default function MerchantSettings() {
   const [profileMerchantName, setProfileMerchantName] = useState("");
   const [profileSelfIntro, setProfileSelfIntro] = useState("");
   const [profileWhatsapp, setProfileWhatsapp] = useState("");
+  const [profileFacebook, setProfileFacebook] = useState("");
   const [profileIcon, setProfileIcon] = useState<string | null>(null);
   const [profileInitialized, setProfileInitialized] = useState(false);
   const [iconUploading, setIconUploading] = useState(false);
@@ -48,6 +49,7 @@ export default function MerchantSettings() {
       setProfileMerchantName(myApp.merchantName ?? "");
       setProfileSelfIntro(myApp.selfIntro ?? "");
       setProfileWhatsapp(myApp.whatsapp ?? "");
+      setProfileFacebook((myApp as any).facebook ?? "");
       setProfileIcon(myApp.merchantIcon ?? null);
       setProfileInitialized(true);
     }
@@ -86,6 +88,7 @@ export default function MerchantSettings() {
       merchantName: profileMerchantName.trim(),
       selfIntro: profileSelfIntro.trim(),
       whatsapp: profileWhatsapp.trim(),
+      facebook: profileFacebook.trim() || null,
       merchantIcon: profileIcon,
     });
   };
@@ -276,6 +279,19 @@ export default function MerchantSettings() {
                     maxLength={50}
                     placeholder="例：+852 9123 4567"
                   />
+                </div>
+
+                {/* Facebook Messenger */}
+                <div className="space-y-2">
+                  <Label htmlFor="profileFacebook">Facebook Messenger 連結（選填）</Label>
+                  <Input
+                    id="profileFacebook"
+                    value={profileFacebook}
+                    onChange={(e) => setProfileFacebook(e.target.value)}
+                    maxLength={500}
+                    placeholder="例：https://m.me/yourpage 或 Facebook 專頁網址"
+                  />
+                  <p className="text-xs text-muted-foreground">填寫後，商品詳情頁會顯示 Messenger 聯絡按鈕</p>
                 </div>
 
                 {/* 商戶簡介 */}

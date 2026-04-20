@@ -1694,6 +1694,7 @@ export const appRouter = router({
         merchantName: z.string().min(1).max(100),
         selfIntro: z.string().max(1000).default(""),
         whatsapp: z.string().min(1).max(50),
+        facebook: z.string().max(500).nullable().optional(),
         merchantIcon: z.string().url().nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
@@ -1705,6 +1706,7 @@ export const appRouter = router({
           merchantName: input.merchantName,
           selfIntro: input.selfIntro,
           whatsapp: input.whatsapp,
+          facebook: input.facebook ?? null,
           merchantIcon: input.merchantIcon ?? null,
         });
         return { success: true };

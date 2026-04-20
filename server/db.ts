@@ -1458,6 +1458,7 @@ async function ensureDepositTables() {
     // Safely add new columns to existing tables (ignore duplicate column errors)
     try { await db.execute(sql`ALTER TABLE depositTierPresets ADD COLUMN commissionRate DECIMAL(5,4) NOT NULL DEFAULT 0.0500`); } catch {}
     try { await db.execute(sql`ALTER TABLE depositTopUpRequests ADD COLUMN tierId INT`); } catch {}
+    try { await db.execute(sql`ALTER TABLE merchantApplications ADD COLUMN facebook VARCHAR(500)`); } catch {}
     _depositTablesChecked = true;
   } catch (error) {
     console.error('[Database] Failed to ensure deposit tables:', error);
@@ -2444,7 +2445,7 @@ export async function createMerchantApplication(data: InsertMerchantApplication)
 
 export async function updateMerchantProfile(
   userId: number,
-  data: { merchantName: string; selfIntro: string; whatsapp: string; merchantIcon?: string | null }
+  data: { merchantName: string; selfIntro: string; whatsapp: string; facebook?: string | null; merchantIcon?: string | null }
 ) {
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
@@ -2453,6 +2454,7 @@ export async function updateMerchantProfile(
       merchantName: data.merchantName,
       selfIntro: data.selfIntro,
       whatsapp: data.whatsapp,
+      ...(data.facebook !== undefined ? { facebook: data.facebook } : {}),
       ...(data.merchantIcon !== undefined ? { merchantIcon: data.merchantIcon } : {}),
     })
     .where(and(eq(merchantApplications.userId, userId), eq(merchantApplications.status, 'approved')));
