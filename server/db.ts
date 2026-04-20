@@ -2395,36 +2395,55 @@ export async function deleteUserAndData(userId: number): Promise<{ success: bool
   const db = await getDb();
   if (!db) return { success: false, error: 'Database not available' };
   try {
+    // ── 1. 清除商戶拍賣相關資料（含拍賣本身、出價、競拍記錄、圖片等） ──
+    try { await purgeMerchantAuctionData(userId); } catch {}
+
+    // ── 2. 商戶市集出售商品 ──
+    try { await db.delete(merchantProducts).where(eq(merchantProducts.merchantId, userId)); } catch {}
+
+    // ── 3. 商戶申請記錄（含 approved 記錄，確保不再出現在商戶市集） ──
+    try { await db.delete(merchantApplications).where(eq(merchantApplications.userId, userId)); } catch {}
+
+    // ── 4. 保證金充值申請 ──
+    try { await db.delete(depositTopUpRequests).where(eq(depositTopUpRequests.userId, userId)); } catch {}
+
+    // ── 5. 通知設定 ──
+    try { await db.delete(notificationSettings).where(eq(notificationSettings.userId, userId)); } catch {}
+
+    // ── 6. 商戶版面設定（raw SQL，無 Drizzle ORM 表） ──
+    try { await db.execute(sql`DELETE FROM merchant_settings WHERE userId = ${userId}`); } catch {}
+
+    // ── 7. 其他競拍活動（作為買家） ──
     // Nullify highest bidder on any live auctions
     await db.update(auctions)
       .set({ highestBidderId: null } as Record<string, unknown>)
       .where(eq(auctions.highestBidderId, userId));
 
-    // Delete proxy bid logs
-    await db.delete(proxyBidLogs).where(eq(proxyBidLogs.proxyUserId, userId));
-    await db.delete(proxyBidLogs).where(eq(proxyBidLogs.triggerUserId, userId));
-
-    // Delete proxy bids
-    await db.delete(proxyBids).where(eq(proxyBids.userId, userId));
-
-    // Delete bids
-    await db.delete(bids).where(eq(bids.userId, userId));
-
-    // Delete favorites
-    await db.delete(favorites).where(eq(favorites.userId, userId));
-
-    // Delete subscriptions
+    // Delete proxy bid logs (as buyer)
     try {
-      await db.delete(userSubscriptions).where(eq(userSubscriptions.userId, userId));
+      await db.delete(proxyBidLogs).where(eq(proxyBidLogs.proxyUserId, userId));
+      await db.delete(proxyBidLogs).where(eq(proxyBidLogs.triggerUserId, userId));
     } catch {}
 
-    // Delete deposit transactions and deposit
+    // Delete proxy bids (as buyer)
+    try { await db.delete(proxyBids).where(eq(proxyBids.userId, userId)); } catch {}
+
+    // Delete bids (as buyer)
+    try { await db.delete(bids).where(eq(bids.userId, userId)); } catch {}
+
+    // Delete favorites (as buyer)
+    try { await db.delete(favorites).where(eq(favorites.userId, userId)); } catch {}
+
+    // ── 8. 訂閱 ──
+    try { await db.delete(userSubscriptions).where(eq(userSubscriptions.userId, userId)); } catch {}
+
+    // ── 9. 保證金交易記錄及保證金帳戶 ──
     try {
       await db.delete(depositTransactions).where(eq(depositTransactions.userId, userId));
       await db.delete(sellerDeposits).where(eq(sellerDeposits.userId, userId));
     } catch {}
 
-    // Finally delete the user
+    // ── 10. 最後刪除用戶本身 ──
     await db.delete(users).where(eq(users.id, userId));
 
     return { success: true };

@@ -1405,11 +1405,15 @@ export default function AdminUsers() {
                 您即將永久刪除用戶 <strong>{deleteTarget?.name}</strong> 及其所有相關資料，包括：
               </p>
               <ul className="text-sm list-disc list-inside space-y-1 text-muted-foreground">
-                <li>所有出價記錄</li>
+                <li>商戶申請記錄（從商戶市集移除）</li>
+                <li>所有出售商品（商戶市集）</li>
+                <li>所有拍賣及相關出價、競拍記錄、圖片</li>
+                <li>所有出價記錄（作為買家）</li>
                 <li>代理出價設定</li>
                 <li>收藏清單</li>
                 <li>訂閱記錄</li>
-                <li>保證金及交易記錄（如有）</li>
+                <li>保證金帳戶、充值申請及交易記錄</li>
+                <li>通知設定、商戶版面設定</li>
               </ul>
               <p className="font-semibold text-red-600">此操作不可逆，請謹慎確認。</p>
             </AlertDialogDescription>
