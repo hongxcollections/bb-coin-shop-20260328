@@ -56,8 +56,20 @@ export default function MerchantProducts() {
     enabled: isAuthenticated,
   });
 
+  const { data: quotaInfo } = trpc.sellerDeposits.getQuotaInfo.useQuery(undefined, {
+    enabled: isAuthenticated,
+  });
+  const { data: depositCheck } = trpc.sellerDeposits.canList.useQuery(undefined, {
+    enabled: isAuthenticated,
+  });
+
   const addProduct = trpc.merchants.addProduct.useMutation({
-    onSuccess: () => { utils.merchants.myProducts.invalidate(); toast.success("商品已上架"); resetForm(); },
+    onSuccess: () => {
+      utils.merchants.myProducts.invalidate();
+      utils.sellerDeposits.getQuotaInfo.invalidate();
+      toast.success("商品已上架");
+      resetForm();
+    },
     onError: (e) => toast.error(e.message),
   });
 
@@ -374,7 +386,34 @@ export default function MerchantProducts() {
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-gray-400">確認後商品將立即公開顯示於商戶市集。</p>
+                {/* 公佈額度狀態 */}
+                <div className={`rounded-lg p-2.5 flex items-start gap-2 ${
+                  !depositCheck?.canList
+                    ? "bg-red-50 border border-red-200"
+                    : quotaInfo && !quotaInfo.unlimited && quotaInfo.remainingQuota <= 0
+                    ? "bg-red-50 border border-red-200"
+                    : "bg-green-50 border border-green-200"
+                }`}>
+                  <span className="text-base leading-none mt-0.5">
+                    {!depositCheck?.canList || (quotaInfo && !quotaInfo.unlimited && quotaInfo.remainingQuota <= 0) ? "⚠️" : "✅"}
+                  </span>
+                  <div className="text-xs space-y-0.5">
+                    {!depositCheck?.canList ? (
+                      <p className="text-red-700 font-medium">{depositCheck?.reason ?? "保證金不足，無法上架"}</p>
+                    ) : quotaInfo && !quotaInfo.unlimited && quotaInfo.remainingQuota <= 0 ? (
+                      <p className="text-red-700 font-medium">公佈額度已用盡，請先購買月費計劃</p>
+                    ) : quotaInfo ? (
+                      <p className="text-green-700">
+                        {quotaInfo.unlimited
+                          ? `公佈額度：無限制（${quotaInfo.planName}）`
+                          : `公佈額度剩餘：${quotaInfo.remainingQuota} 次（${quotaInfo.planName}）`}
+                      </p>
+                    ) : (
+                      <p className="text-green-700">額度正常</p>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400">確認後商品將立即公開顯示於商戶市集，並扣減 1 次公佈額度。</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -382,7 +421,7 @@ export default function MerchantProducts() {
             <AlertDialogCancel disabled={saving}>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => { e.preventDefault(); doSubmit(); }}
-              disabled={saving}
+              disabled={saving || !depositCheck?.canList || (!!quotaInfo && !quotaInfo.unlimited && quotaInfo.remainingQuota <= 0)}
               className="bg-green-600 hover:bg-green-700 text-white"
             >
               {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />上架中…</> : "確認上架"}

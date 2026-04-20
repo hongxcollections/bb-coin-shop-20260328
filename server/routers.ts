@@ -2418,7 +2418,7 @@ export const appRouter = router({
       return listMerchantProducts({ merchantId: ctx.user.id, status: 'all' });
     }),
 
-    /** 商戶：新增商品 */
+    /** 商戶：新增商品（需通過保證金 + 公佈額度檢查） */
     addProduct: protectedProcedure
       .input(z.object({
         title: z.string().min(1).max(200),
@@ -2434,6 +2434,22 @@ export const appRouter = router({
         if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
         }
+
+        // ── 保證金檢查 ───────────────────────────────────────────────────────
+        const depositCheck = await canSellerList(ctx.user.id);
+        if (!depositCheck.canList) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: depositCheck.reason ?? '保證金不足，無法上架商品' });
+        }
+
+        // ── 公佈額度檢查 ─────────────────────────────────────────────────────
+        const quotaInfo = await getListingQuotaInfo(ctx.user.id);
+        const hasQuota = !quotaInfo || quotaInfo.unlimited || quotaInfo.remainingQuota >= 1;
+        if (!hasQuota) {
+          const remaining = quotaInfo?.remainingQuota ?? 0;
+          throw new TRPCError({ code: 'FORBIDDEN', message: `公佈額度不足（剩餘 ${remaining} 次），請先購買月費計劃` });
+        }
+
+        // ── 建立商品 ─────────────────────────────────────────────────────────
         const id = await createMerchantProduct({
           merchantId: ctx.user.id,
           merchantName: app?.merchantName ?? ctx.user.name ?? '商戶',
@@ -2447,6 +2463,12 @@ export const appRouter = router({
           images: input.images,
           stock: input.stock,
         });
+
+        // ── 扣減公佈額度（有限額時才扣） ────────────────────────────────────
+        if (quotaInfo && !quotaInfo.unlimited) {
+          await deductListingQuota(ctx.user.id);
+        }
+
         return { id };
       }),
 
