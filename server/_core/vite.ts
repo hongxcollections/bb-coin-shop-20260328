@@ -85,10 +85,9 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
       `<meta property="og:title" content="${esc(ogTitle)}" />`,
       `<meta property="og:description" content="${esc(ogDesc)}" />`,
       `<meta property="og:url" content="${esc(fullUrl)}" />`,
-      // Image — do NOT declare width/height unless actual dimensions are known.
-      // Facebook will measure the image itself; wrong hints cause it to reject the image.
       imageUrl ? `<meta property="og:image" content="${esc(imageUrl)}" />` : "",
       imageUrl ? `<meta property="og:image:secure_url" content="${esc(imageUrl)}" />` : "",
+      imageUrl ? `<meta property="og:image:type" content="image/jpeg" />` : "",
       `<meta name="twitter:card" content="${imageUrl ? "summary_large_image" : "summary"}" />`,
       `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
       `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
