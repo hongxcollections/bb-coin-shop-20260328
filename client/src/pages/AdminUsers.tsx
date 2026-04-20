@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Pencil, Trash2, Store, UserRound, ShieldAlert, ChevronDown, Gavel, Mail, KeyRound, CheckCircle2, Copy, Clock, XCircle, ChevronUp, UserPlus, Wrench, Loader2, PackagePlus, AlertTriangle, Wallet, Minus, Plus } from "lucide-react";
+import { Users, Pencil, Trash2, Store, UserRound, ShieldAlert, ChevronDown, Gavel, Mail, KeyRound, CheckCircle2, Copy, Clock, XCircle, ChevronUp, UserPlus, Wrench, Loader2, PackagePlus, AlertTriangle, Wallet, Minus, Plus, Package } from "lucide-react";
 import { toast } from "sonner";
 import { MemberBadge, type MemberLevel } from "@/components/MemberBadge";
 
@@ -210,6 +210,92 @@ function GenerateListingsPanel({ userId, userName }: { userId: number; userName:
               <CheckCircle2 size={13} style={{ color: "#059669", flexShrink: 0 }} />
               <span className="text-xs font-medium" style={{ color: "#065F46" }}>
                 成功建立 {lastResult} 個草稿，可在商戶拍賣管理查看
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 管理員為商戶自動生成固定價格出售商品 */
+function GenerateProductsPanel({ userId, userName }: { userId: number; userName: string }) {
+  const [open, setOpen] = useState(false);
+  const [countStr, setCountStr] = useState("5");
+  const [lastResult, setLastResult] = useState<number | null>(null);
+
+  const parsedCount = Math.max(1, Math.min(50, parseInt(countStr) || 1));
+  const isValid = /^\d+$/.test(countStr) && parsedCount >= 1 && parsedCount <= 50;
+
+  const generateMutation = trpc.merchants.adminGenerateProducts.useMutation({
+    onSuccess: (data) => {
+      setLastResult(data.created);
+      toast.success(`已為 ${userName} 生成 ${data.created} 個出售商品`);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  return (
+    <div className="mt-1.5">
+      <button
+        type="button"
+        onClick={() => { setOpen(!open); setLastResult(null); }}
+        className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium transition-colors whitespace-nowrap"
+        style={{ background: open ? "#DCFCE7" : "#F5F5F5", color: open ? "#15803D" : "#666" }}
+      >
+        <Package size={10} />
+        生成出售商品
+        <ChevronDown size={11} style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }} />
+      </button>
+
+      {open && (
+        <div className="mt-1.5 rounded-xl p-3 space-y-2.5" style={{ background: "#F0FDF4", border: "1px solid #86EFAC" }}>
+          <div className="flex items-center gap-1.5">
+            <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: "#16A34A" }}>
+              <Package size={11} className="text-white" />
+            </div>
+            <span className="text-xs font-semibold" style={{ color: "#15803D" }}>自動生成出售商品</span>
+            <span className="text-xs text-gray-400 ml-auto">標題帶【測試】前綴</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 flex-shrink-0">生成數量</span>
+            <input
+              type="number"
+              min={1}
+              max={50}
+              value={countStr}
+              onChange={(e) => { setCountStr(e.target.value); setLastResult(null); }}
+              onBlur={() => setCountStr(String(parsedCount))}
+              className="w-14 h-8 rounded-lg border text-center text-sm font-semibold focus:outline-none focus:ring-2"
+              style={{
+                borderColor: isValid ? "#86EFAC" : "#FCA5A5",
+                color: "#15803D",
+                background: "#fff",
+                boxShadow: "inset 0 1px 3px rgba(0,0,0,0.06)",
+              }}
+            />
+            <span className="text-xs text-gray-400">件（1–50）</span>
+          </div>
+
+          <button
+            type="button"
+            disabled={generateMutation.isPending || !isValid}
+            onClick={() => generateMutation.mutate({ merchantUserId: userId, count: parsedCount })}
+            className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-semibold text-white transition-opacity disabled:opacity-50"
+            style={{ background: "linear-gradient(135deg, #16A34A, #15803D)" }}
+          >
+            {generateMutation.isPending
+              ? <><Loader2 size={12} className="animate-spin" />生成中…</>
+              : <><span>🛍️</span>立即生成 {isValid ? parsedCount : ""} 個商品</>}
+          </button>
+
+          {lastResult !== null && (
+            <div className="flex items-center gap-1.5 rounded-lg px-2.5 py-2" style={{ background: "#D1FAE5", border: "1px solid #6EE7B7" }}>
+              <CheckCircle2 size={13} style={{ color: "#059669", flexShrink: 0 }} />
+              <span className="text-xs font-medium" style={{ color: "#065F46" }}>
+                成功建立 {lastResult} 個商品，可在商戶市集查看
               </span>
             </div>
           )}
@@ -848,8 +934,9 @@ export default function AdminUsers() {
             </div>
             {/* Deposit modify — merchants only */}
             {u.depositId && <DepositModifyPanel userId={u.id} currentBalance={u.depositBalance ?? "0"} onDone={refetch} />}
-            {/* Generate test listings / won auction — merchants only */}
+            {/* Generate test listings / won auction / products — merchants only */}
             {u.depositId && <GenerateListingsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
+            {u.depositId && <GenerateProductsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
             {u.depositId && <GenerateWonAuctionPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
             {/* Danger zone: purge all auction data for this merchant */}
             {u.depositId && <PurgeMerchantDataPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} onDone={refetch} />}

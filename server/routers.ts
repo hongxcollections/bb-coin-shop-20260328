@@ -2328,6 +2328,57 @@ export const appRouter = router({
         }
       }),
 
+    // ── 管理員：自動生成商品 ──────────────────────────────────────────────────
+
+    /** Admin：為指定商戶自動生成固定價格商品 */
+    adminGenerateProducts: protectedProcedure
+      .input(z.object({
+        merchantUserId: z.number().int().positive(),
+        count: z.number().int().min(1).max(50),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can generate products' });
+        }
+        const app = await getMerchantApplicationByUser(input.merchantUserId);
+        if (!app || app.status !== 'approved') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '此用戶並非已批准商戶' });
+        }
+        const templates = [
+          { title: '1981年香港五毫硬幣', desc: '英女皇頭像，品相良好，流通品', category: '其他', price: 80 },
+          { title: '1967年香港一毫', desc: '英女皇頭像，流通品，少見年份', category: '其他', price: 120 },
+          { title: '1975年香港一元', desc: '皇冠獅子圖案，原光未流通', category: '其他', price: 200 },
+          { title: '1997年香港金紫荊紀念幣', desc: '回歸紀念，原盒附證書，品相完美', category: '紀念幣', price: 380 },
+          { title: '1935年香港一毫銀幣', desc: '喬治五世頭像，銀光好', category: '銀幣', price: 500 },
+          { title: '1863年香港一仙銅幣', desc: '早期殖民地幣，珍貴藏品', category: '古幣', price: 800 },
+          { title: '中國1980年長城流通紀念幣套裝', desc: '人民銀行發行，原套未拆，品相極佳', category: '紀念幣', price: 1200 },
+          { title: '1941年香港一仙', desc: '二戰前發行，存世量極少', category: '古幣', price: 950 },
+          { title: '美國1921年摩根銀元', desc: '品相MS62，原光未流通', category: '外幣', price: 1500 },
+          { title: '英國1887年維多利亞女皇金幣', desc: '22K黃金鑄造，歷史珍品', category: '金幣', price: 8800 },
+        ];
+        const imageUrl = 'https://placehold.co/400x400/d4af37/ffffff?text=商品';
+        const created: number[] = [];
+        for (let i = 0; i < input.count; i++) {
+          const t = templates[i % templates.length];
+          const suffix = input.count > templates.length ? ` (${Math.floor(i / templates.length) + 1})` : '';
+          const id = await createMerchantProduct({
+            merchantId: input.merchantUserId,
+            merchantName: app.merchantName,
+            merchantIcon: app.merchantIcon ?? undefined,
+            whatsapp: app.whatsapp ?? undefined,
+            title: `【測試】${t.title}${suffix}`,
+            description: `${t.desc}｜系統測試商品，請勿購買`,
+            price: t.price,
+            currency: 'HKD',
+            category: t.category,
+            images: JSON.stringify([imageUrl]),
+            stock: 1,
+          });
+          created.push(id);
+        }
+        return { created: created.length, ids: created };
+      }),
+
     // ── 商戶市集 ─────────────────────────────────────────────────────────────
 
     /** 公開：取得所有已批准商戶列表 */
