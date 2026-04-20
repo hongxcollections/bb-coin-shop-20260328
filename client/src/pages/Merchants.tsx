@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import Header from "@/components/Header";
-import { Store, Search, MessageCircle, ChevronDown, ChevronUp, Package } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Store, MessageCircle, Package, X } from "lucide-react";
 
 const CATEGORIES = ["全部", "古幣", "紀念幣", "外幣", "銀幣", "金幣", "其他"];
 
@@ -63,82 +61,128 @@ function ProductCard({ product }: { product: any }) {
 }
 
 function MerchantSection({ merchant, selectedCategory }: { merchant: any; selectedCategory: string }) {
-  const [expanded, setExpanded] = useState(true);
   const { data: products = [], isLoading } = trpc.merchants.listProducts.useQuery({
     merchantId: merchant.userId,
     category: selectedCategory !== "全部" ? selectedCategory : undefined,
   });
 
-  const visible = products.filter((p: any) => p.stock > 0 || p.status === "active");
+  const visible = products.filter((p: any) => p.status === "active" && p.stock > 0);
   if (!isLoading && visible.length === 0) return null;
 
   return (
     <div className="mb-6">
-      <button
-        onClick={() => setExpanded(e => !e)}
-        className="w-full flex items-center gap-3 py-3 px-1 text-left"
-      >
+      <div className="flex items-center gap-2 mb-3 px-1">
         {merchant.merchantIcon ? (
-          <img src={merchant.merchantIcon} alt={merchant.merchantName} className="w-10 h-10 rounded-full object-cover border-2 border-amber-200" />
+          <img src={merchant.merchantIcon} alt={merchant.merchantName} className="w-7 h-7 rounded-full object-cover border border-amber-200" />
         ) : (
-          <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-            <Store className="w-5 h-5 text-amber-500" />
+          <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+            <Store className="w-3.5 h-3.5 text-amber-500" />
           </div>
         )}
-        <div className="flex-1 min-w-0">
-          <div className="font-bold text-gray-800 text-sm">{merchant.merchantName}</div>
-          {merchant.selfIntro && <div className="text-xs text-gray-500 truncate">{merchant.selfIntro}</div>}
+        <span className="font-semibold text-sm text-gray-700">{merchant.merchantName}</span>
+        {!isLoading && (
+          <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full ml-auto">{visible.length} 件</span>
+        )}
+      </div>
+      {isLoading ? (
+        <div className="text-center py-6 text-2xl animate-spin">💰</div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {visible.map((p: any) => <ProductCard key={p.id} product={p} />)}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-            {isLoading ? "…" : `${visible.length} 件`}
-          </span>
-          {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-        </div>
-      </button>
-
-      {expanded && (
-        isLoading ? (
-          <div className="text-center py-6 text-2xl animate-spin">💰</div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {visible.map((p: any) => <ProductCard key={p.id} product={p} />)}
-          </div>
-        )
       )}
     </div>
   );
 }
 
 export default function Merchants() {
-  const [search, setSearch] = useState("");
+  const [selectedMerchantId, setSelectedMerchantId] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("全部");
   const { data: merchants = [], isLoading } = trpc.merchants.listApprovedMerchants.useQuery();
 
-  const filtered = merchants.filter((m: any) =>
-    !search || m.merchantName.toLowerCase().includes(search.toLowerCase())
-  );
+  const displayedMerchants = selectedMerchantId
+    ? merchants.filter((m: any) => m.userId === selectedMerchantId)
+    : merchants;
+
+  const selectedMerchant = merchants.find((m: any) => m.userId === selectedMerchantId);
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <div className="container max-w-2xl px-4 pt-4 pb-28">
+
+        {/* 標題 */}
         <div className="flex items-center gap-2 mb-4">
           <Store className="w-5 h-5 text-amber-500" />
           <h1 className="text-lg font-bold text-gray-800">商戶市集</h1>
+          {selectedMerchant && (
+            <button
+              onClick={() => setSelectedMerchantId(null)}
+              className="ml-auto flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full hover:bg-amber-200 transition-colors"
+            >
+              <X className="w-3 h-3" />
+              清除篩選
+            </button>
+          )}
         </div>
 
-        <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <Input
-            placeholder="搜尋商戶名稱..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9 bg-white border-amber-100"
-          />
-        </div>
+        {/* 商戶篩選列 */}
+        {!isLoading && merchants.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-2 mb-3" style={{ scrollbarWidth: "none" }}>
+            {/* 全部 */}
+            <button
+              onClick={() => setSelectedMerchantId(null)}
+              className={`shrink-0 flex flex-col items-center gap-1 px-2 pt-1.5 pb-1 rounded-xl transition-colors ${
+                selectedMerchantId === null
+                  ? "bg-amber-500 shadow-sm"
+                  : "bg-white border border-amber-100 hover:bg-amber-50"
+              }`}
+            >
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                selectedMerchantId === null ? "bg-amber-400" : "bg-amber-100"
+              }`}>
+                <Store className={`w-4 h-4 ${selectedMerchantId === null ? "text-white" : "text-amber-500"}`} />
+              </div>
+              <span className={`text-xs font-medium whitespace-nowrap ${selectedMerchantId === null ? "text-white" : "text-gray-600"}`}>
+                全部
+              </span>
+            </button>
 
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-none">
+            {/* 各商戶 */}
+            {(merchants as any[]).map((m) => {
+              const active = selectedMerchantId === m.userId;
+              return (
+                <button
+                  key={m.userId}
+                  onClick={() => setSelectedMerchantId(active ? null : m.userId)}
+                  className={`shrink-0 flex flex-col items-center gap-1 px-2 pt-1.5 pb-1 rounded-xl transition-colors ${
+                    active
+                      ? "bg-amber-500 shadow-sm"
+                      : "bg-white border border-amber-100 hover:bg-amber-50"
+                  }`}
+                >
+                  {m.merchantIcon ? (
+                    <img
+                      src={m.merchantIcon}
+                      alt={m.merchantName}
+                      className={`w-9 h-9 rounded-full object-cover border-2 ${active ? "border-white/60" : "border-amber-200"}`}
+                    />
+                  ) : (
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center ${active ? "bg-amber-400" : "bg-amber-100"}`}>
+                      <Store className={`w-4 h-4 ${active ? "text-white" : "text-amber-500"}`} />
+                    </div>
+                  )}
+                  <span className={`text-xs font-medium whitespace-nowrap max-w-[56px] truncate ${active ? "text-white" : "text-gray-600"}`}>
+                    {m.merchantName}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 類別篩選 */}
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-4" style={{ scrollbarWidth: "none" }}>
           {CATEGORIES.map(cat => (
             <button
               key={cat}
@@ -154,15 +198,16 @@ export default function Merchants() {
           ))}
         </div>
 
+        {/* 內容 */}
         {isLoading ? (
           <div className="text-center py-16 text-4xl animate-spin">💰</div>
-        ) : filtered.length === 0 ? (
+        ) : displayedMerchants.length === 0 ? (
           <div className="text-center py-16">
             <Store className="w-12 h-12 text-amber-200 mx-auto mb-3" />
             <p className="text-gray-400 text-sm">暫無商戶</p>
           </div>
         ) : (
-          filtered.map((m: any) => (
+          (displayedMerchants as any[]).map((m) => (
             <MerchantSection key={m.userId} merchant={m} selectedCategory={selectedCategory} />
           ))
         )}
