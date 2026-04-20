@@ -133,6 +133,7 @@ export default function MerchantProducts() {
     if (isNaN(price) || price <= 0) return toast.error("請輸入有效售價");
     const stock = parseInt(form.stock);
     if (isNaN(stock) || stock < 0) return toast.error("請輸入有效庫存量");
+    if (form.images.length === 0) return toast.error("請最少上傳一幅商品圖片");
     // 編輯時直接提交，新增時才顯示確認彈窗
     if (editingId) { doSubmit(); } else { setConfirmOpen(true); }
   }
@@ -252,7 +253,7 @@ export default function MerchantProducts() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs text-gray-500 font-medium">商品圖片（最多 5 張）</label>
+              <label className="text-xs text-gray-500 font-medium">商品圖片（最少 1 張，最多 5 張）<span className="text-red-500 ml-0.5">*</span></label>
               <div className="flex flex-wrap gap-2">
                 {form.images.map((url, i) => (
                   <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
@@ -405,11 +406,11 @@ export default function MerchantProducts() {
                     ) : quotaInfo ? (
                       <p className="text-green-700">
                         {quotaInfo.unlimited
-                          ? `公佈額度：無限制（${quotaInfo.planName}）`
-                          : `公佈額度剩餘：${quotaInfo.remainingQuota} 次（${quotaInfo.planName}）`}
+                          ? `公佈額度正常（無限制）（${quotaInfo.planName}）`
+                          : `公佈額度正常（剩餘 ${quotaInfo.remainingQuota} 次）`}
                       </p>
                     ) : (
-                      <p className="text-green-700">額度正常</p>
+                      <p className="text-green-700">公佈額度正常</p>
                     )}
                   </div>
                 </div>
