@@ -2320,7 +2320,6 @@ export async function cleanOrphanMerchantData(): Promise<{
   deletedMerchantApplications: number;
   deletedMerchantProducts: number;
   deletedAuctions: number;
-  deletedNotificationSettings: number;
   deletedDepositTopUpRequests: number;
   deletedMerchantSettings: number;
   deletedSellerDeposits: number;
@@ -2329,7 +2328,7 @@ export async function cleanOrphanMerchantData(): Promise<{
 }> {
   const zero = {
     success: false, deletedMerchantApplications: 0, deletedMerchantProducts: 0,
-    deletedAuctions: 0, deletedNotificationSettings: 0, deletedDepositTopUpRequests: 0,
+    deletedAuctions: 0, deletedDepositTopUpRequests: 0,
     deletedMerchantSettings: 0, deletedSellerDeposits: 0, deletedUserSubscriptions: 0,
   };
   const db = await getDb();
@@ -2337,7 +2336,7 @@ export async function cleanOrphanMerchantData(): Promise<{
 
   try {
     let deletedMerchantApplications = 0, deletedMerchantProducts = 0, deletedAuctions = 0;
-    let deletedNotificationSettings = 0, deletedDepositTopUpRequests = 0, deletedMerchantSettings = 0;
+    let deletedDepositTopUpRequests = 0, deletedMerchantSettings = 0;
     let deletedSellerDeposits = 0, deletedUserSubscriptions = 0;
 
     // 1. 找出所有孤兒拍賣 ID（createdBy 不在 users 表中）
@@ -2376,11 +2375,7 @@ export async function cleanOrphanMerchantData(): Promise<{
     const [dtu] = await db.execute(sql`DELETE FROM depositTopUpRequests WHERE userId NOT IN (SELECT id FROM users)`);
     deletedDepositTopUpRequests = (dtu as { affectedRows?: number })?.affectedRows ?? 0;
 
-    // 5. 通知設定
-    const [ns] = await db.execute(sql`DELETE FROM notificationSettings WHERE userId NOT IN (SELECT id FROM users)`);
-    deletedNotificationSettings = (ns as { affectedRows?: number })?.affectedRows ?? 0;
-
-    // 6. 商戶版面設定
+    // 5. 商戶版面設定（notificationSettings 是全站設定，無 userId，不刪）
     try {
       await ensureMerchantSettingsTable();
       const [ms] = await db.execute(sql`DELETE FROM merchant_settings WHERE userId NOT IN (SELECT id FROM users)`);
@@ -2400,7 +2395,7 @@ export async function cleanOrphanMerchantData(): Promise<{
     console.log(`[Database] cleanOrphanMerchantData: auctions=${deletedAuctions}, apps=${deletedMerchantApplications}, products=${deletedMerchantProducts}`);
     return {
       success: true, deletedMerchantApplications, deletedMerchantProducts, deletedAuctions,
-      deletedNotificationSettings, deletedDepositTopUpRequests, deletedMerchantSettings,
+      deletedDepositTopUpRequests, deletedMerchantSettings,
       deletedSellerDeposits, deletedUserSubscriptions,
     };
   } catch (error) {
@@ -2504,9 +2499,6 @@ export async function deleteUserAndData(userId: number): Promise<{ success: bool
 
     // ── 4. 保證金充值申請 ──
     try { await db.delete(depositTopUpRequests).where(eq(depositTopUpRequests.userId, userId)); } catch {}
-
-    // ── 5. 通知設定 ──
-    try { await db.delete(notificationSettings).where(eq(notificationSettings.userId, userId)); } catch {}
 
     // ── 6. 商戶版面設定（raw SQL，無 Drizzle ORM 表） ──
     try { await db.execute(sql`DELETE FROM merchant_settings WHERE userId = ${userId}`); } catch {}

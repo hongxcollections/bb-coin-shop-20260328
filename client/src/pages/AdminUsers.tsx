@@ -834,7 +834,6 @@ export default function AdminUsers() {
         res.deletedSellerDeposits ? `保證金帳戶 ${res.deletedSellerDeposits}` : "",
         res.deletedUserSubscriptions ? `訂閱 ${res.deletedUserSubscriptions}` : "",
         res.deletedDepositTopUpRequests ? `充值申請 ${res.deletedDepositTopUpRequests}` : "",
-        res.deletedNotificationSettings ? `通知設定 ${res.deletedNotificationSettings}` : "",
         res.deletedMerchantSettings ? `版面設定 ${res.deletedMerchantSettings}` : "",
       ].filter(Boolean);
       toast.success(parts.length > 0 ? `已清除孤兒資料：${parts.join("、")}` : "資料庫無孤兒資料，無需清理");
