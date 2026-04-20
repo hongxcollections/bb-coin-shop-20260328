@@ -96,16 +96,6 @@ export default function Home() {
   const [auctionListOpen, setAuctionListOpen] = useState(true);
   // 隨機索引在 mount 時固定，避免重新 render 時跳字
   const [randomIdx] = useState(() => Math.floor(Math.random() * 10000));
-  const resolvedTitle = (() => {
-    let list = AUCTION_SECTION_TITLES;
-    if (ss.auctionSectionTitles) {
-      try {
-        const parsed = JSON.parse(ss.auctionSectionTitles);
-        if (Array.isArray(parsed) && parsed.length > 0) list = parsed;
-      } catch {}
-    }
-    return list[randomIdx % list.length];
-  })();
 
   const { data: auctions, isLoading } = trpc.auctions.list.useQuery(
     { limit: 100, offset: 0, category: category === "all" ? undefined : category },
@@ -119,6 +109,19 @@ export default function Home() {
     staleTime: 5 * 60 * 1000,
   });
   const ss = (siteSettings as Record<string, string> | undefined) ?? {};
+
+  // 首頁拍賣標題 — ss 定義後才計算，避免 TDZ 錯誤
+  const resolvedTitle = (() => {
+    let list = AUCTION_SECTION_TITLES;
+    if (ss.auctionSectionTitles) {
+      try {
+        const parsed = JSON.parse(ss.auctionSectionTitles);
+        if (Array.isArray(parsed) && parsed.length > 0) list = parsed;
+      } catch {}
+    }
+    return list[randomIdx % list.length];
+  })();
+
   const _endingSoonRaw = parseInt(ss.endingSoonMinutes ?? '30', 10);
   const endingSoonMs = (isNaN(_endingSoonRaw) || _endingSoonRaw < 1 ? 30 : _endingSoonRaw) * 60 * 1000;
   const endingSoonText = ss.endingSoonText || "⏰ 即將結束";
