@@ -256,8 +256,9 @@ export default function Home() {
           {/* Collapsible Header */}
           <div className="flex items-center gap-3 mb-3">
             <h1
-              className="text-xl font-bold"
+              className="text-xl font-bold cursor-pointer select-none"
               style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.28))", marginBottom: 0 }}
+              onClick={() => setAuctionListOpen(o => !o)}
             >
               {(() => {
                 const spaceIdx = resolvedTitle.indexOf(' ');
