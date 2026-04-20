@@ -258,7 +258,7 @@ export default function Home() {
             <h1 className="text-xl font-bold text-amber-900">{resolvedTitle}</h1>
             <button
               onClick={() => setAuctionListOpen(o => !o)}
-              className={`flex items-center gap-1 text-[5px] text-amber-500 font-medium transition-all border border-amber-200 rounded-full px-2.5 py-1 hover:bg-amber-50 focus:outline-none ${auctionListOpen ? "" : "bg-amber-50"}`}
+              className={`flex items-center gap-1 text-[7px] text-amber-500 font-medium transition-all border border-amber-200 rounded-full px-2.5 py-1 hover:bg-amber-50 focus:outline-none ${auctionListOpen ? "" : "bg-amber-50"}`}
               style={{ marginBottom: "0px" }}
               aria-expanded={auctionListOpen}
             >
