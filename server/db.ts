@@ -3471,3 +3471,54 @@ export async function listApprovedMerchants(): Promise<Array<{
 
   return base;
 }
+
+// ─── 套餐資料匯出 / 匯入 ─────────────────────────────────────────────────────
+
+export async function exportPackagesData() {
+  const db = await getDb();
+  const [tiers, plans] = await Promise.all([
+    db.select().from(depositTierPresets).orderBy(asc(depositTierPresets.sortOrder), asc(depositTierPresets.id)),
+    db.select().from(subscriptionPlans).orderBy(asc(subscriptionPlans.sortOrder), asc(subscriptionPlans.id)),
+  ]);
+  return { depositTiers: tiers, subscriptionPlans: plans, exportedAt: new Date().toISOString() };
+}
+
+export async function importPackagesData(data: {
+  depositTiers: { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; commissionRate: string; description: string | null; isActive: number; sortOrder: number }[];
+  subscriptionPlans: { id: number; name: string; memberLevel: string; monthlyPrice: string; yearlyPrice: string; maxListings: number; commissionDiscount: string; description: string | null; benefits: string | null; sortOrder: number; isActive: number }[];
+}): Promise<{ success: boolean; tiersImported: number; plansImported: number; error?: string }> {
+  try {
+    const db = await getDb();
+
+    // depositTierPresets
+    await db.delete(depositTierPresets);
+    if (data.depositTiers.length > 0) {
+      for (const t of data.depositTiers) {
+        await db.execute(sql`
+          INSERT INTO depositTierPresets (id, name, amount, maintenancePct, warningPct, commissionRate, description, isActive, sortOrder)
+          VALUES (${t.id}, ${t.name}, ${t.amount}, ${t.maintenancePct}, ${t.warningPct}, ${t.commissionRate}, ${t.description ?? null}, ${t.isActive}, ${t.sortOrder})
+        `);
+      }
+      const maxTierId = Math.max(...data.depositTiers.map(t => t.id));
+      await db.execute(sql`ALTER TABLE depositTierPresets AUTO_INCREMENT = ${maxTierId + 1}`);
+    }
+
+    // subscriptionPlans
+    await db.delete(subscriptionPlans);
+    if (data.subscriptionPlans.length > 0) {
+      for (const p of data.subscriptionPlans) {
+        await db.execute(sql`
+          INSERT INTO subscription_plans (id, name, memberLevel, monthlyPrice, yearlyPrice, maxListings, commissionDiscount, description, benefits, sortOrder, isActive)
+          VALUES (${p.id}, ${p.name}, ${p.memberLevel}, ${p.monthlyPrice}, ${p.yearlyPrice}, ${p.maxListings}, ${p.commissionDiscount}, ${p.description ?? null}, ${p.benefits ?? null}, ${p.sortOrder}, ${p.isActive})
+        `);
+      }
+      const maxPlanId = Math.max(...data.subscriptionPlans.map(p => p.id));
+      await db.execute(sql`ALTER TABLE subscription_plans AUTO_INCREMENT = ${maxPlanId + 1}`);
+    }
+
+    return { success: true, tiersImported: data.depositTiers.length, plansImported: data.subscriptionPlans.length };
+  } catch (err: any) {
+    console.error('[importPackagesData]', err);
+    return { success: false, tiersImported: 0, plansImported: 0, error: String(err?.message ?? err) };
+  }
+}

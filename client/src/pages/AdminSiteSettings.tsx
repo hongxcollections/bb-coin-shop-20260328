@@ -13,7 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Settings, Bell, Clock, ChevronLeft, Save, AlertCircle,
-  MessageSquare, Megaphone, Home, CheckCircle, Tag, LogIn, Sparkles
+  MessageSquare, Megaphone, Home, CheckCircle, Tag, LogIn, Sparkles,
+  Download, Upload, Package2
 } from "lucide-react";
 
 export default function AdminSiteSettings() {
@@ -61,6 +62,45 @@ export default function AdminSiteSettings() {
 
   // 發佈保證金不足錯誤信息模板
   const [publishDepositErrorMsg, setPublishDepositErrorMsg] = useState("保證金維持水平不足（餘額 {balance}，需要 {required}）");
+
+  // 套餐資料同步
+  const [importLoading, setImportLoading] = useState(false);
+  const exportPackages = trpc.adminExportPackages.useQuery(undefined, { enabled: false });
+  const importPackagesMut = trpc.adminImportPackages.useMutation({
+    onSuccess: (r) => toast.success(`匯入成功！保證金套餐 ${r.tiersImported} 個，月費套餐 ${r.plansImported} 個`),
+    onError: (e) => toast.error(e.message || "匯入失敗"),
+  });
+
+  async function handleExportPackages() {
+    const res = await exportPackages.refetch();
+    if (!res.data) { toast.error("匯出失敗"); return; }
+    const json = JSON.stringify(res.data, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `bb-packages-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("套餐設定已下載");
+  }
+
+  async function handleImportPackages(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setImportLoading(true);
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data.depositTiers || !data.subscriptionPlans) {
+        toast.error("JSON 格式錯誤，請使用正確的匯出檔案"); setImportLoading(false); return;
+      }
+      await importPackagesMut.mutateAsync({ depositTiers: data.depositTiers, subscriptionPlans: data.subscriptionPlans });
+    } catch {
+      toast.error("檔案解析失敗，請確認 JSON 格式正確");
+    } finally { setImportLoading(false); }
+  }
 
   useEffect(() => {
     if (!settings) return;
@@ -499,6 +539,51 @@ export default function AdminSiteSettings() {
                   </div>
                   <SaveBtn onClick={() => save('publishDepositErrorMsg', publishDepositErrorMsg, () => !publishDepositErrorMsg.trim() ? "錯誤信息不可為空" : null)} />
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* 套餐資料同步 */}
+            <Card className="border-blue-200">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Package2 className="w-4 h-4 text-blue-600" />
+                  套餐資料同步（UAT → Production）
+                </CardTitle>
+                <CardDescription>
+                  將「保證金套餐」及「月費套餐」設定從 UAT 匯出，再在 Production 匯入。<br />
+                  <span className="text-red-500 font-medium">⚠️ 匯入會覆蓋目標環境的全部套餐設定</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-3">
+                <Button
+                  variant="outline"
+                  className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                  onClick={handleExportPackages}
+                  disabled={exportPackages.isFetching}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  {exportPackages.isFetching ? "匯出中…" : "匯出套餐設定 JSON"}
+                </Button>
+                <label>
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="border-green-200 text-green-700 hover:bg-green-50 cursor-pointer"
+                    disabled={importLoading || importPackagesMut.isPending}
+                  >
+                    <span>
+                      <Upload className="w-4 h-4 mr-2" />
+                      {importLoading || importPackagesMut.isPending ? "匯入中…" : "匯入套餐設定 JSON"}
+                    </span>
+                  </Button>
+                  <input
+                    type="file"
+                    accept=".json,application/json"
+                    className="hidden"
+                    onChange={handleImportPackages}
+                    disabled={importLoading || importPackagesMut.isPending}
+                  />
+                </label>
               </CardContent>
             </Card>
 
