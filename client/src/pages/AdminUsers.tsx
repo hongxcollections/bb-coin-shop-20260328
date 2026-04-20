@@ -1489,9 +1489,17 @@ export default function AdminUsers() {
                 </button>
               </div>
               {newUserForm.isMerchant && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-amber-700">商戶名稱</Label>
-                  <Input placeholder="例：大明古幣店" value={newUserForm.merchantName} onChange={(e) => setNewUserForm(f => ({ ...f, merchantName: e.target.value }))} className="border-amber-200 h-8 text-sm" />
+                <div className="space-y-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-amber-700">商戶名稱</Label>
+                    <Input placeholder="例：大明古幣店" value={newUserForm.merchantName} onChange={(e) => setNewUserForm(f => ({ ...f, merchantName: e.target.value }))} className="border-amber-200 h-8 text-sm" />
+                  </div>
+                  <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 space-y-0.5">
+                    <p className="text-xs font-medium text-amber-800">系統將自動設定：</p>
+                    <p className="text-[11px] text-amber-700">• 隨機選擇保證金套餐（設定所需保證金及傭金率）</p>
+                    <p className="text-[11px] text-amber-700">• 隨機選擇月費訂閱計劃（即時啟動，有效期 1 個月）</p>
+                    <p className="text-[11px] text-amber-700">• 商戶狀態設為已開通</p>
+                  </div>
                 </div>
               )}
             </div>

@@ -1084,6 +1084,58 @@ export const appRouter = router({
             status: 'approved' as const,
             adminNote: '管理員直接建立',
           });
+
+          // ── 隨機分配保證金套餐 ──
+          try {
+            const tiers = await listDepositTierPresets(true);
+            if (tiers.length > 0) {
+              const tier = tiers[Math.floor(Math.random() * tiers.length)];
+              const settings: { requiredDeposit?: number; commissionRate?: number } = {};
+              if (tier.amount) settings.requiredDeposit = parseFloat(String(tier.amount));
+              if (tier.commissionRate) settings.commissionRate = parseFloat(String(tier.commissionRate));
+              await updateSellerDepositSettings(newUserId, settings);
+              console.log(`[adminCreateUser] Applied deposit tier "${tier.name}" to user ${newUserId}`);
+            }
+          } catch (err) {
+            console.error('[adminCreateUser] Failed to apply deposit tier:', err);
+          }
+
+          // ── 隨機分配月費訂閱 ──
+          try {
+            const plans = await getActiveSubscriptionPlans();
+            if (plans.length > 0) {
+              const plan = plans[Math.floor(Math.random() * plans.length)];
+              const now = new Date();
+              const endDate = new Date(now);
+              endDate.setMonth(endDate.getMonth() + 1);
+              const dbInner = await (await import('./db')).getDb();
+              if (dbInner) {
+                const { userSubscriptions: uSubTable } = await import('../drizzle/schema');
+                await dbInner.insert(uSubTable).values({
+                  userId: newUserId,
+                  planId: plan.id,
+                  billingCycle: 'monthly' as const,
+                  status: 'active' as const,
+                  startDate: now,
+                  endDate: endDate,
+                  approvedBy: ctx.user.id,
+                  approvedAt: now,
+                  adminNote: '管理員建立時自動分配',
+                  remainingQuota: plan.maxListings ?? 0,
+                  paymentMethod: null,
+                  paymentReference: null,
+                  paymentProofUrl: null,
+                });
+                // 更新會員等級
+                const { users: uTable } = await import('../drizzle/schema');
+                const { eq: eqInner } = await import('drizzle-orm');
+                await dbInner.update(uTable).set({ memberLevel: plan.memberLevel }).where(eqInner(uTable.id, newUserId));
+                console.log(`[adminCreateUser] Applied subscription plan "${plan.name}" to user ${newUserId}`);
+              }
+            }
+          } catch (err) {
+            console.error('[adminCreateUser] Failed to apply subscription:', err);
+          }
         }
         return { success: true, userId: newUserId };
       }),
