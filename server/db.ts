@@ -2357,7 +2357,7 @@ export async function cleanOrphanMerchantData(): Promise<{
       await db.execute(sql`DELETE FROM bids WHERE auctionId IN (SELECT id FROM auctions WHERE createdBy NOT IN (SELECT id FROM users))`);
       await db.execute(sql`DELETE FROM auctionImages WHERE auctionId IN (SELECT id FROM auctions WHERE createdBy NOT IN (SELECT id FROM users))`);
       await db.execute(sql`DELETE FROM favorites WHERE auctionId IN (SELECT id FROM auctions WHERE createdBy NOT IN (SELECT id FROM users))`);
-      await db.execute(sql`DELETE FROM depositTransactions WHERE relatedAuctionId IN (SELECT id FROM auctions WHERE createdBy NOT IN (SELECT id FROM users))`);
+      await db.execute(sql`DELETE FROM deposit_transactions WHERE relatedAuctionId IN (SELECT id FROM auctions WHERE createdBy NOT IN (SELECT id FROM users))`);
       try { await db.execute(sql`DELETE FROM commissionRefundRequests WHERE auctionId IN (SELECT id FROM auctions WHERE createdBy NOT IN (SELECT id FROM users))`); } catch {}
       // 刪除孤兒拍賣本身
       const [ar] = await db.execute(sql`DELETE FROM auctions WHERE createdBy NOT IN (SELECT id FROM users)`);
@@ -2388,12 +2388,12 @@ export async function cleanOrphanMerchantData(): Promise<{
     } catch {}
 
     // 7. 保證金帳戶
-    const [sd] = await db.execute(sql`DELETE FROM sellerDeposits WHERE userId NOT IN (SELECT id FROM users)`);
+    const [sd] = await db.execute(sql`DELETE FROM seller_deposits WHERE userId NOT IN (SELECT id FROM users)`);
     deletedSellerDeposits = (sd as { affectedRows?: number })?.affectedRows ?? 0;
 
     // 8. 訂閱記錄
     try {
-      const [us] = await db.execute(sql`DELETE FROM userSubscriptions WHERE userId NOT IN (SELECT id FROM users)`);
+      const [us] = await db.execute(sql`DELETE FROM user_subscriptions WHERE userId NOT IN (SELECT id FROM users)`);
       deletedUserSubscriptions = (us as { affectedRows?: number })?.affectedRows ?? 0;
     } catch {}
 
