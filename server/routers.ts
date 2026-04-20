@@ -2386,6 +2386,7 @@ export const appRouter = router({
         if (ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can clear merchant products' });
         }
+        const db = await getDb();
         const result = await db.delete(merchantProductsTable).where(eq(merchantProductsTable.merchantId, input.merchantUserId));
         const deleted = (result as any).rowsAffected ?? 0;
         return { deleted };
