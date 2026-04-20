@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import {
   Store, MessageCircle, Package, Gavel, ChevronLeft,
   Clock, Tag, ShoppingBag, ChevronLeft as Prev, ChevronRight as Next,
+  ChevronDown, ChevronUp, Star, Phone,
 } from "lucide-react";
 
 function AuctionCountdown({ endTime }: { endTime: string | Date }) {
@@ -23,6 +24,7 @@ export default function MerchantProductDetail() {
   const params = useParams<{ id: string }>();
   const productId = parseInt(params.id ?? "0", 10);
   const [imgIdx, setImgIdx] = useState(0);
+  const [merchantOpen, setMerchantOpen] = useState(false);
 
   const { data: product, isLoading, error } = trpc.merchants.getPublicProduct.useQuery(
     { id: productId },
@@ -41,6 +43,11 @@ export default function MerchantProductDetail() {
 
   const { data: allMerchants = [] } = trpc.merchants.listApprovedMerchants.useQuery();
   const merchantInfo = (allMerchants as any[]).find((m: any) => m.userId === product?.merchantId);
+
+  const { data: merchantDetail, isLoading: merchantLoading } = trpc.merchants.getPublicMerchant.useQuery(
+    { userId: product?.merchantId ?? 0 },
+    { enabled: merchantOpen && !!product?.merchantId }
+  );
 
   const imgs: string[] = (() => {
     try { return product?.images ? JSON.parse(product.images) : []; } catch { return []; }
@@ -139,20 +146,101 @@ export default function MerchantProductDetail() {
 
               {/* 商品資料 */}
               <div className="p-4 space-y-3">
-                {/* 商戶名稱行 */}
-                <Link href={`/merchants/${product.merchantId}`}>
-                  <div className="flex items-center gap-2 hover:opacity-75 transition-opacity">
-                    {product.merchantIcon ? (
-                      <img src={product.merchantIcon} alt={product.merchantName} className="w-7 h-7 rounded-full object-cover border border-amber-200" />
-                    ) : (
-                      <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center">
-                        <Store className="w-3.5 h-3.5 text-amber-500" />
+                {/* 商戶名稱行 + accordion */}
+                <button
+                  onClick={() => setMerchantOpen(o => !o)}
+                  className="w-full flex items-center gap-2 text-left"
+                >
+                  {product.merchantIcon ? (
+                    <img src={product.merchantIcon} alt={product.merchantName} className="w-7 h-7 rounded-full object-cover border border-amber-200 flex-shrink-0" />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                      <Store className="w-3.5 h-3.5 text-amber-500" />
+                    </div>
+                  )}
+                  <span className="text-sm text-amber-700 font-medium flex-1">{product.merchantName}</span>
+                  <span className="flex items-center gap-0.5 text-xs text-gray-400">
+                    查看商戶{merchantOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  </span>
+                </button>
+
+                {/* 展開：商戶公開申請資料 */}
+                {merchantOpen && (
+                  <div className="rounded-xl bg-amber-50 border border-amber-100 p-3 space-y-3 text-sm">
+                    {merchantLoading ? (
+                      <div className="animate-pulse space-y-2">
+                        <div className="h-3 bg-amber-200/60 rounded w-3/4" />
+                        <div className="h-3 bg-amber-200/60 rounded w-1/2" />
                       </div>
+                    ) : merchantDetail ? (() => {
+                      const cats: string[] = (() => { try { return merchantDetail.categories ? JSON.parse(merchantDetail.categories) : []; } catch { return []; } })();
+                      const samples: string[] = (() => { try { return merchantDetail.samplePhotos ? JSON.parse(merchantDetail.samplePhotos) : []; } catch { return []; } })();
+                      const wa = merchantDetail.whatsapp ?? product.whatsapp ?? "";
+                      const waLink = wa ? `https://wa.me/${wa.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`你好，我想了解貴商戶`)}` : "";
+                      return (
+                        <>
+                          {/* 名稱 + 年資 */}
+                          <div className="flex items-center gap-2">
+                            {merchantDetail.merchantIcon ? (
+                              <img src={merchantDetail.merchantIcon} alt={merchantDetail.merchantName} className="w-10 h-10 rounded-full object-cover border-2 border-amber-200" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-amber-200 flex items-center justify-center">
+                                <Store className="w-5 h-5 text-amber-600" />
+                              </div>
+                            )}
+                            <div>
+                              <p className="font-semibold text-gray-800 text-sm">{merchantDetail.merchantName}</p>
+                              {merchantDetail.yearsExperience && (
+                                <p className="flex items-center gap-0.5 text-xs text-amber-600">
+                                  <Star className="w-3 h-3" />錢幣經驗 {merchantDetail.yearsExperience}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 自我介紹 */}
+                          {merchantDetail.selfIntro && (
+                            <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-line">{merchantDetail.selfIntro}</p>
+                          )}
+
+                          {/* 銷售類別 */}
+                          {cats.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {cats.map((c: string) => (
+                                <span key={c} className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{c}</span>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* 示範照片 */}
+                          {samples.length > 0 && (
+                            <div className="flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                              {samples.map((u: string, i: number) => (
+                                <img key={i} src={u} alt="" className="w-16 h-16 rounded-lg object-cover flex-shrink-0 border border-amber-100" />
+                              ))}
+                            </div>
+                          )}
+
+                          {/* 聯絡 + 跳頁 */}
+                          <div className="flex gap-2 pt-1">
+                            {waLink && (
+                              <a href={waLink} target="_blank" rel="noopener noreferrer"
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-green-500 text-white text-xs font-semibold rounded-lg">
+                                <Phone className="w-3.5 h-3.5" />WhatsApp 聯絡
+                              </a>
+                            )}
+                            <Link href={`/merchants/${product.merchantId}`}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg">
+                              <Store className="w-3.5 h-3.5" />商戶主頁
+                            </Link>
+                          </div>
+                        </>
+                      );
+                    })() : (
+                      <p className="text-xs text-gray-400 text-center py-2">找不到商戶資料</p>
                     )}
-                    <span className="text-sm text-amber-700 font-medium">{product.merchantName}</span>
-                    <span className="text-xs text-gray-400 ml-auto">查看商戶 →</span>
                   </div>
-                </Link>
+                )}
 
                 <div className="h-px bg-gray-100" />
 
