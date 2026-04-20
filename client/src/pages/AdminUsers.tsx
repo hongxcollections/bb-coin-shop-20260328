@@ -824,6 +824,26 @@ export default function AdminUsers() {
     onError: (err) => toast.error(err.message),
   });
 
+  const [cleanOrphanOpen, setCleanOrphanOpen] = useState(false);
+  const adminCleanOrphan = trpc.users.adminCleanOrphanData.useMutation({
+    onSuccess: (res) => {
+      const parts = [
+        res.deletedMerchantApplications ? `商戶申請 ${res.deletedMerchantApplications}` : "",
+        res.deletedMerchantProducts ? `商品 ${res.deletedMerchantProducts}` : "",
+        res.deletedAuctions ? `拍賣 ${res.deletedAuctions}` : "",
+        res.deletedSellerDeposits ? `保證金帳戶 ${res.deletedSellerDeposits}` : "",
+        res.deletedUserSubscriptions ? `訂閱 ${res.deletedUserSubscriptions}` : "",
+        res.deletedDepositTopUpRequests ? `充值申請 ${res.deletedDepositTopUpRequests}` : "",
+        res.deletedNotificationSettings ? `通知設定 ${res.deletedNotificationSettings}` : "",
+        res.deletedMerchantSettings ? `版面設定 ${res.deletedMerchantSettings}` : "",
+      ].filter(Boolean);
+      toast.success(parts.length > 0 ? `已清除孤兒資料：${parts.join("、")}` : "資料庫無孤兒資料，無需清理");
+      setCleanOrphanOpen(false);
+      refetch();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const adminCreateUser = trpc.users.adminCreateUser.useMutation({
     onSuccess: () => {
       toast.success("會員已建立");
@@ -1050,6 +1070,9 @@ export default function AdminUsers() {
               共 {allUsers.length} 人 ｜ 買家 {buyers.length} ｜ 商戶 {merchants.length}
             </p>
           </div>
+          <Button size="sm" variant="outline" className="border-red-200 text-red-600 hover:bg-red-50 gap-1.5" onClick={() => setCleanOrphanOpen(true)}>
+            <Wrench className="w-4 h-4" />清理孤兒資料
+          </Button>
           <Button size="sm" className="gold-gradient text-white border-0 gap-1.5" onClick={() => setNewUserOpen(true)}>
             <UserPlus className="w-4 h-4" />新增會員
           </Button>
@@ -1394,6 +1417,36 @@ export default function AdminUsers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Clean Orphan Data Confirmation */}
+      <AlertDialog open={cleanOrphanOpen} onOpenChange={(open) => !open && setCleanOrphanOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">確認清理孤兒資料？</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>此操作會掃描資料庫，永久刪除所有「用戶已被拆除但相關記錄仍存在」的孤兒資料，包括：</p>
+              <ul className="text-sm list-disc list-inside space-y-1 text-muted-foreground">
+                <li>已拆除商戶的申請記錄（從商戶市集移除）</li>
+                <li>已拆除商戶的出售商品</li>
+                <li>已拆除商戶的拍賣及所有子記錄</li>
+                <li>孤兒保證金帳戶、訂閱、通知設定等</li>
+              </ul>
+              <p className="text-sm text-muted-foreground">現有用戶的資料不受影響。</p>
+              <p className="font-semibold text-red-600">此操作不可逆，請確認後執行。</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => adminCleanOrphan.mutate()}
+              disabled={adminCleanOrphan.isPending}
+            >
+              {adminCleanOrphan.isPending ? "清理中…" : "確認清理"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
