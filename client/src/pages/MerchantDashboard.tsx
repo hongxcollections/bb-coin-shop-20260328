@@ -511,7 +511,7 @@ export default function MerchantDashboard() {
               </div>
             </div>
           </Link>
-          <div className="rounded-2xl bg-white border border-gray-100 overflow-hidden">
+          <div className="col-span-2 rounded-2xl bg-white border border-gray-100 overflow-hidden">
             {/* 商戶管理 header row */}
             <div className="flex items-center gap-3 p-4">
               <Link href="/merchant-settings" className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-75 transition-opacity">
