@@ -56,7 +56,7 @@ export default function MerchantProducts() {
     enabled: isAuthenticated,
   });
 
-  const { data: quotaInfo, isLoading: quotaLoading } = trpc.sellerDeposits.getQuotaInfo.useQuery(undefined, {
+  const { data: quotaInfo, isLoading: quotaLoading } = trpc.merchants.getQuotaInfo.useQuery(undefined, {
     enabled: isAuthenticated,
     staleTime: 0,
     refetchOnMount: true,
@@ -68,7 +68,7 @@ export default function MerchantProducts() {
   const addProduct = trpc.merchants.addProduct.useMutation({
     onSuccess: () => {
       utils.merchants.myProducts.invalidate();
-      utils.sellerDeposits.getQuotaInfo.invalidate();
+      utils.merchants.getQuotaInfo.invalidate();
       toast.success("商品已上架");
       resetForm();
     },
