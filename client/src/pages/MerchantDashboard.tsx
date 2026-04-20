@@ -100,8 +100,8 @@ function TxRow({ tx, showBalance }: { tx: TxType; showBalance?: boolean }) {
           <div className="mt-0.5 space-y-0.5">
             <p className="text-xs text-amber-700 font-medium truncate">📦 {tx.auctionTitle}</p>
             <div className="flex items-center gap-2 text-xs text-gray-500">
-              {tx.auctionWinnerName && <span>中標：<span className="text-gray-700 font-medium">{tx.auctionWinnerName}</span></span>}
-              {winPrice != null && <span>中標價：<span className="text-gray-700 font-medium">{HKD(winPrice)}</span></span>}
+              {tx.auctionWinnerName && <span className="text-gray-700 font-medium">🏆 {tx.auctionWinnerName}</span>}
+              {winPrice != null && <span className="text-gray-700 font-medium">{HKD(winPrice)}</span>}
             </div>
           </div>
         )}
