@@ -3241,7 +3241,69 @@ export async function listApprovedMerchants(): Promise<Array<{
     console.error('[Database] listApprovedMerchants: could not load layouts:', err);
   }
 
-  return (merchants as any[]).map(r => ({
+  // Step 3: fetch sorting data (all with try/catch so failure just means sort by 0)
+  const depositMap: Record<number, number> = {};   // userId -> requiredDeposit
+  const subPriceMap: Record<number, number> = {};  // userId -> active plan monthlyPrice
+  const auctionCountMap: Record<number, number> = {};
+  const productCountMap: Record<number, number> = {};
+
+  try {
+    // 保證金套餐 (requiredDeposit)
+    const dRes = await db.execute(sql`SELECT userId, requiredDeposit FROM seller_deposits`);
+    const dRaw = dRes as unknown as [Array<Record<string, unknown>>, unknown];
+    const dRows = Array.isArray(dRaw[0]) ? dRaw[0] : (dRaw as unknown as Array<Record<string, unknown>>);
+    if (Array.isArray(dRows)) {
+      for (const r of dRows) {
+        if (r.userId != null) depositMap[Number(r.userId)] = parseFloat(String(r.requiredDeposit ?? '0'));
+      }
+    }
+  } catch (err) { console.error('[Database] listApprovedMerchants: deposit sort failed:', err); }
+
+  try {
+    // 有效月費套餐 (active subscription monthlyPrice)
+    const sRes = await db.execute(sql`
+      SELECT us.userId, sp.monthlyPrice
+      FROM user_subscriptions us
+      JOIN subscription_plans sp ON sp.id = us.planId
+      WHERE us.status = 'active'
+    `);
+    const sRaw = sRes as unknown as [Array<Record<string, unknown>>, unknown];
+    const sRows = Array.isArray(sRaw[0]) ? sRaw[0] : (sRaw as unknown as Array<Record<string, unknown>>);
+    if (Array.isArray(sRows)) {
+      for (const r of sRows) {
+        if (r.userId != null) {
+          const price = parseFloat(String(r.monthlyPrice ?? '0'));
+          if ((subPriceMap[Number(r.userId)] ?? 0) < price) subPriceMap[Number(r.userId)] = price;
+        }
+      }
+    }
+  } catch (err) { console.error('[Database] listApprovedMerchants: subscription sort failed:', err); }
+
+  try {
+    // 拍賣商品數量
+    const aRes = await db.execute(sql`SELECT createdBy as userId, COUNT(*) as cnt FROM auctions GROUP BY createdBy`);
+    const aRaw = aRes as unknown as [Array<Record<string, unknown>>, unknown];
+    const aRows = Array.isArray(aRaw[0]) ? aRaw[0] : (aRaw as unknown as Array<Record<string, unknown>>);
+    if (Array.isArray(aRows)) {
+      for (const r of aRows) {
+        if (r.userId != null) auctionCountMap[Number(r.userId)] = Number(r.cnt ?? 0);
+      }
+    }
+  } catch (err) { console.error('[Database] listApprovedMerchants: auction count sort failed:', err); }
+
+  try {
+    // 出售商品上架數量
+    const pRes = await db.execute(sql`SELECT merchantId as userId, COUNT(*) as cnt FROM merchantProducts GROUP BY merchantId`);
+    const pRaw = pRes as unknown as [Array<Record<string, unknown>>, unknown];
+    const pRows = Array.isArray(pRaw[0]) ? pRaw[0] : (pRaw as unknown as Array<Record<string, unknown>>);
+    if (Array.isArray(pRows)) {
+      for (const r of pRows) {
+        if (r.userId != null) productCountMap[Number(r.userId)] = Number(r.cnt ?? 0);
+      }
+    }
+  } catch (err) { console.error('[Database] listApprovedMerchants: product count sort failed:', err); }
+
+  const base = (merchants as any[]).map(r => ({
     userId: Number(r.userId),
     merchantName: String(r.merchantName ?? ''),
     selfIntro: String(r.selfIntro ?? ''),
@@ -3250,4 +3312,17 @@ export async function listApprovedMerchants(): Promise<Array<{
     categories: r.categories ? String(r.categories) : null,
     listingLayout: layoutMap[Number(r.userId)] ?? 'grid2',
   }));
+
+  // Sort: 1) requiredDeposit DESC, 2) monthlyPrice DESC, 3) auctionCount DESC, 4) productCount DESC
+  base.sort((a, b) => {
+    const d = (depositMap[b.userId] ?? 0) - (depositMap[a.userId] ?? 0);
+    if (d !== 0) return d;
+    const s = (subPriceMap[b.userId] ?? 0) - (subPriceMap[a.userId] ?? 0);
+    if (s !== 0) return s;
+    const ac = (auctionCountMap[b.userId] ?? 0) - (auctionCountMap[a.userId] ?? 0);
+    if (ac !== 0) return ac;
+    return (productCountMap[b.userId] ?? 0) - (productCountMap[a.userId] ?? 0);
+  });
+
+  return base;
 }
