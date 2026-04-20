@@ -2,6 +2,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import Header from "@/components/Header";
 import { Store, MessageCircle, Package, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const CATEGORIES = ["全部", "古幣", "紀念幣", "外幣", "銀幣", "金幣", "其他"];
 
@@ -181,21 +182,18 @@ export default function Merchants() {
           </div>
         )}
 
-        {/* 類別篩選 */}
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-4" style={{ scrollbarWidth: "none" }}>
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                selectedCategory === cat
-                  ? "bg-amber-500 text-white"
-                  : "bg-white border border-amber-200 text-amber-700 hover:bg-amber-50"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+        {/* 類別篩選 — 下拉選單 */}
+        <div className="mb-4">
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="bg-white border-amber-200 text-amber-800 h-9 text-sm">
+              <SelectValue placeholder="選擇品種" />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORIES.map(cat => (
+                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* 內容 */}
