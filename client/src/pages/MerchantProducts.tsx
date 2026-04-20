@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -107,25 +107,41 @@ export default function MerchantProducts() {
     setTimeout(() => document.getElementById("product-form")?.scrollIntoView({ behavior: "smooth" }), 100);
   }
 
-  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleImageUpload = useCallback(async (files: File[]) => {
+    const MAX = 5;
+    const currentCount = form.images.length;
+    const slots = MAX - currentCount;
+    if (slots <= 0) return;
+    const toUpload = files.filter(f => f.type.startsWith("image/")).slice(0, slots);
+    if (toUpload.length === 0) return;
+
     setUploading(true);
     try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve((reader.result as string).split(",")[1]);
-        reader.onerror = () => reject(new Error("讀取圖片失敗"));
-        reader.readAsDataURL(file);
-      });
-      const { url } = await uploadImage.mutateAsync({ imageData: base64, fileName: file.name, mimeType: file.type });
-      setForm(f => ({ ...f, images: [...f.images, url] }));
+      const results = await Promise.all(
+        toUpload.map(async (file) => {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve((reader.result as string).split(",")[1]);
+            reader.onerror = () => reject(new Error("讀取圖片失敗"));
+            reader.readAsDataURL(file);
+          });
+          const { url } = await uploadImage.mutateAsync({ imageData: base64, fileName: file.name, mimeType: file.type || "image/jpeg" });
+          return url;
+        })
+      );
+      setForm(f => ({ ...f, images: [...f.images, ...results].slice(0, MAX) }));
+      if (results.length > 1) toast.success(`已上傳 ${results.length} 張圖片`);
     } catch (err: any) {
       toast.error(err.message ?? "上傳失敗");
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
     }
+  }, [form.images.length, uploadImage]);
+
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) handleImageUpload(files);
   }
 
   function handleSubmit() {
@@ -209,6 +225,54 @@ export default function MerchantProducts() {
               <button onClick={resetForm} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4" /></button>
             </div>
 
+            {/* ── 圖片上載（最頂）── */}
+            <div className="space-y-2">
+              <label className="text-xs text-gray-500 font-medium flex items-center gap-1">
+                商品圖片（最少 1 張，最多 5 張）<span className="text-red-500">*</span>
+                {uploading && <span className="text-green-600 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />上傳中…</span>}
+              </label>
+
+              {/* 拖放 / 點擊上傳區 */}
+              {form.images.length < 5 && (
+                <div
+                  onClick={() => !uploading && fileRef.current?.click()}
+                  className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${uploading ? "border-green-300 bg-green-50 cursor-wait" : "border-gray-300 hover:border-green-400 hover:bg-green-50"}`}
+                >
+                  {uploading ? (
+                    <Loader2 className="w-6 h-6 mx-auto mb-1 text-green-500 animate-spin" />
+                  ) : (
+                    <ImageIcon className="w-6 h-6 mx-auto mb-1 text-gray-400" />
+                  )}
+                  <p className="text-xs text-gray-500">
+                    {uploading ? "上傳中，請稍候…" : "點擊選擇圖片（可同時選多張）"}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">還可加 {5 - form.images.length} 張</p>
+                </div>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileInputChange} />
+
+              {/* 已上傳圖片縮圖 */}
+              {form.images.length > 0 && (
+                <div className="grid grid-cols-5 gap-2">
+                  {form.images.map((url, i) => (
+                    <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200">
+                      <img src={url} alt="" className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => setForm(f => ({ ...f, images: f.images.filter((_, j) => j !== i) }))}
+                        className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                      {i === 0 && (
+                        <span className="absolute bottom-0 left-0 right-0 text-center text-white text-[9px] bg-black/50 py-0.5">封面</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── 商品資料 ── */}
             <div className="space-y-2">
               <label className="text-xs text-gray-500 font-medium">商品名稱 *</label>
               <Input placeholder="例：1981年香港一元硬幣" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
@@ -253,36 +317,9 @@ export default function MerchantProducts() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs text-gray-500 font-medium">商品圖片（最少 1 張，最多 5 張）<span className="text-red-500 ml-0.5">*</span></label>
-              <div className="flex flex-wrap gap-2">
-                {form.images.map((url, i) => (
-                  <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
-                    <img src={url} alt="" className="w-full h-full object-cover" />
-                    <button
-                      onClick={() => setForm(f => ({ ...f, images: f.images.filter((_, j) => j !== i) }))}
-                      className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5"
-                    >
-                      <X className="w-2.5 h-2.5" />
-                    </button>
-                  </div>
-                ))}
-                {form.images.length < 5 && (
-                  <button
-                    onClick={() => fileRef.current?.click()}
-                    disabled={uploading}
-                    className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-green-400 transition-colors"
-                  >
-                    {uploading ? <Loader2 className="w-4 h-4 animate-spin text-gray-400" /> : <ImageIcon className="w-4 h-4 text-gray-400" />}
-                  </button>
-                )}
-              </div>
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-            </div>
-
             <div className="flex gap-2 pt-1">
-              <Button variant="outline" className="flex-1" onClick={resetForm} disabled={saving}>取消</Button>
-              <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={handleSubmit} disabled={saving}>
+              <Button variant="outline" className="flex-1" onClick={resetForm} disabled={saving || uploading}>取消</Button>
+              <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={handleSubmit} disabled={saving || uploading}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingId ? "儲存修改" : "確認上架")}
               </Button>
             </div>
