@@ -255,7 +255,16 @@ export default function Home() {
         <div className="container">
           {/* Collapsible Header */}
           <div className="flex items-center gap-3 mb-3">
-            <h1 className="text-xl font-bold text-amber-900">{resolvedTitle}</h1>
+            <h1
+              className="text-xl font-bold"
+              style={{
+                background: "linear-gradient(135deg, #b45309 0%, #f59e0b 40%, #fcd34d 60%, #d97706 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                filter: "drop-shadow(0 1px 3px rgba(180,83,9,0.35))",
+              }}
+            >{resolvedTitle}</h1>
             <button
               onClick={() => setAuctionListOpen(o => !o)}
               className={`flex items-center gap-1 text-[7px] text-amber-500 font-medium transition-all border border-amber-200 rounded-full px-2.5 py-1 hover:bg-amber-50 focus:outline-none ${auctionListOpen ? "" : "bg-amber-50"}`}
