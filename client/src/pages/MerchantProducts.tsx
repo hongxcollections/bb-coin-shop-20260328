@@ -15,8 +15,10 @@ import {
 import { toast } from "sonner";
 import {
   ChevronLeft, Plus, Package, Pencil, Trash2, Eye, EyeOff,
-  ImageIcon, X, Loader2,
+  ImageIcon, X, Loader2, LayoutList, LayoutGrid, Grid3X3, Maximize2,
 } from "lucide-react";
+
+type LayoutMode = "list" | "grid2" | "grid3" | "big";
 
 const CATEGORIES = ["古幣", "紀念幣", "外幣", "銀幣", "金幣", "其他"];
 const STATUS_LABELS: Record<string, string> = { active: "上架中", sold: "已售出", hidden: "已下架" };
@@ -51,6 +53,14 @@ export default function MerchantProducts() {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [layout, setLayout] = useState<LayoutMode>(() => {
+    return (localStorage.getItem("mp_layout") as LayoutMode) ?? "list";
+  });
+
+  function changeLayout(m: LayoutMode) {
+    setLayout(m);
+    localStorage.setItem("mp_layout", m);
+  }
 
   const { data: products = [], isLoading } = trpc.merchants.myProducts.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -328,6 +338,30 @@ export default function MerchantProducts() {
           </div>
         )}
 
+        {/* 版面切換列 */}
+        {!isLoading && products.length > 0 && (
+          <div className="flex items-center justify-between bg-white border border-gray-100 rounded-xl px-3 py-2">
+            <span className="text-xs text-gray-400">共 {products.length} 件商品</span>
+            <div className="flex items-center gap-1">
+              {([
+                { mode: "list" as LayoutMode, icon: <LayoutList className="w-4 h-4" />, label: "列表" },
+                { mode: "big" as LayoutMode, icon: <Maximize2 className="w-4 h-4" />, label: "大圖" },
+                { mode: "grid2" as LayoutMode, icon: <LayoutGrid className="w-4 h-4" />, label: "兩欄" },
+                { mode: "grid3" as LayoutMode, icon: <Grid3X3 className="w-4 h-4" />, label: "三欄" },
+              ]).map(({ mode, icon, label }) => (
+                <button
+                  key={mode}
+                  title={label}
+                  onClick={() => changeLayout(mode)}
+                  className={`p-1.5 rounded-lg transition-colors ${layout === mode ? "bg-green-100 text-green-700" : "text-gray-400 hover:bg-gray-100"}`}
+                >
+                  {icon}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 商品列表 */}
         {isLoading ? (
           <div className="text-center py-12 text-4xl animate-spin">💰</div>
@@ -337,7 +371,8 @@ export default function MerchantProducts() {
             <p className="text-gray-400 text-sm">尚未上架任何商品</p>
             <p className="text-gray-300 text-xs mt-1">點擊「上架商品」開始添加</p>
           </div>
-        ) : (
+        ) : layout === "list" ? (
+          /* ── 列表版面：橫排縮圖＋詳情 ── */
           <div className="space-y-3">
             {(products as any[]).map((p) => {
               const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
@@ -364,23 +399,146 @@ export default function MerchantProducts() {
                       <span className="text-xs text-gray-400">庫存 {p.stock}</span>
                     </div>
                     <div className="flex items-center gap-1.5 mt-2">
-                      <button
-                        onClick={() => startEdit(p)}
-                        className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                      >
+                      <button onClick={() => startEdit(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
                         <Pencil className="w-3 h-3" />編輯
                       </button>
-                      <button
-                        onClick={() => toggleStatus(p)}
-                        className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                      >
+                      <button onClick={() => toggleStatus(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
                         {p.status === "active" ? <><EyeOff className="w-3 h-3" />下架</> : <><Eye className="w-3 h-3" />上架</>}
                       </button>
-                      <button
-                        onClick={() => { if (confirm("確定刪除此商品？")) deleteProduct.mutate({ id: p.id }); }}
-                        className="flex items-center gap-1 text-xs px-2 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors"
-                      >
+                      <button onClick={() => { if (confirm("確定刪除此商品？")) deleteProduct.mutate({ id: p.id }); }} className="flex items-center gap-1 text-xs px-2 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />刪除
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : layout === "big" ? (
+          /* ── 大圖版面：全寬圖片＋資料在下 ── */
+          <div className="space-y-4">
+            {(products as any[]).map((p) => {
+              const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
+              const price = parseFloat(p.price ?? "0");
+              return (
+                <div key={p.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                  {imgs[0] ? (
+                    <img src={imgs[0]} alt={p.title} className="w-full h-52 object-cover" />
+                  ) : (
+                    <div className="w-full h-52 bg-gray-50 flex items-center justify-center">
+                      <Package className="w-10 h-10 text-gray-200" />
+                    </div>
+                  )}
+                  {imgs.length > 1 && (
+                    <div className="flex gap-1 px-3 pt-2 overflow-x-auto">
+                      {imgs.slice(1).map((u, i) => (
+                        <img key={i} src={u} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0 border border-gray-100" />
+                      ))}
+                    </div>
+                  )}
+                  <div className="p-3 space-y-1.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-semibold text-gray-800 line-clamp-2 text-sm">{p.title}</h3>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full shrink-0 ${STATUS_COLORS[p.status] ?? ""}`}>
+                        {STATUS_LABELS[p.status] ?? p.status}
+                      </span>
+                    </div>
+                    {p.description && <p className="text-xs text-gray-500 line-clamp-2">{p.description}</p>}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-amber-600">{p.currency} ${price.toLocaleString()}</span>
+                        {p.category && <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">{p.category}</span>}
+                      </div>
+                      <span className="text-xs text-gray-400">庫存 {p.stock}</span>
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <button onClick={() => startEdit(p)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex-1 justify-center">
+                        <Pencil className="w-3 h-3" />編輯
+                      </button>
+                      <button onClick={() => toggleStatus(p)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex-1 justify-center">
+                        {p.status === "active" ? <><EyeOff className="w-3 h-3" />下架</> : <><Eye className="w-3 h-3" />上架</>}
+                      </button>
+                      <button onClick={() => { if (confirm("確定刪除此商品？")) deleteProduct.mutate({ id: p.id }); }} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
+                        <Trash2 className="w-3 h-3" />刪除
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : layout === "grid2" ? (
+          /* ── 兩欄版面 ── */
+          <div className="grid grid-cols-2 gap-3">
+            {(products as any[]).map((p) => {
+              const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
+              const price = parseFloat(p.price ?? "0");
+              return (
+                <div key={p.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col">
+                  {imgs[0] ? (
+                    <img src={imgs[0]} alt={p.title} className="w-full aspect-square object-cover" />
+                  ) : (
+                    <div className="w-full aspect-square bg-gray-50 flex items-center justify-center">
+                      <Package className="w-8 h-8 text-gray-200" />
+                    </div>
+                  )}
+                  <div className="p-2 flex flex-col gap-1 flex-1">
+                    <div className="flex items-start justify-between gap-1">
+                      <h3 className="text-xs font-semibold text-gray-800 line-clamp-2 flex-1">{p.title}</h3>
+                      <span className={`text-[10px] px-1 py-0.5 rounded-full shrink-0 leading-tight ${STATUS_COLORS[p.status] ?? ""}`}>
+                        {STATUS_LABELS[p.status] ?? p.status}
+                      </span>
+                    </div>
+                    <span className="font-bold text-amber-600 text-xs">{p.currency} ${price.toLocaleString()}</span>
+                    <span className="text-[10px] text-gray-400">庫存 {p.stock}</span>
+                    <div className="flex gap-1 mt-auto pt-1">
+                      <button onClick={() => startEdit(p)} className="flex-1 text-[10px] py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-center">
+                        編輯
+                      </button>
+                      <button onClick={() => toggleStatus(p)} className="flex-1 text-[10px] py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-center">
+                        {p.status === "active" ? "下架" : "上架"}
+                      </button>
+                      <button onClick={() => { if (confirm("確定刪除？")) deleteProduct.mutate({ id: p.id }); }} className="text-[10px] px-1.5 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* ── 三欄版面（精簡方格）── */
+          <div className="grid grid-cols-3 gap-2">
+            {(products as any[]).map((p) => {
+              const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
+              const price = parseFloat(p.price ?? "0");
+              return (
+                <div key={p.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden flex flex-col">
+                  <div className="relative">
+                    {imgs[0] ? (
+                      <img src={imgs[0]} alt={p.title} className="w-full aspect-square object-cover" />
+                    ) : (
+                      <div className="w-full aspect-square bg-gray-50 flex items-center justify-center">
+                        <Package className="w-5 h-5 text-gray-200" />
+                      </div>
+                    )}
+                    <span className={`absolute top-1 right-1 text-[9px] px-1 py-0.5 rounded-full leading-tight ${STATUS_COLORS[p.status] ?? ""}`}>
+                      {STATUS_LABELS[p.status] ?? p.status}
+                    </span>
+                  </div>
+                  <div className="p-1.5 flex flex-col gap-0.5 flex-1">
+                    <h3 className="text-[10px] font-semibold text-gray-800 line-clamp-2 leading-tight">{p.title}</h3>
+                    <span className="text-[10px] font-bold text-amber-600">${price.toLocaleString()}</span>
+                    <div className="flex gap-1 mt-1">
+                      <button onClick={() => startEdit(p)} className="flex-1 text-[9px] py-0.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors text-center">
+                        編輯
+                      </button>
+                      <button onClick={() => toggleStatus(p)} className="flex-1 text-[9px] py-0.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors text-center">
+                        {p.status === "active" ? "下架" : "上架"}
+                      </button>
+                      <button onClick={() => { if (confirm("確定刪除？")) deleteProduct.mutate({ id: p.id }); }} className="text-[9px] px-1 py-0.5 bg-red-50 text-red-500 rounded hover:bg-red-100 transition-colors">
+                        <Trash2 className="w-2.5 h-2.5" />
                       </button>
                     </div>
                   </div>
