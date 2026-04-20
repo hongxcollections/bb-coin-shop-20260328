@@ -56,8 +56,10 @@ export default function MerchantProducts() {
     enabled: isAuthenticated,
   });
 
-  const { data: quotaInfo } = trpc.sellerDeposits.getQuotaInfo.useQuery(undefined, {
+  const { data: quotaInfo, isLoading: quotaLoading } = trpc.sellerDeposits.getQuotaInfo.useQuery(undefined, {
     enabled: isAuthenticated,
+    staleTime: 0,
+    refetchOnMount: true,
   });
   const { data: depositCheck } = trpc.sellerDeposits.canList.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -427,27 +429,29 @@ export default function MerchantProducts() {
                 </div>
                 {/* 公佈額度狀態 */}
                 {(() => {
-                  const remaining = quotaInfo ? Number(quotaInfo.remainingQuota) : null;
+                  const remaining = quotaInfo ? Math.max(0, Number(quotaInfo.remainingQuota)) : null;
                   const quotaOk = !quotaInfo || quotaInfo.unlimited || (remaining !== null && remaining >= 1);
                   const isError = !depositCheck?.canList || !quotaOk;
+                  let quotaLabel = "";
+                  if (quotaLoading) {
+                    quotaLabel = "查詢額度中…";
+                  } else if (!quotaInfo || quotaInfo.unlimited) {
+                    quotaLabel = "公佈額度正常（無限制）";
+                  } else if (quotaOk) {
+                    quotaLabel = `公佈額度正常（剩餘 ${remaining} 次）`;
+                  } else {
+                    quotaLabel = `公佈額度不足（剩餘 ${remaining} 次），請先購買月費計劃`;
+                  }
                   return (
                     <div className={`rounded-lg p-2.5 flex items-start gap-2 ${isError ? "bg-red-50 border border-red-200" : "bg-green-50 border border-green-200"}`}>
-                      <span className="text-base leading-none mt-0.5">{isError ? "⚠️" : "✅"}</span>
+                      <span className="text-base leading-none mt-0.5">
+                        {quotaLoading ? "⏳" : isError ? "⚠️" : "✅"}
+                      </span>
                       <div className="text-xs space-y-0.5">
                         {!depositCheck?.canList ? (
                           <p className="text-red-700 font-medium">{depositCheck?.reason ?? "保證金不足，無法上架"}</p>
-                        ) : !quotaOk ? (
-                          <p className="text-red-700 font-medium">
-                            公佈額度不足（剩餘 {Math.max(0, remaining ?? 0)} 次），請先購買月費計劃
-                          </p>
-                        ) : quotaInfo ? (
-                          <p className="text-green-700">
-                            {quotaInfo.unlimited
-                              ? `公佈額度正常（無限制）`
-                              : `公佈額度正常（剩餘 ${Math.max(0, remaining ?? 0)} 次）`}
-                          </p>
                         ) : (
-                          <p className="text-green-700">公佈額度正常</p>
+                          <p className={isError ? "text-red-700 font-medium" : "text-green-700"}>{quotaLabel}</p>
                         )}
                       </div>
                     </div>
