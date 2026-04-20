@@ -21,7 +21,6 @@ import {
   Coins, 
   Search, 
   Filter, 
-  ChevronDown,
   ChevronLeft,
   ChevronRight
 } from "lucide-react";
@@ -93,7 +92,6 @@ export default function Home() {
   const [category, setCategory] = useState("all");
   const [page, setPage] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [auctionListOpen, setAuctionListOpen] = useState(false);
   // 隨機索引在 mount 時固定，避免重新 render 時跳字
   const [randomIdx] = useState(() => Math.floor(Math.random() * 10000));
 
@@ -253,12 +251,10 @@ export default function Home() {
       {/* ── Section 3: Auction List (Main Content) ── */}
       <section className="py-3 bg-white">
         <div className="container">
-          {/* Collapsible Header */}
-          <div className="flex items-center gap-3 mb-3">
+          <div className="mb-3">
             <h1
-              className="text-xl font-bold cursor-pointer select-none"
+              className="text-xl font-bold"
               style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.28))", marginBottom: 0 }}
-              onClick={() => setAuctionListOpen(o => !o)}
             >
               {(() => {
                 const spaceIdx = resolvedTitle.indexOf(' ');
@@ -277,26 +273,9 @@ export default function Home() {
                 );
               })()}
             </h1>
-            <button
-              onClick={() => setAuctionListOpen(o => !o)}
-              className={`flex items-center gap-1 text-[7px] text-amber-500 font-medium transition-all border border-amber-200 rounded-full px-2.5 py-1 hover:bg-amber-50 focus:outline-none ${auctionListOpen ? "" : "bg-amber-50"}`}
-              style={{ marginBottom: "0px" }}
-              aria-expanded={auctionListOpen}
-            >
-              <ChevronDown className={`w-2 h-2 transition-transform duration-300 ${auctionListOpen ? "rotate-180" : "rotate-0"}`} />
-              <span>{auctionListOpen ? "收起" : "展開"}</span>
-            </button>
           </div>
 
-          {/* Collapsible Body */}
-          <div
-            style={{
-              overflow: "hidden",
-              maxHeight: auctionListOpen ? "9999px" : "0px",
-              transition: auctionListOpen ? "max-height 0.4s ease" : "max-height 0.25s ease",
-              opacity: auctionListOpen ? 1 : 0,
-            }}
-          >
+          <div>
 
           {/* Category Selector */}
           <div className="flex items-center gap-2 mb-3">
@@ -510,7 +489,7 @@ export default function Home() {
             </div>
           )}
 
-          </div>{/* end collapsible body */}
+          </div>
         </div>
       </section>
 
