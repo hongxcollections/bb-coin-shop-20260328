@@ -604,10 +604,11 @@ export default function MerchantDashboard() {
                       </div>
                     )}
                     <div className="grid grid-cols-1 gap-2">
-                      {(activeTiers as { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; description: string | null }[]).map(tier => {
+                      {(activeTiers as { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; commissionRate?: string | null; description: string | null }[]).map(tier => {
                         const amt = parseFloat(tier.amount);
                         const mPct = parseFloat(tier.maintenancePct);
                         const wPct = parseFloat(tier.warningPct);
+                        const commPct = tier.commissionRate ? parseFloat(tier.commissionRate) * 100 : null;
                         const isSelected = selectedTierId === tier.id;
                         return (
                           <button
@@ -620,10 +621,13 @@ export default function MerchantDashboard() {
                             className={`w-full text-left rounded-xl border px-3 py-2.5 transition-all ${isSelected ? "border-amber-500 bg-amber-100 ring-1 ring-amber-400" : "border-amber-200 bg-white hover:border-amber-400 hover:bg-amber-50"}`}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <div>
-                                <div className="flex items-center gap-2">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
                                   <span className="text-sm font-semibold text-amber-900">{tier.name}</span>
                                   <span className="text-sm font-bold text-amber-700">HK${amt.toLocaleString()}</span>
+                                  {commPct !== null && (
+                                    <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">傭金 {commPct.toFixed(2)}%</span>
+                                  )}
                                 </div>
                                 <div className="mt-0.5 text-xs text-gray-500 space-y-0.5">
                                   <div>維持水平 <strong className="text-emerald-700">{mPct}%</strong>（≥ HK${(amt * mPct / 100).toLocaleString()}）</div>
@@ -685,7 +689,7 @@ export default function MerchantDashboard() {
                     if (!topUpPaymentMethod) return toast.error("請選擇付款方式");
                     const selectedTierName = selectedTierId ? (activeTiers as { id: number; name: string }[] | undefined)?.find(t => t.id === selectedTierId)?.name : null;
                     const noteWithTier = [selectedTierName ? `套餐：${selectedTierName}` : null, topUpNote || null].filter(Boolean).join("｜") || undefined;
-                    submitTopUp.mutate({ amount, referenceNo: topUpRef || undefined, bank: topUpPaymentMethod, note: noteWithTier, receiptUrl: topUpReceiptUrl || undefined });
+                    submitTopUp.mutate({ tierId: selectedTierId ?? undefined, amount, referenceNo: topUpRef || undefined, bank: topUpPaymentMethod, note: noteWithTier, receiptUrl: topUpReceiptUrl || undefined });
                   }}
                   className="w-full flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-opacity"
                   style={{ background: "linear-gradient(135deg, #d97706, #b45309)" }}

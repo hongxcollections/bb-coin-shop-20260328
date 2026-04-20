@@ -1359,6 +1359,7 @@ export const appRouter = router({
     // Merchant: submit a top-up request
     submitTopUpRequest: protectedProcedure
       .input(z.object({
+        tierId: z.number().int().positive().optional(),
         amount: z.number().positive('金額必須大於 0'),
         referenceNo: z.string().max(100).optional(),
         bank: z.string().max(100).optional(),
@@ -1368,6 +1369,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const result = await createDepositTopUpRequest({
           userId: ctx.user.id,
+          tierId: input.tierId,
           amount: input.amount,
           referenceNo: input.referenceNo,
           bank: input.bank,
@@ -1427,6 +1429,7 @@ export const appRouter = router({
         amount: z.number().positive(),
         maintenancePct: z.number().min(0).max(100),
         warningPct: z.number().min(0).max(100),
+        commissionRate: z.number().min(0).max(1).optional(),
         description: z.string().max(500).optional().nullable(),
         isActive: z.number().int().min(0).max(1).optional(),
         sortOrder: z.number().int().optional(),

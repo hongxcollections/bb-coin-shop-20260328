@@ -327,6 +327,7 @@ export type InsertCommissionRefundRequest = typeof commissionRefundRequests.$inf
 export const depositTopUpRequests = mysqlTable("depositTopUpRequests", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
+  tierId: int("tierId"),
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
   referenceNo: varchar("referenceNo", { length: 100 }).notNull(),
   bank: varchar("bank", { length: 100 }),
@@ -351,6 +352,7 @@ export const depositTierPresets = mysqlTable("depositTierPresets", {
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(), // top-up / required deposit amount
   maintenancePct: decimal("maintenancePct", { precision: 5, scale: 2 }).default("80.00").notNull(), // 維持水平 %
   warningPct: decimal("warningPct", { precision: 5, scale: 2 }).default("60.00").notNull(), // 預警 %
+  commissionRate: decimal("commissionRate", { precision: 5, scale: 4 }).default("0.0500").notNull(), // 傭金率，預設 5%
   description: text("description"),
   isActive: int("isActive").default(1).notNull(),
   sortOrder: int("sortOrder").default(0).notNull(),

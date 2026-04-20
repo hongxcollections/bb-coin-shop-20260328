@@ -1447,6 +1447,7 @@ async function ensureDepositTables() {
         amount DECIMAL(12,2) NOT NULL,
         maintenancePct DECIMAL(5,2) NOT NULL DEFAULT 80.00,
         warningPct DECIMAL(5,2) NOT NULL DEFAULT 60.00,
+        commissionRate DECIMAL(5,4) NOT NULL DEFAULT 0.0500,
         description TEXT,
         isActive INT NOT NULL DEFAULT 1,
         sortOrder INT NOT NULL DEFAULT 0,
@@ -1454,6 +1455,9 @@ async function ensureDepositTables() {
         updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
     `);
+    // Safely add new columns to existing tables (ignore duplicate column errors)
+    try { await db.execute(sql`ALTER TABLE depositTierPresets ADD COLUMN commissionRate DECIMAL(5,4) NOT NULL DEFAULT 0.0500`); } catch {}
+    try { await db.execute(sql`ALTER TABLE depositTopUpRequests ADD COLUMN tierId INT`); } catch {}
     _depositTablesChecked = true;
   } catch (error) {
     console.error('[Database] Failed to ensure deposit tables:', error);
@@ -2917,6 +2921,7 @@ export async function reviewRefundRequest(
 
 export async function createDepositTopUpRequest(data: {
   userId: number;
+  tierId?: number;
   amount: number;
   referenceNo?: string;
   bank?: string;
@@ -2927,6 +2932,7 @@ export async function createDepositTopUpRequest(data: {
   if (!db) throw new Error('DB unavailable');
   const [result] = await db.insert(depositTopUpRequests).values({
     userId: data.userId,
+    tierId: data.tierId ?? null,
     amount: data.amount.toFixed(2),
     referenceNo: data.referenceNo?.trim() || '',
     bank: data.bank?.trim() || null,
@@ -2994,10 +3000,25 @@ export async function reviewDepositTopUpRequest(
     reviewedAt: new Date(),
   }).where(eq(depositTopUpRequests.id, id));
 
-  // If approved: actually top up the merchant's deposit
+  // If approved: top up the merchant's deposit and apply tier commission rate
   if (status === 'approved') {
     const amount = parseFloat(req.amount.toString());
     await topUpDeposit(req.userId, amount, `商戶自助申請充值 (參考號: ${req.referenceNo})`, adminId);
+
+    // Auto-apply tier commission rate if the request was linked to a tier
+    if (req.tierId) {
+      try {
+        const [tier] = await db.select().from(depositTierPresets)
+          .where(eq(depositTierPresets.id, req.tierId)).limit(1);
+        if (tier && tier.commissionRate) {
+          const commissionRate = parseFloat(tier.commissionRate.toString());
+          await updateSellerDepositSettings(req.userId, { commissionRate });
+          console.log(`[Deposit] Auto-applied tier "${tier.name}" commission rate ${(commissionRate * 100).toFixed(2)}% to user ${req.userId}`);
+        }
+      } catch (err) {
+        console.error('[Deposit] Failed to apply tier commission rate:', err);
+      }
+    }
   }
 }
 
@@ -3026,6 +3047,7 @@ export async function upsertDepositTierPreset(data: {
   amount: number;
   maintenancePct: number;
   warningPct: number;
+  commissionRate?: number;
   description?: string | null;
   isActive?: number;
   sortOrder?: number;
@@ -3038,6 +3060,7 @@ export async function upsertDepositTierPreset(data: {
     amount: data.amount.toFixed(2),
     maintenancePct: data.maintenancePct.toFixed(2),
     warningPct: data.warningPct.toFixed(2),
+    commissionRate: (data.commissionRate ?? 0.05).toFixed(4),
     description: data.description ?? null,
     isActive: data.isActive ?? 1,
     sortOrder: data.sortOrder ?? 0,
