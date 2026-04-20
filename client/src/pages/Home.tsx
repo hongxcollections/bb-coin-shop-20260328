@@ -259,7 +259,7 @@ export default function Home() {
             <button
               onClick={() => setAuctionListOpen(o => !o)}
               className={`flex items-center gap-1 text-[10px] text-amber-500 font-medium transition-all border border-amber-200 rounded-full px-2.5 py-1 hover:bg-amber-50 focus:outline-none ${auctionListOpen ? "" : "bg-amber-50"}`}
-              style={{ marginBottom: "7px" }}
+              style={{ marginBottom: "5px" }}
               aria-expanded={auctionListOpen}
             >
               <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${auctionListOpen ? "rotate-180" : "rotate-0"}`} />
