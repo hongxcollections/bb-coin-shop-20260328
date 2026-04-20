@@ -94,9 +94,18 @@ export default function Home() {
   const [page, setPage] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [auctionListOpen, setAuctionListOpen] = useState(true);
-  const [auctionSectionTitle] = useState(
-    () => AUCTION_SECTION_TITLES[Math.floor(Math.random() * AUCTION_SECTION_TITLES.length)]
-  );
+  // 隨機索引在 mount 時固定，避免重新 render 時跳字
+  const [randomIdx] = useState(() => Math.floor(Math.random() * 10000));
+  const resolvedTitle = (() => {
+    let list = AUCTION_SECTION_TITLES;
+    if (ss.auctionSectionTitles) {
+      try {
+        const parsed = JSON.parse(ss.auctionSectionTitles);
+        if (Array.isArray(parsed) && parsed.length > 0) list = parsed;
+      } catch {}
+    }
+    return list[randomIdx % list.length];
+  })();
 
   const { data: auctions, isLoading } = trpc.auctions.list.useQuery(
     { limit: 100, offset: 0, category: category === "all" ? undefined : category },
@@ -248,7 +257,7 @@ export default function Home() {
             aria-expanded={auctionListOpen}
           >
             <div className="flex items-baseline gap-2">
-              <h1 className="text-xl font-bold text-amber-900">{auctionSectionTitle}</h1>
+              <h1 className="text-xl font-bold text-amber-900">{resolvedTitle}</h1>
               <p className="text-sm text-muted-foreground">(共 {activeCount} 件拍品)</p>
             </div>
             <div className={`flex items-center gap-1 text-xs text-amber-500 font-medium transition-all border border-amber-200 rounded-full px-2.5 py-1 group-hover:bg-amber-50 ${auctionListOpen ? "" : "bg-amber-50"}`}>

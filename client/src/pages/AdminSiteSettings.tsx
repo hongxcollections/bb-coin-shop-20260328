@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import {
   Settings, Bell, Clock, ChevronLeft, Save, AlertCircle,
   MessageSquare, Megaphone, Home, CheckCircle, Tag, LogIn, Sparkles,
-  Download, Upload, Package2
+  Download, Upload, Package2, Plus, Trash2, Shuffle
 } from "lucide-react";
 
 export default function AdminSiteSettings() {
@@ -62,6 +62,15 @@ export default function AdminSiteSettings() {
 
   // 發佈保證金不足錯誤信息模板
   const [publishDepositErrorMsg, setPublishDepositErrorMsg] = useState("保證金維持水平不足（餘額 {balance}，需要 {required}）");
+
+  // 首頁拍賣標題字句
+  const DEFAULT_AUCTION_TITLES = [
+    "🪙 正在拍賣", "🔨 槌音未落", "🏛️ 競投廳開放中", "⚡ 搶標進行中",
+    "🔥 熱烈競逐中", "⏳ 倒數·出價·勝負未分", "💎 珍品爭奪中",
+    "🏆 群雄競投·珍藏等您", "✨ 現正競投", "🎯 即時出價戰",
+  ];
+  const [auctionTitles, setAuctionTitles] = useState<string[]>(DEFAULT_AUCTION_TITLES);
+  const [newTitleInput, setNewTitleInput] = useState("");
 
   // 套餐資料同步
   const [importLoading, setImportLoading] = useState(false);
@@ -121,6 +130,12 @@ export default function AdminSiteSettings() {
     if (s.depositWarningMessage) setDepositWarningMessage(s.depositWarningMessage);
     if (s.publishQuotaErrorMsg) setPublishQuotaErrorMsg(s.publishQuotaErrorMsg);
     if (s.publishDepositErrorMsg) setPublishDepositErrorMsg(s.publishDepositErrorMsg);
+    if (s.auctionSectionTitles) {
+      try {
+        const parsed = JSON.parse(s.auctionSectionTitles);
+        if (Array.isArray(parsed) && parsed.length > 0) setAuctionTitles(parsed);
+      } catch {}
+    }
   }, [settings]);
 
   if (!isAuthenticated || user?.role !== 'admin') {
@@ -252,6 +267,77 @@ export default function AdminSiteSettings() {
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   {popupPreview(homeWelcomeMessage)}
                   <SaveBtn onClick={() => save('homeWelcomeMessage', homeWelcomeMessage, () => !homeWelcomeMessage.trim() ? "訊息不可為空" : null)} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 首頁拍賣標題字句管理 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Shuffle className="w-5 h-5 text-purple-500" />
+                  <CardTitle className="text-lg">首頁拍賣標題字句</CardTitle>
+                </div>
+                <CardDescription>首頁「正在拍賣」區塊的標題字句，系統每次隨機抽一個顯示。可自由增減。</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* 現有字句清單 */}
+                <div className="space-y-2">
+                  {auctionTitles.map((title, idx) => (
+                    <div key={idx} className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-100 rounded-lg">
+                      <span className="flex-1 text-sm font-medium text-amber-900">{title}</span>
+                      <button
+                        onClick={() => {
+                          const next = auctionTitles.filter((_, i) => i !== idx);
+                          if (next.length === 0) { toast.error("至少保留一個字句"); return; }
+                          setAuctionTitles(next);
+                        }}
+                        className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"
+                        title="刪除"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 新增字句 */}
+                <div className="flex gap-2">
+                  <Input
+                    value={newTitleInput}
+                    onChange={(e) => setNewTitleInput(e.target.value)}
+                    placeholder="例：🎉 全新拍品登場"
+                    className="flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newTitleInput.trim()) {
+                        setAuctionTitles(prev => [...prev, newTitleInput.trim()]);
+                        setNewTitleInput("");
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    className="border-amber-300 text-amber-700 hover:bg-amber-50 gap-1"
+                    onClick={() => {
+                      if (!newTitleInput.trim()) { toast.error("請輸入字句"); return; }
+                      setAuctionTitles(prev => [...prev, newTitleInput.trim()]);
+                      setNewTitleInput("");
+                    }}
+                  >
+                    <Plus className="w-4 h-4" />新增
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between flex-wrap gap-3 pt-1">
+                  <p className="text-xs text-muted-foreground">共 {auctionTitles.length} 個字句，每次訪問隨機顯示其中一個</p>
+                  <Button
+                    onClick={() => save('auctionSectionTitles', JSON.stringify(auctionTitles), () => auctionTitles.length === 0 ? "至少保留一個字句" : null)}
+                    disabled={setSetting.isPending}
+                    className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    {setSetting.isPending ? "儲存中..." : "儲存字句清單"}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
