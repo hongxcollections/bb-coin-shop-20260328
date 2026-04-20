@@ -263,6 +263,7 @@ export default function MerchantDashboard() {
   const [topUpReceiptUploading, setTopUpReceiptUploading] = useState(false);
   const [selectedTierId, setSelectedTierId] = useState<number | null>(null);
   const [showTierInfo, setShowTierInfo] = useState(false);
+  const [showMerchantLayout, setShowMerchantLayout] = useState(false);
 
   const { data: myApp, isLoading: loadingApp } = trpc.merchants.myApplication.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -510,17 +511,65 @@ export default function MerchantDashboard() {
               </div>
             </div>
           </Link>
-          <Link href="/merchant-settings">
-            <div className="rounded-2xl bg-white border border-gray-100 p-4 flex items-center gap-3 hover:border-amber-300 hover:bg-amber-50/50 transition-colors cursor-pointer">
-              <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <Settings className="w-5 h-5 text-gray-500" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm text-gray-800">商戶管理</p>
-                <p className="text-xs text-gray-400 mt-0.5">預設拍賣結束日期 · 時間設定</p>
-              </div>
+          <div className="rounded-2xl bg-white border border-gray-100 overflow-hidden">
+            {/* 商戶管理 header row */}
+            <div className="flex items-center gap-3 p-4">
+              <Link href="/merchant-settings" className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-75 transition-opacity">
+                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  <Settings className="w-5 h-5 text-gray-500" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm text-gray-800">商戶管理</p>
+                  <p className="text-xs text-gray-400 mt-0.5">預設拍賣結束日期 · 時間設定</p>
+                </div>
+              </Link>
+              <button
+                onClick={() => setShowMerchantLayout(v => !v)}
+                className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 py-1 px-2 rounded-lg hover:bg-gray-50"
+              >
+                <Store className="w-3.5 h-3.5" />
+                <span>市集版面</span>
+                <ChevronDown size={12} style={{ transform: showMerchantLayout ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+              </button>
             </div>
-          </Link>
+            {/* 市集版面 accordion */}
+            {showMerchantLayout && (() => {
+              const currentLayout = (merchantSettings as any)?.listingLayout ?? "grid2";
+              const layouts = [
+                { mode: "list", icon: <LayoutList className="w-4 h-4" />, label: "列表", desc: "橫排詳細" },
+                { mode: "big", icon: <Maximize2 className="w-4 h-4" />, label: "大圖", desc: "全寬圖片" },
+                { mode: "grid2", icon: <LayoutGrid className="w-4 h-4" />, label: "兩欄", desc: "兩列網格" },
+                { mode: "grid3", icon: <Grid3X3 className="w-4 h-4" />, label: "三欄", desc: "三列方格" },
+              ] as const;
+              return (
+                <div className="border-t border-gray-100 px-4 pb-4 pt-3 bg-gray-50/60 space-y-2">
+                  <p className="text-[11px] text-gray-400">顧客瀏覽你商品的版面</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {layouts.map(({ mode, icon, label, desc }) => {
+                      const active = currentLayout === mode;
+                      return (
+                        <button
+                          key={mode}
+                          onClick={() => setListingLayout.mutate({ layout: mode })}
+                          disabled={setListingLayout.isPending}
+                          className={`flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl border-2 transition-all ${
+                            active
+                              ? "border-green-500 bg-green-50 text-green-700"
+                              : "border-gray-200 bg-white text-gray-500 hover:border-green-200 hover:bg-green-50/50"
+                          }`}
+                        >
+                          {icon}
+                          <span className="text-xs font-semibold">{label}</span>
+                          <span className="text-[10px] text-gray-400 leading-tight text-center">{desc}</span>
+                          {active && <span className="text-[9px] text-green-600 font-medium">✓ 使用中</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
           <Link href="/subscriptions">
             <div className="rounded-2xl bg-white border border-purple-100 p-4 flex items-center gap-3 hover:border-purple-300 hover:bg-purple-50/50 transition-colors cursor-pointer">
               <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0">
@@ -551,48 +600,6 @@ export default function MerchantDashboard() {
             </div>
           </Link>
         </div>
-
-        {/* ── 商戶市集版面設定 ── */}
-        {(() => {
-          const currentLayout = (merchantSettings as any)?.listingLayout ?? "grid2";
-          const layouts = [
-            { mode: "list", icon: <LayoutList className="w-4 h-4" />, label: "列表", desc: "橫排詳細" },
-            { mode: "big", icon: <Maximize2 className="w-4 h-4" />, label: "大圖", desc: "全寬圖片" },
-            { mode: "grid2", icon: <LayoutGrid className="w-4 h-4" />, label: "兩欄", desc: "兩列網格" },
-            { mode: "grid3", icon: <Grid3X3 className="w-4 h-4" />, label: "三欄", desc: "三列方格" },
-          ] as const;
-          return (
-            <div className="rounded-2xl bg-white border border-green-100 p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Store className="w-4 h-4 text-green-600" />
-                <h2 className="font-semibold text-sm text-gray-800">商戶市集版面</h2>
-                <span className="text-xs text-gray-400 ml-auto">顧客瀏覽你商品的版面</span>
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                {layouts.map(({ mode, icon, label, desc }) => {
-                  const active = currentLayout === mode;
-                  return (
-                    <button
-                      key={mode}
-                      onClick={() => setListingLayout.mutate({ layout: mode })}
-                      disabled={setListingLayout.isPending}
-                      className={`flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl border-2 transition-all ${
-                        active
-                          ? "border-green-500 bg-green-50 text-green-700"
-                          : "border-gray-100 bg-white text-gray-500 hover:border-green-200 hover:bg-green-50/50"
-                      }`}
-                    >
-                      {icon}
-                      <span className="text-xs font-semibold">{label}</span>
-                      <span className="text-[10px] text-gray-400 leading-tight text-center">{desc}</span>
-                      {active && <span className="text-[9px] text-green-600 font-medium">✓ 使用中</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
 
         {/* ── 保證金警告提示 ── */}
         {!depositOk && deposit && (
