@@ -62,6 +62,19 @@ function CountdownTimer({ endTime }: { endTime: Date }) {
 
 const PAGE_SIZE = 20;
 
+const AUCTION_SECTION_TITLES = [
+  "正在拍賣",
+  "槌音未落",
+  "競投廳開放中",
+  "搶標進行中",
+  "熱烈競逐中",
+  "倒數·出價·勝負未分",
+  "珍品爭奪中",
+  "群雄競投·珍藏等您",
+  "現正競投",
+  "即時出價戰",
+];
+
 const CATEGORIES = [
   { value: "all", label: "全部", emoji: "🪙" },
   { value: "古幣", label: "古幣", emoji: "🏺" },
@@ -81,6 +94,9 @@ export default function Home() {
   const [page, setPage] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [auctionListOpen, setAuctionListOpen] = useState(true);
+  const [auctionSectionTitle] = useState(
+    () => AUCTION_SECTION_TITLES[Math.floor(Math.random() * AUCTION_SECTION_TITLES.length)]
+  );
 
   const { data: auctions, isLoading } = trpc.auctions.list.useQuery(
     { limit: 100, offset: 0, category: category === "all" ? undefined : category },
@@ -232,7 +248,7 @@ export default function Home() {
             aria-expanded={auctionListOpen}
           >
             <div className="flex items-baseline gap-2">
-              <h1 className="text-xl font-bold text-amber-900">正在拍賣</h1>
+              <h1 className="text-xl font-bold text-amber-900">{auctionSectionTitle}</h1>
               <p className="text-sm text-muted-foreground">(共 {activeCount} 件拍品)</p>
             </div>
             <div className={`flex items-center gap-1 text-xs text-amber-500 font-medium transition-all border border-amber-200 rounded-full px-2.5 py-1 group-hover:bg-amber-50 ${auctionListOpen ? "" : "bg-amber-50"}`}>
