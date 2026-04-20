@@ -85,7 +85,7 @@ FPS 轉數快：請轉帳至 [電話號碼/電郵]，並備注拍賣編號。
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="text-4xl mb-4 animate-spin">🪙</div>
+          <div className="text-4xl mb-4 animate-spin">💰</div>
           <p className="text-muted-foreground">載入中...</p>
         </div>
       </div>
