@@ -2757,6 +2757,27 @@ export async function upsertMerchantSettings(userId: number, defaultEndDayOffset
   `);
 }
 
+/** 撤銷商戶資格：把申請狀態改為 rejected + 刪除市集商品（保留用戶帳號及保證金帳戶） */
+export async function revokeMerchantStatus(userId: number): Promise<{ success: boolean; error?: string }> {
+  const db = await getDb();
+  if (!db) return { success: false, error: 'DB unavailable' };
+  try {
+    // 1. 找出該用戶的商戶申請記錄
+    const app = await getMerchantApplicationByUser(userId);
+    if (!app) return { success: false, error: '找不到商戶申請記錄' };
+    // 2. 把申請狀態改為 rejected（從市集消失）
+    await db.update(merchantApplications)
+      .set({ status: 'rejected', adminNote: '管理員撤銷商戶資格' })
+      .where(eq(merchantApplications.id, app.id));
+    // 3. 刪除市集出售商品
+    await db.delete(merchantProducts).where(eq(merchantProducts.merchantId, userId));
+    return { success: true };
+  } catch (error) {
+    console.error('[Database] revokeMerchantStatus failed:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
 export async function reviewMerchantApplication(
   id: number,
   status: 'approved' | 'rejected',

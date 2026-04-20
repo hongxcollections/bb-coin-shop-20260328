@@ -824,6 +824,16 @@ export default function AdminUsers() {
     onError: (err) => toast.error(err.message),
   });
 
+  const [revokeTarget, setRevokeTarget] = useState<{ id: number; name: string } | null>(null);
+  const adminRevokeMerchant = trpc.users.adminRevokeMerchant.useMutation({
+    onSuccess: () => {
+      toast.success("已撤銷商戶資格，該商戶已從市集移除");
+      setRevokeTarget(null);
+      refetch();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const [cleanOrphanOpen, setCleanOrphanOpen] = useState(false);
   const adminCleanOrphan = trpc.users.adminCleanOrphanData.useMutation({
     onSuccess: (res) => {
@@ -1016,7 +1026,7 @@ export default function AdminUsers() {
 
               {/* Action buttons */}
               {u.role !== "admin" && (
-                <div className="flex gap-1.5 flex-shrink-0 mt-1">
+                <div className="flex gap-1.5 flex-shrink-0 mt-1 flex-wrap justify-end">
                   <Button
                     size="sm"
                     variant="outline"
@@ -1026,6 +1036,17 @@ export default function AdminUsers() {
                     <Pencil className="w-3.5 h-3.5 mr-1" />
                     修改
                   </Button>
+                  {u.depositId && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2.5 border-orange-200 text-orange-600 hover:bg-orange-50"
+                      onClick={() => setRevokeTarget({ id: u.id, name: u.name ?? "此商戶" })}
+                    >
+                      <Store className="w-3.5 h-3.5 mr-1" />
+                      撤銷商戶
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"
@@ -1418,6 +1439,36 @@ export default function AdminUsers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Revoke Merchant Confirmation */}
+      <AlertDialog open={!!revokeTarget} onOpenChange={(open) => !open && setRevokeTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-orange-600">確認撤銷商戶資格？</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                您即將撤銷 <strong>{revokeTarget?.name}</strong> 的商戶資格。
+              </p>
+              <ul className="text-sm list-disc list-inside space-y-1 text-muted-foreground">
+                <li>商戶申請狀態改為「已拒絕」，從商戶市集消失</li>
+                <li>所有出售商品（商戶市集）將被刪除</li>
+                <li>用戶帳號、保證金帳戶、拍賣記錄等均保留</li>
+              </ul>
+              <p className="font-semibold text-orange-600">此操作不可逆。如需重新開通，須重新申請審批。</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+              onClick={() => revokeTarget && adminRevokeMerchant.mutate({ userId: revokeTarget.id })}
+              disabled={adminRevokeMerchant.isPending}
+            >
+              {adminRevokeMerchant.isPending ? "撤銷中…" : "確認撤銷商戶資格"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Clean Orphan Data Confirmation */}
       <AlertDialog open={cleanOrphanOpen} onOpenChange={(open) => !open && setCleanOrphanOpen(false)}>
