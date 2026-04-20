@@ -70,12 +70,9 @@ export default function MerchantProducts() {
     enabled: isAuthenticated,
   });
 
-  const setListingLayoutMutation = trpc.merchants.setListingLayout.useMutation();
-
   function changeLayout(m: LayoutMode) {
     setLayout(m);
     localStorage.setItem("mp_layout", m);
-    setListingLayoutMutation.mutate({ layout: m });
   }
 
   const addProduct = trpc.merchants.addProduct.useMutation({

@@ -8,6 +8,7 @@ import {
   AlertCircle, ArrowUpRight, ArrowDownLeft, ShoppingBag, Settings,
   RotateCcw, Layers, CreditCard, PlusCircle, Send, ChevronDown, Loader2,
   Upload, X, ImageIcon, Printer, Search, HelpCircle, Package,
+  LayoutList, LayoutGrid, Grid3X3, Maximize2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -242,6 +243,7 @@ function printTxReport(
 export default function MerchantDashboard() {
   const { isAuthenticated, loading } = useAuth();
   const [, navigate] = useLocation();
+  const utils = trpc.useUtils();
 
   // Top-up request form state
   const [showTopUpForm, setShowTopUpForm] = useState(false);
@@ -314,6 +316,13 @@ export default function MerchantDashboard() {
   );
   const { data: quotaInfo } = trpc.merchants.getQuotaInfo.useQuery(undefined, {
     enabled: isAuthenticated && myApp?.status === "approved",
+  });
+  const { data: merchantSettings } = trpc.merchants.getSettings.useQuery(undefined, {
+    enabled: isAuthenticated && myApp?.status === "approved",
+  });
+  const setListingLayout = trpc.merchants.setListingLayout.useMutation({
+    onSuccess: () => { utils.merchants.getSettings.invalidate(); toast.success("市集版面已更新"); },
+    onError: (e) => toast.error(e.message),
   });
   const { data: mySubscription } = trpc.subscriptions.mySubscription.useQuery(undefined, {
     enabled: isAuthenticated && myApp?.status === "approved",
@@ -542,6 +551,48 @@ export default function MerchantDashboard() {
             </div>
           </Link>
         </div>
+
+        {/* ── 商戶市集版面設定 ── */}
+        {(() => {
+          const currentLayout = (merchantSettings as any)?.listingLayout ?? "grid2";
+          const layouts = [
+            { mode: "list", icon: <LayoutList className="w-4 h-4" />, label: "列表", desc: "橫排詳細" },
+            { mode: "big", icon: <Maximize2 className="w-4 h-4" />, label: "大圖", desc: "全寬圖片" },
+            { mode: "grid2", icon: <LayoutGrid className="w-4 h-4" />, label: "兩欄", desc: "兩列網格" },
+            { mode: "grid3", icon: <Grid3X3 className="w-4 h-4" />, label: "三欄", desc: "三列方格" },
+          ] as const;
+          return (
+            <div className="rounded-2xl bg-white border border-green-100 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Store className="w-4 h-4 text-green-600" />
+                <h2 className="font-semibold text-sm text-gray-800">商戶市集版面</h2>
+                <span className="text-xs text-gray-400 ml-auto">顧客瀏覽你商品的版面</span>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {layouts.map(({ mode, icon, label, desc }) => {
+                  const active = currentLayout === mode;
+                  return (
+                    <button
+                      key={mode}
+                      onClick={() => setListingLayout.mutate({ layout: mode })}
+                      disabled={setListingLayout.isPending}
+                      className={`flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl border-2 transition-all ${
+                        active
+                          ? "border-green-500 bg-green-50 text-green-700"
+                          : "border-gray-100 bg-white text-gray-500 hover:border-green-200 hover:bg-green-50/50"
+                      }`}
+                    >
+                      {icon}
+                      <span className="text-xs font-semibold">{label}</span>
+                      <span className="text-[10px] text-gray-400 leading-tight text-center">{desc}</span>
+                      {active && <span className="text-[9px] text-green-600 font-medium">✓ 使用中</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── 保證金警告提示 ── */}
         {!depositOk && deposit && (
