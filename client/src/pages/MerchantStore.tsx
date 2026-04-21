@@ -7,19 +7,78 @@ import { buildWhatsAppUrl } from "@/lib/utils";
 
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
 
-function WhatsAppBtn({ whatsapp, title, price, id }: { whatsapp: string; title: string; price?: number; id?: number }) {
+function buildProductMsg(title: string, price?: number, id?: number) {
   const productUrl = id ? `${window.location.origin}/merchant-products/${id}` : "";
-  const msg = `你好，我想查詢以下商品：\n商品：${title}${price !== undefined ? `\n價錢：HK$${price.toLocaleString()}` : ""}${productUrl ? `\n連結：${productUrl}` : ""}`;
-  const link = buildWhatsAppUrl(whatsapp, msg);
+  return `你好，我想查詢以下商品：\n商品：${title}${price !== undefined ? `\n價錢：HK$${price.toLocaleString()}` : ""}${productUrl ? `\n連結：${productUrl}` : ""}`;
+}
+
+async function copyAndOpenMessenger(messengerLink: string, msg: string) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(msg);
+    } else {
+      const ta = document.createElement("textarea");
+      ta.value = msg;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    toast.success("商品資訊已複製，請在 Messenger 對話內長按輸入欄貼上", { duration: 5000 });
+  } catch {
+    toast.error("複製失敗，請手動輸入");
+  }
+  window.open(messengerLink, "_blank", "noopener,noreferrer");
+}
+
+function ContactBtns({ whatsapp, messengerLink, title, price, id, size = "md" }: {
+  whatsapp: string; messengerLink: string; title: string; price?: number; id?: number; size?: "md" | "sm";
+}) {
+  const msg = buildProductMsg(title, price, id);
+  const waLink = whatsapp ? buildWhatsAppUrl(whatsapp, msg) : "";
+  if (!waLink && !messengerLink) return null;
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+  if (size === "sm") {
+    return (
+      <div className="flex gap-1 mt-auto" onClick={stop}>
+        {waLink && (
+          <a href={waLink} target="_blank" rel="noopener noreferrer"
+            className="flex-1 text-[9px] py-0.5 bg-green-50 text-green-600 rounded text-center hover:bg-green-100">
+            WhatsApp
+          </a>
+        )}
+        {messengerLink && (
+          <a href={messengerLink} target="_blank" rel="noopener noreferrer"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyAndOpenMessenger(messengerLink, msg); }}
+            className="flex-1 text-[9px] py-0.5 bg-blue-50 text-blue-600 rounded text-center hover:bg-blue-100">
+            Messenger
+          </a>
+        )}
+      </div>
+    );
+  }
   return (
-    <a href={link} target="_blank" rel="noopener noreferrer"
-      className="flex items-center gap-1 text-xs bg-green-500 hover:bg-green-600 text-white px-2.5 py-1.5 rounded-full transition-colors shrink-0">
-      <MessageCircle className="w-3 h-3" />WhatsApp
-    </a>
+    <div className="flex gap-1 shrink-0" onClick={stop}>
+      {waLink && (
+        <a href={waLink} target="_blank" rel="noopener noreferrer"
+          className="flex items-center gap-1 text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1.5 rounded-full transition-colors">
+          <MessageCircle className="w-3 h-3" />WA
+        </a>
+      )}
+      {messengerLink && (
+        <a href={messengerLink} target="_blank" rel="noopener noreferrer"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyAndOpenMessenger(messengerLink, msg); }}
+          className="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1.5 rounded-full transition-colors">
+          <MessageCircle className="w-3 h-3" />FB
+        </a>
+      )}
+    </div>
   );
 }
 
-function ProductsList({ products, layout, whatsapp }: { products: any[]; layout: LayoutMode; whatsapp: string }) {
+function ProductsList({ products, layout, whatsapp, messengerLink }: { products: any[]; layout: LayoutMode; whatsapp: string; messengerLink: string }) {
   if (products.length === 0) return <p className="text-center text-gray-400 text-sm py-6">暫無出售商品</p>;
 
   if (layout === "list") {
@@ -44,7 +103,7 @@ function ProductsList({ products, layout, whatsapp }: { products: any[]; layout:
                 {p.description && <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{p.description}</p>}
                 <div className="flex items-center justify-between mt-1.5">
                   <span className="font-bold text-amber-600 text-sm">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
-                  {p.stock > 0 && whatsapp ? <WhatsAppBtn whatsapp={whatsapp} title={p.title} price={price} id={p.id} /> : p.stock <= 0 ? <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span> : null}
+                  {p.stock > 0 ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
                 </div>
               </div>
             </div>
@@ -86,7 +145,7 @@ function ProductsList({ products, layout, whatsapp }: { products: any[]; layout:
                 {p.description && <p className="text-xs text-gray-500 line-clamp-3">{p.description}</p>}
                 <div className="flex items-center justify-between pt-1">
                   <span className="font-bold text-amber-600 text-base">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
-                  {p.stock > 0 && whatsapp ? <WhatsAppBtn whatsapp={whatsapp} title={p.title} price={price} id={p.id} /> : p.stock <= 0 ? <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span> : null}
+                  {p.stock > 0 ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
                 </div>
               </div>
             </div>
@@ -116,15 +175,11 @@ function ProductsList({ products, layout, whatsapp }: { products: any[]; layout:
               <div className="p-1.5 flex flex-col gap-0.5 flex-1">
                 <h3 className="text-[10px] font-semibold text-gray-800 line-clamp-2 leading-tight">{p.title}</h3>
                 <span className="text-[10px] font-bold text-amber-600">${price.toLocaleString()}</span>
-                {p.stock > 0 && whatsapp ? (
-                  <a href={buildWhatsAppUrl(whatsapp, `你好，我想查詢以下商品：\n商品：${p.title}\n價錢：HK$${price.toLocaleString()}\n連結：${window.location.origin}/merchant-products/${p.id}`)}
-                    target="_blank" rel="noopener noreferrer"
-                    className="mt-auto text-[9px] py-0.5 bg-green-50 text-green-600 rounded text-center">
-                    WhatsApp
-                  </a>
-                ) : p.stock <= 0 ? (
+                {p.stock > 0 ? (
+                  <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="sm" />
+                ) : (
                   <span className="mt-auto text-[9px] py-0.5 bg-gray-100 text-gray-400 rounded text-center">已售出</span>
-                ) : null}
+                )}
               </div>
             </div>
             </Link>
@@ -159,7 +214,7 @@ function ProductsList({ products, layout, whatsapp }: { products: any[]; layout:
               {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
               <div className="mt-auto pt-1.5 flex items-center justify-between gap-1">
                 <span className="font-bold text-amber-600 text-xs">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
-                {p.stock > 0 && whatsapp ? <WhatsAppBtn whatsapp={whatsapp} title={p.title} price={price} id={p.id} /> : p.stock <= 0 ? <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span> : null}
+                {p.stock > 0 ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
               </div>
             </div>
           </div>
@@ -203,6 +258,11 @@ export default function MerchantStore() {
 
   const { data: siteSettingsData } = trpc.siteSettings.getAll.useQuery();
   const merchantContactPreset = (siteSettingsData as Record<string, string> | undefined)?.merchantContactMessage ?? "你好，我想查詢你的商品";
+
+  const fbRaw = (merchant as any)?.facebook ?? "";
+  const messengerLink = fbRaw
+    ? (fbRaw.startsWith("http") ? fbRaw : `https://m.me/${fbRaw}`)
+    : "";
 
   const { data: allMerchants = [] } = trpc.merchants.listApprovedMerchants.useQuery();
   const merchantLayout = (allMerchants as any[]).find((m: any) => m.userId === userId)?.listingLayout as LayoutMode ?? "grid2";
@@ -271,10 +331,6 @@ export default function MerchantStore() {
               </div>
             </div>
             {(() => {
-              const fbRaw = (merchant as any)?.facebook ?? "";
-              const messengerLink = fbRaw
-                ? (fbRaw.startsWith("http") ? fbRaw : `https://m.me/${fbRaw}`)
-                : "";
               const merchantUrl = `${window.location.origin}/merchants/${userId}`;
               const contactMsg = `${merchantContactPreset}\n${merchantUrl}`;
               const waLink = merchant.whatsapp ? buildWhatsAppUrl(merchant.whatsapp, contactMsg) : "";
@@ -336,6 +392,7 @@ export default function MerchantStore() {
               products={activeProducts}
               layout={merchantLayout}
               whatsapp={merchant?.whatsapp ?? ""}
+              messengerLink={messengerLink}
             />
           )}
         </div>
