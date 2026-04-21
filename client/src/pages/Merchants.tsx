@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import Header from "@/components/Header";
-import { Store, MessageCircle, Package, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Store, Package, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
@@ -9,19 +10,76 @@ import { Link } from "wouter";
 const CATEGORIES = ["全部", "古幣", "紀念幣", "外幣", "銀幣", "金幣", "其他"];
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
 
-function WhatsAppBtn({ whatsapp, title, price, id }: { whatsapp: string; title: string; price?: number; id?: number }) {
+function buildProductMsg(title: string, price?: number, id?: number) {
   const productUrl = id ? `${window.location.origin}/merchant-products/${id}` : "";
-  const msg = `你好，我想查詢以下商品：\n商品：${title}${price !== undefined ? `\n價錢：HK$${price.toLocaleString()}` : ""}${productUrl ? `\n連結：${productUrl}` : ""}`;
-  const link = buildWhatsAppUrl(whatsapp, msg);
+  return `你好，我想查詢以下商品：\n商品：${title}${price !== undefined ? `\n價錢：HK$${price.toLocaleString()}` : ""}${productUrl ? `\n連結：${productUrl}` : ""}`;
+}
+
+async function copyAndOpenMessenger(messengerLink: string, msg: string) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(msg);
+    } else {
+      const ta = document.createElement("textarea");
+      ta.value = msg;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    toast.success("商品資訊已複製，請在 Messenger 對話內長按輸入欄貼上", { duration: 5000 });
+  } catch {
+    toast.error("複製失敗，請手動輸入");
+  }
+  window.open(messengerLink, "_blank", "noopener,noreferrer");
+}
+
+const WhatsAppIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.15-.174.2-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+  </svg>
+);
+
+const MessengerIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+    <path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.301 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.13 3.26L19.752 8l-6.561 6.963z"/>
+  </svg>
+);
+
+function ContactBtns({ whatsapp, messengerLink, title, price, id, size = "md" }: {
+  whatsapp: string; messengerLink: string; title: string; price?: number; id?: number; size?: "md" | "sm";
+}) {
+  const msg = buildProductMsg(title, price, id);
+  const waLink = whatsapp ? buildWhatsAppUrl(whatsapp, msg) : "";
+  if (!waLink && !messengerLink) return null;
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+  const isSmall = size === "sm";
+  const btn = isSmall ? "w-7 h-7" : "w-9 h-9";
+  const icon = isSmall ? "w-3.5 h-3.5" : "w-5 h-5";
   return (
-    <a href={link} target="_blank" rel="noopener noreferrer"
-      className="flex items-center gap-1 text-xs bg-green-500 hover:bg-green-600 text-white px-2.5 py-1.5 rounded-full transition-colors shrink-0">
-      <MessageCircle className="w-3 h-3" />WhatsApp
-    </a>
+    <div className={`flex gap-1.5 shrink-0 ${isSmall ? "mt-auto justify-end" : ""}`} onClick={stop}>
+      {waLink && (
+        <a href={waLink} target="_blank" rel="noopener noreferrer"
+          aria-label="WhatsApp 聯絡"
+          className={`${btn} flex items-center justify-center bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors shadow-sm`}>
+          <WhatsAppIcon className={icon} />
+        </a>
+      )}
+      {messengerLink && (
+        <a href={messengerLink} target="_blank" rel="noopener noreferrer"
+          aria-label="Messenger 聯絡"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyAndOpenMessenger(messengerLink, msg); }}
+          className={`${btn} flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors shadow-sm`}>
+          <MessengerIcon className={icon} />
+        </a>
+      )}
+    </div>
   );
 }
 
-function ProductCard({ p, layout, whatsapp, merchantId }: { p: any; layout: LayoutMode; whatsapp: string; merchantId: number }) {
+function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: LayoutMode; whatsapp: string; messengerLink: string }) {
   const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
   const price = parseFloat(p.price ?? "0");
   const href = `/merchant-products/${p.id}`;
@@ -37,7 +95,7 @@ function ProductCard({ p, layout, whatsapp, merchantId }: { p: any; layout: Layo
           {p.description && <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{p.description}</p>}
           <div className="flex items-center justify-between mt-1.5">
             <span className="font-bold text-amber-600 text-sm">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
-            {p.stock > 0 && whatsapp ? <WhatsAppBtn whatsapp={whatsapp} title={p.title} price={price} id={p.id} /> : p.stock <= 0 ? <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span> : null}
+            {p.stock > 0 ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
           </div>
         </div>
       </div>
@@ -62,7 +120,7 @@ function ProductCard({ p, layout, whatsapp, merchantId }: { p: any; layout: Layo
           {p.description && <p className="text-xs text-gray-500 line-clamp-3">{p.description}</p>}
           <div className="flex items-center justify-between pt-1">
             <span className="font-bold text-amber-600 text-base">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
-            {p.stock > 0 && whatsapp ? <WhatsAppBtn whatsapp={whatsapp} title={p.title} price={price} id={p.id} /> : p.stock <= 0 ? <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span> : null}
+            {p.stock > 0 ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
           </div>
         </div>
       </div>
@@ -74,11 +132,14 @@ function ProductCard({ p, layout, whatsapp, merchantId }: { p: any; layout: Layo
       <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-amber-300 transition-colors">
         {imgs[0] ? <img src={imgs[0]} alt={p.title} className="w-full aspect-square object-cover" />
           : <div className="w-full aspect-square bg-amber-50 flex items-center justify-center"><Package className="w-5 h-5 text-amber-200" /></div>}
-        <div className="p-1.5 flex flex-col gap-0.5 flex-1">
+        <div className="p-1.5 flex flex-col gap-1 flex-1">
           <h3 className="text-[10px] font-semibold text-gray-800 line-clamp-2 leading-tight">{p.title}</h3>
           <span className="text-[10px] font-bold text-amber-600">${price.toLocaleString()}</span>
-          {p.stock > 0 ? <span className="mt-auto text-[9px] py-0.5 bg-amber-50 text-amber-600 rounded text-center">查詢</span>
-            : <span className="mt-auto text-[9px] py-0.5 bg-gray-100 text-gray-400 rounded text-center">已售出</span>}
+          {p.stock > 0 ? (
+            <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="sm" />
+          ) : (
+            <span className="mt-auto text-[9px] py-0.5 bg-gray-100 text-gray-400 rounded text-center">已售出</span>
+          )}
         </div>
       </div>
     </Link>
@@ -97,7 +158,7 @@ function ProductCard({ p, layout, whatsapp, merchantId }: { p: any; layout: Layo
           {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
           <div className="mt-auto pt-1.5 flex items-center justify-between gap-1">
             <span className="font-bold text-amber-600 text-xs">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
-            {p.stock > 0 && whatsapp ? <WhatsAppBtn whatsapp={whatsapp} title={p.title} price={price} id={p.id} /> : p.stock <= 0 ? <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span> : null}
+            {p.stock > 0 ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
           </div>
         </div>
       </div>
@@ -105,11 +166,11 @@ function ProductCard({ p, layout, whatsapp, merchantId }: { p: any; layout: Layo
   );
 }
 
-function ProductsGrid({ products, layout, whatsapp, merchantId }: { products: any[]; layout: LayoutMode; whatsapp: string; merchantId: number }) {
-  if (layout === "list") return <div className="space-y-2">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} merchantId={merchantId} />)}</div>;
-  if (layout === "big") return <div className="space-y-4">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} merchantId={merchantId} />)}</div>;
-  if (layout === "grid3") return <div className="grid grid-cols-3 gap-2">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} merchantId={merchantId} />)}</div>;
-  return <div className="grid grid-cols-2 gap-3">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} merchantId={merchantId} />)}</div>;
+function ProductsGrid({ products, layout, whatsapp, messengerLink }: { products: any[]; layout: LayoutMode; whatsapp: string; messengerLink: string }) {
+  if (layout === "list") return <div className="space-y-2">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} />)}</div>;
+  if (layout === "big") return <div className="space-y-4">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} />)}</div>;
+  if (layout === "grid3") return <div className="grid grid-cols-3 gap-2">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} />)}</div>;
+  return <div className="grid grid-cols-2 gap-3">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} />)}</div>;
 }
 
 const PAGE_SIZE = 10;
@@ -121,6 +182,10 @@ function MerchantSection({ merchant, selectedCategory }: { merchant: any; select
   });
 
   const layout: LayoutMode = (merchant.listingLayout as LayoutMode) ?? "grid2";
+  const fbRaw = merchant.facebook ?? "";
+  const messengerLink = fbRaw
+    ? (fbRaw.startsWith("http") ? fbRaw : `https://m.me/${fbRaw}`)
+    : "";
   const visible = products.filter((p: any) => p.status === "active" && p.stock > 0);
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const [page, setPage] = useState(1);
@@ -152,7 +217,7 @@ function MerchantSection({ merchant, selectedCategory }: { merchant: any; select
         <div className="text-center py-6 text-2xl animate-spin">💰</div>
       ) : (
         <>
-          <ProductsGrid products={pageItems} layout={layout} whatsapp={merchant.whatsapp ?? ""} merchantId={merchant.userId} />
+          <ProductsGrid products={pageItems} layout={layout} whatsapp={merchant.whatsapp ?? ""} messengerLink={messengerLink} />
           {totalPages > 1 && (
             <div className="flex items-center justify-between gap-2 mt-3 px-1">
               <button

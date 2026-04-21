@@ -3350,7 +3350,7 @@ export async function deleteMerchantProduct(id: number, merchantId: number): Pro
 }
 
 export async function listApprovedMerchants(): Promise<Array<{
-  userId: number; merchantName: string; selfIntro: string; merchantIcon: string | null; whatsapp: string; categories: string | null; listingLayout: string;
+  userId: number; merchantName: string; selfIntro: string; merchantIcon: string | null; whatsapp: string; facebook: string | null; categories: string | null; listingLayout: string;
 }>> {
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
@@ -3362,6 +3362,7 @@ export async function listApprovedMerchants(): Promise<Array<{
     selfIntro: merchantApplications.selfIntro,
     merchantIcon: merchantApplications.merchantIcon,
     whatsapp: merchantApplications.whatsapp,
+    facebook: merchantApplications.facebook,
     categories: merchantApplications.categories,
   }).from(merchantApplications).where(eq(merchantApplications.status, 'approved'))
     .orderBy(asc(merchantApplications.merchantName));
