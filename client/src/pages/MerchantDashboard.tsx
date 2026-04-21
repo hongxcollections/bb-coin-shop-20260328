@@ -207,37 +207,26 @@ function printTxReport(
   </table>
   </body></html>`;
 
-  // Inject report into current page and call window.print() directly —
-  // most reliable cross-browser method (Firefox blocks iframe/blob print)
-  const PRINT_ID = "__tx-print-overlay__";
-  const STYLE_ID = "__tx-print-style__";
+  // 開新視窗顯示完整報表（手機 Chrome / Safari / Mi Browser 的「分享 → 儲存 PDF」
+  // 都會以新視窗 viewport 為準，因此必須放在獨立視窗，否則只會截到當前 dashboard 畫面）
+  const fullHtml = html.replace(
+    "</body>",
+    `<div style="margin-top:24px;text-align:center" class="no-print">
+      <button onclick="window.print()" style="padding:10px 24px;font-size:14px;background:#f59e0b;color:#fff;border:none;border-radius:8px;cursor:pointer">列印 / 儲存 PDF</button>
+    </div>
+    <style>@media print{.no-print{display:none !important}}</style>
+    <script>setTimeout(function(){try{window.print()}catch(e){}},400)</script>
+    </body>`
+  );
 
-  // Clean up any previous instance
-  document.getElementById(PRINT_ID)?.remove();
-  document.getElementById(STYLE_ID)?.remove();
-
-  // Inject print-only CSS: hide everything except the report overlay
-  const style = document.createElement("style");
-  style.id = STYLE_ID;
-  style.textContent = `@media print { body > *:not(#${PRINT_ID}) { display: none !important; } #${PRINT_ID} { display: block !important; } }`;
-  document.head.appendChild(style);
-
-  // Inject report HTML as a hidden div (visible only during print)
-  const overlay = document.createElement("div");
-  overlay.id = PRINT_ID;
-  overlay.style.display = "none";
-  overlay.innerHTML = html;
-  document.body.appendChild(overlay);
-
-  // Small delay to ensure DOM is ready, then print
-  setTimeout(() => {
-    window.print();
-    // Clean up after print dialog closes
-    setTimeout(() => {
-      document.getElementById(PRINT_ID)?.remove();
-      document.getElementById(STYLE_ID)?.remove();
-    }, 2000);
-  }, 100);
+  const win = window.open("", "_blank");
+  if (!win) {
+    alert("無法開啟新視窗，請允許彈出視窗後再試");
+    return;
+  }
+  win.document.open();
+  win.document.write(fullHtml);
+  win.document.close();
 }
 
 export default function MerchantDashboard() {
