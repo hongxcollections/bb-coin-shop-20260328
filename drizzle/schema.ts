@@ -17,6 +17,8 @@ export const users = mysqlTable("users", {
   notifyWon: int("notifyWon").default(1).notNull(),
   notifyEndingSoon: int("notifyEndingSoon").default(1).notNull(),
   memberLevel: mysqlEnum("memberLevel", ["bronze", "silver", "gold", "vip"]).default("bronze").notNull(),
+  // Loyalty: 試用到期時間（NULL = 永久由升級規則決定，非 NULL = 到期回復自然等級）
+  memberLevelExpiresAt: timestamp("memberLevelExpiresAt"),
   defaultAnonymous: int("defaultAnonymous").default(0).notNull(), // 1 = always bid anonymously by default
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -418,16 +420,13 @@ export const userSubscriptionsRelations = relations(userSubscriptions, ({ one })
   approver: one(users, { fields: [userSubscriptions.approvedBy], references: [users.id] }),
 }));
 
-// 每日抽獎記錄（每用戶每日只可抽一次）
-export const dailySpins = mysqlTable("dailySpins", {
+// 每日早鳥會員試用領取記錄
+export const dailyEarlyBird = mysqlTable("dailyEarlyBird", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  spinDate: varchar("spinDate", { length: 10 }).notNull(), // YYYY-MM-DD (HK time)
-  prizeId: varchar("prizeId", { length: 50 }).notNull(),
-  prizeLabel: varchar("prizeLabel", { length: 100 }).notNull(),
-  prizeType: varchar("prizeType", { length: 20 }).notNull(),
-  prizeValue: int("prizeValue"),
-  claimed: int("claimed").default(0).notNull(),
+  userId: int("userId").notNull().unique(),
+  claimDate: varchar("claimDate", { length: 10 }).notNull(), // YYYY-MM-DD (HK)
+  trialLevel: varchar("trialLevel", { length: 20 }).notNull(), // silver / gold / vip
+  trialExpiresAt: timestamp("trialExpiresAt").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

@@ -30,7 +30,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrencySymbol } from "./AdminAuctions";
 import { ShareMenu } from "@/components/ShareMenu";
 import Header from "@/components/Header";
-import { LuckyWheel } from "@/components/LuckyWheel";
+import EarlyBirdBanner from "@/components/EarlyBirdBanner";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -186,6 +186,8 @@ export default function Home() {
       )}
       {/* Navigation */}
       <Header />
+      {/* 早鳥會員名額 banner */}
+      <EarlyBirdBanner />
       {/* ── Section 1: Stats (Top) ── */}
       <section className="pt-3 pb-2 bg-amber-50/30">
         <div className="container">
@@ -199,9 +201,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* ── Section 1.5: 每日免費抽獎轉盤 ── */}
-      <LuckyWheel />
 
       {/* ── Section 2: Marquee Ticker ── */}
       <section className="py-2">

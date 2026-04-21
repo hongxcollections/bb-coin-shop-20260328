@@ -186,21 +186,60 @@ async function bootstrapMissingColumns() {
     INDEX \`idx_pushsub_user\` (\`userId\`)
   )`, 'Ensured pushSubscriptions table');
 
-  // dailySpins table (每日抽獎)
-  await alter(`CREATE TABLE IF NOT EXISTS \`dailySpins\` (
+  // 新增 users.memberLevelExpiresAt 欄位（Loyalty 試用到期）
+  await alter(
+    `ALTER TABLE \`users\` ADD COLUMN \`memberLevelExpiresAt\` timestamp NULL`,
+    'Ensured users.memberLevelExpiresAt column'
+  );
+
+  // dailyEarlyBird table (每日早鳥會員名額)
+  await alter(`CREATE TABLE IF NOT EXISTS \`dailyEarlyBird\` (
     \`id\` int AUTO_INCREMENT NOT NULL,
     \`userId\` int NOT NULL,
-    \`spinDate\` varchar(10) NOT NULL,
-    \`prizeId\` varchar(50) NOT NULL,
-    \`prizeLabel\` varchar(100) NOT NULL,
-    \`prizeType\` varchar(20) NOT NULL,
-    \`prizeValue\` int NULL,
-    \`claimed\` int NOT NULL DEFAULT 0,
+    \`claimDate\` varchar(10) NOT NULL,
+    \`trialLevel\` varchar(20) NOT NULL,
+    \`trialExpiresAt\` timestamp NOT NULL,
     \`createdAt\` timestamp NOT NULL DEFAULT (now()),
-    CONSTRAINT \`dailySpins_id\` PRIMARY KEY(\`id\`),
-    CONSTRAINT \`dailySpins_user_date_unique\` UNIQUE(\`userId\`, \`spinDate\`),
-    INDEX \`idx_dailyspins_user\` (\`userId\`)
-  )`, 'Ensured dailySpins table');
+    CONSTRAINT \`dailyEarlyBird_id\` PRIMARY KEY(\`id\`),
+    CONSTRAINT \`dailyEarlyBird_user_unique\` UNIQUE(\`userId\`),
+    INDEX \`idx_earlybird_date\` (\`claimDate\`)
+  )`, 'Ensured dailyEarlyBird table');
+
+  // Seed loyalty config 預設值（只喺 key 未設定先寫入，唔 overwrite admin 改動）
+  const LOYALTY_DEFAULTS: Record<string, string> = {
+    'loyalty.earlyBirdEnabled': 'true',
+    'loyalty.earlyBirdDailyQuota': '10',
+    'loyalty.earlyBirdTrialLevel': 'silver',
+    'loyalty.earlyBirdTrialDays': '7',
+    'loyalty.silverBidCount': '20',
+    'loyalty.silverWinCount': '3',
+    'loyalty.silver90DaySpend': '3000',
+    'loyalty.goldWinCount': '20',
+    'loyalty.gold90DaySpend': '30000',
+    'loyalty.inactivityDaysForDowngrade': '90',
+    'loyalty.silverCashbackRate': '0.01',
+    'loyalty.goldCashbackRate': '0.02',
+    'loyalty.vipCashbackRate': '0.03',
+    'loyalty.silverPreviewHours': '24',
+    'loyalty.goldPreviewHours': '48',
+  };
+  try {
+    const { drizzle: drizzleMysql2 } = await import('drizzle-orm/mysql2');
+    const db = drizzleMysql2(pool);
+    const { siteSettings } = await import('../../drizzle/schema');
+    const existing = await db.select({ key: siteSettings.key }).from(siteSettings);
+    const existingKeys = new Set(existing.map(r => r.key));
+    let seeded = 0;
+    for (const [key, value] of Object.entries(LOYALTY_DEFAULTS)) {
+      if (!existingKeys.has(key)) {
+        await db.insert(siteSettings).values({ key, value });
+        seeded++;
+      }
+    }
+    if (seeded > 0) console.log(`[Bootstrap] Seeded ${seeded} loyalty default settings`);
+  } catch (err) {
+    console.warn('[Bootstrap] Loyalty defaults seed warning:', err instanceof Error ? err.message : err);
+  }
 
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
@@ -293,6 +332,26 @@ async function startServer() {
       console.error('[Scheduler] Ending-soon check error:', err);
     }
   }, 5 * 60 * 1000);
+
+  // Loyalty 每日維護（試用到期 + 長期無活動降級）— 每 6 小時跑一次
+  setInterval(async () => {
+    try {
+      const { runDailyLoyaltyMaintenance } = await import('../loyalty');
+      await runDailyLoyaltyMaintenance();
+    } catch (err) {
+      console.error('[Scheduler] Loyalty maintenance error:', err);
+    }
+  }, 6 * 60 * 60 * 1000);
+
+  // 啟動後 30 秒跑一次初始化
+  setTimeout(async () => {
+    try {
+      const { runDailyLoyaltyMaintenance } = await import('../loyalty');
+      await runDailyLoyaltyMaintenance();
+    } catch (err) {
+      console.error('[Scheduler] Initial loyalty maintenance error:', err);
+    }
+  }, 30 * 1000);
 }
 
 startServer().catch(console.error);

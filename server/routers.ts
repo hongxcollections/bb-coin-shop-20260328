@@ -13,7 +13,7 @@ import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, u
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 import { getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser } from "./push";
-import { spinForUser, getTodaySpinForUser, getRecentSpinsForUser, getNextResetTime, PRIZES } from "./spin";
+import { getLoyaltyConfig, updateLoyaltyConfig, getEarlyBirdTodayStatus, getMyLoyaltyStatus, recalculateUserLevel, runDailyLoyaltyMaintenance, type LoyaltyConfig } from "./loyalty";
 
 // 出價防抖 Map：鍵為 "userId:auctionId"，値為最後出價時間戳
 // 防止同一用戶對同一拍賣在 3 秒內重複出價，減少平台 API 請求量
@@ -29,45 +29,6 @@ export const appRouter = router({
       return {
         success: true,
       } as const;
-    }),
-  }),
-
-  // 每日抽獎
-  spin: router({
-    // 公開：取得獎品清單（畀未登入用戶睇轉盤都得）
-    prizes: publicProcedure.query(() =>
-      PRIZES.map(p => ({
-        id: p.id, label: p.label, emoji: p.emoji, color: p.color, textColor: p.textColor,
-      }))
-    ),
-    // 取得今日狀態：已抽嘅話返回獎品 + index；未抽返 null
-    status: protectedProcedure.query(async ({ ctx }) => {
-      const userId = ctx.user!.id;
-      const today = await getTodaySpinForUser(userId);
-      const nextReset = getNextResetTime();
-      if (!today) return { spunToday: false, nextResetAt: nextReset.toISOString() };
-      const idx = PRIZES.findIndex(p => p.id === today.prizeId);
-      return {
-        spunToday: true,
-        prize: PRIZES[idx >= 0 ? idx : 0],
-        prizeIndex: idx >= 0 ? idx : 0,
-        spunAt: today.createdAt,
-        nextResetAt: nextReset.toISOString(),
-      };
-    }),
-    // 抽獎（每日一次）
-    spin: protectedProcedure.mutation(async ({ ctx }) => {
-      const userId = ctx.user!.id;
-      const result = await spinForUser(userId);
-      return {
-        prize: result.prize,
-        prizeIndex: result.index,
-      };
-    }),
-    // 我嘅最近中獎記錄
-    history: protectedProcedure.query(async ({ ctx }) => {
-      const userId = ctx.user!.id;
-      return await getRecentSpinsForUser(userId, 20);
     }),
   }),
 
@@ -1815,6 +1776,63 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can change settings' });
         return setSiteSetting(input.key, input.value);
+      }),
+  }),
+
+  // ─── Loyalty 會員活動等級系統 ─────────────────────────────────────────────
+  loyalty: router({
+    // 公開：今日早鳥名額（首頁 banner 用）
+    earlyBirdStatus: publicProcedure.query(async () => getEarlyBirdTodayStatus()),
+
+    // 用戶：查自己嘅等級 + 下一級進度
+    myStatus: protectedProcedure.query(async ({ ctx }) => {
+      return getMyLoyaltyStatus(ctx.user.id);
+    }),
+
+    // Admin：讀配置
+    adminGetConfig: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
+      return getLoyaltyConfig();
+    }),
+
+    // Admin：更新配置
+    adminUpdateConfig: protectedProcedure
+      .input(z.object({
+        earlyBirdEnabled: z.boolean().optional(),
+        earlyBirdDailyQuota: z.number().int().min(0).max(9999).optional(),
+        earlyBirdTrialLevel: z.enum(['silver', 'gold', 'vip']).optional(),
+        earlyBirdTrialDays: z.number().int().min(1).max(365).optional(),
+        silverBidCount: z.number().int().min(0).max(99999).optional(),
+        silverWinCount: z.number().int().min(0).max(99999).optional(),
+        silver90DaySpend: z.number().int().min(0).max(99999999).optional(),
+        goldWinCount: z.number().int().min(0).max(99999).optional(),
+        gold90DaySpend: z.number().int().min(0).max(99999999).optional(),
+        inactivityDaysForDowngrade: z.number().int().min(0).max(3650).optional(),
+        silverCashbackRate: z.number().min(0).max(1).optional(),
+        goldCashbackRate: z.number().min(0).max(1).optional(),
+        vipCashbackRate: z.number().min(0).max(1).optional(),
+        silverPreviewHours: z.number().int().min(0).max(720).optional(),
+        goldPreviewHours: z.number().int().min(0).max(720).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
+        await updateLoyaltyConfig(input as Partial<Record<keyof LoyaltyConfig, string | number | boolean>>);
+        return { ok: true };
+      }),
+
+    // Admin：手動跑每日維護（試用到期 + 長期無活動降級）
+    adminRunMaintenance: protectedProcedure.mutation(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
+      return runDailyLoyaltyMaintenance();
+    }),
+
+    // Admin：強制重算某用戶等級
+    adminRecalcUser: protectedProcedure
+      .input(z.object({ userId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
+        const level = await recalculateUserLevel(input.userId);
+        return { level };
       }),
   }),
 

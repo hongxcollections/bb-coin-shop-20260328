@@ -399,6 +399,11 @@ export async function placeBid(auctionId: number, userId: number, bidAmount: num
       );
     }
 
+    // Loyalty：重算出價者等級（fire-and-forget，唔影響出價流程）
+    import('./loyalty').then(m => m.recalculateUserLevel(userId)).catch(err =>
+      console.warn('[Loyalty] Recalc on bid warning:', err instanceof Error ? err.message : err)
+    );
+
     return { success: true, extended, newEndTime, extendMinutes: auctionAfter?.extendMinutes ?? 3 };
   } catch (error) {
     console.error('[Auctions] Failed to place bid:', error);
@@ -450,6 +455,13 @@ export async function checkAndUpdateAuctionStatus(auctionId: number, origin = ''
       notifyWon(auctionId, origin).catch(err =>
         console.error('[Auctions] Won notify error:', err)
       );
+
+      // Loyalty：重算得標者等級（成交次數、近 90 日消費都會更新）
+      if (auction.highestBidderId) {
+        import('./loyalty').then(m => m.recalculateUserLevel(auction.highestBidderId!)).catch(err =>
+          console.warn('[Loyalty] Recalc on won warning:', err instanceof Error ? err.message : err)
+        );
+      }
     } catch (error) {
       console.error('[Auctions] Failed to update auction status:', error);
     }

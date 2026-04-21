@@ -27,6 +27,7 @@ import AdminSiteSettings from "./pages/AdminSiteSettings";
 import AdminWonOrders from "./pages/AdminWonOrders";
 import AdminDeposits from "./pages/AdminDeposits";
 import AdminSubscriptions from "./pages/AdminSubscriptions";
+import AdminLoyalty from "./pages/AdminLoyalty";
 import SubscriptionPlans from "./pages/SubscriptionPlans";
 import Login from "./pages/Login";
 import Favorites from "./pages/Favorites";
@@ -98,6 +99,7 @@ function Router() {
       <Route path={"/admin/won-orders"} component={AdminWonOrders} />
       <Route path={"/admin/deposits"} component={AdminDeposits} />
       <Route path={"/admin/subscriptions"} component={AdminSubscriptions} />
+      <Route path={"/admin/loyalty"} component={AdminLoyalty} />
       <Route path={"/subscriptions"} component={SubscriptionPlans} />
       <Route path={"/login"} component={Login} />
       <Route path={"/privacy"} component={Privacy} />

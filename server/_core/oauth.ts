@@ -88,6 +88,14 @@ export function registerOAuthRoutes(app: Express) {
           lastSignedIn: new Date(),
         });
 
+        // 嘗試領每日早鳥名額（只對今日新註冊、未領過、名額未滿嘅用戶生效）
+        try {
+          const { tryClaimEarlyBirdForUser } = await import("../loyalty");
+          await tryClaimEarlyBirdForUser(openId);
+        } catch (err) {
+          console.warn("[OAuth] Early bird claim warning:", err instanceof Error ? err.message : err);
+        }
+
         const sessionToken = await sdk.createSessionToken(openId, {
           name: userInfo.name || "",
           expiresInMs: ONE_YEAR_MS,

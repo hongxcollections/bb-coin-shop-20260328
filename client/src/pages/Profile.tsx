@@ -16,6 +16,7 @@ import { PushVolumeSlider } from "@/components/PushVolumeSlider";
 import { MemberBadge } from "@/components/MemberBadge";
 import { MemberHeroBanner } from "@/components/MemberHeroBanner";
 import Header from "@/components/Header";
+import { LoyaltyProgressCard } from "@/components/LoyaltyProgressCard";
 
 // 付款狀態設定
 const PAYMENT_STATUS_CONFIG = {
@@ -333,6 +334,9 @@ export default function Profile() {
             </div>
           </CardContent>
         </Card>
+
+        {/* 會員活動等級進度 */}
+        <LoyaltyProgressCard />
 
         {/* Anonymous Bid Default Setting */}
         <Card className="mb-6 border-slate-200">
