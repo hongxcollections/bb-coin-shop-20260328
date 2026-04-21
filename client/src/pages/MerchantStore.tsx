@@ -266,13 +266,30 @@ export default function MerchantStore() {
                 )}
               </div>
             </div>
-            {merchant.whatsapp && (
-              <a href={buildWhatsAppUrl(merchant.whatsapp, "你好，我想查詢你的商品")}
-                target="_blank" rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-colors">
-                <MessageCircle className="w-4 h-4" />WhatsApp 聯絡商戶
-              </a>
-            )}
+            {(() => {
+              const fbRaw = (merchant as any)?.facebook ?? "";
+              const messengerLink = fbRaw
+                ? (fbRaw.startsWith("http") ? fbRaw : `https://m.me/${fbRaw}`)
+                : "";
+              const waLink = merchant.whatsapp ? buildWhatsAppUrl(merchant.whatsapp, "你好，我想查詢你的商品") : "";
+              if (!waLink && !messengerLink) return null;
+              return (
+                <div className={`flex gap-2 ${waLink && messengerLink ? "flex-row" : ""}`}>
+                  {waLink && (
+                    <a href={waLink} target="_blank" rel="noopener noreferrer"
+                      className={`flex items-center justify-center gap-2 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-colors ${messengerLink ? "flex-1" : "w-full"}`}>
+                      <MessageCircle className="w-4 h-4" />WhatsApp
+                    </a>
+                  )}
+                  {messengerLink && (
+                    <a href={messengerLink} target="_blank" rel="noopener noreferrer"
+                      className={`flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors ${waLink ? "flex-1" : "w-full"}`}>
+                      <MessageCircle className="w-4 h-4" />Messenger
+                    </a>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         ) : null}
 
