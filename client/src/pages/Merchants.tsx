@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import Header from "@/components/Header";
-import { Store, MessageCircle, Package, X } from "lucide-react";
+import { Store, MessageCircle, Package, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
@@ -112,6 +112,8 @@ function ProductsGrid({ products, layout, whatsapp, merchantId }: { products: an
   return <div className="grid grid-cols-2 gap-3">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} merchantId={merchantId} />)}</div>;
 }
 
+const PAGE_SIZE = 10;
+
 function MerchantSection({ merchant, selectedCategory }: { merchant: any; selectedCategory: string }) {
   const { data: products = [], isLoading } = trpc.merchants.listProducts.useQuery({
     merchantId: merchant.userId,
@@ -120,7 +122,16 @@ function MerchantSection({ merchant, selectedCategory }: { merchant: any; select
 
   const layout: LayoutMode = (merchant.listingLayout as LayoutMode) ?? "grid2";
   const visible = products.filter((p: any) => p.status === "active" && p.stock > 0);
+  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const [page, setPage] = useState(1);
+
+  useEffect(() => { setPage(1); }, [selectedCategory, merchant.userId]);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [totalPages, page]);
+
   if (!isLoading && visible.length === 0) return null;
+
+  const start = (page - 1) * PAGE_SIZE;
+  const pageItems = visible.slice(start, start + PAGE_SIZE);
 
   return (
     <div className="mb-6">
@@ -140,7 +151,28 @@ function MerchantSection({ merchant, selectedCategory }: { merchant: any; select
       {isLoading ? (
         <div className="text-center py-6 text-2xl animate-spin">💰</div>
       ) : (
-        <ProductsGrid products={visible} layout={layout} whatsapp={merchant.whatsapp ?? ""} merchantId={merchant.userId} />
+        <>
+          <ProductsGrid products={pageItems} layout={layout} whatsapp={merchant.whatsapp ?? ""} merchantId={merchant.userId} />
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between gap-2 mt-3 px-1">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />上一頁
+              </button>
+              <span className="text-xs text-gray-500">第 {page} / {totalPages} 頁</span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                下一頁<ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
