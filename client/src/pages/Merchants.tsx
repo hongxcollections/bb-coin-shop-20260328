@@ -83,6 +83,12 @@ function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: L
   const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
   const price = parseFloat(p.price ?? "0");
   const href = `/merchant-products/${p.id}`;
+  // 有效 whatsapp：商品自身 whatsapp（≥7 位數字）優先，否則 fallback 商戶 whatsapp
+  const _pWa = (p.whatsapp ?? "").toString();
+  const _pWaDigits = _pWa.replace(/[^0-9]/g, "");
+  const _mWa = (whatsapp ?? "").toString();
+  const _mWaDigits = _mWa.replace(/[^0-9]/g, "");
+  const effWa = _pWaDigits.length >= 7 ? _pWa : (_mWaDigits.length >= 7 ? _mWa : "");
 
   if (layout === "list") return (
     <Link href={href}>
@@ -95,7 +101,7 @@ function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: L
           {p.description && <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{p.description}</p>}
           <div className="flex items-center justify-between mt-1.5">
             <span className="font-bold text-amber-600 text-sm">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
-            {p.stock > 0 ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
+            {p.stock > 0 ? <ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
           </div>
         </div>
       </div>
@@ -120,7 +126,7 @@ function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: L
           {p.description && <p className="text-xs text-gray-500 line-clamp-3">{p.description}</p>}
           <div className="flex items-center justify-between pt-1">
             <span className="font-bold text-amber-600 text-base">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
-            {p.stock > 0 ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
+            {p.stock > 0 ? <ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
           </div>
         </div>
       </div>
@@ -136,7 +142,7 @@ function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: L
           <h3 className="text-[10px] font-semibold text-gray-800 line-clamp-2 leading-tight">{p.title}</h3>
           <span className="text-[10px] font-bold text-amber-600">${price.toLocaleString()}</span>
           {p.stock > 0 ? (
-            <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="sm" />
+            <ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="sm" />
           ) : (
             <span className="mt-auto text-[9px] py-0.5 bg-gray-100 text-gray-400 rounded text-center">已售出</span>
           )}
@@ -158,7 +164,7 @@ function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: L
           {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
           <div className="mt-auto pt-1.5 flex items-center justify-between gap-1">
             <span className="font-bold text-amber-600 text-xs">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
-            {p.stock > 0 ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
+            {p.stock > 0 ? <ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
           </div>
         </div>
       </div>
