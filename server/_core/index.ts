@@ -186,6 +186,22 @@ async function bootstrapMissingColumns() {
     INDEX \`idx_pushsub_user\` (\`userId\`)
   )`, 'Ensured pushSubscriptions table');
 
+  // dailySpins table (每日抽獎)
+  await alter(`CREATE TABLE IF NOT EXISTS \`dailySpins\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`userId\` int NOT NULL,
+    \`spinDate\` varchar(10) NOT NULL,
+    \`prizeId\` varchar(50) NOT NULL,
+    \`prizeLabel\` varchar(100) NOT NULL,
+    \`prizeType\` varchar(20) NOT NULL,
+    \`prizeValue\` int NULL,
+    \`claimed\` int NOT NULL DEFAULT 0,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    CONSTRAINT \`dailySpins_id\` PRIMARY KEY(\`id\`),
+    CONSTRAINT \`dailySpins_user_date_unique\` UNIQUE(\`userId\`, \`spinDate\`),
+    INDEX \`idx_dailyspins_user\` (\`userId\`)
+  )`, 'Ensured dailySpins table');
+
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
 }

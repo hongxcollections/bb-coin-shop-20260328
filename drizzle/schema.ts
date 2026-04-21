@@ -418,6 +418,19 @@ export const userSubscriptionsRelations = relations(userSubscriptions, ({ one })
   approver: one(users, { fields: [userSubscriptions.approvedBy], references: [users.id] }),
 }));
 
+// 每日抽獎記錄（每用戶每日只可抽一次）
+export const dailySpins = mysqlTable("dailySpins", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  spinDate: varchar("spinDate", { length: 10 }).notNull(), // YYYY-MM-DD (HK time)
+  prizeId: varchar("prizeId", { length: 50 }).notNull(),
+  prizeLabel: varchar("prizeLabel", { length: 100 }).notNull(),
+  prizeType: varchar("prizeType", { length: 20 }).notNull(),
+  prizeValue: int("prizeValue"),
+  claimed: int("claimed").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 // Web Push 推播訂閱
 export const pushSubscriptions = mysqlTable("pushSubscriptions", {
   id: int("id").autoincrement().primaryKey(),

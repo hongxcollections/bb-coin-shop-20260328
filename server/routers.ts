@@ -13,6 +13,7 @@ import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, u
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 import { getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser } from "./push";
+import { spinForUser, getTodaySpinForUser, getRecentSpinsForUser, getNextResetTime, PRIZES } from "./spin";
 
 // 出價防抖 Map：鍵為 "userId:auctionId"，値為最後出價時間戳
 // 防止同一用戶對同一拍賣在 3 秒內重複出價，減少平台 API 請求量
@@ -28,6 +29,45 @@ export const appRouter = router({
       return {
         success: true,
       } as const;
+    }),
+  }),
+
+  // 每日抽獎
+  spin: router({
+    // 公開：取得獎品清單（畀未登入用戶睇轉盤都得）
+    prizes: publicProcedure.query(() =>
+      PRIZES.map(p => ({
+        id: p.id, label: p.label, emoji: p.emoji, color: p.color, textColor: p.textColor,
+      }))
+    ),
+    // 取得今日狀態：已抽嘅話返回獎品 + index；未抽返 null
+    status: protectedProcedure.query(async ({ ctx }) => {
+      const userId = ctx.user!.id;
+      const today = await getTodaySpinForUser(userId);
+      const nextReset = getNextResetTime();
+      if (!today) return { spunToday: false, nextResetAt: nextReset.toISOString() };
+      const idx = PRIZES.findIndex(p => p.id === today.prizeId);
+      return {
+        spunToday: true,
+        prize: PRIZES[idx >= 0 ? idx : 0],
+        prizeIndex: idx >= 0 ? idx : 0,
+        spunAt: today.createdAt,
+        nextResetAt: nextReset.toISOString(),
+      };
+    }),
+    // 抽獎（每日一次）
+    spin: protectedProcedure.mutation(async ({ ctx }) => {
+      const userId = ctx.user!.id;
+      const result = await spinForUser(userId);
+      return {
+        prize: result.prize,
+        prizeIndex: result.index,
+      };
+    }),
+    // 我嘅最近中獎記錄
+    history: protectedProcedure.query(async ({ ctx }) => {
+      const userId = ctx.user!.id;
+      return await getRecentSpinsForUser(userId, 20);
     }),
   }),
 
