@@ -14,15 +14,28 @@ self.addEventListener("push", (event) => {
   } catch {
     if (event.data) data.body = event.data.text();
   }
-  const opts = {
-    body: data.body,
-    icon: data.icon || "/favicon.ico",
-    badge: "/favicon.ico",
-    tag: data.tag || "bb-notify",
-    data: { url: data.url || "/" },
-    requireInteraction: false,
-  };
-  event.waitUntil(self.registration.showNotification(data.title, opts));
+
+  // 1. 通知所有開住嘅頁面（即使前景）— 顯示 in-app toast + 播鈴聲 + 即時 refresh
+  event.waitUntil(
+    (async () => {
+      const clientsList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const c of clientsList) {
+        try { c.postMessage({ type: "PUSH", payload: data }); } catch {}
+      }
+
+      // 2. 系統通知（背景或鎖屏時用戶睇到）
+      await self.registration.showNotification(data.title, {
+        body: data.body,
+        icon: data.icon || "/favicon.ico",
+        badge: "/favicon.ico",
+        tag: data.tag || "bb-notify",
+        data: { url: data.url || "/" },
+        requireInteraction: true,
+        vibrate: [200, 100, 200],
+        renotify: true,
+      });
+    })(),
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
