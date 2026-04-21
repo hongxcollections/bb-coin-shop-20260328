@@ -188,6 +188,20 @@ export function registerAuthRoutes(app: Express) {
 
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+      // 電話新用戶自動試領每日早鳥名額（名額未滿 + 未領過 + 今日新註冊）
+      if (phone && !email) {
+        try {
+          const { tryClaimEarlyBirdForUser } = await import("../loyalty");
+          const result = await tryClaimEarlyBirdForUser(openId);
+          if (result.claimed) {
+            console.log(`[Auth] Early bird claimed by new phone user ${openId}: ${result.trialLevel} until ${result.trialExpiresAt?.toISOString()}`);
+          }
+        } catch (err) {
+          console.warn("[Auth] Early bird claim warning:", err instanceof Error ? err.message : err);
+        }
+      }
+
       res.json({ success: true });
     } catch (error) {
       console.error("[Auth] Register failed:", error);

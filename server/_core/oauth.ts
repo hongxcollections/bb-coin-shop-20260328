@@ -88,13 +88,7 @@ export function registerOAuthRoutes(app: Express) {
           lastSignedIn: new Date(),
         });
 
-        // 嘗試領每日早鳥名額（只對今日新註冊、未領過、名額未滿嘅用戶生效）
-        try {
-          const { tryClaimEarlyBirdForUser } = await import("../loyalty");
-          await tryClaimEarlyBirdForUser(openId);
-        } catch (err) {
-          console.warn("[OAuth] Early bird claim warning:", err instanceof Error ? err.message : err);
-        }
+        // 註：早鳥領取只對電話註冊（/api/auth/register with phone）生效，Google OAuth 唔會觸發。
 
         const sessionToken = await sdk.createSessionToken(openId, {
           name: userInfo.name || "",
