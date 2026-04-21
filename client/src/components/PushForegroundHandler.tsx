@@ -23,13 +23,11 @@ export function PushForegroundHandler() {
       const body = p.body || "";
       const url = p.url || "";
 
-      // 1. 站內 toast（用戶睇緊網頁都會見到）
+      // 1. 站內 toast（用戶睇緊網頁都會見到）— 套用 --popup-* 黑底主題
       toast(title, {
         description: body,
         duration: 8000,
-        action: url
-          ? { label: "查看", onClick: () => { window.location.href = url; } }
-          : undefined,
+        className: "bb-toast-success",
       });
 
       // 2. 播提示音（短促叮一聲）
