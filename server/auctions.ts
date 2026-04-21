@@ -144,8 +144,28 @@ async function notifyOutbid(auctionId: number, previousHighestBidderId: number |
 
     const userRows = await db.select({ email: users.email, name: users.name, notifyOutbid: users.notifyOutbid }).from(users).where(eq(users.id, previousHighestBidderId));
     const prevUser = userRows[0];
+
+    // Web Push 即時通知（獨立判斷，毋須 email、毋須 email opt-in；只看會員等級 + push 訂閱）
+    try {
+      console.log(`[Push] Outbid trigger: auction=${auctionId}, prevUser=${previousHighestBidderId}, newBid=${newBidAmount}`);
+      if (await isSilverOrAbove(previousHighestBidderId)) {
+        const sent = await sendPushToUser(previousHighestBidderId, {
+          title: `⚡ 出價被超越 — ${auction.title}`,
+          body: `目前最高出價：${auction.currency} ${newBidAmount.toLocaleString()}，立即回應！`,
+          url: `/auctions/${auctionId}`,
+          tag: `outbid-${auctionId}`,
+        });
+        console.log(`[Push] Outbid push sent to user ${previousHighestBidderId}: ${sent} device(s)`);
+      } else {
+        console.log(`[Push] Skip push — user ${previousHighestBidderId} not silver+`);
+      }
+    } catch (pushErr) {
+      console.error('[Push] Outbid push error:', pushErr);
+    }
+
+    // 電郵通知（獨立判斷）
     if (!prevUser?.email) return;
-    if (!prevUser.notifyOutbid) return; // User opted out
+    if (!prevUser.notifyOutbid) return; // User opted out of email
 
     await sendOutbidEmail({
       to: prevUser.email,
@@ -158,20 +178,6 @@ async function notifyOutbid(auctionId: number, previousHighestBidderId: number |
       currency: auction.currency,
       auctionUrl: `${origin}/auctions/${auctionId}`,
     });
-
-    // Web Push 即時通知（銀牌或以上會員）— 比電郵更快到達
-    try {
-      if (await isSilverOrAbove(previousHighestBidderId)) {
-        await sendPushToUser(previousHighestBidderId, {
-          title: `⚡ 出價被超越 — ${auction.title}`,
-          body: `目前最高出價：${auction.currency} ${newBidAmount.toLocaleString()}，立即回應！`,
-          url: `/auctions/${auctionId}`,
-          tag: `outbid-${auctionId}`,
-        });
-      }
-    } catch (pushErr) {
-      console.error('[Push] Outbid push error:', pushErr);
-    }
   } catch (err) {
     console.error('[Email] Outbid notification error:', err);
   }
