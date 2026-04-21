@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, Link } from "wouter";
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { buildWhatsAppUrl } from "@/lib/utils";
 import Header from "@/components/Header";
@@ -82,6 +83,30 @@ export default function MerchantProductDetail() {
   const messengerLink = fbRaw
     ? (fbRaw.startsWith("http") ? fbRaw : `https://m.me/${fbRaw}`)
     : "";
+
+  const messengerMessage = `你好，我想查詢以下商品：\n商品：${product?.title ?? ""}\n價錢：HK$${price.toLocaleString()}\n連結：${productUrl}`;
+
+  const handleMessengerClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(messengerMessage);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = messengerMessage;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      toast.success("商品資訊已複製，請在 Messenger 對話內長按輸入欄貼上", { duration: 5000 });
+    } catch {
+      toast.error("複製失敗，請手動輸入商品名稱");
+    }
+    window.open(messengerLink, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -242,7 +267,7 @@ export default function MerchantProductDetail() {
                               </a>
                             )}
                             {messengerLink && (
-                              <a href={messengerLink} target="_blank" rel="noopener noreferrer"
+                              <a href={messengerLink} onClick={handleMessengerClick} target="_blank" rel="noopener noreferrer"
                                 className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg">
                                 <MessageCircle className="w-3.5 h-3.5" />Messenger
                               </a>
@@ -300,7 +325,7 @@ export default function MerchantProductDetail() {
                       </a>
                     )}
                     {messengerLink && (
-                      <a href={messengerLink} target="_blank" rel="noopener noreferrer"
+                      <a href={messengerLink} onClick={handleMessengerClick} target="_blank" rel="noopener noreferrer"
                         className={`flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors ${waLink ? "flex-1" : "w-full"}`}>
                         <MessageCircle className="w-4 h-4" />Messenger
                       </a>
