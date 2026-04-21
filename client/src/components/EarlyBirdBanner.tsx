@@ -52,7 +52,7 @@ export default function EarlyBirdBanner() {
           {!isAuthenticated && (
             <a
               href="/login?mode=register&method=phone"
-              className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-amber-500 to-pink-500 hover:from-amber-600 hover:to-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-md transition-all"
+              className="ml-auto shrink-0 inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-amber-500 to-pink-500 hover:from-amber-600 hover:to-pink-600 px-4 py-2 text-sm font-semibold text-white shadow-md transition-all"
             >
               立即註冊領取
             </a>
