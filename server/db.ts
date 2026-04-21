@@ -3455,6 +3455,7 @@ export async function listApprovedMerchants(): Promise<Array<{
     selfIntro: String(r.selfIntro ?? ''),
     merchantIcon: r.merchantIcon ? String(r.merchantIcon) : null,
     whatsapp: String(r.whatsapp ?? ''),
+    facebook: r.facebook ? String(r.facebook) : null,
     categories: r.categories ? String(r.categories) : null,
     listingLayout: layoutMap[Number(r.userId)] ?? 'grid2',
   }));
