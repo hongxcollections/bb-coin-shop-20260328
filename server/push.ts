@@ -77,18 +77,22 @@ export async function sendPushToUser(userId: number, payload: PushPayload): Prom
   let sent = 0;
   await Promise.all(
     subs.map(async (s) => {
+      const host = (() => { try { return new URL(s.endpoint).host; } catch { return "unknown"; } })();
+      const tail = s.endpoint.slice(-12);
       try {
-        await webpush.sendNotification(
+        const res: any = await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
           JSON.stringify(payload),
         );
         sent++;
+        console.log(`[Push] OK user=${userId} host=${host} tail=...${tail} status=${res?.statusCode ?? '?'} ua=${(s.userAgent ?? '').slice(0, 60)}`);
       } catch (err: any) {
-        // 410 Gone / 404 Not Found = subscription expired, clean up
-        if (err?.statusCode === 410 || err?.statusCode === 404) {
+        const code = err?.statusCode;
+        if (code === 410 || code === 404) {
           await removePushSubscription(s.endpoint).catch(() => {});
+          console.warn(`[Push] EXPIRED user=${userId} host=${host} tail=...${tail} status=${code} — cleaned up`);
         } else {
-          console.error("[Push] send error:", err?.statusCode ?? err?.message ?? err);
+          console.error(`[Push] FAIL user=${userId} host=${host} tail=...${tail} status=${code ?? '?'} msg=${err?.message ?? err}`);
         }
       }
     }),
