@@ -122,6 +122,13 @@ export async function runProxyBidEngine(auctionId: number, triggeringUserId: num
       proxyAmount: finalBidAmount,
     });
 
+    // 通知被代理出價超越的舊領先者
+    if (currentHighestBidderId && currentHighestBidderId !== finalBidderId) {
+      notifyOutbid(auctionId, currentHighestBidderId, finalBidAmount, '').catch((err) =>
+        console.error('[Auctions] Proxy outbid notify error:', err),
+      );
+    }
+
     const updatedAuction = await getAuctionById(auctionId);
     if (!updatedAuction || updatedAuction.highestBidderId === currentHighestBidderId) break;
   }
@@ -132,9 +139,33 @@ export async function runProxyBidEngine(auctionId: number, triggeringUserId: num
  */
 async function notifyOutbid(auctionId: number, previousHighestBidderId: number | null, newBidAmount: number, origin: string) {
   if (!previousHighestBidderId) return;
+
+  // ── Web Push 即時通知（獨立執行，唔受任何 gate 影響；用戶有訂閱 + silver+ 就推） ──
+  try {
+    const auction = await getAuctionById(auctionId);
+    console.log(`[Push] Outbid trigger: auction=${auctionId}, prevUser=${previousHighestBidderId}, newBid=${newBidAmount}, auctionFound=${!!auction}`);
+    if (auction) {
+      const isSilver = await isSilverOrAbove(previousHighestBidderId);
+      console.log(`[Push] User ${previousHighestBidderId} silver+ check: ${isSilver}`);
+      if (isSilver) {
+        const sent = await sendPushToUser(previousHighestBidderId, {
+          title: `⚡ 出價被超越 — ${auction.title}`,
+          body: `目前最高出價：${auction.currency} ${newBidAmount.toLocaleString()}，立即回應！`,
+          url: `/auctions/${auctionId}`,
+          tag: `outbid-${auctionId}`,
+        });
+        console.log(`[Push] Outbid push sent to user ${previousHighestBidderId}: ${sent} device(s)`);
+      }
+    }
+  } catch (pushErr) {
+    console.error('[Push] Outbid push error:', pushErr);
+  }
+
+  // ── 電郵通知（受全局 enableOutbid + 用戶 opt-in gate 限制） ──
   try {
     const settings = await getNotificationSettings();
     if (!settings || !settings.enableOutbid) return;
+    if (!origin) return; // 無 origin 就無法做電郵連結
 
     const db = await getDb();
     if (!db) return;
@@ -144,26 +175,6 @@ async function notifyOutbid(auctionId: number, previousHighestBidderId: number |
 
     const userRows = await db.select({ email: users.email, name: users.name, notifyOutbid: users.notifyOutbid }).from(users).where(eq(users.id, previousHighestBidderId));
     const prevUser = userRows[0];
-
-    // Web Push 即時通知（獨立判斷，毋須 email、毋須 email opt-in；只看會員等級 + push 訂閱）
-    try {
-      console.log(`[Push] Outbid trigger: auction=${auctionId}, prevUser=${previousHighestBidderId}, newBid=${newBidAmount}`);
-      if (await isSilverOrAbove(previousHighestBidderId)) {
-        const sent = await sendPushToUser(previousHighestBidderId, {
-          title: `⚡ 出價被超越 — ${auction.title}`,
-          body: `目前最高出價：${auction.currency} ${newBidAmount.toLocaleString()}，立即回應！`,
-          url: `/auctions/${auctionId}`,
-          tag: `outbid-${auctionId}`,
-        });
-        console.log(`[Push] Outbid push sent to user ${previousHighestBidderId}: ${sent} device(s)`);
-      } else {
-        console.log(`[Push] Skip push — user ${previousHighestBidderId} not silver+`);
-      }
-    } catch (pushErr) {
-      console.error('[Push] Outbid push error:', pushErr);
-    }
-
-    // 電郵通知（獨立判斷）
     if (!prevUser?.email) return;
     if (!prevUser.notifyOutbid) return; // User opted out of email
 
