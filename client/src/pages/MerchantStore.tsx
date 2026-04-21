@@ -2,11 +2,12 @@ import { useParams, Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import Header from "@/components/Header";
 import { Store, MessageCircle, Package, Gavel, ChevronLeft, Clock, Tag } from "lucide-react";
+import { buildWhatsAppUrl } from "@/lib/utils";
 
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
 
 function WhatsAppBtn({ whatsapp, title }: { whatsapp: string; title: string }) {
-  const link = `https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`你好，我想查詢商品：${title}`)}`;
+  const link = buildWhatsAppUrl(whatsapp, `你好，我想查詢商品：${title}`);
   return (
     <a href={link} target="_blank" rel="noopener noreferrer"
       className="flex items-center gap-1 text-xs bg-green-500 hover:bg-green-600 text-white px-2.5 py-1.5 rounded-full transition-colors shrink-0">
@@ -113,7 +114,7 @@ function ProductsList({ products, layout, whatsapp }: { products: any[]; layout:
                 <h3 className="text-[10px] font-semibold text-gray-800 line-clamp-2 leading-tight">{p.title}</h3>
                 <span className="text-[10px] font-bold text-amber-600">${price.toLocaleString()}</span>
                 {p.stock > 0 && whatsapp ? (
-                  <a href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`你好，我想查詢商品：${p.title}`)}`}
+                  <a href={buildWhatsAppUrl(whatsapp, `你好，我想查詢商品：${p.title}`)}
                     target="_blank" rel="noopener noreferrer"
                     className="mt-auto text-[9px] py-0.5 bg-green-50 text-green-600 rounded text-center">
                     WhatsApp
@@ -264,7 +265,7 @@ export default function MerchantStore() {
               </div>
             </div>
             {merchant.whatsapp && (
-              <a href={`https://wa.me/${merchant.whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`你好，我想查詢你的商品`)}`}
+              <a href={buildWhatsAppUrl(merchant.whatsapp, "你好，我想查詢你的商品")}
                 target="_blank" rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 w-full py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-colors">
                 <MessageCircle className="w-4 h-4" />WhatsApp 聯絡商戶

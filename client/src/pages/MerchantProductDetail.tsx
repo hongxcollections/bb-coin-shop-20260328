@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { buildWhatsAppUrl } from "@/lib/utils";
 import Header from "@/components/Header";
 import {
   Store, MessageCircle, Package, Gavel, ChevronLeft,
@@ -75,9 +76,7 @@ export default function MerchantProductDetail() {
   const _productWa = product?.whatsapp ?? "";
   const _productWaDigits = _productWa.replace(/[^0-9]/g, "");
   const whatsapp = _productWaDigits.length >= 7 ? _productWa : (merchantInfo?.whatsapp ?? "");
-  const waLink = whatsapp
-    ? `https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`你好，我想查詢商品：${product?.title}`)}`
-    : "";
+  const waLink = buildWhatsAppUrl(whatsapp, `你好，我想查詢商品：${product?.title}`);
   const fbRaw = (merchantDetail as any)?.facebook ?? "";
   const messengerLink = fbRaw
     ? (fbRaw.startsWith("http") ? fbRaw : `https://m.me/${fbRaw}`)
@@ -188,7 +187,7 @@ export default function MerchantProductDetail() {
                       const _rawWa = md?.whatsapp ?? "";
                       const _rawWaDigits = _rawWa.replace(/[^0-9]/g, "");
                       const wa = _rawWaDigits.length >= 7 ? _rawWa : (product.whatsapp && product.whatsapp.replace(/[^0-9]/g, "").length >= 7 ? product.whatsapp : "");
-                      const accordionWaLink = wa ? `https://wa.me/${wa.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`你好，我想了解貴商戶`)}` : "";
+                      const accordionWaLink = buildWhatsAppUrl(wa, "你好，我想了解貴商戶");
                       return (
                         <>
                           {/* 名稱 + 年資 */}

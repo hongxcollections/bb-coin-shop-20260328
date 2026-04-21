@@ -2,6 +2,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import Header from "@/components/Header";
 import { Store, MessageCircle, Package, X } from "lucide-react";
+import { buildWhatsAppUrl } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
 
@@ -9,7 +10,7 @@ const CATEGORIES = ["全部", "古幣", "紀念幣", "外幣", "銀幣", "金幣
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
 
 function WhatsAppBtn({ whatsapp, title }: { whatsapp: string; title: string }) {
-  const link = `https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`你好，我想查詢商品：${title}`)}`;
+  const link = buildWhatsAppUrl(whatsapp, `你好，我想查詢商品：${title}`);
   return (
     <a href={link} target="_blank" rel="noopener noreferrer"
       className="flex items-center gap-1 text-xs bg-green-500 hover:bg-green-600 text-white px-2.5 py-1.5 rounded-full transition-colors shrink-0">
