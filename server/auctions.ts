@@ -68,25 +68,30 @@ export async function runProxyBidEngine(auctionId: number, triggeringUserId: num
   const db = await getDb();
   if (!db) return;
 
+  console.log(`[ProxyEngine] START auction=${auctionId}, triggeringUser=${triggeringUserId}`);
   const MAX_ROUNDS = 50;
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const auction = await getAuctionById(auctionId);
-    if (!auction || auction.status !== 'active' || new Date() > auction.endTime) break;
+    if (!auction || auction.status !== 'active' || new Date() > auction.endTime) {
+      console.log(`[ProxyEngine] STOP round=${round}: auction inactive or ended`);
+      break;
+    }
 
     const currentPrice = parseFloat(auction.currentPrice.toString());
     const bidIncrement = auction.bidIncrement ?? 50;
     const currentHighestBidderId = auction.highestBidderId;
 
     const proxies = await getActiveProxiesForAuction(auctionId);
+    console.log(`[ProxyEngine] round=${round} currentPrice=${currentPrice} bidIncrement=${bidIncrement} highest=${currentHighestBidderId} proxies=${JSON.stringify(proxies.map((p: any) => ({ u: p.userId, max: p.maxAmount, active: p.isActive })))}`);
     const topChallenger = proxies.find((p: { userId: number; maxAmount: string | number }) => p.userId !== currentHighestBidderId);
 
-    if (!topChallenger) break;
+    if (!topChallenger) { console.log(`[ProxyEngine] STOP round=${round}: no challenger`); break; }
 
     const challengerMax = parseFloat(topChallenger.maxAmount.toString());
     const requiredBid = currentPrice + bidIncrement;
 
-    if (challengerMax < requiredBid) break;
+    if (challengerMax < requiredBid) { console.log(`[ProxyEngine] STOP round=${round}: challengerMax(${challengerMax}) < requiredBid(${requiredBid})`); break; }
 
     const leaderProxy = currentHighestBidderId
       ? proxies.find((p: { userId: number; maxAmount: string | number }) => p.userId === currentHighestBidderId)
