@@ -73,8 +73,18 @@ function validatePhoneFormat(countryCode: string, local: string): string | null 
 }
 
 export default function Login() {
-  const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
-  const [registerMethod, setRegisterMethod] = useState<"email" | "phone">("email");
+  const initialMode = (() => {
+    if (typeof window === "undefined") return "login" as const;
+    const p = new URLSearchParams(window.location.search).get("mode");
+    return p === "register" || p === "forgot" ? (p as "register" | "forgot") : ("login" as const);
+  })();
+  const initialRegisterMethod = (() => {
+    if (typeof window === "undefined") return "email" as const;
+    const m = new URLSearchParams(window.location.search).get("method");
+    return m === "phone" ? ("phone" as const) : ("email" as const);
+  })();
+  const [mode, setMode] = useState<"login" | "register" | "forgot">(initialMode);
+  const [registerMethod, setRegisterMethod] = useState<"email" | "phone">(initialRegisterMethod);
   const [step, setStep] = useState<"form" | "otp">("form");
 
   const [identifier, setIdentifier] = useState("");
