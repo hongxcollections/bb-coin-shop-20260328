@@ -373,6 +373,21 @@ export default function MerchantProductDetail() {
                   {otherProducts.map((p: any) => {
                     const pImgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
                     const pPrice = parseFloat(p.price ?? "0");
+                    const _pWa = (p.whatsapp ?? "").toString();
+                    const _pWaDigits = _pWa.replace(/[^0-9]/g, "");
+                    const pEffWa = _pWaDigits.length >= 7 ? _pWa : whatsapp;
+                    const pProductUrl = `${window.location.origin}/merchant-products/${p.id}`;
+                    const pMsg = `你好，我想查詢以下商品：\n商品：${p.title}\n價錢：HK$${pPrice.toLocaleString()}\n連結：${pProductUrl}`;
+                    const pWaLink = pEffWa ? buildWhatsAppUrl(pEffWa, pMsg) : "";
+                    const handlePMessenger = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      try {
+                        if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(pMsg);
+                        toast.success("商品資訊已複製，請在 Messenger 對話內長按輸入欄貼上", { duration: 5000 });
+                      } catch { toast.error("複製失敗，請手動輸入"); }
+                      window.open(messengerLink, "_blank", "noopener,noreferrer");
+                    };
                     return (
                       <Link key={p.id} href={`/merchant-products/${p.id}`}>
                         <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-amber-300 transition-colors">
@@ -385,10 +400,28 @@ export default function MerchantProductDetail() {
                               <Package className="w-8 h-8 text-amber-200" />
                             </div>
                           )}
-                          <div className="p-2 flex flex-col gap-0.5 flex-1">
+                          <div className="p-2 flex flex-col gap-1 flex-1">
                             <h3 className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">{p.title}</h3>
                             {p.category && <span className="text-[10px] text-amber-600">{p.category}</span>}
-                            <span className="font-bold text-amber-600 text-xs mt-auto">{p.currency ?? "HKD"} ${pPrice.toLocaleString()}</span>
+                            <div className="mt-auto pt-1 flex items-center justify-between gap-1">
+                              <span className="font-bold text-amber-600 text-xs">{p.currency ?? "HKD"} ${pPrice.toLocaleString()}</span>
+                              {(pWaLink || messengerLink) && (
+                                <div className="flex gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                  {pWaLink && (
+                                    <a href={pWaLink} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp 聯絡"
+                                      className="w-7 h-7 flex items-center justify-center bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors shadow-sm">
+                                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.15-.174.2-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                                    </a>
+                                  )}
+                                  {messengerLink && (
+                                    <a href={messengerLink} onClick={handlePMessenger} target="_blank" rel="noopener noreferrer" aria-label="Messenger 聯絡"
+                                      className="w-7 h-7 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors shadow-sm">
+                                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.301 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.13 3.26L19.752 8l-6.561 6.963z"/></svg>
+                                    </a>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </Link>
