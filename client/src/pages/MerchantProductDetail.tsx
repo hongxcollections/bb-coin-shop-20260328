@@ -71,7 +71,10 @@ export default function MerchantProductDetail() {
   }
 
   const price = parseFloat(product?.price ?? "0");
-  const whatsapp = product?.whatsapp ?? merchantInfo?.whatsapp ?? "";
+  // 只採用包含 ≥7 位數字的 whatsapp（過濾 "222" 等測試/無效資料）
+  const _productWa = product?.whatsapp ?? "";
+  const _productWaDigits = _productWa.replace(/[^0-9]/g, "");
+  const whatsapp = _productWaDigits.length >= 7 ? _productWa : (merchantInfo?.whatsapp ?? "");
   const waLink = whatsapp
     ? `https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`你好，我想查詢商品：${product?.title}`)}`
     : "";
@@ -182,7 +185,9 @@ export default function MerchantProductDetail() {
                       const name = md?.merchantName ?? product.merchantName ?? "";
                       const cats: string[] = (() => { try { return md?.categories ? JSON.parse(md.categories) : []; } catch { return []; } })();
                       const samples: string[] = (() => { try { return md?.samplePhotos ? JSON.parse(md.samplePhotos) : []; } catch { return []; } })();
-                      const wa = md?.whatsapp ?? product.whatsapp ?? "";
+                      const _rawWa = md?.whatsapp ?? "";
+                      const _rawWaDigits = _rawWa.replace(/[^0-9]/g, "");
+                      const wa = _rawWaDigits.length >= 7 ? _rawWa : (product.whatsapp && product.whatsapp.replace(/[^0-9]/g, "").length >= 7 ? product.whatsapp : "");
                       const accordionWaLink = wa ? `https://wa.me/${wa.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`你好，我想了解貴商戶`)}` : "";
                       return (
                         <>
