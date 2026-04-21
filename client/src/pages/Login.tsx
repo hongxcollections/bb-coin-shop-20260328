@@ -83,6 +83,10 @@ export default function Login() {
     const m = new URLSearchParams(window.location.search).get("method");
     return m === "phone" ? ("phone" as const) : ("email" as const);
   })();
+  const phoneOnly = (() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("method") === "phone";
+  })();
   const [mode, setMode] = useState<"login" | "register" | "forgot">(initialMode);
   const [registerMethod, setRegisterMethod] = useState<"email" | "phone">(initialRegisterMethod);
   const [step, setStep] = useState<"form" | "otp">("form");
@@ -761,19 +765,27 @@ export default function Login() {
                   </div>
                 </div>
 
-                {/* Register method toggle */}
-                <div>
-                  <label className="block text-sm font-medium mb-1.5" style={{ color: "#333" }}>註冊方式</label>
-                  <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: "#E5E5E5" }}>
-                    {(["email", "phone"] as const).map(m => (
-                      <button key={m} type="button" onClick={() => setRegisterMethod(m)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors"
-                        style={{ background: registerMethod === m ? "#E07B00" : "#fff", color: registerMethod === m ? "#fff" : "#555" }}>
-                        {m === "email" ? <><Mail size={15} />電郵</> : <><Phone size={15} />手機</>}
-                      </button>
-                    ))}
+                {/* Register method toggle — 早鳥入口會鎖死電話，只顯示提示 */}
+                {phoneOnly ? (
+                  <div className="rounded-xl border px-3 py-2 text-xs flex items-center gap-2"
+                       style={{ background: "#FFF7ED", borderColor: "#FED7AA", color: "#9A3412" }}>
+                    <Phone size={14} />
+                    <span>🎁 早鳥名額僅限<span className="font-semibold">手機註冊</span>領取</span>
                   </div>
-                </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5" style={{ color: "#333" }}>註冊方式</label>
+                    <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: "#E5E5E5" }}>
+                      {(["email", "phone"] as const).map(m => (
+                        <button key={m} type="button" onClick={() => setRegisterMethod(m)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors"
+                          style={{ background: registerMethod === m ? "#E07B00" : "#fff", color: registerMethod === m ? "#fff" : "#555" }}>
+                          {m === "email" ? <><Mail size={15} />電郵</> : <><Phone size={15} />手機</>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Email or Phone field */}
                 {registerMethod === "email" ? (
