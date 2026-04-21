@@ -1,4 +1,5 @@
 import { useParams, Link } from "wouter";
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import Header from "@/components/Header";
 import { Store, MessageCircle, Package, Gavel, ChevronLeft, Clock, Tag } from "lucide-react";
@@ -200,6 +201,9 @@ export default function MerchantStore() {
     { enabled: userId > 0 }
   );
 
+  const { data: siteSettingsData } = trpc.siteSettings.getAll.useQuery();
+  const merchantContactPreset = (siteSettingsData as Record<string, string> | undefined)?.merchantContactMessage ?? "你好，我想查詢你的商品";
+
   const { data: allMerchants = [] } = trpc.merchants.listApprovedMerchants.useQuery();
   const merchantLayout = (allMerchants as any[]).find((m: any) => m.userId === userId)?.listingLayout as LayoutMode ?? "grid2";
 
@@ -271,8 +275,31 @@ export default function MerchantStore() {
               const messengerLink = fbRaw
                 ? (fbRaw.startsWith("http") ? fbRaw : `https://m.me/${fbRaw}`)
                 : "";
-              const waLink = merchant.whatsapp ? buildWhatsAppUrl(merchant.whatsapp, "你好，我想查詢你的商品") : "";
+              const merchantUrl = `${window.location.origin}/merchants/${userId}`;
+              const contactMsg = `${merchantContactPreset}\n${merchantUrl}`;
+              const waLink = merchant.whatsapp ? buildWhatsAppUrl(merchant.whatsapp, contactMsg) : "";
               if (!waLink && !messengerLink) return null;
+              const handleMessenger = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+                e.preventDefault();
+                try {
+                  if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(contactMsg);
+                  } else {
+                    const ta = document.createElement("textarea");
+                    ta.value = contactMsg;
+                    ta.style.position = "fixed";
+                    ta.style.opacity = "0";
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(ta);
+                  }
+                  toast.success("商戶資訊已複製，請在 Messenger 對話內長按輸入欄貼上", { duration: 5000 });
+                } catch {
+                  toast.error("複製失敗，請手動輸入");
+                }
+                window.open(messengerLink, "_blank", "noopener,noreferrer");
+              };
               return (
                 <div className={`flex gap-2 ${waLink && messengerLink ? "flex-row" : ""}`}>
                   {waLink && (
@@ -282,7 +309,7 @@ export default function MerchantStore() {
                     </a>
                   )}
                   {messengerLink && (
-                    <a href={messengerLink} target="_blank" rel="noopener noreferrer"
+                    <a href={messengerLink} onClick={handleMessenger} target="_blank" rel="noopener noreferrer"
                       className={`flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors ${waLink ? "flex-1" : "w-full"}`}>
                       <MessageCircle className="w-4 h-4" />Messenger
                     </a>

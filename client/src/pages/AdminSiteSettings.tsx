@@ -57,6 +57,9 @@ export default function AdminSiteSettings() {
   // 保證金警告信息
   const [depositWarningMessage, setDepositWarningMessage] = useState("保證金水平維持不足，可以自行申請保證金充值或者聯絡管理員補交, 以免影響商戶一切正常運作。");
 
+  // 商戶主頁聯絡訊息預設（WhatsApp / Messenger 共用，會自動加入商戶網址）
+  const [merchantContactMessage, setMerchantContactMessage] = useState("你好，我想查詢你的商品");
+
   // 發佈點數不足錯誤信息模板
   const [publishQuotaErrorMsg, setPublishQuotaErrorMsg] = useState("發佈點數不足（剩餘 {remaining} 次，需要 {required} 次）");
 
@@ -128,6 +131,7 @@ export default function AdminSiteSettings() {
     if (s.notLoggedInBidText) setNotLoggedInBidText(s.notLoggedInBidText);
     if (s.loginWelcomeDesc) setLoginWelcomeDesc(s.loginWelcomeDesc);
     if (s.depositWarningMessage) setDepositWarningMessage(s.depositWarningMessage);
+    if (s.merchantContactMessage) setMerchantContactMessage(s.merchantContactMessage);
     if (s.publishQuotaErrorMsg) setPublishQuotaErrorMsg(s.publishQuotaErrorMsg);
     if (s.publishDepositErrorMsg) setPublishDepositErrorMsg(s.publishDepositErrorMsg);
     if (s.auctionSectionTitles) {
@@ -559,6 +563,38 @@ export default function AdminSiteSettings() {
                     <span>{depositWarningMessage || "（空白）"}</span>
                   </div>
                   <SaveBtn onClick={() => save('depositWarningMessage', depositWarningMessage, () => !depositWarningMessage.trim() ? "警告信息不可為空" : null)} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 商戶主頁聯絡訊息預設 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-green-500" />
+                  <CardTitle className="text-lg">商戶主頁聯絡訊息</CardTitle>
+                </div>
+                <CardDescription>
+                  訪客在商戶主頁點 WhatsApp / Messenger 時，預先填入的訊息內容。系統會自動在訊息末尾加上商戶網址。
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="flex items-center gap-2 mb-2"><MessageSquare className="w-4 h-4 text-green-500" />訊息內容</Label>
+                  <Textarea
+                    value={merchantContactMessage}
+                    onChange={(e) => setMerchantContactMessage(e.target.value)}
+                    rows={2}
+                    placeholder="你好，我想查詢你的商品"
+                    className="resize-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">實際發送格式：<span className="font-mono">{merchantContactMessage || "（空白）"} + 商戶網址</span></p>
+                </div>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="rounded-xl bg-green-50 border border-green-200 px-4 py-2.5 text-sm text-green-700 max-w-sm whitespace-pre-line">
+                    {`${merchantContactMessage || "（空白）"}\nhttps://hongxcollections.com/merchants/123`}
+                  </div>
+                  <SaveBtn onClick={() => save('merchantContactMessage', merchantContactMessage, () => !merchantContactMessage.trim() ? "訊息不可為空" : null)} />
                 </div>
               </CardContent>
             </Card>
