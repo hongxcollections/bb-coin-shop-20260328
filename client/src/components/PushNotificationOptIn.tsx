@@ -18,11 +18,34 @@ export function PushNotificationOptIn() {
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [autoTried, setAutoTried] = useState(false);
 
   const { data: keyData } = trpc.push.getPublicKey.useQuery();
   const subscribeMut = trpc.push.subscribe.useMutation();
   const unsubscribeMut = trpc.push.unsubscribe.useMutation();
   const testMut = trpc.push.test.useMutation();
+
+  const doSubscribe = async (silent: boolean) => {
+    if (!keyData?.publicKey) {
+      if (!silent) toast.error("推播服務未配置，請聯絡管理員");
+      return false;
+    }
+    const reg = await navigator.serviceWorker.register("/push-sw.js");
+    await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
+    });
+    const json = sub.toJSON();
+    await subscribeMut.mutateAsync({
+      endpoint: json.endpoint!,
+      keys: { p256dh: json.keys!.p256dh, auth: json.keys!.auth },
+      userAgent: navigator.userAgent.slice(0, 250),
+    });
+    setSubscribed(true);
+    if (!silent) toast.success("推播通知已啟用！");
+    return true;
+  };
 
   useEffect(() => {
     const ok = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
@@ -37,27 +60,25 @@ export function PushNotificationOptIn() {
     }).catch(() => {});
   }, []);
 
+  // 自動訂閱：權限已 granted 但仲未訂閱 → 靜默自動訂閱（毋須用戶按）
+  useEffect(() => {
+    if (autoTried) return;
+    if (!supported || !keyData?.publicKey) return;
+    if (Notification.permission !== "granted") return;
+    if (subscribed) { setAutoTried(true); return; }
+    setAutoTried(true);
+    doSubscribe(true).catch((e) => console.warn("[Push] auto-subscribe failed:", e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supported, keyData?.publicKey, subscribed, autoTried]);
+
   const enable = async () => {
     if (!keyData?.publicKey) { toast.error("推播服務未配置，請聯絡管理員"); return; }
     setBusy(true);
     try {
-      const reg = await navigator.serviceWorker.register("/push-sw.js");
-      await navigator.serviceWorker.ready;
       const perm = await Notification.requestPermission();
       setPermission(perm);
       if (perm !== "granted") { toast.error("已拒絕通知權限，請到瀏覽器設定開啟"); setBusy(false); return; }
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
-      });
-      const json = sub.toJSON();
-      await subscribeMut.mutateAsync({
-        endpoint: json.endpoint!,
-        keys: { p256dh: json.keys!.p256dh, auth: json.keys!.auth },
-        userAgent: navigator.userAgent.slice(0, 250),
-      });
-      setSubscribed(true);
-      toast.success("推播通知已啟用！");
+      await doSubscribe(false);
     } catch (e: any) {
       toast.error("啟用失敗：" + (e?.message ?? "未知錯誤"));
     } finally { setBusy(false); }

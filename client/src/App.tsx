@@ -6,6 +6,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import BottomNav from "./components/BottomNav";
+import { AutoPushSubscribe } from "./components/AutoPushSubscribe";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import Home from "./pages/Home";
@@ -133,6 +134,7 @@ function App() {
               }}
             />
             <AnnouncementBanner />
+            <AutoPushSubscribe />
             <Router />
             <BottomNav />
           </ToastProvider>
