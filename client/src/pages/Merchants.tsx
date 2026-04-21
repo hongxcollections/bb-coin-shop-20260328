@@ -83,12 +83,12 @@ function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: L
   const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
   const price = parseFloat(p.price ?? "0");
   const href = `/merchant-products/${p.id}`;
-  // 有效 whatsapp：商品自身 whatsapp（≥7 位數字）優先，否則 fallback 商戶 whatsapp
+  // 有效 whatsapp：商戶 whatsapp（更新源頭）優先，否則 fallback 商品自身 whatsapp
   const _pWa = (p.whatsapp ?? "").toString();
   const _pWaDigits = _pWa.replace(/[^0-9]/g, "");
   const _mWa = (whatsapp ?? "").toString();
   const _mWaDigits = _mWa.replace(/[^0-9]/g, "");
-  const effWa = _pWaDigits.length >= 7 ? _pWa : (_mWaDigits.length >= 7 ? _mWa : "");
+  const effWa = _mWaDigits.length >= 7 ? _mWa : (_pWaDigits.length >= 7 ? _pWa : "");
 
   if (layout === "list") return (
     <Link href={href}>

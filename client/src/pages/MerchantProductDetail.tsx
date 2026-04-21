@@ -375,7 +375,8 @@ export default function MerchantProductDetail() {
                     const pPrice = parseFloat(p.price ?? "0");
                     const _pWa = (p.whatsapp ?? "").toString();
                     const _pWaDigits = _pWa.replace(/[^0-9]/g, "");
-                    const pEffWa = _pWaDigits.length >= 7 ? _pWa : whatsapp;
+                    const _mWaDigits = (whatsapp ?? "").toString().replace(/[^0-9]/g, "");
+                    const pEffWa = _mWaDigits.length >= 7 ? whatsapp : (_pWaDigits.length >= 7 ? _pWa : "");
                     const pProductUrl = `${window.location.origin}/merchant-products/${p.id}`;
                     const pMsg = `你好，我想查詢以下商品：\n商品：${p.title}\n價錢：HK$${pPrice.toLocaleString()}\n連結：${pProductUrl}`;
                     const pWaLink = pEffWa ? buildWhatsAppUrl(pEffWa, pMsg) : "";
