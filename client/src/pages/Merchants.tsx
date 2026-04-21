@@ -9,8 +9,10 @@ import { Link } from "wouter";
 const CATEGORIES = ["全部", "古幣", "紀念幣", "外幣", "銀幣", "金幣", "其他"];
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
 
-function WhatsAppBtn({ whatsapp, title }: { whatsapp: string; title: string }) {
-  const link = buildWhatsAppUrl(whatsapp, `你好，我想查詢商品：${title}`);
+function WhatsAppBtn({ whatsapp, title, price, id }: { whatsapp: string; title: string; price?: number; id?: number }) {
+  const productUrl = id ? `${window.location.origin}/merchant-products/${id}` : "";
+  const msg = `你好，我想查詢以下商品：\n商品：${title}${price !== undefined ? `\n價錢：HK$${price.toLocaleString()}` : ""}${productUrl ? `\n連結：${productUrl}` : ""}`;
+  const link = buildWhatsAppUrl(whatsapp, msg);
   return (
     <a href={link} target="_blank" rel="noopener noreferrer"
       className="flex items-center gap-1 text-xs bg-green-500 hover:bg-green-600 text-white px-2.5 py-1.5 rounded-full transition-colors shrink-0">
@@ -35,7 +37,7 @@ function ProductCard({ p, layout, whatsapp, merchantId }: { p: any; layout: Layo
           {p.description && <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{p.description}</p>}
           <div className="flex items-center justify-between mt-1.5">
             <span className="font-bold text-amber-600 text-sm">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
-            {p.stock > 0 && whatsapp ? <WhatsAppBtn whatsapp={whatsapp} title={p.title} /> : p.stock <= 0 ? <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span> : null}
+            {p.stock > 0 && whatsapp ? <WhatsAppBtn whatsapp={whatsapp} title={p.title} price={price} id={p.id} /> : p.stock <= 0 ? <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span> : null}
           </div>
         </div>
       </div>
@@ -60,7 +62,7 @@ function ProductCard({ p, layout, whatsapp, merchantId }: { p: any; layout: Layo
           {p.description && <p className="text-xs text-gray-500 line-clamp-3">{p.description}</p>}
           <div className="flex items-center justify-between pt-1">
             <span className="font-bold text-amber-600 text-base">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
-            {p.stock > 0 && whatsapp ? <WhatsAppBtn whatsapp={whatsapp} title={p.title} /> : p.stock <= 0 ? <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span> : null}
+            {p.stock > 0 && whatsapp ? <WhatsAppBtn whatsapp={whatsapp} title={p.title} price={price} id={p.id} /> : p.stock <= 0 ? <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span> : null}
           </div>
         </div>
       </div>
@@ -95,7 +97,7 @@ function ProductCard({ p, layout, whatsapp, merchantId }: { p: any; layout: Layo
           {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
           <div className="mt-auto pt-1.5 flex items-center justify-between gap-1">
             <span className="font-bold text-amber-600 text-xs">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
-            {p.stock > 0 && whatsapp ? <WhatsAppBtn whatsapp={whatsapp} title={p.title} /> : p.stock <= 0 ? <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span> : null}
+            {p.stock > 0 && whatsapp ? <WhatsAppBtn whatsapp={whatsapp} title={p.title} price={price} id={p.id} /> : p.stock <= 0 ? <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span> : null}
           </div>
         </div>
       </div>

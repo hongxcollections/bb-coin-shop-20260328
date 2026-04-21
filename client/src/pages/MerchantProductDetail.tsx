@@ -76,7 +76,8 @@ export default function MerchantProductDetail() {
   const _productWa = product?.whatsapp ?? "";
   const _productWaDigits = _productWa.replace(/[^0-9]/g, "");
   const whatsapp = _productWaDigits.length >= 7 ? _productWa : (merchantInfo?.whatsapp ?? "");
-  const waLink = buildWhatsAppUrl(whatsapp, `你好，我想查詢商品：${product?.title}`);
+  const productUrl = `${window.location.origin}/merchant-products/${productId}`;
+  const waLink = buildWhatsAppUrl(whatsapp, `你好，我想查詢以下商品：\n商品：${product?.title}\n價錢：HK$${price.toLocaleString()}\n連結：${productUrl}`);
   const fbRaw = (merchantDetail as any)?.facebook ?? "";
   const messengerLink = fbRaw
     ? (fbRaw.startsWith("http") ? fbRaw : `https://m.me/${fbRaw}`)
