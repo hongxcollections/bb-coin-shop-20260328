@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { getPushVolume } from "./PushVolumeSlider";
 
 /**
  * 監聽 service worker 推播訊息，喺前景時：
@@ -38,30 +39,32 @@ export function PushForegroundHandler() {
   }, []);
 
   const playChime = () => {
-    // 主：HTMLAudioElement 播 wav
+    const v = getPushVolume();
+    if (v <= 0) return; // 用戶選擇靜音
     const a = audioRef.current;
     if (a) {
       try {
         a.currentTime = 0;
-        a.volume = 1.0;
+        a.volume = v;
         const p = a.play();
         if (p && typeof p.then === "function") {
-          p.catch(() => playChimeWebAudio());
+          p.catch(() => playChimeWebAudio(v));
         }
         return;
       } catch {
         // fall through
       }
     }
-    playChimeWebAudio();
+    playChimeWebAudio(v);
   };
 
   // Fallback：Web Audio API 即時合成
-  const playChimeWebAudio = () => {
+  const playChimeWebAudio = (vol: number) => {
     try {
       const Ctor = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
       if (!Ctor) return;
       const ctx = new Ctor();
+      const peak = 0.5 * vol;
       const playTone = (freq: number, startAt: number, duration: number) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -71,7 +74,7 @@ export function PushForegroundHandler() {
         gain.connect(ctx.destination);
         const t0 = ctx.currentTime + startAt;
         gain.gain.setValueAtTime(0.0001, t0);
-        gain.gain.exponentialRampToValueAtTime(0.5, t0 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(Math.max(peak, 0.001), t0 + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
         osc.start(t0);
         osc.stop(t0 + duration + 0.05);

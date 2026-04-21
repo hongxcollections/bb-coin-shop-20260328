@@ -12,6 +12,7 @@ import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff, Che
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ShareMenu } from "@/components/ShareMenu";
+import { PushVolumeSlider } from "@/components/PushVolumeSlider";
 import { MemberBadge } from "@/components/MemberBadge";
 import { MemberHeroBanner } from "@/components/MemberHeroBanner";
 import Header from "@/components/Header";
@@ -460,6 +461,11 @@ export default function Profile() {
                   </button>
                 </div>
               ))}
+            </div>
+
+            {/* 推播鈴聲音量 */}
+            <div className="border-t border-amber-100 pt-4 mt-2">
+              <PushVolumeSlider />
             </div>
           </CardContent>
         </Card>
