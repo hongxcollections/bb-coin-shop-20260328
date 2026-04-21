@@ -332,7 +332,7 @@ export default function MemberBenefits() {
         </Card>
 
         {/* Footer note */}
-        <p className="text-center text-xs text-muted-foreground pb-4">
+        <p className="text-center text-xs text-muted-foreground pb-32">
           會員等級由管理員根據您的參與度及交易記錄設定。如有疑問，請聯絡客服。
         </p>
       </div>
