@@ -56,8 +56,8 @@ function ContactBtns({ whatsapp, messengerLink, title, price, id, size = "md" }:
   if (!waLink && !messengerLink) return null;
   const stop = (e: React.MouseEvent) => e.stopPropagation();
   const isSmall = size === "sm";
-  const btn = isSmall ? "w-7 h-7" : "w-9 h-9";
-  const icon = isSmall ? "w-3.5 h-3.5" : "w-5 h-5";
+  const btn = isSmall ? "w-5 h-5" : "w-6 h-6";
+  const icon = isSmall ? "w-2.5 h-2.5" : "w-3.5 h-3.5";
   return (
     <div className={`flex gap-1.5 shrink-0 ${isSmall ? "mt-auto justify-end" : ""}`} onClick={stop}>
       {waLink && (
