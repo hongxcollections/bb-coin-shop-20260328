@@ -289,9 +289,9 @@ export default function MerchantSettings() {
                     value={profileFacebook}
                     onChange={(e) => setProfileFacebook(e.target.value)}
                     maxLength={500}
-                    placeholder="例：https://m.me/yourpage 或 Facebook 專頁網址"
+                    placeholder="例：https://m.me/yourname（個人）或 https://m.me/yourpage（專頁）"
                   />
-                  <p className="text-xs text-muted-foreground">填寫後，商品詳情頁會顯示 Messenger 聯絡按鈕</p>
+                  <p className="text-xs text-muted-foreground">個人帳號或專頁均可。填寫後，商品詳情頁會顯示 Messenger 聯絡按鈕</p>
                 </div>
 
                 {/* 商戶簡介 */}
