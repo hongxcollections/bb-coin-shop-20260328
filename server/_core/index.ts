@@ -172,6 +172,20 @@ async function bootstrapMissingColumns() {
     CONSTRAINT \`depositTopUpRequests_id\` PRIMARY KEY(\`id\`)
   )`, 'Ensured depositTopUpRequests table');
 
+  // pushSubscriptions table (Web Push)
+  await alter(`CREATE TABLE IF NOT EXISTS \`pushSubscriptions\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`userId\` int NOT NULL,
+    \`endpoint\` varchar(500) NOT NULL,
+    \`p256dh\` varchar(255) NOT NULL,
+    \`auth\` varchar(100) NOT NULL,
+    \`userAgent\` varchar(255) NULL,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    CONSTRAINT \`pushSubscriptions_id\` PRIMARY KEY(\`id\`),
+    CONSTRAINT \`pushSubscriptions_endpoint_unique\` UNIQUE(\`endpoint\`),
+    INDEX \`idx_pushsub_user\` (\`userId\`)
+  )`, 'Ensured pushSubscriptions table');
+
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
 }
