@@ -1459,6 +1459,21 @@ async function ensureDepositTables() {
     try { await db.execute(sql`ALTER TABLE depositTierPresets ADD COLUMN commissionRate DECIMAL(5,4) NOT NULL DEFAULT 0.0500`); } catch {}
     try { await db.execute(sql`ALTER TABLE depositTopUpRequests ADD COLUMN tierId INT`); } catch {}
     try { await db.execute(sql`ALTER TABLE merchantApplications ADD COLUMN facebook VARCHAR(500)`); } catch {}
+    // Web Push 訂閱表
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS pushSubscriptions (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          userId INT NOT NULL,
+          endpoint VARCHAR(500) NOT NULL UNIQUE,
+          p256dh VARCHAR(255) NOT NULL,
+          auth VARCHAR(100) NOT NULL,
+          userAgent VARCHAR(255),
+          createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_pushsub_user (userId)
+        )
+      `);
+    } catch {}
     _depositTablesChecked = true;
   } catch (error) {
     console.error('[Database] Failed to ensure deposit tables:', error);

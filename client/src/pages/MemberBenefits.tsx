@@ -14,6 +14,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { MemberHeroBanner } from "@/components/MemberHeroBanner";
 import { type MemberLevel } from "@/components/MemberBadge";
 import Header from "@/components/Header";
+import { PushNotificationOptIn } from "@/components/PushNotificationOptIn";
 
 // ── Level config ──────────────────────────────────────────────────────────────
 
@@ -45,7 +46,7 @@ const BENEFITS: BenefitRow[] = [
     category: "競標",
     icon: <Zap className="w-4 h-4" />,
     benefit: "優先出價通知",
-    detail: "當您關注的拍賣有新出價時，銀牌或以上會員將比一般用戶更早收到電郵通知，讓您第一時間掌握競標動態，及時回應。",
+    detail: "當您關注的拍賣有新出價時，銀牌或以上會員除了電郵通知，還會收到瀏覽器即時推播（秒級彈出，毋須打開電郵），讓您第一時間掌握競標動態，及時回應。請在本頁頂部開啟推播功能。",
     bronze: false, silver: true, gold: true, vip: true,
   },
   {
@@ -192,6 +193,9 @@ export default function MemberBenefits() {
       {/* Nav */}
       <Header />
       <div className="container max-w-4xl py-8 space-y-8">
+
+        {/* 推播通知開關 — 只對已登入用戶顯示 */}
+        {user && <PushNotificationOptIn />}
 
         {/* My level banner */}
         {myLevel && (

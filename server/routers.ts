@@ -12,6 +12,7 @@ import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoo
 import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData } from "./db";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
+import { getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser } from "./push";
 
 // 出價防抖 Map：鍵為 "userId:auctionId"，値為最後出價時間戳
 // 防止同一用戶對同一拍賣在 3 秒內重複出價，減少平台 API 請求量
@@ -1737,6 +1738,34 @@ export const appRouter = router({
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         return cancelSubscription(input.subscriptionId, ctx.user.id, input.adminNote);
       }),
+  }),
+
+  push: router({
+    getPublicKey: publicProcedure.query(() => ({ publicKey: getVapidPublicKey() })),
+    subscribe: protectedProcedure
+      .input(z.object({
+        endpoint: z.string().min(10),
+        keys: z.object({ p256dh: z.string(), auth: z.string() }),
+        userAgent: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await savePushSubscription(ctx.user.id, { endpoint: input.endpoint, keys: input.keys }, input.userAgent);
+        return { success: true };
+      }),
+    unsubscribe: protectedProcedure
+      .input(z.object({ endpoint: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        await removePushSubscription(input.endpoint, ctx.user.id);
+        return { success: true };
+      }),
+    test: protectedProcedure.mutation(async ({ ctx }) => {
+      const sent = await sendPushToUser(ctx.user.id, {
+        title: "🪙 測試推播",
+        body: "推播功能正常運作！",
+        url: "/member-benefits",
+      });
+      return { sent };
+    }),
   }),
 
   siteSettings: router({

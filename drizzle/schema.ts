@@ -417,3 +417,14 @@ export const userSubscriptionsRelations = relations(userSubscriptions, ({ one })
   plan: one(subscriptionPlans, { fields: [userSubscriptions.planId], references: [subscriptionPlans.id] }),
   approver: one(users, { fields: [userSubscriptions.approvedBy], references: [users.id] }),
 }));
+
+// Web Push 推播訂閱
+export const pushSubscriptions = mysqlTable("pushSubscriptions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  endpoint: varchar("endpoint", { length: 500 }).notNull().unique(),
+  p256dh: varchar("p256dh", { length: 255 }).notNull(),
+  auth: varchar("auth", { length: 100 }).notNull(),
+  userAgent: varchar("userAgent", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});

@@ -3,6 +3,7 @@ import { auctions as auctionsTable, users, merchantApplications } from '../drizz
 import { eq } from 'drizzle-orm';
 import { sendOutbidEmail, sendWonEmail, sendEndingSoonEmail, sendMerchantWonEmail } from './email';
 import { getUserById } from './db';
+import { sendPushToUser, isSilverOrAbove } from './push';
 
 // Track which auctions have had ending-soon notifications sent (in-memory, resets on restart)
 const endingSoonSent = new Set<number>();
@@ -157,6 +158,20 @@ async function notifyOutbid(auctionId: number, previousHighestBidderId: number |
       currency: auction.currency,
       auctionUrl: `${origin}/auctions/${auctionId}`,
     });
+
+    // Web Push 即時通知（銀牌或以上會員）— 比電郵更快到達
+    try {
+      if (await isSilverOrAbove(previousHighestBidderId)) {
+        await sendPushToUser(previousHighestBidderId, {
+          title: `⚡ 出價被超越 — ${auction.title}`,
+          body: `目前最高出價：${auction.currency} ${newBidAmount.toLocaleString()}，立即回應！`,
+          url: `/auctions/${auctionId}`,
+          tag: `outbid-${auctionId}`,
+        });
+      }
+    } catch (pushErr) {
+      console.error('[Push] Outbid push error:', pushErr);
+    }
   } catch (err) {
     console.error('[Email] Outbid notification error:', err);
   }
