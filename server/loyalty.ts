@@ -1,6 +1,6 @@
 import { eq, and, gte, sql, desc, count, isNotNull, lt } from 'drizzle-orm';
 import { getDb, getSiteSetting, setSiteSetting, getAllSiteSettings, getUserByOpenId } from './db';
-import { users, bids, auctions, dailyEarlyBird } from '../drizzle/schema';
+import { users, bids, auctions, dailyEarlyBird, userAutoBidQuota } from '../drizzle/schema';
 
 /**
  * Loyalty 會員活動等級系統
@@ -29,6 +29,11 @@ export interface LoyaltyConfig {
   vipCashbackRate: number;
   silverPreviewHours: number;
   goldPreviewHours: number;
+  // 自理出價 / 匿名出價限制
+  bronzeAutoBidQuota: number;       // 銅牌每月可用代理出價次數
+  silverAutoBidMaxAmount: number;   // 銀牌單次代理出價上限（HKD）；0 = 無限制
+  silverCanAnonymous: boolean;      // 銀牌可否匿名出價
+  goldDefaultAnonymous: boolean;    // 金牌出價時匿名是否預設打開（前端 hint，不影響後端權限）
 }
 
 const DEFAULTS: LoyaltyConfig = {
@@ -47,6 +52,10 @@ const DEFAULTS: LoyaltyConfig = {
   vipCashbackRate: 0.03,
   silverPreviewHours: 24,
   goldPreviewHours: 48,
+  bronzeAutoBidQuota: 3,
+  silverAutoBidMaxAmount: 5000,
+  silverCanAnonymous: true,
+  goldDefaultAnonymous: true,
 };
 
 function parseBool(v: string | null | undefined, d: boolean): boolean {
@@ -86,6 +95,10 @@ export async function getLoyaltyConfig(): Promise<LoyaltyConfig> {
     vipCashbackRate: parseFloat10(all['loyalty.vipCashbackRate'], DEFAULTS.vipCashbackRate),
     silverPreviewHours: parseInt10(all['loyalty.silverPreviewHours'], DEFAULTS.silverPreviewHours),
     goldPreviewHours: parseInt10(all['loyalty.goldPreviewHours'], DEFAULTS.goldPreviewHours),
+    bronzeAutoBidQuota: parseInt10(all['loyalty.bronzeAutoBidQuota'], DEFAULTS.bronzeAutoBidQuota),
+    silverAutoBidMaxAmount: parseInt10(all['loyalty.silverAutoBidMaxAmount'], DEFAULTS.silverAutoBidMaxAmount),
+    silverCanAnonymous: parseBool(all['loyalty.silverCanAnonymous'], DEFAULTS.silverCanAnonymous),
+    goldDefaultAnonymous: parseBool(all['loyalty.goldDefaultAnonymous'], DEFAULTS.goldDefaultAnonymous),
   };
 }
 
@@ -106,6 +119,10 @@ export async function updateLoyaltyConfig(partial: Partial<Record<keyof LoyaltyC
     vipCashbackRate: 'loyalty.vipCashbackRate',
     silverPreviewHours: 'loyalty.silverPreviewHours',
     goldPreviewHours: 'loyalty.goldPreviewHours',
+    bronzeAutoBidQuota: 'loyalty.bronzeAutoBidQuota',
+    silverAutoBidMaxAmount: 'loyalty.silverAutoBidMaxAmount',
+    silverCanAnonymous: 'loyalty.silverCanAnonymous',
+    goldDefaultAnonymous: 'loyalty.goldDefaultAnonymous',
   };
   for (const [k, v] of Object.entries(partial)) {
     const key = KEY_MAP[k as keyof LoyaltyConfig];
@@ -314,6 +331,156 @@ export async function recalculateUserLevel(userId: number): Promise<MemberLevel>
     console.log(`[Loyalty] User ${userId}: ${currentLevel} → ${targetLevel} (expires: ${expiresStr})`);
   }
   return targetLevel;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 自理出價（代理出價）+ 匿名出價 等級限制
+// ─────────────────────────────────────────────────────────────────────────
+
+function hkMonthKey(): string {
+  // YYYY-MM (HK)
+  const d = new Date(Date.now() + 8 * 3600 * 1000); // shift to HK then read UTC parts
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+/**
+ * 取用戶當前等級 + 自理出價 / 匿名出價權限狀態
+ * UI 預先 fetch 以決定按鈕 enable/disable
+ */
+export async function getMyAutoBidStatus(userId: number): Promise<{
+  level: MemberLevel;
+  bronzeQuota: { used: number; total: number; remaining: number };
+  silverMaxAmount: number; // 0 = 無限
+  canUseAutoBid: boolean;
+  canUseAnonymous: boolean;
+  defaultAnonymous: boolean;
+  monthKey: string;
+}> {
+  const config = await getLoyaltyConfig();
+  const db = await getDb();
+  const monthKey = hkMonthKey();
+
+  let level: MemberLevel = 'bronze';
+  let used = 0;
+
+  if (db) {
+    const [u] = await db.select({ memberLevel: users.memberLevel }).from(users).where(eq(users.id, userId)).limit(1);
+    if (u?.memberLevel === 'silver' || u?.memberLevel === 'gold' || u?.memberLevel === 'vip') {
+      level = u.memberLevel as MemberLevel;
+    }
+    if (level === 'bronze') {
+      const [row] = await db
+        .select({ used: userAutoBidQuota.used })
+        .from(userAutoBidQuota)
+        .where(and(eq(userAutoBidQuota.userId, userId), eq(userAutoBidQuota.monthKey, monthKey)))
+        .limit(1);
+      used = row?.used ?? 0;
+    }
+  }
+
+  const total = config.bronzeAutoBidQuota;
+  const remaining = Math.max(0, total - used);
+
+  let canUseAutoBid = true;
+  if (level === 'bronze') canUseAutoBid = remaining > 0;
+
+  let canUseAnonymous = false;
+  if (level === 'silver') canUseAnonymous = config.silverCanAnonymous;
+  else if (level === 'gold' || level === 'vip') canUseAnonymous = true;
+
+  const defaultAnonymous = (level === 'gold' || level === 'vip') && config.goldDefaultAnonymous;
+
+  return {
+    level,
+    bronzeQuota: { used, total, remaining },
+    silverMaxAmount: level === 'silver' ? config.silverAutoBidMaxAmount : 0,
+    canUseAutoBid,
+    canUseAnonymous,
+    defaultAnonymous,
+    monthKey,
+  };
+}
+
+/**
+ * 嘗試消耗銅牌一個月度配額，atomic upsert
+ * @returns 成功 = true，配額用完 = false
+ */
+export async function tryConsumeBronzeAutoBidQuota(userId: number): Promise<{ ok: boolean; remaining: number; total: number }> {
+  const db = await getDb();
+  const config = await getLoyaltyConfig();
+  const total = config.bronzeAutoBidQuota;
+  if (!db) return { ok: false, remaining: 0, total };
+  if (total <= 0) return { ok: false, remaining: 0, total };
+
+  const monthKey = hkMonthKey();
+  // upsert 行；用 ON DUPLICATE KEY 嚟處理
+  await db.execute(sql`
+    INSERT INTO userAutoBidQuota (userId, monthKey, used)
+    VALUES (${userId}, ${monthKey}, 0)
+    ON DUPLICATE KEY UPDATE userId = userId
+  `);
+
+  const [row] = await db
+    .select()
+    .from(userAutoBidQuota)
+    .where(and(eq(userAutoBidQuota.userId, userId), eq(userAutoBidQuota.monthKey, monthKey)))
+    .limit(1);
+
+  const used = row?.used ?? 0;
+  if (used >= total) return { ok: false, remaining: 0, total };
+
+  await db
+    .update(userAutoBidQuota)
+    .set({ used: used + 1 })
+    .where(and(eq(userAutoBidQuota.userId, userId), eq(userAutoBidQuota.monthKey, monthKey)));
+
+  return { ok: true, remaining: total - (used + 1), total };
+}
+
+/**
+ * 校驗用戶可否使用代理出價 + 該次 maxAmount 是否合規
+ * - 銅牌：必須先 consume 月度配額
+ * - 銀牌：maxAmount 必須 ≤ silverAutoBidMaxAmount（0 = 無限）
+ * - 金牌 / VIP：完全無限制
+ * 拋 Error 帶友善中文訊息畀 router 接住
+ */
+export async function enforceAutoBidLimit(userId: number, maxAmount: number): Promise<void> {
+  const status = await getMyAutoBidStatus(userId);
+  if (status.level === 'bronze') {
+    if (status.bronzeQuota.total <= 0) {
+      throw new Error(`代理出價功能僅限 🥈 銀牌或以上會員使用，立即升級解鎖無限次數`);
+    }
+    const r = await tryConsumeBronzeAutoBidQuota(userId);
+    if (!r.ok) {
+      throw new Error(`本月代理出價配額已用完（${r.total} / ${r.total}）。立即升 🥈 銀牌即可解鎖無限次代理出價`);
+    }
+    return;
+  }
+  if (status.level === 'silver') {
+    if (status.silverMaxAmount > 0 && maxAmount > status.silverMaxAmount) {
+      throw new Error(`🥈 銀牌會員代理出價單次上限為 HK$${status.silverMaxAmount.toLocaleString()}，升 🥇 金牌即可解除上限`);
+    }
+    return;
+  }
+  // gold / vip 無限制
+}
+
+/**
+ * 校驗匿名出價權限
+ * - 銅牌：完全唔可
+ * - 銀牌：視乎 silverCanAnonymous
+ * - 金牌 / VIP：always 可
+ */
+export async function enforceAnonymousBidPermission(userId: number): Promise<void> {
+  const status = await getMyAutoBidStatus(userId);
+  if (status.canUseAnonymous) return;
+  if (status.level === 'bronze') {
+    throw new Error(`匿名出價功能僅限 🥈 銀牌或以上會員使用，立即升級即可隱藏身份競投`);
+  }
+  // silver 但被 admin 關咗
+  throw new Error(`匿名出價暫時關閉，請聯絡管理員`);
 }
 
 /**

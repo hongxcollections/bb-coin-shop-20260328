@@ -205,6 +205,17 @@ async function bootstrapMissingColumns() {
     INDEX \`idx_earlybird_date\` (\`claimDate\`)
   )`, 'Ensured dailyEarlyBird table');
 
+  await alter(`CREATE TABLE IF NOT EXISTS \`userAutoBidQuota\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`userId\` int NOT NULL,
+    \`monthKey\` varchar(7) NOT NULL,
+    \`used\` int NOT NULL DEFAULT 0,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT \`userAutoBidQuota_id\` PRIMARY KEY(\`id\`),
+    UNIQUE KEY \`uniq_user_month\` (\`userId\`, \`monthKey\`)
+  )`, 'Ensured userAutoBidQuota table');
+
   // Seed loyalty config 預設值（只喺 key 未設定先寫入，唔 overwrite admin 改動）
   const LOYALTY_DEFAULTS: Record<string, string> = {
     'loyalty.earlyBirdEnabled': 'true',
@@ -222,6 +233,11 @@ async function bootstrapMissingColumns() {
     'loyalty.vipCashbackRate': '0.03',
     'loyalty.silverPreviewHours': '24',
     'loyalty.goldPreviewHours': '48',
+    // ── 自理出價（autoBid / proxyBid）+ 匿名出價限制 ──
+    'loyalty.bronzeAutoBidQuota': '3',          // 銅牌每月可用次數
+    'loyalty.silverAutoBidMaxAmount': '5000',   // 銀牌單次代理出價上限金額（HKD），0 = 無限制
+    'loyalty.silverCanAnonymous': 'true',       // 銀牌可否匿名出價
+    'loyalty.goldDefaultAnonymous': 'true',     // 金牌出價時匿名選項是否預設打開
   };
   try {
     const { drizzle: drizzleMysql2 } = await import('drizzle-orm/mysql2');

@@ -72,6 +72,22 @@ export default function AuctionDetail() {
   const { data: defaultAnonData } = trpc.users.getDefaultAnonymous.useQuery(undefined, {
     enabled: isAuthenticated,
   });
+  // 取得用戶代理出價配額 + 匿名出價權限（會員等級限制）
+  const { data: autoBidStatus } = trpc.loyalty.myAutoBidStatus.useQuery(undefined, {
+    enabled: isAuthenticated,
+  });
+  const memberLevel = autoBidStatus?.level ?? 'bronze';
+  const canUseAnonymous = autoBidStatus?.canUseAnonymous ?? false;
+  const canUseAutoBid = autoBidStatus?.canUseAutoBid ?? true;
+  const bronzeQuota = autoBidStatus?.bronzeQuota ?? { used: 0, total: 0, remaining: 0 };
+  const silverMaxAmount = autoBidStatus?.silverMaxAmount ?? 0;
+  // 銅牌不可匿名 → 強制 false（避免 stale state 偷偷送出 isAnonymous=1）
+  useEffect(() => {
+    if (autoBidStatus && !canUseAnonymous && isAnonymous) {
+      setIsAnonymous(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoBidStatus]);
   // 當 defaultAnonData 載入後同步初始值
   useEffect(() => {
     if (defaultAnonData !== undefined) {
@@ -805,14 +821,53 @@ export default function AuctionDetail() {
                             </div>
                             <Switch
                               id="anonymous-bid"
-                              checked={isAnonymous}
-                              onCheckedChange={setIsAnonymous}
+                              checked={isAnonymous && canUseAnonymous}
+                              onCheckedChange={(v) => {
+                                if (!canUseAnonymous) {
+                                  toast.info(memberLevel === 'bronze'
+                                    ? '匿名出價功能僅限 🥈 銀牌或以上會員，立即升級即可隱藏身份競投'
+                                    : '匿名出價暫時關閉');
+                                  return;
+                                }
+                                setIsAnonymous(v);
+                              }}
+                              disabled={!canUseAnonymous}
                               className="data-[state=checked]:bg-slate-500"
                             />
                           </div>
+                          {!canUseAnonymous && memberLevel === 'bronze' && (
+                            <p className="text-[11px] text-amber-600 text-center -mt-1">
+                              💡 匿名出價需 🥈 銀牌或以上會員，<Link href="/loyalty" className="underline">了解升級條件</Link>
+                            </p>
+                          )}
                         </>
                       ) : (
                         <>
+                          {/* 等級限制提示：銅牌配額 / 銀牌單次上限 */}
+                          {memberLevel === 'bronze' && bronzeQuota.total > 0 && (
+                            <div className={`text-xs text-center px-3 py-2 rounded-lg border ${
+                              bronzeQuota.remaining > 0
+                                ? 'bg-amber-50 border-amber-200 text-amber-700'
+                                : 'bg-red-50 border-red-200 text-red-700'
+                            }`}>
+                              {bronzeQuota.remaining > 0 ? (
+                                <>🥉 銅牌會員本月代理出價剩 <strong>{bronzeQuota.remaining} / {bronzeQuota.total}</strong> 次・<Link href="/loyalty" className="underline">升銀牌解鎖無限</Link></>
+                              ) : (
+                                <>🥉 本月代理出價配額已用完（{bronzeQuota.total} / {bronzeQuota.total}）・<Link href="/loyalty" className="underline">升 🥈 銀牌即可解鎖無限次</Link></>
+                              )}
+                            </div>
+                          )}
+                          {memberLevel === 'bronze' && bronzeQuota.total <= 0 && (
+                            <div className="text-xs text-center px-3 py-2 rounded-lg border bg-red-50 border-red-200 text-red-700">
+                              代理出價功能僅限 🥈 銀牌或以上會員・<Link href="/loyalty" className="underline">立即升級</Link>
+                            </div>
+                          )}
+                          {memberLevel === 'silver' && silverMaxAmount > 0 && (
+                            <div className="text-xs text-center px-3 py-2 rounded-lg border bg-blue-50 border-blue-200 text-blue-700">
+                              🥈 銀牌會員代理出價單次上限 <strong>{currencySymbol}{silverMaxAmount.toLocaleString()}</strong>・<Link href="/loyalty" className="underline">升金牌解除上限</Link>
+                            </div>
+                          )}
+
                           {/* Proxy bid input */}
                           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
                             <p className="text-xs text-blue-700 font-medium flex items-center gap-1">
@@ -833,10 +888,10 @@ export default function AuctionDetail() {
                               </div>
                               <Button
                                 onClick={handleProxyBid}
-                                disabled={setProxyBidMutation.isPending}
+                                disabled={setProxyBidMutation.isPending || !canUseAutoBid}
                                 className="bg-blue-500 hover:bg-blue-600 text-white border-0 shadow-md px-4"
                               >
-                                {setProxyBidMutation.isPending ? "設定中..." : "設定代理"}
+                                {setProxyBidMutation.isPending ? "設定中..." : !canUseAutoBid ? "配額已用完" : "設定代理"}
                               </Button>
                             </div>
                             <p className="text-xs text-blue-500 text-center">

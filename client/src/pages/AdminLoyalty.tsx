@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Award, Gift, ChevronLeft, Save, AlertCircle, Sparkles, Clock, Medal, Crown, RefreshCw } from "lucide-react";
+import { Award, Gift, ChevronLeft, Save, AlertCircle, Sparkles, Clock, Medal, Crown, RefreshCw, Bot, EyeOff } from "lucide-react";
 
 type Cfg = {
   earlyBirdEnabled: boolean;
@@ -27,6 +27,10 @@ type Cfg = {
   vipCashbackRate: number;
   silverPreviewHours: number;
   goldPreviewHours: number;
+  bronzeAutoBidQuota: number;
+  silverAutoBidMaxAmount: number;
+  silverCanAnonymous: boolean;
+  goldDefaultAnonymous: boolean;
 };
 
 export default function AdminLoyalty() {
@@ -275,6 +279,62 @@ export default function AdminLoyalty() {
                   goldPreviewHours: cfg.goldPreviewHours,
                 })} className="bg-amber-600 hover:bg-amber-700 text-white gap-2" disabled={updateMut.isPending}>
                   <Save className="w-4 h-4" />儲存好處參數
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 代理出價限制 */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Bot className="w-5 h-5 text-indigo-500" />
+                <CardTitle className="text-lg">代理出價（自動出價）等級限制</CardTitle>
+              </div>
+              <CardDescription>銅牌每月可用次數 + 銀牌單次上限金額；金牌 / VIP 完全無限制</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="mb-2 block">🥉 銅牌每月次數上限</Label>
+                  <NumInput value={cfg.bronzeAutoBidQuota} onChange={(n) => update("bronzeAutoBidQuota", n)} min={0} max={9999} />
+                  <p className="text-xs text-muted-foreground mt-1">設 0 = 銅牌完全唔可代理出價</p>
+                </div>
+                <div>
+                  <Label className="mb-2 block">🥈 銀牌單次代理上限 (HKD)</Label>
+                  <NumInput value={cfg.silverAutoBidMaxAmount} onChange={(n) => update("silverAutoBidMaxAmount", n)} min={0} max={99999999} />
+                  <p className="text-xs text-muted-foreground mt-1">設 0 = 銀牌無上限</p>
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={() => saveSection({ bronzeAutoBidQuota: cfg.bronzeAutoBidQuota, silverAutoBidMaxAmount: cfg.silverAutoBidMaxAmount })} className="bg-amber-600 hover:bg-amber-700 text-white gap-2" disabled={updateMut.isPending}>
+                  <Save className="w-4 h-4" />儲存代理出價限制
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 匿名出價限制 */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <EyeOff className="w-5 h-5 text-purple-500" />
+                <CardTitle className="text-lg">匿名出價權限</CardTitle>
+              </div>
+              <CardDescription>銅牌完全唔可匿名；銀牌可由你決定；金牌 / VIP 永遠可以</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Switch checked={cfg.silverCanAnonymous} onCheckedChange={(v) => update("silverCanAnonymous", v)} />
+                <Label>🥈 銀牌允許匿名出價：{cfg.silverCanAnonymous ? <span className="text-emerald-600 font-semibold">允許</span> : <span className="text-muted-foreground">禁止</span>}</Label>
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch checked={cfg.goldDefaultAnonymous} onCheckedChange={(v) => update("goldDefaultAnonymous", v)} />
+                <Label>🥇 金牌 / 💎 VIP 出價時匿名選項預設打開：{cfg.goldDefaultAnonymous ? <span className="text-emerald-600 font-semibold">預設打開</span> : <span className="text-muted-foreground">預設關閉</span>}</Label>
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={() => saveSection({ silverCanAnonymous: cfg.silverCanAnonymous, goldDefaultAnonymous: cfg.goldDefaultAnonymous })} className="bg-amber-600 hover:bg-amber-700 text-white gap-2" disabled={updateMut.isPending}>
+                  <Save className="w-4 h-4" />儲存匿名權限
                 </Button>
               </div>
             </CardContent>

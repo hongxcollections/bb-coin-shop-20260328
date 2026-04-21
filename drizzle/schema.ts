@@ -430,6 +430,16 @@ export const dailyEarlyBird = mysqlTable("dailyEarlyBird", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+// 銅牌用戶代理出價月度配額追蹤（每用戶每月一行）
+export const userAutoBidQuota = mysqlTable("userAutoBidQuota", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  monthKey: varchar("monthKey", { length: 7 }).notNull(), // YYYY-MM (HK)
+  used: int("used").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull().onUpdateNow(),
+});
+
 // Web Push 推播訂閱
 export const pushSubscriptions = mysqlTable("pushSubscriptions", {
   id: int("id").autoincrement().primaryKey(),

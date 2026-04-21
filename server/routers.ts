@@ -13,7 +13,7 @@ import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, u
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 import { getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser } from "./push";
-import { getLoyaltyConfig, updateLoyaltyConfig, getEarlyBirdTodayStatus, getMyLoyaltyStatus, recalculateUserLevel, runDailyLoyaltyMaintenance, type LoyaltyConfig } from "./loyalty";
+import { getLoyaltyConfig, updateLoyaltyConfig, getEarlyBirdTodayStatus, getMyLoyaltyStatus, recalculateUserLevel, runDailyLoyaltyMaintenance, getMyAutoBidStatus, enforceAutoBidLimit, enforceAnonymousBidPermission, type LoyaltyConfig } from "./loyalty";
 
 // 出價防抖 Map：鍵為 "userId:auctionId"，値為最後出價時間戳
 // 防止同一用戶對同一拍賣在 3 秒內重複出價，減少平台 API 請求量
@@ -198,6 +198,14 @@ export const appRouter = router({
         const auctionForBid = await getAuctionById(input.auctionId);
         if (auctionForBid && auctionForBid.createdBy === ctx.user.id) {
           throw new TRPCError({ code: 'FORBIDDEN', message: '不能競投自己刊登的拍賣' });
+        }
+        // Loyalty 等級限制：匿名出價權限校驗
+        if ((input.isAnonymous ?? 0) === 1) {
+          try {
+            await enforceAnonymousBidPermission(ctx.user.id);
+          } catch (err) {
+            throw new TRPCError({ code: 'FORBIDDEN', message: err instanceof Error ? err.message : '匿名出價權限不足' });
+          }
         }
         try {
           const result = await placeBid(input.auctionId, ctx.user.id, input.bidAmount, input.origin ?? '', input.isAnonymous ?? 0);
@@ -749,6 +757,13 @@ export const appRouter = router({
             code: 'BAD_REQUEST',
             message: `代理出價上限必須至少為 HK$${minAllowed}`,
           });
+        }
+
+        // Loyalty 等級限制：銅牌每月配額 + 銀牌單次上限
+        try {
+          await enforceAutoBidLimit(ctx.user.id, input.maxAmount);
+        } catch (err) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: err instanceof Error ? err.message : '代理出價權限不足' });
         }
 
         await setProxyBid(input.auctionId, ctx.user.id, input.maxAmount);
@@ -1789,6 +1804,11 @@ export const appRouter = router({
       return getMyLoyaltyStatus(ctx.user.id);
     }),
 
+    // 用戶：查自己嘅代理出價配額 + 匿名出價權限（前端 UI 用）
+    myAutoBidStatus: protectedProcedure.query(async ({ ctx }) => {
+      return getMyAutoBidStatus(ctx.user.id);
+    }),
+
     // Admin：讀配置
     adminGetConfig: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
@@ -1813,6 +1833,10 @@ export const appRouter = router({
         vipCashbackRate: z.number().min(0).max(1).optional(),
         silverPreviewHours: z.number().int().min(0).max(720).optional(),
         goldPreviewHours: z.number().int().min(0).max(720).optional(),
+        bronzeAutoBidQuota: z.number().int().min(0).max(9999).optional(),
+        silverAutoBidMaxAmount: z.number().int().min(0).max(99999999).optional(),
+        silverCanAnonymous: z.boolean().optional(),
+        goldDefaultAnonymous: z.boolean().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Admin only' });
