@@ -385,10 +385,12 @@ export async function placeBid(auctionId: number, userId: number, bidAmount: num
       }
     }
 
-    // Run proxy engine asynchronously
-    runProxyBidEngine(auctionId, userId).catch(err =>
-      console.error('[Auctions] Proxy engine error:', err)
-    );
+    // Run proxy engine synchronously so client receives the latest state in the same response
+    try {
+      await runProxyBidEngine(auctionId, userId);
+    } catch (err) {
+      console.error('[Auctions] Proxy engine error:', err);
+    }
 
     // Send outbid email to previous highest bidder (fire-and-forget)
     if (previousHighestBidderId && previousHighestBidderId !== userId) {

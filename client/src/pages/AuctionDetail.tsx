@@ -98,8 +98,8 @@ export default function AuctionDetail() {
   const { data: auction, isLoading, refetch } = trpc.auctions.detail.useQuery(
     { id: auctionId },
     {
-      // 每 10 秒自動輪詢，確保多用戶同時競標時頁面即時同步（避免請求過於頻繁觸發平台限流）
-      refetchInterval: 10000,
+      // 每 3 秒自動輪詢，確保多用戶同時競標時頁面即時同步
+      refetchInterval: 3000,
       // 切換回此標籤頁時立即重新取得最新數據
       refetchOnWindowFocus: true,
     }
