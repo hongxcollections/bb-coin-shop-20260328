@@ -464,11 +464,11 @@ export default function AdminAuctionRecords() {
         {/* ─── Pending Tab ─── */}
         {tab === "pending" && (
           <div>
-            {pendingList.isLoading ? (
+            {pendingList.isLoading || !pendingList.data ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-            ) : pendingList.data?.records.length === 0 ? (
+            ) : pendingList.data.records.length === 0 ? (
               <div className="text-center py-12">
                 <AlertCircle className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                 <p className="text-muted-foreground">沒有待確認紀錄</p>
@@ -512,7 +512,7 @@ export default function AdminAuctionRecords() {
                   </div>
                 </div>
                 <RecordTable
-                  records={pendingList.data?.records as AuctionRecord[]}
+                  records={pendingList.data.records as AuctionRecord[]}
                   onConfirm={(id) => confirmOne.mutate({ id, force: false })}
                   onDelete={(id) => deleteOne.mutate({ id })}
                   showConfirm
@@ -526,11 +526,11 @@ export default function AdminAuctionRecords() {
         {/* ─── Confirmed Tab ─── */}
         {tab === "confirmed" && (
           <div>
-            {confirmedList.isLoading ? (
+            {confirmedList.isLoading || !confirmedList.data ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-            ) : confirmedList.data?.records.length === 0 ? (
+            ) : confirmedList.data.records.length === 0 ? (
               <div className="text-center py-12">
                 <Database className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                 <p className="text-muted-foreground">數據庫暫時為空</p>
@@ -541,7 +541,7 @@ export default function AdminAuctionRecords() {
                   共 {confirmedList.data?.total} 條已入庫紀錄
                 </p>
                 <RecordTable
-                  records={confirmedList.data?.records as AuctionRecord[]}
+                  records={confirmedList.data.records as AuctionRecord[]}
                   onDelete={(id) => deleteOne.mutate({ id })}
                 />
               </div>
