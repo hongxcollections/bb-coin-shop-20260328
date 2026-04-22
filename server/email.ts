@@ -217,6 +217,37 @@ export async function sendMerchantWonEmail(params: MerchantWonEmailParams): Prom
   return sendEmail({ to, senderName, senderEmail, subject: `🏆 【拍賣結標】${auctionTitle} — 成交價 ${currency} ${finalPrice.toLocaleString()}`, html: baseLayout("拍賣結標通知", body) });
 }
 
+// ─── Email: OTP fallback (phone registration via email verification) ─────────
+
+export interface OtpFallbackEmailParams {
+  to: string;
+  senderName: string;
+  senderEmail: string;
+  code: string;
+  phone: string;
+}
+
+export async function sendOtpFallbackEmail(params: OtpFallbackEmailParams): Promise<boolean> {
+  const { to, senderName, senderEmail, code, phone } = params;
+  const body = `
+    <h2>📱 手機號碼驗證碼</h2>
+    <p>您正在使用電郵驗證作為短訊的備用方式，以完成手機號碼 <strong>${phone}</strong> 的註冊。</p>
+    <div class="highlight">
+      <div class="label">您的驗證碼</div>
+      <div class="value" style="letter-spacing:8px;">${code}</div>
+    </div>
+    <p style="font-size:13px;color:#6b7280;">驗證碼有效期為 <strong>10 分鐘</strong>，請勿將驗證碼告知他人。</p>
+    <p style="font-size:12px;color:#9ca3af;margin-top:16px;">如您並未嘗試在大BB錢幣店註冊，請忽略此郵件。</p>
+  `;
+  return sendEmail({
+    to,
+    senderName,
+    senderEmail,
+    subject: `【大BB錢幣店】手機驗證碼：${code}`,
+    html: baseLayout("手機號碼驗證碼", body),
+  });
+}
+
 // ─── Internal send ────────────────────────────────────────────────────────────
 
 async function sendEmail(opts: {

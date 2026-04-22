@@ -8,6 +8,8 @@ import { users } from "../../drizzle/schema";
 import { eq, or } from "drizzle-orm";
 import { sendOtpSms, sendOtpWhatsApp, checkViaTwilioVerify, isMainlandChina } from "./sms";
 import { generateOtp, setOtp, verifyOtp, canSendOtp, recordOtpSend } from "./otpStore";
+import { generateEmailOtp, setEmailOtp, verifyEmailOtp, canSendEmailOtp, recordEmailOtpSend } from "./emailOtpStore";
+import { sendOtpFallbackEmail } from "../email";
 import { addResetRequest } from "./resetRequestStore";
 
 // ─── IP-based OTP rate limiter (configurable from Admin → 站點設定) ───────────
@@ -183,13 +185,77 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
+  // POST /api/auth/send-otp-email-fallback — 短訊收不到時，改用電郵發送驗證碼
+  app.post("/api/auth/send-otp-email-fallback", async (req: Request, res: Response) => {
+    try {
+      const { phone, email } = req.body;
+      if (!phone || !email) {
+        res.status(400).json({ error: "請提供手機號碼及電郵地址" });
+        return;
+      }
+      const fmtErr = serverValidatePhone(phone);
+      if (fmtErr) { res.status(400).json({ error: fmtErr }); return; }
+
+      // Basic email format check
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        res.status(400).json({ error: "電郵地址格式不正確" });
+        return;
+      }
+
+      // IP rate limit
+      if (!checkIpRateLimit(req).ok) {
+        res.status(429).json({ error: "請求過於頻繁，請稍後再試" });
+        return;
+      }
+
+      // Email send limit
+      const emailLimit = canSendEmailOtp(email);
+      if (!emailLimit.ok) {
+        res.status(429).json({ error: emailLimit.reason ?? "電郵發送次數過多，請稍後再試" });
+        return;
+      }
+
+      // Check phone not already registered
+      const database = await db.getDb();
+      if (!database) { res.status(500).json({ error: "數據庫不可用" }); return; }
+      const existing = await database.select().from(users).where(eq(users.phone, phone)).limit(1);
+      if (existing.length > 0 && existing[0].password) {
+        res.status(400).json({ error: "此手機號碼已被註冊" });
+        return;
+      }
+
+      // Generate and store email OTP
+      const code = generateEmailOtp();
+      setEmailOtp(phone, email, code);
+
+      // Get sender settings
+      const { getNotificationSettings } = await import("../db");
+      const settings = await getNotificationSettings();
+      const senderName = settings?.senderName ?? "大BB錢幣店";
+      const senderEmail = settings?.senderEmail ?? "noreply@hongxcollections.com";
+
+      const sent = await sendOtpFallbackEmail({ to: email, senderName, senderEmail, code, phone });
+      if (!sent) {
+        res.status(500).json({ error: "電郵發送失敗，請確認電郵地址正確或稍後再試" });
+        return;
+      }
+
+      recordEmailOtpSend(email);
+      console.log(`[Auth] Email fallback OTP sent for phone ${phone} to ${email}`);
+      res.json({ success: true, message: "驗證碼已發送至您的電郵" });
+    } catch (err) {
+      console.error("[Auth] send-otp-email-fallback error:", err);
+      res.status(500).json({ error: "發送失敗，請稍後再試" });
+    }
+  });
+
   // POST /api/auth/register — 註冊（電話需已通過 OTP 驗證）
   // ─── 暫時停用：電郵註冊功能 ───────────────────────────────────────────────────
   // 若需重新啟用，移除下方 EMAIL_REGISTER_ENABLED 守衛，並同步更新 Login.tsx 的 EMAIL_FEATURE_ENABLED
   const EMAIL_REGISTER_ENABLED = false;
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
-      const { email, phone, password, name, otpCode } = req.body;
+      const { email, phone, password, name, otpCode, emailFallback, fallbackEmail } = req.body;
 
       // 電郵註冊暫時停用守衛
       if (!EMAIL_REGISTER_ENABLED && email && !phone) {
@@ -213,7 +279,18 @@ export function registerAuthRoutes(app: Express) {
           return;
         }
 
-        if (isMainlandChina(phone)) {
+        if (emailFallback && fallbackEmail) {
+          // Email fallback: verify against our email OTP store
+          const result = verifyEmailOtp(phone, otpCode);
+          if (result === "expired") {
+            res.status(400).json({ error: "電郵驗證碼已過期，請重新發送", otpExpired: true });
+            return;
+          }
+          if (result === "invalid") {
+            res.status(400).json({ error: "電郵驗證碼不正確，請重新輸入" });
+            return;
+          }
+        } else if (isMainlandChina(phone)) {
           // China: verify against our local OTP store (Alibaba sent it)
           const result = verifyOtp(phone, otpCode);
           if (result === "expired") {

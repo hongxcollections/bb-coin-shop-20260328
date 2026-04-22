@@ -133,6 +133,13 @@ export default function Login() {
   const [waSending, setWaSending] = useState(false);
   const [waSent, setWaSent] = useState(false);
 
+  // ─── 電郵 OTP 備用（短訊 40 秒後未收到）─────────────────────────────────────
+  const [showEmailFb, setShowEmailFb] = useState(false);
+  const [emailFbAddr, setEmailFbAddr] = useState("");
+  const [emailFbSending, setEmailFbSending] = useState(false);
+  const [emailFbSent, setEmailFbSent] = useState(false);
+  const [useEmailFallback, setUseEmailFallback] = useState(false);
+
   // ─── 強制更改密碼 Dialog（管理員修改後首次登入觸發）────────────────────────────
   const [forceResetOpen, setForceResetOpen] = useState(false);
   const [forceResetPw, setForceResetPw] = useState("");
@@ -163,6 +170,13 @@ export default function Login() {
     const t = setTimeout(() => setCountdown(c => c - 1), 1000);
     return () => clearTimeout(t);
   }, [countdown]);
+
+  // 短訊發出 40 秒後（倒數剩 20 秒）顯示電郵備用選項
+  useEffect(() => {
+    if (step === "otp" && !showEmailFb && countdown > 0 && countdown <= 20) {
+      setShowEmailFb(true);
+    }
+  }, [countdown, step, showEmailFb]);
 
   // Sync combined phone number
   useEffect(() => {
@@ -293,13 +307,42 @@ export default function Login() {
     }
   };
 
+  // ─── 發送電郵備用 OTP ─────────────────────────────────────────────────────────
+  const sendEmailFallbackOtp = async () => {
+    if (!emailFbAddr || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailFbAddr)) {
+      showError("請輸入有效的電郵地址");
+      return;
+    }
+    setEmailFbSending(true);
+    try {
+      const res = await fetch("/api/auth/send-otp-email-fallback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, email: emailFbAddr }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showError(data.error || "電郵發送失敗，請稍後再試");
+        return;
+      }
+      setEmailFbSent(true);
+      setUseEmailFallback(true);
+      setOtpDigits(["", "", "", "", "", ""]);
+      showToast({ icon: "📧", title: "電郵驗證碼已發送", desc: `請查看 ${emailFbAddr}`, durationMs: 4000 });
+    } catch {
+      showError("網絡錯誤，請稍後再試");
+    } finally {
+      setEmailFbSending(false);
+    }
+  };
+
   const handleRegister = async () => {
     if (password !== confirmPassword) { showError("兩次輸入的密碼不一致"); return; }
     if (registerMethod === "phone" && otpCode.length < 6) { showError("請輸入完整的6位驗證碼"); return; }
 
     setLoading(true);
     try {
-      const body: Record<string, string> = {
+      const body: Record<string, string | boolean> = {
         password,
         name: name || (registerMethod === "email" ? email.split("@")[0] : phone),
       };
@@ -308,6 +351,10 @@ export default function Login() {
       } else {
         body.phone = phone;
         body.otpCode = otpCode;
+        if (useEmailFallback && emailFbAddr) {
+          body.emailFallback = true;
+          body.fallbackEmail = emailFbAddr;
+        }
       }
       const res = await fetch("/api/auth/register", {
         method: "POST",
@@ -789,9 +836,19 @@ export default function Login() {
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-3" style={{ background: "#FFF3E0" }}>
                 <ShieldCheck size={28} style={{ color: "#E07B00" }} />
               </div>
-              <p className="text-sm" style={{ color: "#555" }}>驗證碼已發送至</p>
-              <p className="font-semibold mt-0.5" style={{ color: "#333" }}>{phone}</p>
-              <p className="text-xs mt-1" style={{ color: "#999" }}>請於 10 分鐘內輸入 6 位驗證碼</p>
+              {emailFbSent ? (
+                <>
+                  <p className="text-sm" style={{ color: "#555" }}>電郵驗證碼已發送至</p>
+                  <p className="font-semibold mt-0.5" style={{ color: "#333" }}>{emailFbAddr}</p>
+                  <p className="text-xs mt-1" style={{ color: "#0284c7" }}>請查看電郵並輸入 6 位驗證碼</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm" style={{ color: "#555" }}>驗證碼已發送至</p>
+                  <p className="font-semibold mt-0.5" style={{ color: "#333" }}>{phone}</p>
+                  <p className="text-xs mt-1" style={{ color: "#999" }}>請於 10 分鐘內輸入 6 位驗證碼</p>
+                </>
+              )}
             </div>
 
             {/* 6-digit OTP input boxes */}
@@ -835,7 +892,7 @@ export default function Login() {
               </div>
 
               {/* ── WhatsApp 備用發送 ── */}
-              {!isChinesePhone && (
+              {!isChinesePhone && !emailFbSent && (
                 <div className="pt-1">
                   {waSent ? (
                     <div className="flex items-center justify-center gap-1.5 text-xs py-2 px-3 rounded-xl mx-auto inline-flex"
@@ -865,10 +922,61 @@ export default function Login() {
                 </div>
               )}
 
+              {/* ── 電郵 OTP 備用（短訊 40 秒後未收到時才顯示）── */}
+              {showEmailFb && (
+                <div className="pt-2">
+                  {emailFbSent ? (
+                    <div className="flex items-center justify-center gap-1.5 text-xs py-2 px-3 rounded-xl"
+                         style={{ background: "#EFF6FF", color: "#1d4ed8" }}>
+                      <span>📧</span>
+                      <span>電郵驗證碼已發送至 {emailFbAddr}</span>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl p-3" style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+                      <p className="text-xs font-medium mb-2" style={{ color: "#64748b" }}>
+                        📧 仍未收到短訊？改用電郵驗證
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          type="email"
+                          value={emailFbAddr}
+                          onChange={e => setEmailFbAddr(e.target.value)}
+                          placeholder="輸入您的電郵地址"
+                          className="flex-1 px-3 py-2 rounded-lg border text-sm outline-none"
+                          style={{ borderColor: "#CBD5E1", background: "#fff", color: "#333" }}
+                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); sendEmailFallbackOtp(); }}}
+                        />
+                        <button
+                          type="button"
+                          onClick={sendEmailFallbackOtp}
+                          disabled={emailFbSending || !emailFbAddr}
+                          className="px-3 py-2 rounded-lg text-sm font-medium text-white transition-opacity"
+                          style={{
+                            background: "#0284c7",
+                            opacity: (emailFbSending || !emailFbAddr) ? 0.5 : 1,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {emailFbSending ? "發送中..." : "發送"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div>
                 <button
                   type="button"
-                  onClick={() => { setStep("form"); setOtpDigits(["", "", "", "", "", ""]); setWaSent(false); }}
+                  onClick={() => {
+                    setStep("form");
+                    setOtpDigits(["", "", "", "", "", ""]);
+                    setWaSent(false);
+                    setShowEmailFb(false);
+                    setEmailFbAddr("");
+                    setEmailFbSent(false);
+                    setUseEmailFallback(false);
+                  }}
                   className="text-xs bg-transparent border-0 cursor-pointer"
                   style={{ color: "#aaa" }}
                 >
