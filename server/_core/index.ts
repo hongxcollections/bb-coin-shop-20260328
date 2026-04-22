@@ -500,6 +500,196 @@ Output ONLY the JSON, nothing else.`;
     }
   });
 
+  // ── Bulk-import SSE stream ──────────────────────────────────────────────────
+  app.get('/api/auction-records/bulk-import-stream', async (req, res) => {
+    // Auth
+    const { createContext: makeCtx } = await import('./context');
+    const ctx = await makeCtx({ req, res } as any);
+    if (!ctx.user || ctx.user.role !== 'admin') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    const rawUrl   = (req.query.url    as string | undefined) ?? '';
+    const maxLots  = Math.min(Math.max(1, parseInt(req.query.maxLots as string) || 300), 1000);
+
+    if (!rawUrl || !rawUrl.includes('live.spink.com')) {
+      res.status(400).json({ error: '無效 URL' });
+      return;
+    }
+
+    // SSE headers
+    res.setHeader('Content-Type',  'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection',    'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');   // disable nginx buffering on Railway
+    res.flushHeaders();
+
+    const send = (obj: object) => {
+      res.write(`data: ${JSON.stringify(obj)}\n\n`);
+      if (typeof (res as any).flush === 'function') (res as any).flush();
+    };
+
+    const UA = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+    const CONCURRENCY = 12;
+    const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+    try {
+      // Step 1: resolve auction page URL
+      let auctionPageUrl = rawUrl;
+      let auctionTitle: string | null = null;
+
+      if (rawUrl.includes('/lots/view/')) {
+        const lotRes  = await fetch(rawUrl, { headers: { 'User-Agent': UA } });
+        const lotHtml = await lotRes.text();
+        const aidM = lotHtml.match(/href="\/auctions\/(4-[A-Za-z0-9]+)"/);
+        if (aidM) auctionPageUrl = `https://live.spink.com/auctions/${aidM[1]}`;
+        const atM = lotHtml.match(/class="auction-title[^"]*"[^>]*>\s*([^\n<]+)/);
+        auctionTitle = atM?.[1]?.trim() ?? null;
+      }
+
+      // Step 2: fetch auction page → initial lot IDs
+      const auctionRes  = await fetch(auctionPageUrl, { headers: { 'User-Agent': UA } });
+      const auctionHtml = await auctionRes.text();
+
+      if (!auctionTitle) {
+        const atM = auctionHtml.match(/class="auction-title[^"]*"[^>]*>\s*([^\n<]+)/);
+        auctionTitle = atM?.[1]?.trim() ?? null;
+      }
+      if (auctionTitle) send({ type: 'title', auctionTitle });
+
+      const initIds = [...new Set(
+        [...auctionHtml.matchAll(/lots\/view\/(4-[A-Za-z0-9]+)/g)].map(m => m[1])
+      )];
+      if (initIds.length === 0) {
+        send({ type: 'error', message: '無法找到拍品，請確認 URL 格式' });
+        res.end(); return;
+      }
+
+      // Step 3: parseLot helper
+      const parseLot = async (lotId: string) => {
+        try {
+          const url = `https://live.spink.com/lots/view/${lotId}`;
+          const r   = await fetch(url, { headers: { 'User-Agent': UA } });
+          if (!r.ok) return null;
+          const html = await r.text();
+          const nextM   = html.match(/class="next btn[^"]*"\s+href="\/lots\/view\/([A-Za-z0-9\-]+)"/);
+          const titleM  = html.match(/<meta property="og:title" content="([^"]+)"/);
+          const title   = titleM ? titleM[1].replace(/&quot;/g,'"').replace(/&amp;/g,'&').replace(/&#39;/g,"'") : null;
+          if (!title) return { nextLotId: nextM?.[1] ?? null, data: null };
+          const lotNumM   = html.match(/class="lot-number ng-binding">(\w+)</);
+          const estimateM = html.match(/HK\$([0-9,]+)\s*-\s*HK\$([0-9,]+)/);
+          const descM     = html.match(/<meta name="description" content="([^"]+)"/);
+          const availM    = html.match(/<meta property="product:availability" content="([^"]+)"/);
+          const imgM      = html.match(/href="(https:\/\/images4-cdn\.auctionmobility\.com\/is3\/[^"]+maxwidth=1600[^"]*)"/);
+          const soldTextM = html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
+          const isSoldMeta = availM?.[1] === 'Out of Stock';
+          const saleStatus: 'sold'|'unsold' = (isSoldMeta || !!soldTextM) ? 'sold' : 'unsold';
+          return {
+            nextLotId: nextM?.[1] ?? null,
+            data: {
+              title,
+              lotNumber:    lotNumM?.[1] ?? null,
+              estimateLow:  estimateM ? parseFloat(estimateM[1].replace(/,/g,'')) : null,
+              estimateHigh: estimateM ? parseFloat(estimateM[2].replace(/,/g,'')) : null,
+              description:  descM ? descM[1].replace(/&quot;/g,'"').replace(/&amp;/g,'&').trim() : null,
+              saleStatus,
+              soldPrice:    soldTextM ? parseFloat(soldTextM[1].replace(/,/g,'')) : null,
+              imageUrl:     imgM ? imgM[1].replace(/&amp;/g,'&') : null,
+            },
+          };
+        } catch { return null; }
+      };
+
+      // Step 4: existing URLs
+      const { getRawPool } = await import('../db');
+      const dbPool = await getRawPool();
+      const [existingRows]: any = await dbPool.execute(
+        "SELECT sourceNote FROM `auctionRecords` WHERE auctionHouse = 'Spink' AND sourceNote IS NOT NULL"
+      );
+      const existingUrls = new Set<string>((existingRows as any[]).map((r: any) => r.sourceNote as string));
+
+      // Step 5: batchId
+      const now     = new Date();
+      const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+      const randStr = Math.random().toString(36).slice(2,7).toUpperCase();
+      const batchId = `${dateStr}-${randStr}`;
+
+      // Step 6: BFS queue
+      const queue      = [...initIds];
+      const discovered = new Set<string>(initIds);
+      let imported = 0, skipped = 0, errors = 0, processed = 0;
+
+      while (queue.length > 0 && processed < maxLots) {
+        const batchSize = Math.min(CONCURRENCY, maxLots - processed, queue.length);
+        const batch     = queue.splice(0, batchSize);
+        const results   = await Promise.all(batch.map(id => parseLot(id)));
+
+        for (let i = 0; i < results.length; i++) {
+          const result = results[i];
+          const lotId  = batch[i];
+          const lotUrl = `https://live.spink.com/lots/view/${lotId}`;
+          const sourceNote = auctionTitle ? `${auctionTitle} | ${lotUrl}` : lotUrl;
+
+          if (result?.nextLotId && !discovered.has(result.nextLotId)) {
+            discovered.add(result.nextLotId);
+            if (processed + queue.length < maxLots) queue.push(result.nextLotId);
+          }
+
+          processed++;
+
+          if (!result?.data) {
+            errors++;
+            send({ type: 'lot', status: 'error', lotNumber: null, title: `批號 ${lotId.slice(-6)}（無法抓取）`, saleStatus: null });
+            continue;
+          }
+
+          const alreadyExists = [...existingUrls].some(u => u.includes(lotId));
+          if (alreadyExists) {
+            skipped++;
+            send({ type: 'lot', status: 'skipped', lotNumber: result.data.lotNumber, title: result.data.title, saleStatus: result.data.saleStatus });
+            continue;
+          }
+
+          try {
+            await dbPool.execute(
+              `INSERT INTO \`auctionRecords\`
+               (lotNumber, title, description, estimateLow, estimateHigh, soldPrice, currency,
+                auctionHouse, auctionDate, saleStatus, sourceNote, imageUrl, batchId, importStatus)
+               VALUES (?, ?, ?, ?, ?, ?, 'HKD', 'Spink', NULL, ?, ?, ?, ?, 'pending')`,
+              [
+                result.data.lotNumber,
+                result.data.title,
+                result.data.description,
+                result.data.estimateLow,
+                result.data.estimateHigh,
+                result.data.soldPrice ?? null,
+                result.data.saleStatus,
+                sourceNote,
+                result.data.imageUrl,
+                batchId,
+              ]
+            );
+            existingUrls.add(sourceNote);
+            imported++;
+            send({ type: 'lot', status: 'imported', lotNumber: result.data.lotNumber, title: result.data.title, saleStatus: result.data.saleStatus, soldPrice: result.data.soldPrice });
+          } catch {
+            errors++;
+            send({ type: 'lot', status: 'error', lotNumber: result.data.lotNumber, title: result.data.title, saleStatus: null });
+          }
+        }
+
+        if (queue.length > 0) await sleep(80);
+      }
+
+      send({ type: 'complete', imported, skipped, errors, batchId, auctionTitle, discovered: discovered.size });
+      res.end();
+    } catch (err: any) {
+      send({ type: 'error', message: err?.message ?? '未知錯誤' });
+      res.end();
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

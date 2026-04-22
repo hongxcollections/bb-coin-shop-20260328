@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -14,6 +14,9 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ChevronLeft, Upload, CheckCircle, Trash2,
   Image, Loader2, Check, X, Edit2, Database, AlertCircle, AlertTriangle, Save, Link2, Layers, Search
@@ -188,17 +191,76 @@ export default function AdminAuctionRecords() {
   // Batch auction import state
   const [auctionUrl, setAuctionUrl] = useState("");
   const [maxLots, setMaxLots] = useState(300);
-  const [batchResult, setBatchResult] = useState<{ imported: number; skipped: number; auctionTitle: string | null; discovered: number; batchId: string } | null>(null);
-  const importAuction = trpc.auctionRecords.importFromSpinkAuction.useMutation({
-    onSuccess: (data) => {
-      setBatchResult(data);
-      toast.success(`批量導入完成：新增 ${data.imported} 條（批次 ${data.batchId}）`);
-      setTab("pending");
-      pendingList.refetch();
-      batchList.refetch();
-    },
-    onError: (err) => toast.error(`批量導入失敗：${err.message}`),
-  });
+
+  // SSE progress dialog
+  type ProgressItem = {
+    status: 'imported' | 'skipped' | 'error';
+    lotNumber: string | null;
+    title: string;
+    saleStatus: 'sold' | 'unsold' | null;
+    soldPrice?: number | null;
+  };
+  type ProgressSummary = {
+    imported: number; skipped: number; errors: number;
+    batchId: string; auctionTitle: string | null; discovered: number;
+  };
+  const [progressOpen,    setProgressOpen]    = useState(false);
+  const [progressRunning, setProgressRunning] = useState(false);
+  const [progressItems,   setProgressItems]   = useState<ProgressItem[]>([]);
+  const [progressTitle,   setProgressTitle]   = useState<string | null>(null);
+  const [progressSummary, setProgressSummary] = useState<ProgressSummary | null>(null);
+  const progressListRef = useRef<HTMLDivElement>(null);
+  const esRef = useRef<EventSource | null>(null);
+
+  // auto-scroll to bottom as new items arrive
+  useEffect(() => {
+    const el = progressListRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [progressItems]);
+
+  const startImport = useCallback(() => {
+    if (!auctionUrl.trim()) return;
+    // reset state & open dialog
+    setProgressItems([]);
+    setProgressTitle(null);
+    setProgressSummary(null);
+    setProgressRunning(true);
+    setProgressOpen(true);
+
+    const params = new URLSearchParams({ url: auctionUrl.trim(), maxLots: String(maxLots) });
+    const es = new EventSource(`/api/auction-records/bulk-import-stream?${params}`);
+    esRef.current = es;
+
+    es.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      if (data.type === 'title') {
+        setProgressTitle(data.auctionTitle);
+      } else if (data.type === 'lot') {
+        setProgressItems(prev => [...prev, {
+          status:    data.status,
+          lotNumber: data.lotNumber,
+          title:     data.title,
+          saleStatus:data.saleStatus,
+          soldPrice: data.soldPrice,
+        }]);
+      } else if (data.type === 'complete') {
+        setProgressRunning(false);
+        setProgressSummary(data);
+        es.close();
+        pendingList.refetch();
+        batchList.refetch();
+      } else if (data.type === 'error') {
+        setProgressRunning(false);
+        toast.error(`導入錯誤：${data.message}`);
+        es.close();
+      }
+    };
+    es.onerror = () => {
+      setProgressRunning(false);
+      toast.error('連線中斷，請重試');
+      es.close();
+    };
+  }, [auctionUrl, maxLots]);
 
   // URL import state
   const [spinkUrl, setSpinkUrl] = useState("");
@@ -295,6 +357,129 @@ export default function AdminAuctionRecords() {
   return (
     <div className="min-h-screen bg-gray-50">
       <AdminHeader />
+
+      {/* ── 批量導入進度 Dialog ── */}
+      <Dialog open={progressOpen} onOpenChange={(open) => {
+        if (!open && !progressRunning) {
+          setProgressOpen(false);
+          if (progressSummary && progressSummary.imported > 0) setTab("pending");
+        }
+      }}>
+        <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              {progressRunning ? (
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              ) : progressSummary ? (
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-amber-500" />
+              )}
+              {progressRunning ? "批量導入進行中…" : "批量導入完成"}
+            </DialogTitle>
+            {progressTitle && (
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">{progressTitle}</p>
+            )}
+            {/* live counters */}
+            <div className="flex gap-3 text-xs mt-1">
+              <span className="text-green-700 font-medium">
+                新增 {progressItems.filter(i => i.status === 'imported').length}
+              </span>
+              <span className="text-muted-foreground">
+                跳過 {progressItems.filter(i => i.status === 'skipped').length}
+              </span>
+              {progressItems.filter(i => i.status === 'error').length > 0 && (
+                <span className="text-red-500">
+                  錯誤 {progressItems.filter(i => i.status === 'error').length}
+                </span>
+              )}
+              <span className="text-muted-foreground">共 {progressItems.length} 條</span>
+            </div>
+          </DialogHeader>
+
+          {/* Scrolling item list */}
+          <div
+            ref={progressListRef}
+            className="overflow-y-auto max-h-72 px-3 py-2 space-y-0.5 bg-gray-50"
+          >
+            {progressItems.length === 0 && progressRunning && (
+              <p className="text-xs text-muted-foreground text-center py-6 animate-pulse">
+                正在連接 Spink，等候首條拍品…
+              </p>
+            )}
+            {progressItems.map((item, idx) => (
+              <div
+                key={idx}
+                className={`flex items-start gap-2 rounded px-2 py-1 text-xs
+                  ${item.status === 'imported' ? 'bg-white' :
+                    item.status === 'skipped'  ? 'opacity-50' : 'bg-red-50'}`}
+              >
+                {/* status icon */}
+                <span className="mt-0.5 shrink-0">
+                  {item.status === 'imported' ? (
+                    <Check className="h-3 w-3 text-green-600" />
+                  ) : item.status === 'skipped' ? (
+                    <span className="inline-block h-3 w-3 rounded-full bg-gray-300" />
+                  ) : (
+                    <X className="h-3 w-3 text-red-400" />
+                  )}
+                </span>
+                {/* lot# */}
+                {item.lotNumber && (
+                  <span className="shrink-0 font-mono text-muted-foreground w-10">
+                    {item.lotNumber}
+                  </span>
+                )}
+                {/* title */}
+                <span className="flex-1 truncate text-gray-800">{item.title}</span>
+                {/* badge */}
+                {item.status === 'imported' && item.saleStatus && (
+                  <span className={`shrink-0 text-[10px] font-semibold px-1 rounded
+                    ${item.saleStatus === 'sold' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {item.saleStatus === 'sold'
+                      ? (item.soldPrice ? `HKD ${item.soldPrice.toLocaleString()}` : '成交')
+                      : '流拍'}
+                  </span>
+                )}
+                {item.status === 'skipped' && (
+                  <span className="shrink-0 text-[10px] text-gray-400">已存在</span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Summary + Close */}
+          {progressSummary && (
+            <div className="px-5 py-3 border-t bg-white space-y-2">
+              <div className="text-sm text-green-800 font-medium">
+                ✅ 完成！新增 {progressSummary.imported} 條・跳過 {progressSummary.skipped} 條・共發現 {progressSummary.discovered} 個批號
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Layers className="h-3.5 w-3.5 text-green-600" />
+                <span className="text-xs text-green-700">批次：</span>
+                <code className="font-mono text-xs font-bold text-green-800 bg-green-50 px-1.5 py-0.5 rounded">
+                  {progressSummary.batchId}
+                </code>
+              </div>
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={() => { setProgressOpen(false); setTab("pending"); }}
+              >
+                關閉，前往待確認列表
+              </Button>
+            </div>
+          )}
+
+          {progressRunning && (
+            <div className="px-5 py-2 border-t text-center">
+              <p className="text-xs text-muted-foreground animate-pulse">
+                正在抓取中，請勿關閉視窗…
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* 重複紀錄確認對話框 */}
       <AlertDialog open={!!dupeDialog} onOpenChange={(open) => !open && setDupeDialog(null)}>
@@ -483,7 +668,7 @@ export default function AdminAuctionRecords() {
                 <div className="flex gap-2">
                   <Input
                     value={auctionUrl}
-                    onChange={e => { setAuctionUrl(e.target.value); setBatchResult(null); }}
+                    onChange={e => setAuctionUrl(e.target.value)}
                     placeholder="https://live.spink.com/auctions/4-KK06SP"
                     className="flex-1 text-sm bg-white"
                   />
@@ -499,42 +684,17 @@ export default function AdminAuctionRecords() {
                     />
                   </div>
                   <Button
-                    onClick={() => importAuction.mutate({ url: auctionUrl.trim(), maxLots })}
-                    disabled={!auctionUrl.trim() || importAuction.isPending}
+                    onClick={startImport}
+                    disabled={!auctionUrl.trim() || progressRunning}
                     className="shrink-0"
                   >
-                    {importAuction.isPending ? (
+                    {progressRunning ? (
                       <><Loader2 className="h-4 w-4 animate-spin mr-1" />導入中…</>
                     ) : (
                       <><CheckCircle className="h-4 w-4 mr-1" />批量導入</>
                     )}
                   </Button>
                 </div>
-                {importAuction.isPending && (
-                  <div className="flex items-center gap-2 text-sm text-primary">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>正在抓取拍品資料，請稍候（每 15 條並行，需時 1-3 分鐘）…</span>
-                  </div>
-                )}
-                {batchResult && (
-                  <div className="rounded-lg bg-green-50 border border-green-200 p-3 text-sm space-y-1">
-                    <p className="font-medium text-green-800">✅ 批量導入完成</p>
-                    {batchResult.auctionTitle && (
-                      <p className="text-green-700 text-xs">{batchResult.auctionTitle}</p>
-                    )}
-                    <p className="text-green-700">
-                      新增 <strong>{batchResult.imported}</strong> 條・
-                      跳過重複 <strong>{batchResult.skipped}</strong> 條・
-                      共發現 <strong>{batchResult.discovered}</strong> 個批號
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-1 pt-1 border-t border-green-200">
-                      <Layers className="h-3.5 w-3.5 text-green-600" />
-                      <span className="text-green-700 text-xs">批次編號：</span>
-                      <code className="font-mono font-bold text-green-800 text-xs bg-green-100 px-1.5 py-0.5 rounded">{batchResult.batchId}</code>
-                      <span className="text-green-600 text-xs">（可在「待確認」→ 批次管理中刪除）</span>
-                    </div>
-                  </div>
-                )}
                 <p className="text-xs text-muted-foreground">
                   支援：拍賣頁 URL（.../auctions/...）或任何拍品 URL（.../lots/view/...）。圖片使用 Spink CDN 原址，成交價需手動補填。
                 </p>
