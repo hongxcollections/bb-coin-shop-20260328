@@ -17,8 +17,8 @@ export default function EarlyBirdBanner() {
   if (!data || !data.enabled) return null;
   if (data.remaining <= 0) return null;
 
-  const userLevel = (user as { memberLevel?: string } | null)?.memberLevel;
-  if (isAuthenticated && userLevel && userLevel !== "bronze") return null;
+  // 早鳥優惠係新用戶註冊專屬，已登入用戶唔需要見到
+  if (isAuthenticated) return null;
 
   const levelLabel = LEVEL_LABEL[data.trialLevel] || data.trialLevel;
   const isHot = data.remaining <= Math.max(3, Math.floor(data.total * 0.3));
