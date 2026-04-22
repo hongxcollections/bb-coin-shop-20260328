@@ -39,9 +39,11 @@ type AuctionRecord = ExtractedLot & {
   createdAt: string;
 };
 
-function fmtPrice(price: number | null | undefined, currency = "HKD") {
-  if (price == null) return "—";
-  return `${currency} ${price.toLocaleString()}`;
+function fmtPrice(price: number | string | null | undefined, currency = "HKD") {
+  if (price == null || price === "") return "—";
+  const num = typeof price === "string" ? parseFloat(price) : price;
+  if (isNaN(num)) return "—";
+  return `${currency} ${num.toLocaleString()}`;
 }
 
 export default function AdminAuctionRecords() {
@@ -662,11 +664,8 @@ function RecordTable({
                 <td className="px-3 py-2 font-mono text-xs text-gray-500">
                   {r.lotNumber ?? "—"}
                 </td>
-                <td className="px-3 py-2 max-w-xs">
-                  <p className="font-medium leading-tight">{r.title}</p>
-                  {r.description && (
-                    <p className="text-xs text-muted-foreground truncate">{r.description}</p>
-                  )}
+                <td className="px-3 py-2" style={{maxWidth: '160px'}}>
+                  <p className="font-medium text-xs leading-snug line-clamp-2">{r.title}</p>
                 </td>
                 <td className="px-3 py-2 text-xs text-gray-600">
                   <div>{r.auctionHouse ?? "—"}</div>
