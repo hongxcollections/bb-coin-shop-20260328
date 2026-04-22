@@ -126,6 +126,23 @@ export default function AdminAuctionRecords() {
     onError: (err) => toast.error(err.message),
   });
 
+  // Match images by lot number from auction URL
+  const [matchAuctionUrl, setMatchAuctionUrl] = useState("");
+  const [showMatchInput, setShowMatchInput] = useState(false);
+  const matchImages = trpc.auctionRecords.matchImagesByLotNumber.useMutation({
+    onSuccess: (data) => {
+      if (data.matched === 0) {
+        toast.success("找不到可配對的批號，請確認拍賣 URL 正確");
+      } else {
+        toast.success(`已為 ${data.matched} / ${data.total} 條紀錄補全圖片及來源連結`);
+      }
+      setShowMatchInput(false);
+      setMatchAuctionUrl("");
+      confirmedList.refetch();
+    },
+    onError: (err) => toast.error(`配對失敗：${err.message}`),
+  });
+
   // Backfill images
   const backfillImages = trpc.auctionRecords.backfillImages.useMutation({
     onSuccess: (data) => {
@@ -683,23 +700,70 @@ export default function AdminAuctionRecords() {
               </div>
             ) : (
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-sm text-muted-foreground">
-                    共 {confirmedList.data.total} 條已入庫紀錄
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => backfillImages.mutate()}
-                    disabled={backfillImages.isPending}
-                    className="text-xs gap-1.5"
-                  >
-                    {backfillImages.isPending ? (
-                      <><Loader2 className="h-3.5 w-3.5 animate-spin" />補全圖片中…</>
-                    ) : (
-                      <><Image className="h-3.5 w-3.5" />補全 Spink 圖片</>
-                    )}
-                  </Button>
+                <div className="flex flex-col gap-2 mb-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      共 {confirmedList.data.total} 條已入庫紀錄
+                    </p>
+                    <div className="flex gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowMatchInput(v => !v)}
+                        className="text-xs gap-1.5"
+                      >
+                        <Image className="h-3.5 w-3.5" />
+                        從 Spink 配對圖片
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => backfillImages.mutate()}
+                        disabled={backfillImages.isPending}
+                        className="text-xs gap-1.5"
+                      >
+                        {backfillImages.isPending ? (
+                          <><Loader2 className="h-3.5 w-3.5 animate-spin" />補全中…</>
+                        ) : (
+                          <><Link2 className="h-3.5 w-3.5" />補全連結圖片</>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  {showMatchInput && (
+                    <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 space-y-2">
+                      <p className="text-xs font-medium text-orange-800">
+                        按批號配對圖片及來源連結（適合截圖上傳的舊紀錄）
+                      </p>
+                      <p className="text-xs text-orange-700">
+                        提供該拍賣的 Spink URL，系統會自動爬取並按批號（如 2001、2003…）配對
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          value={matchAuctionUrl}
+                          onChange={e => setMatchAuctionUrl(e.target.value)}
+                          placeholder="https://live.spink.com/auctions/4-KK06SP"
+                          className="flex-1 text-sm bg-white"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => matchImages.mutate({ url: matchAuctionUrl.trim() })}
+                          disabled={!matchAuctionUrl.trim() || matchImages.isPending}
+                          className="shrink-0"
+                        >
+                          {matchImages.isPending ? (
+                            <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />配對中…</>
+                          ) : "開始配對"}
+                        </Button>
+                      </div>
+                      {matchImages.isPending && (
+                        <p className="text-xs text-orange-700 flex items-center gap-1.5">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          正在爬取拍賣資料並配對批號，請稍候…
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <RecordTable
                   records={(confirmedList.data.records ?? []) as AuctionRecord[]}

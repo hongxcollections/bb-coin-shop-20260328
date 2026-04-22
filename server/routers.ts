@@ -3394,6 +3394,102 @@ export const appRouter = router({
         };
       }),
 
+    /** 從 Spink 拍賣頁按批號配對圖片 + 連結（適合截圖上傳的舊紀錄） */
+    matchImagesByLotNumber: protectedProcedure
+      .input(z.object({
+        url: z.string().url(),
+        maxLots: z.number().min(1).max(1000).default(400),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!input.url.includes('live.spink.com')) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '請輸入有效的 Spink URL' });
+        }
+
+        const UA = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+        const CONCURRENCY = 15;
+        const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+        const pool = await getRawPool();
+
+        // 取得所有待配對紀錄（imageUrl 為 NULL）
+        const [targetRows]: any = await pool.execute(
+          `SELECT id, lotNumber FROM \`auctionRecords\` WHERE imageUrl IS NULL AND lotNumber IS NOT NULL`
+        );
+        if (!targetRows.length) return { matched: 0, total: 0, message: '所有紀錄已有圖片' };
+        const needMap = new Map<string, number[]>();
+        for (const r of targetRows as any[]) {
+          const key = String(r.lotNumber).trim();
+          if (!needMap.has(key)) needMap.set(key, []);
+          needMap.get(key)!.push(r.id);
+        }
+
+        // 取得拍賣初始 lot IDs
+        let auctionPageUrl = input.url;
+        let auctionTitle: string | null = null;
+        if (input.url.includes('/lots/view/')) {
+          const res = await fetch(input.url, { headers: { 'User-Agent': UA } });
+          const html = await res.text();
+          const m = html.match(/href="\/auctions\/(4-[A-Za-z0-9]+)"/);
+          if (m) auctionPageUrl = `https://live.spink.com/auctions/${m[1]}`;
+        }
+        const auctionRes = await fetch(auctionPageUrl, { headers: { 'User-Agent': UA } });
+        const auctionHtml = await auctionRes.text();
+        const atM = auctionHtml.match(/class="auction-title[^"]*"[^>]*>\s*([^\n<]+)/);
+        auctionTitle = atM?.[1]?.trim() ?? null;
+        const initIds = [...new Set([...auctionHtml.matchAll(/lots\/view\/(4-[A-Za-z0-9]+)/g)].map(m => m[1]))];
+        if (!initIds.length) throw new TRPCError({ code: 'BAD_REQUEST', message: '無法找到拍品' });
+
+        // 爬取每個 lot，按批號配對
+        const queue = [...initIds];
+        const discovered = new Set<string>(initIds);
+        let matched = 0;
+
+        while (queue.length > 0 && matched + (input.maxLots - queue.length) < input.maxLots) {
+          const batch = queue.splice(0, CONCURRENCY);
+          await Promise.all(batch.map(async (lotId) => {
+            try {
+              const url = `https://live.spink.com/lots/view/${lotId}`;
+              const res = await fetch(url, { headers: { 'User-Agent': UA } });
+              if (!res.ok) return;
+              const html = await res.text();
+
+              // next lot
+              const nextM = html.match(/class="next btn[^"]*"\s+href="\/lots\/view\/([A-Za-z0-9\-]+)"/);
+              if (nextM?.[1] && !discovered.has(nextM[1]) && discovered.size < input.maxLots) {
+                discovered.add(nextM[1]);
+                queue.push(nextM[1]);
+              }
+
+              // lot number
+              const lotNumM = html.match(/class="lot-number ng-binding">(\w+)</);
+              const lotNumber = lotNumM?.[1];
+              if (!lotNumber) return;
+
+              const ids = needMap.get(lotNumber);
+              if (!ids?.length) return; // 沒有對應的紀錄
+
+              // image
+              const imgM = html.match(/href="(https:\/\/images4-cdn\.auctionmobility\.com\/is3\/[^"]+maxwidth=1600[^"]*)"/);
+              const imageUrl = imgM ? imgM[1].replace(/&amp;/g, '&') : null;
+              const sourceNote = `${auctionTitle ? auctionTitle + ' | ' : ''}${url}`;
+
+              for (const id of ids) {
+                await pool.execute(
+                  'UPDATE `auctionRecords` SET imageUrl = ?, sourceNote = ? WHERE id = ? AND imageUrl IS NULL',
+                  [imageUrl, sourceNote, id]
+                );
+                matched++;
+              }
+              needMap.delete(lotNumber); // 已配對，移除
+            } catch { /* skip */ }
+          }));
+          if (needMap.size === 0) break; // 所有紀錄都已配對
+          if (queue.length > 0) await sleep(80);
+        }
+
+        return { matched, total: targetRows.length, auctionTitle };
+      }),
+
     /** 補全所有 Spink 紀錄的圖片（imageUrl 為 NULL 但有 sourceNote URL） */
     backfillImages: protectedProcedure
       .mutation(async ({ ctx }) => {
