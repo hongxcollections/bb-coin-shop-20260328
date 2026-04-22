@@ -800,12 +800,12 @@ function RecordTable({
               <tr key={r.id} className="hover:bg-gray-50">
                 <td className="px-2 py-1">
                   {r.imageUrl ? (
-                    <a href={r.imageUrl} target="_blank" rel="noopener noreferrer">
-                      <img src={r.imageUrl} alt="" className="w-10 h-10 object-cover rounded border" />
+                    <a href={r.imageUrl} target="_blank" rel="noopener noreferrer" title="點擊查看完整圖片">
+                      <img src={r.imageUrl} alt="" className="w-14 h-14 object-cover rounded border hover:opacity-80 transition-opacity" />
                     </a>
                   ) : (
-                    <div className="w-10 h-10 rounded border bg-gray-100 flex items-center justify-center">
-                      <Image className="h-4 w-4 text-gray-300" />
+                    <div className="w-14 h-14 rounded border bg-gray-100 flex items-center justify-center">
+                      <Image className="h-5 w-5 text-gray-300" />
                     </div>
                   )}
                 </td>
@@ -814,6 +814,20 @@ function RecordTable({
                 </td>
                 <td className="px-3 py-2" style={{maxWidth: '160px'}}>
                   <p className="font-medium text-xs leading-snug line-clamp-2">{r.title}</p>
+                  {r.sourceNote && (() => {
+                    const urlMatch = r.sourceNote.match(/https?:\/\/[^\s|]+/);
+                    return urlMatch ? (
+                      <a
+                        href={urlMatch[0]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-0.5 text-[10px] text-blue-500 hover:text-blue-700 mt-0.5"
+                      >
+                        <Link2 className="h-2.5 w-2.5" />
+                        Spink 原頁
+                      </a>
+                    ) : null;
+                  })()}
                 </td>
                 <td className="px-3 py-2 text-xs text-gray-600">
                   <div>{r.auctionHouse ?? "—"}</div>
