@@ -837,7 +837,7 @@ export default function AuctionDetail() {
                           </div>
                           {!canUseAnonymous && memberLevel === 'bronze' && (
                             <p className="text-[11px] text-amber-600 text-center -mt-1">
-                              💡 匿名出價需 🥈 銀牌或以上會員，<Link href="/loyalty" className="underline">了解升級條件</Link>
+                              💡 匿名出價需 🥈 銀牌或以上會員，<Link href="/profile" className="underline">了解升級條件</Link>
                             </p>
                           )}
                         </>
@@ -851,20 +851,20 @@ export default function AuctionDetail() {
                                 : 'bg-red-50 border-red-200 text-red-700'
                             }`}>
                               {bronzeQuota.remaining > 0 ? (
-                                <>🥉 銅牌會員本月代理出價剩 <strong>{bronzeQuota.remaining} / {bronzeQuota.total}</strong> 次・<Link href="/loyalty" className="underline">升銀牌解鎖無限</Link></>
+                                <>🥉 銅牌會員本月代理出價剩 <strong>{bronzeQuota.remaining} / {bronzeQuota.total}</strong> 次・<Link href="/profile" className="underline">升銀牌解鎖無限</Link></>
                               ) : (
-                                <>🥉 本月代理出價配額已用完（{bronzeQuota.total} / {bronzeQuota.total}）・<Link href="/loyalty" className="underline">升 🥈 銀牌即可解鎖無限次</Link></>
+                                <>🥉 本月代理出價配額已用完（{bronzeQuota.total} / {bronzeQuota.total}）・<Link href="/profile" className="underline">升 🥈 銀牌即可解鎖無限次</Link></>
                               )}
                             </div>
                           )}
                           {memberLevel === 'bronze' && bronzeQuota.total <= 0 && (
                             <div className="text-xs text-center px-3 py-2 rounded-lg border bg-red-50 border-red-200 text-red-700">
-                              代理出價功能僅限 🥈 銀牌或以上會員・<Link href="/loyalty" className="underline">立即升級</Link>
+                              代理出價功能僅限 🥈 銀牌或以上會員・<Link href="/profile" className="underline">立即升級</Link>
                             </div>
                           )}
                           {memberLevel === 'silver' && silverMaxAmount > 0 && (
                             <div className="text-xs text-center px-3 py-2 rounded-lg border bg-blue-50 border-blue-200 text-blue-700">
-                              🥈 銀牌會員代理出價單次上限 <strong>{currencySymbol}{silverMaxAmount.toLocaleString()}</strong>・<Link href="/loyalty" className="underline">升金牌解除上限</Link>
+                              🥈 銀牌會員代理出價單次上限 <strong>{currencySymbol}{silverMaxAmount.toLocaleString()}</strong>・<Link href="/profile" className="underline">升金牌解除上限</Link>
                             </div>
                           )}
 
