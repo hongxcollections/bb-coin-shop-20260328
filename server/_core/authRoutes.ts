@@ -228,14 +228,19 @@ export function registerAuthRoutes(app: Express) {
       const code = generateEmailOtp();
       setEmailOtp(phone, email, code);
 
-      // Get sender settings
-      const { getNotificationSettings } = await import("../db");
-      const settings = await getNotificationSettings();
+      // Get sender settings (use already-imported db module)
+      const settings = await db.getNotificationSettings();
       const senderName = settings?.senderName ?? "大BB錢幣店";
-      const senderEmail = settings?.senderEmail ?? "noreply@hongxcollections.com";
+      // Must use a domain verified in Resend — never a gmail/third-party address as sender
+      const rawSenderEmail = settings?.senderEmail ?? "";
+      const isVerifiedDomain = rawSenderEmail && !rawSenderEmail.endsWith("@gmail.com") && !rawSenderEmail.endsWith("@yahoo.com") && !rawSenderEmail.endsWith("@hotmail.com");
+      const senderEmail = isVerifiedDomain ? rawSenderEmail : "noreply@hongxcollections.com";
+
+      console.log(`[Auth] Email fallback OTP: senderEmail=${senderEmail}, to=${email}`);
 
       const sent = await sendOtpFallbackEmail({ to: email, senderName, senderEmail, code, phone });
       if (!sent) {
+        console.error(`[Auth] Email fallback OTP send failed for ${phone} → ${email} (senderEmail=${senderEmail})`);
         res.status(500).json({ error: "電郵發送失敗，請確認電郵地址正確或稍後再試" });
         return;
       }

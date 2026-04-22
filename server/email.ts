@@ -259,19 +259,20 @@ async function sendEmail(opts: {
 }): Promise<boolean> {
   try {
     const resend = getResend();
-    const { error } = await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: `${opts.senderName} <${opts.senderEmail}>`,
       to: opts.to,
       subject: opts.subject,
       html: opts.html,
     });
     if (error) {
-      console.error("[Email] Send failed:", error);
+      console.error(`[Email] Send failed | from=${opts.senderEmail} to=${opts.to} subject="${opts.subject}" | Resend error:`, JSON.stringify(error));
       return false;
     }
+    console.log(`[Email] Sent OK | id=${data?.id} to=${opts.to}`);
     return true;
   } catch (err) {
-    console.error("[Email] Unexpected error:", err);
+    console.error(`[Email] Unexpected error | from=${opts.senderEmail} to=${opts.to}:`, err);
     return false;
   }
 }
