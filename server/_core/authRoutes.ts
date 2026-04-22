@@ -419,7 +419,13 @@ export function registerAuthRoutes(app: Express) {
       if (!database) { res.status(500).json({ error: "數據庫不可用" }); return; }
 
       const result = await database
-        .select()
+        .select({
+          id: users.id,
+          openId: users.openId,
+          name: users.name,
+          password: users.password,
+          mustChangePassword: users.mustChangePassword,
+        })
         .from(users)
         .where(or(eq(users.email, identifier), eq(users.phone, identifier)))
         .limit(1);
@@ -445,10 +451,42 @@ export function registerAuthRoutes(app: Express) {
 
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-      res.json({ success: true });
+      // mustChangePassword: 管理員設定密碼後，首次登入須強制更改
+      res.json({ success: true, mustChangePassword: user.mustChangePassword === 1 });
     } catch (error) {
       console.error("[Auth] Login failed:", error);
       res.status(500).json({ error: "登入失敗，請稍後再試" });
+    }
+  });
+
+  // POST /api/auth/change-password-forced — 強制更改密碼（管理員設定後首次登入時呼叫）
+  app.post("/api/auth/change-password-forced", async (req: Request, res: Response) => {
+    try {
+      // 驗證已登入
+      const currentUser = await sdk.authenticateRequest(req);
+      if (!currentUser) {
+        res.status(401).json({ error: "未登入" });
+        return;
+      }
+
+      const { newPassword } = req.body;
+      if (!newPassword || typeof newPassword !== "string" || newPassword.length < 6) {
+        res.status(400).json({ error: "新密碼至少需要6個字符" });
+        return;
+      }
+
+      const database = await db.getDb();
+      if (!database) { res.status(500).json({ error: "數據庫不可用" }); return; }
+
+      const hashed = await bcrypt.hash(newPassword, 10);
+      await database.update(users)
+        .set({ password: hashed, mustChangePassword: 0 })
+        .where(eq(users.id, currentUser.id));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Auth] change-password-forced error:", error);
+      res.status(500).json({ error: "更改密碼失敗，請稍後再試" });
     }
   });
 }

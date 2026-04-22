@@ -46,6 +46,7 @@ type UserRow = {
   requiredDeposit: string | null;
   commissionRate: string | null;
   depositIsActive: number | null;
+  mustChangePassword: number | null;
   wonCount: number;
 };
 
@@ -753,6 +754,8 @@ export default function AdminUsers() {
   const [, navigate] = useLocation();
 
   const [editState, setEditState] = useState<EditState | null>(null);
+  const [pwDialog, setPwDialog] = useState<{ userId: number; name: string } | null>(null);
+  const [adminPwInput, setAdminPwInput] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
   const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
   const [expandedMerchantOrdersId, setExpandedMerchantOrdersId] = useState<number | null>(null);
@@ -779,6 +782,16 @@ export default function AdminUsers() {
   const adminUpdateDeposit = trpc.users.adminUpdateDeposit.useMutation({
     onSuccess: () => {
       toast.success("保證金設定已更新");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const adminSetPassword = trpc.users.adminSetPassword.useMutation({
+    onSuccess: () => {
+      toast.success("密碼已更新，會員下次登入時須強制更改");
+      setPwDialog(null);
+      setAdminPwInput("");
+      refetch();
     },
     onError: (err) => toast.error(err.message),
   });
@@ -956,6 +969,9 @@ export default function AdminUsers() {
                         {u.depositIsActive ? "商戶活躍" : "商戶停用"}
                       </Badge>
                     )}
+                    {u.mustChangePassword === 1 && (
+                      <Badge className="text-[0.6rem] px-1.5 py-0 bg-orange-500 text-white">🔑 須更改密碼</Badge>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground space-y-0.5 min-w-0">
                     {u.email && (
@@ -1030,6 +1046,15 @@ export default function AdminUsers() {
                         >
                           <Pencil className="w-3.5 h-3.5 mr-1" />
                           修改
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-2.5 border-blue-200 text-blue-700 hover:bg-blue-50"
+                          onClick={() => { setPwDialog({ userId: u.id, name: u.name ?? "此用戶" }); setAdminPwInput(""); }}
+                        >
+                          <KeyRound className="w-3.5 h-3.5 mr-1" />
+                          修改密碼
                         </Button>
                         {u.depositId && (
                           <Button
@@ -1339,6 +1364,53 @@ export default function AdminUsers() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* 修改密碼 Dialog */}
+      <Dialog open={!!pwDialog} onOpenChange={(open) => { if (!open) { setPwDialog(null); setAdminPwInput(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-blue-600" />
+              修改會員密碼
+            </DialogTitle>
+          </DialogHeader>
+          {pwDialog && (
+            <div className="space-y-4 py-1">
+              <p className="text-sm text-muted-foreground">
+                正在為 <span className="font-semibold text-foreground">{pwDialog.name}</span> 設定新密碼。
+              </p>
+              <div className="rounded-lg px-3 py-2.5 text-xs space-y-1" style={{ background: "#FFF7ED", border: "1px solid #FED7AA" }}>
+                <p className="font-semibold text-orange-700">⚠️ 注意</p>
+                <p className="text-orange-600">設定後，該會員下次登入時將被強制要求更改密碼，方可繼續使用。</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>新密碼（至少 6 個字符）</Label>
+                <Input
+                  type="text"
+                  value={adminPwInput}
+                  onChange={(e) => setAdminPwInput(e.target.value)}
+                  placeholder="輸入新密碼"
+                  className="border-blue-200"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPwDialog(null); setAdminPwInput(""); }}>取消</Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={adminPwInput.length < 6 || adminSetPassword.isPending}
+              onClick={() => {
+                if (!pwDialog) return;
+                if (adminPwInput.length < 6) { toast.error("密碼至少需要6個字符"); return; }
+                adminSetPassword.mutate({ userId: pwDialog.userId, newPassword: adminPwInput });
+              }}
+            >
+              {adminSetPassword.isPending ? "設定中…" : "確認設定"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={!!editState} onOpenChange={(open) => !open && setEditState(null)}>

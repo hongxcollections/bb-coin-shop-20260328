@@ -9,7 +9,7 @@ import type { Auction } from "../drizzle/schema";
 import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, adminSetUserPassword, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData } from "./db";
 import { storagePut } from "./storage";
 import { TRPCError } from "@trpc/server";
 import { getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser } from "./push";
@@ -1031,6 +1031,40 @@ export const appRouter = router({
           const ok = await setUserMemberLevel(userId, memberLevel);
           if (!ok) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '更新會員等級失敗' });
         }
+        return { success: true };
+      }),
+
+    // Admin: 設定任何用戶的密碼（設定後會員首次登入須強制更改）
+    adminSetPassword: protectedProcedure
+      .input(z.object({
+        userId: z.number().int().positive(),
+        newPassword: z.string().min(6, '密碼至少需要6個字符').max(128),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const target = await getUserById(input.userId);
+        if (!target) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到該用戶' });
+        if (target.role === 'admin') throw new TRPCError({ code: 'BAD_REQUEST', message: '不能修改管理員密碼' });
+        const hashedPassword = await bcrypt.hash(input.newPassword, 10);
+        const ok = await adminSetUserPassword(input.userId, hashedPassword);
+        if (!ok) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '設定密碼失敗' });
+        return { success: true };
+      }),
+
+    // 會員：強制更改密碼（管理員設定後首次登入觸發，清除 mustChangePassword 旗標）
+    forceChangePassword: protectedProcedure
+      .input(z.object({
+        newPassword: z.string().min(6, '密碼至少需要6個字符').max(128),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const hashedPassword = await bcrypt.hash(input.newPassword, 10);
+        const dbConn = await (await import('./db')).getDb();
+        if (!dbConn) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '數據庫不可用' });
+        const { users: usersTable } = await import('../drizzle/schema');
+        const { eq: eqFn } = await import('drizzle-orm');
+        await dbConn.update(usersTable)
+          .set({ password: hashedPassword, mustChangePassword: 0 } as Record<string, unknown>)
+          .where(eqFn(usersTable.id, ctx.user.id));
         return { success: true };
       }),
 

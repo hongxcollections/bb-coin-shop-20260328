@@ -192,6 +192,14 @@ async function bootstrapMissingColumns() {
     'Ensured users.memberLevelExpiresAt column'
   );
 
+  // 新增 users.mustChangePassword 欄位（管理員重設密碼後，首次登入強制更改）
+  if (!(await check('users', 'mustChangePassword'))) {
+    await alter(
+      `ALTER TABLE \`users\` ADD COLUMN \`mustChangePassword\` tinyint(1) NOT NULL DEFAULT 0`,
+      'Added mustChangePassword to users'
+    );
+  }
+
   // dailyEarlyBird table (每日早鳥會員名額)
   await alter(`CREATE TABLE IF NOT EXISTS \`dailyEarlyBird\` (
     \`id\` int AUTO_INCREMENT NOT NULL,

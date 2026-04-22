@@ -20,6 +20,7 @@ export const users = mysqlTable("users", {
   // Loyalty: 試用到期時間（NULL = 永久由升級規則決定，非 NULL = 到期回復自然等級）
   memberLevelExpiresAt: timestamp("memberLevelExpiresAt"),
   defaultAnonymous: int("defaultAnonymous").default(0).notNull(), // 1 = always bid anonymously by default
+  mustChangePassword: int("mustChangePassword").default(0).notNull(), // 1 = 管理員設定密碼後，會員首次登入須強制更改
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

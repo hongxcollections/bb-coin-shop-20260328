@@ -129,6 +129,12 @@ export default function Login() {
 
   const [loading, setLoading] = useState(false);
 
+  // ─── 強制更改密碼 Dialog（管理員修改後首次登入觸發）────────────────────────────
+  const [forceResetOpen, setForceResetOpen] = useState(false);
+  const [forceResetPw, setForceResetPw] = useState("");
+  const [forceResetPw2, setForceResetPw2] = useState("");
+  const [forceResetLoading, setForceResetLoading] = useState(false);
+
   // ─── Forgot password state ────────────────────────────────────────────────
   const [fpStep, setFpStep] = useState<"identify" | "otp" | "newpw">("identify");
   const [fpMethod, setFpMethod] = useState<"phone" | "email">("phone");
@@ -301,6 +307,13 @@ export default function Login() {
       });
       const data = await res.json();
       if (!res.ok) { showError(data.error || "登入失敗"); return; }
+      // 管理員已修改此帳號密碼，須強制更改才能繼續
+      if (data.mustChangePassword) {
+        setForceResetPw("");
+        setForceResetPw2("");
+        setForceResetOpen(true);
+        return;
+      }
       // Set flag so BottomNav can show login success toast after redirect
       localStorage.setItem("showLoginToast", identifier.includes("@") ? "email" : "phone");
       window.location.href = "/";
@@ -1081,6 +1094,97 @@ export default function Login() {
               <p className="text-center text-[10px] mt-2" style={{ color: "#9CA3AF" }}>
                 完成手機號碼驗證後即自動解鎖以上全部功能
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 強制更改密碼 Dialog（管理員修改後首次登入，不可關閉）─────────────────── */}
+      {forceResetOpen && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="px-6 pt-6 pb-4">
+              <div className="flex items-center justify-center w-14 h-14 rounded-full mx-auto mb-3"
+                   style={{ background: "#FFF3E0" }}>
+                <Lock size={26} style={{ color: "#E07B00" }} />
+              </div>
+              <h2 className="text-center text-lg font-bold" style={{ color: "#1a1a1a" }}>請設定您的新密碼</h2>
+              <p className="text-center text-sm mt-1.5" style={{ color: "#666" }}>
+                管理員已為您重設密碼。為確保帳號安全，請立即設定您的專屬密碼。
+              </p>
+            </div>
+            {/* Warning */}
+            <div className="mx-6 mb-4 rounded-xl px-4 py-3 text-xs" style={{ background: "#FFF7ED", border: "1px solid #FED7AA" }}>
+              <p className="font-semibold text-orange-700">⚠️ 此步驟無法跳過</p>
+              <p className="text-orange-600 mt-0.5">更改成功後方可繼續使用所有功能。</p>
+            </div>
+            {/* Form */}
+            <div className="px-6 space-y-3 pb-2">
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: "#333" }}>新密碼（至少 6 個字符）</label>
+                <input
+                  type="password"
+                  value={forceResetPw}
+                  onChange={e => setForceResetPw(e.target.value)}
+                  placeholder="輸入新密碼"
+                  className="w-full px-4 py-3 rounded-xl border text-sm outline-none"
+                  style={{ borderColor: "#E5E5E5" }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: "#333" }}>確認新密碼</label>
+                <input
+                  type="password"
+                  value={forceResetPw2}
+                  onChange={e => setForceResetPw2(e.target.value)}
+                  placeholder="再次輸入新密碼"
+                  className="w-full px-4 py-3 rounded-xl border text-sm outline-none"
+                  style={{
+                    borderColor: forceResetPw2.length > 0 ? (forceResetPw === forceResetPw2 ? "#22c55e" : "#ef4444") : "#E5E5E5",
+                  }}
+                />
+                {forceResetPw2.length > 0 && forceResetPw !== forceResetPw2 && (
+                  <p className="text-xs mt-1 text-red-500">兩次密碼不一致</p>
+                )}
+              </div>
+            </div>
+            {/* Footer */}
+            <div className="px-6 pb-6 pt-4">
+              <button
+                type="button"
+                disabled={forceResetLoading || forceResetPw.length < 6 || forceResetPw !== forceResetPw2}
+                onClick={async () => {
+                  if (forceResetPw.length < 6) { showError("密碼至少需要6個字符"); return; }
+                  if (forceResetPw !== forceResetPw2) { showError("兩次密碼不一致"); return; }
+                  setForceResetLoading(true);
+                  try {
+                    const res = await fetch("/api/auth/change-password-forced", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ newPassword: forceResetPw }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) { showError(data.error || "更改失敗"); return; }
+                    localStorage.setItem("showLoginToast", identifier.includes("@") ? "email" : "phone");
+                    window.location.href = "/";
+                  } catch {
+                    showError("網絡錯誤，請稍後再試");
+                  } finally {
+                    setForceResetLoading(false);
+                  }
+                }}
+                className="w-full py-3.5 rounded-2xl font-bold text-base text-white transition-opacity"
+                style={{
+                  background: "#E07B00",
+                  opacity: (forceResetLoading || forceResetPw.length < 6 || forceResetPw !== forceResetPw2) ? 0.55 : 1,
+                }}
+              >
+                {forceResetLoading ? "更改中..." : "確認更改密碼"}
+              </button>
             </div>
           </div>
         </div>

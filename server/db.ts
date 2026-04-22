@@ -2305,6 +2305,7 @@ export async function getAllUsersExtended() {
         requiredDeposit: sellerDeposits.requiredDeposit,
         commissionRate: sellerDeposits.commissionRate,
         depositIsActive: sellerDeposits.isActive,
+        mustChangePassword: users.mustChangePassword,
         wonCount: sql<number>`(SELECT COUNT(*) FROM auctions WHERE highestBidderId = ${users.id} AND status = 'ended')`,
       })
       .from(users)
@@ -2361,6 +2362,42 @@ export async function adminUpdateUser(
     return true;
   } catch (error) {
     console.error('[Database] Failed to admin update user:', error);
+    return false;
+  }
+}
+
+/**
+ * Admin: 設定用戶密碼（已 hash），並標記 mustChangePassword = 1
+ * 密碼 hash 由呼叫方（routers.ts）負責
+ */
+export async function adminSetUserPassword(
+  userId: number,
+  hashedPassword: string
+): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  try {
+    await db.update(users)
+      .set({ password: hashedPassword, mustChangePassword: 1 })
+      .where(eq(users.id, userId));
+    return true;
+  } catch (error) {
+    console.error('[Database] Failed to admin set user password:', error);
+    return false;
+  }
+}
+
+/**
+ * 清除 mustChangePassword 旗標（會員成功完成強制更改後呼叫）
+ */
+export async function clearMustChangePassword(userId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  try {
+    await db.update(users).set({ mustChangePassword: 0 }).where(eq(users.id, userId));
+    return true;
+  } catch (error) {
+    console.error('[Database] Failed to clear mustChangePassword:', error);
     return false;
   }
 }
