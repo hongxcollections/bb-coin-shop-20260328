@@ -7,8 +7,33 @@ import { sdk } from "./sdk";
 import { users } from "../../drizzle/schema";
 import { eq, or } from "drizzle-orm";
 import { sendOtpSms, checkViaTwilioVerify, isMainlandChina } from "./sms";
-import { generateOtp, setOtp, verifyOtp, canResend } from "./otpStore";
+import { generateOtp, setOtp, verifyOtp, canSendOtp, recordOtpSend } from "./otpStore";
 import { addResetRequest } from "./resetRequestStore";
+
+// ─── IP-based OTP rate limiter ─────────────────────────────────────────────────
+// Max 10 OTP requests per IP per 15 minutes (covers both send-otp endpoints)
+const ipOtpLog = new Map<string, number[]>();
+const IP_WINDOW_MS = 15 * 60 * 1000;
+const IP_MAX_REQUESTS = 10;
+
+function getClientIp(req: Request): string {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (forwarded) return (Array.isArray(forwarded) ? forwarded[0] : forwarded).split(",")[0].trim();
+  return req.socket?.remoteAddress ?? "unknown";
+}
+
+function checkIpRateLimit(req: Request): { ok: boolean } {
+  const ip = getClientIp(req);
+  const now = Date.now();
+  const log = (ipOtpLog.get(ip) ?? []).filter(t => now - t < IP_WINDOW_MS);
+  if (log.length >= IP_MAX_REQUESTS) {
+    ipOtpLog.set(ip, log);
+    return { ok: false };
+  }
+  log.push(now);
+  ipOtpLog.set(ip, log);
+  return { ok: true };
+}
 
 // ─── Server-side phone format validation ──────────────────────────────────────
 function serverValidatePhone(phone: string): string | null {
@@ -59,9 +84,16 @@ export function registerAuthRoutes(app: Express) {
         return;
       }
 
-      // Rate limit: 60s between resends (only used for Alibaba/China flow)
-      if (isMainlandChina(phone) && !canResend(phone)) {
-        res.status(429).json({ error: "請稍候再重新發送驗證碼" });
+      // IP rate limit: max 10 OTP requests per IP per 15 minutes
+      if (!checkIpRateLimit(req).ok) {
+        res.status(429).json({ error: "請求過於頻繁，請稍後再試" });
+        return;
+      }
+
+      // Phone rate limit: 60s cooldown + max 3 sends per hour (all number types)
+      const phoneLimit = canSendOtp(phone);
+      if (!phoneLimit.ok) {
+        res.status(429).json({ error: phoneLimit.reason ?? "請稍候再重新發送驗證碼" });
         return;
       }
 
@@ -89,6 +121,8 @@ export function registerAuthRoutes(app: Express) {
         return;
       }
 
+      // Record successful send for rate limiting
+      recordOtpSend(phone);
       res.json({ success: true, message: "驗證碼已發送" });
     } catch (err) {
       console.error("[Auth] send-otp error:", err);
@@ -266,17 +300,25 @@ export function registerAuthRoutes(app: Express) {
       const fmtErr = serverValidatePhone(phone);
       if (fmtErr) { res.status(400).json({ error: fmtErr }); return; }
 
+      // IP rate limit: max 10 OTP requests per IP per 15 minutes
+      if (!checkIpRateLimit(req).ok) {
+        res.status(429).json({ error: "請求過於頻繁，請稍後再試" });
+        return;
+      }
+
+      // Phone rate limit: 60s cooldown + max 3 sends per hour (all number types)
+      const phoneLimit = canSendOtp(phone);
+      if (!phoneLimit.ok) {
+        res.status(429).json({ error: phoneLimit.reason ?? "請稍候再重新發送驗證碼" });
+        return;
+      }
+
       const database = await db.getDb();
       if (!database) { res.status(500).json({ error: "數據庫不可用" }); return; }
 
       const found = await database.select().from(users).where(eq(users.phone, phone)).limit(1);
       if (found.length === 0 || !found[0].password) {
         res.status(404).json({ error: "此手機號碼未曾登記，請重新確認" });
-        return;
-      }
-
-      if (isMainlandChina(phone) && !canResend(phone)) {
-        res.status(429).json({ error: "請稍候再重新發送驗證碼" });
         return;
       }
 
@@ -289,6 +331,9 @@ export function registerAuthRoutes(app: Express) {
         res.status(500).json({ error: "驗證碼發送失敗", detail: smsResult.error });
         return;
       }
+
+      // Record successful send for rate limiting
+      recordOtpSend(phone);
       res.json({ success: true });
     } catch (err) {
       console.error("[Auth] forgot-password/send-otp error:", err);
