@@ -257,6 +257,18 @@ async function sendEmail(opts: {
   subject: string;
   html: string;
 }): Promise<boolean> {
+  const result = await sendEmailWithDetails(opts);
+  return result.ok;
+}
+
+/** Send email and return structured result with error details for debugging. */
+export async function sendEmailWithDetails(opts: {
+  to: string;
+  senderName: string;
+  senderEmail: string;
+  subject: string;
+  html: string;
+}): Promise<{ ok: boolean; emailId?: string; resendError?: string }> {
   try {
     const resend = getResend();
     const { data, error } = await resend.emails.send({
@@ -266,13 +278,15 @@ async function sendEmail(opts: {
       html: opts.html,
     });
     if (error) {
-      console.error(`[Email] Send failed | from=${opts.senderEmail} to=${opts.to} subject="${opts.subject}" | Resend error:`, JSON.stringify(error));
-      return false;
+      const errStr = JSON.stringify(error);
+      console.error(`[Email] Send failed | from=${opts.senderEmail} to=${opts.to} | Resend error: ${errStr}`);
+      return { ok: false, resendError: errStr };
     }
     console.log(`[Email] Sent OK | id=${data?.id} to=${opts.to}`);
-    return true;
+    return { ok: true, emailId: data?.id };
   } catch (err) {
-    console.error(`[Email] Unexpected error | from=${opts.senderEmail} to=${opts.to}:`, err);
-    return false;
+    const errStr = err instanceof Error ? err.message : String(err);
+    console.error(`[Email] Unexpected error | from=${opts.senderEmail} to=${opts.to}: ${errStr}`);
+    return { ok: false, resendError: errStr };
   }
 }

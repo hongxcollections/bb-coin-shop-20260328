@@ -9,7 +9,7 @@ import { eq, or } from "drizzle-orm";
 import { sendOtpSms, sendOtpWhatsApp, checkViaTwilioVerify, isMainlandChina } from "./sms";
 import { generateOtp, setOtp, verifyOtp, canSendOtp, recordOtpSend } from "./otpStore";
 import { generateEmailOtp, setEmailOtp, verifyEmailOtp, canSendEmailOtp, recordEmailOtpSend } from "./emailOtpStore";
-import { sendOtpFallbackEmail } from "../email";
+import { sendOtpFallbackEmail, sendEmailWithDetails } from "../email";
 import { addResetRequest } from "./resetRequestStore";
 
 // ─── IP-based OTP rate limiter (configurable from Admin → 站點設定) ───────────
@@ -235,10 +235,20 @@ export function registerAuthRoutes(app: Express) {
 
       console.log(`[Auth] Email fallback OTP: senderEmail=${senderEmail}, to=${email}`);
 
-      const sent = await sendOtpFallbackEmail({ to: email, senderName, senderEmail, code, phone });
-      if (!sent) {
-        console.error(`[Auth] Email fallback OTP send failed for ${phone} → ${email} (senderEmail=${senderEmail})`);
-        res.status(500).json({ error: "電郵發送失敗，請確認電郵地址正確或稍後再試" });
+      const sendResult = await sendEmailWithDetails({
+        to: email,
+        senderName,
+        senderEmail,
+        subject: `【大BB錢幣店】手機驗證碼：${code}`,
+        html: `<p>您正在驗證手機號碼 <strong>${phone}</strong>。</p><p>驗證碼：<strong style="font-size:24px;letter-spacing:6px">${code}</strong></p><p>有效期 10 分鐘。</p>`,
+      });
+      if (!sendResult.ok) {
+        const detail = sendResult.resendError ?? "unknown";
+        console.error(`[Auth] Email fallback OTP send failed: ${detail}`);
+        res.status(500).json({
+          error: "電郵發送失敗，請確認電郵地址正確或稍後再試",
+          _debug: detail,  // visible in browser devtools for admin diagnosis
+        });
         return;
       }
 
