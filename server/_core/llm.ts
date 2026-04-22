@@ -228,7 +228,7 @@ const resolveApiConfig = (): { url: string; key: string; model: string } => {
     return {
       url: "https://openrouter.ai/api/v1/chat/completions",
       key: ENV.openRouterApiKey,
-      model: "google/gemini-2.0-flash-exp:free",
+      model: "google/gemma-4-31b-it:free",
     };
   }
   if (ENV.geminiApiKey) {
