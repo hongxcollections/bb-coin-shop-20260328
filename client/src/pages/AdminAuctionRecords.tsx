@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ChevronLeft, Upload, CheckCircle, Trash2,
-  Image, Loader2, Check, X, Edit2, Database, AlertCircle, AlertTriangle, Save, Link2, Layers
+  Image, Loader2, Check, X, Edit2, Database, AlertCircle, AlertTriangle, Save, Link2, Layers, Search
 } from "lucide-react";
 
 type ExtractedLot = {
@@ -350,7 +350,7 @@ export default function AdminAuctionRecords() {
               <ChevronLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Database className="h-6 w-6" />
               成交紀錄數據庫
@@ -359,6 +359,12 @@ export default function AdminAuctionRecords() {
               上傳拍賣截圖 → AI 自動提取 → 確認入庫
             </p>
           </div>
+          <Link href="/records">
+            <Button variant="outline" size="sm" className="gap-1.5 text-orange-600 border-orange-300 hover:bg-orange-50">
+              <Search className="h-4 w-4" />
+              搜尋紀錄庫
+            </Button>
+          </Link>
         </div>
 
         {/* Tab Navigation */}
