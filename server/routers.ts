@@ -3137,6 +3137,95 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    /** 從 Spink URL 直接爬取拍品資料並建立 pending 紀錄 */
+    importFromSpinkUrl: protectedProcedure
+      .input(z.object({ url: z.string().url() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!input.url.includes('live.spink.com/lots/view/')) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '請輸入有效的 Spink lot URL（live.spink.com/lots/view/...）' });
+        }
+        const res = await fetch(input.url, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' }
+        });
+        if (!res.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: `無法存取 URL: HTTP ${res.status}` });
+        const html = await res.text();
+
+        // --- 解析 title ---
+        const ogTitleM = html.match(/<meta property="og:title" content="([^"]+)"/);
+        const title = ogTitleM
+          ? ogTitleM[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'")
+          : '';
+        if (!title) throw new TRPCError({ code: 'BAD_REQUEST', message: '無法解析拍品標題，請確認 URL' });
+
+        // --- 解析 lot number ---
+        const lotNumM = html.match(/class="lot-number ng-binding">(\w+)</);
+        const lotNumber = lotNumM?.[1] ?? null;
+
+        // --- 解析估計低/高 ---
+        const estimateM = html.match(/HK\$([0-9,]+)\s*-\s*HK\$([0-9,]+)/);
+        const estimateLow = estimateM ? parseFloat(estimateM[1].replace(/,/g, '')) : null;
+        const estimateHigh = estimateM ? parseFloat(estimateM[2].replace(/,/g, '')) : null;
+
+        // --- 解析描述 ---
+        const descMetaM = html.match(/<meta name="description" content="([^"]+)"/);
+        const description = descMetaM
+          ? descMetaM[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'").trim()
+          : null;
+
+        // --- 解析拍賣場次標題 ---
+        const auctionTitleM = html.match(/class="auction-title[^"]*"[^>]*>\s*([^\n<]+)/);
+        const auctionTitle = auctionTitleM?.[1]?.trim() ?? null;
+
+        // --- 解析高清圖片 URL（全部） ---
+        const imgMatches = [...html.matchAll(/href="(https:\/\/images4-cdn\.auctionmobility\.com\/is3\/[^"]+maxwidth=1600[^"]*)"/g)];
+        const imageUrls = imgMatches.map(m => m[1].replace(/&amp;/g, '&'));
+
+        // --- 下載第一張圖並上傳 S3 ---
+        let storedImageUrl: string | null = null;
+        if (imageUrls.length > 0) {
+          try {
+            const imgRes = await fetch(imageUrls[0]);
+            if (imgRes.ok) {
+              const buf = Buffer.from(await imgRes.arrayBuffer());
+              const key = `auction-records/spink-${Date.now()}.jpg`;
+              const { url: s3Url } = await storagePut(key, buf, 'image/jpeg');
+              storedImageUrl = s3Url;
+            }
+          } catch (e) {
+            console.warn('[importFromSpinkUrl] 圖片上傳失敗:', (e as Error).message);
+          }
+        }
+
+        // --- 插入 DB ---
+        const pool = await getRawPool();
+        const [result]: any = await pool.execute(
+          `INSERT INTO \`auctionRecords\`
+           (lotNumber, title, description, estimateLow, estimateHigh, soldPrice, currency,
+            auctionHouse, auctionDate, saleStatus, sourceNote, imageUrl, importStatus)
+           VALUES (?, ?, ?, ?, ?, NULL, 'HKD', 'Spink', NULL, 'sold', ?, ?, 'pending')`,
+          [
+            lotNumber,
+            title,
+            description,
+            estimateLow,
+            estimateHigh,
+            auctionTitle ? `${auctionTitle} | ${input.url}` : input.url,
+            storedImageUrl,
+          ]
+        );
+
+        return {
+          id: result.insertId as number,
+          lotNumber,
+          title,
+          estimateLow,
+          estimateHigh,
+          imageUrl: storedImageUrl,
+          imageCount: imageUrls.length,
+        };
+      }),
+
     /** 批量刪除全部 pending（撤回這批截圖提取結果） */
     deletePending: protectedProcedure
       .mutation(async ({ ctx }) => {

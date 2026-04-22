@@ -287,6 +287,7 @@ async function bootstrapMissingColumns() {
     INDEX \`idx_ar_status\` (\`importStatus\`),
     INDEX \`idx_ar_house\` (\`auctionHouse\`)
   )`, 'Ensured auctionRecords table');
+  await alter(`ALTER TABLE \`auctionRecords\` ADD COLUMN IF NOT EXISTS \`imageUrl\` VARCHAR(1000) NULL AFTER \`sourceNote\``, 'Added imageUrl column to auctionRecords');
 
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}

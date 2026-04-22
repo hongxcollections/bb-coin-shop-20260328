@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ChevronLeft, Upload, CheckCircle, Trash2,
-  Image, Loader2, Check, X, Edit2, Database, AlertCircle, AlertTriangle, Save
+  Image, Loader2, Check, X, Edit2, Database, AlertCircle, AlertTriangle, Save, Link2
 } from "lucide-react";
 
 type ExtractedLot = {
@@ -37,6 +37,7 @@ type AuctionRecord = ExtractedLot & {
   id: number;
   importStatus: "pending" | "confirmed";
   createdAt: string;
+  imageUrl?: string | null;
 };
 
 function fmtPrice(price: number | string | null | undefined, currency = "HKD") {
@@ -123,6 +124,18 @@ export default function AdminAuctionRecords() {
       setExtractedLots([]);
     },
     onError: (err) => toast.error(err.message),
+  });
+
+  // URL import state
+  const [spinkUrl, setSpinkUrl] = useState("");
+  const importFromUrl = trpc.auctionRecords.importFromSpinkUrl.useMutation({
+    onSuccess: (data) => {
+      toast.success(`已導入批號 ${data.lotNumber ?? data.id}：${data.title.slice(0, 40)}…（${data.imageCount} 張圖）`);
+      setSpinkUrl("");
+      setTab("pending");
+      pendingList.refetch();
+    },
+    onError: (err) => toast.error(`導入失敗：${err.message}`),
   });
 
   if (!isAuthenticated || user?.role !== "admin") {
@@ -339,6 +352,47 @@ export default function AdminAuctionRecords() {
                     onChange={handleFileSelect}
                   />
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Spink URL Import */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Link2 className="h-4 w-4" />
+                  Spink URL 直接導入
+                </CardTitle>
+                <CardDescription>
+                  在 Spink Live app 按「共用」，複製網址後貼上，自動抓取資料及圖片
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2">
+                  <Input
+                    value={spinkUrl}
+                    onChange={e => setSpinkUrl(e.target.value)}
+                    placeholder="https://live.spink.com/lots/view/4-KK09UE"
+                    className="flex-1 text-sm"
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && spinkUrl.trim() && !importFromUrl.isPending) {
+                        importFromUrl.mutate({ url: spinkUrl.trim() });
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={() => importFromUrl.mutate({ url: spinkUrl.trim() })}
+                    disabled={!spinkUrl.trim() || importFromUrl.isPending}
+                  >
+                    {importFromUrl.isPending ? (
+                      <><Loader2 className="h-4 w-4 animate-spin mr-1" />抓取中…</>
+                    ) : (
+                      <><Upload className="h-4 w-4 mr-1" />導入</>
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  自動抓取：批號、標題、估計低/高、描述、圖片（存入 S3）。成交價請在待確認頁手動填寫。
+                </p>
               </CardContent>
             </Card>
 
@@ -649,6 +703,7 @@ function RecordTable({
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
+              <th className="text-left px-3 py-2 font-medium text-xs text-gray-500">圖</th>
               <th className="text-left px-3 py-2 font-medium text-xs text-gray-500">批號</th>
               <th className="text-left px-3 py-2 font-medium text-xs text-gray-500">名稱</th>
               <th className="text-left px-3 py-2 font-medium text-xs text-gray-500">拍賣行</th>
@@ -661,6 +716,17 @@ function RecordTable({
           <tbody className="divide-y">
             {(records ?? []).map((r) => (
               <tr key={r.id} className="hover:bg-gray-50">
+                <td className="px-2 py-1">
+                  {r.imageUrl ? (
+                    <a href={r.imageUrl} target="_blank" rel="noopener noreferrer">
+                      <img src={r.imageUrl} alt="" className="w-10 h-10 object-cover rounded border" />
+                    </a>
+                  ) : (
+                    <div className="w-10 h-10 rounded border bg-gray-100 flex items-center justify-center">
+                      <Image className="h-4 w-4 text-gray-300" />
+                    </div>
+                  )}
+                </td>
                 <td className="px-3 py-2 font-mono text-xs text-gray-500">
                   {r.lotNumber ?? "—"}
                 </td>
