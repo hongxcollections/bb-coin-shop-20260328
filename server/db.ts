@@ -961,6 +961,37 @@ export async function setUserMemberLevel(userId: number, memberLevel: string): P
   }
 }
 
+/**
+ * 自動 VIP 升級檢查：當商戶同時符合以下三個條件，自動升級為 VIP：
+ * 1. 商戶申請已批准（merchantApplication.status = 'approved'）
+ * 2. 保證金有餘額（sellerDeposit.balance > 0）
+ * 3. 有有效訂閱（userSubscription.status = 'active'）
+ */
+export async function checkAndUpgradeToVip(userId: number): Promise<boolean> {
+  try {
+    // 條件 1：商戶申請已批准
+    const app = await getMerchantApplicationByUser(userId);
+    if (!app || app.status !== 'approved') return false;
+
+    // 條件 2：保證金餘額 > 0
+    const deposit = await getOrCreateSellerDeposit(userId);
+    const balance = deposit ? parseFloat(String(deposit.balance)) : 0;
+    if (balance <= 0) return false;
+
+    // 條件 3：有有效訂閱
+    const sub = await getUserActiveSubscription(userId);
+    if (!sub) return false;
+
+    // 三個條件全部符合 → 升 VIP
+    await setUserMemberLevel(userId, 'vip');
+    console.log(`[VIP] 用戶 ${userId} 已自動升級為 VIP（三個條件全部達成）`);
+    return true;
+  } catch (err) {
+    console.error('[VIP] checkAndUpgradeToVip 發生錯誤:', err);
+    return false;
+  }
+}
+
 export async function getAnonymousBids(options?: { page?: number; pageSize?: number }) {
   const db = await getDb();
   if (!db) return { bids: [], total: 0 };
@@ -2167,12 +2198,15 @@ export async function approveSubscription(subscriptionId: number, adminId: numbe
       remainingQuota: plan.maxListings,  // 0 = unlimited; >0 = limited
     }).where(eq(userSubscriptions.id, subscriptionId));
 
-    // Update user's member level
+    // Update user's member level (subscription plan level)
     await db.update(users).set({
       memberLevel: plan.memberLevel,
     }).where(eq(users.id, sub.userId));
 
-    return { success: true, memberLevel: plan.memberLevel };
+    // 訂閱批准後，額外檢查是否符合 VIP 三個條件（商戶 + 保證金 + 訂閱）
+    const upgradedToVip = await checkAndUpgradeToVip(sub.userId).catch(() => false);
+
+    return { success: true, memberLevel: upgradedToVip ? 'vip' : plan.memberLevel };
   } catch (error) {
     console.error('[Database] Failed to approve subscription:', error);
     throw error;
@@ -2832,6 +2866,8 @@ export async function reviewMerchantApplication(
   // When approved, auto-create seller_deposits record so user appears in merchant list
   if (status === 'approved' && app?.userId) {
     await getOrCreateSellerDeposit(app.userId);
+    // 檢查是否符合 VIP 三個條件
+    await checkAndUpgradeToVip(app.userId).catch(() => {});
   }
 }
 
@@ -3205,6 +3241,9 @@ export async function reviewDepositTopUpRequest(
         console.error('[Deposit] Failed to apply tier commission rate:', err);
       }
     }
+
+    // 保證金充值批准後，額外檢查是否符合 VIP 三個條件
+    await checkAndUpgradeToVip(req.userId).catch(() => {});
   }
 }
 
