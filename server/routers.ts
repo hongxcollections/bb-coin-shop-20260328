@@ -52,11 +52,19 @@ export const appRouter = router({
           }
         }).catch(() => {});
         const auctionList = await getAuctions(input.limit, input.offset, input.category);
+        const isAdmin = ctx.user?.role === 'admin';
         const withImages = await Promise.all(
-          auctionList.map(async (auction: { id: number; [key: string]: unknown }) => ({
-            ...auction,
-            images: await getAuctionImages(auction.id),
-          }))
+          auctionList.map(async (auction: { id: number; highestBidderName?: string | null; highestBidderIsAnonymous?: number; [key: string]: unknown }) => {
+            let highestBidderName = auction.highestBidderName ?? null;
+            if (auction.highestBidderIsAnonymous === 1) {
+              highestBidderName = isAdmin ? `${highestBidderName ?? '未知'} (匿名)` : '🕵️ 匿名買家';
+            }
+            return {
+              ...auction,
+              highestBidderName,
+              images: await getAuctionImages(auction.id),
+            };
+          })
         );
         return withImages;
       }),
@@ -341,10 +349,18 @@ export const appRouter = router({
           : auctionList;
 
         const withImages = await Promise.all(
-          updatedList.map(async (auction: { id: number; [key: string]: unknown }) => ({
-            ...auction,
-            images: await getAuctionImages(auction.id),
-          }))
+          updatedList.map(async (auction: { id: number; highestBidderName?: string | null; highestBidderIsAnonymous?: number; [key: string]: unknown }) => {
+            // Admin sees real name + (匿名) marker
+            let highestBidderName = auction.highestBidderName ?? null;
+            if (auction.highestBidderIsAnonymous === 1) {
+              highestBidderName = `${highestBidderName ?? '未知'} (匿名)`;
+            }
+            return {
+              ...auction,
+              highestBidderName,
+              images: await getAuctionImages(auction.id),
+            };
+          })
         );
         return withImages;
       }),
@@ -671,10 +687,18 @@ export const appRouter = router({
             })
           : await getArchivedAuctions();
         const withImages = await Promise.all(
-          archivedList.map(async (auction: { id: number; [key: string]: unknown }) => ({
-            ...auction,
-            images: await getAuctionImages(auction.id),
-          }))
+          archivedList.map(async (auction: { id: number; highestBidderName?: string | null; highestBidderIsAnonymous?: number; [key: string]: unknown }) => {
+            // Admin sees real name + (匿名) marker for archived auctions
+            let highestBidderName = auction.highestBidderName ?? null;
+            if (auction.highestBidderIsAnonymous === 1) {
+              highestBidderName = `${highestBidderName ?? '未知'} (匿名)`;
+            }
+            return {
+              ...auction,
+              highestBidderName,
+              images: await getAuctionImages(auction.id),
+            };
+          })
         );
         return withImages;
       }),
@@ -1971,6 +1995,10 @@ export const appRouter = router({
       }
       const withImages = await Promise.all(list.map(async (a) => ({
         ...a,
+        // 商戶唔應看到匿名出價者真實姓名
+        highestBidderName: (a as { highestBidderIsAnonymous?: number; highestBidderName?: string | null }).highestBidderIsAnonymous === 1
+          ? '🕵️ 匿名買家'
+          : (a as { highestBidderName?: string | null }).highestBidderName ?? null,
         status: expiredIds.includes(a.id) ? 'ended' : a.status,
         images: await getAuctionImages(a.id),
       })));
