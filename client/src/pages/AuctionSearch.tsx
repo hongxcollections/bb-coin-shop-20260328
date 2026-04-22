@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Search, X, ExternalLink, ChevronLeft, ChevronRight, Database, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Header from "@/components/Header";
 
 type SaleStatus = "all" | "sold" | "unsold";
 
@@ -153,11 +154,13 @@ export default function AuctionSearch() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 pt-4 pb-3 space-y-2.5">
+      <Header />
+
+      {/* Sticky search bar — sits just below the fixed Header (top-16 = 64px) */}
+      <div className="sticky top-16 z-30 bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-2xl mx-auto px-4 pt-3 pb-3 space-y-2.5">
           <div className="flex items-center gap-2">
-            <h1 className="text-base font-bold text-gray-800 whitespace-nowrap">拍賣紀錄庫</h1>
+            <h1 className="text-sm font-bold text-gray-700 whitespace-nowrap">拍賣紀錄庫</h1>
             {/* Search input */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
@@ -256,7 +259,7 @@ export default function AuctionSearch() {
       </div>
 
       {/* Results */}
-      <div className="max-w-2xl mx-auto px-4 py-4 pb-28 space-y-2.5">
+      <div className="max-w-2xl mx-auto px-4 py-4 pb-36 space-y-2.5">
         {records.length === 0 && !isFetching ? (
           <div className="text-center py-20">
             <Database className="h-10 w-10 mx-auto text-gray-300 mb-3" />
