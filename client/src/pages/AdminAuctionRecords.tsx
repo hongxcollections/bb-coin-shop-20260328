@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ChevronLeft, Upload, CheckCircle, Trash2,
-  Image, Loader2, Check, X, Edit2, Database, AlertCircle, AlertTriangle, Save, Link2
+  Image, Loader2, Check, X, Edit2, Database, AlertCircle, AlertTriangle, Save, Link2, Layers
 } from "lucide-react";
 
 type ExtractedLot = {
@@ -126,6 +126,22 @@ export default function AdminAuctionRecords() {
     onError: (err) => toast.error(err.message),
   });
 
+  // Batch management
+  const batchList = trpc.auctionRecords.listBatches.useQuery(
+    undefined,
+    { enabled: isAuthenticated && user?.role === "admin" }
+  );
+  const deleteBatch = trpc.auctionRecords.deleteBatch.useMutation({
+    onSuccess: (data) => {
+      toast.success(`已刪除批次，共 ${data.deleted} 條紀錄`);
+      batchList.refetch();
+      pendingList.refetch();
+      confirmedList.refetch();
+    },
+    onError: (err) => toast.error(`刪除批次失敗：${err.message}`),
+  });
+  const [confirmDeleteBatch, setConfirmDeleteBatch] = useState<string | null>(null);
+
   // Match images by lot number from auction URL
   const [matchAuctionUrl, setMatchAuctionUrl] = useState("");
   const [showMatchInput, setShowMatchInput] = useState(false);
@@ -159,13 +175,14 @@ export default function AdminAuctionRecords() {
   // Batch auction import state
   const [auctionUrl, setAuctionUrl] = useState("");
   const [maxLots, setMaxLots] = useState(300);
-  const [batchResult, setBatchResult] = useState<{ imported: number; skipped: number; auctionTitle: string | null; discovered: number } | null>(null);
+  const [batchResult, setBatchResult] = useState<{ imported: number; skipped: number; auctionTitle: string | null; discovered: number; batchId: string } | null>(null);
   const importAuction = trpc.auctionRecords.importFromSpinkAuction.useMutation({
     onSuccess: (data) => {
       setBatchResult(data);
-      toast.success(`批量導入完成：新增 ${data.imported} 條，跳過 ${data.skipped} 條重複`);
+      toast.success(`批量導入完成：新增 ${data.imported} 條（批次 ${data.batchId}）`);
       setTab("pending");
       pendingList.refetch();
+      batchList.refetch();
     },
     onError: (err) => toast.error(`批量導入失敗：${err.message}`),
   });
@@ -295,6 +312,37 @@ export default function AdminAuctionRecords() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* 刪除批次確認對話框 */}
+      <AlertDialog open={!!confirmDeleteBatch} onOpenChange={(open) => !open && setConfirmDeleteBatch(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-500" />
+              確認刪除整個批次？
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              批次編號：<code className="font-mono font-bold">{confirmDeleteBatch}</code>
+              <br />
+              此操作將永久刪除該批次的所有紀錄（包括待確認及已入庫），無法撤回。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmDeleteBatch(null)}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                if (confirmDeleteBatch) {
+                  deleteBatch.mutate({ batchId: confirmDeleteBatch });
+                  setConfirmDeleteBatch(null);
+                }
+              }}
+            >
+              確認刪除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="flex items-center gap-3 mb-6">
           <Link href="/admin">
@@ -449,16 +497,22 @@ export default function AdminAuctionRecords() {
                   </div>
                 )}
                 {batchResult && (
-                  <div className="rounded-lg bg-green-50 border border-green-200 p-3 text-sm">
+                  <div className="rounded-lg bg-green-50 border border-green-200 p-3 text-sm space-y-1">
                     <p className="font-medium text-green-800">✅ 批量導入完成</p>
                     {batchResult.auctionTitle && (
-                      <p className="text-green-700 mt-0.5 text-xs">{batchResult.auctionTitle}</p>
+                      <p className="text-green-700 text-xs">{batchResult.auctionTitle}</p>
                     )}
-                    <p className="text-green-700 mt-1">
+                    <p className="text-green-700">
                       新增 <strong>{batchResult.imported}</strong> 條・
                       跳過重複 <strong>{batchResult.skipped}</strong> 條・
                       共發現 <strong>{batchResult.discovered}</strong> 個批號
                     </p>
+                    <div className="flex items-center gap-1.5 mt-1 pt-1 border-t border-green-200">
+                      <Layers className="h-3.5 w-3.5 text-green-600" />
+                      <span className="text-green-700 text-xs">批次編號：</span>
+                      <code className="font-mono font-bold text-green-800 text-xs bg-green-100 px-1.5 py-0.5 rounded">{batchResult.batchId}</code>
+                      <span className="text-green-600 text-xs">（可在「待確認」→ 批次管理中刪除）</span>
+                    </div>
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
@@ -621,7 +675,46 @@ export default function AdminAuctionRecords() {
 
         {/* ─── Pending Tab ─── */}
         {tab === "pending" && (
-          <div>
+          <div className="space-y-4">
+            {/* 批次管理面板 */}
+            {batchList.data && batchList.data.length > 0 && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Layers className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800">批次管理</span>
+                  <span className="text-xs text-blue-600">（按批次一鍵刪除所有紀錄，無論待確認或已入庫）</span>
+                </div>
+                <div className="space-y-1.5">
+                  {batchList.data.map(batch => {
+                    const auctionName = batch.sampleNote
+                      ? batch.sampleNote.split(' | ')[0]?.trim()
+                      : null;
+                    return (
+                      <div key={batch.batchId} className="flex items-center gap-2 bg-white rounded-lg border border-blue-100 px-3 py-2">
+                        <code className="font-mono text-xs font-bold text-blue-700 min-w-[130px]">{batch.batchId}</code>
+                        <div className="flex-1 min-w-0">
+                          {auctionName && <p className="text-xs text-gray-600 truncate">{auctionName}</p>}
+                          <p className="text-xs text-gray-500">
+                            共 {batch.total} 條・待確認 {batch.pending}・已入庫 {batch.confirmed}
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0 text-xs text-red-600 border-red-200 hover:bg-red-50 h-7"
+                          onClick={() => setConfirmDeleteBatch(batch.batchId)}
+                          disabled={deleteBatch.isPending}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          刪除此批
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {pendingList.isError ? (
               <div className="text-center py-12">
                 <AlertCircle className="h-8 w-8 mx-auto text-red-400 mb-2" />

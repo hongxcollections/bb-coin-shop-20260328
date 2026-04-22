@@ -3167,6 +3167,12 @@ export const appRouter = router({
           auctionTitle = atM?.[1]?.trim() ?? null;
         }
 
+        // 生成本次批次編號（格式：YYYYMMDD-XXXXX）
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+        const randStr = Math.random().toString(36).slice(2,7).toUpperCase();
+        const batchId = `${dateStr}-${randStr}`;
+
         // --- Step 2: 從拍賣頁提取初始 lot IDs ---
         const auctionRes = await fetch(auctionPageUrl, { headers: { 'User-Agent': UA } });
         const auctionHtml = await auctionRes.text();
@@ -3268,8 +3274,8 @@ export const appRouter = router({
               await dbPool.execute(
                 `INSERT INTO \`auctionRecords\`
                  (lotNumber, title, description, estimateLow, estimateHigh, soldPrice, currency,
-                  auctionHouse, auctionDate, saleStatus, sourceNote, imageUrl, importStatus)
-                 VALUES (?, ?, ?, ?, ?, NULL, 'HKD', 'Spink', NULL, ?, ?, ?, 'pending')`,
+                  auctionHouse, auctionDate, saleStatus, sourceNote, imageUrl, batchId, importStatus)
+                 VALUES (?, ?, ?, ?, ?, NULL, 'HKD', 'Spink', NULL, ?, ?, ?, ?, 'pending')`,
                 [
                   result.data.lotNumber,
                   result.data.title,
@@ -3279,6 +3285,7 @@ export const appRouter = router({
                   result.data.saleStatus,
                   sourceNote,
                   result.data.imageUrl,
+                  batchId,
                 ]
               );
               existingUrls.add(sourceNote);
@@ -3295,8 +3302,49 @@ export const appRouter = router({
           errors,
           auctionTitle,
           discovered: discovered.size,
+          batchId,
           hasMore: queue.length > 0 || (discovered.size < input.maxLots),
         };
+      }),
+
+    /** 列出所有批次（batchId 分組） */
+    listBatches: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const pool = await getRawPool();
+        const [rows]: any = await pool.execute(
+          `SELECT batchId,
+                  COUNT(*) AS total,
+                  SUM(importStatus = 'pending') AS pending,
+                  SUM(importStatus = 'confirmed') AS confirmed,
+                  MIN(createdAt) AS createdAt,
+                  MAX(sourceNote) AS sampleNote
+           FROM \`auctionRecords\`
+           WHERE batchId IS NOT NULL
+           GROUP BY batchId
+           ORDER BY createdAt DESC`
+        );
+        return rows as {
+          batchId: string;
+          total: number;
+          pending: number;
+          confirmed: number;
+          createdAt: string;
+          sampleNote: string | null;
+        }[];
+      }),
+
+    /** 刪除指定批次的所有紀錄 */
+    deleteBatch: protectedProcedure
+      .input(z.object({ batchId: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const pool = await getRawPool();
+        const [result]: any = await pool.execute(
+          'DELETE FROM `auctionRecords` WHERE batchId = ?',
+          [input.batchId]
+        );
+        return { deleted: result.affectedRows };
       }),
 
     /** 從 Spink URL 直接爬取拍品資料並建立 pending 紀錄 */

@@ -290,6 +290,9 @@ async function bootstrapMissingColumns() {
   if (!(await check('auctionRecords', 'imageUrl'))) {
     await alter(`ALTER TABLE \`auctionRecords\` ADD COLUMN \`imageUrl\` VARCHAR(1000) NULL AFTER \`sourceNote\``, 'Added imageUrl column to auctionRecords');
   }
+  if (!(await check('auctionRecords', 'batchId'))) {
+    await alter(`ALTER TABLE \`auctionRecords\` ADD COLUMN \`batchId\` VARCHAR(30) NULL AFTER \`imageUrl\``, 'Added batchId column to auctionRecords');
+  }
 
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
