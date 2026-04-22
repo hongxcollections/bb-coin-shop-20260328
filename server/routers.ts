@@ -3137,6 +3137,168 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    /** 從 Spink 拍賣頁批量導入所有拍品 */
+    importFromSpinkAuction: protectedProcedure
+      .input(z.object({
+        url: z.string().url(),
+        maxLots: z.number().min(1).max(1000).default(300),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!input.url.includes('live.spink.com')) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '請輸入有效的 Spink URL（live.spink.com/...）' });
+        }
+
+        const UA = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+        const CONCURRENCY = 15;
+        const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+        // --- Step 1: 確定拍賣頁 URL ---
+        let auctionPageUrl = input.url;
+        let auctionTitle: string | null = null;
+
+        if (input.url.includes('/lots/view/')) {
+          // 如果是 lot URL，先取得拍賣 ID
+          const lotRes = await fetch(input.url, { headers: { 'User-Agent': UA } });
+          const lotHtml = await lotRes.text();
+          const aidM = lotHtml.match(/href="\/auctions\/(4-[A-Za-z0-9]+)"/);
+          if (aidM) auctionPageUrl = `https://live.spink.com/auctions/${aidM[1]}`;
+          const atM = lotHtml.match(/class="auction-title[^"]*"[^>]*>\s*([^\n<]+)/);
+          auctionTitle = atM?.[1]?.trim() ?? null;
+        }
+
+        // --- Step 2: 從拍賣頁提取初始 lot IDs ---
+        const auctionRes = await fetch(auctionPageUrl, { headers: { 'User-Agent': UA } });
+        const auctionHtml = await auctionRes.text();
+
+        if (!auctionTitle) {
+          const atM = auctionHtml.match(/class="auction-title[^"]*"[^>]*>\s*([^\n<]+)/);
+          auctionTitle = atM?.[1]?.trim() ?? null;
+        }
+
+        const initMatches = [...auctionHtml.matchAll(/lots\/view\/(4-[A-Za-z0-9]+)/g)];
+        const initIds = [...new Set(initMatches.map(m => m[1]))];
+        if (initIds.length === 0) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '無法找到拍品，請確認 URL 是 live.spink.com/auctions/... 格式' });
+        }
+
+        // --- Step 3: 解析單個 lot 頁 ---
+        const parseLot = async (lotId: string) => {
+          try {
+            const url = `https://live.spink.com/lots/view/${lotId}`;
+            const res = await fetch(url, { headers: { 'User-Agent': UA } });
+            if (!res.ok) return null;
+            const html = await res.text();
+
+            // next lot ID
+            const nextM = html.match(/class="next btn[^"]*"\s+href="\/lots\/view\/([A-Za-z0-9\-]+)"/);
+            const nextLotId = nextM?.[1] ?? null;
+
+            // lot data
+            const titleM = html.match(/<meta property="og:title" content="([^"]+)"/);
+            const title = titleM
+              ? titleM[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'")
+              : null;
+            if (!title) return { nextLotId, data: null };
+
+            const lotNumM = html.match(/class="lot-number ng-binding">(\w+)</);
+            const estimateM = html.match(/HK\$([0-9,]+)\s*-\s*HK\$([0-9,]+)/);
+            const descM = html.match(/<meta name="description" content="([^"]+)"/);
+            const availM = html.match(/<meta property="product:availability" content="([^"]+)"/);
+            const imgM = html.match(/href="(https:\/\/images4-cdn\.auctionmobility\.com\/is3\/[^"]+maxwidth=1600[^"]*)"/);
+
+            return {
+              nextLotId,
+              data: {
+                title,
+                lotNumber: lotNumM?.[1] ?? null,
+                estimateLow: estimateM ? parseFloat(estimateM[1].replace(/,/g, '')) : null,
+                estimateHigh: estimateM ? parseFloat(estimateM[2].replace(/,/g, '')) : null,
+                description: descM ? descM[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').trim() : null,
+                saleStatus: availM?.[1] === 'Out of Stock' ? 'sold' : 'unsold' as 'sold' | 'unsold',
+                imageUrl: imgM ? imgM[1].replace(/&amp;/g, '&') : null,
+              },
+            };
+          } catch { return null; }
+        };
+
+        // --- Step 4: 取得已存 lot URLs（避免重複）---
+        const dbPool = await getRawPool();
+        const [existingRows]: any = await dbPool.execute(
+          'SELECT sourceNote FROM `auctionRecords` WHERE auctionHouse = \'Spink\' AND sourceNote IS NOT NULL'
+        );
+        const existingUrls = new Set<string>(
+          (existingRows as any[]).map((r: any) => r.sourceNote as string)
+        );
+
+        // --- Step 5: 佇列處理（BFS + chain walking）---
+        const queue: string[] = [...initIds];
+        const discovered = new Set<string>(initIds);
+        let imported = 0;
+        let skipped = 0;
+        let errors = 0;
+
+        while (queue.length > 0 && imported + skipped < input.maxLots) {
+          const batchSize = Math.min(CONCURRENCY, input.maxLots - imported - skipped, queue.length);
+          const batch = queue.splice(0, batchSize);
+
+          const results = await Promise.all(batch.map(id => parseLot(id)));
+
+          for (let i = 0; i < results.length; i++) {
+            const result = results[i];
+            const lotId = batch[i];
+            const lotUrl = `https://live.spink.com/lots/view/${lotId}`;
+            const sourceNote = auctionTitle ? `${auctionTitle} | ${lotUrl}` : lotUrl;
+
+            // 發現 next lot，加入佇列
+            if (result?.nextLotId && !discovered.has(result.nextLotId)) {
+              discovered.add(result.nextLotId);
+              if (imported + skipped + queue.length < input.maxLots) {
+                queue.push(result.nextLotId);
+              }
+            }
+
+            if (!result?.data) { errors++; continue; }
+
+            // 跳過已存在的 lot
+            const alreadyExists = [...existingUrls].some(url => url.includes(lotId));
+            if (alreadyExists) { skipped++; continue; }
+
+            try {
+              await dbPool.execute(
+                `INSERT INTO \`auctionRecords\`
+                 (lotNumber, title, description, estimateLow, estimateHigh, soldPrice, currency,
+                  auctionHouse, auctionDate, saleStatus, sourceNote, imageUrl, importStatus)
+                 VALUES (?, ?, ?, ?, ?, NULL, 'HKD', 'Spink', NULL, ?, ?, ?, 'pending')`,
+                [
+                  result.data.lotNumber,
+                  result.data.title,
+                  result.data.description,
+                  result.data.estimateLow,
+                  result.data.estimateHigh,
+                  result.data.saleStatus,
+                  sourceNote,
+                  result.data.imageUrl,
+                ]
+              );
+              existingUrls.add(sourceNote);
+              imported++;
+            } catch { errors++; }
+          }
+
+          if (queue.length > 0) await sleep(80);
+        }
+
+        return {
+          imported,
+          skipped,
+          errors,
+          auctionTitle,
+          discovered: discovered.size,
+          hasMore: queue.length > 0 || (discovered.size < input.maxLots),
+        };
+      }),
+
     /** 從 Spink URL 直接爬取拍品資料並建立 pending 紀錄 */
     importFromSpinkUrl: protectedProcedure
       .input(z.object({ url: z.string().url() }))

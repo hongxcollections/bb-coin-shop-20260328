@@ -126,6 +126,20 @@ export default function AdminAuctionRecords() {
     onError: (err) => toast.error(err.message),
   });
 
+  // Batch auction import state
+  const [auctionUrl, setAuctionUrl] = useState("");
+  const [maxLots, setMaxLots] = useState(300);
+  const [batchResult, setBatchResult] = useState<{ imported: number; skipped: number; auctionTitle: string | null; discovered: number } | null>(null);
+  const importAuction = trpc.auctionRecords.importFromSpinkAuction.useMutation({
+    onSuccess: (data) => {
+      setBatchResult(data);
+      toast.success(`批量導入完成：新增 ${data.imported} 條，跳過 ${data.skipped} 條重複`);
+      setTab("pending");
+      pendingList.refetch();
+    },
+    onError: (err) => toast.error(`批量導入失敗：${err.message}`),
+  });
+
   // URL import state
   const [spinkUrl, setSpinkUrl] = useState("");
   const importFromUrl = trpc.auctionRecords.importFromSpinkUrl.useMutation({
@@ -353,6 +367,73 @@ export default function AdminAuctionRecords() {
                     onChange={handleFileSelect}
                   />
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Batch Auction Import */}
+            <Card className="border-primary/30 bg-primary/5">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Database className="h-4 w-4 text-primary" />
+                  整個拍賣一鍵批量導入
+                </CardTitle>
+                <CardDescription>
+                  貼上 Spink 拍賣頁或任何拍品網址，系統自動追蹤所有批號並批量入庫
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex gap-2">
+                  <Input
+                    value={auctionUrl}
+                    onChange={e => { setAuctionUrl(e.target.value); setBatchResult(null); }}
+                    placeholder="https://live.spink.com/auctions/4-KK06SP"
+                    className="flex-1 text-sm bg-white"
+                  />
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">上限</span>
+                    <Input
+                      type="number"
+                      value={maxLots}
+                      onChange={e => setMaxLots(Math.max(1, Math.min(1000, parseInt(e.target.value) || 300)))}
+                      className="w-20 text-sm bg-white"
+                      min={1}
+                      max={1000}
+                    />
+                  </div>
+                  <Button
+                    onClick={() => importAuction.mutate({ url: auctionUrl.trim(), maxLots })}
+                    disabled={!auctionUrl.trim() || importAuction.isPending}
+                    className="shrink-0"
+                  >
+                    {importAuction.isPending ? (
+                      <><Loader2 className="h-4 w-4 animate-spin mr-1" />導入中…</>
+                    ) : (
+                      <><CheckCircle className="h-4 w-4 mr-1" />批量導入</>
+                    )}
+                  </Button>
+                </div>
+                {importAuction.isPending && (
+                  <div className="flex items-center gap-2 text-sm text-primary">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>正在抓取拍品資料，請稍候（每 15 條並行，需時 1-3 分鐘）…</span>
+                  </div>
+                )}
+                {batchResult && (
+                  <div className="rounded-lg bg-green-50 border border-green-200 p-3 text-sm">
+                    <p className="font-medium text-green-800">✅ 批量導入完成</p>
+                    {batchResult.auctionTitle && (
+                      <p className="text-green-700 mt-0.5 text-xs">{batchResult.auctionTitle}</p>
+                    )}
+                    <p className="text-green-700 mt-1">
+                      新增 <strong>{batchResult.imported}</strong> 條・
+                      跳過重複 <strong>{batchResult.skipped}</strong> 條・
+                      共發現 <strong>{batchResult.discovered}</strong> 個批號
+                    </p>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  支援：拍賣頁 URL（.../auctions/...）或任何拍品 URL（.../lots/view/...）。圖片使用 Spink CDN 原址，成交價需手動補填。
+                </p>
               </CardContent>
             </Card>
 
