@@ -125,6 +125,43 @@ async function sendViaAlibaba(phone: string, otpCode: string): Promise<{ ok: boo
   }
 }
 
+// ─── Twilio Verify — WhatsApp channel ─────────────────────────────────────────
+
+function friendlyWhatsAppError(raw: string): string {
+  if (/unverified|Trial account|not.*verified/i.test(raw))
+    return "此號碼尚未加入測試名單，請聯絡管理員";
+  if (/rate.?limit|too many request/i.test(raw))
+    return "發送次數過多，請稍後再試";
+  if (/whatsapp.*not.*enabled|channel.*not.*available/i.test(raw))
+    return "WhatsApp 頻道暫時不可用，請繼續使用短訊驗證碼";
+  if (/Invalid parameter.*To|is not a valid phone number/i.test(raw))
+    return "電話號碼格式不正確，請重新確認";
+  return "WhatsApp 發送失敗，請改用短訊驗證碼";
+}
+
+async function sendViaTwilioVerifyWhatsApp(phone: string): Promise<{ ok: boolean; error?: string }> {
+  const client = getTwilioClient();
+  if (!client) {
+    console.log(`[WA DEV/TwilioVerify] Would send WhatsApp OTP to: ${phone}`);
+    return { ok: true };
+  }
+  if (!TWILIO_VERIFY_SID) {
+    console.log(`[WA DEV/TwilioVerify] TWILIO_VERIFY_SERVICE_SID not set. Phone: ${phone}`);
+    return { ok: true };
+  }
+  try {
+    const verification = await client.verify.v2
+      .services(TWILIO_VERIFY_SID)
+      .verifications.create({ to: phone, channel: "whatsapp" });
+    console.log(`[WA/TwilioVerify] WhatsApp OTP sent. Status: ${verification.status}`);
+    return { ok: true };
+  } catch (err: any) {
+    const detail = err?.message || String(err);
+    console.error(`[WA/TwilioVerify] Failed to send WhatsApp OTP to: ${phone} | ${detail}`);
+    return { ok: false, error: friendlyWhatsAppError(detail) };
+  }
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -140,6 +177,18 @@ export async function sendOtpSms(
     return sendViaAlibaba(phone, otpCode);
   }
   return sendViaTwilioVerify(phone);
+}
+
+/**
+ * Send OTP via WhatsApp (fallback when SMS is not received).
+ * Uses Twilio Verify with WhatsApp channel — same verification check as SMS.
+ * Only supported for non-China numbers (China uses Alibaba SMS).
+ */
+export async function sendOtpWhatsApp(phone: string): Promise<{ ok: boolean; error?: string }> {
+  if (isMainlandChina(phone)) {
+    return { ok: false, error: "中國大陸號碼暫不支援 WhatsApp 備用發送" };
+  }
+  return sendViaTwilioVerifyWhatsApp(phone);
 }
 
 export function getSmsProviderStatus() {

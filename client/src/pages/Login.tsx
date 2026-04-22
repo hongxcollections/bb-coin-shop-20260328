@@ -129,6 +129,10 @@ export default function Login() {
 
   const [loading, setLoading] = useState(false);
 
+  // ─── WhatsApp 備用 OTP ────────────────────────────────────────────────────────
+  const [waSending, setWaSending] = useState(false);
+  const [waSent, setWaSent] = useState(false);
+
   // ─── 強制更改密碼 Dialog（管理員修改後首次登入觸發）────────────────────────────
   const [forceResetOpen, setForceResetOpen] = useState(false);
   const [forceResetPw, setForceResetPw] = useState("");
@@ -249,6 +253,7 @@ export default function Login() {
         showToast({ icon: "⚠️", title: data.error || "發送失敗", desc: data.detail, durationMs: 5000 });
         return;
       }
+      setWaSent(false);
       setCountdown(60);
       setOtpDigits(["", "", "", "", "", ""]);
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
@@ -256,6 +261,35 @@ export default function Login() {
       showError("網絡錯誤，請稍後再試");
     } finally {
       setOtpSending(false);
+    }
+  };
+
+  // WhatsApp 備用 OTP 發送（短訊收不到時）
+  const isChinesePhone = phone.startsWith("+86");
+  const isFpChinesePhone = fpPhone.startsWith("+86");
+  const sendWhatsAppOtp = async (targetPhone?: string) => {
+    const p = targetPhone ?? phone;
+    setWaSending(true);
+    try {
+      const res = await fetch("/api/auth/send-otp-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: p }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast({ icon: "⚠️", title: data.error || "WhatsApp 發送失敗", durationMs: 5000 });
+        return;
+      }
+      setWaSent(true);
+      setCountdown(60);
+      setOtpDigits(["", "", "", "", "", ""]);
+      showToast({ icon: "💬", title: "WhatsApp 驗證碼已發送", desc: "請查看 WhatsApp 訊息", durationMs: 4000 });
+      setTimeout(() => otpRefs.current[0]?.focus(), 100);
+    } catch {
+      showError("網絡錯誤，請稍後再試");
+    } finally {
+      setWaSending(false);
     }
   };
 
@@ -648,8 +682,40 @@ export default function Login() {
                     style={{ color: countdown > 0 ? "#aaa" : "#E07B00" }}>
                     {countdown > 0 ? `重新發送（${countdown}秒）` : fpLoading ? "發送中..." : "重新發送驗證碼"}
                   </button>
+
+                  {/* WhatsApp 備用 — 忘記密碼流程 */}
+                  {!isFpChinesePhone && (
+                    <div className="pt-1">
+                      {waSent ? (
+                        <div className="flex items-center justify-center gap-1.5 text-xs py-2 px-3 rounded-xl"
+                             style={{ background: "#F0FDF4", color: "#15803d" }}>
+                          <span>💬</span>
+                          <span>已透過 WhatsApp 發送，請查看訊息</span>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs mb-1.5" style={{ color: "#aaa" }}>收不到短訊？</p>
+                          <button
+                            type="button"
+                            onClick={() => sendWhatsAppOtp(fpPhone)}
+                            disabled={waSending || countdown > 0}
+                            className="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl border transition-colors"
+                            style={{
+                              borderColor: "#25D366",
+                              color: (waSending || countdown > 0) ? "#aaa" : "#128C7E",
+                              background: (waSending || countdown > 0) ? "#f5f5f5" : "#F0FDF4",
+                            }}
+                          >
+                            <span>💬</span>
+                            {waSending ? "發送中..." : countdown > 0 ? `WhatsApp（${countdown}秒後可用）` : "改用 WhatsApp 發送驗證碼"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div>
-                    <button type="button" onClick={() => { setFpStep("identify"); setOtpDigits(["", "", "", "", "", ""]); }}
+                    <button type="button" onClick={() => { setFpStep("identify"); setOtpDigits(["", "", "", "", "", ""]); setWaSent(false); }}
                       className="text-xs bg-transparent border-0 cursor-pointer" style={{ color: "#aaa" }}>
                       ← 修改手機號碼
                     </button>
@@ -767,10 +833,42 @@ export default function Login() {
                   {countdown > 0 ? `重新發送（${countdown}秒）` : otpSending ? "發送中..." : "重新發送驗證碼"}
                 </button>
               </div>
+
+              {/* ── WhatsApp 備用發送 ── */}
+              {!isChinesePhone && (
+                <div className="pt-1">
+                  {waSent ? (
+                    <div className="flex items-center justify-center gap-1.5 text-xs py-2 px-3 rounded-xl mx-auto inline-flex"
+                         style={{ background: "#F0FDF4", color: "#15803d" }}>
+                      <span>💬</span>
+                      <span>已透過 WhatsApp 發送，請查看訊息</span>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-xs mb-1.5" style={{ color: "#aaa" }}>收不到短訊？</p>
+                      <button
+                        type="button"
+                        onClick={sendWhatsAppOtp}
+                        disabled={waSending || countdown > 0}
+                        className="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl border transition-colors"
+                        style={{
+                          borderColor: "#25D366",
+                          color: (waSending || countdown > 0) ? "#aaa" : "#128C7E",
+                          background: (waSending || countdown > 0) ? "#f5f5f5" : "#F0FDF4",
+                        }}
+                      >
+                        <span>💬</span>
+                        {waSending ? "發送中..." : countdown > 0 ? `WhatsApp（${countdown}秒後可用）` : "改用 WhatsApp 發送驗證碼"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div>
                 <button
                   type="button"
-                  onClick={() => { setStep("form"); setOtpDigits(["", "", "", "", "", ""]); }}
+                  onClick={() => { setStep("form"); setOtpDigits(["", "", "", "", "", ""]); setWaSent(false); }}
                   className="text-xs bg-transparent border-0 cursor-pointer"
                   style={{ color: "#aaa" }}
                 >

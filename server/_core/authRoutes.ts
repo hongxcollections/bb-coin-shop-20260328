@@ -6,7 +6,7 @@ import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 import { users } from "../../drizzle/schema";
 import { eq, or } from "drizzle-orm";
-import { sendOtpSms, checkViaTwilioVerify, isMainlandChina } from "./sms";
+import { sendOtpSms, sendOtpWhatsApp, checkViaTwilioVerify, isMainlandChina } from "./sms";
 import { generateOtp, setOtp, verifyOtp, canSendOtp, recordOtpSend } from "./otpStore";
 import { addResetRequest } from "./resetRequestStore";
 
@@ -137,6 +137,48 @@ export function registerAuthRoutes(app: Express) {
       res.json({ success: true, message: "驗證碼已發送" });
     } catch (err) {
       console.error("[Auth] send-otp error:", err);
+      res.status(500).json({ error: "發送失敗，請稍後再試" });
+    }
+  });
+
+  // POST /api/auth/send-otp-whatsapp — WhatsApp 備用發送（短訊收不到時使用）
+  app.post("/api/auth/send-otp-whatsapp", async (req: Request, res: Response) => {
+    try {
+      const { phone } = req.body;
+      if (!phone) { res.status(400).json({ error: "請提供手機號碼" }); return; }
+
+      const fmtErr = serverValidatePhone(phone);
+      if (fmtErr) { res.status(400).json({ error: fmtErr }); return; }
+
+      if (isMainlandChina(phone)) {
+        res.status(400).json({ error: "中國大陸號碼暫不支援 WhatsApp 備用發送" });
+        return;
+      }
+
+      // IP rate limit
+      if (!checkIpRateLimit(req).ok) {
+        res.status(429).json({ error: "請求過於頻繁，請稍後再試" });
+        return;
+      }
+
+      // Phone rate limit (same pool as SMS — WhatsApp counts toward hourly limit)
+      const phoneLimit = canSendOtp(phone);
+      if (!phoneLimit.ok) {
+        res.status(429).json({ error: phoneLimit.reason ?? "請稍候再重新發送驗證碼" });
+        return;
+      }
+
+      const waResult = await sendOtpWhatsApp(phone);
+      if (!waResult.ok) {
+        console.error(`[Auth] WhatsApp OTP send failed for ${phone}: ${waResult.error}`);
+        res.status(500).json({ error: waResult.error || "WhatsApp 發送失敗，請改用短訊驗證碼" });
+        return;
+      }
+
+      recordOtpSend(phone);
+      res.json({ success: true, message: "驗證碼已透過 WhatsApp 發送" });
+    } catch (err) {
+      console.error("[Auth] send-otp-whatsapp error:", err);
       res.status(500).json({ error: "發送失敗，請稍後再試" });
     }
   });
