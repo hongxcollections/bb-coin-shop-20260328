@@ -3394,6 +3394,46 @@ export const appRouter = router({
         };
       }),
 
+    /** 補全所有 Spink 紀錄的圖片（imageUrl 為 NULL 但有 sourceNote URL） */
+    backfillImages: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const UA = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+        const CONCURRENCY = 10;
+        const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+        const pool = await getRawPool();
+        const [rows]: any = await pool.execute(
+          `SELECT id, sourceNote FROM \`auctionRecords\`
+           WHERE imageUrl IS NULL AND sourceNote LIKE '%live.spink.com/lots/view/%'`
+        );
+        if (!rows.length) return { updated: 0, total: 0 };
+
+        let updated = 0;
+        const queue: { id: number; url: string }[] = (rows as any[]).map((r: any) => {
+          const m = r.sourceNote.match(/https?:\/\/live\.spink\.com\/lots\/view\/[^\s|]+/);
+          return m ? { id: r.id, url: m[0] } : null;
+        }).filter(Boolean) as { id: number; url: string }[];
+
+        while (queue.length > 0) {
+          const batch = queue.splice(0, CONCURRENCY);
+          await Promise.all(batch.map(async ({ id, url }) => {
+            try {
+              const res = await fetch(url, { headers: { 'User-Agent': UA } });
+              if (!res.ok) return;
+              const html = await res.text();
+              const imgM = html.match(/href="(https:\/\/images4-cdn\.auctionmobility\.com\/is3\/[^"]+maxwidth=1600[^"]*)"/);
+              if (!imgM) return;
+              const imageUrl = imgM[1].replace(/&amp;/g, '&');
+              await pool.execute('UPDATE `auctionRecords` SET imageUrl = ? WHERE id = ?', [imageUrl, id]);
+              updated++;
+            } catch { /* skip */ }
+          }));
+          if (queue.length > 0) await sleep(80);
+        }
+        return { updated, total: rows.length };
+      }),
+
     /** 批量刪除全部 pending（撤回這批截圖提取結果） */
     deletePending: protectedProcedure
       .mutation(async ({ ctx }) => {

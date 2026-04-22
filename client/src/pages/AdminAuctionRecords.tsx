@@ -126,6 +126,19 @@ export default function AdminAuctionRecords() {
     onError: (err) => toast.error(err.message),
   });
 
+  // Backfill images
+  const backfillImages = trpc.auctionRecords.backfillImages.useMutation({
+    onSuccess: (data) => {
+      if (data.updated === 0) {
+        toast.success("所有有來源連結的紀錄已有圖片，無需補全");
+      } else {
+        toast.success(`已補全 ${data.updated} / ${data.total} 條紀錄的圖片`);
+      }
+      confirmedList.refetch();
+    },
+    onError: (err) => toast.error(`補全圖片失敗：${err.message}`),
+  });
+
   // Batch auction import state
   const [auctionUrl, setAuctionUrl] = useState("");
   const [maxLots, setMaxLots] = useState(300);
@@ -670,9 +683,24 @@ export default function AdminAuctionRecords() {
               </div>
             ) : (
               <div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  共 {confirmedList.data.total} 條已入庫紀錄
-                </p>
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm text-muted-foreground">
+                    共 {confirmedList.data.total} 條已入庫紀錄
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => backfillImages.mutate()}
+                    disabled={backfillImages.isPending}
+                    className="text-xs gap-1.5"
+                  >
+                    {backfillImages.isPending ? (
+                      <><Loader2 className="h-3.5 w-3.5 animate-spin" />補全圖片中…</>
+                    ) : (
+                      <><Image className="h-3.5 w-3.5" />補全 Spink 圖片</>
+                    )}
+                  </Button>
+                </div>
                 <RecordTable
                   records={(confirmedList.data.records ?? []) as AuctionRecord[]}
                   onDelete={(id) => deleteOne.mutate({ id })}
