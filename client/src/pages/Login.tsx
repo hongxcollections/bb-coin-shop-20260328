@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Eye, EyeOff, Mail, Phone, Lock, User, ShieldCheck, ChevronDown } from "lucide-react";
+import { Eye, EyeOff, Mail, Phone, Lock, User, ShieldCheck, ChevronDown, Bell, Bot, Shield, BadgeCheck, Clock, CheckCircle2, Lightbulb, ChevronUp } from "lucide-react";
 import Header from "@/components/Header";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -15,6 +15,18 @@ const COUNTRIES = [
   { code: "+61",  flag: "🇦🇺", name: "澳洲" },
   { code: "+81",  flag: "🇯🇵", name: "日本" },
   { code: "+82",  flag: "🇰🇷", name: "韓國" },
+];
+
+// ─── 銀牌會員福利（早鳥說明用）────────────────────────────────────────────────
+const SILVER_PERKS_LIST = [
+  { icon: Bell,         color: "#6366f1", title: "瀏覽器即時推播",   badge: "銀牌獨有", desc: "有人出價即彈出通知，毋須開電郵，秒速掌握競標動態。" },
+  { icon: Bot,          color: "#10b981", title: "代理出價自動跟標", badge: "省時省力", desc: "設定最高出價上限，系統自動替你跟標，無需時刻守候。" },
+  { icon: Shield,       color: "#f97316", title: "防截標延時保護",   badge: "反狙擊",   desc: "拍賣尾聲出價自動延時，杜絕最後一秒狙擊，公平決勝。" },
+  { icon: Mail,         color: "#ec4899", title: "被超標即時通知",   badge: "電郵通知", desc: "對手超出你的出價時，即時電郵通知，讓你決定是否繼續。" },
+  { icon: Clock,        color: "#f59e0b", title: "結束前提醒",       badge: "不錯失",   desc: "拍賣即將結束前自動提醒，確保你不會因忙碌而錯過出價。" },
+  { icon: CheckCircle2, color: "#14b8a6", title: "得標確認通知",     badge: "確認通知", desc: "成功得標後即時通知，包含商品資訊及付款交收指引。" },
+  { icon: BadgeCheck,   color: "#64748b", title: "銀牌橫幅與徽章",   badge: "身份象徵", desc: "個人頁銀牌漸層橫幅，名字旁顯示尊榮徽章。" },
+  { icon: Lock,         color: "#3b82f6", title: "交易記錄永久保存", badge: "安全可查", desc: "所有出價及得標記錄永久儲存，隨時查閱。" },
 ];
 
 // ─── Phone format validation ────────────────────────────────────────────────
@@ -100,6 +112,7 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showSilverPerks, setShowSilverPerks] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
@@ -765,12 +778,74 @@ export default function Login() {
                   </div>
                 </div>
 
-                {/* Register method toggle — 早鳥入口會鎖死電話，只顯示提示 */}
+                {/* Register method toggle — 早鳥入口會鎖死電話，只顯示提示 + 銀牌福利說明 */}
                 {phoneOnly ? (
-                  <div className="rounded-xl border px-3 py-2 text-xs flex items-center gap-2"
-                       style={{ background: "#FFF7ED", borderColor: "#FED7AA", color: "#9A3412" }}>
-                    <Phone size={14} />
-                    <span>🎁 早鳥名額僅限<span className="font-semibold">手機註冊</span>領取</span>
+                  <div className="rounded-xl border overflow-hidden"
+                       style={{ borderColor: "#FED7AA" }}>
+                    {/* 頂部提示列 */}
+                    <div className="px-3 py-2.5 flex items-center justify-between gap-2"
+                         style={{ background: "#FFF7ED" }}>
+                      <div className="flex items-center gap-2 text-xs" style={{ color: "#9A3412" }}>
+                        <Phone size={14} />
+                        <span>🎁 早鳥名額僅限<span className="font-semibold">手機註冊</span>領取</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowSilverPerks(v => !v)}
+                        className="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold shrink-0 transition-colors"
+                        style={{
+                          background: showSilverPerks ? "#FEF3C7" : "#FFFBEB",
+                          color: "#92400E",
+                          border: "1px solid #FCD34D",
+                        }}
+                      >
+                        <Lightbulb size={11} style={{ color: "#F59E0B" }} />
+                        銀牌有咩特別？
+                        {showSilverPerks
+                          ? <ChevronUp size={11} />
+                          : <ChevronDown size={11} />}
+                      </button>
+                    </div>
+
+                    {/* 展開：銀牌福利列表 */}
+                    {showSilverPerks && (
+                      <div className="border-t" style={{ borderColor: "#FED7AA", background: "#FFFBEB" }}>
+                        <div className="px-3 pt-2.5 pb-1">
+                          <p className="text-[11px] font-semibold mb-2" style={{ color: "#78350F" }}>
+                            🥈 銀牌試用期間，你將享有以下所有功能：
+                          </p>
+                          <div className="space-y-2">
+                            {SILVER_PERKS_LIST.map((perk, i) => {
+                              const Icon = perk.icon;
+                              return (
+                                <div key={i} className="flex items-start gap-2.5 rounded-lg px-2.5 py-2"
+                                     style={{ background: "rgba(255,255,255,0.7)" }}>
+                                  <div className="shrink-0 mt-0.5 w-7 h-7 rounded-full flex items-center justify-center"
+                                       style={{ background: `${perk.color}18` }}>
+                                    <Icon size={14} style={{ color: perk.color }} />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-xs font-semibold" style={{ color: "#1C1917" }}>{perk.title}</span>
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                                            style={{ background: `${perk.color}18`, color: perk.color }}>
+                                        {perk.badge}
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] leading-relaxed mt-0.5" style={{ color: "#78350F" }}>
+                                      {perk.desc}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <p className="text-center text-[10px] mt-2.5 mb-1.5 font-medium" style={{ color: "#92400E" }}>
+                            👆 完成手機號碼驗證後即自動解鎖以上全部功能
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div>
