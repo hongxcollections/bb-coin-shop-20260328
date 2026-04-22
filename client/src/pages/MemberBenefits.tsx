@@ -3,12 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Check, X, ArrowLeft, Star, Zap, Shield, Crown, Info } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { MemberHeroBanner } from "@/components/MemberHeroBanner";
@@ -152,33 +147,28 @@ function Cell({ val }: { val: boolean | string }) {
   return <span className="text-xs text-center text-muted-foreground leading-tight">{val}</span>;
 }
 
-// Mobile-friendly popover using state (for touch devices)
+// Mobile-friendly: 點擊打開居中 Dialog，無定位溢出問題
 function BenefitLabel({ benefit, detail }: { benefit: string; detail: string }) {
   const [open, setOpen] = useState(false);
-
   return (
-    <TooltipProvider delayDuration={100}>
-      <Tooltip open={open} onOpenChange={setOpen}>
-        <TooltipTrigger asChild>
-          <button
-            className="flex items-center gap-1.5 text-left group"
-            onClick={() => setOpen(v => !v)}
-            type="button"
-          >
-            <span className="text-sm">{benefit}</span>
-            <Info className="w-3.5 h-3.5 text-amber-400 group-hover:text-amber-600 flex-shrink-0 transition-colors" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent
-          side="right"
-          align="start"
-          className="max-w-xs text-xs leading-relaxed bg-amber-900 text-amber-50 border-amber-700 shadow-xl p-3"
-        >
-          <p className="font-semibold mb-1 text-amber-200">{benefit}</p>
-          <p>{detail}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <>
+      <button
+        className="flex items-center gap-1.5 text-left group"
+        onClick={() => setOpen(true)}
+        type="button"
+      >
+        <span className="text-sm">{benefit}</span>
+        <Info className="w-3.5 h-3.5 text-amber-400 group-hover:text-amber-600 flex-shrink-0 transition-colors" />
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm mx-4">
+          <DialogHeader>
+            <DialogTitle className="text-amber-900 text-base">{benefit}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground leading-relaxed">{detail}</p>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
