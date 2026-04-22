@@ -2931,14 +2931,15 @@ export const appRouter = router({
       .query(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         const pool = await getRawPool();
+        const limit = Math.max(1, Math.min(500, Number(input.limit)));
+        const offset = Math.max(0, Number(input.offset));
         let query = 'SELECT * FROM `auctionRecords`';
         const params: any[] = [];
         if (input.importStatus !== 'all') {
           query += ' WHERE importStatus = ?';
           params.push(input.importStatus);
         }
-        query += ' ORDER BY createdAt DESC LIMIT ? OFFSET ?';
-        params.push(input.limit, input.offset);
+        query += ` ORDER BY createdAt DESC LIMIT ${limit} OFFSET ${offset}`;
         const [rows]: any = await pool.execute(query, params);
         // Count
         let countQuery = 'SELECT COUNT(*) as cnt FROM `auctionRecords`';
