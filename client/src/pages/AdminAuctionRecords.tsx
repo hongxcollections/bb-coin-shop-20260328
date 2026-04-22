@@ -454,7 +454,13 @@ export default function AdminAuctionRecords() {
         {/* ─── Pending Tab ─── */}
         {tab === "pending" && (
           <div>
-            {pendingList.isLoading || !pendingList.data ? (
+            {pendingList.isError ? (
+              <div className="text-center py-12">
+                <AlertCircle className="h-8 w-8 mx-auto text-red-400 mb-2" />
+                <p className="text-muted-foreground">載入失敗：{pendingList.error?.message}</p>
+                <Button size="sm" variant="outline" className="mt-3" onClick={() => pendingList.refetch()}>重試</Button>
+              </div>
+            ) : pendingList.isLoading || !pendingList.data ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
@@ -509,7 +515,13 @@ export default function AdminAuctionRecords() {
         {/* ─── Confirmed Tab ─── */}
         {tab === "confirmed" && (
           <div>
-            {confirmedList.isLoading || !confirmedList.data ? (
+            {confirmedList.isError ? (
+              <div className="text-center py-12">
+                <AlertCircle className="h-8 w-8 mx-auto text-red-400 mb-2" />
+                <p className="text-muted-foreground">載入失敗：{confirmedList.error?.message}</p>
+                <Button size="sm" variant="outline" className="mt-3" onClick={() => confirmedList.refetch()}>重試</Button>
+              </div>
+            ) : confirmedList.isLoading || !confirmedList.data ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
