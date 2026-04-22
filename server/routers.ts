@@ -2997,26 +2997,98 @@ export const appRouter = router({
         return { inserted };
       }),
 
-    /** 確認單條紀錄（pending → confirmed） */
+    /**
+     * 查詢 pending 紀錄中哪些與已確認的紀錄重複
+     * 重複定義：同一 auctionHouse + auctionDate + lotNumber（三個都不為 null）
+     */
+    checkDuplicates: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const pool = await getRawPool();
+        const [pending]: any = await pool.execute(
+          `SELECT id, lotNumber, auctionHouse, auctionDate FROM \`auctionRecords\`
+           WHERE importStatus = 'pending'`
+        );
+        const duplicates: { pendingId: number; confirmedId: number }[] = [];
+        for (const row of pending) {
+          if (!row.lotNumber || !row.auctionHouse || !row.auctionDate) continue;
+          const [found]: any = await pool.execute(
+            `SELECT id FROM \`auctionRecords\`
+             WHERE importStatus = 'confirmed'
+               AND auctionHouse = ? AND auctionDate = ? AND lotNumber = ?
+             LIMIT 1`,
+            [row.auctionHouse, row.auctionDate, row.lotNumber]
+          );
+          if (found.length > 0) {
+            duplicates.push({ pendingId: row.id, confirmedId: found[0].id });
+          }
+        }
+        return duplicates;
+      }),
+
+    /** 確認單條紀錄（pending → confirmed），支援重複偵測 */
     confirm: protectedProcedure
-      .input(z.object({ id: z.number() }))
+      .input(z.object({ id: z.number(), force: z.boolean().default(false) }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         const pool = await getRawPool();
+        // 查詢這條 pending 紀錄
+        const [rows]: any = await pool.execute(
+          'SELECT lotNumber, auctionHouse, auctionDate FROM `auctionRecords` WHERE id = ?',
+          [input.id]
+        );
+        const record = rows[0];
+        // 非強制模式：查重
+        if (!input.force && record?.lotNumber && record?.auctionHouse && record?.auctionDate) {
+          const [dupes]: any = await pool.execute(
+            `SELECT id FROM \`auctionRecords\`
+             WHERE importStatus = 'confirmed'
+               AND auctionHouse = ? AND auctionDate = ? AND lotNumber = ?
+             LIMIT 1`,
+            [record.auctionHouse, record.auctionDate, record.lotNumber]
+          );
+          if (dupes.length > 0) {
+            return { success: false, isDuplicate: true, duplicateId: dupes[0].id as number };
+          }
+        }
         await pool.execute('UPDATE `auctionRecords` SET importStatus = ? WHERE id = ?', ['confirmed', input.id]);
-        return { success: true };
+        return { success: true, isDuplicate: false };
       }),
 
-    /** 批量確認全部 pending */
+    /** 批量確認全部 pending（自動跳過重複，除非 force=true） */
     confirmAll: protectedProcedure
-      .mutation(async ({ ctx }) => {
+      .input(z.object({ force: z.boolean().default(false) }))
+      .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         const pool = await getRawPool();
-        const [result]: any = await pool.execute(
-          'UPDATE `auctionRecords` SET importStatus = ? WHERE importStatus = ?',
-          ['confirmed', 'pending']
+        if (input.force) {
+          const [result]: any = await pool.execute(
+            'UPDATE `auctionRecords` SET importStatus = ? WHERE importStatus = ?',
+            ['confirmed', 'pending']
+          );
+          return { confirmed: result.affectedRows, skipped: 0 };
+        }
+        // 逐條檢查重複
+        const [pending]: any = await pool.execute(
+          'SELECT id, lotNumber, auctionHouse, auctionDate FROM `auctionRecords` WHERE importStatus = \'pending\''
         );
-        return { updated: result.affectedRows };
+        let confirmed = 0;
+        let skipped = 0;
+        for (const row of pending) {
+          if (row.lotNumber && row.auctionHouse && row.auctionDate) {
+            const [dupes]: any = await pool.execute(
+              `SELECT id FROM \`auctionRecords\`
+               WHERE importStatus = 'confirmed'
+                 AND auctionHouse = ? AND auctionDate = ? AND lotNumber = ?
+               LIMIT 1`,
+              [row.auctionHouse, row.auctionDate, row.lotNumber]
+            );
+            if (dupes.length > 0) { skipped++; continue; }
+          }
+          await pool.execute('UPDATE `auctionRecords` SET importStatus = ? WHERE id = ?', ['confirmed', row.id]);
+          confirmed++;
+        }
+        return { confirmed, skipped };
       }),
 
     /** 更新單條紀錄 */
