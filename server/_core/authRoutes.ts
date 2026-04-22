@@ -228,13 +228,10 @@ export function registerAuthRoutes(app: Express) {
       const code = generateEmailOtp();
       setEmailOtp(phone, email, code);
 
-      // Get sender settings (use already-imported db module)
+      // OTP emails always use the verified domain address (transactional, not marketing)
       const settings = await db.getNotificationSettings();
       const senderName = settings?.senderName ?? "大BB錢幣店";
-      // Must use a domain verified in Resend — never a gmail/third-party address as sender
-      const rawSenderEmail = settings?.senderEmail ?? "";
-      const isVerifiedDomain = rawSenderEmail && !rawSenderEmail.endsWith("@gmail.com") && !rawSenderEmail.endsWith("@yahoo.com") && !rawSenderEmail.endsWith("@hotmail.com");
-      const senderEmail = isVerifiedDomain ? rawSenderEmail : "noreply@hongxcollections.com";
+      const senderEmail = "noreply@hongxcollections.com";
 
       console.log(`[Auth] Email fallback OTP: senderEmail=${senderEmail}, to=${email}`);
 
