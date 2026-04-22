@@ -3212,6 +3212,10 @@ export const appRouter = router({
             const descM = html.match(/<meta name="description" content="([^"]+)"/);
             const availM = html.match(/<meta property="product:availability" content="([^"]+)"/);
             const imgM = html.match(/href="(https:\/\/images4-cdn\.auctionmobility\.com\/is3\/[^"]+maxwidth=1600[^"]*)"/);
+            const soldTextM = html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
+            const isEnded = /\bENDED\b/.test(html);
+            const isSoldMeta = availM?.[1] === 'Out of Stock';
+            const saleStatus: 'sold' | 'unsold' = (isSoldMeta || !!soldTextM) ? 'sold' : 'unsold';
 
             return {
               nextLotId,
@@ -3221,7 +3225,8 @@ export const appRouter = router({
                 estimateLow: estimateM ? parseFloat(estimateM[1].replace(/,/g, '')) : null,
                 estimateHigh: estimateM ? parseFloat(estimateM[2].replace(/,/g, '')) : null,
                 description: descM ? descM[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').trim() : null,
-                saleStatus: availM?.[1] === 'Out of Stock' ? 'sold' : 'unsold' as 'sold' | 'unsold',
+                saleStatus,
+                soldPrice: soldTextM ? parseFloat(soldTextM[1].replace(/,/g, '')) : null,
                 imageUrl: imgM ? imgM[1].replace(/&amp;/g, '&') : null,
               },
             };
@@ -3275,13 +3280,14 @@ export const appRouter = router({
                 `INSERT INTO \`auctionRecords\`
                  (lotNumber, title, description, estimateLow, estimateHigh, soldPrice, currency,
                   auctionHouse, auctionDate, saleStatus, sourceNote, imageUrl, batchId, importStatus)
-                 VALUES (?, ?, ?, ?, ?, NULL, 'HKD', 'Spink', NULL, ?, ?, ?, ?, 'pending')`,
+                 VALUES (?, ?, ?, ?, ?, ?, 'HKD', 'Spink', NULL, ?, ?, ?, ?, 'pending')`,
                 [
                   result.data.lotNumber,
                   result.data.title,
                   result.data.description,
                   result.data.estimateLow,
                   result.data.estimateHigh,
+                  result.data.soldPrice ?? null,
                   result.data.saleStatus,
                   sourceNote,
                   result.data.imageUrl,
@@ -3383,9 +3389,11 @@ export const appRouter = router({
           ? descMetaM[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'").trim()
           : null;
 
-        // --- 解析成交/流拍狀態 ---
+        // --- 解析成交/流拍狀態 + 成交金額 ---
         const availabilityM = html.match(/<meta property="product:availability" content="([^"]+)"/);
-        const saleStatus: 'sold' | 'unsold' = availabilityM?.[1] === 'Out of Stock' ? 'sold' : 'unsold';
+        const soldTextM2 = html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
+        const saleStatus: 'sold' | 'unsold' = (availabilityM?.[1] === 'Out of Stock' || !!soldTextM2) ? 'sold' : 'unsold';
+        const soldPrice2 = soldTextM2 ? parseFloat(soldTextM2[1].replace(/,/g, '')) : null;
 
         // --- 解析拍賣場次標題 ---
         const auctionTitleM = html.match(/class="auction-title[^"]*"[^>]*>\s*([^\n<]+)/);
@@ -3417,13 +3425,14 @@ export const appRouter = router({
           `INSERT INTO \`auctionRecords\`
            (lotNumber, title, description, estimateLow, estimateHigh, soldPrice, currency,
             auctionHouse, auctionDate, saleStatus, sourceNote, imageUrl, importStatus)
-           VALUES (?, ?, ?, ?, ?, NULL, 'HKD', 'Spink', NULL, ?, ?, ?, 'pending')`,
+           VALUES (?, ?, ?, ?, ?, ?, 'HKD', 'Spink', NULL, ?, ?, ?, 'pending')`,
           [
             lotNumber,
             title,
             description,
             estimateLow,
             estimateHigh,
+            soldPrice2,
             saleStatus,
             auctionTitle ? `${auctionTitle} | ${input.url}` : input.url,
             storedImageUrl,
@@ -3576,6 +3585,52 @@ export const appRouter = router({
           if (queue.length > 0) await sleep(80);
         }
         return { updated, total: rows.length };
+      }),
+
+    /** 補全已入庫 Spink 紀錄的成交金額（重新抓頁面 SOLD HK$XXX） */
+    backfillSoldPrices: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const UA = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+        const CONCURRENCY = 8;
+        const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+        const pool = await getRawPool();
+        const [rows]: any = await pool.execute(
+          `SELECT id, sourceNote, saleStatus FROM \`auctionRecords\`
+           WHERE importStatus = 'confirmed'
+             AND soldPrice IS NULL
+             AND sourceNote LIKE '%live.spink.com%'`
+        );
+        if (!rows.length) return { updated: 0, skipped: 0, total: 0 };
+
+        let updated = 0;
+        let skipped = 0;
+        const queue: { id: number; url: string }[] = (rows as any[]).map((r: any) => {
+          const m = r.sourceNote.match(/https?:\/\/live\.spink\.com\/lots\/view\/[^\s|]+/);
+          return m ? { id: r.id, url: m[0] } : null;
+        }).filter(Boolean) as { id: number; url: string }[];
+
+        while (queue.length > 0) {
+          const batch = queue.splice(0, CONCURRENCY);
+          await Promise.all(batch.map(async ({ id, url }) => {
+            try {
+              const res = await fetch(url, { headers: { 'User-Agent': UA } });
+              if (!res.ok) { skipped++; return; }
+              const html = await res.text();
+              const soldM = html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
+              if (!soldM) { skipped++; return; }
+              const soldPrice = parseFloat(soldM[1].replace(/,/g, ''));
+              await pool.execute(
+                'UPDATE `auctionRecords` SET soldPrice = ?, saleStatus = ? WHERE id = ?',
+                [soldPrice, 'sold', id]
+              );
+              updated++;
+            } catch { skipped++; }
+          }));
+          if (queue.length > 0) await sleep(100);
+        }
+        return { updated, skipped, total: rows.length };
       }),
 
     /** 公開搜尋已入庫紀錄（關鍵字全文搜尋） */
