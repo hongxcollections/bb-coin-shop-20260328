@@ -378,35 +378,6 @@ async function startServer() {
       const result = await invokeLLM({
         messages: [
           {
-            role: 'system',
-            content: `You are an expert numismatic auction data extractor. 
-Extract all auction lot information from the screenshot image.
-Return ONLY a JSON array of objects with this exact schema:
-{
-  "lots": [
-    {
-      "lotNumber": "string or null",
-      "title": "string (coin name/description in English)",
-      "description": "string or null (additional details)",
-      "estimateLow": number or null (numeric value only, no currency symbols),
-      "estimateHigh": number or null (numeric value only, no currency symbols),
-      "soldPrice": number or null (numeric value only, null if unsold/ended without sale),
-      "currency": "HKD" (or USD/GBP/etc if clearly shown),
-      "saleStatus": "sold" or "unsold"
-    }
-  ]
-}
-
-Rules:
-- Extract ALL visible lots from the image
-- For prices: extract only the numeric value (e.g. 1000 not HK$1,000)
-- "已為 HK$X 售出" = sold at HK$X → saleStatus: "sold", soldPrice: X
-- "已結束" without price = unsold → saleStatus: "unsold", soldPrice: null
-- 批號 = lot number
-- 估計 = estimate range
-- Include ALL lots visible, even partial ones`
-          },
-          {
             role: 'user',
             content: [
               {
@@ -418,48 +389,55 @@ Rules:
               },
               {
                 type: 'text',
-                text: 'Please extract all auction lot data from this screenshot.'
+                text: `You are an expert numismatic auction data extractor.
+Extract ALL auction lot information visible in this screenshot.
+
+Return ONLY a valid JSON object in this exact format (no markdown, no extra text):
+{"lots":[{"lotNumber":"2001","title":"China, Shang Dynasty, Zhong Qian Genuine","description":null,"estimateLow":1000,"estimateHigh":1500,"soldPrice":1000,"currency":"HKD","saleStatus":"sold"}]}
+
+Rules:
+- Extract every lot visible, including partially visible ones
+- lotNumber: the batch/lot number (批號), string or null
+- title: coin name in English, required
+- description: extra details or null
+- estimateLow/estimateHigh: numeric only (e.g. 1000, not "HK$1,000"), null if not shown
+- soldPrice: numeric only if sold, null if unsold/流拍/已結束 without price
+- currency: "HKD" unless another currency clearly shown
+- saleStatus: "sold" if "已售出" or "已為...售出", "unsold" if "已結束" without price
+
+Chinese/Cantonese reference:
+- 批號 = lot number
+- 估計 = estimate
+- 已為 HK$X 售出 = sold for HK$X (soldPrice=X, saleStatus="sold")
+- 已結束 = ended/unsold (saleStatus="unsold", soldPrice=null)
+
+Output ONLY the JSON, nothing else.`
               }
             ]
           }
         ],
-        outputSchema: {
-          name: 'auction_lots',
-          schema: {
-            type: 'object',
-            properties: {
-              lots: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    lotNumber: { type: ['string', 'null'] },
-                    title: { type: 'string' },
-                    description: { type: ['string', 'null'] },
-                    estimateLow: { type: ['number', 'null'] },
-                    estimateHigh: { type: ['number', 'null'] },
-                    soldPrice: { type: ['number', 'null'] },
-                    currency: { type: 'string' },
-                    saleStatus: { type: 'string', enum: ['sold', 'unsold'] }
-                  },
-                  required: ['title', 'saleStatus']
-                }
-              }
-            },
-            required: ['lots']
-          },
-          strict: false
-        }
+        responseFormat: { type: 'json_object' }
       });
 
       const content = result.choices[0]?.message?.content;
       let lots: any[] = [];
-      if (typeof content === 'string') {
-        try { lots = JSON.parse(content).lots || []; } catch {}
-      } else if (Array.isArray(content)) {
-        const textPart = content.find((p: any) => p.type === 'text');
-        if (textPart) {
-          try { lots = JSON.parse((textPart as any).text).lots || []; } catch {}
+      const rawText = typeof content === 'string'
+        ? content
+        : Array.isArray(content)
+          ? (content.find((p: any) => p.type === 'text') as any)?.text ?? ''
+          : '';
+
+      // Try parse, also handle markdown code blocks
+      const cleaned = rawText.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
+      try {
+        const parsed = JSON.parse(cleaned);
+        lots = parsed.lots || parsed || [];
+        if (!Array.isArray(lots)) lots = [];
+      } catch {
+        // Try to extract JSON from text
+        const match = cleaned.match(/\{[\s\S]*\}/);
+        if (match) {
+          try { lots = JSON.parse(match[0]).lots || []; } catch {}
         }
       }
 
