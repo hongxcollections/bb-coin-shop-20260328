@@ -694,24 +694,24 @@ export default function AdminAuctionRecords() {
                       ? batch.sampleNote.split(' | ')[0]?.trim()
                       : null;
                     return (
-                      <div key={batch.batchId} className="flex items-center gap-2 bg-white rounded-lg border border-blue-100 px-3 py-2">
-                        <code className="font-mono text-xs font-bold text-blue-700 min-w-[130px] shrink-0">{batch.batchId}</code>
-                        <div className="flex-1 min-w-0">
-                          {auctionName && <p className="text-xs text-gray-600 truncate">{auctionName}</p>}
-                          <p className="text-xs text-gray-500">
-                            共 {batch.total} 條・待確認 {batch.pending}・已入庫 {batch.confirmed}
-                          </p>
+                      <div key={batch.batchId} className="bg-white rounded-lg border border-blue-100 px-3 py-2 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <code className="font-mono text-xs font-bold text-blue-700 break-all">{batch.batchId}</code>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0 text-xs text-red-600 border-red-200 hover:bg-red-50 h-7"
+                            onClick={() => setConfirmDeleteBatch(batch.batchId)}
+                            disabled={deleteBatch.isPending}
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            刪除此批
+                          </Button>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="shrink-0 text-xs text-red-600 border-red-200 hover:bg-red-50 h-7"
-                          onClick={() => setConfirmDeleteBatch(batch.batchId)}
-                          disabled={deleteBatch.isPending}
-                        >
-                          <Trash2 className="h-3 w-3 mr-1" />
-                          刪除此批
-                        </Button>
+                        <p className="text-xs text-gray-500">
+                          {auctionName && <span className="text-gray-600 mr-1">{auctionName}</span>}
+                          共 {batch.total} 條・待確認 {batch.pending}・已入庫 {batch.confirmed}
+                        </p>
                       </div>
                     );
                   })}
@@ -798,24 +798,24 @@ export default function AdminAuctionRecords() {
                       ? batch.sampleNote.split(' | ')[0]?.trim()
                       : null;
                     return (
-                      <div key={batch.batchId} className="flex items-center gap-2 bg-white rounded-lg border border-blue-100 px-3 py-2">
-                        <code className="font-mono text-xs font-bold text-blue-700 min-w-[130px] shrink-0">{batch.batchId}</code>
-                        <div className="flex-1 min-w-0">
-                          {auctionName && <p className="text-xs text-gray-600 truncate">{auctionName}</p>}
-                          <p className="text-xs text-gray-500">
-                            共 {batch.total} 條・待確認 {batch.pending}・已入庫 {batch.confirmed}
-                          </p>
+                      <div key={batch.batchId} className="bg-white rounded-lg border border-blue-100 px-3 py-2 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <code className="font-mono text-xs font-bold text-blue-700 break-all">{batch.batchId}</code>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0 text-xs text-red-600 border-red-200 hover:bg-red-50 h-7"
+                            onClick={() => setConfirmDeleteBatch(batch.batchId)}
+                            disabled={deleteBatch.isPending}
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            刪除此批
+                          </Button>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="shrink-0 text-xs text-red-600 border-red-200 hover:bg-red-50 h-7"
-                          onClick={() => setConfirmDeleteBatch(batch.batchId)}
-                          disabled={deleteBatch.isPending}
-                        >
-                          <Trash2 className="h-3 w-3 mr-1" />
-                          刪除此批
-                        </Button>
+                        <p className="text-xs text-gray-500">
+                          {auctionName && <span className="text-gray-600 mr-1">{auctionName}</span>}
+                          共 {batch.total} 條・待確認 {batch.pending}・已入庫 {batch.confirmed}
+                        </p>
                       </div>
                     );
                   })}
