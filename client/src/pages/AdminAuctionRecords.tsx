@@ -175,6 +175,19 @@ export default function AdminAuctionRecords() {
     onError: (e) => toast.error("補全失敗：" + e.message),
   });
 
+  // Backfill imagesJson (all images per lot)
+  const backfillImagesJson = trpc.auctionRecords.backfillImagesJson.useMutation({
+    onSuccess: (data) => {
+      if (data.updated === 0) {
+        toast.success("所有紀錄已有圖片清單，無需補全");
+      } else {
+        toast.success(`已補全 ${data.updated} / ${data.total} 條紀錄的圖片清單`);
+      }
+      confirmedList.refetch();
+    },
+    onError: (e) => toast.error("補全失敗：" + e.message),
+  });
+
   // Backfill images
   const backfillImages = trpc.auctionRecords.backfillImages.useMutation({
     onSuccess: (data) => {
@@ -1059,6 +1072,19 @@ export default function AdminAuctionRecords() {
                           <><Loader2 className="h-3.5 w-3.5 animate-spin" />抓取中…</>
                         ) : (
                           <><CheckCircle className="h-3.5 w-3.5" />補全成交金額</>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => backfillImagesJson.mutate()}
+                        disabled={backfillImagesJson.isPending}
+                        className="text-xs gap-1.5 text-blue-700 border-blue-300 hover:bg-blue-50"
+                      >
+                        {backfillImagesJson.isPending ? (
+                          <><Loader2 className="h-3.5 w-3.5 animate-spin" />抓取中…</>
+                        ) : (
+                          <><Image className="h-3.5 w-3.5" />補全圖片清單</>
                         )}
                       </Button>
                     </div>

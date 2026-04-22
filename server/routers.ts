@@ -3211,7 +3211,8 @@ export const appRouter = router({
             const estimateM = html.match(/HK\$([0-9,]+)\s*-\s*HK\$([0-9,]+)/);
             const descM = html.match(/<meta name="description" content="([^"]+)"/);
             const availM = html.match(/<meta property="product:availability" content="([^"]+)"/);
-            const imgM = html.match(/href="(https:\/\/images4-cdn\.auctionmobility\.com\/is3\/[^"]+maxwidth=1600[^"]*)"/);
+            const allImgMs = [...html.matchAll(/href="(https:\/\/images4-cdn\.auctionmobility\.com\/is3\/[^"]+maxwidth=1600[^"]*)"/g)];
+            const allImageUrls = [...new Set(allImgMs.map(m => m[1].replace(/&amp;/g, '&')))];
             const soldAmountM = html.match(/class="sold-amount[^"]*"[^>]*>\s*HK\$([0-9,]+)/);
             const soldTextM   = soldAmountM || html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
             const isEnded = /\bENDED\b/.test(html);
@@ -3228,7 +3229,8 @@ export const appRouter = router({
                 description: descM ? descM[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').trim() : null,
                 saleStatus,
                 soldPrice: soldTextM ? parseFloat(soldTextM[1].replace(/,/g, '')) : null,
-                imageUrl: imgM ? imgM[1].replace(/&amp;/g, '&') : null,
+                imageUrl: allImageUrls[0] ?? null,
+                imagesJson: allImageUrls.length > 0 ? JSON.stringify(allImageUrls) : null,
               },
             };
           } catch { return null; }
@@ -3280,8 +3282,8 @@ export const appRouter = router({
               await dbPool.execute(
                 `INSERT INTO \`auctionRecords\`
                  (lotNumber, title, description, estimateLow, estimateHigh, soldPrice, currency,
-                  auctionHouse, auctionDate, saleStatus, sourceNote, imageUrl, batchId, importStatus)
-                 VALUES (?, ?, ?, ?, ?, ?, 'HKD', 'Spink', NULL, ?, ?, ?, ?, 'pending')`,
+                  auctionHouse, auctionDate, saleStatus, sourceNote, imageUrl, imagesJson, batchId, importStatus)
+                 VALUES (?, ?, ?, ?, ?, ?, 'HKD', 'Spink', NULL, ?, ?, ?, ?, ?, 'pending')`,
                 [
                   result.data.lotNumber,
                   result.data.title,
@@ -3292,6 +3294,7 @@ export const appRouter = router({
                   result.data.saleStatus,
                   sourceNote,
                   result.data.imageUrl,
+                  result.data.imagesJson,
                   batchId,
                 ]
               );
@@ -3421,13 +3424,17 @@ export const appRouter = router({
           }
         }
 
+        // 收集所有圖片 URL（Spink CDN 原址）
+        const allSpinkUrls = [...new Set(imageUrls)];
+        const imagesJsonStr = allSpinkUrls.length > 0 ? JSON.stringify(allSpinkUrls) : null;
+
         // --- 插入 DB ---
         const pool = await getRawPool();
         const [result]: any = await pool.execute(
           `INSERT INTO \`auctionRecords\`
            (lotNumber, title, description, estimateLow, estimateHigh, soldPrice, currency,
-            auctionHouse, auctionDate, saleStatus, sourceNote, imageUrl, importStatus)
-           VALUES (?, ?, ?, ?, ?, ?, 'HKD', 'Spink', NULL, ?, ?, ?, 'pending')`,
+            auctionHouse, auctionDate, saleStatus, sourceNote, imageUrl, imagesJson, importStatus)
+           VALUES (?, ?, ?, ?, ?, ?, 'HKD', 'Spink', NULL, ?, ?, ?, ?, 'pending')`,
           [
             lotNumber,
             title,
@@ -3438,6 +3445,7 @@ export const appRouter = router({
             saleStatus,
             auctionTitle ? `${auctionTitle} | ${input.url}` : input.url,
             storedImageUrl,
+            imagesJsonStr,
           ]
         );
 
@@ -3589,6 +3597,51 @@ export const appRouter = router({
         return { updated, total: rows.length };
       }),
 
+    /** 補全已入庫 Spink 紀錄的所有圖片 URL（imagesJson） */
+    backfillImagesJson: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const UA = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+        const CONCURRENCY = 8;
+        const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+        const pool = await getRawPool();
+        const [rows]: any = await pool.execute(
+          `SELECT id, sourceNote FROM \`auctionRecords\`
+           WHERE importStatus = 'confirmed'
+             AND imagesJson IS NULL
+             AND sourceNote LIKE '%live.spink.com%'`
+        );
+        if (!rows.length) return { updated: 0, total: 0 };
+
+        let updated = 0;
+        const queue: { id: number; url: string }[] = (rows as any[]).map((r: any) => {
+          const m = r.sourceNote.match(/https?:\/\/live\.spink\.com\/lots\/view\/[^\s|]+/);
+          return m ? { id: r.id, url: m[0] } : null;
+        }).filter(Boolean) as { id: number; url: string }[];
+
+        while (queue.length > 0) {
+          const batch = queue.splice(0, CONCURRENCY);
+          await Promise.all(batch.map(async ({ id, url }) => {
+            try {
+              const res = await fetch(url, { headers: { 'User-Agent': UA } });
+              if (!res.ok) return;
+              const html = await res.text();
+              const allImgMs = [...html.matchAll(/href="(https:\/\/images4-cdn\.auctionmobility\.com\/is3\/[^"]+maxwidth=1600[^"]*)"/g)];
+              const allUrls = [...new Set(allImgMs.map(m => m[1].replace(/&amp;/g, '&')))];
+              if (allUrls.length === 0) return;
+              await pool.execute(
+                'UPDATE `auctionRecords` SET imagesJson = ? WHERE id = ?',
+                [JSON.stringify(allUrls), id]
+              );
+              updated++;
+            } catch { /* skip */ }
+          }));
+          if (queue.length > 0) await sleep(80);
+        }
+        return { updated, total: rows.length };
+      }),
+
     /** 補全已入庫 Spink 紀錄的成交金額（重新抓頁面 SOLD HK$XXX） */
     backfillSoldPrices: protectedProcedure
       .mutation(async ({ ctx }) => {
@@ -3672,7 +3725,7 @@ export const appRouter = router({
         const [rows]: any = await pool.execute(
           `SELECT id, lotNumber, title, description, estimateLow, estimateHigh,
                   soldPrice, currency, auctionHouse, auctionDate, saleStatus,
-                  imageUrl, sourceNote
+                  imageUrl, imagesJson, sourceNote
            FROM \`auctionRecords\`
            WHERE ${where}
            ORDER BY auctionDate DESC, id DESC

@@ -19,7 +19,18 @@ interface Record {
   auctionDate: string | null;
   saleStatus: string;
   imageUrl: string | null;
+  imagesJson: string | null;
   sourceNote: string | null;
+}
+
+function parseImages(r: Record): string[] {
+  try {
+    if (r.imagesJson) {
+      const arr = JSON.parse(r.imagesJson);
+      if (Array.isArray(arr) && arr.length > 0) return arr;
+    }
+  } catch {}
+  return r.imageUrl ? [r.imageUrl] : [];
 }
 
 function fmtPrice(val: number | null, currency = "HKD") {
@@ -33,10 +44,11 @@ function extractSpinkUrl(sourceNote: string | null) {
   return m ? m[0] : null;
 }
 
-function RecordCard({ r, onImageClick }: { r: Record; onImageClick: (url: string) => void }) {
+function RecordCard({ r, onImageClick }: { r: Record; onImageClick: (images: string[], startIdx?: number) => void }) {
   const isSold = r.saleStatus === "sold";
   const url = extractSpinkUrl(r.sourceNote);
   const hasEst = r.estimateLow != null || r.estimateHigh != null;
+  const images = parseImages(r);
   const estStr = hasEst
     ? [fmtPrice(r.estimateLow, r.currency), r.estimateHigh != null ? r.estimateHigh.toLocaleString() : null]
         .filter(Boolean)
@@ -46,14 +58,20 @@ function RecordCard({ r, onImageClick }: { r: Record; onImageClick: (url: string
   return (
     <div className="flex gap-3 bg-white rounded-xl border border-gray-100 shadow-sm p-3 hover:shadow-md transition-shadow">
       {/* Thumbnail */}
-      <div className="shrink-0">
-        {r.imageUrl ? (
-          <img
-            src={r.imageUrl}
-            alt={r.title}
-            className="w-[72px] h-[72px] object-cover rounded-lg cursor-pointer border border-gray-200"
-            onClick={() => onImageClick(r.imageUrl!)}
-          />
+      <div className="shrink-0 relative">
+        {images.length > 0 ? (
+          <div className="relative cursor-pointer" onClick={() => onImageClick(images, 0)}>
+            <img
+              src={images[0]}
+              alt={r.title}
+              className="w-[72px] h-[72px] object-cover rounded-lg border border-gray-200"
+            />
+            {images.length > 1 && (
+              <span className="absolute bottom-0.5 right-0.5 bg-black/60 text-white text-[9px] font-bold px-1 py-0.5 rounded leading-none">
+                1/{images.length}
+              </span>
+            )}
+          </div>
         ) : (
           <div className="w-[72px] h-[72px] rounded-lg bg-gray-100 flex items-center justify-center">
             <Database className="h-5 w-5 text-gray-300" />
@@ -119,8 +137,17 @@ export default function AuctionSearch() {
   const [saleStatus, setSaleStatus] = useState<SaleStatus>("all");
   const [houseFilter, setHouseFilter] = useState<string>("");
   const [offset, setOffset] = useState(0);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIdx, setLightboxIdx] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
+
+  const openLightbox = useCallback((images: string[], startIdx = 0) => {
+    setLightboxImages(images);
+    setLightboxIdx(startIdx);
+  }, []);
+  const closeLightbox = useCallback(() => setLightboxImages([]), []);
+  const prevImage = useCallback(() => setLightboxIdx(i => Math.max(0, i - 1)), []);
+  const nextImage = useCallback((total: number) => setLightboxIdx(i => Math.min(total - 1, i + 1)), []);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Debounce keyword
@@ -280,7 +307,7 @@ export default function AuctionSearch() {
         ) : (
           <>
             {records.map(r => (
-              <RecordCard key={r.id} r={r} onImageClick={setLightboxUrl} />
+              <RecordCard key={r.id} r={r} onImageClick={openLightbox} />
             ))}
 
             {/* Pagination */}
@@ -313,24 +340,74 @@ export default function AuctionSearch() {
         )}
       </div>
 
-      {/* Lightbox */}
-      {lightboxUrl && (
+      {/* Gallery Lightbox */}
+      {lightboxImages.length > 0 && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
-          onClick={() => setLightboxUrl(null)}
+          className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center"
+          onClick={closeLightbox}
         >
-          <img
-            src={lightboxUrl}
-            alt="全圖"
-            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-            onClick={e => e.stopPropagation()}
-          />
+          {/* Close */}
           <button
-            onClick={() => setLightboxUrl(null)}
-            className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2"
+            onClick={closeLightbox}
+            className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 z-10"
           >
             <X className="h-5 w-5" />
           </button>
+
+          {/* Counter */}
+          {lightboxImages.length > 1 && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white text-sm font-medium bg-black/50 px-3 py-1 rounded-full z-10">
+              {lightboxIdx + 1} / {lightboxImages.length}
+            </div>
+          )}
+
+          {/* Main image */}
+          <img
+            src={lightboxImages[lightboxIdx]}
+            alt={`圖片 ${lightboxIdx + 1}`}
+            className="max-w-full max-h-[75vh] object-contain rounded shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+
+          {/* Prev / Next arrows */}
+          {lightboxImages.length > 1 && (
+            <>
+              <button
+                onClick={e => { e.stopPropagation(); prevImage(); }}
+                disabled={lightboxIdx === 0}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-white bg-black/50 rounded-full p-3 disabled:opacity-20 hover:bg-black/70 transition-colors z-10"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); nextImage(lightboxImages.length); }}
+                disabled={lightboxIdx === lightboxImages.length - 1}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white bg-black/50 rounded-full p-3 disabled:opacity-20 hover:bg-black/70 transition-colors z-10"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
+            </>
+          )}
+
+          {/* Thumbnail strip (多圖時顯示) */}
+          {lightboxImages.length > 1 && (
+            <div
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 px-4"
+              onClick={e => e.stopPropagation()}
+            >
+              {lightboxImages.map((url, i) => (
+                <img
+                  key={i}
+                  src={url}
+                  alt={`縮圖 ${i + 1}`}
+                  onClick={() => setLightboxIdx(i)}
+                  className={`w-12 h-12 object-cover rounded cursor-pointer border-2 transition-all ${
+                    i === lightboxIdx ? "border-white scale-110" : "border-transparent opacity-60 hover:opacity-100"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

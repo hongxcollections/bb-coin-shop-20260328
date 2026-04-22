@@ -293,6 +293,9 @@ async function bootstrapMissingColumns() {
   if (!(await check('auctionRecords', 'batchId'))) {
     await alter(`ALTER TABLE \`auctionRecords\` ADD COLUMN \`batchId\` VARCHAR(30) NULL AFTER \`imageUrl\``, 'Added batchId column to auctionRecords');
   }
+  if (!(await check('auctionRecords', 'imagesJson'))) {
+    await alter(`ALTER TABLE \`auctionRecords\` ADD COLUMN \`imagesJson\` TEXT NULL AFTER \`imageUrl\``, 'Added imagesJson column to auctionRecords');
+  }
 
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
@@ -581,7 +584,8 @@ Output ONLY the JSON, nothing else.`;
           const estimateM = html.match(/HK\$([0-9,]+)\s*-\s*HK\$([0-9,]+)/);
           const descM     = html.match(/<meta name="description" content="([^"]+)"/);
           const availM    = html.match(/<meta property="product:availability" content="([^"]+)"/);
-          const imgM      = html.match(/href="(https:\/\/images4-cdn\.auctionmobility\.com\/is3\/[^"]+maxwidth=1600[^"]*)"/);
+          const allImgMs    = [...html.matchAll(/href="(https:\/\/images4-cdn\.auctionmobility\.com\/is3\/[^"]+maxwidth=1600[^"]*)"/g)];
+          const allImageUrls = [...new Set(allImgMs.map(m => m[1].replace(/&amp;/g,'&')))];
           const soldAmountM = html.match(/class="sold-amount[^"]*"[^>]*>\s*HK\$([0-9,]+)/);
           const soldTextM   = soldAmountM || html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
           const isSoldMeta = availM?.[1] === 'Out of Stock';
@@ -596,7 +600,8 @@ Output ONLY the JSON, nothing else.`;
               description:  descM ? descM[1].replace(/&quot;/g,'"').replace(/&amp;/g,'&').trim() : null,
               saleStatus,
               soldPrice:    soldTextM ? parseFloat(soldTextM[1].replace(/,/g,'')) : null,
-              imageUrl:     imgM ? imgM[1].replace(/&amp;/g,'&') : null,
+              imageUrl:     allImageUrls[0] ?? null,
+              imagesJson:   allImageUrls.length > 0 ? JSON.stringify(allImageUrls) : null,
             },
           };
         } catch { return null; }
@@ -656,8 +661,8 @@ Output ONLY the JSON, nothing else.`;
             await dbPool.execute(
               `INSERT INTO \`auctionRecords\`
                (lotNumber, title, description, estimateLow, estimateHigh, soldPrice, currency,
-                auctionHouse, auctionDate, saleStatus, sourceNote, imageUrl, batchId, importStatus)
-               VALUES (?, ?, ?, ?, ?, ?, 'HKD', 'Spink', NULL, ?, ?, ?, ?, 'pending')`,
+                auctionHouse, auctionDate, saleStatus, sourceNote, imageUrl, imagesJson, batchId, importStatus)
+               VALUES (?, ?, ?, ?, ?, ?, 'HKD', 'Spink', NULL, ?, ?, ?, ?, ?, 'pending')`,
               [
                 result.data.lotNumber,
                 result.data.title,
@@ -668,6 +673,7 @@ Output ONLY the JSON, nothing else.`;
                 result.data.saleStatus,
                 sourceNote,
                 result.data.imageUrl,
+                result.data.imagesJson,
                 batchId,
               ]
             );
