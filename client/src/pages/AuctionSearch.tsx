@@ -256,7 +256,7 @@ export default function AuctionSearch() {
       </div>
 
       {/* Results */}
-      <div className="max-w-2xl mx-auto px-4 py-4 space-y-2.5">
+      <div className="max-w-2xl mx-auto px-4 py-4 pb-28 space-y-2.5">
         {records.length === 0 && !isFetching ? (
           <div className="text-center py-20">
             <Database className="h-10 w-10 mx-auto text-gray-300 mb-3" />

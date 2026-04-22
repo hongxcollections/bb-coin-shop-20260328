@@ -350,7 +350,7 @@ export default function AdminAuctionRecords() {
               <ChevronLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <div className="flex-1">
+          <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Database className="h-6 w-6" />
               成交紀錄數據庫
@@ -359,16 +359,10 @@ export default function AdminAuctionRecords() {
               上傳拍賣截圖 → AI 自動提取 → 確認入庫
             </p>
           </div>
-          <Link href="/records">
-            <Button variant="outline" size="sm" className="gap-1.5 text-orange-600 border-orange-300 hover:bg-orange-50">
-              <Search className="h-4 w-4" />
-              搜尋紀錄庫
-            </Button>
-          </Link>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
           {[
             { key: "upload", label: "上傳截圖" },
             { key: "pending", label: `待確認 ${pendingList.data?.total ?? ""}` },
@@ -386,6 +380,13 @@ export default function AdminAuctionRecords() {
               {t.label}
             </button>
           ))}
+          <div className="flex-1" />
+          <Link href="/records">
+            <Button variant="outline" size="sm" className="gap-1.5 text-orange-600 border-orange-300 hover:bg-orange-50 whitespace-nowrap">
+              <Search className="h-3.5 w-3.5" />
+              搜尋紀錄庫
+            </Button>
+          </Link>
         </div>
 
         {/* ─── Upload Tab ─── */}
