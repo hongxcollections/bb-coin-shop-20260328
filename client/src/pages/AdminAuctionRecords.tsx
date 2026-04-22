@@ -70,10 +70,13 @@ export default function AdminAuctionRecords() {
     { importStatus: "confirmed", limit: 100, offset: 0 },
     { enabled: isAuthenticated && user?.role === "admin" && tab === "confirmed" }
   );
-  const duplicatesQuery = trpc.auctionRecords.checkDuplicates.useQuery(undefined, {
-    enabled: isAuthenticated && user?.role === "admin" && tab === "pending",
-  });
-  const duplicateIds = new Set(duplicatesQuery.data?.map(d => d.pendingId) ?? []);
+  const duplicatesQuery = trpc.auctionRecords.checkDuplicates.useQuery(
+    {},
+    { enabled: isAuthenticated && user?.role === "admin" && tab === "pending" }
+  );
+  const duplicateIds = new Set<number>(
+    (duplicatesQuery.data ?? []).map(d => d.pendingId)
+  );
 
   const savePending = trpc.auctionRecords.savePending.useMutation({
     onSuccess: (data) => {

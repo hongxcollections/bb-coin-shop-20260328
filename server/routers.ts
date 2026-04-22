@@ -3002,6 +3002,7 @@ export const appRouter = router({
      * 重複定義：同一 auctionHouse + auctionDate + lotNumber（三個都不為 null）
      */
     checkDuplicates: protectedProcedure
+      .input(z.object({}))
       .query(async ({ ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         const pool = await getRawPool();
