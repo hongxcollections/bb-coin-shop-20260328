@@ -131,9 +131,18 @@ export function registerAuthRoutes(app: Express) {
   });
 
   // POST /api/auth/register — 註冊（電話需已通過 OTP 驗證）
+  // ─── 暫時停用：電郵註冊功能 ───────────────────────────────────────────────────
+  // 若需重新啟用，移除下方 EMAIL_REGISTER_ENABLED 守衛，並同步更新 Login.tsx 的 EMAIL_FEATURE_ENABLED
+  const EMAIL_REGISTER_ENABLED = false;
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
       const { email, phone, password, name, otpCode } = req.body;
+
+      // 電郵註冊暫時停用守衛
+      if (!EMAIL_REGISTER_ENABLED && email && !phone) {
+        res.status(503).json({ error: "電郵註冊功能暫時停用，請使用手機號碼註冊" });
+        return;
+      }
 
       if (!password || password.length < 6) {
         res.status(400).json({ error: "密碼至少需要6個字符" });
@@ -244,8 +253,17 @@ export function registerAuthRoutes(app: Express) {
   });
 
   // POST /api/auth/email-reset-request — 電郵忘記密碼：驗證電郵、生成臨時密碼、通知管理員
+  // ─── 暫時停用：電郵忘記密碼功能 ─────────────────────────────────────────────────
+  // 若需重新啟用，移除下方 EMAIL_RESET_ENABLED 守衛，並同步更新 Login.tsx 的 EMAIL_FEATURE_ENABLED
+  const EMAIL_RESET_ENABLED = false;
   app.post("/api/auth/email-reset-request", async (req: Request, res: Response) => {
     try {
+      // 電郵忘記密碼暫時停用守衛
+      if (!EMAIL_RESET_ENABLED) {
+        res.status(503).json({ error: "電郵重設密碼功能暫時停用，請使用手機號碼驗證重設密碼" });
+        return;
+      }
+
       const { email } = req.body;
       if (!email || typeof email !== "string") {
         res.status(400).json({ error: "請提供電郵地址" }); return;

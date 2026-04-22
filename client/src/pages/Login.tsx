@@ -90,7 +90,12 @@ export default function Login() {
     const p = new URLSearchParams(window.location.search).get("mode");
     return p === "register" || p === "forgot" ? (p as "register" | "forgot") : ("login" as const);
   })();
+  // ─── 暫時停用：電郵註冊及電郵忘記密碼功能 ─────────────────────────────────────
+  // 若需重新啟用，將 EMAIL_FEATURE_ENABLED 改為 true，並同步更新 authRoutes.ts 的守衛
+  const EMAIL_FEATURE_ENABLED = false;
+
   const initialRegisterMethod = (() => {
+    if (!EMAIL_FEATURE_ENABLED) return "phone" as const; // 電郵功能暫時停用，鎖定手機
     if (typeof window === "undefined") return "email" as const;
     const m = new URLSearchParams(window.location.search).get("method");
     return m === "phone" ? ("phone" as const) : ("email" as const);
@@ -451,17 +456,19 @@ export default function Login() {
                   <p className="text-sm" style={{ color: "#555" }}>請選擇重設方式</p>
                 </div>
 
-                {/* Phone / Email toggle */}
-                <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: "#E5E5E5" }}>
-                  {(["phone", "email"] as const).map(m => (
-                    <button key={m} type="button"
-                      onClick={() => setFpMethod(m)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors"
-                      style={{ background: fpMethod === m ? "#E07B00" : "#fff", color: fpMethod === m ? "#fff" : "#555" }}>
-                      {m === "phone" ? <><Phone size={15} />手機驗證</> : <><Mail size={15} />電郵</>}
-                    </button>
-                  ))}
-                </div>
+                {/* Phone / Email toggle — 電郵選項暫時停用，EMAIL_FEATURE_ENABLED=false 時不顯示 */}
+                {EMAIL_FEATURE_ENABLED && (
+                  <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: "#E5E5E5" }}>
+                    {(["phone", "email"] as const).map(m => (
+                      <button key={m} type="button"
+                        onClick={() => setFpMethod(m)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors"
+                        style={{ background: fpMethod === m ? "#E07B00" : "#fff", color: fpMethod === m ? "#fff" : "#555" }}>
+                        {m === "phone" ? <><Phone size={15} />手機驗證</> : <><Mail size={15} />電郵</>}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {/* ── PHONE METHOD ── */}
                 {fpMethod === "phone" && (
@@ -800,7 +807,8 @@ export default function Login() {
                       銀牌有咩特別？
                     </button>
                   </div>
-                ) : (
+                ) : EMAIL_FEATURE_ENABLED ? (
+                  /* 電郵/手機切換 toggle — EMAIL_FEATURE_ENABLED=false 時隱藏，重新啟用時改回 true */
                   <div>
                     <label className="block text-sm font-medium mb-1.5" style={{ color: "#333" }}>註冊方式</label>
                     <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: "#E5E5E5" }}>
@@ -813,7 +821,7 @@ export default function Login() {
                       ))}
                     </div>
                   </div>
-                )}
+                ) : null /* 電郵功能暫時停用，不顯示 toggle，預設使用手機 */}
 
                 {/* Email or Phone field */}
                 {registerMethod === "email" ? (
