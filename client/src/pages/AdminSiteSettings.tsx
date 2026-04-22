@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import {
   Settings, Bell, Clock, ChevronLeft, Save, AlertCircle,
   MessageSquare, Megaphone, Home, CheckCircle, Tag, LogIn, Sparkles,
-  Download, Upload, Package2, Plus, Trash2, Shuffle
+  Download, Upload, Package2, Plus, Trash2, Shuffle, Shield
 } from "lucide-react";
 
 export default function AdminSiteSettings() {
@@ -74,6 +74,12 @@ export default function AdminSiteSettings() {
   ];
   const [auctionTitles, setAuctionTitles] = useState<string[]>(DEFAULT_AUCTION_TITLES);
   const [newTitleInput, setNewTitleInput] = useState("");
+
+  // OTP 速率限制設定
+  const [otpCooldownSecs, setOtpCooldownSecs] = useState("60");
+  const [otpMaxPerHour, setOtpMaxPerHour] = useState("3");
+  const [otpIpMaxPerWindow, setOtpIpMaxPerWindow] = useState("10");
+  const [otpIpWindowMins, setOtpIpWindowMins] = useState("15");
 
   // 套餐資料同步
   const [importLoading, setImportLoading] = useState(false);
@@ -140,6 +146,10 @@ export default function AdminSiteSettings() {
         if (Array.isArray(parsed) && parsed.length > 0) setAuctionTitles(parsed);
       } catch {}
     }
+    if (s.otpCooldownSecs) setOtpCooldownSecs(s.otpCooldownSecs);
+    if (s.otpMaxPerHour) setOtpMaxPerHour(s.otpMaxPerHour);
+    if (s.otpIpMaxPerWindow) setOtpIpMaxPerWindow(s.otpIpMaxPerWindow);
+    if (s.otpIpWindowMins) setOtpIpWindowMins(s.otpIpWindowMins);
   }, [settings]);
 
   if (!isAuthenticated || user?.role !== 'admin') {
@@ -663,6 +673,112 @@ export default function AdminSiteSettings() {
                       .replace('{required}', '$500.00') || "（空白）"}
                   </div>
                   <SaveBtn onClick={() => save('publishDepositErrorMsg', publishDepositErrorMsg, () => !publishDepositErrorMsg.trim() ? "錯誤信息不可為空" : null)} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* OTP 驗證碼安全限制 */}
+            <Card className="border-orange-200">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-orange-500" />
+                  <CardTitle className="text-lg">OTP 驗證碼安全限制</CardTitle>
+                </div>
+                <CardDescription>
+                  控制手機驗證碼的發送頻率，防止濫用及 DoS 攻擊。設定儲存後即時生效，無需重啟。
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* 每次重發冷卻 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="flex items-center gap-2 mb-1.5">
+                      <Clock className="w-4 h-4 text-orange-500" />
+                      重發冷卻時間（秒）
+                    </Label>
+                    <Input
+                      type="number" min={10} max={600}
+                      value={otpCooldownSecs}
+                      onChange={e => setOtpCooldownSecs(e.target.value)}
+                      className="max-w-[160px]"
+                      placeholder="60"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">同一號碼兩次發送之間的最短間隔，預設 60 秒</p>
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-2 mb-1.5">
+                      <Shield className="w-4 h-4 text-orange-500" />
+                      每小時最多發送次數（每號碼）
+                    </Label>
+                    <Input
+                      type="number" min={1} max={20}
+                      value={otpMaxPerHour}
+                      onChange={e => setOtpMaxPerHour(e.target.value)}
+                      className="max-w-[160px]"
+                      placeholder="3"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">同一號碼在滾動 1 小時視窗內的上限，預設 3 次</p>
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-2 mb-1.5">
+                      <Shield className="w-4 h-4 text-red-500" />
+                      IP 最多發送次數（同一視窗）
+                    </Label>
+                    <Input
+                      type="number" min={1} max={100}
+                      value={otpIpMaxPerWindow}
+                      onChange={e => setOtpIpMaxPerWindow(e.target.value)}
+                      className="max-w-[160px]"
+                      placeholder="10"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">同一 IP 在視窗期內的發送上限，預設 10 次</p>
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-2 mb-1.5">
+                      <Clock className="w-4 h-4 text-red-500" />
+                      IP 限制視窗（分鐘）
+                    </Label>
+                    <Input
+                      type="number" min={1} max={120}
+                      value={otpIpWindowMins}
+                      onChange={e => setOtpIpWindowMins(e.target.value)}
+                      className="max-w-[160px]"
+                      placeholder="15"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">IP 限制的滾動時間視窗，預設 15 分鐘</p>
+                  </div>
+                </div>
+
+                {/* 目前設定摘要 */}
+                <div className="rounded-xl bg-orange-50 border border-orange-100 px-4 py-3 text-sm space-y-1">
+                  <p className="font-semibold text-orange-700 mb-1">📋 目前設定摘要</p>
+                  <p className="text-orange-600">• 每次重發冷卻：<span className="font-semibold">{otpCooldownSecs} 秒</span></p>
+                  <p className="text-orange-600">• 每號碼每小時上限：<span className="font-semibold">{otpMaxPerHour} 次</span></p>
+                  <p className="text-orange-600">• 每 IP 在 {otpIpWindowMins} 分鐘內上限：<span className="font-semibold">{otpIpMaxPerWindow} 次</span></p>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button
+                    onClick={() => {
+                      const c = parseInt(otpCooldownSecs, 10);
+                      const m = parseInt(otpMaxPerHour, 10);
+                      const ip = parseInt(otpIpMaxPerWindow, 10);
+                      const w = parseInt(otpIpWindowMins, 10);
+                      if (isNaN(c) || c < 10 || c > 600) { toast.error("重發冷卻須介乎 10–600 秒"); return; }
+                      if (isNaN(m) || m < 1 || m > 20) { toast.error("每小時上限須介乎 1–20 次"); return; }
+                      if (isNaN(ip) || ip < 1 || ip > 100) { toast.error("IP 上限須介乎 1–100 次"); return; }
+                      if (isNaN(w) || w < 1 || w > 120) { toast.error("IP 視窗須介乎 1–120 分鐘"); return; }
+                      setSetting.mutate({ key: 'otpCooldownSecs', value: String(c) });
+                      setSetting.mutate({ key: 'otpMaxPerHour', value: String(m) });
+                      setSetting.mutate({ key: 'otpIpMaxPerWindow', value: String(ip) });
+                      setSetting.mutate({ key: 'otpIpWindowMins', value: String(w) });
+                    }}
+                    disabled={setSetting.isPending}
+                    className="bg-orange-600 hover:bg-orange-700 text-white gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    {setSetting.isPending ? "儲存中..." : "儲存 OTP 限制設定"}
+                  </Button>
                 </div>
               </CardContent>
             </Card>

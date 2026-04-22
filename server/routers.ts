@@ -1848,7 +1848,20 @@ export const appRouter = router({
       .input(z.object({ key: z.string(), value: z.string() }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can change settings' });
-        return setSiteSetting(input.key, input.value);
+        const result = await setSiteSetting(input.key, input.value);
+        // 即時套用 OTP 速率限制設定到記憶體 config
+        if (['otpCooldownSecs', 'otpMaxPerHour', 'otpIpMaxPerWindow', 'otpIpWindowMins'].includes(input.key)) {
+          const { updateOtpConfig } = await import('./_core/otpStore');
+          const { updateIpOtpConfig } = await import('./_core/authRoutes');
+          const v = parseInt(input.value, 10);
+          if (!isNaN(v) && v > 0) {
+            if (input.key === 'otpCooldownSecs') updateOtpConfig({ cooldownMs: v * 1000 });
+            if (input.key === 'otpMaxPerHour') updateOtpConfig({ maxSendsPerHour: v });
+            if (input.key === 'otpIpMaxPerWindow') updateIpOtpConfig({ maxRequests: v });
+            if (input.key === 'otpIpWindowMins') updateIpOtpConfig({ windowMs: v * 60 * 1000 });
+          }
+        }
+        return result;
       }),
   }),
 

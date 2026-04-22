@@ -2,9 +2,9 @@
  * In-memory OTP store with expiry.
  * Key: phone number, Value: { code, expiresAt, attempts }
  *
- * DoS protections:
- * - 60s resend cooldown for ALL numbers (not just China)
- * - Max 3 OTP sends per phone per hour
+ * DoS protections (all limits configurable from Admin → 站點設定):
+ * - Resend cooldown per phone (default 60s)
+ * - Max OTP sends per phone per hour (default 3)
  * - Max 5 verification attempts per OTP code
  */
 
@@ -20,11 +20,29 @@ const store = new Map<string, OtpEntry>();
 // phone → sorted list of send timestamps (within rolling 1-hour window)
 const sendLog = new Map<string, number[]>();
 
-const OTP_TTL_MS = 10 * 60 * 1000;        // 10 minutes OTP validity
-const MAX_ATTEMPTS = 5;                     // Max wrong guesses per OTP
-const RESEND_COOLDOWN_MS = 60 * 1000;      // 60 seconds between resends
-const HOURLY_WINDOW_MS = 60 * 60 * 1000;  // 1 hour sliding window
-const MAX_SENDS_PER_HOUR = 3;              // Max OTP sends per phone per hour
+const OTP_TTL_MS = 10 * 60 * 1000;
+const MAX_ATTEMPTS = 5;
+
+// ─── Mutable runtime config (updated from DB siteSettings) ─────────────────
+interface OtpConfig {
+  cooldownMs: number;
+  hourlyWindowMs: number;
+  maxSendsPerHour: number;
+}
+
+const otpConfig: OtpConfig = {
+  cooldownMs: 60 * 1000,           // 60 seconds resend cooldown
+  hourlyWindowMs: 60 * 60 * 1000, // 1 hour sliding window
+  maxSendsPerHour: 3,              // max OTP sends per phone per hour
+};
+
+export function updateOtpConfig(partial: Partial<OtpConfig>): void {
+  Object.assign(otpConfig, partial);
+}
+
+export function getOtpConfig(): Readonly<OtpConfig> {
+  return otpConfig;
+}
 
 export function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -76,26 +94,27 @@ export function hasValidOtp(phone: string): boolean {
  */
 export function canSendOtp(phone: string): { ok: boolean; reason?: string; waitSecs?: number } {
   const now = Date.now();
+  const { cooldownMs, hourlyWindowMs, maxSendsPerHour } = otpConfig;
 
   // Purge old entries from sendLog
-  const history = (sendLog.get(phone) ?? []).filter(t => now - t < HOURLY_WINDOW_MS);
+  const history = (sendLog.get(phone) ?? []).filter(t => now - t < hourlyWindowMs);
   sendLog.set(phone, history);
 
-  // 1. 60-second resend cooldown: check last send time
+  // 1. Resend cooldown: check last send time
   if (history.length > 0) {
     const lastSent = history[history.length - 1];
     const elapsed = now - lastSent;
-    if (elapsed < RESEND_COOLDOWN_MS) {
-      const waitSecs = Math.ceil((RESEND_COOLDOWN_MS - elapsed) / 1000);
+    if (elapsed < cooldownMs) {
+      const waitSecs = Math.ceil((cooldownMs - elapsed) / 1000);
       return { ok: false, reason: `請等候 ${waitSecs} 秒後再重新發送`, waitSecs };
     }
   }
 
-  // 2. Hourly send limit: max 3 per phone per hour
-  if (history.length >= MAX_SENDS_PER_HOUR) {
+  // 2. Hourly send limit
+  if (history.length >= maxSendsPerHour) {
     const oldestInWindow = history[0];
-    const resetSecs = Math.ceil((HOURLY_WINDOW_MS - (now - oldestInWindow)) / 1000 / 60);
-    return { ok: false, reason: `此號碼今小時已發送上限，請 ${resetSecs} 分鐘後再試` };
+    const resetSecs = Math.ceil((hourlyWindowMs - (now - oldestInWindow)) / 1000 / 60);
+    return { ok: false, reason: `此號碼已達發送上限，請 ${resetSecs} 分鐘後再試` };
   }
 
   return { ok: true };
@@ -107,7 +126,8 @@ export function canSendOtp(phone: string): { ok: boolean; reason?: string; waitS
  */
 export function recordOtpSend(phone: string): void {
   const now = Date.now();
-  const history = (sendLog.get(phone) ?? []).filter(t => now - t < HOURLY_WINDOW_MS);
+  const { hourlyWindowMs } = otpConfig;
+  const history = (sendLog.get(phone) ?? []).filter(t => now - t < hourlyWindowMs);
   history.push(now);
   sendLog.set(phone, history);
 }

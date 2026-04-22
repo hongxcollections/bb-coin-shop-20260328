@@ -8,7 +8,8 @@ import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
-import { registerAuthRoutes } from "./authRoutes";
+import { registerAuthRoutes, updateIpOtpConfig } from "./authRoutes";
+import { updateOtpConfig } from "./otpStore";
 import { registerDevLoginRoutes } from "./devLogin";
 import { registerWebhookRoutes } from "../webhook";
 import { appRouter } from "../routers";
@@ -308,6 +309,27 @@ async function startServer() {
 
   // Email/phone + password auth routes
   registerAuthRoutes(app);
+
+  // 從 DB 讀取 OTP 速率限制設定（套用到記憶體 config）
+  try {
+    const { getAllSiteSettings } = await import("../db");
+    const s = await getAllSiteSettings();
+    const cooldownSecs = parseInt(s.otpCooldownSecs ?? "60", 10);
+    const maxPerHour = parseInt(s.otpMaxPerHour ?? "3", 10);
+    const ipMaxPerWindow = parseInt(s.otpIpMaxPerWindow ?? "10", 10);
+    const ipWindowMins = parseInt(s.otpIpWindowMins ?? "15", 10);
+    if (!isNaN(cooldownSecs) && cooldownSecs > 0)
+      updateOtpConfig({ cooldownMs: cooldownSecs * 1000 });
+    if (!isNaN(maxPerHour) && maxPerHour > 0)
+      updateOtpConfig({ maxSendsPerHour: maxPerHour });
+    if (!isNaN(ipMaxPerWindow) && ipMaxPerWindow > 0)
+      updateIpOtpConfig({ maxRequests: ipMaxPerWindow });
+    if (!isNaN(ipWindowMins) && ipWindowMins > 0)
+      updateIpOtpConfig({ windowMs: ipWindowMins * 60 * 1000 });
+    console.log(`[OTP] Rate config: cooldown=${cooldownSecs}s, maxPerHour=${maxPerHour}, ipMax=${ipMaxPerWindow}/${ipWindowMins}min`);
+  } catch (err) {
+    console.warn('[OTP] Could not load rate config from DB, using defaults:', err instanceof Error ? err.message : err);
+  }
 
   // Dev/Sandbox mock login (non-production only)
   registerDevLoginRoutes(app);

@@ -10,11 +10,22 @@ import { sendOtpSms, checkViaTwilioVerify, isMainlandChina } from "./sms";
 import { generateOtp, setOtp, verifyOtp, canSendOtp, recordOtpSend } from "./otpStore";
 import { addResetRequest } from "./resetRequestStore";
 
-// ─── IP-based OTP rate limiter ─────────────────────────────────────────────────
-// Max 10 OTP requests per IP per 15 minutes (covers both send-otp endpoints)
+// ─── IP-based OTP rate limiter (configurable from Admin → 站點設定) ───────────
 const ipOtpLog = new Map<string, number[]>();
-const IP_WINDOW_MS = 15 * 60 * 1000;
-const IP_MAX_REQUESTS = 10;
+
+interface IpOtpConfig {
+  windowMs: number;
+  maxRequests: number;
+}
+
+const ipOtpConfig: IpOtpConfig = {
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  maxRequests: 10,
+};
+
+export function updateIpOtpConfig(partial: Partial<IpOtpConfig>): void {
+  Object.assign(ipOtpConfig, partial);
+}
 
 function getClientIp(req: Request): string {
   const forwarded = req.headers["x-forwarded-for"];
@@ -25,8 +36,8 @@ function getClientIp(req: Request): string {
 function checkIpRateLimit(req: Request): { ok: boolean } {
   const ip = getClientIp(req);
   const now = Date.now();
-  const log = (ipOtpLog.get(ip) ?? []).filter(t => now - t < IP_WINDOW_MS);
-  if (log.length >= IP_MAX_REQUESTS) {
+  const log = (ipOtpLog.get(ip) ?? []).filter(t => now - t < ipOtpConfig.windowMs);
+  if (log.length >= ipOtpConfig.maxRequests) {
     ipOtpLog.set(ip, log);
     return { ok: false };
   }
