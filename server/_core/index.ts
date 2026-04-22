@@ -374,22 +374,9 @@ async function startServer() {
         return;
       }
 
-      const { invokeLLM } = await import('./llm');
-      const result = await invokeLLM({
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mimeType};base64,${imageBase64}`,
-                  detail: 'high'
-                }
-              },
-              {
-                type: 'text',
-                text: `You are an expert numismatic auction data extractor.
+      const { ENV: llmEnv } = await import('./env');
+
+      const PROMPT_TEXT = `You are an expert numismatic auction data extractor.
 Extract ALL auction lot information visible in this screenshot.
 
 Return ONLY a valid JSON object in this exact format (no markdown, no extra text):
@@ -411,30 +398,80 @@ Chinese/Cantonese reference:
 - 已為 HK$X 售出 = sold for HK$X (soldPrice=X, saleStatus="sold")
 - 已結束 = ended/unsold (saleStatus="unsold", soldPrice=null)
 
-Output ONLY the JSON, nothing else.`
-              }
-            ]
+Output ONLY the JSON, nothing else.`;
+
+      const imageMsg = {
+        role: 'user' as const,
+        content: [
+          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}`, detail: 'high' } },
+          { type: 'text', text: PROMPT_TEXT }
+        ]
+      };
+
+      // 多模型備用：OpenRouter 免費視覺模型依次嘗試
+      const openRouterModels = [
+        'google/gemma-4-31b-it:free',
+        'google/gemma-3-27b-it:free',
+        'nvidia/nemotron-nano-12b-v2-vl:free',
+        'google/gemma-4-26b-a4b-it:free',
+      ];
+
+      let rawText = '';
+      let lastError = '';
+
+      if (llmEnv.openRouterApiKey) {
+        for (const model of openRouterModels) {
+          try {
+            console.log(`[ExtractScreenshot] Trying OpenRouter model: ${model}`);
+            const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${llmEnv.openRouterApiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ model, messages: [imageMsg], max_tokens: 4096 }),
+            });
+            if (resp.status === 429) {
+              const errBody = await resp.json().catch(() => ({}));
+              lastError = `${model} rate limited: ${JSON.stringify(errBody).slice(0, 200)}`;
+              console.warn(`[ExtractScreenshot] ${lastError}`);
+              continue; // try next model
+            }
+            if (!resp.ok) {
+              const errBody = await resp.json().catch(() => ({}));
+              lastError = `${model} error ${resp.status}: ${JSON.stringify(errBody).slice(0, 200)}`;
+              console.warn(`[ExtractScreenshot] ${lastError}`);
+              continue;
+            }
+            const data = await resp.json();
+            const content = data.choices?.[0]?.message?.content ?? '';
+            rawText = typeof content === 'string' ? content : JSON.stringify(content);
+            console.log(`[ExtractScreenshot] Success with model: ${model}`);
+            break;
+          } catch (e: any) {
+            lastError = `${model} fetch error: ${e.message}`;
+            console.warn(`[ExtractScreenshot] ${lastError}`);
           }
-        ],
-        responseFormat: { type: 'json_object' }
-      });
+        }
+        if (!rawText && lastError) {
+          throw new Error(`All OpenRouter models failed. Last error: ${lastError}`);
+        }
+      } else {
+        // Fallback to invokeLLM (Forge / Gemini / OpenAI)
+        const { invokeLLM } = await import('./llm');
+        const result = await invokeLLM({ messages: [imageMsg], responseFormat: { type: 'json_object' } });
+        const content = result.choices[0]?.message?.content;
+        rawText = typeof content === 'string' ? content
+          : Array.isArray(content) ? ((content.find((p: any) => p.type === 'text') as any)?.text ?? '') : '';
+      }
 
-      const content = result.choices[0]?.message?.content;
       let lots: any[] = [];
-      const rawText = typeof content === 'string'
-        ? content
-        : Array.isArray(content)
-          ? (content.find((p: any) => p.type === 'text') as any)?.text ?? ''
-          : '';
-
-      // Try parse, also handle markdown code blocks
       const cleaned = rawText.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
       try {
         const parsed = JSON.parse(cleaned);
         lots = parsed.lots || parsed || [];
         if (!Array.isArray(lots)) lots = [];
       } catch {
-        // Try to extract JSON from text
         const match = cleaned.match(/\{[\s\S]*\}/);
         if (match) {
           try { lots = JSON.parse(match[0]).lots || []; } catch {}
