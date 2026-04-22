@@ -677,13 +677,17 @@ export default function AdminAuctionRecords() {
         {tab === "pending" && (
           <div className="space-y-4">
             {/* 批次管理面板 */}
-            {batchList.data && batchList.data.length > 0 && (
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Layers className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-800">批次管理</span>
-                  <span className="text-xs text-blue-600">（按批次一鍵刪除所有紀錄，無論待確認或已入庫）</span>
-                </div>
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Layers className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800">批次管理</span>
+                <span className="text-xs text-blue-600 hidden sm:inline">（按批次一鍵刪除所有紀錄，無論待確認或已入庫）</span>
+              </div>
+              {!batchList.data || batchList.data.length === 0 ? (
+                <p className="text-xs text-blue-500 italic">
+                  暫無批次紀錄。使用「上傳截圖」→「整個拍賣一鍵批量導入」後，批次會顯示在這裏。
+                </p>
+              ) : (
                 <div className="space-y-1.5">
                   {batchList.data.map(batch => {
                     const auctionName = batch.sampleNote
@@ -691,7 +695,7 @@ export default function AdminAuctionRecords() {
                       : null;
                     return (
                       <div key={batch.batchId} className="flex items-center gap-2 bg-white rounded-lg border border-blue-100 px-3 py-2">
-                        <code className="font-mono text-xs font-bold text-blue-700 min-w-[130px]">{batch.batchId}</code>
+                        <code className="font-mono text-xs font-bold text-blue-700 min-w-[130px] shrink-0">{batch.batchId}</code>
                         <div className="flex-1 min-w-0">
                           {auctionName && <p className="text-xs text-gray-600 truncate">{auctionName}</p>}
                           <p className="text-xs text-gray-500">
@@ -712,8 +716,8 @@ export default function AdminAuctionRecords() {
                     );
                   })}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {pendingList.isError ? (
               <div className="text-center py-12">
@@ -775,7 +779,50 @@ export default function AdminAuctionRecords() {
 
         {/* ─── Confirmed Tab ─── */}
         {tab === "confirmed" && (
-          <div>
+          <div className="space-y-4">
+            {/* 批次管理 */}
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Layers className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800">批次管理</span>
+                <span className="text-xs text-blue-600 hidden sm:inline">（「整個拍賣批量導入」產生的批次，可一鍵整批刪除）</span>
+              </div>
+              {!batchList.data || batchList.data.length === 0 ? (
+                <p className="text-xs text-blue-500 italic">
+                  暫無批次紀錄。使用「上傳截圖」→「整個拍賣一鍵批量導入」後，批次會顯示在這裏。
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {batchList.data.map(batch => {
+                    const auctionName = batch.sampleNote
+                      ? batch.sampleNote.split(' | ')[0]?.trim()
+                      : null;
+                    return (
+                      <div key={batch.batchId} className="flex items-center gap-2 bg-white rounded-lg border border-blue-100 px-3 py-2">
+                        <code className="font-mono text-xs font-bold text-blue-700 min-w-[130px] shrink-0">{batch.batchId}</code>
+                        <div className="flex-1 min-w-0">
+                          {auctionName && <p className="text-xs text-gray-600 truncate">{auctionName}</p>}
+                          <p className="text-xs text-gray-500">
+                            共 {batch.total} 條・待確認 {batch.pending}・已入庫 {batch.confirmed}
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0 text-xs text-red-600 border-red-200 hover:bg-red-50 h-7"
+                          onClick={() => setConfirmDeleteBatch(batch.batchId)}
+                          disabled={deleteBatch.isPending}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          刪除此批
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {confirmedList.isError ? (
               <div className="text-center py-12">
                 <AlertCircle className="h-8 w-8 mx-auto text-red-400 mb-2" />
