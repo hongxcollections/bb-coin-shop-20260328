@@ -212,8 +212,9 @@ const normalizeToolChoice = (
 /**
  * 優先順序：
  * 1. Replit Forge（BUILT_IN_FORGE_API_KEY） — Replit 本地環境自動有
- * 2. Google Gemini（GEMINI_API_KEY） — Railway 部署使用，香港可用
- * 3. OpenAI（OPENAI_API_KEY） — 備用
+ * 2. OpenRouter（OPENROUTER_API_KEY） — Railway 部署，香港可用，有免費模型
+ * 3. Google Gemini（GEMINI_API_KEY） — 備用
+ * 4. OpenAI（OPENAI_API_KEY） — 備用
  */
 const resolveApiConfig = (): { url: string; key: string; model: string } => {
   if (ENV.forgeApiKey) {
@@ -222,10 +223,18 @@ const resolveApiConfig = (): { url: string; key: string; model: string } => {
       : "https://forge.manus.im/v1/chat/completions";
     return { url, key: ENV.forgeApiKey, model: "gemini-2.5-flash" };
   }
+  if (ENV.openRouterApiKey) {
+    // OpenRouter — OpenAI-compatible，支援 vision，免費模型 google/gemini-2.0-flash-exp:free
+    return {
+      url: "https://openrouter.ai/api/v1/chat/completions",
+      key: ENV.openRouterApiKey,
+      model: "google/gemini-2.0-flash-exp:free",
+    };
+  }
   if (ENV.geminiApiKey) {
     // Gemini OpenAI-compatible endpoint（支援 vision / image_url）
     return {
-      url: `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`,
+      url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
       key: ENV.geminiApiKey,
       model: "gemini-2.0-flash",
     };
@@ -237,7 +246,7 @@ const resolveApiConfig = (): { url: string; key: string; model: string } => {
       model: "gpt-4o",
     };
   }
-  throw new Error("AI API key not configured. Please set GEMINI_API_KEY in Railway environment.");
+  throw new Error("AI API key not configured. Please set OPENROUTER_API_KEY in Railway environment.");
 };
 
 const normalizeResponseFormat = ({
