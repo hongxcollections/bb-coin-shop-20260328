@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Eye, EyeOff, Mail, Phone, Lock, User, ShieldCheck, ChevronDown, Bell, Bot, Shield, BadgeCheck, Clock, CheckCircle2, Lightbulb, ChevronUp } from "lucide-react";
+import { Eye, EyeOff, Mail, Phone, Lock, User, ShieldCheck, ChevronDown, Bell, Bot, Shield, BadgeCheck, Clock, CheckCircle2, Lightbulb, X } from "lucide-react";
 import Header from "@/components/Header";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -778,74 +778,27 @@ export default function Login() {
                   </div>
                 </div>
 
-                {/* Register method toggle — 早鳥入口會鎖死電話，只顯示提示 + 銀牌福利說明 */}
+                {/* Register method toggle — 早鳥入口會鎖死電話，只顯示提示 + Dialog 按鈕 */}
                 {phoneOnly ? (
-                  <div className="rounded-xl border overflow-hidden"
-                       style={{ borderColor: "#FED7AA" }}>
-                    {/* 頂部提示列 */}
-                    <div className="px-3 py-2.5 flex items-center justify-between gap-2"
-                         style={{ background: "#FFF7ED" }}>
-                      <div className="flex items-center gap-2 text-xs" style={{ color: "#9A3412" }}>
-                        <Phone size={14} />
-                        <span>🎁 早鳥名額僅限<span className="font-semibold">手機註冊</span>領取</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowSilverPerks(v => !v)}
-                        className="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold shrink-0 transition-colors"
-                        style={{
-                          background: showSilverPerks ? "#FEF3C7" : "#FFFBEB",
-                          color: "#92400E",
-                          border: "1px solid #FCD34D",
-                        }}
-                      >
-                        <Lightbulb size={11} style={{ color: "#F59E0B" }} />
-                        銀牌有咩特別？
-                        {showSilverPerks
-                          ? <ChevronUp size={11} />
-                          : <ChevronDown size={11} />}
-                      </button>
+                  <div className="rounded-xl border px-3 py-2.5 flex items-center justify-between gap-2"
+                       style={{ background: "#FFF7ED", borderColor: "#FED7AA" }}>
+                    <div className="flex items-center gap-2 text-xs" style={{ color: "#9A3412" }}>
+                      <Phone size={14} />
+                      <span>🎁 早鳥名額僅限<span className="font-semibold">手機註冊</span>領取</span>
                     </div>
-
-                    {/* 展開：銀牌福利列表 */}
-                    {showSilverPerks && (
-                      <div className="border-t" style={{ borderColor: "#FED7AA", background: "#FFFBEB" }}>
-                        <div className="px-3 pt-2.5 pb-1">
-                          <p className="text-[11px] font-semibold mb-2" style={{ color: "#78350F" }}>
-                            🥈 銀牌試用期間，你將享有以下所有功能：
-                          </p>
-                          <div className="space-y-2">
-                            {SILVER_PERKS_LIST.map((perk, i) => {
-                              const Icon = perk.icon;
-                              return (
-                                <div key={i} className="flex items-start gap-2.5 rounded-lg px-2.5 py-2"
-                                     style={{ background: "rgba(255,255,255,0.7)" }}>
-                                  <div className="shrink-0 mt-0.5 w-7 h-7 rounded-full flex items-center justify-center"
-                                       style={{ background: `${perk.color}18` }}>
-                                    <Icon size={14} style={{ color: perk.color }} />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="text-xs font-semibold" style={{ color: "#1C1917" }}>{perk.title}</span>
-                                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
-                                            style={{ background: `${perk.color}18`, color: perk.color }}>
-                                        {perk.badge}
-                                      </span>
-                                    </div>
-                                    <p className="text-[11px] leading-relaxed mt-0.5" style={{ color: "#78350F" }}>
-                                      {perk.desc}
-                                    </p>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          <p className="text-center text-[10px] mt-2.5 mb-1.5 font-medium" style={{ color: "#92400E" }}>
-                            👆 完成手機號碼驗證後即自動解鎖以上全部功能
-                          </p>
-                        </div>
-                      </div>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowSilverPerks(true)}
+                      className="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold shrink-0 transition-colors"
+                      style={{
+                        background: "#FFFBEB",
+                        color: "#92400E",
+                        border: "1px solid #FCD34D",
+                      }}
+                    >
+                      <Lightbulb size={11} style={{ color: "#F59E0B" }} />
+                      銀牌有咩特別？
+                    </button>
                   </div>
                 ) : (
                   <div>
@@ -1049,6 +1002,81 @@ export default function Login() {
           </div>
         )}
       </div>
+
+      {/* 銀牌福利 Dialog */}
+      {showSilverPerks && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.55)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSilverPerks(false); }}
+        >
+          <div className="relative w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            {/* 頂部漸層標題 */}
+            <div className="sticky top-0 z-10 rounded-t-2xl px-5 py-4"
+                 style={{ background: "linear-gradient(135deg, #F59E0B, #EC4899)" }}>
+              <button
+                onClick={() => setShowSilverPerks(false)}
+                className="absolute right-3 top-3 rounded-full p-1.5 transition-colors"
+                style={{ background: "rgba(255,255,255,0.2)" }}
+                aria-label="關閉"
+              >
+                <X size={16} style={{ color: "white" }} />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-2xl"
+                     style={{ background: "rgba(255,255,255,0.25)" }}>🥈</div>
+                <div>
+                  <div className="text-base font-extrabold text-white leading-tight">銀牌會員有乜特別？</div>
+                  <div className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.85)" }}>
+                    早鳥試用期間，以下功能即刻解鎖
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 福利列表 */}
+            <div className="px-5 py-4 space-y-3">
+              {SILVER_PERKS_LIST.map((perk, i) => {
+                const Icon = perk.icon;
+                return (
+                  <div key={i} className="flex gap-3 rounded-xl border p-3"
+                       style={{ borderColor: "#F3F4F6", background: "#F9FAFB" }}>
+                    <div className="mt-0.5 shrink-0 w-9 h-9 rounded-full bg-white shadow-sm flex items-center justify-center">
+                      <Icon size={16} style={{ color: perk.color }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold" style={{ color: "#1C1917" }}>{perk.title}</span>
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                              style={{ background: `${perk.color}18`, color: perk.color }}>
+                          {perk.badge}
+                        </span>
+                      </div>
+                      <p className="text-xs leading-relaxed mt-0.5" style={{ color: "#6B7280" }}>{perk.desc}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 底部 CTA */}
+            <div className="sticky bottom-0 rounded-b-2xl bg-white border-t px-5 py-4"
+                 style={{ borderColor: "#F3F4F6" }}>
+              <button
+                type="button"
+                onClick={() => setShowSilverPerks(false)}
+                className="block w-full text-center rounded-xl py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                style={{ background: "linear-gradient(135deg, #F59E0B, #EC4899)" }}
+              >
+                🎁 明白了，立即完成註冊 →
+              </button>
+              <p className="text-center text-[10px] mt-2" style={{ color: "#9CA3AF" }}>
+                完成手機號碼驗證後即自動解鎖以上全部功能
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
