@@ -6,6 +6,7 @@ import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _db: any = null;
+let _pool: any = null;
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
@@ -30,6 +31,7 @@ export async function getDb() {
         enableKeepAlive: true,
         keepAliveInitialDelay: 30000,
       });
+      _pool = pool;
       _db = drizzle(pool);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
@@ -37,6 +39,12 @@ export async function getDb() {
     }
   }
   return _db;
+}
+
+/** 取得底層 mysql2 pool（用於 raw SQL 查詢） */
+export async function getRawPool() {
+  await getDb();
+  return _pool;
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {

@@ -266,6 +266,28 @@ async function bootstrapMissingColumns() {
     console.warn('[Bootstrap] Loyalty defaults seed warning:', err instanceof Error ? err.message : err);
   }
 
+  // auctionRecords: 拍賣成交紀錄（截圖 AI 提取）
+  await alter(`CREATE TABLE IF NOT EXISTS \`auctionRecords\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`lotNumber\` varchar(50) NULL,
+    \`title\` varchar(500) NOT NULL,
+    \`description\` text NULL,
+    \`estimateLow\` decimal(12,2) NULL,
+    \`estimateHigh\` decimal(12,2) NULL,
+    \`soldPrice\` decimal(12,2) NULL,
+    \`currency\` varchar(10) NOT NULL DEFAULT 'HKD',
+    \`auctionHouse\` varchar(100) NULL,
+    \`auctionDate\` varchar(20) NULL,
+    \`saleStatus\` varchar(20) NOT NULL DEFAULT 'sold',
+    \`sourceNote\` varchar(500) NULL,
+    \`importStatus\` varchar(20) NOT NULL DEFAULT 'pending',
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT \`auctionRecords_id\` PRIMARY KEY(\`id\`),
+    INDEX \`idx_ar_status\` (\`importStatus\`),
+    INDEX \`idx_ar_house\` (\`auctionHouse\`)
+  )`, 'Ensured auctionRecords table');
+
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
 }
@@ -335,6 +357,128 @@ async function startServer() {
   registerDevLoginRoutes(app);
   // Facebook Groups Watcher webhook
   registerWebhookRoutes(app);
+  // AI 截圖分析端點：POST /api/auction-records/extract-screenshot
+  app.post('/api/auction-records/extract-screenshot', async (req, res) => {
+    try {
+      // 驗證管理員身份（通過 session cookie）
+      const { createContext: makeCtx } = await import('./context');
+      const ctx = await makeCtx({ req, res } as any);
+      if (!ctx.user || ctx.user.role !== 'admin') {
+        res.status(403).json({ error: 'Forbidden' });
+        return;
+      }
+
+      const { imageBase64, mimeType = 'image/jpeg', auctionHouse, auctionDate, sourceNote } = req.body;
+      if (!imageBase64) {
+        res.status(400).json({ error: 'imageBase64 is required' });
+        return;
+      }
+
+      const { invokeLLM } = await import('./llm');
+      const result = await invokeLLM({
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert numismatic auction data extractor. 
+Extract all auction lot information from the screenshot image.
+Return ONLY a JSON array of objects with this exact schema:
+{
+  "lots": [
+    {
+      "lotNumber": "string or null",
+      "title": "string (coin name/description in English)",
+      "description": "string or null (additional details)",
+      "estimateLow": number or null (numeric value only, no currency symbols),
+      "estimateHigh": number or null (numeric value only, no currency symbols),
+      "soldPrice": number or null (numeric value only, null if unsold/ended without sale),
+      "currency": "HKD" (or USD/GBP/etc if clearly shown),
+      "saleStatus": "sold" or "unsold"
+    }
+  ]
+}
+
+Rules:
+- Extract ALL visible lots from the image
+- For prices: extract only the numeric value (e.g. 1000 not HK$1,000)
+- "已為 HK$X 售出" = sold at HK$X → saleStatus: "sold", soldPrice: X
+- "已結束" without price = unsold → saleStatus: "unsold", soldPrice: null
+- 批號 = lot number
+- 估計 = estimate range
+- Include ALL lots visible, even partial ones`
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:${mimeType};base64,${imageBase64}`,
+                  detail: 'high'
+                }
+              },
+              {
+                type: 'text',
+                text: 'Please extract all auction lot data from this screenshot.'
+              }
+            ]
+          }
+        ],
+        outputSchema: {
+          name: 'auction_lots',
+          schema: {
+            type: 'object',
+            properties: {
+              lots: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    lotNumber: { type: ['string', 'null'] },
+                    title: { type: 'string' },
+                    description: { type: ['string', 'null'] },
+                    estimateLow: { type: ['number', 'null'] },
+                    estimateHigh: { type: ['number', 'null'] },
+                    soldPrice: { type: ['number', 'null'] },
+                    currency: { type: 'string' },
+                    saleStatus: { type: 'string', enum: ['sold', 'unsold'] }
+                  },
+                  required: ['title', 'saleStatus']
+                }
+              }
+            },
+            required: ['lots']
+          },
+          strict: false
+        }
+      });
+
+      const content = result.choices[0]?.message?.content;
+      let lots: any[] = [];
+      if (typeof content === 'string') {
+        try { lots = JSON.parse(content).lots || []; } catch {}
+      } else if (Array.isArray(content)) {
+        const textPart = content.find((p: any) => p.type === 'text');
+        if (textPart) {
+          try { lots = JSON.parse((textPart as any).text).lots || []; } catch {}
+        }
+      }
+
+      // 加上 auctionHouse / auctionDate / sourceNote 到每條紀錄
+      const enriched = lots.map((lot: any) => ({
+        ...lot,
+        auctionHouse: auctionHouse || null,
+        auctionDate: auctionDate || null,
+        sourceNote: sourceNote || null,
+        importStatus: 'pending'
+      }));
+
+      res.json({ success: true, lots: enriched });
+    } catch (err) {
+      console.error('[AuctionRecords] extract-screenshot error:', err);
+      res.status(500).json({ error: (err as Error).message || 'Internal error' });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
 import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, adminSetUserPassword, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData } from "./db";
 import { storagePut } from "./storage";
+import { getRawPool } from "./db";
 import { TRPCError } from "@trpc/server";
 import { getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser } from "./push";
 import { getLoyaltyConfig, updateLoyaltyConfig, getEarlyBirdTodayStatus, getMyLoyaltyStatus, recalculateUserLevel, runDailyLoyaltyMaintenance, getMyAutoBidStatus, enforceAutoBidLimit, enforceAnonymousBidPermission, type LoyaltyConfig } from "./loyalty";
@@ -2915,6 +2916,163 @@ export const appRouter = router({
         const fileKey = `merchant-products/${ctx.user.id}/${Date.now()}-${input.fileName}`;
         const { url } = await storagePut(fileKey, buffer, mimeToUse);
         return { url };
+      }),
+  }),
+
+  // 拍賣成交紀錄管理
+  auctionRecords: router({
+    /** 列出所有紀錄（管理員） */
+    list: protectedProcedure
+      .input(z.object({
+        importStatus: z.enum(['pending', 'confirmed', 'all']).default('all'),
+        limit: z.number().default(50),
+        offset: z.number().default(0),
+      }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const pool = await getRawPool();
+        let query = 'SELECT * FROM `auctionRecords`';
+        const params: any[] = [];
+        if (input.importStatus !== 'all') {
+          query += ' WHERE importStatus = ?';
+          params.push(input.importStatus);
+        }
+        query += ' ORDER BY createdAt DESC LIMIT ? OFFSET ?';
+        params.push(input.limit, input.offset);
+        const [rows]: any = await pool.execute(query, params);
+        // Count
+        let countQuery = 'SELECT COUNT(*) as cnt FROM `auctionRecords`';
+        const countParams: any[] = [];
+        if (input.importStatus !== 'all') {
+          countQuery += ' WHERE importStatus = ?';
+          countParams.push(input.importStatus);
+        }
+        const [countRows]: any = await pool.execute(countQuery, countParams);
+        return { records: rows, total: countRows[0]?.cnt || 0 };
+      }),
+
+    /** 批量儲存（pending 狀態，從截圖提取後） */
+    savePending: protectedProcedure
+      .input(z.object({
+        lots: z.array(z.object({
+          lotNumber: z.string().nullable().optional(),
+          title: z.string(),
+          description: z.string().nullable().optional(),
+          estimateLow: z.number().nullable().optional(),
+          estimateHigh: z.number().nullable().optional(),
+          soldPrice: z.number().nullable().optional(),
+          currency: z.string().default('HKD'),
+          auctionHouse: z.string().nullable().optional(),
+          auctionDate: z.string().nullable().optional(),
+          saleStatus: z.enum(['sold', 'unsold']).default('sold'),
+          sourceNote: z.string().nullable().optional(),
+        }))
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const pool = await getRawPool();
+        let inserted = 0;
+        for (const lot of input.lots) {
+          await pool.execute(
+            `INSERT INTO \`auctionRecords\`
+             (lotNumber, title, description, estimateLow, estimateHigh, soldPrice, currency,
+              auctionHouse, auctionDate, saleStatus, sourceNote, importStatus)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+            [
+              lot.lotNumber ?? null,
+              lot.title,
+              lot.description ?? null,
+              lot.estimateLow ?? null,
+              lot.estimateHigh ?? null,
+              lot.soldPrice ?? null,
+              lot.currency ?? 'HKD',
+              lot.auctionHouse ?? null,
+              lot.auctionDate ?? null,
+              lot.saleStatus ?? 'sold',
+              lot.sourceNote ?? null,
+            ]
+          );
+          inserted++;
+        }
+        return { inserted };
+      }),
+
+    /** 確認單條紀錄（pending → confirmed） */
+    confirm: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const pool = await getRawPool();
+        await pool.execute('UPDATE `auctionRecords` SET importStatus = ? WHERE id = ?', ['confirmed', input.id]);
+        return { success: true };
+      }),
+
+    /** 批量確認全部 pending */
+    confirmAll: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const pool = await getRawPool();
+        const [result]: any = await pool.execute(
+          'UPDATE `auctionRecords` SET importStatus = ? WHERE importStatus = ?',
+          ['confirmed', 'pending']
+        );
+        return { updated: result.affectedRows };
+      }),
+
+    /** 更新單條紀錄 */
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        lotNumber: z.string().nullable().optional(),
+        title: z.string().optional(),
+        description: z.string().nullable().optional(),
+        estimateLow: z.number().nullable().optional(),
+        estimateHigh: z.number().nullable().optional(),
+        soldPrice: z.number().nullable().optional(),
+        currency: z.string().optional(),
+        auctionHouse: z.string().nullable().optional(),
+        auctionDate: z.string().nullable().optional(),
+        saleStatus: z.enum(['sold', 'unsold']).optional(),
+        sourceNote: z.string().nullable().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const pool = await getRawPool();
+        const { id, ...fields } = input;
+        const setClauses: string[] = [];
+        const params: any[] = [];
+        for (const [k, v] of Object.entries(fields)) {
+          if (v !== undefined) {
+            setClauses.push(`\`${k}\` = ?`);
+            params.push(v);
+          }
+        }
+        if (setClauses.length === 0) return { success: true };
+        params.push(id);
+        await pool.execute(`UPDATE \`auctionRecords\` SET ${setClauses.join(', ')} WHERE id = ?`, params);
+        return { success: true };
+      }),
+
+    /** 刪除紀錄 */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const pool = await getRawPool();
+        await pool.execute('DELETE FROM `auctionRecords` WHERE id = ?', [input.id]);
+        return { success: true };
+      }),
+
+    /** 批量刪除全部 pending（撤回這批截圖提取結果） */
+    deletePending: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const pool = await getRawPool();
+        const [result]: any = await pool.execute(
+          'DELETE FROM `auctionRecords` WHERE importStatus = ?',
+          ['pending']
+        );
+        return { deleted: result.affectedRows };
       }),
   }),
 });
