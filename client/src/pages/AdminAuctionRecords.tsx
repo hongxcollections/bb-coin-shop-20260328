@@ -70,14 +70,6 @@ export default function AdminAuctionRecords() {
     { importStatus: "confirmed", limit: 100, offset: 0 },
     { enabled: isAuthenticated && user?.role === "admin" && tab === "confirmed" }
   );
-  const duplicatesQuery = trpc.auctionRecords.checkDuplicates.useQuery(
-    {},
-    { enabled: isAuthenticated && user?.role === "admin" && tab === "pending" }
-  );
-  const duplicateIds = new Set<number>(
-    (duplicatesQuery.data ?? []).map(d => d.pendingId)
-  );
-
   const savePending = trpc.auctionRecords.savePending.useMutation({
     onSuccess: (data) => {
       toast.success(`已儲存 ${data.inserted} 條待確認紀錄`);
@@ -95,7 +87,6 @@ export default function AdminAuctionRecords() {
       }
       toast.success("已確認入庫");
       pendingList.refetch();
-      duplicatesQuery.refetch();
     },
     onError: (err) => toast.error(err.message),
   });
@@ -108,7 +99,6 @@ export default function AdminAuctionRecords() {
         toast.success(`已確認 ${data.confirmed} 條紀錄`);
       }
       pendingList.refetch();
-      duplicatesQuery.refetch();
       setTab("confirmed");
       confirmedList.refetch();
     },
@@ -480,12 +470,6 @@ export default function AdminAuctionRecords() {
                     <p className="text-sm text-muted-foreground">
                       共 {pendingList.data?.total} 條待確認
                     </p>
-                    {duplicateIds.size > 0 && (
-                      <p className="text-xs text-amber-600 flex items-center gap-1 mt-0.5">
-                        <AlertTriangle className="h-3 w-3" />
-                        {duplicateIds.size} 條偵測到重複（「全部確認」將自動跳過）
-                      </p>
-                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -516,7 +500,6 @@ export default function AdminAuctionRecords() {
                   onConfirm={(id) => confirmOne.mutate({ id, force: false })}
                   onDelete={(id) => deleteOne.mutate({ id })}
                   showConfirm
-                  duplicateIds={duplicateIds}
                 />
               </div>
             )}
@@ -640,13 +623,11 @@ function RecordTable({
   onConfirm,
   onDelete,
   showConfirm = false,
-  duplicateIds = new Set(),
 }: {
   records: AuctionRecord[];
   onConfirm?: (id: number) => void;
   onDelete: (id: number) => void;
   showConfirm?: boolean;
-  duplicateIds?: Set<number>;
 }) {
   return (
     <div className="rounded-lg border overflow-hidden bg-white">
@@ -664,84 +645,67 @@ function RecordTable({
             </tr>
           </thead>
           <tbody className="divide-y">
-            {records.map((r) => {
-              const isDupe = duplicateIds.has(r.id);
-              return (
-                <tr key={r.id} className={isDupe ? "bg-amber-50 hover:bg-amber-100" : "hover:bg-gray-50"}>
-                  <td className="px-3 py-2 font-mono text-xs text-gray-500">
-                    {r.lotNumber ?? "—"}
-                  </td>
-                  <td className="px-3 py-2 max-w-xs">
-                    <div className="flex items-start gap-1.5">
-                      {isDupe && (
-                        <span title="此紀錄已存在於已入庫數據庫中">
-                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-                        </span>
-                      )}
-                      <div>
-                        <p className="font-medium leading-tight">{r.title}</p>
-                        {isDupe && (
-                          <p className="text-xs text-amber-600 font-medium">⚠ 重複紀錄</p>
-                        )}
-                        {r.description && (
-                          <p className="text-xs text-muted-foreground truncate">{r.description}</p>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-600">
-                    <div>{r.auctionHouse ?? "—"}</div>
-                    {r.auctionDate && (
-                      <div className="text-muted-foreground">{r.auctionDate}</div>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-xs whitespace-nowrap">
-                    {r.estimateLow || r.estimateHigh
-                      ? `${fmtPrice(r.estimateLow, r.currency)} – ${fmtPrice(r.estimateHigh, r.currency)}`
-                      : "—"}
-                  </td>
-                  <td className="px-3 py-2 text-xs font-semibold whitespace-nowrap">
-                    {r.soldPrice != null ? (
-                      <span className="text-green-700">{fmtPrice(r.soldPrice, r.currency)}</span>
-                    ) : "—"}
-                  </td>
-                  <td className="px-3 py-2">
-                    <Badge
-                      variant={r.saleStatus === "sold" ? "default" : "secondary"}
-                      className="text-xs"
-                    >
-                      {r.saleStatus === "sold" ? "售出" : "流拍"}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex gap-1 justify-end">
-                      {showConfirm && onConfirm && (
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className={`h-7 w-7 ${isDupe
-                            ? "border-amber-300 text-amber-700 hover:bg-amber-50"
-                            : "border-green-300 text-green-700 hover:bg-green-50"}`}
-                          onClick={() => onConfirm(r.id)}
-                          title={isDupe ? "重複紀錄，點擊後會詢問是否強制入庫" : "確認入庫"}
-                        >
-                          {isDupe ? <AlertTriangle className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
-                        </Button>
-                      )}
+            {records.map((r) => (
+              <tr key={r.id} className="hover:bg-gray-50">
+                <td className="px-3 py-2 font-mono text-xs text-gray-500">
+                  {r.lotNumber ?? "—"}
+                </td>
+                <td className="px-3 py-2 max-w-xs">
+                  <p className="font-medium leading-tight">{r.title}</p>
+                  {r.description && (
+                    <p className="text-xs text-muted-foreground truncate">{r.description}</p>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-xs text-gray-600">
+                  <div>{r.auctionHouse ?? "—"}</div>
+                  {r.auctionDate && (
+                    <div className="text-muted-foreground">{r.auctionDate}</div>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-xs whitespace-nowrap">
+                  {r.estimateLow || r.estimateHigh
+                    ? `${fmtPrice(r.estimateLow, r.currency)} – ${fmtPrice(r.estimateHigh, r.currency)}`
+                    : "—"}
+                </td>
+                <td className="px-3 py-2 text-xs font-semibold whitespace-nowrap">
+                  {r.soldPrice != null ? (
+                    <span className="text-green-700">{fmtPrice(r.soldPrice, r.currency)}</span>
+                  ) : "—"}
+                </td>
+                <td className="px-3 py-2">
+                  <Badge
+                    variant={r.saleStatus === "sold" ? "default" : "secondary"}
+                    className="text-xs"
+                  >
+                    {r.saleStatus === "sold" ? "售出" : "流拍"}
+                  </Badge>
+                </td>
+                <td className="px-3 py-2">
+                  <div className="flex gap-1 justify-end">
+                    {showConfirm && onConfirm && (
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-7 w-7 border-red-300 text-red-600 hover:bg-red-50"
-                        onClick={() => onDelete(r.id)}
-                        title="刪除"
+                        className="h-7 w-7 border-green-300 text-green-700 hover:bg-green-50"
+                        onClick={() => onConfirm(r.id)}
+                        title="確認入庫"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Check className="h-3.5 w-3.5" />
                       </Button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+                    )}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7 border-red-300 text-red-600 hover:bg-red-50"
+                      onClick={() => onDelete(r.id)}
+                      title="刪除"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
