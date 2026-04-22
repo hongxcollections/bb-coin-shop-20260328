@@ -3212,7 +3212,8 @@ export const appRouter = router({
             const descM = html.match(/<meta name="description" content="([^"]+)"/);
             const availM = html.match(/<meta property="product:availability" content="([^"]+)"/);
             const imgM = html.match(/href="(https:\/\/images4-cdn\.auctionmobility\.com\/is3\/[^"]+maxwidth=1600[^"]*)"/);
-            const soldTextM = html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
+            const soldAmountM = html.match(/class="sold-amount[^"]*"[^>]*>\s*HK\$([0-9,]+)/);
+            const soldTextM   = soldAmountM || html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
             const isEnded = /\bENDED\b/.test(html);
             const isSoldMeta = availM?.[1] === 'Out of Stock';
             const saleStatus: 'sold' | 'unsold' = (isSoldMeta || !!soldTextM) ? 'sold' : 'unsold';
@@ -3391,7 +3392,8 @@ export const appRouter = router({
 
         // --- 解析成交/流拍狀態 + 成交金額 ---
         const availabilityM = html.match(/<meta property="product:availability" content="([^"]+)"/);
-        const soldTextM2 = html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
+        const soldAmountM2  = html.match(/class="sold-amount[^"]*"[^>]*>\s*HK\$([0-9,]+)/);
+        const soldTextM2    = soldAmountM2 || html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
         const saleStatus: 'sold' | 'unsold' = (availabilityM?.[1] === 'Out of Stock' || !!soldTextM2) ? 'sold' : 'unsold';
         const soldPrice2 = soldTextM2 ? parseFloat(soldTextM2[1].replace(/,/g, '')) : null;
 
@@ -3618,7 +3620,8 @@ export const appRouter = router({
               const res = await fetch(url, { headers: { 'User-Agent': UA } });
               if (!res.ok) { skipped++; return; }
               const html = await res.text();
-              const soldM = html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
+              const soldAmountM = html.match(/class="sold-amount[^"]*"[^>]*>\s*HK\$([0-9,]+)/);
+              const soldM = soldAmountM || html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
               if (!soldM) { skipped++; return; }
               const soldPrice = parseFloat(soldM[1].replace(/,/g, ''));
               await pool.execute(

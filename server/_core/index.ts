@@ -582,7 +582,8 @@ Output ONLY the JSON, nothing else.`;
           const descM     = html.match(/<meta name="description" content="([^"]+)"/);
           const availM    = html.match(/<meta property="product:availability" content="([^"]+)"/);
           const imgM      = html.match(/href="(https:\/\/images4-cdn\.auctionmobility\.com\/is3\/[^"]+maxwidth=1600[^"]*)"/);
-          const soldTextM = html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
+          const soldAmountM = html.match(/class="sold-amount[^"]*"[^>]*>\s*HK\$([0-9,]+)/);
+          const soldTextM   = soldAmountM || html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
           const isSoldMeta = availM?.[1] === 'Out of Stock';
           const saleStatus: 'sold'|'unsold' = (isSoldMeta || !!soldTextM) ? 'sold' : 'unsold';
           return {
