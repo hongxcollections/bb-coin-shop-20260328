@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ChevronLeft, Upload, CheckCircle, Trash2,
-  Image, Loader2, Check, X, Edit2, Database, AlertCircle, AlertTriangle
+  Image, Loader2, Check, X, Edit2, Database, AlertCircle, AlertTriangle, Save
 } from "lucide-react";
 
 type ExtractedLot = {
