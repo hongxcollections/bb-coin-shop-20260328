@@ -84,32 +84,34 @@ function RecordCard({ r, onImageClick }: { r: Record; onImageClick: (url: string
         </div>
 
         <div className="flex items-center justify-between gap-2">
-          <div className="text-xs text-gray-500">
-            {estStr && <span>估價 {estStr}</span>}
-            {isSold && r.soldPrice != null && (
-              <span className="ml-2 font-semibold text-green-700">
-                成交 {fmtPrice(r.soldPrice, r.currency)}
-              </span>
-            )}
-          </div>
+          {estStr && <span className="text-xs text-gray-400">估價 {estStr}</span>}
           {url && (
             <a
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 text-blue-500 hover:text-blue-700"
+              className="shrink-0 text-blue-400 hover:text-blue-600 ml-auto"
               onClick={e => e.stopPropagation()}
             >
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
           )}
         </div>
+
+        {/* 成交金額 — 獨立突出一行 */}
+        <div className={`text-sm font-bold ${isSold ? "text-green-700" : "text-gray-400"}`}>
+          {isSold
+            ? r.soldPrice != null
+              ? `成交：${fmtPrice(r.soldPrice, r.currency)}`
+              : "成交：— （金額未記錄）"
+            : "流拍"}
+        </div>
       </div>
     </div>
   );
 }
 
-const PAGE_SIZE = 40;
+const PAGE_SIZE = 20;
 
 export default function AuctionSearch() {
   const [inputVal, setInputVal] = useState("");
