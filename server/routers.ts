@@ -3216,8 +3216,8 @@ export const appRouter = router({
             const soldAmountM = html.match(/class="sold-amount[^"]*"[^>]*>\s*HK\$([0-9,]+)/);
             const soldTextM   = soldAmountM || html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
             const isEnded = /\bENDED\b/.test(html);
-            const isSoldMeta = availM?.[1] === 'Out of Stock';
-            const saleStatus: 'sold' | 'unsold' = (isSoldMeta || !!soldTextM) ? 'sold' : 'unsold';
+            // 只有找到實際金額才視為成交；無金額一律流拍
+            const saleStatus: 'sold' | 'unsold' = !!soldTextM ? 'sold' : 'unsold';
 
             return {
               nextLotId,
@@ -3394,10 +3394,10 @@ export const appRouter = router({
           : null;
 
         // --- 解析成交/流拍狀態 + 成交金額 ---
-        const availabilityM = html.match(/<meta property="product:availability" content="([^"]+)"/);
         const soldAmountM2  = html.match(/class="sold-amount[^"]*"[^>]*>\s*HK\$([0-9,]+)/);
         const soldTextM2    = soldAmountM2 || html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
-        const saleStatus: 'sold' | 'unsold' = (availabilityM?.[1] === 'Out of Stock' || !!soldTextM2) ? 'sold' : 'unsold';
+        // 只有找到實際金額才視為成交；無金額一律流拍
+        const saleStatus: 'sold' | 'unsold' = !!soldTextM2 ? 'sold' : 'unsold';
         const soldPrice2 = soldTextM2 ? parseFloat(soldTextM2[1].replace(/,/g, '')) : null;
 
         // --- 解析拍賣場次標題 ---
@@ -3675,7 +3675,15 @@ export const appRouter = router({
               const html = await res.text();
               const soldAmountM = html.match(/class="sold-amount[^"]*"[^>]*>\s*HK\$([0-9,]+)/);
               const soldM = soldAmountM || html.match(/\bSOLD\s+HK\$([0-9,]+)/i);
-              if (!soldM) { skipped++; return; }
+              if (!soldM) {
+                // 找不到金額 → 修正為流拍
+                await pool.execute(
+                  'UPDATE `auctionRecords` SET saleStatus = ? WHERE id = ?',
+                  ['unsold', id]
+                );
+                skipped++;
+                return;
+              }
               const soldPrice = parseFloat(soldM[1].replace(/,/g, ''));
               await pool.execute(
                 'UPDATE `auctionRecords` SET soldPrice = ?, saleStatus = ? WHERE id = ?',

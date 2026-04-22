@@ -297,6 +297,16 @@ async function bootstrapMissingColumns() {
     await alter(`ALTER TABLE \`auctionRecords\` ADD COLUMN \`imagesJson\` TEXT NULL AFTER \`imageUrl\``, 'Added imagesJson column to auctionRecords');
   }
 
+  // 修正舊紀錄：saleStatus='sold' 但無金額 → 改為 'unsold'（流拍）
+  try {
+    const [fixRes]: any = await pool.execute(
+      "UPDATE `auctionRecords` SET saleStatus = 'unsold' WHERE saleStatus = 'sold' AND (soldPrice IS NULL OR soldPrice = 0)"
+    );
+    if (fixRes.affectedRows > 0) {
+      console.log(`[Bootstrap] Fixed ${fixRes.affectedRows} records: saleStatus sold→unsold (no price)`);
+    }
+  } catch (e) { console.warn('[Bootstrap] saleStatus fix skipped:', e); }
+
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
 }
