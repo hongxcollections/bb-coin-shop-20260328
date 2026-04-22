@@ -130,7 +130,8 @@ export default function AdminAuctionRecords() {
   const [spinkUrl, setSpinkUrl] = useState("");
   const importFromUrl = trpc.auctionRecords.importFromSpinkUrl.useMutation({
     onSuccess: (data) => {
-      toast.success(`已導入批號 ${data.lotNumber ?? data.id}：${data.title.slice(0, 40)}…（${data.imageCount} 張圖）`);
+      const status = data.saleStatus === 'sold' ? '✅ 成交' : '⚪ 流拍';
+      toast.success(`已導入批號 ${data.lotNumber ?? data.id} [${status}]：${data.title.slice(0, 35)}…（${data.imageCount} 張圖）`);
       setSpinkUrl("");
       setTab("pending");
       pendingList.refetch();

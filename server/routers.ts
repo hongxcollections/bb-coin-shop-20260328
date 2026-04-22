@@ -3173,6 +3173,10 @@ export const appRouter = router({
           ? descMetaM[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'").trim()
           : null;
 
+        // --- 解析成交/流拍狀態 ---
+        const availabilityM = html.match(/<meta property="product:availability" content="([^"]+)"/);
+        const saleStatus: 'sold' | 'unsold' = availabilityM?.[1] === 'Out of Stock' ? 'sold' : 'unsold';
+
         // --- 解析拍賣場次標題 ---
         const auctionTitleM = html.match(/class="auction-title[^"]*"[^>]*>\s*([^\n<]+)/);
         const auctionTitle = auctionTitleM?.[1]?.trim() ?? null;
@@ -3203,13 +3207,14 @@ export const appRouter = router({
           `INSERT INTO \`auctionRecords\`
            (lotNumber, title, description, estimateLow, estimateHigh, soldPrice, currency,
             auctionHouse, auctionDate, saleStatus, sourceNote, imageUrl, importStatus)
-           VALUES (?, ?, ?, ?, ?, NULL, 'HKD', 'Spink', NULL, 'sold', ?, ?, 'pending')`,
+           VALUES (?, ?, ?, ?, ?, NULL, 'HKD', 'Spink', NULL, ?, ?, ?, 'pending')`,
           [
             lotNumber,
             title,
             description,
             estimateLow,
             estimateHigh,
+            saleStatus,
             auctionTitle ? `${auctionTitle} | ${input.url}` : input.url,
             storedImageUrl,
           ]
@@ -3219,6 +3224,7 @@ export const appRouter = router({
           id: result.insertId as number,
           lotNumber,
           title,
+          saleStatus,
           estimateLow,
           estimateHigh,
           imageUrl: storedImageUrl,
