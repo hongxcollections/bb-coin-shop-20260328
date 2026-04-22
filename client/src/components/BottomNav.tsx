@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Link, useLocation } from "wouter";
-import { Home, Gavel, Store, User, MoreHorizontal, MessageCircle, Settings, Shield, LogOut, ShoppingBag, LayoutDashboard } from "lucide-react";
+import { Home, Gavel, Store, User, MoreHorizontal, MessageCircle, Settings, Shield, LogOut, ShoppingBag, LayoutDashboard, BookOpen } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/contexts/ToastContext";
 import { trpc } from "@/lib/trpc";
@@ -191,6 +191,14 @@ export default function BottomNav() {
                             </Link>
                           )}
                           <Link
+                            href="/records"
+                            onClick={() => setShowMore(false)}
+                            className="bottom-nav-more-item"
+                          >
+                            <BookOpen className="w-4 h-4" />
+                            <span>拍賣紀錄庫</span>
+                          </Link>
+                          <Link
                             href="/member-benefits"
                             onClick={() => setShowMore(false)}
                             className="bottom-nav-more-item"
@@ -233,13 +241,23 @@ export default function BottomNav() {
                           </button>
                         </>
                       ) : (
-                        <a
-                          href="/login"
-                          className="bottom-nav-more-item"
-                        >
-                          <User className="w-4 h-4" />
-                          <span>登入 / 註冊</span>
-                        </a>
+                        <>
+                          <Link
+                            href="/records"
+                            onClick={() => setShowMore(false)}
+                            className="bottom-nav-more-item"
+                          >
+                            <BookOpen className="w-4 h-4" />
+                            <span>拍賣紀錄庫</span>
+                          </Link>
+                          <a
+                            href="/login"
+                            className="bottom-nav-more-item"
+                          >
+                            <User className="w-4 h-4" />
+                            <span>登入 / 註冊</span>
+                          </a>
+                        </>
                       )}
                     </div>
                   )}

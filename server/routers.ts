@@ -3578,6 +3578,68 @@ export const appRouter = router({
         return { updated, total: rows.length };
       }),
 
+    /** 公開搜尋已入庫紀錄（關鍵字全文搜尋） */
+    search: publicProcedure
+      .input(z.object({
+        keyword:      z.string().default(''),
+        saleStatus:   z.enum(['all', 'sold', 'unsold']).default('all'),
+        auctionHouse: z.string().optional(),
+        limit:        z.number().min(1).max(100).default(40),
+        offset:       z.number().min(0).default(0),
+      }))
+      .query(async ({ input }) => {
+        const pool = await getRawPool();
+        const like = `%${input.keyword.trim()}%`;
+        const hasTerm = input.keyword.trim().length > 0;
+        const params: any[] = [];
+        let where = "importStatus = 'confirmed'";
+
+        if (hasTerm) {
+          where += ` AND (title LIKE ? OR description LIKE ? OR lotNumber LIKE ?
+                         OR auctionHouse LIKE ? OR auctionDate LIKE ? OR sourceNote LIKE ?)`;
+          params.push(like, like, like, like, like, like);
+        }
+        if (input.saleStatus !== 'all') {
+          where += ' AND saleStatus = ?';
+          params.push(input.saleStatus);
+        }
+        if (input.auctionHouse) {
+          where += ' AND auctionHouse = ?';
+          params.push(input.auctionHouse);
+        }
+
+        const limit  = Math.max(1, Math.min(100, Number(input.limit)));
+        const offset = Math.max(0, Number(input.offset));
+
+        const [rows]: any = await pool.execute(
+          `SELECT id, lotNumber, title, description, estimateLow, estimateHigh,
+                  soldPrice, currency, auctionHouse, auctionDate, saleStatus,
+                  imageUrl, sourceNote
+           FROM \`auctionRecords\`
+           WHERE ${where}
+           ORDER BY auctionDate DESC, id DESC
+           LIMIT ${limit} OFFSET ${offset}`,
+          params
+        );
+        const [cnt]: any = await pool.execute(
+          `SELECT COUNT(*) as n FROM \`auctionRecords\` WHERE ${where}`,
+          params
+        );
+        return { records: rows as any[], total: Number(cnt[0]?.n ?? 0) };
+      }),
+
+    /** 取得所有已入庫拍賣行列表（供篩選用） */
+    listHouses: publicProcedure
+      .query(async () => {
+        const pool = await getRawPool();
+        const [rows]: any = await pool.execute(
+          `SELECT DISTINCT auctionHouse FROM \`auctionRecords\`
+           WHERE importStatus = 'confirmed' AND auctionHouse IS NOT NULL
+           ORDER BY auctionHouse`
+        );
+        return (rows as any[]).map((r: any) => r.auctionHouse as string);
+      }),
+
     /** 批量刪除全部 pending（撤回這批截圖提取結果） */
     deletePending: protectedProcedure
       .mutation(async ({ ctx }) => {
