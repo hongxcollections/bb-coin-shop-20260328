@@ -89,6 +89,7 @@ function MerchantProductsStrip() {
   return (
     <section className="py-2">
       <div className="container">
+        <p className="text-xs text-amber-700 font-semibold mb-1 pl-1">🏪 商戶出售商品</p>
         <div className="marquee-wrapper border border-amber-100 rounded-2xl bg-white py-3 overflow-hidden shadow-sm">
           <div className="marquee-track flex" style={{ animationDuration: duration }}>
             {doubled.map((p: any, idx: number) => {
