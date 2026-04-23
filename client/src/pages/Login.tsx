@@ -171,12 +171,6 @@ export default function Login() {
     return () => clearTimeout(t);
   }, [countdown]);
 
-  // 短訊發出 30 秒後（倒數剩 30 秒）顯示電郵備用選項
-  useEffect(() => {
-    if (step === "otp" && !showEmailFb && countdown > 0 && countdown <= 30) {
-      setShowEmailFb(true);
-    }
-  }, [countdown, step, showEmailFb]);
 
   // Sync combined phone number
   useEffect(() => {
@@ -862,48 +856,52 @@ export default function Login() {
               </div>
 
 
-              {/* ── 電郵 OTP 備用（短訊 30 秒後未收到時才顯示）── */}
-              {showEmailFb && (
-                <div className="pt-2">
-                  {emailFbSent ? (
-                    <div className="flex items-center justify-center gap-1.5 text-xs py-2 px-3 rounded-xl"
-                         style={{ background: "#EFF6FF", color: "#1d4ed8" }}>
-                      <span>📧</span>
-                      <span>電郵驗證碼已發送至 {emailFbAddr}</span>
+              {/* ── 電郵 OTP 備用（即時顯示，30 秒後發送按鈕才解鎖）── */}
+              <div className="pt-2">
+                {emailFbSent ? (
+                  <div className="flex items-center justify-center gap-1.5 text-xs py-2 px-3 rounded-xl"
+                       style={{ background: "#EFF6FF", color: "#1d4ed8" }}>
+                    <span>📧</span>
+                    <span>電郵驗證碼已發送至 {emailFbAddr}</span>
+                  </div>
+                ) : (
+                  <div className="rounded-xl p-3" style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+                    <p className="text-xs font-medium mb-2" style={{ color: "#64748b" }}>
+                      📧 收不到短訊？可改用電郵接收驗證碼
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={emailFbAddr}
+                        onChange={e => setEmailFbAddr(e.target.value)}
+                        placeholder="輸入您的電郵地址"
+                        className="flex-1 px-3 py-2 rounded-lg border text-sm outline-none"
+                        style={{ borderColor: "#CBD5E1", background: "#fff", color: "#333" }}
+                        onKeyDown={e => { if (e.key === "Enter" && countdown <= 30 && emailFbAddr) { e.preventDefault(); sendEmailFallbackOtp(); }}}
+                      />
+                      <button
+                        type="button"
+                        onClick={sendEmailFallbackOtp}
+                        disabled={emailFbSending || !emailFbAddr || countdown > 30}
+                        className="px-3 py-2 rounded-lg text-sm font-medium text-white transition-opacity"
+                        style={{
+                          background: "#0284c7",
+                          opacity: (emailFbSending || !emailFbAddr || countdown > 30) ? 0.5 : 1,
+                          whiteSpace: "nowrap",
+                          minWidth: "72px",
+                        }}
+                      >
+                        {emailFbSending ? "發送中..." : countdown > 30 ? `${countdown - 30}秒` : "發送"}
+                      </button>
                     </div>
-                  ) : (
-                    <div className="rounded-xl p-3" style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
-                      <p className="text-xs font-medium mb-2" style={{ color: "#64748b" }}>
-                        📧 仍未收到短訊？改用電郵驗證
+                    {countdown > 30 && (
+                      <p className="text-xs mt-1.5" style={{ color: "#94a3b8" }}>
+                        {countdown - 30} 秒後可發送電郵驗證碼
                       </p>
-                      <div className="flex gap-2">
-                        <input
-                          type="email"
-                          value={emailFbAddr}
-                          onChange={e => setEmailFbAddr(e.target.value)}
-                          placeholder="輸入您的電郵地址"
-                          className="flex-1 px-3 py-2 rounded-lg border text-sm outline-none"
-                          style={{ borderColor: "#CBD5E1", background: "#fff", color: "#333" }}
-                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); sendEmailFallbackOtp(); }}}
-                        />
-                        <button
-                          type="button"
-                          onClick={sendEmailFallbackOtp}
-                          disabled={emailFbSending || !emailFbAddr}
-                          className="px-3 py-2 rounded-lg text-sm font-medium text-white transition-opacity"
-                          style={{
-                            background: "#0284c7",
-                            opacity: (emailFbSending || !emailFbAddr) ? 0.5 : 1,
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {emailFbSending ? "發送中..." : "發送"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div>
                 <button
