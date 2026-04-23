@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import {
   ChevronLeft, Plus, Package, Pencil, Trash2, Eye, EyeOff,
   ImageIcon, X, Loader2, LayoutList, LayoutGrid, Grid3X3, Maximize2,
+  ShoppingBag, CheckCircle2, XCircle, Clock,
 } from "lucide-react";
 import { parseCategories } from "@/lib/categories";
 
@@ -50,10 +51,114 @@ const CURRENCY_OPTIONS = [
   { value: "JPY", label: "🇯🇵 日圓 JPY" },
 ];
 
+const ORDER_STATUS_LABELS: Record<string, string> = { pending: "待確認", confirmed: "已成交", cancelled: "已取消" };
+const ORDER_STATUS_COLORS: Record<string, string> = {
+  pending: "bg-amber-100 text-amber-700",
+  confirmed: "bg-green-100 text-green-700",
+  cancelled: "bg-gray-100 text-gray-500",
+};
+
+function MerchantOrdersTab() {
+  const utils = trpc.useUtils();
+  const [statusFilter, setStatusFilter] = useState("pending");
+  const { data: orders = [], isLoading } = trpc.productOrders.myMerchantOrders.useQuery({ status: statusFilter });
+
+  const confirm = trpc.productOrders.confirm.useMutation({
+    onSuccess: () => { toast.success("已確認成交，傭金已從保證金扣除"); utils.productOrders.myMerchantOrders.invalidate(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const cancel = trpc.productOrders.cancel.useMutation({
+    onSuccess: () => { toast.success("訂單已取消"); utils.productOrders.myMerchantOrders.invalidate(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        {["pending", "confirmed", "cancelled", "all"].map(s => (
+          <button key={s} onClick={() => setStatusFilter(s)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${statusFilter === s ? "bg-amber-500 text-white" : "bg-white border border-amber-200 text-amber-700 hover:bg-amber-50"}`}>
+            {s === "pending" ? "待確認" : s === "confirmed" ? "已成交" : s === "cancelled" ? "已取消" : "全部"}
+          </button>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="text-center py-10 text-2xl animate-spin">💰</div>
+      ) : orders.length === 0 ? (
+        <div className="text-center py-16">
+          <ShoppingBag className="w-12 h-12 text-amber-200 mx-auto mb-3" />
+          <p className="text-gray-400 text-sm">暫無訂單</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {(orders as any[]).map((o) => {
+            const price = parseFloat(String(o.price));
+            const commission = parseFloat(String(o.commissionAmount));
+            const d = new Date(o.createdAt);
+            return (
+              <div key={o.id} className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-gray-800 line-clamp-2">{o.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {d.getFullYear()}/{String(d.getMonth()+1).padStart(2,"0")}/{String(d.getDate()).padStart(2,"0")} {String(d.getHours()).padStart(2,"0")}:{String(d.getMinutes()).padStart(2,"0")}
+                    </p>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${ORDER_STATUS_COLORS[o.status] ?? ""}`}>
+                    {ORDER_STATUS_LABELS[o.status] ?? o.status}
+                  </span>
+                </div>
+
+                <div className="bg-gray-50 rounded-xl p-2.5 grid grid-cols-2 gap-1.5 text-xs">
+                  <div><span className="text-gray-400">售價</span><span className="ml-1 font-bold text-amber-600">{o.currency} ${price.toLocaleString()} × {o.quantity}</span></div>
+                  <div><span className="text-gray-400">傭金</span><span className="ml-1 font-medium text-red-500">{o.currency} ${commission.toFixed(2)}</span></div>
+                  <div><span className="text-gray-400">買家</span><span className="ml-1 font-medium">{o.buyerDisplayName ?? "—"}</span></div>
+                  <div><span className="text-gray-400">電話</span><span className="ml-1 font-medium">{o.buyerPhoneFromUser ?? o.buyerPhone ?? "—"}</span></div>
+                </div>
+
+                {o.buyerNote && (
+                  <p className="text-xs text-gray-500 bg-amber-50 rounded-lg px-2.5 py-1.5">備注：{o.buyerNote}</p>
+                )}
+
+                {o.status === "pending" && (
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={() => { if (window.confirm(`確認成交「${o.title}」？系統將自動從保證金扣除傭金 ${o.currency} $${commission.toFixed(2)}`)) confirm.mutate({ orderId: o.id }); }}
+                      disabled={confirm.isPending}
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold py-2 rounded-xl transition-colors disabled:opacity-60"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />確認成交
+                    </button>
+                    <button
+                      onClick={() => { if (window.confirm("確定取消此訂單？")) cancel.mutate({ orderId: o.id, reason: "商戶取消" }); }}
+                      disabled={cancel.isPending}
+                      className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 text-gray-500 text-sm font-medium py-2 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-60"
+                    >
+                      <XCircle className="w-4 h-4" />取消訂單
+                    </button>
+                  </div>
+                )}
+                {o.status === "confirmed" && o.confirmedAt && (
+                  <p className="text-xs text-green-600 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    成交於 {new Date(o.confirmedAt).toLocaleDateString("zh-HK")}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MerchantProducts() {
   const { isAuthenticated } = useAuth();
   const utils = trpc.useUtils();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState<"products" | "orders">("products");
 
   const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const CATEGORIES = parseCategories(siteSettings as Record<string, string> | undefined);
@@ -237,16 +342,33 @@ export default function MerchantProducts() {
           </Link>
           <Package className="w-5 h-5 text-green-600" />
           <h1 className="text-lg font-bold text-gray-800 flex-1">商品管理</h1>
-          <Button
-            size="sm"
-            className="bg-green-600 hover:bg-green-700 text-white gap-1"
-            onClick={() => { setEditingId(null); setForm(EMPTY_FORM); setShowForm(true); setTimeout(() => document.getElementById("product-form")?.scrollIntoView({ behavior: "smooth" }), 100); }}
-          >
-            <Plus className="w-4 h-4" />
-            上架商品
-          </Button>
+          {activeTab === "products" && (
+            <Button
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white gap-1"
+              onClick={() => { setEditingId(null); setForm(EMPTY_FORM); setShowForm(true); setTimeout(() => document.getElementById("product-form")?.scrollIntoView({ behavior: "smooth" }), 100); }}
+            >
+              <Plus className="w-4 h-4" />
+              上架商品
+            </Button>
+          )}
         </div>
 
+        {/* Tab 切換 */}
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+          <button onClick={() => setActiveTab("products")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === "products" ? "bg-white text-green-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+            <Package className="w-4 h-4" />我的商品
+          </button>
+          <button onClick={() => setActiveTab("orders")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === "orders" ? "bg-white text-amber-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+            <ShoppingBag className="w-4 h-4" />訂單管理
+          </button>
+        </div>
+
+        {activeTab === "orders" && <MerchantOrdersTab />}
+
+        {activeTab === "products" && <>
         {/* 商品表單 */}
         {showForm && (
           <div id="product-form" className="rounded-2xl bg-green-50 border border-green-200 p-4 space-y-3">
@@ -585,6 +707,7 @@ export default function MerchantProducts() {
             })}
           </div>
         )}
+        </>}
       </div>
 
       {/* 確認上架彈窗 */}

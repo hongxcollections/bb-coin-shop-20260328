@@ -9,7 +9,7 @@ import type { Auction } from "../drizzle/schema";
 import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, adminSetUserPassword, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, adminSetUserPassword, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder } from "./db";
 import { storagePut } from "./storage";
 import { getRawPool } from "./db";
 import { TRPCError } from "@trpc/server";
@@ -2920,6 +2920,89 @@ export const appRouter = router({
         const fileKey = `merchant-products/${ctx.user.id}/${Date.now()}-${input.fileName}`;
         const { url } = await storagePut(fileKey, buffer, mimeToUse);
         return { url };
+      }),
+  }),
+
+  // 商品訂單
+  productOrders: router({
+    /** 買家落單 */
+    create: protectedProcedure
+      .input(z.object({
+        productId: z.number(),
+        quantity: z.number().min(1).max(99).default(1),
+        buyerNote: z.string().max(500).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const product = await getMerchantProduct(input.productId);
+        if (!product) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到商品' });
+        if (product.status !== 'active') throw new TRPCError({ code: 'BAD_REQUEST', message: '此商品已下架或售罄' });
+        if (product.stock < input.quantity) throw new TRPCError({ code: 'BAD_REQUEST', message: '庫存不足' });
+        if (product.merchantId === ctx.user.id) throw new TRPCError({ code: 'BAD_REQUEST', message: '不能購買自己的商品' });
+
+        const deposit = await getOrCreateSellerDeposit(product.merchantId);
+        const commissionRate = deposit ? parseFloat(String(deposit.commissionRate)) : 0.05;
+
+        const orderId = await createProductOrder({
+          productId: product.id,
+          buyerId: ctx.user.id,
+          merchantId: product.merchantId,
+          title: product.title,
+          price: parseFloat(String(product.price)),
+          currency: product.currency ?? 'HKD',
+          quantity: input.quantity,
+          commissionRate,
+          buyerName: ctx.user.displayName ?? undefined,
+          buyerPhone: ctx.user.phone ?? undefined,
+          buyerNote: input.buyerNote,
+        });
+        return { orderId };
+      }),
+
+    /** 商戶：確認成交（同時扣傭金） */
+    confirm: protectedProcedure
+      .input(z.object({ orderId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        const result = await confirmProductOrder(input.orderId, ctx.user.id);
+        if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
+        return { success: true };
+      }),
+
+    /** 取消訂單（買家或商戶） */
+    cancel: protectedProcedure
+      .input(z.object({ orderId: z.number(), reason: z.string().max(200).optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const isAdmin = ctx.user.role === 'admin';
+        const result = await cancelProductOrder(input.orderId, ctx.user.id, isAdmin, input.reason);
+        if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
+        return { success: true };
+      }),
+
+    /** 商戶：我的訂單 */
+    myMerchantOrders: protectedProcedure
+      .input(z.object({ status: z.string().optional() }))
+      .query(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        return getProductOrdersByMerchant(ctx.user.id, input.status);
+      }),
+
+    /** 買家：我的訂單 */
+    myBuyerOrders: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getProductOrdersByBuyer(ctx.user.id);
+      }),
+
+    /** 管理員：所有訂單 */
+    adminList: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        return getAllProductOrders();
       }),
   }),
 

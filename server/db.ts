@@ -3628,3 +3628,177 @@ export async function importPackagesData(data: {
     return { success: false, tiersImported: 0, plansImported: 0, error: String(err?.message ?? err) };
   }
 }
+
+// ─────────────────────────────────────────────
+// 商品訂單（Product Orders）
+// ─────────────────────────────────────────────
+
+let _ordersTableEnsured = false;
+async function ensureProductOrdersTable() {
+  if (_ordersTableEnsured) return;
+  const db = await getDb();
+  if (!db) return;
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS productOrders (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      productId INT NOT NULL,
+      buyerId INT NOT NULL,
+      merchantId INT NOT NULL,
+      title VARCHAR(500) NOT NULL,
+      price DECIMAL(12,2) NOT NULL,
+      currency VARCHAR(10) NOT NULL DEFAULT 'HKD',
+      quantity INT NOT NULL DEFAULT 1,
+      commissionRate DECIMAL(5,4) NOT NULL DEFAULT 0.0500,
+      commissionAmount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+      status ENUM('pending','confirmed','cancelled') NOT NULL DEFAULT 'pending',
+      buyerName VARCHAR(200),
+      buyerPhone VARCHAR(50),
+      buyerNote TEXT,
+      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      confirmedAt DATETIME,
+      cancelledAt DATETIME,
+      cancelReason VARCHAR(500)
+    )
+  `);
+  _ordersTableEnsured = true;
+}
+
+export interface ProductOrder {
+  id: number;
+  productId: number;
+  buyerId: number;
+  merchantId: number;
+  title: string;
+  price: string;
+  currency: string;
+  quantity: number;
+  commissionRate: string;
+  commissionAmount: string;
+  status: 'pending' | 'confirmed' | 'cancelled';
+  buyerName: string | null;
+  buyerPhone: string | null;
+  buyerNote: string | null;
+  createdAt: Date;
+  confirmedAt: Date | null;
+  cancelledAt: Date | null;
+  cancelReason: string | null;
+}
+
+export async function createProductOrder(data: {
+  productId: number; buyerId: number; merchantId: number;
+  title: string; price: number; currency: string; quantity: number;
+  commissionRate: number; buyerName?: string; buyerPhone?: string; buyerNote?: string;
+}): Promise<number> {
+  await ensureProductOrdersTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const commissionAmount = (data.price * data.quantity * data.commissionRate).toFixed(2);
+  const [result] = await db.execute(sql`
+    INSERT INTO productOrders
+      (productId, buyerId, merchantId, title, price, currency, quantity, commissionRate, commissionAmount, status, buyerName, buyerPhone, buyerNote)
+    VALUES
+      (${data.productId}, ${data.buyerId}, ${data.merchantId}, ${data.title},
+       ${data.price.toFixed(2)}, ${data.currency}, ${data.quantity},
+       ${data.commissionRate.toFixed(4)}, ${commissionAmount}, 'pending',
+       ${data.buyerName ?? null}, ${data.buyerPhone ?? null}, ${data.buyerNote ?? null})
+  `);
+  return (result as any).insertId as number;
+}
+
+export async function getProductOrdersByMerchant(merchantId: number, status?: string): Promise<any[]> {
+  await ensureProductOrdersTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const statusFilter = status && status !== 'all' ? sql`AND o.status = ${status}` : sql``;
+  const rows = await db.execute(sql`
+    SELECT o.*, u.displayName as buyerDisplayName, u.phone as buyerPhoneFromUser
+    FROM productOrders o
+    LEFT JOIN users u ON u.id = o.buyerId
+    WHERE o.merchantId = ${merchantId} ${statusFilter}
+    ORDER BY o.createdAt DESC
+  `);
+  return (rows[0] as any[]) ?? [];
+}
+
+export async function getProductOrdersByBuyer(buyerId: number): Promise<any[]> {
+  await ensureProductOrdersTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const rows = await db.execute(sql`
+    SELECT o.*, ma.merchantName
+    FROM productOrders o
+    LEFT JOIN merchantApplications ma ON ma.userId = o.merchantId AND ma.status = 'approved'
+    WHERE o.buyerId = ${buyerId}
+    ORDER BY o.createdAt DESC
+  `);
+  return (rows[0] as any[]) ?? [];
+}
+
+export async function getAllProductOrders(): Promise<any[]> {
+  await ensureProductOrdersTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const rows = await db.execute(sql`
+    SELECT o.*, u.displayName as buyerDisplayName,
+           ma.merchantName
+    FROM productOrders o
+    LEFT JOIN users u ON u.id = o.buyerId
+    LEFT JOIN merchantApplications ma ON ma.userId = o.merchantId AND ma.status = 'approved'
+    ORDER BY o.createdAt DESC
+    LIMIT 500
+  `);
+  return (rows[0] as any[]) ?? [];
+}
+
+export async function confirmProductOrder(orderId: number, merchantId: number): Promise<{ ok: boolean; error?: string }> {
+  await ensureProductOrdersTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+
+  const rows = await db.execute(sql`SELECT * FROM productOrders WHERE id = ${orderId} AND merchantId = ${merchantId} LIMIT 1`);
+  const order = ((rows[0] as any[])[0]) as any;
+  if (!order) return { ok: false, error: '找不到此訂單' };
+  if (order.status !== 'pending') return { ok: false, error: '訂單狀態不可確認' };
+
+  const price = parseFloat(String(order.price));
+  const qty = parseInt(String(order.quantity));
+  const commissionRate = parseFloat(String(order.commissionRate));
+  const commissionAmount = price * qty * commissionRate;
+
+  await db.execute(sql`
+    UPDATE productOrders SET status = 'confirmed', confirmedAt = NOW() WHERE id = ${orderId}
+  `);
+
+  await db.execute(sql`
+    UPDATE merchantProducts SET stock = GREATEST(stock - ${qty}, 0) WHERE id = ${order.productId}
+  `);
+  await db.execute(sql`
+    UPDATE merchantProducts SET status = 'sold_out' WHERE id = ${order.productId} AND stock = 0
+  `);
+
+  try {
+    await deductCommission(merchantId, commissionAmount, 0, `商品訂單 #${orderId}：${order.title}`);
+  } catch (e) {
+    console.error('[confirmProductOrder] deductCommission failed', e);
+  }
+
+  return { ok: true };
+}
+
+export async function cancelProductOrder(orderId: number, byUserId: number, isAdmin: boolean, reason?: string): Promise<{ ok: boolean; error?: string }> {
+  await ensureProductOrdersTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+
+  const rows = await db.execute(sql`SELECT * FROM productOrders WHERE id = ${orderId} LIMIT 1`);
+  const order = ((rows[0] as any[])[0]) as any;
+  if (!order) return { ok: false, error: '找不到此訂單' };
+  if (!isAdmin && order.buyerId !== byUserId && order.merchantId !== byUserId) return { ok: false, error: '無權操作' };
+  if (order.status !== 'pending') return { ok: false, error: '只有待確認的訂單可以取消' };
+
+  await db.execute(sql`
+    UPDATE productOrders SET status = 'cancelled', cancelledAt = NOW(), cancelReason = ${reason ?? null}
+    WHERE id = ${orderId}
+  `);
+  return { ok: true };
+}

@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import Header from "@/components/Header";
-import { Store, Package, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Store, Package, X, ChevronLeft, ChevronRight, ShoppingCart, Loader2 } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { parseCategories } from "@/lib/categories";
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
 
@@ -78,7 +79,98 @@ function ContactBtns({ whatsapp, messengerLink, title, price, id, size = "md" }:
   );
 }
 
-function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: LayoutMode; whatsapp: string; messengerLink: string }) {
+// ── 購買確認彈窗 ──
+function BuyDialog({ product, onClose }: { product: any; onClose: () => void }) {
+  const { user } = useAuth();
+  const [, navigate] = useLocation();
+  const [qty, setQty] = useState(1);
+  const [note, setNote] = useState("");
+  const utils = trpc.useUtils();
+
+  const price = parseFloat(product.price ?? "0");
+
+  const createOrder = trpc.productOrders.create.useMutation({
+    onSuccess: () => {
+      toast.success("已成功落單！請等候商戶確認成交");
+      utils.merchants.listProducts.invalidate();
+      onClose();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  if (!user) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4" onClick={onClose}>
+        <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center" onClick={e => e.stopPropagation()}>
+          <ShoppingCart className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+          <p className="font-semibold text-gray-800 mb-1">請先登入</p>
+          <p className="text-sm text-gray-500 mb-4">登入後才可落單購買</p>
+          <button onClick={() => { onClose(); navigate("/login"); }}
+            className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 rounded-xl transition-colors">
+            前往登入
+          </button>
+          <button onClick={onClose} className="w-full mt-2 text-sm text-gray-400 py-2">取消</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3">
+          <ShoppingCart className="w-5 h-5 text-amber-500 shrink-0" />
+          <h2 className="font-bold text-gray-800 text-base">確認落單</h2>
+        </div>
+
+        <div className="bg-amber-50 rounded-xl p-3 space-y-1">
+          <p className="font-semibold text-gray-800 text-sm line-clamp-2">{product.title}</p>
+          <p className="text-amber-600 font-bold">{product.currency ?? "HKD"} ${price.toLocaleString()}</p>
+          <p className="text-xs text-gray-500">庫存：{product.stock} 件</p>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs text-gray-500 font-medium">數量</label>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setQty(q => Math.max(1, q - 1))}
+              className="w-8 h-8 rounded-full border border-amber-200 text-amber-600 font-bold text-lg flex items-center justify-center hover:bg-amber-50">−</button>
+            <span className="text-lg font-bold text-gray-800 w-8 text-center">{qty}</span>
+            <button onClick={() => setQty(q => Math.min(product.stock, q + 1))}
+              className="w-8 h-8 rounded-full border border-amber-200 text-amber-600 font-bold text-lg flex items-center justify-center hover:bg-amber-50">+</button>
+            <span className="text-sm text-gray-500 ml-auto">合計：<span className="text-amber-600 font-bold">${(price * qty).toLocaleString()}</span></span>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs text-gray-500 font-medium">備注（選填）</label>
+          <textarea
+            className="w-full border border-gray-200 rounded-xl p-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300"
+            rows={2} maxLength={200} placeholder="如有特別要求請在此說明…"
+            value={note} onChange={e => setNote(e.target.value)}
+          />
+        </div>
+
+        <p className="text-xs text-gray-400 bg-gray-50 rounded-lg p-2.5">
+          落單後商戶會聯絡你確認成交，傭金於商戶確認後才自動扣除。
+        </p>
+
+        <div className="flex gap-2 pt-1">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50">取消</button>
+          <button
+            disabled={createOrder.isPending}
+            onClick={() => createOrder.mutate({ productId: product.id, quantity: qty, buyerNote: note || undefined })}
+            className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-60"
+          >
+            {createOrder.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
+            確認落單
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductCard({ p, layout, whatsapp, messengerLink, onBuy }: { p: any; layout: LayoutMode; whatsapp: string; messengerLink: string; onBuy: (p: any) => void }) {
   const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
   const price = parseFloat(p.price ?? "0");
   const href = `/merchant-products/${p.id}`;
@@ -89,6 +181,15 @@ function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: L
   const _mWaDigits = _mWa.replace(/[^0-9]/g, "");
   const effWa = _mWaDigits.length >= 7 ? _mWa : (_pWaDigits.length >= 7 ? _pWa : "");
 
+  const buyBtn = (
+    <button
+      onClick={e => { e.preventDefault(); e.stopPropagation(); onBuy(p); }}
+      className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-full transition-colors shrink-0 shadow-sm"
+    >
+      <ShoppingCart className="w-3.5 h-3.5" />落單
+    </button>
+  );
+
   if (layout === "list") return (
     <Link href={href}>
       <div className="bg-white rounded-xl border border-amber-100 shadow-sm p-3 flex gap-3 items-start cursor-pointer hover:border-amber-300 transition-colors">
@@ -98,9 +199,11 @@ function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: L
           <h3 className="text-sm font-semibold text-gray-800 line-clamp-1">{p.title}</h3>
           {p.category && <div className="flex flex-wrap gap-1">{(p.category.includes("|") ? p.category.split("|") : [p.category]).map((c: string) => <span key={c} className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{c.trim()}</span>)}</div>}
           {p.description && <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{p.description}</p>}
-          <div className="flex items-center justify-between mt-1.5">
+          <div className="flex items-center justify-between mt-1.5 gap-2">
             <span className="font-bold text-amber-600 text-sm">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
-            {p.stock > 0 ? <ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
+            <div className="flex items-center gap-1.5">
+              {p.stock > 0 ? <>{buyBtn}<ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /></> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
+            </div>
           </div>
         </div>
       </div>
@@ -123,9 +226,11 @@ function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: L
             {p.category && (p.category.includes("|") ? p.category.split("|") : [p.category]).slice(0,1).map((c: string) => <span key={c} className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">{c.trim()}</span>)}
           </div>
           {p.description && <p className="text-xs text-gray-500 line-clamp-3">{p.description}</p>}
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center justify-between pt-1 gap-2">
             <span className="font-bold text-amber-600 text-base">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
-            {p.stock > 0 ? <ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
+            <div className="flex items-center gap-1.5">
+              {p.stock > 0 ? <>{buyBtn}<ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /></> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
+            </div>
           </div>
         </div>
       </div>
@@ -141,7 +246,13 @@ function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: L
           <h3 className="text-[10px] font-semibold text-gray-800 line-clamp-2 leading-tight">{p.title}</h3>
           <span className="text-[10px] font-bold text-amber-600">${price.toLocaleString()}</span>
           {p.stock > 0 ? (
-            <ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="sm" />
+            <div className="flex items-center gap-1 mt-auto">
+              <button onClick={e => { e.preventDefault(); e.stopPropagation(); onBuy(p); }}
+                className="flex-1 flex items-center justify-center gap-0.5 bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-semibold py-1 rounded-full transition-colors">
+                <ShoppingCart className="w-2.5 h-2.5" />落單
+              </button>
+              <ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="sm" />
+            </div>
           ) : (
             <span className="mt-auto text-[9px] py-0.5 bg-gray-100 text-gray-400 rounded text-center">已售出</span>
           )}
@@ -163,7 +274,17 @@ function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: L
           {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
           <div className="mt-auto pt-1.5 flex items-center justify-between gap-1">
             <span className="font-bold text-amber-600 text-xs">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
-            {p.stock > 0 ? <ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
+            <div className="flex items-center gap-1">
+            {p.stock > 0 ? (
+              <>
+                <button onClick={e => { e.preventDefault(); e.stopPropagation(); onBuy(p); }}
+                  className="flex items-center gap-0.5 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-semibold px-2 py-1 rounded-full transition-colors shadow-sm">
+                  <ShoppingCart className="w-2.5 h-2.5" />落單
+                </button>
+                <ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="sm" />
+              </>
+            ) : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
+          </div>
           </div>
         </div>
       </div>
@@ -171,16 +292,16 @@ function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: L
   );
 }
 
-function ProductsGrid({ products, layout, whatsapp, messengerLink }: { products: any[]; layout: LayoutMode; whatsapp: string; messengerLink: string }) {
-  if (layout === "list") return <div className="space-y-2">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} />)}</div>;
-  if (layout === "big") return <div className="space-y-4">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} />)}</div>;
-  if (layout === "grid3") return <div className="grid grid-cols-3 gap-2">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} />)}</div>;
-  return <div className="grid grid-cols-2 gap-3">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} />)}</div>;
+function ProductsGrid({ products, layout, whatsapp, messengerLink, onBuy }: { products: any[]; layout: LayoutMode; whatsapp: string; messengerLink: string; onBuy: (p: any) => void }) {
+  if (layout === "list") return <div className="space-y-2">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} onBuy={onBuy} />)}</div>;
+  if (layout === "big") return <div className="space-y-4">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} onBuy={onBuy} />)}</div>;
+  if (layout === "grid3") return <div className="grid grid-cols-3 gap-2">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} onBuy={onBuy} />)}</div>;
+  return <div className="grid grid-cols-2 gap-3">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} onBuy={onBuy} />)}</div>;
 }
 
 const PAGE_SIZE = 10;
 
-function MerchantSection({ merchant, selectedCategory }: { merchant: any; selectedCategory: string }) {
+function MerchantSection({ merchant, selectedCategory, onBuy }: { merchant: any; selectedCategory: string; onBuy: (p: any) => void }) {
   const { data: products = [], isLoading } = trpc.merchants.listProducts.useQuery({
     merchantId: merchant.userId,
     category: selectedCategory !== "全部" ? selectedCategory : undefined,
@@ -222,7 +343,7 @@ function MerchantSection({ merchant, selectedCategory }: { merchant: any; select
         <div className="text-center py-6 text-2xl animate-spin">💰</div>
       ) : (
         <>
-          <ProductsGrid products={pageItems} layout={layout} whatsapp={merchant.whatsapp ?? ""} messengerLink={messengerLink} />
+          <ProductsGrid products={pageItems} layout={layout} whatsapp={merchant.whatsapp ?? ""} messengerLink={messengerLink} onBuy={onBuy} />
           {totalPages > 1 && (
             <div className="flex items-center justify-between gap-2 mt-3 px-1">
               <button
@@ -251,6 +372,7 @@ function MerchantSection({ merchant, selectedCategory }: { merchant: any; select
 export default function Merchants() {
   const [selectedMerchantId, setSelectedMerchantId] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("全部");
+  const [buyingProduct, setBuyingProduct] = useState<any | null>(null);
   const { data: merchants = [], isLoading } = trpc.merchants.listApprovedMerchants.useQuery();
   const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const CATEGORIES = ["全部", ...parseCategories(siteSettings as Record<string, string> | undefined)];
@@ -346,10 +468,12 @@ export default function Merchants() {
           </div>
         ) : (
           (displayedMerchants as any[]).map((m) => (
-            <MerchantSection key={m.userId} merchant={m} selectedCategory={selectedCategory} />
+            <MerchantSection key={m.userId} merchant={m} selectedCategory={selectedCategory} onBuy={setBuyingProduct} />
           ))
         )}
       </div>
+
+      {buyingProduct && <BuyDialog product={buyingProduct} onClose={() => setBuyingProduct(null)} />}
     </div>
   );
 }
