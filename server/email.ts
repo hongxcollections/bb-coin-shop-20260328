@@ -213,10 +213,34 @@ export interface MerchantWonEmailParams extends EmailOptions {
 export async function sendMerchantWonEmail(params: MerchantWonEmailParams): Promise<boolean> {
   const { to, senderName, senderEmail, merchantName, auctionTitle, auctionId, finalPrice, currency, winnerName, winnerPhone, auctionUrl } = params;
 
+  // 生成得標者 WhatsApp 聯絡區塊
+  let winnerContactHtml = '';
+  if (winnerPhone) {
+    const waNumber = winnerPhone.replace(/\D/g, '');
+    const waMessage = encodeURIComponent(`您好，我是 ${merchantName}，您在 hongxcollections 競投的「${auctionTitle}」已成功得標，成交價為 ${currency}$${finalPrice.toLocaleString()}，請問方便安排付款及交收嗎？謝謝！`);
+    const waUrl = `https://wa.me/${waNumber}?text=${waMessage}`;
+    winnerContactHtml = `
+    <div style="margin-top:20px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px 20px;">
+      <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#15803d;">📞 聯絡得標者</p>
+      <p style="margin:0 0 4px;font-size:13px;color:#166534;">得標者：<strong>${winnerName}</strong></p>
+      <p style="margin:0 0 12px;font-size:13px;color:#166534;">電話：${winnerPhone}</p>
+      <a href="${waUrl}" style="display:inline-block;background:#25d366;color:#fff;text-decoration:none;padding:9px 20px;border-radius:6px;font-size:13px;font-weight:600;">
+        💬 WhatsApp 聯絡得標者
+      </a>
+    </div>`;
+  } else {
+    winnerContactHtml = `
+    <div class="highlight">
+      <div class="label">得標者</div>
+      <div style="font-size:16px;font-weight:600;color:#333;margin-top:4px;">${winnerName}</div>
+      <div style="font-size:13px;color:#6b7280;margin-top:4px;">（得標者未留下電話，請透過平台聯絡）</div>
+    </div>`;
+  }
+
   const body = `
     <h2>🏆 您的拍賣已結標！</h2>
     <p>親愛的 <strong>${merchantName}</strong>，</p>
-    <p>您的拍賣品已成功結標，以下是得標者資訊：</p>
+    <p>您的拍賣品已成功結標，請盡快聯絡得標者安排付款及交收。</p>
 
     <div class="highlight">
       <div class="label">得標拍賣品</div>
@@ -226,14 +250,10 @@ export async function sendMerchantWonEmail(params: MerchantWonEmailParams): Prom
       <div class="label">成交價格</div>
       <div class="value">${currency} ${finalPrice.toLocaleString()}</div>
     </div>
-    <div class="highlight">
-      <div class="label">得標者</div>
-      <div style="font-size:16px;font-weight:600;color:#333;margin-top:4px;">${winnerName}</div>
-      ${winnerPhone ? `<div style="font-size:13px;color:#6b7280;margin-top:4px;">📞 ${winnerPhone}</div>` : ''}
-    </div>
 
-    <p style="margin-top:20px;font-size:13px;color:#6b7280;">請盡快與得標者聯絡安排付款及交收事宜。</p>
-    <a href="${auctionUrl}" class="btn">查看拍賣詳情 →</a>
+    ${winnerContactHtml}
+
+    <a href="${auctionUrl}" class="btn" style="margin-top:20px;">查看拍賣詳情 →</a>
   `;
   return sendEmail({ to, senderName, senderEmail, subject: `🏆 【拍賣結標】${auctionTitle} — 成交價 ${currency} ${finalPrice.toLocaleString()}`, html: baseLayout("拍賣結標通知", body) });
 }

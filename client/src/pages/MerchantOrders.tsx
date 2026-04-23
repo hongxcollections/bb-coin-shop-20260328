@@ -45,7 +45,7 @@ function StatusBadge({ status }: { status: string | null }) {
   return <Badge variant="outline" className={`${cfg.badgeClass} text-xs`}>{cfg.label}</Badge>;
 }
 
-function OrderRow({ order, onUpdate }: { order: MerchantOrder; onUpdate: () => void }) {
+function OrderRow({ order, onUpdate, merchantName }: { order: MerchantOrder; onUpdate: () => void; merchantName: string }) {
   const [updating, setUpdating] = useState(false);
 
   const updateStatus = trpc.merchants.updateOrderStatus.useMutation({
@@ -88,7 +88,7 @@ function OrderRow({ order, onUpdate }: { order: MerchantOrder; onUpdate: () => v
               <Phone className="w-3 h-3" />{order.winnerPhone}
             </p>
             <a
-              href={toWhatsAppUrl(order.winnerPhone, `您好，我是大BB錢幣店的商戶。您在拍賣「${order.title}」中以 ${order.currency}$${order.winningAmount ? Number(order.winningAmount).toLocaleString() : ''} 得標，請問方便安排付款及交收嗎？`)}
+              href={toWhatsAppUrl(order.winnerPhone, `您好，我是 ${merchantName}，您在 hongxcollections 競投的「${order.title}」已成功得標，成交價為 ${order.currency}$${order.winningAmount ? Number(order.winningAmount).toLocaleString() : ''}，請問方便安排付款及交收嗎？謝謝！`)}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -144,6 +144,8 @@ export default function MerchantOrders() {
   const [statusFilter, setStatusFilter] = useState("all");
 
   const { data: orders, isLoading, refetch } = trpc.merchants.myOrders.useQuery();
+  const { data: myApp } = trpc.merchants.myApplication.useQuery(undefined, { enabled: isAuthenticated });
+  const merchantName = myApp?.merchantName ?? user?.name ?? "商戶";
 
   if (!isAuthenticated) {
     return (
@@ -254,7 +256,7 @@ export default function MerchantOrders() {
             ) : (
               <div className="space-y-2">
                 {filtered.map((o: MerchantOrder) => (
-                  <OrderRow key={o.id} order={o} onUpdate={() => refetch()} />
+                  <OrderRow key={o.id} order={o} onUpdate={() => refetch()} merchantName={merchantName} />
                 ))}
               </div>
             )}
