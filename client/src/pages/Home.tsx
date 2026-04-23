@@ -75,29 +75,46 @@ function parseProductImages(images: string | null | undefined): string[] {
   }
 }
 
-function RecentSalesMarquee() {
-  const { data: records } = trpc.auctionRecords.recentSold.useQuery(
-    { limit: 20 },
+function RecentSalesFader() {
+  const { data: items } = trpc.home.recentActivity.useQuery(
+    { limit: 10 },
     { staleTime: 5 * 60 * 1000 }
   );
+  const list = items ?? [];
+  const [index, setIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
 
-  if (!records || records.length === 0) return null;
+  useEffect(() => {
+    if (list.length <= 1) return;
+    const timer = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIndex(i => (i + 1) % list.length);
+        setVisible(true);
+      }, 500);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [list.length]);
 
-  const getThumb = (r: { imageUrl: string | null; imagesJson: string | null }) => {
-    if (r.imagesJson) {
-      try {
-        const parsed = JSON.parse(r.imagesJson);
-        if (Array.isArray(parsed) && parsed[0]) {
-          const first = parsed[0];
-          return typeof first === 'string' ? first : first.imageUrl ?? first.url ?? null;
-        }
-      } catch {}
-    }
-    return r.imageUrl ?? null;
+  if (list.length === 0) return null;
+
+  const getThumb = (images: string | null) => {
+    if (!images) return null;
+    try {
+      const parsed = JSON.parse(images);
+      if (Array.isArray(parsed) && parsed[0]) {
+        const first = parsed[0];
+        return typeof first === 'string' ? first : first.imageUrl ?? first.url ?? null;
+      }
+      if (typeof parsed === 'string') return parsed;
+    } catch {}
+    return null;
   };
 
-  const duration = `${Math.max(12, records.length * 5)}s`;
-  const doubled = [...records, ...records];
+  const item = list[index];
+  const thumb = getThumb(item.images);
+  const currSymbol = getCurrencySymbol(item.currency ?? 'HKD');
+  const isAuction = item.type === 'auction';
 
   return (
     <section className="py-2">
@@ -111,39 +128,45 @@ function RecentSalesMarquee() {
             backgroundClip: "text",
           }}>近期成交紀錄</span>
         </p>
-        <div className="marquee-wrapper border border-amber-100 rounded-2xl bg-white py-3 overflow-hidden shadow-sm">
-          <div className="marquee-track flex" style={{ animationDuration: duration }}>
-            {doubled.map((r, idx) => {
-              const thumb = getThumb(r);
-              const currSymbol = getCurrencySymbol(r.currency ?? 'HKD');
-              return (
-                <Link
-                  key={`${r.id}-${idx}`}
-                  href="/archive"
-                  className="flex items-center gap-3 px-5 py-2 mx-2 rounded-xl hover:bg-amber-50 transition-all shrink-0 cursor-pointer border border-transparent hover:border-amber-100"
-                >
-                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-amber-50 flex items-center justify-center shrink-0 shadow-inner">
-                    {thumb ? (
-                      <img src={thumb} alt={r.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-xl">🪙</span>
-                    )}
-                  </div>
-                  <div className="flex flex-col justify-center">
-                    <span className="text-xs font-bold text-amber-900 max-w-[10rem] truncate">{r.title}</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-amber-600 font-extrabold">
-                        {currSymbol}{Number(r.soldPrice).toLocaleString()}
-                      </span>
-                      <div className="flex items-center gap-1 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-100">
-                        <div className="w-1 h-1 rounded-full bg-red-400" />
-                        <span className="text-[9px] text-red-500 font-bold tracking-wider">已成交</span>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
+        <div className="border border-amber-100 rounded-2xl bg-white shadow-sm overflow-hidden">
+          <div
+            className="flex items-center gap-4 px-5 py-4"
+            style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.5s ease' }}
+          >
+            {/* 縮圖 */}
+            <div className="w-14 h-14 rounded-xl overflow-hidden bg-amber-50 flex items-center justify-center shrink-0 shadow-inner border border-amber-100">
+              {thumb ? (
+                <img src={thumb} alt={item.title} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-2xl">🪙</span>
+              )}
+            </div>
+            {/* 資料 */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-amber-900 truncate">{item.title}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-base font-extrabold text-amber-600">
+                  {currSymbol}{Number(item.price).toLocaleString()}
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  isAuction
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-orange-50 text-orange-600 border-orange-200'
+                }`}>
+                  {isAuction ? '🔨 競拍成交' : '🏪 商品售出'}
+                </span>
+              </div>
+            </div>
+            {/* 圓點指示器 */}
+            <div className="flex flex-col gap-1 shrink-0">
+              {list.map((_, i) => (
+                <div
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full transition-all duration-300"
+                  style={{ background: i === index ? '#f59e0b' : '#fde68a' }}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -687,8 +710,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Section 3b: Recent Sales Marquee ── */}
-      <RecentSalesMarquee />
+      {/* ── Section 3b: Recent Sales Fader ── */}
+      <RecentSalesFader />
 
       {/* ── Section 4: Brand Intro (Bottom) ── */}
       <section className="py-6 hero-bg border-t border-amber-100">

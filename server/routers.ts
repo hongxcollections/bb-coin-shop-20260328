@@ -3796,5 +3796,42 @@ export const appRouter = router({
         return { deleted: result.affectedRows };
       }),
   }),
+
+  /** 首頁：本網站近期成交（競拍 + 商品） */
+  home: router({
+    recentActivity: publicProcedure
+      .input(z.object({ limit: z.number().default(10) }))
+      .query(async ({ input }) => {
+        const pool = await getRawPool();
+        const limit = Math.max(1, Math.min(20, Number(input.limit)));
+        // 已結拍且有人出價的拍賣
+        const [auctionRows]: any = await pool.execute(
+          `SELECT id, title, currentPrice AS price, currency, images, endTime AS date, 'auction' AS type
+           FROM \`auctions\`
+           WHERE status = 'ended' AND highestBidderId IS NOT NULL AND currentPrice > 0
+           ORDER BY endTime DESC LIMIT 10`
+        );
+        // 已售出的商品
+        const [productRows]: any = await pool.execute(
+          `SELECT id, title, price, currency, images, updatedAt AS date, 'product' AS type
+           FROM \`merchantProducts\`
+           WHERE status = 'sold'
+           ORDER BY updatedAt DESC LIMIT 10`
+        );
+        // 合併、排序、取前 limit 筆
+        const combined = [...auctionRows, ...productRows]
+          .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, limit);
+        return combined as Array<{
+          id: number;
+          title: string;
+          price: string;
+          currency: string;
+          images: string | null;
+          date: string;
+          type: 'auction' | 'product';
+        }>;
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
