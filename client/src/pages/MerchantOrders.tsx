@@ -129,6 +129,13 @@ export default function MerchantOrders() {
   const { data: myApp } = trpc.merchants.myApplication.useQuery(undefined, { enabled: isAuthenticated });
   const merchantName = myApp?.merchantName ?? user?.name ?? "商戶";
 
+  const allOrders = (orders ?? []) as MerchantOrder[];
+
+  const uniqueWinners = useMemo(() => {
+    const names = allOrders.map(o => o.winnerName).filter((n): n is string => !!n);
+    return [...new Set(names)].sort();
+  }, [allOrders]);
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -149,13 +156,6 @@ export default function MerchantOrders() {
       </div>
     );
   }
-
-  const allOrders = (orders ?? []) as MerchantOrder[];
-
-  const uniqueWinners = useMemo(() => {
-    const names = allOrders.map(o => o.winnerName).filter((n): n is string => !!n);
-    return [...new Set(names)].sort();
-  }, [allOrders]);
 
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
