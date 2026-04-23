@@ -875,7 +875,7 @@ export default function MerchantAuctions() {
               </div>
             </div>
             {/* 反狙擊延時設定 */}
-            <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 space-y-2">
+            <div className="rounded-lg border border-amber-200 bg-amber-100/70 p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-amber-700">🛡️ 反狙擊延時</p>
                 <div className="flex items-center gap-2">
