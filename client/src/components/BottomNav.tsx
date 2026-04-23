@@ -191,14 +191,6 @@ export default function BottomNav() {
                             </Link>
                           )}
                           <Link
-                            href="/records"
-                            onClick={() => setShowMore(false)}
-                            className="bottom-nav-more-item"
-                          >
-                            <BookOpen className="w-4 h-4" />
-                            <span>拍賣紀錄庫</span>
-                          </Link>
-                          <Link
                             href="/member-benefits"
                             onClick={() => setShowMore(false)}
                             className="bottom-nav-more-item"
@@ -242,14 +234,6 @@ export default function BottomNav() {
                         </>
                       ) : (
                         <>
-                          <Link
-                            href="/records"
-                            onClick={() => setShowMore(false)}
-                            className="bottom-nav-more-item"
-                          >
-                            <BookOpen className="w-4 h-4" />
-                            <span>拍賣紀錄庫</span>
-                          </Link>
                           <a
                             href="/login"
                             className="bottom-nav-more-item"
