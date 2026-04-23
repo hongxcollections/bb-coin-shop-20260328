@@ -292,7 +292,7 @@ export default function Home() {
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
-              }}>拍賣品走馬燈</span>
+              }}>商戶拍賣品</span>
             </p>
             <div className="marquee-wrapper border border-amber-100 rounded-2xl bg-white py-3 overflow-hidden shadow-sm">
               {(() => {
