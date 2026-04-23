@@ -115,7 +115,7 @@ function RecentSalesFader() {
             backgroundClip: "text",
           }}>近期成交紀錄</span>
         </p>
-        <div className="border border-amber-100 rounded-2xl bg-white shadow-sm overflow-hidden">
+        <div className="border border-amber-100 rounded-2xl shadow-sm overflow-hidden" style={{ background: "oklch(99% 0.015 85)" }}>
           <div
             className="flex items-center gap-4 px-5 py-4"
             style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.5s ease' }}
