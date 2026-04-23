@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, Link } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { ToastProvider } from "./contexts/ToastContext";
@@ -9,7 +9,9 @@ import BottomNav from "./components/BottomNav";
 import { AutoPushSubscribe } from "./components/AutoPushSubscribe";
 import { PushForegroundHandler } from "./components/PushForegroundHandler";
 import { trpc } from "@/lib/trpc";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { ShoppingBag } from "lucide-react";
 import Home from "./pages/Home";
 import Auctions from "./pages/Auctions";
 import AuctionDetail from "./pages/AuctionDetail";
@@ -48,6 +50,67 @@ import Merchants from "./pages/Merchants";
 import MerchantProducts from "./pages/MerchantProducts";
 import MerchantStore from "./pages/MerchantStore";
 import MerchantProductDetail from "./pages/MerchantProductDetail";
+
+function MerchantPendingOrdersNotice() {
+  const { user, isAuthenticated } = useAuth();
+  const { data: isMerchantData } = trpc.merchants.isMerchant.useQuery(undefined, {
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+  });
+  const isMerchant = isMerchantData === true;
+
+  const { data: orders = [] } = trpc.productOrders.myMerchantOrders.useQuery(
+    { status: "pending" },
+    { enabled: isMerchant, refetchInterval: 60_000, staleTime: 30_000 }
+  );
+  const pendingCount = (orders as any[]).length;
+
+  const storageKey = `merchantPendingDismissed_${user?.id}`;
+  const [dismissedCount, setDismissedCount] = useState<number>(() => {
+    try { return parseInt(sessionStorage.getItem(storageKey) ?? "0") || 0; } catch { return 0; }
+  });
+
+  // 若有新訂單（超過上次關閉數量），重新顯示
+  useEffect(() => {
+    if (pendingCount > dismissedCount) setDismissedCount(prev => prev); // trigger re-render
+  }, [pendingCount]);
+
+  const visible = isMerchant && pendingCount > 0 && pendingCount > dismissedCount;
+
+  const handleDismiss = () => {
+    try { sessionStorage.setItem(storageKey, String(pendingCount)); } catch {}
+    setDismissedCount(pendingCount);
+  };
+
+  if (!visible) return null;
+
+  return (
+    <div className="bottom-nav-toast" style={{ zIndex: 99997, top: "1.5rem" }}>
+      <div className="bottom-nav-toast-inner" style={{ maxWidth: "min(420px, 92vw)" }}>
+        <ShoppingBag className="bottom-nav-toast-icon" style={{ width: 18, height: 18, flexShrink: 0 }} />
+        <div className="flex-1 min-w-0">
+          <div className="bottom-nav-toast-title">
+            你有 <span style={{ color: "var(--popup-text)", fontWeight: 700 }}>{pendingCount} 張</span> 待確認貨品訂單
+          </div>
+          <Link
+            href="/merchant-products"
+            className="text-xs underline underline-offset-2 mt-0.5 block"
+            style={{ color: "var(--popup-desc)" }}
+            onClick={handleDismiss}
+          >
+            前往訂單管理確認成交 →
+          </Link>
+        </div>
+        <button
+          onClick={handleDismiss}
+          className="ml-2 opacity-40 hover:opacity-80 transition-opacity flex-shrink-0 text-sm"
+          style={{ color: "var(--popup-desc)" }}
+          aria-label="關閉"
+        >✕</button>
+      </div>
+    </div>
+  );
+}
 
 function AnnouncementBanner() {
   const { data: settings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 60 * 1000 });
@@ -141,6 +204,7 @@ function App() {
               }}
             />
             <AnnouncementBanner />
+            <MerchantPendingOrdersNotice />
             <AutoPushSubscribe />
             <PushForegroundHandler />
             <Router />
