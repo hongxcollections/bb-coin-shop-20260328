@@ -561,7 +561,11 @@ export default function MerchantAuctions() {
       antiSnipeEnabled: (a.antiSnipeEnabled ?? 1) === 1,
       antiSnipeMinutes: a.antiSnipeMinutes ?? 3,
       extendMinutes: a.extendMinutes ?? 3,
-      categories: a.category ? a.category.split(",").map(s => s.trim()).filter(Boolean) : [],
+      categories: (() => {
+        if (!a.category) return [];
+        if (a.category.includes("|")) return a.category.split("|").map(s => s.trim()).filter(Boolean);
+        return a.category.trim() ? [a.category.trim()] : [];
+      })(),
     });
     setUploadedImages((a.images ?? []).map((img) => ({ url: img.imageUrl, displayOrder: img.displayOrder, imageId: img.id })));
     setPendingImages([]);
@@ -578,7 +582,7 @@ export default function MerchantAuctions() {
     const antiSnipeEnabled = form.antiSnipeEnabled ? 1 : 0;
     const antiSnipeMinutes = isNaN(form.antiSnipeMinutes) ? 0 : form.antiSnipeMinutes;
     const extendMinutes = isNaN(form.extendMinutes) || form.extendMinutes < 1 ? 1 : form.extendMinutes;
-    const category = form.categories.join(",");
+    const category = form.categories.join("|");
     if (editId) {
       updateMutation.mutate({ id: editId, title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, category });
     } else {

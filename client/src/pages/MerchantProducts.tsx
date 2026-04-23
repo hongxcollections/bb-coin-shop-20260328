@@ -121,7 +121,13 @@ export default function MerchantProducts() {
       description: p.description ?? "",
       price: parseFloat(p.price ?? "0").toString(),
       currency: p.currency ?? "HKD",
-      categories: p.category ? p.category.split(",").map((s: string) => s.trim()).filter(Boolean) : [],
+      categories: (() => {
+        if (!p.category) return [];
+        // 新格式：用 | 分隔（避免分類名稱本身含逗號如「人民幣 1,2,3版」）
+        if (p.category.includes("|")) return p.category.split("|").map((s: string) => s.trim()).filter(Boolean);
+        // 舊格式：整個字串視作單一分類（向後兼容）
+        return p.category.trim() ? [p.category.trim()] : [];
+      })(),
       stock: String(p.stock ?? 1),
       images: imgs,
     });
@@ -187,7 +193,7 @@ export default function MerchantProducts() {
       description: form.description.trim() || undefined,
       price,
       currency: form.currency,
-      category: form.categories.length > 0 ? form.categories.join(",") : undefined,
+      category: form.categories.length > 0 ? form.categories.join("|") : undefined,
       images: form.images.length > 0 ? JSON.stringify(form.images) : undefined,
       stock,
     };
@@ -425,7 +431,7 @@ export default function MerchantProducts() {
                         {STATUS_LABELS[p.status] ?? p.status}
                       </span>
                     </div>
-                    {p.category && <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">{p.category}</span>}
+                    {p.category && <div className="flex flex-wrap gap-1">{(p.category.includes("|") ? p.category.split("|") : [p.category]).map((c: string) => <span key={c} className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">{c.trim()}</span>)}</div>}
                     <div className="flex items-center gap-3 mt-1">
                       <span className="font-bold text-amber-600 text-sm">{p.currency} ${price.toLocaleString()}</span>
                       <span className="text-xs text-gray-400">庫存 {p.stock}</span>
@@ -479,7 +485,7 @@ export default function MerchantProducts() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-amber-600">{p.currency} ${price.toLocaleString()}</span>
-                        {p.category && <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">{p.category}</span>}
+                        {p.category && (p.category.includes("|") ? p.category.split("|") : [p.category]).map((c: string) => <span key={c} className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">{c.trim()}</span>)}
                       </div>
                       <span className="text-xs text-gray-400">庫存 {p.stock}</span>
                     </div>

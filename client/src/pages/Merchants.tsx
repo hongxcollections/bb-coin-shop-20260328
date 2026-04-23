@@ -96,7 +96,7 @@ function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: L
           : <div className="w-16 h-16 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0"><Package className="w-6 h-6 text-amber-200" /></div>}
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-semibold text-gray-800 line-clamp-1">{p.title}</h3>
-          {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{p.category}</span>}
+          {p.category && <div className="flex flex-wrap gap-1">{(p.category.includes("|") ? p.category.split("|") : [p.category]).map((c: string) => <span key={c} className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{c.trim()}</span>)}</div>}
           {p.description && <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{p.description}</p>}
           <div className="flex items-center justify-between mt-1.5">
             <span className="font-bold text-amber-600 text-sm">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
@@ -120,7 +120,7 @@ function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: L
         <div className="p-3 space-y-1.5">
           <div className="flex items-start justify-between gap-2">
             <h3 className="font-semibold text-gray-800 line-clamp-2 text-sm flex-1">{p.title}</h3>
-            {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">{p.category}</span>}
+            {p.category && (p.category.includes("|") ? p.category.split("|") : [p.category]).slice(0,1).map((c: string) => <span key={c} className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">{c.trim()}</span>)}
           </div>
           {p.description && <p className="text-xs text-gray-500 line-clamp-3">{p.description}</p>}
           <div className="flex items-center justify-between pt-1">
@@ -158,7 +158,7 @@ function ProductCard({ p, layout, whatsapp, messengerLink }: { p: any; layout: L
         <div className="p-2.5 flex flex-col gap-1 flex-1">
           <div className="flex items-start justify-between gap-1">
             <h3 className="text-xs font-semibold text-gray-800 leading-snug line-clamp-2 flex-1">{p.title}</h3>
-            {p.category && <span className="text-[10px] bg-amber-100 text-amber-700 px-1 py-0.5 rounded-full shrink-0">{p.category}</span>}
+            {p.category && (p.category.includes("|") ? p.category.split("|") : [p.category]).slice(0,1).map((c: string) => <span key={c} className="text-[10px] bg-amber-100 text-amber-700 px-1 py-0.5 rounded-full shrink-0">{c.trim()}</span>)}
           </div>
           {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
           <div className="mt-auto pt-1.5 flex items-center justify-between gap-1">
