@@ -1,4 +1,4 @@
-import { eq, desc, asc, and, gte, lte, gt, sql, inArray } from "drizzle-orm";
+import { eq, desc, asc, and, or, gte, lte, gt, sql, inArray, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
 import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, merchantProducts, MerchantProduct } from "../drizzle/schema";
@@ -1363,7 +1363,7 @@ export async function getWonOrdersByCreator(creatorId: number) {
         winningAmount: sql<string>`(SELECT b.bidAmount FROM bids b WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`,
       })
       .from(auctions)
-      .where(and(eq(auctions.status, 'ended'), eq(auctions.createdBy, creatorId), eq(auctions.archived, 0)))
+      .where(and(eq(auctions.status, 'ended'), eq(auctions.createdBy, creatorId), or(eq(auctions.archived, 0), isNull(auctions.archived))))
       .orderBy(desc(auctions.endTime));
     return result;
   } catch (error) {
