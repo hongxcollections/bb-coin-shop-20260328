@@ -3712,17 +3712,21 @@ export async function getProductOrdersByMerchant(merchantId: number, status?: st
   let rows: any;
   if (status && status !== 'all') {
     rows = await db.execute(sql`
-      SELECT o.*, u.name as buyerDisplayName, u.phone as buyerPhoneFromUser
+      SELECT o.*, u.name as buyerDisplayName, u.phone as buyerPhoneFromUser,
+             mp.images as productImages
       FROM productOrders o
       LEFT JOIN users u ON u.id = o.buyerId
+      LEFT JOIN merchantProducts mp ON mp.id = o.productId
       WHERE o.merchantId = ${merchantId} AND o.status = ${status}
       ORDER BY o.createdAt DESC
     `);
   } else {
     rows = await db.execute(sql`
-      SELECT o.*, u.name as buyerDisplayName, u.phone as buyerPhoneFromUser
+      SELECT o.*, u.name as buyerDisplayName, u.phone as buyerPhoneFromUser,
+             mp.images as productImages
       FROM productOrders o
       LEFT JOIN users u ON u.id = o.buyerId
+      LEFT JOIN merchantProducts mp ON mp.id = o.productId
       WHERE o.merchantId = ${merchantId}
       ORDER BY o.createdAt DESC
     `);

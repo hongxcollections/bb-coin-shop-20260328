@@ -103,16 +103,28 @@ function MerchantOrdersTab() {
             const d = new Date(o.createdAt);
             return (
               <div key={o.id} className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2.5">
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-3">
+                  {(() => {
+                    const imgs: string[] = (() => { try { return o.productImages ? JSON.parse(o.productImages) : []; } catch { return []; } })();
+                    return imgs[0] ? (
+                      <img src={imgs[0]} alt={o.title} className="w-16 h-16 rounded-xl object-cover shrink-0 border border-gray-100" />
+                    ) : (
+                      <div className="w-16 h-16 rounded-xl bg-amber-50 flex items-center justify-center shrink-0 border border-amber-100">
+                        <ShoppingBag className="w-7 h-7 text-amber-200" />
+                      </div>
+                    );
+                  })()}
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-gray-800 line-clamp-2">{o.title}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold text-sm text-gray-800 line-clamp-2">{o.title}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${ORDER_STATUS_COLORS[o.status] ?? ""}`}>
+                        {ORDER_STATUS_LABELS[o.status] ?? o.status}
+                      </span>
+                    </div>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {d.getFullYear()}/{String(d.getMonth()+1).padStart(2,"0")}/{String(d.getDate()).padStart(2,"0")} {String(d.getHours()).padStart(2,"0")}:{String(d.getMinutes()).padStart(2,"0")}
                     </p>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${ORDER_STATUS_COLORS[o.status] ?? ""}`}>
-                    {ORDER_STATUS_LABELS[o.status] ?? o.status}
-                  </span>
                 </div>
 
                 <div className="bg-gray-50 rounded-xl p-2.5 grid grid-cols-2 gap-1.5 text-xs">
