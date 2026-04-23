@@ -41,6 +41,15 @@ const EMPTY_FORM: ProductForm = {
   title: "", description: "", price: "", currency: "HKD", categories: [], stock: "1", images: [],
 };
 
+const CURRENCY_OPTIONS = [
+  { value: "HKD", label: "🇭🇰 港幣 HKD" },
+  { value: "USD", label: "🇺🇸 美元 USD" },
+  { value: "CNY", label: "🇨🇳 人民幣 CNY" },
+  { value: "GBP", label: "🇬🇧 英鎊 GBP" },
+  { value: "EUR", label: "🇪🇺 歐元 EUR" },
+  { value: "JPY", label: "🇯🇵 日圓 JPY" },
+];
+
 export default function MerchantProducts() {
   const { isAuthenticated } = useAuth();
   const utils = trpc.useUtils();
@@ -308,9 +317,7 @@ export default function MerchantProducts() {
                 <Select value={form.currency} onValueChange={v => setForm(f => ({ ...f, currency: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="HKD">HKD</SelectItem>
-                    <SelectItem value="USD">USD</SelectItem>
-                    <SelectItem value="CNY">CNY</SelectItem>
+                    {CURRENCY_OPTIONS.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
