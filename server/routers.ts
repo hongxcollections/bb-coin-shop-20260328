@@ -2538,7 +2538,9 @@ export const appRouter = router({
     myOrders: protectedProcedure
       .query(async ({ ctx }) => {
         const app = await getMerchantApplicationByUser(ctx.user.id);
+        console.log(`[myOrders] userId=${ctx.user.id} role=${ctx.user.role} appStatus=${app?.status ?? 'none'}`);
         if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          console.warn(`[myOrders] FORBIDDEN userId=${ctx.user.id}`);
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
         }
         return getWonOrdersByCreator(ctx.user.id);

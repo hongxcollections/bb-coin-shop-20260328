@@ -524,7 +524,7 @@ export async function getAuctionsByCreator(userId: number) {
       })
       .from(auctions)
       .leftJoin(users, eq(auctions.highestBidderId, users.id))
-      .where(and(eq(auctions.createdBy, userId), eq(auctions.archived, 0)))
+      .where(and(eq(auctions.createdBy, userId), or(eq(auctions.archived, 0), isNull(auctions.archived))))
       .orderBy(
         sql`CASE WHEN ${auctions.status} = 'active' THEN 0 ELSE 1 END`,
         sql`CASE WHEN ${auctions.status} = 'active' THEN ${auctions.endTime} ELSE NULL END`,
@@ -1349,23 +1349,39 @@ export async function getWonOrdersByCreator(creatorId: number) {
   const db = await getDb();
   if (!db) return [];
   try {
-    const result = await db
-      .select({
-        id: auctions.id,
-        title: auctions.title,
-        currentPrice: auctions.currentPrice,
-        currency: auctions.currency,
-        endTime: auctions.endTime,
-        paymentStatus: auctions.paymentStatus,
-        winnerName: sql<string>`(SELECT u.name FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`,
-        winnerOpenId: sql<string>`(SELECT u.openId FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`,
-        winnerPhone: sql<string>`(SELECT u.phone FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`,
-        winningAmount: sql<string>`(SELECT b.bidAmount FROM bids b WHERE b.auctionId = ${auctions.id} ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1)`,
-      })
-      .from(auctions)
-      .where(and(eq(auctions.status, 'ended'), eq(auctions.createdBy, creatorId), or(eq(auctions.archived, 0), isNull(auctions.archived))))
-      .orderBy(desc(auctions.endTime));
-    return result;
+    const result = await db.execute(sql`
+      SELECT
+        a.id,
+        a.title,
+        a.currentPrice,
+        a.currency,
+        a.endTime,
+        a.paymentStatus,
+        (SELECT u.name FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = a.id ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1) AS winnerName,
+        (SELECT u.openId FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = a.id ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1) AS winnerOpenId,
+        (SELECT u.phone FROM users u INNER JOIN bids b ON b.userId = u.id WHERE b.auctionId = a.id ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1) AS winnerPhone,
+        (SELECT b.bidAmount FROM bids b WHERE b.auctionId = a.id ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1) AS winningAmount
+      FROM auctions a
+      WHERE a.status = 'ended'
+        AND a.createdBy = ${creatorId}
+        AND (a.archived = 0 OR a.archived IS NULL)
+      ORDER BY a.endTime DESC
+    `);
+    const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
+    const rows = Array.isArray(rawRows[0]) ? rawRows[0] : (rawRows as unknown as Array<Record<string, unknown>>);
+    console.log(`[myOrders] creatorId=${creatorId} → ${rows.length} orders found`);
+    return rows.map(r => ({
+      id: Number(r.id),
+      title: String(r.title ?? ''),
+      currentPrice: String(r.currentPrice ?? '0'),
+      currency: String(r.currency ?? 'HKD'),
+      endTime: r.endTime,
+      paymentStatus: r.paymentStatus != null ? String(r.paymentStatus) : null,
+      winnerName: r.winnerName != null ? String(r.winnerName) : null,
+      winnerOpenId: r.winnerOpenId != null ? String(r.winnerOpenId) : null,
+      winnerPhone: r.winnerPhone != null ? String(r.winnerPhone) : null,
+      winningAmount: r.winningAmount != null ? String(r.winningAmount) : null,
+    }));
   } catch (error) {
     console.error('[Database] Failed to get won orders by creator:', error);
     return [];

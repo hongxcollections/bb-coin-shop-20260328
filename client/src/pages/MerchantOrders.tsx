@@ -143,7 +143,7 @@ export default function MerchantOrders() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const { data: orders, isLoading, refetch } = trpc.merchants.myOrders.useQuery();
+  const { data: orders, isLoading, isError, error, refetch } = trpc.merchants.myOrders.useQuery();
   const { data: myApp } = trpc.merchants.myApplication.useQuery(undefined, { enabled: isAuthenticated });
   const merchantName = myApp?.merchantName ?? user?.name ?? "商戶";
 
@@ -151,6 +151,19 @@ export default function MerchantOrders() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-muted-foreground">請先登入</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="max-w-4xl mx-auto px-4 pt-16 text-center space-y-3">
+          <p className="text-destructive font-medium">載入訂單時發生錯誤</p>
+          <p className="text-sm text-muted-foreground">{(error as { message?: string })?.message ?? '未知錯誤'}</p>
+          <button onClick={() => refetch()} className="text-sm underline">重試</button>
+        </div>
       </div>
     );
   }
