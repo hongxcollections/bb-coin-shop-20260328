@@ -1,4 +1,4 @@
-import { getDb, getAuctionById, getBidHistory, placeBid as dbPlaceBid, getAuctions as dbGetAuctions, getActiveProxiesForAuction, insertProxyBidLog, getNotificationSettings, getBiddersForAuction } from './db';
+import { getDb, getAuctionById, getBidHistory, placeBid as dbPlaceBid, getAuctions as dbGetAuctions, getActiveProxiesForAuction, insertProxyBidLog, getNotificationSettings, getBiddersForAuction, getMerchantSettings } from './db';
 import { auctions as auctionsTable, users, merchantApplications } from '../drizzle/schema';
 import { eq } from 'drizzle-orm';
 import { sendOutbidEmail, sendWonEmail, sendEndingSoonEmail, sendMerchantWonEmail } from './email';
@@ -218,6 +218,15 @@ export async function notifyWon(auctionId: number, origin: string) {
     if (!winner?.email) return;
     if (!winner.notifyWon) return; // User opted out
 
+    // 優先使用商戶自己設定的付款/交收說明，如未設定則 fallback 到全域通知設定
+    let paymentInstructions = settings.paymentInstructions ?? null;
+    let deliveryInfo = settings.deliveryInfo ?? null;
+    if (auction.createdBy) {
+      const merchantSettings = await getMerchantSettings(auction.createdBy);
+      if (merchantSettings.paymentInstructions) paymentInstructions = merchantSettings.paymentInstructions;
+      if (merchantSettings.deliveryInfo) deliveryInfo = merchantSettings.deliveryInfo;
+    }
+
     await sendWonEmail({
       to: winner.email,
       senderName: settings.senderName,
@@ -228,8 +237,8 @@ export async function notifyWon(auctionId: number, origin: string) {
       finalPrice: parseFloat(auction.currentPrice.toString()),
       currency: auction.currency,
       auctionUrl: `${origin}/auctions/${auctionId}`,
-      paymentInstructions: settings.paymentInstructions ?? null,
-      deliveryInfo: settings.deliveryInfo ?? null,
+      paymentInstructions,
+      deliveryInfo,
     });
   } catch (err) {
     console.error('[Email] Won notification error:', err);

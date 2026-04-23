@@ -100,6 +100,8 @@ export default function MerchantSettings() {
   const [antiSnipeEnabled, setAntiSnipeEnabled] = useState(true);
   const [antiSnipeMinutes, setAntiSnipeMinutes] = useState<string>("3");
   const [extendMinutes, setExtendMinutes] = useState<string>("3");
+  const [paymentInstructions, setPaymentInstructions] = useState<string>("");
+  const [deliveryInfo, setDeliveryInfo] = useState<string>("");
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
@@ -111,6 +113,8 @@ export default function MerchantSettings() {
       setAntiSnipeEnabled((settings.defaultAntiSnipeEnabled ?? 1) === 1);
       setAntiSnipeMinutes(String(settings.defaultAntiSnipeMinutes ?? 3));
       setExtendMinutes(String(settings.defaultExtendMinutes ?? 3));
+      setPaymentInstructions(settings.paymentInstructions ?? "");
+      setDeliveryInfo(settings.deliveryInfo ?? "");
       setInitialized(true);
     }
   }, [settings, initialized]);
@@ -157,7 +161,7 @@ export default function MerchantSettings() {
     const exm = parseInt(extendMinutes, 10);
     if (isNaN(asm) || asm < 0 || asm > 60) { toast.error("反狙擊觸發時間請填 0–60 分鐘"); return; }
     if (isNaN(exm) || exm < 1 || exm > 60) { toast.error("延長時間請填 1–60 分鐘"); return; }
-    updateMutation.mutate({ defaultEndDayOffset: offset, defaultEndTime: endTime, defaultStartingPrice: sp, defaultBidIncrement: bi, defaultAntiSnipeEnabled: antiSnipeEnabled ? 1 : 0, defaultAntiSnipeMinutes: asm, defaultExtendMinutes: exm });
+    updateMutation.mutate({ defaultEndDayOffset: offset, defaultEndTime: endTime, defaultStartingPrice: sp, defaultBidIncrement: bi, defaultAntiSnipeEnabled: antiSnipeEnabled ? 1 : 0, defaultAntiSnipeMinutes: asm, defaultExtendMinutes: exm, paymentInstructions: paymentInstructions.trim() || null, deliveryInfo: deliveryInfo.trim() || null });
   };
 
   if (!isAuthenticated) {
@@ -455,6 +459,57 @@ export default function MerchantSettings() {
                     ? (parseInt(antiSnipeMinutes) === 0 ? '⚠️ X 設為 0 即不觸發延時' : `結束前 ${antiSnipeMinutes} 分鐘內有出價，自動延長 ${extendMinutes} 分鐘`)
                     : '預設停用，新增草稿時反狙擊延時為關閉'}
                 </p>
+                <div className="flex justify-end pt-1">
+                  <Button onClick={handleSave} disabled={updateMutation.isPending} className="gold-gradient text-white border-0 gap-1.5">
+                    {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    儲存設定
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 得標通知內容卡片 */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Tag className="w-4 h-4 text-amber-500" />
+              得標通知內容
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {isLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground py-4">
+                <Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">載入中…</span>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-700 leading-relaxed">
+                  以下內容會顯示在「得標通知」電郵內，發送給你的競投者。若留空，系統將使用管理員設定的預設文字。
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="paymentInstructions">得標通知 — 付款指引</Label>
+                  <Textarea
+                    id="paymentInstructions"
+                    rows={5}
+                    placeholder={"例如：\n接受 FPS 轉數快：請轉帳至 XXXXXXXX，並備注拍賣編號。\n八達通：請到店拍打付款。"}
+                    value={paymentInstructions}
+                    onChange={(e) => setPaymentInstructions(e.target.value)}
+                    className="text-sm resize-none"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="deliveryInfo">得標通知 — 交收安排</Label>
+                  <Textarea
+                    id="deliveryInfo"
+                    rows={4}
+                    placeholder={"例如：\n1. 順豐到付（買家承擔運費）\n2. 歡迎來店自取（請提前聯絡預約）"}
+                    value={deliveryInfo}
+                    onChange={(e) => setDeliveryInfo(e.target.value)}
+                    className="text-sm resize-none"
+                  />
+                </div>
                 <div className="flex justify-end pt-1">
                   <Button onClick={handleSave} disabled={updateMutation.isPending} className="gold-gradient text-white border-0 gap-1.5">
                     {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
