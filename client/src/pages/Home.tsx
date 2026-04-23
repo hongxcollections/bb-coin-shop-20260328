@@ -542,7 +542,7 @@ export default function Home() {
                           {(() => {
                             const a = auction as { highestBidderName?: string | null; highestBidderId?: number | null };
                             if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
-                              return <span className="text-[9px] text-emerald-600 font-bold">(我本人 ✓)</span>;
+                              return <span className="text-[9px] text-emerald-600 font-bold">(我本人✓)</span>;
                             } else if (a.highestBidderName) {
                               return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;
                             } else if (!a.highestBidderId) {
