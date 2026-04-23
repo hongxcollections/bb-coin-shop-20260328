@@ -330,10 +330,13 @@ export default function MerchantOrders() {
                 {flowPaiOrders.map((o: MerchantOrder) => (
                   <div key={o.id} className="px-3 py-2 rounded-lg border border-dashed bg-muted/20">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-xs text-muted-foreground">🔕</span>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">🔕</span>
                       <Link href={`/auctions/${o.id}`}>
-                        <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer truncate block max-w-[220px]">{o.title}</span>
+                        <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer truncate block max-w-[200px]">{o.title}</span>
                       </Link>
+                      <span className="ml-auto text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                        起拍 {o.currency}${Number(o.currentPrice).toLocaleString()}
+                      </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5 pl-5">
                       結標：{new Date(o.endTime).toLocaleDateString("zh-HK", { month: "numeric", day: "numeric" })}　無人出價
