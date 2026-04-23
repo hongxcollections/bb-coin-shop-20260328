@@ -117,7 +117,7 @@ function BuyDialog({ product, onClose }: { product: any; onClose: () => void }) 
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-5 pb-8 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl p-5 pb-20 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-3">
           <ShoppingCart className="w-5 h-5 text-amber-500 shrink-0" />
           <h2 className="font-bold text-gray-800 text-base">確認落單</h2>
