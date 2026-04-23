@@ -151,14 +151,17 @@ export default function MerchantOrders() {
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+  const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+
   const dateOptions = useMemo(() => [
     { value: "all", label: "全部日期" },
     ...Array.from({ length: 4 }, (_, i) => {
       const d = new Date(startOfDay);
       d.setDate(d.getDate() - i);
-      const label = i === 0 ? "今日" : i === 1 ? "昨日" : i === 2 ? "前日"
+      const dayName = i === 0 ? "今日" : i === 1 ? "昨日" : i === 2 ? "前日"
         : `${d.getMonth() + 1}/${d.getDate()}`;
-      return { value: d.toDateString(), label: `${label}（${d.getMonth() + 1}/${d.getDate()}）` };
+      const weekday = `週${WEEKDAYS[d.getDay()]}`;
+      return { value: d.toDateString(), label: `${dayName}（${d.getMonth() + 1}/${d.getDate()} ${weekday}）` };
     }),
     { value: "month", label: "本月" },
   // eslint-disable-next-line react-hooks/exhaustive-deps
