@@ -284,6 +284,16 @@ export default function Home() {
       <section className="py-2">
         <div className="container">
           {!isLoading && (auctions ?? []).filter(a => a.status === 'active' && new Date(a.endTime).getTime() > Date.now()).length > 0 && (
+            <>
+            <p className="text-xs font-semibold mb-1 pl-1" style={{ filter: "drop-shadow(0 1px 3px rgba(251,191,36,0.7))" }}>
+              <span>🔨 </span>
+              <span style={{
+                background: "linear-gradient(135deg, #b45309 0%, #f59e0b 35%, #fde68a 55%, #f59e0b 70%, #d97706 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}>拍賣品走馬燈</span>
+            </p>
             <div className="marquee-wrapper border border-amber-100 rounded-2xl bg-white py-3 overflow-hidden shadow-sm">
               {(() => {
                 const activeAuctions = (auctions ?? []).filter(a =>
@@ -327,6 +337,7 @@ export default function Home() {
                 );
               })()}
             </div>
+            </>
           )}
         </div>
       </section>
