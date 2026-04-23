@@ -2951,7 +2951,7 @@ export const appRouter = router({
           currency: product.currency ?? 'HKD',
           quantity: input.quantity,
           commissionRate,
-          buyerName: ctx.user.displayName ?? undefined,
+          buyerName: (ctx.user as any).name ?? undefined,
           buyerPhone: ctx.user.phone ?? undefined,
           buyerNote: input.buyerNote,
         });
