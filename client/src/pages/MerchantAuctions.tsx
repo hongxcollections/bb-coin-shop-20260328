@@ -825,7 +825,7 @@ export default function MerchantAuctions() {
 
       {/* ── 建立 / 編輯 草稿 Dialog ── */}
       <Dialog open={formOpen} onOpenChange={(v) => { if (!v) closeForm(); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-sky-50">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-amber-50">
           <DialogHeader>
             <DialogTitle>{editId ? "編輯草稿" : "建立新草稿"}</DialogTitle>
           </DialogHeader>
@@ -875,7 +875,7 @@ export default function MerchantAuctions() {
               </div>
             </div>
             {/* 反狙擊延時設定 */}
-            <div className="rounded-lg border border-sky-200 bg-sky-100/70 p-3 space-y-2">
+            <div className="rounded-lg border border-amber-200 bg-amber-100/70 p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-amber-700">🛡️ 反狙擊延時</p>
                 <div className="flex items-center gap-2">
