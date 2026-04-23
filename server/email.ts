@@ -97,6 +97,8 @@ export interface WonEmailParams extends EmailOptions {
   auctionUrl: string;
   paymentInstructions?: string | null;
   deliveryInfo?: string | null;
+  merchantName?: string | null;
+  merchantWhatsapp?: string | null;
 }
 
 /** Convert newlines to <br> for HTML display */
@@ -105,13 +107,32 @@ function nl2br(text: string): string {
 }
 
 export async function sendWonEmail(params: WonEmailParams): Promise<boolean> {
-  const { to, senderName, senderEmail, userName, auctionTitle, finalPrice, currency, auctionUrl, paymentInstructions, deliveryInfo } = params;
+  const { to, senderName, senderEmail, userName, auctionTitle, finalPrice, currency, auctionUrl, paymentInstructions, deliveryInfo, merchantName, merchantWhatsapp } = params;
 
   const defaultPayment = '接受付款方式：FPS、八達通、微信支付、支付寶、BOCPay、Visa\n請聯絡 hongxcollections 安排付款。';
   const defaultDelivery = '建議順豐到付（買家承擔運費），或歡迎來店自取（請提前聯絡預約）。';
 
   const paymentHtml = nl2br(paymentInstructions || defaultPayment);
   const deliveryHtml = nl2br(deliveryInfo || defaultDelivery);
+
+  // 生成商戶聯絡區塊
+  const displayMerchantName = merchantName || 'hongxcollections';
+  let contactHtml = '';
+  if (merchantWhatsapp) {
+    const waNumber = merchantWhatsapp.replace(/\D/g, '');
+    const waMessage = encodeURIComponent(`您好，我在 hongxcollections 以 ${currency}$${finalPrice.toLocaleString()} 得標「${auctionTitle}」，想查詢付款及交收安排，謝謝！`);
+    const waUrl = `https://wa.me/${waNumber}?text=${waMessage}`;
+    contactHtml = `
+    <div style="margin-top:24px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px 20px;">
+      <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#15803d;">📞 聯絡商戶</p>
+      <p style="margin:0 0 12px;font-size:13px;color:#166534;">如有查詢，歡迎直接聯絡 <strong>${displayMerchantName}</strong></p>
+      <a href="${waUrl}" style="display:inline-block;background:#25d366;color:#fff;text-decoration:none;padding:9px 20px;border-radius:6px;font-size:13px;font-weight:600;">
+        💬 WhatsApp 聯絡商戶
+      </a>
+    </div>`;
+  } else {
+    contactHtml = `<p style="margin-top:20px;font-size:13px;color:#6b7280;">如有任何查詢，請聯絡商戶 <strong>${displayMerchantName}</strong>。我們期待與您完成交易！</p>`;
+  }
 
   const body = `
     <h2>🎉 恭喜您成功得標！</h2>
@@ -137,8 +158,8 @@ export async function sendWonEmail(params: WonEmailParams): Promise<boolean> {
       ${deliveryHtml}
     </div>
 
-    <p style="margin-top:20px;font-size:13px;color:#6b7280;">如有任何查詢，請聯絡 hongxcollections。我們期待與您完成交易！</p>
-    <a href="${auctionUrl}" class="btn">查看拍賣詳情 →</a>
+    ${contactHtml}
+    <a href="${auctionUrl}" class="btn" style="margin-top:20px;">查看拍賣詳情 →</a>
   `;
   return sendEmail({ to, senderName, senderEmail, subject: `🎉 【恭喜得標】${auctionTitle} — 成交價 ${currency} ${finalPrice.toLocaleString()}`, html: baseLayout("得標通知", body) });
 }

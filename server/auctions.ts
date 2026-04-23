@@ -221,10 +221,22 @@ export async function notifyWon(auctionId: number, origin: string) {
     // 優先使用商戶自己設定的付款/交收說明，如未設定則 fallback 到全域通知設定
     let paymentInstructions = settings.paymentInstructions ?? null;
     let deliveryInfo = settings.deliveryInfo ?? null;
+    let merchantName: string | null = null;
+    let merchantWhatsapp: string | null = null;
     if (auction.createdBy) {
       const merchantSettings = await getMerchantSettings(auction.createdBy);
       if (merchantSettings.paymentInstructions) paymentInstructions = merchantSettings.paymentInstructions;
       if (merchantSettings.deliveryInfo) deliveryInfo = merchantSettings.deliveryInfo;
+      // 獲取商戶名稱和 WhatsApp
+      const merchantAppRows = await db
+        .select({ merchantName: merchantApplications.merchantName, whatsapp: merchantApplications.whatsapp })
+        .from(merchantApplications)
+        .where(eq(merchantApplications.userId, auction.createdBy))
+        .limit(1);
+      if (merchantAppRows[0]) {
+        merchantName = merchantAppRows[0].merchantName ?? null;
+        merchantWhatsapp = merchantAppRows[0].whatsapp ?? null;
+      }
     }
 
     await sendWonEmail({
@@ -239,6 +251,8 @@ export async function notifyWon(auctionId: number, origin: string) {
       auctionUrl: `${origin}/auctions/${auctionId}`,
       paymentInstructions,
       deliveryInfo,
+      merchantName,
+      merchantWhatsapp,
     });
   } catch (err) {
     console.error('[Email] Won notification error:', err);
