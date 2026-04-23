@@ -45,7 +45,7 @@ function baseLayout(title: string, body: string): string {
 <body>
   <div class="wrapper">
     <div class="header">
-      <h1>🪙 hongxcollections</h1>
+      <h1>💰 hongxcollections</h1>
       <p>專業錢幣拍賣平台</p>
     </div>
     <div class="body">${body}</div>
