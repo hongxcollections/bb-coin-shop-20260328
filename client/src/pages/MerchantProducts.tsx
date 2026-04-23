@@ -32,13 +32,13 @@ interface ProductForm {
   description: string;
   price: string;
   currency: string;
-  category: string;
+  categories: string[];
   stock: string;
   images: string[];
 }
 
 const EMPTY_FORM: ProductForm = {
-  title: "", description: "", price: "", currency: "HKD", category: "", stock: "1", images: [],
+  title: "", description: "", price: "", currency: "HKD", categories: [], stock: "1", images: [],
 };
 
 export default function MerchantProducts() {
@@ -112,7 +112,7 @@ export default function MerchantProducts() {
       description: p.description ?? "",
       price: parseFloat(p.price ?? "0").toString(),
       currency: p.currency ?? "HKD",
-      category: p.category ?? "",
+      categories: p.category ? p.category.split(",").map((s: string) => s.trim()).filter(Boolean) : [],
       stock: String(p.stock ?? 1),
       images: imgs,
     });
@@ -165,6 +165,7 @@ export default function MerchantProducts() {
     const stock = parseInt(form.stock);
     if (isNaN(stock) || stock < 0) return toast.error("請輸入有效庫存量");
     if (form.images.length === 0) return toast.error("請最少上傳一幅商品圖片");
+    if (form.categories.length === 0) return toast.error("請至少選擇一個商品分類");
     // 編輯時直接提交，新增時才顯示確認彈窗
     if (editingId) { doSubmit(); } else { setConfirmOpen(true); }
   }
@@ -177,7 +178,7 @@ export default function MerchantProducts() {
       description: form.description.trim() || undefined,
       price,
       currency: form.currency,
-      category: form.category || undefined,
+      category: form.categories.length > 0 ? form.categories.join(",") : undefined,
       images: form.images.length > 0 ? JSON.stringify(form.images) : undefined,
       stock,
     };
@@ -233,7 +234,7 @@ export default function MerchantProducts() {
 
         {/* 商品表單 */}
         {showForm && (
-          <div id="product-form" className="rounded-2xl bg-white border border-green-200 p-4 space-y-3">
+          <div id="product-form" className="rounded-2xl bg-green-50 border border-green-200 p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-gray-800">{editingId ? "編輯商品" : "新增商品"}</h2>
               <button onClick={resetForm} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4" /></button>
@@ -315,20 +316,42 @@ export default function MerchantProducts() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-2">
-                <label className="text-xs text-gray-500 font-medium">類別</label>
-                <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
-                  <SelectTrigger><SelectValue placeholder="選擇類別" /></SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs text-gray-500 font-medium">商品分類</label>
+                <span className="text-xs text-red-500">（至少選一個）</span>
+                {form.categories.length > 0 && (
+                  <span className="ml-auto text-xs text-green-600 font-medium">已選 {form.categories.length} 個</span>
+                )}
               </div>
-              <div className="space-y-2">
-                <label className="text-xs text-gray-500 font-medium">庫存數量</label>
-                <Input type="number" placeholder="1" min="0" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} />
+              <div className="flex flex-wrap gap-1.5">
+                {CATEGORIES.map((cat) => {
+                  const selected = form.categories.includes(cat);
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setForm(f => ({
+                        ...f,
+                        categories: selected
+                          ? f.categories.filter(c => c !== cat)
+                          : [...f.categories, cat],
+                      }))}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                        selected
+                          ? "bg-green-500 text-white border-green-500"
+                          : "bg-white text-green-700 border-green-300 hover:bg-green-50"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
               </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs text-gray-500 font-medium">庫存數量</label>
+              <Input type="number" placeholder="1" min="0" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} />
             </div>
 
             <div className="flex gap-2 pt-1">
@@ -570,10 +593,10 @@ export default function MerchantProducts() {
                     <span className="text-gray-500">售價</span>
                     <span className="font-bold text-amber-600">{form.currency} ${parseFloat(form.price || "0").toLocaleString()}</span>
                   </div>
-                  {form.category && (
+                  {form.categories.length > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-500">類別</span>
-                      <span>{form.category}</span>
+                      <span>{form.categories.join("、")}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
