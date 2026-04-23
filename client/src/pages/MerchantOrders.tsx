@@ -79,40 +79,41 @@ function OrderRow({ order, onUpdate, merchantName }: { order: MerchantOrder; onU
         <StatusBadge status={order.paymentStatus} />
       </div>
 
-      {/* 行二：得標者 + 電話 + WhatsApp + 操作按鈕 */}
-      <div className="flex items-center gap-1.5 mt-1.5 pl-5 overflow-x-auto">
+      {/* 行二：得標者 + 電話 + WhatsApp */}
+      <div className="flex items-center gap-1.5 mt-1 pl-5">
         <span className="text-xs text-muted-foreground whitespace-nowrap">
           {order.winnerName ?? "—"}
         </span>
         {order.winnerPhone && (
           <>
             <span className="text-xs text-muted-foreground whitespace-nowrap">· {order.winnerPhone}</span>
-            <a href={toWhatsAppUrl(order.winnerPhone, waMsg)} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+            <a href={toWhatsAppUrl(order.winnerPhone, waMsg)} target="_blank" rel="noopener noreferrer">
               <Button size="sm" variant="outline" className="h-5 px-1.5 text-[10px] border-green-400 text-green-700 hover:bg-green-50">
                 💬 WhatsApp
               </Button>
             </a>
           </>
         )}
-        <div className="flex-1" />
+      </div>
+
+      {/* 行三：狀態切換（獨立一行） */}
+      <div className="mt-1.5 pl-5">
         {updating ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground flex-shrink-0" />
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
         ) : (
-          <div className="flex flex-shrink-0 rounded overflow-hidden border border-border text-[10px]">
+          <div className="inline-flex rounded overflow-hidden border border-border text-[10px]">
             {([
-              { key: "pending_payment", label: "⏳ 待付款", activeClass: "bg-yellow-400 text-yellow-900" },
-              { key: "paid",            label: "💳 已付款", activeClass: "bg-blue-500 text-white" },
-              { key: "delivered",       label: "✅ 已交收", activeClass: "bg-green-500 text-white" },
+              { key: "pending_payment", label: "⏳ 待付款", activeClass: "bg-yellow-400 text-yellow-900 font-medium" },
+              { key: "paid",            label: "💳 已付款", activeClass: "bg-blue-500 text-white font-medium" },
+              { key: "delivered",       label: "✅ 已交收", activeClass: "bg-green-500 text-white font-medium" },
             ] as const).map(({ key, label, activeClass }, i) => (
               <button
                 key={key}
                 onClick={() => { if (cur !== key) handleUpdate(key); }}
                 className={[
-                  "px-2 py-0.5 whitespace-nowrap transition-colors",
+                  "px-2.5 py-1 whitespace-nowrap transition-colors",
                   i > 0 ? "border-l border-border" : "",
-                  cur === key
-                    ? activeClass
-                    : "bg-muted/40 text-muted-foreground hover:bg-muted",
+                  cur === key ? activeClass : "bg-muted/40 text-muted-foreground hover:bg-muted",
                 ].join(" ")}
               >
                 {label}
