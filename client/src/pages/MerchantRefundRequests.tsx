@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -46,7 +45,7 @@ export default function MerchantRefundRequests() {
   const [, navigate] = useLocation();
 
   const [showForm, setShowForm] = useState(false);
-  const [auctionId, setAuctionId] = useState("");
+  const [selectedAuctionId, setSelectedAuctionId] = useState<string>("");
   const [reason, setReason] = useState<string>("");
   const [reasonDetail, setReasonDetail] = useState("");
 
@@ -56,12 +55,24 @@ export default function MerchantRefundRequests() {
     enabled: isAuthenticated,
   });
 
+  const { data: myAuctions, isLoading: auctionsLoading } = trpc.merchants.myAuctions.useQuery(undefined, {
+    enabled: isAuthenticated && showForm,
+  });
+
+  // 只顯示已結束且有成交（有最高出價者）的拍賣
+  const eligibleAuctions = (myAuctions ?? []).filter(
+    (a: any) => a.status === "ended" && a.highestBidderId
+  );
+
+  // 已申請過的拍賣 ID
+  const appliedIds = new Set((requests ?? []).map((r: any) => r.auctionId));
+
   const submitMutation = trpc.merchants.submitRefundRequest.useMutation({
     onSuccess: () => {
       toast.success("退傭申請已提交，等候管理員審核");
       utils.merchants.myRefundRequests.invalidate();
       setShowForm(false);
-      setAuctionId("");
+      setSelectedAuctionId("");
       setReason("");
       setReasonDetail("");
     },
@@ -69,8 +80,8 @@ export default function MerchantRefundRequests() {
   });
 
   const handleSubmit = () => {
-    const id = parseInt(auctionId);
-    if (!id || id <= 0) { toast.error("請輸入有效的拍賣編號"); return; }
+    const id = parseInt(selectedAuctionId);
+    if (!id || id <= 0) { toast.error("請選擇拍賣"); return; }
     if (!reason) { toast.error("請選擇申請原因"); return; }
     submitMutation.mutate({ auctionId: id, reason: reason as "buyer_missing" | "buyer_refused" | "mutual_cancel" | "other", reasonDetail: reasonDetail || undefined });
   };
@@ -117,17 +128,43 @@ export default function MerchantRefundRequests() {
             </button>
             {showForm && (
               <div className="mt-4 space-y-3 border-t border-amber-100 pt-4">
+
+                {/* 選擇拍賣下拉 */}
                 <div className="space-y-1.5">
-                  <Label>拍賣編號</Label>
-                  <Input
-                    type="number"
-                    value={auctionId}
-                    onChange={e => setAuctionId(e.target.value)}
-                    placeholder="請輸入拍賣 ID（例如 123）"
-                    className="border-amber-200"
-                  />
-                  <p className="text-xs text-gray-400">只限已結束且有成交的拍賣</p>
+                  <Label>選擇拍賣</Label>
+                  {auctionsLoading ? (
+                    <p className="text-xs text-gray-400">載入拍賣中…</p>
+                  ) : eligibleAuctions.length === 0 ? (
+                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                      沒有符合條件的拍賣（需已結束且有成交）
+                    </p>
+                  ) : (
+                    <Select value={selectedAuctionId} onValueChange={setSelectedAuctionId}>
+                      <SelectTrigger className="border-amber-200">
+                        <SelectValue placeholder="選擇拍賣…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {eligibleAuctions.map((a: any) => {
+                          const alreadyApplied = appliedIds.has(a.id);
+                          return (
+                            <SelectItem
+                              key={a.id}
+                              value={String(a.id)}
+                              disabled={alreadyApplied}
+                            >
+                              <span className="truncate max-w-[260px] block">
+                                {a.title}
+                                {alreadyApplied && <span className="ml-1 text-gray-400">（已申請）</span>}
+                              </span>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
+
+                {/* 申請原因 */}
                 <div className="space-y-1.5">
                   <Label>申請原因</Label>
                   <Select value={reason} onValueChange={setReason}>
@@ -141,6 +178,8 @@ export default function MerchantRefundRequests() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* 補充說明 */}
                 <div className="space-y-1.5">
                   <Label>補充說明（選填）</Label>
                   <Textarea
@@ -152,9 +191,10 @@ export default function MerchantRefundRequests() {
                     maxLength={500}
                   />
                 </div>
+
                 <Button
                   onClick={handleSubmit}
-                  disabled={submitMutation.isPending}
+                  disabled={submitMutation.isPending || !selectedAuctionId || !reason}
                   className="w-full bg-amber-600 hover:bg-amber-700 text-white"
                 >
                   {submitMutation.isPending ? "提交中…" : "提交申請"}
@@ -185,8 +225,7 @@ export default function MerchantRefundRequests() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-gray-800 truncate">
-                          拍賣 #{req.auctionId}
-                          {req.auctionTitle && <span className="text-gray-500 font-normal ml-1">— {req.auctionTitle}</span>}
+                          {req.auctionTitle ?? `拍賣 #${req.auctionId}`}
                         </p>
                         <p className="text-xs text-gray-400 mt-0.5">
                           {new Date(req.createdAt!).toLocaleString("zh-HK", { year: "numeric", month: "2-digit", day: "2-digit" })}
