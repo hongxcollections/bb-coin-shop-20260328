@@ -61,7 +61,7 @@ const ORDER_STATUS_COLORS: Record<string, string> = {
 function MerchantOrdersTab() {
   const utils = trpc.useUtils();
   const [statusFilter, setStatusFilter] = useState("pending");
-  const { data: orders = [], isLoading } = trpc.productOrders.myMerchantOrders.useQuery({ status: statusFilter });
+  const { data: orders = [], isLoading, error: ordersError } = trpc.productOrders.myMerchantOrders.useQuery({ status: statusFilter });
 
   const confirm = trpc.productOrders.confirm.useMutation({
     onSuccess: () => { toast.success("已確認成交，傭金已從保證金扣除"); utils.productOrders.myMerchantOrders.invalidate(); },
@@ -85,6 +85,11 @@ function MerchantOrdersTab() {
 
       {isLoading ? (
         <div className="text-center py-10 text-2xl animate-spin">💰</div>
+      ) : ordersError ? (
+        <div className="text-center py-16">
+          <ShoppingBag className="w-12 h-12 text-red-200 mx-auto mb-3" />
+          <p className="text-red-400 text-sm">載入失敗：{ordersError.message}</p>
+        </div>
       ) : orders.length === 0 ? (
         <div className="text-center py-16">
           <ShoppingBag className="w-12 h-12 text-amber-200 mx-auto mb-3" />
