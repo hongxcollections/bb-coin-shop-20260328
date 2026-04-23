@@ -146,16 +146,24 @@ export default function MerchantRefundRequests() {
                       <SelectContent>
                         {eligibleAuctions.map((a: any) => {
                           const alreadyApplied = appliedIds.has(a.id);
+                          const endDate = new Date(a.endTime).toLocaleDateString("zh-HK", { month: "numeric", day: "numeric" });
+                          const price = `${a.currency ?? "HKD"}$${Number(a.currentPrice).toLocaleString()}`;
                           return (
                             <SelectItem
                               key={a.id}
                               value={String(a.id)}
                               disabled={alreadyApplied}
+                              className="py-2"
                             >
-                              <span className="truncate max-w-[260px] block">
-                                {a.title}
-                                {alreadyApplied && <span className="ml-1 text-gray-400">（已申請）</span>}
-                              </span>
+                              <div className="flex flex-col gap-0.5 max-w-[260px]">
+                                <span className="font-medium text-sm truncate">
+                                  {a.title}
+                                  {alreadyApplied && <span className="ml-1 text-gray-400 font-normal">（已申請）</span>}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {a.highestBidderName ?? "得標者"} · {price} · {endDate}
+                                </span>
+                              </div>
                             </SelectItem>
                           );
                         })}
