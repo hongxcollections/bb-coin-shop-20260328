@@ -3712,7 +3712,7 @@ export async function getProductOrdersByMerchant(merchantId: number, status?: st
   let rows: any;
   if (status && status !== 'all') {
     rows = await db.execute(sql`
-      SELECT o.*, u.displayName as buyerDisplayName, u.phone as buyerPhoneFromUser
+      SELECT o.*, u.name as buyerDisplayName, u.phone as buyerPhoneFromUser
       FROM productOrders o
       LEFT JOIN users u ON u.id = o.buyerId
       WHERE o.merchantId = ${merchantId} AND o.status = ${status}
@@ -3720,7 +3720,7 @@ export async function getProductOrdersByMerchant(merchantId: number, status?: st
     `);
   } else {
     rows = await db.execute(sql`
-      SELECT o.*, u.displayName as buyerDisplayName, u.phone as buyerPhoneFromUser
+      SELECT o.*, u.name as buyerDisplayName, u.phone as buyerPhoneFromUser
       FROM productOrders o
       LEFT JOIN users u ON u.id = o.buyerId
       WHERE o.merchantId = ${merchantId}
@@ -3749,7 +3749,7 @@ export async function getAllProductOrders(): Promise<any[]> {
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
   const rows = await db.execute(sql`
-    SELECT o.*, u.displayName as buyerDisplayName,
+    SELECT o.*, u.name as buyerDisplayName,
            ma.merchantName
     FROM productOrders o
     LEFT JOIN users u ON u.id = o.buyerId
