@@ -17,10 +17,9 @@ import {
   ChevronLeft, Plus, Package, Pencil, Trash2, Eye, EyeOff,
   ImageIcon, X, Loader2, LayoutList, LayoutGrid, Grid3X3, Maximize2,
 } from "lucide-react";
+import { parseCategories } from "@/lib/categories";
 
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
-
-const CATEGORIES = ["古幣", "紀念幣", "外幣", "銀幣", "金幣", "其他"];
 const STATUS_LABELS: Record<string, string> = { active: "上架中", sold: "已售出", hidden: "已下架" };
 const STATUS_COLORS: Record<string, string> = {
   active: "bg-green-100 text-green-700",
@@ -46,6 +45,9 @@ export default function MerchantProducts() {
   const { isAuthenticated } = useAuth();
   const utils = trpc.useUtils();
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const CATEGORIES = parseCategories(siteSettings as Record<string, string> | undefined);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);

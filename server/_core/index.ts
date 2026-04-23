@@ -297,6 +297,16 @@ async function bootstrapMissingColumns() {
     await alter(`ALTER TABLE \`auctionRecords\` ADD COLUMN \`imagesJson\` TEXT NULL AFTER \`imageUrl\``, 'Added imagesJson column to auctionRecords');
   }
 
+  // 修正 auctions.category 從 ENUM 改為 VARCHAR（支援自定義分類）
+  try {
+    await pool.execute("ALTER TABLE `auctions` MODIFY COLUMN `category` VARCHAR(100) NULL DEFAULT '其它'");
+    console.log("[Bootstrap] Changed auctions.category to VARCHAR(100)");
+  } catch (e: any) {
+    if (!e?.message?.includes('No operation needed')) {
+      console.warn("[Bootstrap] auctions.category modify skipped:", e?.message ?? e);
+    }
+  }
+
   // 修正通知設定：senderName 若為舊名稱 → 改為 hongxcollections
   try {
     await pool.execute(

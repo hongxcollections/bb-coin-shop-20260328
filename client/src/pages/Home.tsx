@@ -28,6 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrencySymbol } from "./AdminAuctions";
+import { parseCategories } from "@/lib/categories";
 import { ShareMenu } from "@/components/ShareMenu";
 import Header from "@/components/Header";
 import EarlyBirdBanner from "@/components/EarlyBirdBanner";
@@ -237,15 +238,6 @@ const AUCTION_SECTION_TITLES = [
   "🎯 即時出價戰",
 ];
 
-const CATEGORIES = [
-  { value: "all", label: "全部", emoji: "🪙" },
-  { value: "古幣", label: "古幣", emoji: "🏺" },
-  { value: "紀念幣", label: "紀念幣", emoji: "🏅" },
-  { value: "外幣", label: "外幣", emoji: "🌍" },
-  { value: "銀幣", label: "銀幣", emoji: "⚪" },
-  { value: "金幣", label: "金幣", emoji: "🟡" },
-  { value: "其他", label: "其他", emoji: "✨" },
-];
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
@@ -271,6 +263,11 @@ export default function Home() {
     staleTime: 5 * 60 * 1000,
   });
   const ss = (siteSettings as Record<string, string> | undefined) ?? {};
+
+  const CATEGORIES = [
+    { value: "all", label: "全部", emoji: "🪙" },
+    ...parseCategories(ss).map(c => ({ value: c, label: c, emoji: "🏷️" })),
+  ];
 
   // 首頁拍賣標題 — ss 定義後才計算，避免 TDZ 錯誤
   const resolvedTitle = (() => {

@@ -664,7 +664,7 @@ export const appRouter = router({
 
     getArchived: protectedProcedure
       .input(z.object({
-        category: z.enum(["古幣", "紀念幣", "外幣", "銀幣", "金幣", "其他"]).optional(),
+        category: z.string().optional(),
         dateFrom: z.date().optional(),
         dateTo: z.date().optional(),
       }).optional().refine(

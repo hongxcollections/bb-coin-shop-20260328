@@ -22,9 +22,9 @@ import {
   X, CheckSquare, Square, ListChecks, Filter, RotateCcw,
 } from "lucide-react";
 import { getCurrencySymbol } from "./AdminAuctions";
+import { parseCategories } from "@/lib/categories";
 
 const RESTORE_COUNTDOWN = 10;
-const CATEGORY_OPTIONS = ["古幣", "紀念幣", "外幣", "銀幣", "金幣", "其他"] as const;
 
 function formatDate(date: Date | string | null | undefined) {
   if (!date) return "—";
@@ -76,6 +76,8 @@ function useCountdown(onFinish: (ids: number[]) => void) {
 
 export default function AdminArchive() {
   const { user, isAuthenticated, logout } = useAuth();
+  const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const CATEGORY_OPTIONS = parseCategories(siteSettings as Record<string, string> | undefined);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // ── Single-item restore countdown ──
@@ -99,7 +101,7 @@ export default function AdminArchive() {
     const hasDateTo = !!filterDateTo;
     if (!hasCategory && !hasDateFrom && !hasDateTo) return undefined;
     return {
-      category: hasCategory ? filterCategory as "古幣" | "紀念幣" | "外幣" | "銀幣" | "金幣" | "其他" : undefined,
+      category: hasCategory ? filterCategory : undefined,
       dateFrom: hasDateFrom ? new Date(filterDateFrom) : undefined,
       dateTo: hasDateTo ? new Date(filterDateTo) : undefined,
     };

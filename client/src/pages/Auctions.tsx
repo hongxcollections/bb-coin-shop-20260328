@@ -18,6 +18,7 @@ import {
 import { Clock, Search, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown, Filter, Shield, TrendingUp, Award, Coins, Store } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrencySymbol } from "./AdminAuctions";
+import { parseCategories } from "@/lib/categories";
 import { ShareMenu } from "@/components/ShareMenu";
 import Header from "@/components/Header";
 
@@ -69,12 +70,7 @@ export default function Auctions() {
 
   const CATEGORIES = [
     { value: "all", label: "全部", emoji: "🪙" },
-    { value: "古幣", label: "古幣", emoji: "🏺" },
-    { value: "紀念幣", label: "紀念幣", emoji: "🏅" },
-    { value: "外幣", label: "外幣", emoji: "🌍" },
-    { value: "銀幣", label: "銀幣", emoji: "⚪" },
-    { value: "金幣", label: "金幣", emoji: "🟡" },
-    { value: "其他", label: "其他", emoji: "✨" },
+    ...parseCategories(_ss).map(c => ({ value: c, label: c, emoji: "🏷️" })),
   ];
 
   const { data: auctions, isLoading } = trpc.auctions.list.useQuery(
