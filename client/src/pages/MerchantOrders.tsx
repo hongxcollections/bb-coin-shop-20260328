@@ -147,6 +147,23 @@ export default function MerchantOrders() {
     return [...new Set(names)].sort();
   }, [wonOrders]);
 
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const dateOptions = useMemo(() => [
+    { value: "all", label: "全部日期" },
+    ...Array.from({ length: 4 }, (_, i) => {
+      const d = new Date(startOfDay);
+      d.setDate(d.getDate() - i);
+      const label = i === 0 ? "今日" : i === 1 ? "昨日" : i === 2 ? "前日"
+        : `${d.getMonth() + 1}/${d.getDate()}`;
+      return { value: d.toDateString(), label: `${label}（${d.getMonth() + 1}/${d.getDate()}）` };
+    }),
+    { value: "month", label: "本月" },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [startOfDay.toDateString()]);
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -168,20 +185,17 @@ export default function MerchantOrders() {
     );
   }
 
-  const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfWeek = new Date(startOfDay);
-  startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
   const filteredWon = wonOrders.filter((o) => {
     if (statusFilter !== "all" && o.paymentStatus !== statusFilter) return false;
 
-    if (dateFilter !== "all") {
+    if (dateFilter !== "all" && dateFilter !== "month") {
       const end = new Date(o.endTime);
-      if (dateFilter === "today" && end < startOfDay) return false;
-      if (dateFilter === "week" && end < startOfWeek) return false;
-      if (dateFilter === "month" && end < startOfMonth) return false;
+      const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      if (endDay.toDateString() !== dateFilter) return false;
+    }
+    if (dateFilter === "month") {
+      const end = new Date(o.endTime);
+      if (end < startOfMonth) return false;
     }
 
     if (winnerFilter !== "all" && o.winnerName !== winnerFilter) return false;
@@ -264,12 +278,11 @@ export default function MerchantOrders() {
           </div>
 
           <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-28 h-8 text-xs"><SelectValue placeholder="結標日期" /></SelectTrigger>
+            <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="結標日期" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">全部日期</SelectItem>
-              <SelectItem value="today">今日</SelectItem>
-              <SelectItem value="week">本週</SelectItem>
-              <SelectItem value="month">本月</SelectItem>
+              {dateOptions.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
