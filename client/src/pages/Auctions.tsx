@@ -430,11 +430,17 @@ export default function Auctions() {
                     <div className="mt-1">
                       <div className="text-xs text-muted-foreground flex items-center gap-1">
                         目前出價
-                        {(auction as { highestBidderName?: string | null; highestBidderId?: number | null }).highestBidderName ? (
-                          <span className="text-[9px] text-red-500 font-semibold">({(auction as { highestBidderName?: string | null }).highestBidderName})</span>
-                        ) : !(auction as { highestBidderId?: number | null }).highestBidderId ? (
-                          <span className="text-[9px] text-gray-500 font-normal">(未有出價)</span>
-                        ) : null}
+                        {(() => {
+                          const a = auction as { highestBidderName?: string | null; highestBidderId?: number | null };
+                          if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
+                            return <span className="text-[9px] text-emerald-600 font-bold">(我本人 ✓)</span>;
+                          } else if (a.highestBidderName) {
+                            return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;
+                          } else if (!a.highestBidderId) {
+                            return <span className="text-[9px] text-gray-500 font-normal">(未有出價)</span>;
+                          }
+                          return null;
+                        })()}
                       </div>
                       <div className="text-sm font-bold text-amber-600">
                         {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
