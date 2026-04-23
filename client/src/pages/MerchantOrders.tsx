@@ -98,25 +98,26 @@ function OrderRow({ order, onUpdate, merchantName }: { order: MerchantOrder; onU
         {updating ? (
           <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground flex-shrink-0" />
         ) : (
-          <div className="flex gap-1 flex-shrink-0">
-            <Button size="sm" variant={cur === "pending_payment" ? "default" : "outline"}
-              className={`h-5 px-1.5 text-[10px] whitespace-nowrap ${cur === "pending_payment" ? "bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500" : "border-yellow-300 text-yellow-800 hover:bg-yellow-50"}`}
-              onClick={() => cur !== "pending_payment" && handleUpdate("pending_payment")}
-              disabled={cur === "pending_payment"}>
-              ⏳ 待付款
-            </Button>
-            <Button size="sm" variant={cur === "paid" ? "default" : "outline"}
-              className={`h-5 px-1.5 text-[10px] whitespace-nowrap ${cur === "paid" ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-500" : "border-blue-300 text-blue-800 hover:bg-blue-50"}`}
-              onClick={() => cur !== "paid" && handleUpdate("paid")}
-              disabled={cur === "paid"}>
-              💳 已付款
-            </Button>
-            <Button size="sm" variant={cur === "delivered" ? "default" : "outline"}
-              className={`h-5 px-1.5 text-[10px] whitespace-nowrap ${cur === "delivered" ? "bg-green-500 hover:bg-green-600 text-white border-green-500" : "border-green-300 text-green-800 hover:bg-green-50"}`}
-              onClick={() => cur !== "delivered" && handleUpdate("delivered")}
-              disabled={cur === "delivered"}>
-              ✅ 已交收
-            </Button>
+          <div className="flex flex-shrink-0 rounded overflow-hidden border border-border text-[10px]">
+            {([
+              { key: "pending_payment", label: "⏳ 待付款", activeClass: "bg-yellow-400 text-yellow-900" },
+              { key: "paid",            label: "💳 已付款", activeClass: "bg-blue-500 text-white" },
+              { key: "delivered",       label: "✅ 已交收", activeClass: "bg-green-500 text-white" },
+            ] as const).map(({ key, label, activeClass }, i) => (
+              <button
+                key={key}
+                onClick={() => { if (cur !== key) handleUpdate(key); }}
+                className={[
+                  "px-2 py-0.5 whitespace-nowrap transition-colors",
+                  i > 0 ? "border-l border-border" : "",
+                  cur === key
+                    ? activeClass
+                    : "bg-muted/40 text-muted-foreground hover:bg-muted",
+                ].join(" ")}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         )}
       </div>
