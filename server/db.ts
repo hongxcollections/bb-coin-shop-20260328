@@ -3798,7 +3798,7 @@ export async function confirmProductOrder(orderId: number, merchantId: number, f
     UPDATE merchantProducts SET stock = GREATEST(stock - ${qty}, 0) WHERE id = ${order.productId}
   `);
   await db.execute(sql`
-    UPDATE merchantProducts SET status = 'sold_out' WHERE id = ${order.productId} AND stock = 0
+    UPDATE merchantProducts SET status = 'sold' WHERE id = ${order.productId} AND stock = 0
   `);
 
   try {
