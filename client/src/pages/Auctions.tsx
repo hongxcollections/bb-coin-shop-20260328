@@ -68,11 +68,6 @@ export default function Auctions() {
     sessionStorage.setItem("auctions-page", String(page));
   };
 
-  const CATEGORIES = [
-    { value: "all", label: "全部", emoji: "🪙" },
-    ...parseCategories(_ss).map(c => ({ value: c, label: c, emoji: "🏷️" })),
-  ];
-
   const { data: auctions, isLoading } = trpc.auctions.list.useQuery(
     { limit: 100, offset: 0, category: category === "all" ? undefined : category },
     {
@@ -94,6 +89,12 @@ export default function Auctions() {
     staleTime: 5 * 60 * 1000, // 緩存 5 分鐘
   });
   const _ss = (siteSettings as Record<string, string> | undefined) ?? {};
+
+  const CATEGORIES = [
+    { value: "all", label: "全部", emoji: "🪙" },
+    ...parseCategories(_ss).map(c => ({ value: c, label: c, emoji: "🏷️" })),
+  ];
+
   const _endingSoonRaw = parseInt(_ss.endingSoonMinutes ?? '30', 10);
   const endingSoonMs = (isNaN(_endingSoonRaw) || _endingSoonRaw < 1 ? 30 : _endingSoonRaw) * 60 * 1000;
   const endingSoonText = _ss.endingSoonText || "⏰ 即將結束";
