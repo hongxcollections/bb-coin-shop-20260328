@@ -68,35 +68,36 @@ function OrderRow({ order, onUpdate, merchantName }: { order: MerchantOrder; onU
 
   return (
     <div className="px-3 py-2.5 rounded-lg border bg-card hover:bg-accent/5 transition-colors">
-      {/* 行一：拍賣名稱 + 日期 + 金額 + 狀態 */}
-      <div className="flex items-center gap-2 min-w-0">
+      {/* 行1：拍賣名稱（截短） */}
+      <div className="flex items-center gap-1.5 min-w-0">
         <Trophy className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
         <Link href={`/auctions/${order.id}`}>
-          <span className="text-sm font-medium hover:text-amber-600 truncate cursor-pointer flex-1 min-w-0 block">{order.title}</span>
+          <span className="text-sm font-medium hover:text-amber-600 cursor-pointer truncate block max-w-[220px]">{order.title}</span>
         </Link>
-        <span className="text-[10px] text-muted-foreground whitespace-nowrap flex-shrink-0">{dateStr} {timeStr}</span>
-        <span className="text-sm font-bold text-amber-700 whitespace-nowrap flex-shrink-0">{order.currency}${amount}</span>
-        <StatusBadge status={order.paymentStatus} />
       </div>
 
-      {/* 行二：得標者 + 電話 + WhatsApp */}
-      <div className="flex items-center gap-1.5 mt-1 pl-5">
-        <span className="text-xs text-muted-foreground whitespace-nowrap">
-          {order.winnerName ?? "—"}
-        </span>
-        {order.winnerPhone && (
-          <>
-            <span className="text-xs text-muted-foreground whitespace-nowrap">· {order.winnerPhone}</span>
-            <a href={toWhatsAppUrl(order.winnerPhone, waMsg)} target="_blank" rel="noopener noreferrer">
-              <Button size="sm" variant="outline" className="h-5 px-1.5 text-[10px] border-green-400 text-green-700 hover:bg-green-50">
-                💬 WhatsApp
-              </Button>
-            </a>
-          </>
-        )}
+      {/* 行2：得標者 + 金額 + 日期 */}
+      <div className="flex items-center gap-2 mt-1 pl-5 text-xs">
+        <span className="text-foreground font-medium truncate max-w-[90px]">{order.winnerName ?? "—"}</span>
+        <span className="text-amber-700 font-bold whitespace-nowrap">{order.currency}${amount}</span>
+        <span className="text-muted-foreground whitespace-nowrap ml-auto">{dateStr} {timeStr}</span>
       </div>
 
-      {/* 行三：狀態切換（獨立一行） */}
+      {/* 行3：電話 + WhatsApp */}
+      {order.winnerPhone ? (
+        <div className="flex items-center gap-1.5 mt-1 pl-5">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">{order.winnerPhone}</span>
+          <a href={toWhatsAppUrl(order.winnerPhone, waMsg)} target="_blank" rel="noopener noreferrer">
+            <Button size="sm" variant="outline" className="h-5 px-1.5 text-[10px] border-green-400 text-green-700 hover:bg-green-50">
+              💬 WhatsApp
+            </Button>
+          </a>
+        </div>
+      ) : (
+        <div className="mt-1 pl-5 h-5" />
+      )}
+
+      {/* 行4：狀態切換（獨立一行） */}
       <div className="mt-1.5 pl-5">
         {updating ? (
           <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
