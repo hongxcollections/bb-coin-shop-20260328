@@ -171,9 +171,9 @@ export default function Login() {
     return () => clearTimeout(t);
   }, [countdown]);
 
-  // 短訊發出 40 秒後（倒數剩 20 秒）顯示電郵備用選項
+  // 短訊發出 30 秒後（倒數剩 30 秒）顯示電郵備用選項
   useEffect(() => {
-    if (step === "otp" && !showEmailFb && countdown > 0 && countdown <= 20) {
+    if (step === "otp" && !showEmailFb && countdown > 0 && countdown <= 30) {
       setShowEmailFb(true);
     }
   }, [countdown, step, showEmailFb]);
@@ -730,36 +730,6 @@ export default function Login() {
                     {countdown > 0 ? `重新發送（${countdown}秒）` : fpLoading ? "發送中..." : "重新發送驗證碼"}
                   </button>
 
-                  {/* WhatsApp 備用 — 忘記密碼流程 */}
-                  {!isFpChinesePhone && (
-                    <div className="pt-1">
-                      {waSent ? (
-                        <div className="flex items-center justify-center gap-1.5 text-xs py-2 px-3 rounded-xl"
-                             style={{ background: "#F0FDF4", color: "#15803d" }}>
-                          <span>💬</span>
-                          <span>已透過 WhatsApp 發送，請查看訊息</span>
-                        </div>
-                      ) : (
-                        <div>
-                          <p className="text-xs mb-1.5" style={{ color: "#aaa" }}>收不到短訊？</p>
-                          <button
-                            type="button"
-                            onClick={() => sendWhatsAppOtp(fpPhone)}
-                            disabled={waSending || countdown > 0}
-                            className="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl border transition-colors"
-                            style={{
-                              borderColor: "#25D366",
-                              color: (waSending || countdown > 0) ? "#aaa" : "#128C7E",
-                              background: (waSending || countdown > 0) ? "#f5f5f5" : "#F0FDF4",
-                            }}
-                          >
-                            <span>💬</span>
-                            {waSending ? "發送中..." : countdown > 0 ? `WhatsApp（${countdown}秒後可用）` : "改用 WhatsApp 發送驗證碼"}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   <div>
                     <button type="button" onClick={() => { setFpStep("identify"); setOtpDigits(["", "", "", "", "", ""]); setWaSent(false); }}
@@ -891,38 +861,8 @@ export default function Login() {
                 </button>
               </div>
 
-              {/* ── WhatsApp 備用發送 ── */}
-              {!isChinesePhone && !emailFbSent && (
-                <div className="pt-1">
-                  {waSent ? (
-                    <div className="flex items-center justify-center gap-1.5 text-xs py-2 px-3 rounded-xl mx-auto inline-flex"
-                         style={{ background: "#F0FDF4", color: "#15803d" }}>
-                      <span>💬</span>
-                      <span>已透過 WhatsApp 發送，請查看訊息</span>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-xs mb-1.5" style={{ color: "#aaa" }}>收不到短訊？</p>
-                      <button
-                        type="button"
-                        onClick={sendWhatsAppOtp}
-                        disabled={waSending || countdown > 0}
-                        className="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-xl border transition-colors"
-                        style={{
-                          borderColor: "#25D366",
-                          color: (waSending || countdown > 0) ? "#aaa" : "#128C7E",
-                          background: (waSending || countdown > 0) ? "#f5f5f5" : "#F0FDF4",
-                        }}
-                      >
-                        <span>💬</span>
-                        {waSending ? "發送中..." : countdown > 0 ? `WhatsApp（${countdown}秒後可用）` : "改用 WhatsApp 發送驗證碼"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
 
-              {/* ── 電郵 OTP 備用（短訊 40 秒後未收到時才顯示）── */}
+              {/* ── 電郵 OTP 備用（短訊 30 秒後未收到時才顯示）── */}
               {showEmailFb && (
                 <div className="pt-2">
                   {emailFbSent ? (
