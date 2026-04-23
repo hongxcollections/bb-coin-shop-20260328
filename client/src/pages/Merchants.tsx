@@ -6,8 +6,7 @@ import { Store, Package, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
-
-const CATEGORIES = ["全部", "古幣", "紀念幣", "外幣", "銀幣", "金幣", "其他"];
+import { parseCategories } from "@/lib/categories";
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
 
 function buildProductMsg(title: string, price?: number, id?: number) {
@@ -253,6 +252,8 @@ export default function Merchants() {
   const [selectedMerchantId, setSelectedMerchantId] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("全部");
   const { data: merchants = [], isLoading } = trpc.merchants.listApprovedMerchants.useQuery();
+  const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const CATEGORIES = ["全部", ...parseCategories(siteSettings as Record<string, string> | undefined)];
 
   const displayedMerchants = selectedMerchantId
     ? merchants.filter((m: any) => m.userId === selectedMerchantId)
