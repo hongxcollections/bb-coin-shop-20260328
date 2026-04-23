@@ -3804,22 +3804,41 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const pool = await getRawPool();
         const limit = Math.max(1, Math.min(20, Number(input.limit)));
-        // 已結拍且有人出價的拍賣
+        // 已結拍且有人出價的拍賣（圖片從 auctionImages 子查詢取第一張）
         const [auctionRows]: any = await pool.execute(
-          `SELECT id, title, currentPrice AS price, currency, images, endTime AS date, 'auction' AS type
-           FROM \`auctions\`
-           WHERE status = 'ended' AND highestBidderId IS NOT NULL AND currentPrice > 0
-           ORDER BY endTime DESC LIMIT 10`
+          `SELECT a.id, a.title, a.currentPrice AS price, a.currency,
+                  (SELECT ai.imageUrl FROM \`auctionImages\` ai
+                   WHERE ai.auctionId = a.id ORDER BY ai.displayOrder ASC LIMIT 1) AS thumb,
+                  a.endTime AS date, 'auction' AS type
+           FROM \`auctions\` a
+           WHERE a.status = 'ended' AND a.highestBidderId IS NOT NULL AND a.currentPrice > 0 AND a.archived = 0
+           ORDER BY a.endTime DESC LIMIT 10`
         );
-        // 已售出的商品
+        // 已售出的商品（解析 images JSON 取第一個）
         const [productRows]: any = await pool.execute(
           `SELECT id, title, price, currency, images, updatedAt AS date, 'product' AS type
            FROM \`merchantProducts\`
            WHERE status = 'sold'
            ORDER BY updatedAt DESC LIMIT 10`
         );
+        // 解析商品圖片
+        const processedProducts = (productRows as any[]).map((p: any) => {
+          let thumb: string | null = null;
+          if (p.images) {
+            try {
+              const parsed = JSON.parse(p.images);
+              if (Array.isArray(parsed) && parsed[0]) {
+                const first = parsed[0];
+                thumb = typeof first === 'string' ? first : first.imageUrl ?? first.url ?? null;
+              } else if (typeof parsed === 'string') {
+                thumb = parsed;
+              }
+            } catch {}
+          }
+          return { ...p, thumb };
+        });
         // 合併、排序、取前 limit 筆
-        const combined = [...auctionRows, ...productRows]
+        const combined = [...auctionRows, ...processedProducts]
           .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
           .slice(0, limit);
         return combined as Array<{
@@ -3827,7 +3846,7 @@ export const appRouter = router({
           title: string;
           price: string;
           currency: string;
-          images: string | null;
+          thumb: string | null;
           date: string;
           type: 'auction' | 'product';
         }>;

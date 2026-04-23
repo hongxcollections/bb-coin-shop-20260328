@@ -98,21 +98,8 @@ function RecentSalesFader() {
 
   if (list.length === 0) return null;
 
-  const getThumb = (images: string | null) => {
-    if (!images) return null;
-    try {
-      const parsed = JSON.parse(images);
-      if (Array.isArray(parsed) && parsed[0]) {
-        const first = parsed[0];
-        return typeof first === 'string' ? first : first.imageUrl ?? first.url ?? null;
-      }
-      if (typeof parsed === 'string') return parsed;
-    } catch {}
-    return null;
-  };
-
   const item = list[index];
-  const thumb = getThumb(item.images);
+  const thumb = (item as any).thumb ?? null;
   const currSymbol = getCurrencySymbol(item.currency ?? 'HKD');
   const isAuction = item.type === 'auction';
 
