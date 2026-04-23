@@ -184,6 +184,7 @@ function MerchantOrdersTab() {
           {(orders as any[]).map((o) => {
             const price = parseFloat(String(o.price));
             const commission = parseFloat(String(o.commissionAmount));
+            const finalPrice = o.finalPrice != null ? parseFloat(String(o.finalPrice)) : null;
             const d = new Date(o.createdAt);
             return (
               <div key={o.id} className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2.5">
@@ -212,8 +213,20 @@ function MerchantOrdersTab() {
                 </div>
 
                 <div className="bg-gray-50 rounded-xl p-2.5 grid grid-cols-2 gap-1.5 text-xs">
-                  <div><span className="text-gray-400">售價</span><span className="ml-1 font-bold text-amber-600">{o.currency} ${price.toLocaleString()} × {o.quantity}</span></div>
+                  <div>
+                    <span className="text-gray-400">標價</span>
+                    <span className={`ml-1 font-bold ${finalPrice != null ? "text-gray-400 line-through" : "text-amber-600"}`}>
+                      {o.currency} ${price.toLocaleString()} × {o.quantity}
+                    </span>
+                  </div>
                   <div><span className="text-gray-400">傭金</span><span className="ml-1 font-medium text-red-500">{o.currency} ${commission.toFixed(2)}</span></div>
+                  {finalPrice != null && (
+                    <div className="col-span-2 bg-green-50 rounded-lg px-2 py-1">
+                      <span className="text-green-600">實際成交</span>
+                      <span className="ml-1 font-bold text-green-700">{o.currency} ${finalPrice.toLocaleString()} × {o.quantity}</span>
+                      <span className="ml-1 text-green-500">（合計 ${(finalPrice * parseInt(String(o.quantity))).toLocaleString()}）</span>
+                    </div>
+                  )}
                   <div><span className="text-gray-400">買家</span><span className="ml-1 font-medium">{o.buyerDisplayName ?? "—"}</span></div>
                   <div><span className="text-gray-400">電話</span><span className="ml-1 font-medium">{o.buyerPhoneFromUser ?? o.buyerPhone ?? "—"}</span></div>
                 </div>
