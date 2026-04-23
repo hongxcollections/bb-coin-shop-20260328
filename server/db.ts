@@ -3764,23 +3764,34 @@ export async function getAllProductOrders(): Promise<any[]> {
   return (rows[0] as any[]) ?? [];
 }
 
-export async function confirmProductOrder(orderId: number, merchantId: number): Promise<{ ok: boolean; error?: string }> {
+export async function confirmProductOrder(orderId: number, merchantId: number, finalPrice?: number): Promise<{ ok: boolean; error?: string }> {
   await ensureProductOrdersTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
+
+  // 確保 finalPrice 欄位存在
+  try { await db.execute(sql`ALTER TABLE productOrders ADD COLUMN finalPrice DECIMAL(12,2)`); } catch {}
 
   const rows = await db.execute(sql`SELECT * FROM productOrders WHERE id = ${orderId} AND merchantId = ${merchantId} LIMIT 1`);
   const order = ((rows[0] as any[])[0]) as any;
   if (!order) return { ok: false, error: '找不到此訂單' };
   if (order.status !== 'pending') return { ok: false, error: '訂單狀態不可確認' };
 
-  const price = parseFloat(String(order.price));
+  const listedPrice = parseFloat(String(order.price));
   const qty = parseInt(String(order.quantity));
   const commissionRate = parseFloat(String(order.commissionRate));
-  const commissionAmount = price * qty * commissionRate;
+
+  // 以實際成交價計算傭金（若商戶未填則用原價）
+  const actualUnitPrice = (finalPrice != null && finalPrice > 0) ? finalPrice : listedPrice;
+  const commissionAmount = actualUnitPrice * qty * commissionRate;
+  const fp = actualUnitPrice !== listedPrice ? actualUnitPrice : null;
 
   await db.execute(sql`
-    UPDATE productOrders SET status = 'confirmed', confirmedAt = NOW() WHERE id = ${orderId}
+    UPDATE productOrders
+    SET status = 'confirmed', confirmedAt = NOW(),
+        commissionAmount = ${commissionAmount.toFixed(2)},
+        finalPrice = ${fp}
+    WHERE id = ${orderId}
   `);
 
   await db.execute(sql`
@@ -3791,7 +3802,7 @@ export async function confirmProductOrder(orderId: number, merchantId: number): 
   `);
 
   try {
-    await deductCommission(merchantId, commissionAmount, 0, `商品訂單 #${orderId}：${order.title}`);
+    await deductCommission(merchantId, commissionAmount, 0, `商品訂單 #${orderId}：${order.title}（實際成交 ${order.currency ?? 'HKD'} $${actualUnitPrice.toFixed(2)} × ${qty}）`);
   } catch (e) {
     console.error('[confirmProductOrder] deductCommission failed', e);
   }

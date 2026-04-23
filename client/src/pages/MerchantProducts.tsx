@@ -59,12 +59,20 @@ const ORDER_STATUS_COLORS: Record<string, string> = {
 };
 
 function OrderActionDialog({ order, type, onClose, onConfirm, isPending }: {
-  order: any; type: "confirm" | "cancel"; onClose: () => void; onConfirm: () => void; isPending: boolean;
+  order: any; type: "confirm" | "cancel"; onClose: () => void; onConfirm: (finalPrice?: number) => void; isPending: boolean;
 }) {
-  const price = parseFloat(String(order.price));
-  const commission = parseFloat(String(order.commissionAmount));
+  const listedPrice = parseFloat(String(order.price));
+  const qty = parseInt(String(order.quantity));
+  const commissionRate = parseFloat(String(order.commissionRate));
   const imgs: string[] = (() => { try { return order.productImages ? JSON.parse(order.productImages) : []; } catch { return []; } })();
   const isConfirm = type === "confirm";
+
+  const [finalPriceInput, setFinalPriceInput] = useState("");
+  const finalPrice = finalPriceInput !== "" ? parseFloat(finalPriceInput) : null;
+  const actualUnitPrice = (finalPrice != null && finalPrice > 0) ? finalPrice : listedPrice;
+  const commissionAmount = actualUnitPrice * qty * commissionRate;
+  const priceChanged = finalPrice != null && finalPrice > 0 && finalPrice !== listedPrice;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20" onClick={onClose}>
       <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
@@ -80,14 +88,37 @@ function OrderActionDialog({ order, type, onClose, onConfirm, isPending }: {
             : <div className="w-14 h-14 rounded-lg bg-amber-50 flex items-center justify-center shrink-0"><ShoppingBag className="w-6 h-6 text-amber-200" /></div>}
           <div className="flex-1 min-w-0 space-y-0.5">
             <p className="font-semibold text-sm text-gray-800 line-clamp-2">{order.title}</p>
-            <p className="text-amber-600 font-bold text-sm">{order.currency} ${price.toLocaleString()} × {order.quantity}</p>
+            <p className="text-amber-600 font-bold text-sm">{order.currency} ${listedPrice.toLocaleString()} × {qty}</p>
             <p className="text-xs text-gray-500">買家：{order.buyerDisplayName ?? "—"}　{order.buyerPhoneFromUser ?? order.buyerPhone ?? ""}</p>
           </div>
         </div>
 
         {isConfirm && (
-          <div className="bg-red-50 rounded-xl px-3 py-2 text-xs text-red-600">
-            確認成交後，系統將自動從保證金扣除傭金 <span className="font-bold">{order.currency} ${commission.toFixed(2)}</span>
+          <div className="space-y-2">
+            <div>
+              <label className="text-xs text-gray-500 font-medium mb-1 block">實際成交單價（選填，若與原價不同請填寫）</label>
+              <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 focus-within:border-amber-400 transition-colors">
+                <span className="text-xs text-gray-400 shrink-0">{order.currency}</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder={listedPrice.toString()}
+                  value={finalPriceInput}
+                  onChange={e => setFinalPriceInput(e.target.value)}
+                  className="flex-1 text-sm font-medium text-gray-800 outline-none bg-transparent"
+                />
+              </div>
+              {priceChanged && (
+                <p className="text-xs text-amber-600 mt-1">
+                  原價 ${listedPrice.toLocaleString()} → 成交 ${actualUnitPrice.toLocaleString()}
+                </p>
+              )}
+            </div>
+            <div className="bg-red-50 rounded-xl px-3 py-2 text-xs text-red-600">
+              確認後自動扣除傭金：<span className="font-bold">{order.currency} ${commissionAmount.toFixed(2)}</span>
+              {priceChanged && <span className="text-gray-400 ml-1">（按實際成交價計算）</span>}
+            </div>
           </div>
         )}
         {!isConfirm && (
@@ -97,7 +128,7 @@ function OrderActionDialog({ order, type, onClose, onConfirm, isPending }: {
         <div className="flex gap-2 pt-1">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50">返回</button>
           <button
-            onClick={onConfirm}
+            onClick={() => onConfirm(isConfirm && finalPrice != null && finalPrice > 0 ? finalPrice : undefined)}
             disabled={isPending}
             className={`flex-1 py-2.5 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-60 ${isConfirm ? "bg-green-500 hover:bg-green-600" : "bg-red-400 hover:bg-red-500"}`}
           >
@@ -226,8 +257,8 @@ function MerchantOrdersTab() {
           order={actionDialog.order}
           type={actionDialog.type}
           onClose={() => setActionDialog(null)}
-          onConfirm={() => {
-            if (actionDialog.type === "confirm") confirm.mutate({ orderId: actionDialog.order.id });
+          onConfirm={(finalPrice) => {
+            if (actionDialog.type === "confirm") confirm.mutate({ orderId: actionDialog.order.id, finalPrice });
             else cancel.mutate({ orderId: actionDialog.order.id, reason: "商戶取消" });
           }}
           isPending={confirm.isPending || cancel.isPending}

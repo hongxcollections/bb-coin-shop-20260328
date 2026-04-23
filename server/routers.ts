@@ -2960,13 +2960,13 @@ export const appRouter = router({
 
     /** 商戶：確認成交（同時扣傭金） */
     confirm: protectedProcedure
-      .input(z.object({ orderId: z.number() }))
+      .input(z.object({ orderId: z.number(), finalPrice: z.number().positive().optional() }))
       .mutation(async ({ input, ctx }) => {
         const app = await getMerchantApplicationByUser(ctx.user.id);
         if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
         }
-        const result = await confirmProductOrder(input.orderId, ctx.user.id);
+        const result = await confirmProductOrder(input.orderId, ctx.user.id, input.finalPrice);
         if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
         return { success: true };
       }),
