@@ -45,7 +45,7 @@ function baseLayout(title: string, body: string): string {
 <body>
   <div class="wrapper">
     <div class="header">
-      <h1>🪙 大BB錢幣店</h1>
+      <h1>🪙 hongxcollections</h1>
       <p>專業錢幣拍賣平台</p>
     </div>
     <div class="body">${body}</div>
@@ -107,7 +107,7 @@ function nl2br(text: string): string {
 export async function sendWonEmail(params: WonEmailParams): Promise<boolean> {
   const { to, senderName, senderEmail, userName, auctionTitle, finalPrice, currency, auctionUrl, paymentInstructions, deliveryInfo } = params;
 
-  const defaultPayment = '接受付款方式：FPS、八達通、微信支付、支付寶、BOCPay、Visa\n請聯絡大BB錢幣店安排付款。';
+  const defaultPayment = '接受付款方式：FPS、八達通、微信支付、支付寶、BOCPay、Visa\n請聯絡 hongxcollections 安排付款。';
   const defaultDelivery = '建議順豐到付（買家承擔運費），或歡迎來店自取（請提前聯絡預約）。';
 
   const paymentHtml = nl2br(paymentInstructions || defaultPayment);
@@ -137,7 +137,7 @@ export async function sendWonEmail(params: WonEmailParams): Promise<boolean> {
       ${deliveryHtml}
     </div>
 
-    <p style="margin-top:20px;font-size:13px;color:#6b7280;">如有任何查詢，請聯絡大BB錢幣店。我們期待與您完成交易！</p>
+    <p style="margin-top:20px;font-size:13px;color:#6b7280;">如有任何查詢，請聯絡 hongxcollections。我們期待與您完成交易！</p>
     <a href="${auctionUrl}" class="btn">查看拍賣詳情 →</a>
   `;
   return sendEmail({ to, senderName, senderEmail, subject: `🎉 【恭喜得標】${auctionTitle} — 成交價 ${currency} ${finalPrice.toLocaleString()}`, html: baseLayout("得標通知", body) });
@@ -237,13 +237,13 @@ export async function sendOtpFallbackEmail(params: OtpFallbackEmailParams): Prom
       <div class="value" style="letter-spacing:8px;">${code}</div>
     </div>
     <p style="font-size:13px;color:#6b7280;">驗證碼有效期為 <strong>10 分鐘</strong>，請勿將驗證碼告知他人。</p>
-    <p style="font-size:12px;color:#9ca3af;margin-top:16px;">如您並未嘗試在大BB錢幣店註冊，請忽略此郵件。</p>
+    <p style="font-size:12px;color:#9ca3af;margin-top:16px;">如您並未嘗試在 hongxcollections 註冊，請忽略此郵件。</p>
   `;
   return sendEmail({
     to,
     senderName,
     senderEmail,
-    subject: `【大BB錢幣店】手機驗證碼：${code}`,
+    subject: `【hongxcollections】手機驗證碼：${code}`,
     html: baseLayout("手機號碼驗證碼", body),
   });
 }

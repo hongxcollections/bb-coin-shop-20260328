@@ -855,7 +855,7 @@ export const appRouter = router({
     get: protectedProcedure.query(async () => {
       const settings = await getNotificationSettings();
       return settings ?? {
-        senderName: '大BB錢幣店',
+        senderName: 'hongxcollections',
         senderEmail: 'ywkyee@gmail.com',
         enableOutbid: 1,
         enableWon: 1,
@@ -1378,7 +1378,7 @@ export const appRouter = router({
         const { sendWonEmail } = await import('./email');
         const sent = await sendWonEmail({
           to: winner.email,
-          senderName: settings?.senderName ?? '大BB錢幣店',
+          senderName: settings?.senderName ?? 'hongxcollections',
           senderEmail: settings?.senderEmail ?? 'noreply@example.com',
           userName: winner.name ?? `用戶 #${auction.highestBidderId}`,
           auctionTitle: auction.title,

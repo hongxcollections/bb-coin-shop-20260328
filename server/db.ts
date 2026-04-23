@@ -821,7 +821,7 @@ export async function upsertNotificationSettings(data: Partial<Omit<Notification
     // Always operate on row id=1 (single-row config)
     await db
       .insert(notificationSettings)
-      .values({ id: 1, senderName: "大BB錢幣店", senderEmail: "ywkyee@gmail.com", ...data })
+      .values({ id: 1, senderName: "hongxcollections", senderEmail: "ywkyee@gmail.com", ...data })
       .onDuplicateKeyUpdate({ set: data });
     return true;
   } catch (error) {

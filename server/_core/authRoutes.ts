@@ -230,7 +230,7 @@ export function registerAuthRoutes(app: Express) {
 
       // OTP emails always use the verified domain address (transactional, not marketing)
       const settings = await db.getNotificationSettings();
-      const senderName = settings?.senderName ?? "大BB錢幣店";
+      const senderName = settings?.senderName ?? "hongxcollections";
       const senderEmail = "noreply@hongxcollections.com";
 
       console.log(`[Auth] Email fallback OTP: senderEmail=${senderEmail}, to=${email}`);
@@ -239,7 +239,7 @@ export function registerAuthRoutes(app: Express) {
         to: email,
         senderName,
         senderEmail,
-        subject: `【大BB錢幣店】手機驗證碼：${code}`,
+        subject: `【hongxcollections】手機驗證碼：${code}`,
         html: `<p>您正在驗證手機號碼 <strong>${phone}</strong>。</p><p>驗證碼：<strong style="font-size:24px;letter-spacing:6px">${code}</strong></p><p>有效期 10 分鐘。</p>`,
       });
       if (!sendResult.ok) {

@@ -297,6 +297,13 @@ async function bootstrapMissingColumns() {
     await alter(`ALTER TABLE \`auctionRecords\` ADD COLUMN \`imagesJson\` TEXT NULL AFTER \`imageUrl\``, 'Added imagesJson column to auctionRecords');
   }
 
+  // 修正通知設定：senderName 若為舊名稱 → 改為 hongxcollections
+  try {
+    await pool.execute(
+      "UPDATE `notificationSettings` SET senderName = 'hongxcollections' WHERE senderName = '大BB錢幣店'"
+    );
+  } catch (e) { /* 表不存在或無需修改，忽略 */ }
+
   // 修正舊紀錄：saleStatus='sold' 但無金額 → 改為 'unsold'（流拍）
   try {
     const [fixRes]: any = await pool.execute(
