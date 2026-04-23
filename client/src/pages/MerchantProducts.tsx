@@ -58,17 +58,70 @@ const ORDER_STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-gray-100 text-gray-500",
 };
 
+function OrderActionDialog({ order, type, onClose, onConfirm, isPending }: {
+  order: any; type: "confirm" | "cancel"; onClose: () => void; onConfirm: () => void; isPending: boolean;
+}) {
+  const price = parseFloat(String(order.price));
+  const commission = parseFloat(String(order.commissionAmount));
+  const imgs: string[] = (() => { try { return order.productImages ? JSON.parse(order.productImages) : []; } catch { return []; } })();
+  const isConfirm = type === "confirm";
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-5 pb-8 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
+        <h2 className="font-bold text-gray-800 text-base flex items-center gap-2">
+          {isConfirm
+            ? <><CheckCircle2 className="w-5 h-5 text-green-500" />確認成交</>
+            : <><XCircle className="w-5 h-5 text-red-400" />取消訂單</>}
+        </h2>
+
+        <div className="flex gap-3 bg-gray-50 rounded-xl p-3">
+          {imgs[0]
+            ? <img src={imgs[0]} alt={order.title} className="w-14 h-14 rounded-lg object-cover shrink-0 border border-gray-100" />
+            : <div className="w-14 h-14 rounded-lg bg-amber-50 flex items-center justify-center shrink-0"><ShoppingBag className="w-6 h-6 text-amber-200" /></div>}
+          <div className="flex-1 min-w-0 space-y-0.5">
+            <p className="font-semibold text-sm text-gray-800 line-clamp-2">{order.title}</p>
+            <p className="text-amber-600 font-bold text-sm">{order.currency} ${price.toLocaleString()} × {order.quantity}</p>
+            <p className="text-xs text-gray-500">買家：{order.buyerDisplayName ?? "—"}　{order.buyerPhoneFromUser ?? order.buyerPhone ?? ""}</p>
+          </div>
+        </div>
+
+        {isConfirm && (
+          <div className="bg-red-50 rounded-xl px-3 py-2 text-xs text-red-600">
+            確認成交後，系統將自動從保證金扣除傭金 <span className="font-bold">{order.currency} ${commission.toFixed(2)}</span>
+          </div>
+        )}
+        {!isConfirm && (
+          <p className="text-sm text-gray-500">確定取消此訂單？取消後不會扣除傭金。</p>
+        )}
+
+        <div className="flex gap-2 pt-1">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50">返回</button>
+          <button
+            onClick={onConfirm}
+            disabled={isPending}
+            className={`flex-1 py-2.5 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-60 ${isConfirm ? "bg-green-500 hover:bg-green-600" : "bg-red-400 hover:bg-red-500"}`}
+          >
+            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : isConfirm ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+            {isConfirm ? "確認成交" : "確定取消"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MerchantOrdersTab() {
   const utils = trpc.useUtils();
   const [statusFilter, setStatusFilter] = useState("pending");
   const { data: orders = [], isLoading, error: ordersError } = trpc.productOrders.myMerchantOrders.useQuery({ status: statusFilter });
+  const [actionDialog, setActionDialog] = useState<{ order: any; type: "confirm" | "cancel" } | null>(null);
 
   const confirm = trpc.productOrders.confirm.useMutation({
-    onSuccess: () => { toast.success("已確認成交，傭金已從保證金扣除"); utils.productOrders.myMerchantOrders.invalidate(); },
+    onSuccess: () => { toast.success("已確認成交，傭金已從保證金扣除"); utils.productOrders.myMerchantOrders.invalidate(); setActionDialog(null); },
     onError: (e) => toast.error(e.message),
   });
   const cancel = trpc.productOrders.cancel.useMutation({
-    onSuccess: () => { toast.success("訂單已取消"); utils.productOrders.myMerchantOrders.invalidate(); },
+    onSuccess: () => { toast.success("訂單已取消"); utils.productOrders.myMerchantOrders.invalidate(); setActionDialog(null); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -141,15 +194,15 @@ function MerchantOrdersTab() {
                 {o.status === "pending" && (
                   <div className="flex gap-2 pt-1">
                     <button
-                      onClick={() => { if (window.confirm(`確認成交「${o.title}」？系統將自動從保證金扣除傭金 ${o.currency} $${commission.toFixed(2)}`)) confirm.mutate({ orderId: o.id }); }}
-                      disabled={confirm.isPending}
+                      onClick={() => setActionDialog({ order: o, type: "confirm" })}
+                      disabled={confirm.isPending || cancel.isPending}
                       className="flex-1 flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold py-2 rounded-xl transition-colors disabled:opacity-60"
                     >
                       <CheckCircle2 className="w-4 h-4" />確認成交
                     </button>
                     <button
-                      onClick={() => { if (window.confirm("確定取消此訂單？")) cancel.mutate({ orderId: o.id, reason: "商戶取消" }); }}
-                      disabled={cancel.isPending}
+                      onClick={() => setActionDialog({ order: o, type: "cancel" })}
+                      disabled={confirm.isPending || cancel.isPending}
                       className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 text-gray-500 text-sm font-medium py-2 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-60"
                     >
                       <XCircle className="w-4 h-4" />取消訂單
@@ -166,6 +219,19 @@ function MerchantOrdersTab() {
             );
           })}
         </div>
+      )}
+
+      {actionDialog && (
+        <OrderActionDialog
+          order={actionDialog.order}
+          type={actionDialog.type}
+          onClose={() => setActionDialog(null)}
+          onConfirm={() => {
+            if (actionDialog.type === "confirm") confirm.mutate({ orderId: actionDialog.order.id });
+            else cancel.mutate({ orderId: actionDialog.order.id, reason: "商戶取消" });
+          }}
+          isPending={confirm.isPending || cancel.isPending}
+        />
       )}
     </div>
   );
