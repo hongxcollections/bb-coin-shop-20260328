@@ -17,6 +17,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { notifyEndingSoon } from "../auctions";
 import { getActiveAuctionsEndingSoon, getNotificationSettings } from "../db";
+import { ENV } from "./env";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -757,9 +758,7 @@ Output ONLY the JSON, nothing else.`;
       const settings = await getNotificationSettings();
       if (!settings || !settings.enableEndingSoon) return;
       const auctions = await getActiveAuctionsEndingSoon(settings.endingSoonMinutes);
-      const origin = process.env.VITE_OAUTH_PORTAL_URL
-        ? new URL(process.env.VITE_OAUTH_PORTAL_URL).origin
-        : '';
+      const origin = ENV.siteUrl || '';
       for (const auction of auctions) {
         await notifyEndingSoon(auction.id, origin);
       }

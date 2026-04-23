@@ -15,6 +15,27 @@ import { getRawPool } from "./db";
 import { TRPCError } from "@trpc/server";
 import { getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser } from "./push";
 import { getLoyaltyConfig, updateLoyaltyConfig, getEarlyBirdTodayStatus, getMyLoyaltyStatus, recalculateUserLevel, runDailyLoyaltyMaintenance, getMyAutoBidStatus, enforceAutoBidLimit, enforceAnonymousBidPermission, type LoyaltyConfig } from "./loyalty";
+import { ENV } from "./_core/env";
+import type { IncomingMessage } from "http";
+
+/**
+ * 取得電郵連結用的 origin（例：https://hongxcollections.com）
+ * 優先用 SITE_URL env var，其次從 request headers 取。
+ */
+function getEmailOrigin(req?: IncomingMessage): string {
+  if (ENV.siteUrl) return ENV.siteUrl;
+  if (!req) return '';
+  const origin = (req as any).headers?.origin as string | undefined;
+  const referer = (req as any).headers?.referer as string | undefined;
+  if (origin) return origin;
+  if (referer) {
+    try {
+      const u = new URL(referer);
+      return u.origin; // 直接用 URL.origin，避免 regex 截錯
+    } catch { /* ignore */ }
+  }
+  return '';
+}
 
 // 出價防抖 Map：鍵為 "userId:auctionId"，値為最後出價時間戳
 // 防止同一用戶對同一拍賣在 3 秒內重複出價，減少平台 API 請求量
@@ -42,7 +63,7 @@ export const appRouter = router({
       }))
       .query(async ({ input, ctx }) => {
         // Auto-close expired auctions in background (non-blocking)
-        const origin = ctx.req.headers.origin || ctx.req.headers.referer?.replace(/\/[^/]*$/, '') || '';
+        const origin = getEmailOrigin(ctx.req as any);
         closeExpiredAuctions().then(closedIds => {
           if (closedIds.length > 0) {
             closedIds.forEach(id => {
@@ -74,7 +95,7 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .query(async ({ input, ctx }) => {
         // Auto-close expired auctions in background (non-blocking)
-        const origin = ctx.req.headers.origin || ctx.req.headers.referer?.replace(/\/[^/]*$/, '') || '';
+        const origin = getEmailOrigin(ctx.req as any);
         closeExpiredAuctions().then(closedIds => {
           if (closedIds.length > 0) {
             closedIds.forEach(id => {
@@ -1369,11 +1390,8 @@ export const appRouter = router({
           throw new TRPCError({ code: 'BAD_REQUEST', message: '得標者尚未填寫電郵地址，無法發送通知' });
         }
         const settings = await getNotificationSettings();
-        // Derive origin: prefer explicit input, then request headers, then site URL from settings
-        const origin = input.origin
-          || (ctx.req as any)?.headers?.origin
-          || (ctx.req as any)?.headers?.referer?.replace(/\/[^/]*$/, '')
-          || '';
+        // Derive origin: prefer SITE_URL env var, then explicit input, then request headers
+        const origin = getEmailOrigin(ctx.req as any) || input.origin || '';
         if (!settings?.senderEmail) {
           console.warn('[Email] resendEmail: senderEmail not configured in notification settings');
         }
@@ -1387,7 +1405,7 @@ export const appRouter = router({
           auctionId: input.auctionId,
           finalPrice: parseFloat(auction.currentPrice.toString()),
           currency: auction.currency,
-          auctionUrl: origin ? `${origin}/auctions/${input.auctionId}` : `https://bbcoinshop-5iu7x8hz.manus.space/auctions/${input.auctionId}`,
+          auctionUrl: `${getEmailOrigin(ctx.req as any) || origin}/auctions/${input.auctionId}`,
           paymentInstructions: settings?.paymentInstructions ?? null,
           deliveryInfo: settings?.deliveryInfo ?? null,
         });

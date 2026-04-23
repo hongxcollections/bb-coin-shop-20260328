@@ -9,6 +9,9 @@ export const ENV = {
   cookieSecret: process.env.JWT_SECRET ?? "",
   databaseUrl: _databaseUrl,
   oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
+  // SITE_URL = 電郵連結用的網站根 URL（例：https://hongxcollections.com）
+  // 必須在 Railway Production 設定此環境變數才能正確生成電郵連結
+  siteUrl: (process.env.SITE_URL || "").replace(/\/$/, ""),
   ownerOpenId: _ownerOpenId,
   isProduction: process.env.NODE_ENV === "production" && process.env.SANDBOX_MODE !== "true",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
