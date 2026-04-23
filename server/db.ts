@@ -1499,6 +1499,8 @@ async function ensureDepositTables() {
     `);
     // Safely add new columns to existing tables (ignore duplicate column errors)
     try { await db.execute(sql`ALTER TABLE depositTierPresets ADD COLUMN commissionRate DECIMAL(5,4) NOT NULL DEFAULT 0.0500`); } catch {}
+    try { await db.execute(sql`ALTER TABLE depositTierPresets ADD COLUMN productCommissionRate DECIMAL(5,4) NOT NULL DEFAULT 0.0500`); } catch {}
+    try { await db.execute(sql`ALTER TABLE seller_deposits ADD COLUMN productCommissionRate DECIMAL(5,4) NOT NULL DEFAULT 0.0500`); } catch {}
     try { await db.execute(sql`ALTER TABLE depositTopUpRequests ADD COLUMN tierId INT`); } catch {}
     try { await db.execute(sql`ALTER TABLE merchantApplications ADD COLUMN facebook VARCHAR(500)`); } catch {}
     // proxyBids: 加 unique constraint 防止 setProxyBid 重複插入（onDuplicateKeyUpdate 需要 unique key 才能 upsert）
@@ -1688,7 +1690,7 @@ export async function refundCommission(userId: number, amount: number, auctionId
  */
 export async function updateSellerDepositSettings(
   userId: number,
-  settings: { requiredDeposit?: number; warningDeposit?: number; commissionRate?: number; isActive?: number }
+  settings: { requiredDeposit?: number; warningDeposit?: number; commissionRate?: number; productCommissionRate?: number; isActive?: number }
 ) {
   await ensureDepositTables();
   const db = await getDb();
@@ -1702,6 +1704,7 @@ export async function updateSellerDepositSettings(
     if (settings.requiredDeposit !== undefined) updateData.requiredDeposit = settings.requiredDeposit.toFixed(2);
     if (settings.warningDeposit !== undefined) updateData.warningDeposit = settings.warningDeposit.toFixed(2);
     if (settings.commissionRate !== undefined) updateData.commissionRate = settings.commissionRate.toFixed(4);
+    if (settings.productCommissionRate !== undefined) updateData.productCommissionRate = settings.productCommissionRate.toFixed(4);
     if (settings.isActive !== undefined) updateData.isActive = settings.isActive;
 
     if (Object.keys(updateData).length > 0) {
@@ -3318,6 +3321,7 @@ export async function upsertDepositTierPreset(data: {
   maintenancePct: number;
   warningPct: number;
   commissionRate?: number;
+  productCommissionRate?: number;
   description?: string | null;
   isActive?: number;
   sortOrder?: number;
@@ -3331,6 +3335,7 @@ export async function upsertDepositTierPreset(data: {
     maintenancePct: data.maintenancePct.toFixed(2),
     warningPct: data.warningPct.toFixed(2),
     commissionRate: (data.commissionRate ?? 0.05).toFixed(4),
+    productCommissionRate: (data.productCommissionRate ?? data.commissionRate ?? 0.05).toFixed(4),
     description: data.description ?? null,
     isActive: data.isActive ?? 1,
     sortOrder: data.sortOrder ?? 0,

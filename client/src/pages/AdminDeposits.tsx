@@ -33,6 +33,7 @@ type DepositRow = {
   requiredDeposit: string;
   warningDeposit: string;
   commissionRate: string;
+  productCommissionRate?: string | null;
   isActive: number;
   createdAt: Date;
   updatedAt: Date;
@@ -96,6 +97,7 @@ export default function AdminDeposits() {
   const [settingsRequiredDeposit, setSettingsRequiredDeposit] = useState("");
   const [settingsWarningDeposit, setSettingsWarningDeposit] = useState("");
   const [settingsCommissionRate, setSettingsCommissionRate] = useState("");
+  const [settingsProductCommissionRate, setSettingsProductCommissionRate] = useState("");
   const [settingsIsActive, setSettingsIsActive] = useState(true);
   const [showTransactions, setShowTransactions] = useState(false);
   const [transactionUserId, setTransactionUserId] = useState<number | null>(null);
@@ -131,6 +133,7 @@ export default function AdminDeposits() {
   const [tierMaintenancePct, setTierMaintenancePct] = useState("80");
   const [tierWarningPct, setTierWarningPct] = useState("60");
   const [tierCommissionRate, setTierCommissionRate] = useState("5");
+  const [tierProductCommissionRate, setTierProductCommissionRate] = useState("5");
   const [tierDescription, setTierDescription] = useState("");
   const [tierIsActive, setTierIsActive] = useState(true);
   const [tierSortOrder, setTierSortOrder] = useState("0");
@@ -158,17 +161,19 @@ export default function AdminDeposits() {
   const openNewTier = () => {
     setEditingTierId(null);
     setTierName(""); setTierAmount(""); setTierMaintenancePct("80");
-    setTierWarningPct("60"); setTierCommissionRate("5"); setTierDescription(""); setTierIsActive(true); setTierSortOrder("0");
+    setTierWarningPct("60"); setTierCommissionRate("5"); setTierProductCommissionRate("5");
+    setTierDescription(""); setTierIsActive(true); setTierSortOrder("0");
     setTierDialogOpen(true);
   };
 
-  const openEditTier = (t: { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; commissionRate?: string | null; description: string | null; isActive: number; sortOrder: number }) => {
+  const openEditTier = (t: { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; commissionRate?: string | null; productCommissionRate?: string | null; description: string | null; isActive: number; sortOrder: number }) => {
     setEditingTierId(t.id);
     setTierName(t.name);
     setTierAmount(parseFloat(t.amount).toString());
     setTierMaintenancePct(parseFloat(t.maintenancePct).toString());
     setTierWarningPct(parseFloat(t.warningPct).toString());
     setTierCommissionRate(t.commissionRate ? (parseFloat(t.commissionRate) * 100).toString() : "5");
+    setTierProductCommissionRate(t.productCommissionRate ? (parseFloat(t.productCommissionRate) * 100).toString() : "5");
     setTierDescription(t.description ?? "");
     setTierIsActive(t.isActive === 1);
     setTierSortOrder(t.sortOrder.toString());
@@ -180,11 +185,13 @@ export default function AdminDeposits() {
     const maintenancePct = parseFloat(tierMaintenancePct);
     const warningPct = parseFloat(tierWarningPct);
     const commissionRatePct = parseFloat(tierCommissionRate);
+    const productCommissionRatePct = parseFloat(tierProductCommissionRate);
     if (!tierName.trim()) { toast.error("請輸入套餐名稱"); return; }
     if (!amount || amount <= 0) { toast.error("請輸入有效金額"); return; }
     if (isNaN(maintenancePct) || maintenancePct < 0 || maintenancePct > 100) { toast.error("維持水平需在 0–100%"); return; }
     if (isNaN(warningPct) || warningPct < 0 || warningPct > 100) { toast.error("預警百分比需在 0–100%"); return; }
-    if (isNaN(commissionRatePct) || commissionRatePct < 0 || commissionRatePct > 100) { toast.error("傭金率需在 0–100%"); return; }
+    if (isNaN(commissionRatePct) || commissionRatePct < 0 || commissionRatePct > 100) { toast.error("拍賣傭金率需在 0–100%"); return; }
+    if (isNaN(productCommissionRatePct) || productCommissionRatePct < 0 || productCommissionRatePct > 100) { toast.error("貨品傭金率需在 0–100%"); return; }
     upsertTierMutation.mutate({
       id: editingTierId ?? undefined,
       name: tierName.trim(),
@@ -192,6 +199,7 @@ export default function AdminDeposits() {
       maintenancePct,
       warningPct,
       commissionRate: commissionRatePct / 100,
+      productCommissionRate: productCommissionRatePct / 100,
       description: tierDescription.trim() || null,
       isActive: tierIsActive ? 1 : 0,
       sortOrder: parseInt(tierSortOrder) || 0,
@@ -296,10 +304,11 @@ export default function AdminDeposits() {
       if (!actionDescription.trim()) { toast.error("請填寫調整原因"); return; }
       adjustMutation.mutate({ userId: selectedUserId, amount, description: actionDescription });
     } else if (actionType === "settings") {
-      const updates: { requiredDeposit?: number; warningDeposit?: number; commissionRate?: number; isActive?: number } = {};
+      const updates: { requiredDeposit?: number; warningDeposit?: number; commissionRate?: number; productCommissionRate?: number; isActive?: number } = {};
       if (settingsRequiredDeposit) updates.requiredDeposit = parseFloat(settingsRequiredDeposit);
       if (settingsWarningDeposit) updates.warningDeposit = parseFloat(settingsWarningDeposit);
       if (settingsCommissionRate) updates.commissionRate = parseFloat(settingsCommissionRate) / 100;
+      if (settingsProductCommissionRate) updates.productCommissionRate = parseFloat(settingsProductCommissionRate) / 100;
       updates.isActive = settingsIsActive ? 1 : 0;
       updateSettingsMutation.mutate({ userId: selectedUserId, ...updates });
     }
@@ -311,6 +320,7 @@ export default function AdminDeposits() {
     setSettingsRequiredDeposit(deposit.requiredDeposit.toString());
     setSettingsWarningDeposit(deposit.warningDeposit?.toString() ?? "");
     setSettingsCommissionRate((parseFloat(deposit.commissionRate.toString()) * 100).toFixed(2));
+    setSettingsProductCommissionRate(deposit.productCommissionRate ? (parseFloat(deposit.productCommissionRate) * 100).toFixed(2) : (parseFloat(deposit.commissionRate.toString()) * 100).toFixed(2));
     setSettingsIsActive(deposit.isActive === 1);
   };
 
@@ -457,18 +467,20 @@ export default function AdminDeposits() {
                 <p className="text-sm text-muted-foreground text-center py-6">尚未設定任何套餐，點擊「新增套餐」開始</p>
               ) : (
                 <div className="space-y-2">
-                  {(tiers as { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; commissionRate?: string | null; description: string | null; isActive: number; sortOrder: number }[]).map(tier => {
+                  {(tiers as { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; commissionRate?: string | null; productCommissionRate?: string | null; description: string | null; isActive: number; sortOrder: number }[]).map(tier => {
                     const amt = parseFloat(tier.amount);
                     const mPct = parseFloat(tier.maintenancePct);
                     const wPct = parseFloat(tier.warningPct);
                     const commPct = tier.commissionRate ? parseFloat(tier.commissionRate) * 100 : 5;
+                    const prodCommPct = tier.productCommissionRate ? parseFloat(tier.productCommissionRate) * 100 : commPct;
                     return (
                       <div key={tier.id} className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3 border ${tier.isActive === 1 ? "bg-violet-50 border-violet-200" : "bg-gray-50 border-gray-200 opacity-60"}`}>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-semibold text-sm text-violet-900">{tier.name}</span>
                             <span className="font-bold text-amber-700 text-sm">HK${amt.toLocaleString()}</span>
-                            <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">傭金 {commPct.toFixed(2)}%</span>
+                            <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">拍賣傭金 {commPct.toFixed(2)}%</span>
+                            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">貨品傭金 {prodCommPct.toFixed(2)}%</span>
                             {tier.isActive !== 1 && <span className="text-xs text-gray-400 border rounded-full px-2 py-0.5 bg-white">停用</span>}
                           </div>
                           <div className="flex gap-3 mt-0.5 text-xs text-gray-500 flex-wrap">
@@ -522,16 +534,23 @@ export default function AdminDeposits() {
                   <p className="text-xs text-gray-400">餘額低於此%顯示警告</p>
                 </div>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">傭金率 (%) *</Label>
-                <Input type="number" min="0" max="100" step="0.01" value={tierCommissionRate} onChange={e => setTierCommissionRate(e.target.value)} placeholder="5" className="border-violet-200" />
-                <p className="text-xs text-gray-400">審批充值後自動套用此傭金率（可事後手動修改）</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">拍賣傭金率 (%) *</Label>
+                  <Input type="number" min="0" max="100" step="0.01" value={tierCommissionRate} onChange={e => setTierCommissionRate(e.target.value)} placeholder="5" className="border-violet-200" />
+                  <p className="text-xs text-gray-400">拍賣成交傭金</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">貨品傭金率 (%) *</Label>
+                  <Input type="number" min="0" max="100" step="0.01" value={tierProductCommissionRate} onChange={e => setTierProductCommissionRate(e.target.value)} placeholder="5" className="border-emerald-200" />
+                  <p className="text-xs text-gray-400">貨品訂單傭金</p>
+                </div>
               </div>
               {tierAmount && tierMaintenancePct && tierWarningPct && (
                 <div className="rounded-lg bg-violet-50 border border-violet-100 px-3 py-2 text-xs text-violet-700 space-y-0.5">
                   <p>維持水平門檻：HK${(parseFloat(tierAmount || "0") * parseFloat(tierMaintenancePct || "0") / 100).toLocaleString(undefined, { minimumFractionDigits: 0 })}</p>
                   <p>預警門檻：HK${(parseFloat(tierAmount || "0") * parseFloat(tierWarningPct || "0") / 100).toLocaleString(undefined, { minimumFractionDigits: 0 })}</p>
-                  {tierCommissionRate && <p className="text-blue-700 font-medium">傭金率：{tierCommissionRate}%</p>}
+                  {tierCommissionRate && <p className="text-blue-700 font-medium">拍賣傭金率：{tierCommissionRate}%｜貨品傭金率：{tierProductCommissionRate}%</p>}
                 </div>
               )}
               <div className="space-y-1">
@@ -730,7 +749,7 @@ export default function AdminDeposits() {
                             {formatCurrency(deposit.balance)}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            需維持水平：{formatCurrency(deposit.requiredDeposit)} | 佣金率：{(rate * 100).toFixed(2)}%
+                            需維持水平：{formatCurrency(deposit.requiredDeposit)} | 拍賣傭金：{(rate * 100).toFixed(2)}% | 貨品傭金：{deposit.productCommissionRate ? (parseFloat(deposit.productCommissionRate) * 100).toFixed(2) : (rate * 100).toFixed(2)}%
                           </div>
                         </div>
                       </div>
@@ -824,16 +843,29 @@ export default function AdminDeposits() {
                       className="border-amber-200"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>佣金率 (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={settingsCommissionRate}
-                      onChange={(e) => setSettingsCommissionRate(e.target.value)}
-                      placeholder="5.00"
-                      className="border-amber-200"
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs">拍賣傭金率 (%)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={settingsCommissionRate}
+                        onChange={(e) => setSettingsCommissionRate(e.target.value)}
+                        placeholder="5.00"
+                        className="border-blue-200"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">貨品傭金率 (%)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={settingsProductCommissionRate}
+                        onChange={(e) => setSettingsProductCommissionRate(e.target.value)}
+                        placeholder="5.00"
+                        className="border-emerald-200"
+                      />
+                    </div>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg border border-amber-200 bg-amber-50/50">
                     <div>

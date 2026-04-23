@@ -225,7 +225,8 @@ export const sellerDeposits = mysqlTable("seller_deposits", {
   balance: decimal("balance", { precision: 12, scale: 2 }).default("0.00").notNull(),
   requiredDeposit: decimal("requiredDeposit", { precision: 12, scale: 2 }).default("500.00").notNull(),
   warningDeposit: decimal("warningDeposit", { precision: 12, scale: 2 }).default("1000.00").notNull(), // warn when balance < this
-  commissionRate: decimal("commissionRate", { precision: 5, scale: 4 }).default("0.0500").notNull(), // 5%
+  commissionRate: decimal("commissionRate", { precision: 5, scale: 4 }).default("0.0500").notNull(), // 拍賣傭金率 5%
+  productCommissionRate: decimal("productCommissionRate", { precision: 5, scale: 4 }).default("0.0500").notNull(), // 貨品傭金率 5%
   isActive: int("isActive").default(1).notNull(), // 1 = can list
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -355,7 +356,8 @@ export const depositTierPresets = mysqlTable("depositTierPresets", {
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(), // top-up / required deposit amount
   maintenancePct: decimal("maintenancePct", { precision: 5, scale: 2 }).default("80.00").notNull(), // 維持水平 %
   warningPct: decimal("warningPct", { precision: 5, scale: 2 }).default("60.00").notNull(), // 預警 %
-  commissionRate: decimal("commissionRate", { precision: 5, scale: 4 }).default("0.0500").notNull(), // 傭金率，預設 5%
+  commissionRate: decimal("commissionRate", { precision: 5, scale: 4 }).default("0.0500").notNull(), // 拍賣傭金率，預設 5%
+  productCommissionRate: decimal("productCommissionRate", { precision: 5, scale: 4 }).default("0.0500").notNull(), // 貨品傭金率，預設 5%
   description: text("description"),
   isActive: int("isActive").default(1).notNull(),
   sortOrder: int("sortOrder").default(0).notNull(),

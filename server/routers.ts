@@ -1075,6 +1075,7 @@ export const appRouter = router({
         userId: z.number().int().positive(),
         requiredDeposit: z.number().min(0).optional(),
         commissionRate: z.number().min(0).max(1).optional(),
+        productCommissionRate: z.number().min(0).max(1).optional(),
         isActive: z.number().int().min(0).max(1).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
@@ -1228,10 +1229,11 @@ export const appRouter = router({
             const tiers = await listDepositTierPresets(true);
             if (tiers.length > 0) {
               const tier = tiers[Math.floor(Math.random() * tiers.length)];
-              const settings: { requiredDeposit?: number; commissionRate?: number } = {};
+              const settings: { requiredDeposit?: number; commissionRate?: number; productCommissionRate?: number } = {};
               const tierAmount = tier.amount ? parseFloat(String(tier.amount)) : 0;
               if (tierAmount > 0) settings.requiredDeposit = tierAmount;
               if (tier.commissionRate) settings.commissionRate = parseFloat(String(tier.commissionRate));
+              if ((tier as any).productCommissionRate) settings.productCommissionRate = parseFloat(String((tier as any).productCommissionRate));
               await updateSellerDepositSettings(newUserId, settings);
               // 初始保證金餘額 = 套餐所需金額 × 2
               if (tierAmount > 0) {
@@ -1512,6 +1514,7 @@ export const appRouter = router({
         requiredDeposit: z.number().min(0).optional(),
         warningDeposit: z.number().min(0).optional(),
         commissionRate: z.number().min(0).max(1).optional(),
+        productCommissionRate: z.number().min(0).max(1).optional(),
         isActive: z.number().int().min(0).max(1).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
@@ -1520,6 +1523,7 @@ export const appRouter = router({
           requiredDeposit: input.requiredDeposit,
           warningDeposit: input.warningDeposit,
           commissionRate: input.commissionRate,
+          productCommissionRate: input.productCommissionRate,
           isActive: input.isActive,
         });
         if (!ok) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '更新失敗' });
@@ -1625,6 +1629,7 @@ export const appRouter = router({
         maintenancePct: z.number().min(0).max(100),
         warningPct: z.number().min(0).max(100),
         commissionRate: z.number().min(0).max(1).optional(),
+        productCommissionRate: z.number().min(0).max(1).optional(),
         description: z.string().max(500).optional().nullable(),
         isActive: z.number().int().min(0).max(1).optional(),
         sortOrder: z.number().int().optional(),
@@ -2940,7 +2945,10 @@ export const appRouter = router({
         if (product.merchantId === ctx.user.id) throw new TRPCError({ code: 'BAD_REQUEST', message: '不能購買自己的商品' });
 
         const deposit = await getOrCreateSellerDeposit(product.merchantId);
-        const commissionRate = deposit ? parseFloat(String(deposit.commissionRate)) : 0.05;
+        // 優先用貨品傭金率，若未設定則 fallback 拍賣傭金率，最後 fallback 5%
+        const commissionRate = deposit
+          ? parseFloat(String((deposit as any).productCommissionRate ?? deposit.commissionRate))
+          : 0.05;
 
         const orderId = await createProductOrder({
           productId: product.id,
