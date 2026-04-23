@@ -131,7 +131,7 @@ export default function MerchantProducts() {
   }
 
   const handleImageUpload = useCallback(async (files: File[]) => {
-    const MAX = 5;
+    const MAX = 10;
     const currentCount = form.images.length;
     const slots = MAX - currentCount;
     if (slots <= 0) return;
@@ -252,12 +252,12 @@ export default function MerchantProducts() {
             {/* ── 圖片上載（最頂）── */}
             <div className="space-y-2">
               <label className="text-xs text-gray-500 font-medium flex items-center gap-1">
-                商品圖片（最少 1 張，最多 5 張）<span className="text-red-500">*</span>
+                商品圖片（最少 1 張，最多 10 張）<span className="text-red-500">*</span>
                 {uploading && <span className="text-green-600 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />上傳中…</span>}
               </label>
 
               {/* 拖放 / 點擊上傳區 */}
-              {form.images.length < 5 && (
+              {form.images.length < 10 && (
                 <div
                   onClick={() => !uploading && fileRef.current?.click()}
                   className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${uploading ? "border-green-300 bg-green-50 cursor-wait" : "border-gray-300 hover:border-green-400 hover:bg-green-50"}`}
@@ -270,7 +270,7 @@ export default function MerchantProducts() {
                   <p className="text-xs text-gray-500">
                     {uploading ? "上傳中，請稍候…" : "點擊選擇圖片（可同時選多張）"}
                   </p>
-                  <p className="text-xs text-gray-400 mt-0.5">還可加 {5 - form.images.length} 張</p>
+                  <p className="text-xs text-gray-400 mt-0.5">還可加 {10 - form.images.length} 張</p>
                 </div>
               )}
               <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileInputChange} />
