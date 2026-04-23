@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { parseCategories } from "@/lib/categories";
 import {
   Plus, Pencil, Trash2, Archive, RotateCcw, Upload, X,
   ImageIcon, CheckCircle2, AlertCircle, Loader2, ChevronLeft,
@@ -94,6 +95,7 @@ interface AuctionFormData {
   antiSnipeEnabled: boolean;
   antiSnipeMinutes: number;
   extendMinutes: number;
+  categories: string[];
 }
 
 const defaultForm: AuctionFormData = {
@@ -105,6 +107,7 @@ const defaultForm: AuctionFormData = {
   antiSnipeEnabled: true,
   antiSnipeMinutes: 3,
   extendMinutes: 3,
+  categories: [],
 };
 
 type AuctionItem = {
@@ -122,6 +125,7 @@ type AuctionItem = {
   antiSnipeEnabled?: number | null;
   antiSnipeMinutes?: number | null;
   extendMinutes?: number | null;
+  category?: string | null;
   images: Array<{ id?: number; imageUrl: string; displayOrder: number }>;
 };
 
@@ -375,6 +379,8 @@ export default function MerchantAuctions() {
   const [noSubDialogOpen, setNoSubDialogOpen] = useState(false);
 
   const { data: merchantSettings } = trpc.merchants.getSettings.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: siteSettingsData } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const CATEGORIES = parseCategories(siteSettingsData as Record<string, string> | undefined);
   const { refetch: refetchMyDeposit } = trpc.sellerDeposits.myDeposit.useQuery(undefined, { enabled: isAuthenticated, staleTime: 0, refetchOnWindowFocus: true });
   const { refetch: refetchCanList } = trpc.sellerDeposits.canList.useQuery(undefined, { enabled: false, staleTime: 0 });
   const { refetch: refetchQuotaInfo } = trpc.merchants.getQuotaInfo.useQuery(undefined, { enabled: false, staleTime: 0 });
@@ -555,6 +561,7 @@ export default function MerchantAuctions() {
       antiSnipeEnabled: (a.antiSnipeEnabled ?? 1) === 1,
       antiSnipeMinutes: a.antiSnipeMinutes ?? 3,
       extendMinutes: a.extendMinutes ?? 3,
+      categories: a.category ? a.category.split(",").map(s => s.trim()).filter(Boolean) : [],
     });
     setUploadedImages((a.images ?? []).map((img) => ({ url: img.imageUrl, displayOrder: img.displayOrder, imageId: img.id })));
     setPendingImages([]);
@@ -563,6 +570,7 @@ export default function MerchantAuctions() {
 
   const handleSubmit = () => {
     if (!form.title.trim() || !form.startingPrice) { toast.error("請填寫標題和起拍價"); return; }
+    if (form.categories.length === 0) { toast.error("請至少選擇一個商品分類"); return; }
     const stillUploading = pendingImages.filter(p => p.status === "compressing" || p.status === "uploading");
     if (stillUploading.length > 0) { toast.error(`仍有 ${stillUploading.length} 張圖片上載中，請稍後再提交`); return; }
     const totalImages = uploadedImages.length + pendingImages.filter(p => p.status === "success").length;
@@ -570,10 +578,11 @@ export default function MerchantAuctions() {
     const antiSnipeEnabled = form.antiSnipeEnabled ? 1 : 0;
     const antiSnipeMinutes = isNaN(form.antiSnipeMinutes) ? 0 : form.antiSnipeMinutes;
     const extendMinutes = isNaN(form.extendMinutes) || form.extendMinutes < 1 ? 1 : form.extendMinutes;
+    const category = form.categories.join(",");
     if (editId) {
-      updateMutation.mutate({ id: editId, title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes });
+      updateMutation.mutate({ id: editId, title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, category });
     } else {
-      createMutation.mutate({ title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes });
+      createMutation.mutate({ title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, category });
     }
   };
 
@@ -850,6 +859,39 @@ export default function MerchantAuctions() {
             <div>
               <Label>描述</Label>
               <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="詳細描述…" rows={3} />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Label>商品分類</Label>
+                <span className="text-xs text-red-500 font-medium">（至少選一個）</span>
+                {form.categories.length > 0 && (
+                  <span className="ml-auto text-xs text-amber-600 font-medium">已選 {form.categories.length} 個</span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {CATEGORIES.map((cat) => {
+                  const selected = form.categories.includes(cat);
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setForm((f) => ({
+                        ...f,
+                        categories: selected
+                          ? f.categories.filter(c => c !== cat)
+                          : [...f.categories, cat],
+                      }))}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                        selected
+                          ? "bg-amber-500 text-white border-amber-500"
+                          : "bg-white text-amber-700 border-amber-300 hover:bg-amber-50"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>

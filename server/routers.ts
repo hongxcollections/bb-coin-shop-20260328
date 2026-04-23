@@ -2087,6 +2087,7 @@ export const appRouter = router({
         antiSnipeEnabled: z.number().int().min(0).max(1).default(1),
         antiSnipeMinutes: z.number().int().min(0).max(60).default(3),
         extendMinutes: z.number().int().min(1).max(60).default(3),
+        category: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const app = await getMerchantApplicationByUser(ctx.user.id);
@@ -2106,6 +2107,7 @@ export const appRouter = router({
           antiSnipeEnabled: input.antiSnipeEnabled,
           antiSnipeMinutes: input.antiSnipeMinutes,
           extendMinutes: input.extendMinutes,
+          category: input.category,
         });
         return result;
       }),
@@ -2195,6 +2197,7 @@ export const appRouter = router({
         antiSnipeEnabled: z.number().int().min(0).max(1).optional(),
         antiSnipeMinutes: z.number().int().min(0).max(60).optional(),
         extendMinutes: z.number().int().min(1).max(60).optional(),
+        category: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const auction = await getAuctionById(input.id);
@@ -2217,6 +2220,7 @@ export const appRouter = router({
         if (input.antiSnipeEnabled !== undefined) updateData.antiSnipeEnabled = input.antiSnipeEnabled;
         if (input.antiSnipeMinutes !== undefined) updateData.antiSnipeMinutes = input.antiSnipeMinutes;
         if (input.extendMinutes !== undefined) updateData.extendMinutes = input.extendMinutes;
+        if (input.category !== undefined) updateData.category = input.category;
         await updateAuction(input.id, updateData);
         return { success: true };
       }),
