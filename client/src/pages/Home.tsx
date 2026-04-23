@@ -89,7 +89,15 @@ function MerchantProductsStrip() {
   return (
     <section className="py-2">
       <div className="container">
-        <p className="text-xs text-amber-700 font-semibold mb-1 pl-1">🏪 商戶出售商品</p>
+        <p className="text-xs font-semibold mb-1 pl-1" style={{ filter: "drop-shadow(0 1px 3px rgba(251,191,36,0.7))" }}>
+          <span>🏪 </span>
+          <span style={{
+            background: "linear-gradient(135deg, #b45309 0%, #f59e0b 35%, #fde68a 55%, #f59e0b 70%, #d97706 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+          }}>商戶出售商品</span>
+        </p>
         <div className="marquee-wrapper border border-amber-100 rounded-2xl bg-white py-3 overflow-hidden shadow-sm">
           <div className="marquee-track flex" style={{ animationDuration: duration }}>
             {doubled.map((p: any, idx: number) => {
