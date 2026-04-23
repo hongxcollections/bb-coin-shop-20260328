@@ -2230,6 +2230,31 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    /** 商戶修改進行中拍賣（有限度：只允許標題/詳情/分類，不可改價格/時間/競標設定） */
+    updateActiveAuction: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        title: z.string().min(1).max(255).optional(),
+        description: z.string().optional(),
+        category: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const auction = await getAuctionById(input.id);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只能編輯自己的拍賣' });
+        }
+        if (auction.status !== 'active') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '此功能只適用於進行中的拍賣' });
+        }
+        const updateData: Record<string, unknown> = {};
+        if (input.title !== undefined) updateData.title = input.title;
+        if (input.description !== undefined) updateData.description = input.description;
+        if (input.category !== undefined) updateData.category = input.category;
+        await updateAuction(input.id, updateData);
+        return { success: true };
+      }),
+
     /** 商戶刪除草稿拍賣 */
     deleteAuction: protectedProcedure
       .input(z.object({ id: z.number().int().positive() }))

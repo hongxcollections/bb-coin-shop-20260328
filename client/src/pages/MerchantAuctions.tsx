@@ -231,7 +231,7 @@ function ImageUploadZone({
 // ─── Auction Card ─────────────────────────────────────────────────────────────
 function AuctionCard({
   auction, tab, selected, onToggleSelect,
-  onEdit, onDelete, onPublish, onArchive, onRestore, onRelist,
+  onEdit, onDelete, onPublish, onArchive, onRestore, onRelist, onActiveEdit,
 }: {
   auction: AuctionItem;
   tab: string;
@@ -243,6 +243,7 @@ function AuctionCard({
   onArchive: (id: number) => void;
   onRestore: (id: number) => void;
   onRelist: (id: number) => void;
+  onActiveEdit: (a: AuctionItem) => void;
 }) {
   const img = auction.images?.[0]?.imageUrl;
   const isDraft = tab === "草稿";
@@ -312,11 +313,16 @@ function AuctionCard({
             </>
           )}
           {tab === "進行中" && (
-            <Link href={`/auctions/${auction.id}`}>
-              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5">
-                <Eye className="w-2.5 h-2.5" />查看
+            <>
+              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5" onClick={() => onActiveEdit(auction)}>
+                <Pencil className="w-2.5 h-2.5" />修改
               </Button>
-            </Link>
+              <Link href={`/auctions/${auction.id}`}>
+                <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5">
+                  <Eye className="w-2.5 h-2.5" />查看
+                </Button>
+              </Link>
+            </>
           )}
           {tab === "已結束" && (
             <>
@@ -377,6 +383,14 @@ export default function MerchantAuctions() {
 
   // No-subscription dialog
   const [noSubDialogOpen, setNoSubDialogOpen] = useState(false);
+
+  // Active auction limited edit dialog
+  const [activeEditOpen, setActiveEditOpen] = useState(false);
+  const [activeEditTarget, setActiveEditTarget] = useState<AuctionItem | null>(null);
+  const [activeEditForm, setActiveEditForm] = useState({ title: "", description: "", categories: [] as string[] });
+  const [activeEditPending, setActiveEditPending] = useState<PendingImage[]>([]);
+  const [activeEditUploaded, setActiveEditUploaded] = useState<UploadedImage[]>([]);
+  const isActiveEditUploading = activeEditPending.some(p => p.status === "compressing" || p.status === "uploading");
 
   const { data: merchantSettings } = trpc.merchants.getSettings.useQuery(undefined, { enabled: isAuthenticated });
   const { data: siteSettingsData } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
@@ -493,6 +507,28 @@ export default function MerchantAuctions() {
     onError: (err) => toast.error(err.message || "重新刊登失敗"),
   });
 
+  const updateActiveAuctionMutation = trpc.merchants.updateActiveAuction.useMutation({
+    onSuccess: async () => {
+      if (activeEditTarget && activeEditPending.length > 0) {
+        const ready = activeEditPending.filter(p => p.status === "success" && p.tempUrl);
+        if (ready.length > 0) {
+          await registerImagesMutation.mutateAsync({
+            auctionId: activeEditTarget.id,
+            images: ready.map((p, i) => ({ url: p.tempUrl!, displayOrder: activeEditUploaded.length + i })),
+          });
+        }
+      }
+      toast.success("拍賣資料已更新");
+      setActiveEditOpen(false);
+      setActiveEditTarget(null);
+      activeEditPending.forEach(p => URL.revokeObjectURL(p.previewUrl));
+      setActiveEditPending([]);
+      setActiveEditUploaded([]);
+      refetchActive();
+    },
+    onError: (err) => toast.error(err.message || "更新失敗"),
+  });
+
   const handleAddFiles = useCallback((files: File[]) => {
     const newItems: PendingImage[] = files.map((f) => ({
       id: Math.random().toString(36).slice(2) + Date.now(),
@@ -570,6 +606,64 @@ export default function MerchantAuctions() {
     setUploadedImages((a.images ?? []).map((img) => ({ url: img.imageUrl, displayOrder: img.displayOrder, imageId: img.id })));
     setPendingImages([]);
     setFormOpen(true);
+  };
+
+  const openActiveEdit = (a: AuctionItem) => {
+    setActiveEditTarget(a);
+    setActiveEditForm({
+      title: a.title,
+      description: a.description ?? "",
+      categories: (() => {
+        if (!a.category) return [];
+        if (a.category.includes("|")) return a.category.split("|").map(s => s.trim()).filter(Boolean);
+        return a.category.trim() ? [a.category.trim()] : [];
+      })(),
+    });
+    setActiveEditUploaded((a.images ?? []).map(img => ({ url: img.imageUrl, displayOrder: img.displayOrder, imageId: img.id })));
+    setActiveEditPending([]);
+    setActiveEditOpen(true);
+  };
+
+  const handleAddActiveEditFiles = useCallback((files: File[]) => {
+    const newItems: PendingImage[] = files.map((f) => ({
+      id: Math.random().toString(36).slice(2) + Date.now(),
+      file: f,
+      previewUrl: URL.createObjectURL(f),
+      status: "compressing" as UploadStatus,
+    }));
+    setActiveEditPending((prev) => [...prev, ...newItems]);
+    for (const item of newItems) {
+      (async () => {
+        const update = (patch: Partial<PendingImage>) =>
+          setActiveEditPending((prev) => prev.map(p => p.id === item.id ? { ...p, ...patch } : p));
+        try {
+          const compressed = await compressImage(item.file);
+          update({ status: 'uploading' });
+          const base64 = await new Promise<string>((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res((r.result as string).split(',')[1]);
+            r.onerror = rej;
+            r.readAsDataURL(compressed);
+          });
+          const result = await preSaveImageMutation.mutateAsync({ imageData: base64, mimeType: 'image/jpeg', fileName: compressed.name });
+          update({ status: 'success', tempUrl: result.url });
+        } catch {
+          update({ status: 'error', errorMsg: '上載失敗，請移除後重試' });
+        }
+      })();
+    }
+  }, [preSaveImageMutation]);
+
+  const handleSubmitActiveEdit = () => {
+    if (!activeEditTarget) return;
+    if (!activeEditForm.title.trim()) { toast.error("請填寫標題"); return; }
+    if (isActiveEditUploading) { toast.error("圖片上載中，請稍後再提交"); return; }
+    updateActiveAuctionMutation.mutate({
+      id: activeEditTarget.id,
+      title: activeEditForm.title,
+      description: activeEditForm.description,
+      category: activeEditForm.categories.join("|"),
+    });
   };
 
   const handleSubmit = () => {
@@ -830,6 +924,7 @@ export default function MerchantAuctions() {
                 onArchive={(id) => archiveMutation.mutate({ id })}
                 onRestore={(id) => restoreMutation.mutate({ id })}
                 onRelist={(id) => relistMutation.mutate({ id })}
+                onActiveEdit={openActiveEdit}
               />
             ))}
           </div>
@@ -1061,6 +1156,146 @@ export default function MerchantAuctions() {
                   前往訂閱
                 </Button>
               </Link>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── 進行中拍賣限制修改 Dialog ── */}
+      <Dialog open={activeEditOpen} onOpenChange={(v) => {
+        if (!v) {
+          setActiveEditOpen(false);
+          activeEditPending.forEach(p => URL.revokeObjectURL(p.previewUrl));
+          setActiveEditPending([]);
+        }
+      }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>修改進行中拍賣</DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1">只可修改標題、詳情、分類及新增圖片。起標價、每口加幅及結束時間不可更改。</p>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div>
+              <Label className="text-sm font-medium">標題 <span className="text-red-500">*</span></Label>
+              <Input
+                className="mt-1"
+                value={activeEditForm.title}
+                onChange={e => setActiveEditForm(f => ({ ...f, title: e.target.value }))}
+                maxLength={255}
+                placeholder="商品標題"
+              />
+            </div>
+            <div>
+              <Label className="text-sm font-medium">商品詳情</Label>
+              <Textarea
+                className="mt-1 min-h-[100px] text-sm"
+                value={activeEditForm.description}
+                onChange={e => setActiveEditForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="商品描述、狀況說明等..."
+              />
+            </div>
+            <div>
+              <Label className="text-sm font-medium">分類</Label>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {CATEGORIES.map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setActiveEditForm(f => ({
+                      ...f,
+                      categories: f.categories.includes(cat)
+                        ? f.categories.filter(c => c !== cat)
+                        : [...f.categories, cat],
+                    }))}
+                    className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${activeEditForm.categories.includes(cat) ? "bg-amber-500 text-white border-amber-500" : "border-border text-muted-foreground hover:border-amber-300"}`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm font-medium">新增圖片（現有圖片不可刪除）</Label>
+              {/* 現有圖片（只顯示，不可刪） */}
+              {activeEditUploaded.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {activeEditUploaded.map((img, i) => (
+                    <div key={i} className="relative w-16 h-16 rounded-md overflow-hidden bg-muted border">
+                      <img src={img.url} alt="" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                        <span className="text-white text-[10px]">已上傳</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* 新增圖片上載區 */}
+              <div
+                className="mt-1.5 border-2 border-dashed rounded-lg p-3 text-center cursor-pointer hover:border-amber-400 transition-colors"
+                onClick={() => {
+                  const input = document.createElement("input");
+                  input.type = "file";
+                  input.accept = "image/*";
+                  input.multiple = true;
+                  input.onchange = (e) => {
+                    const files = Array.from((e.target as HTMLInputElement).files ?? []);
+                    const totalImages = activeEditUploaded.length + activeEditPending.length + files.length;
+                    if (totalImages > MAX_IMAGES) {
+                      toast.error(`最多只能上傳 ${MAX_IMAGES} 張圖片`);
+                      return;
+                    }
+                    handleAddActiveEditFiles(files.filter(f => f.size <= MAX_FILE_SIZE));
+                  };
+                  input.click();
+                }}
+              >
+                <Upload className="w-4 h-4 mx-auto text-muted-foreground mb-1" />
+                <p className="text-xs text-muted-foreground">點擊選擇圖片（最多 {MAX_IMAGES} 張）</p>
+              </div>
+              {activeEditPending.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {activeEditPending.map((p, i) => (
+                    <div key={p.id} className="relative w-16 h-16 rounded-md overflow-hidden bg-muted border">
+                      <img src={p.previewUrl} alt="" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        {p.status === "compressing" || p.status === "uploading" ? (
+                          <Loader2 className="w-4 h-4 text-white animate-spin" />
+                        ) : p.status === "error" ? (
+                          <AlertCircle className="w-4 h-4 text-red-400" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4 text-green-400" />
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5"
+                        onClick={() => {
+                          URL.revokeObjectURL(p.previewUrl);
+                          setActiveEditPending(prev => prev.filter((_, idx) => idx !== i));
+                        }}
+                      >
+                        <X className="w-2.5 h-2.5 text-white" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 justify-end pt-1">
+              <Button variant="outline" onClick={() => {
+                setActiveEditOpen(false);
+                activeEditPending.forEach(p => URL.revokeObjectURL(p.previewUrl));
+                setActiveEditPending([]);
+              }}>取消</Button>
+              <Button
+                className="bg-amber-500 hover:bg-amber-600 text-white"
+                disabled={updateActiveAuctionMutation.isPending || isActiveEditUploading}
+                onClick={handleSubmitActiveEdit}
+              >
+                {updateActiveAuctionMutation.isPending || isActiveEditUploading
+                  ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />儲存中...</>
+                  : "儲存修改"}
+              </Button>
             </div>
           </div>
         </DialogContent>
