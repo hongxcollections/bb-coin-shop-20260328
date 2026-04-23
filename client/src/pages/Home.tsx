@@ -75,6 +75,82 @@ function parseProductImages(images: string | null | undefined): string[] {
   }
 }
 
+function RecentSalesMarquee() {
+  const { data: records } = trpc.auctionRecords.recentSold.useQuery(
+    { limit: 20 },
+    { staleTime: 5 * 60 * 1000 }
+  );
+
+  if (!records || records.length === 0) return null;
+
+  const getThumb = (r: { imageUrl: string | null; imagesJson: string | null }) => {
+    if (r.imagesJson) {
+      try {
+        const parsed = JSON.parse(r.imagesJson);
+        if (Array.isArray(parsed) && parsed[0]) {
+          const first = parsed[0];
+          return typeof first === 'string' ? first : first.imageUrl ?? first.url ?? null;
+        }
+      } catch {}
+    }
+    return r.imageUrl ?? null;
+  };
+
+  const duration = `${Math.max(12, records.length * 5)}s`;
+  const doubled = [...records, ...records];
+
+  return (
+    <section className="py-2">
+      <div className="container">
+        <p className="text-xs font-semibold mb-1 pl-1" style={{ filter: "drop-shadow(0 1px 3px rgba(251,191,36,0.7))" }}>
+          <span>🏆 </span>
+          <span style={{
+            background: "linear-gradient(135deg, #b45309 0%, #f59e0b 35%, #fde68a 55%, #f59e0b 70%, #d97706 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+          }}>近期成交紀錄</span>
+        </p>
+        <div className="marquee-wrapper border border-amber-100 rounded-2xl bg-white py-3 overflow-hidden shadow-sm">
+          <div className="marquee-track flex" style={{ animationDuration: duration }}>
+            {doubled.map((r, idx) => {
+              const thumb = getThumb(r);
+              const currSymbol = getCurrencySymbol(r.currency ?? 'HKD');
+              return (
+                <Link
+                  key={`${r.id}-${idx}`}
+                  href="/archive"
+                  className="flex items-center gap-3 px-5 py-2 mx-2 rounded-xl hover:bg-amber-50 transition-all shrink-0 cursor-pointer border border-transparent hover:border-amber-100"
+                >
+                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-amber-50 flex items-center justify-center shrink-0 shadow-inner">
+                    {thumb ? (
+                      <img src={thumb} alt={r.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xl">🪙</span>
+                    )}
+                  </div>
+                  <div className="flex flex-col justify-center">
+                    <span className="text-xs font-bold text-amber-900 max-w-[10rem] truncate">{r.title}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-amber-600 font-extrabold">
+                        {currSymbol}{Number(r.soldPrice).toLocaleString()}
+                      </span>
+                      <div className="flex items-center gap-1 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-100">
+                        <div className="w-1 h-1 rounded-full bg-red-400" />
+                        <span className="text-[9px] text-red-500 font-bold tracking-wider">已成交</span>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function MerchantProductsStrip() {
   const { data: products } = trpc.merchants.listProducts.useQuery(undefined, {
     staleTime: 60_000,
@@ -610,6 +686,9 @@ export default function Home() {
           </div>{/* end collapsible body */}
         </div>
       </section>
+
+      {/* ── Section 3b: Recent Sales Marquee ── */}
+      <RecentSalesMarquee />
 
       {/* ── Section 4: Brand Intro (Bottom) ── */}
       <section className="py-6 hero-bg border-t border-amber-100">

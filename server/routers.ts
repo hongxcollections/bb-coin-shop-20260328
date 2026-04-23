@@ -2952,6 +2952,31 @@ export const appRouter = router({
         return { records: rows, total: countRows[0]?.cnt || 0 };
       }),
 
+    /** 公開：最近成交紀錄（首頁社交証明用） */
+    recentSold: publicProcedure
+      .input(z.object({ limit: z.number().default(20) }))
+      .query(async ({ input }) => {
+        const pool = await getRawPool();
+        const limit = Math.max(1, Math.min(50, Number(input.limit)));
+        const [rows]: any = await pool.execute(
+          `SELECT id, title, soldPrice, currency, auctionHouse, auctionDate, imageUrl, imagesJson
+           FROM \`auctionRecords\`
+           WHERE saleStatus = 'sold' AND soldPrice IS NOT NULL AND importStatus = 'confirmed'
+           ORDER BY auctionDate DESC, id DESC
+           LIMIT ${limit}`
+        );
+        return rows as Array<{
+          id: number;
+          title: string;
+          soldPrice: number | null;
+          currency: string;
+          auctionHouse: string | null;
+          auctionDate: string | null;
+          imageUrl: string | null;
+          imagesJson: string | null;
+        }>;
+      }),
+
     /** 批量儲存（pending 狀態，從截圖提取後） */
     savePending: protectedProcedure
       .input(z.object({
