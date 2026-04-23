@@ -63,6 +63,115 @@ function CountdownTimer({ endTime }: { endTime: Date }) {
 
 const PAGE_SIZE = 20;
 
+/** 解析商品圖片（images 可能是 JSON 陣列或純字串 URL） */
+function parseProductImages(images: string | null | undefined): string[] {
+  if (!images) return [];
+  try {
+    const parsed = JSON.parse(images);
+    if (Array.isArray(parsed)) return parsed.filter(Boolean);
+    return [String(parsed)].filter(Boolean);
+  } catch {
+    return [images].filter(Boolean);
+  }
+}
+
+function MerchantProductsStrip() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { data: products, isLoading } = trpc.merchants.listProducts.useQuery(undefined, {
+    staleTime: 60_000,
+  });
+
+  const activeProducts = (products ?? []).filter((p: any) => p.status === 'active' && (p.stock ?? 1) > 0);
+  if (!isLoading && activeProducts.length === 0) return null;
+
+  const scroll = (dir: "left" | "right") => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir === "left" ? -280 : 280, behavior: "smooth" });
+  };
+
+  return (
+    <section className="py-4 bg-amber-50/40 border-t border-amber-100">
+      <div className="container">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-bold" style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.2))" }}>
+            <span>🏪 </span>
+            <span style={{
+              background: "linear-gradient(135deg, #b45309 0%, #f59e0b 40%, #fcd34d 60%, #d97706 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}>商戶出售商品</span>
+          </h2>
+          <Link href="/merchants" className="text-xs text-amber-600 font-medium hover:text-amber-800 transition-colors">
+            查看全部 →
+          </Link>
+        </div>
+
+        {/* Scroll strip */}
+        <div className="relative">
+          {/* Left arrow */}
+          <button
+            onClick={() => scroll("left")}
+            className="hidden sm:flex absolute -left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 items-center justify-center bg-white border border-amber-200 rounded-full shadow-md hover:bg-amber-50 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4 text-amber-700" />
+          </button>
+
+          <div
+            ref={scrollRef}
+            className="flex gap-3 overflow-x-auto pb-2 product-strip-scroll"
+            style={{ scrollSnapType: "x mandatory", scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
+            {isLoading
+              ? [...Array(6)].map((_, i) => (
+                  <div key={i} className="shrink-0 w-36 h-52 bg-amber-100 rounded-xl animate-pulse" style={{ scrollSnapAlign: "start" }} />
+                ))
+              : activeProducts.map((p: any) => {
+                  const imgs = parseProductImages(p.images);
+                  const thumb = imgs[0] ?? null;
+                  const currSymbol = getCurrencySymbol(p.currency ?? 'HKD');
+                  return (
+                    <Link
+                      key={p.id}
+                      href={`/merchant-products/${p.id}`}
+                      className="shrink-0 w-36 rounded-xl border border-amber-100 bg-white overflow-hidden hover:border-amber-300 hover:shadow-md transition-all cursor-pointer"
+                      style={{ scrollSnapAlign: "start" }}
+                    >
+                      {/* Image */}
+                      <div className="w-full h-28 bg-amber-50 flex items-center justify-center overflow-hidden">
+                        {thumb ? (
+                          <img src={thumb} alt={p.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-3xl">🪙</span>
+                        )}
+                      </div>
+                      {/* Info */}
+                      <div className="p-2">
+                        <p className="text-xs font-semibold text-amber-900 line-clamp-2 leading-tight mb-1">{p.title}</p>
+                        <p className="text-sm font-bold text-amber-600">{currSymbol}{Number(p.price).toLocaleString()}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{p.merchantName}</p>
+                      </div>
+                    </Link>
+                  );
+                })
+            }
+          </div>
+
+          {/* Right arrow */}
+          <button
+            onClick={() => scroll("right")}
+            className="hidden sm:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 items-center justify-center bg-white border border-amber-200 rounded-full shadow-md hover:bg-amber-50 transition-colors"
+          >
+            <ChevronRight className="w-4 h-4 text-amber-700" />
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 const AUCTION_SECTION_TITLES = [
   "🪙 正在拍賣",
   "🔨 槌音未落",
@@ -515,6 +624,9 @@ export default function Home() {
           </div>{/* end collapsible body */}
         </div>
       </section>
+
+      {/* ── Section 3b: Merchant Products Horizontal Scroll ── */}
+      <MerchantProductsStrip />
 
       {/* ── Section 4: Brand Intro (Bottom) ── */}
       <section className="py-6 hero-bg border-t border-amber-100">
