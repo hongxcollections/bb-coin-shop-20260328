@@ -80,14 +80,14 @@ function OrderRow({ order, onUpdate, merchantName }: { order: MerchantOrder; onU
       </div>
 
       {/* 行二：得標者 + 電話 + WhatsApp + 操作按鈕 */}
-      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap pl-5">
-        <span className="text-xs text-muted-foreground">
+      <div className="flex items-center gap-1.5 mt-1.5 pl-5 overflow-x-auto">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">
           {order.winnerName ?? "—"}
         </span>
         {order.winnerPhone && (
           <>
-            <span className="text-xs text-muted-foreground">· {order.winnerPhone}</span>
-            <a href={toWhatsAppUrl(order.winnerPhone, waMsg)} target="_blank" rel="noopener noreferrer">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">· {order.winnerPhone}</span>
+            <a href={toWhatsAppUrl(order.winnerPhone, waMsg)} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
               <Button size="sm" variant="outline" className="h-5 px-1.5 text-[10px] border-green-400 text-green-700 hover:bg-green-50">
                 💬 WhatsApp
               </Button>
@@ -96,22 +96,28 @@ function OrderRow({ order, onUpdate, merchantName }: { order: MerchantOrder; onU
         )}
         <div className="flex-1" />
         {updating ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground flex-shrink-0" />
         ) : (
-          <>
-            {cur !== "pending_payment" && (
-              <Button size="sm" variant="outline" className="h-5 px-1.5 text-[10px] border-yellow-300 text-yellow-800 hover:bg-yellow-50"
-                onClick={() => handleUpdate("pending_payment")}>⏳ 待付款</Button>
-            )}
-            {cur !== "paid" && (
-              <Button size="sm" variant="outline" className="h-5 px-1.5 text-[10px] border-blue-300 text-blue-800 hover:bg-blue-50"
-                onClick={() => handleUpdate("paid")}>💳 已付款</Button>
-            )}
-            {cur !== "delivered" && (
-              <Button size="sm" variant="outline" className="h-5 px-1.5 text-[10px] border-green-300 text-green-800 hover:bg-green-50"
-                onClick={() => handleUpdate("delivered")}>✅ 已交收</Button>
-            )}
-          </>
+          <div className="flex gap-1 flex-shrink-0">
+            <Button size="sm" variant={cur === "pending_payment" ? "default" : "outline"}
+              className={`h-5 px-1.5 text-[10px] whitespace-nowrap ${cur === "pending_payment" ? "bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500" : "border-yellow-300 text-yellow-800 hover:bg-yellow-50"}`}
+              onClick={() => cur !== "pending_payment" && handleUpdate("pending_payment")}
+              disabled={cur === "pending_payment"}>
+              ⏳ 待付款
+            </Button>
+            <Button size="sm" variant={cur === "paid" ? "default" : "outline"}
+              className={`h-5 px-1.5 text-[10px] whitespace-nowrap ${cur === "paid" ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-500" : "border-blue-300 text-blue-800 hover:bg-blue-50"}`}
+              onClick={() => cur !== "paid" && handleUpdate("paid")}
+              disabled={cur === "paid"}>
+              💳 已付款
+            </Button>
+            <Button size="sm" variant={cur === "delivered" ? "default" : "outline"}
+              className={`h-5 px-1.5 text-[10px] whitespace-nowrap ${cur === "delivered" ? "bg-green-500 hover:bg-green-600 text-white border-green-500" : "border-green-300 text-green-800 hover:bg-green-50"}`}
+              onClick={() => cur !== "delivered" && handleUpdate("delivered")}
+              disabled={cur === "delivered"}>
+              ✅ 已交收
+            </Button>
+          </div>
         )}
       </div>
     </div>
