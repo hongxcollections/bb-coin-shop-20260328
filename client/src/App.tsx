@@ -9,7 +9,7 @@ import BottomNav from "./components/BottomNav";
 import { AutoPushSubscribe } from "./components/AutoPushSubscribe";
 import { PushForegroundHandler } from "./components/PushForegroundHandler";
 import { trpc } from "@/lib/trpc";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { ShoppingBag } from "lucide-react";
 import Home from "./pages/Home";
@@ -65,27 +65,22 @@ function MerchantPendingOrdersNotice() {
   );
   const pendingCount = (orders as any[]).length;
 
-  const storageKey = `merchantPendingDismissed_${user?.id}`;
-  const [dismissedCount, setDismissedCount] = useState<number>(() => {
-    try { return parseInt(sessionStorage.getItem(storageKey) ?? "0") || 0; } catch { return 0; }
-  });
+  // 每次進入網站都顯示；只在本次頁面存活期間按 X 才關閉
+  const [dismissed, setDismissed] = useState(false);
 
-  // 若有新訂單（超過上次關閉數量），重新顯示
-  useEffect(() => {
-    if (pendingCount > dismissedCount) setDismissedCount(prev => prev); // trigger re-render
-  }, [pendingCount]);
-
-  const visible = isMerchant && pendingCount > 0 && pendingCount > dismissedCount;
-
-  const handleDismiss = () => {
-    try { sessionStorage.setItem(storageKey, String(pendingCount)); } catch {}
-    setDismissedCount(pendingCount);
-  };
+  const visible = isMerchant && pendingCount > 0 && !dismissed;
 
   if (!visible) return null;
 
   return (
-    <div className="bottom-nav-toast" style={{ zIndex: 99997, top: "1.5rem" }}>
+    <div
+      className="bottom-nav-toast"
+      style={{
+        zIndex: 99997,
+        top: "auto",
+        bottom: "calc(4.5rem + env(safe-area-inset-bottom, 0px))",
+      }}
+    >
       <div className="bottom-nav-toast-inner" style={{ maxWidth: "min(420px, 92vw)" }}>
         <ShoppingBag className="bottom-nav-toast-icon" style={{ width: 18, height: 18, flexShrink: 0 }} />
         <div className="flex-1 min-w-0">
@@ -96,13 +91,13 @@ function MerchantPendingOrdersNotice() {
             href="/merchant-products"
             className="text-xs underline underline-offset-2 mt-0.5 block"
             style={{ color: "var(--popup-desc)" }}
-            onClick={handleDismiss}
+            onClick={() => setDismissed(true)}
           >
             前往訂單管理確認成交 →
           </Link>
         </div>
         <button
-          onClick={handleDismiss}
+          onClick={() => setDismissed(true)}
           className="ml-2 opacity-40 hover:opacity-80 transition-opacity flex-shrink-0 text-sm"
           style={{ color: "var(--popup-desc)" }}
           aria-label="關閉"
