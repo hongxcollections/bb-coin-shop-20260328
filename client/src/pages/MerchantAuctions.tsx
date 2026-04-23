@@ -851,19 +851,18 @@ export default function MerchantAuctions() {
               <Label>描述</Label>
               <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="詳細描述…" rows={3} />
             </div>
-            <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 80px 1fr" }}>
+            <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label>起拍價 *</Label>
-                <Input type="number" min="0" value={form.startingPrice} onChange={(e) => setForm((f) => ({ ...f, startingPrice: e.target.value }))} placeholder="0" />
-              </div>
-              <div>
-                <Label>貨幣</Label>
-                <Select value={form.currency} onValueChange={(v) => setForm((f) => ({ ...f, currency: v }))}>
-                  <SelectTrigger className="px-2"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CURRENCY_OPTIONS.map((c) => <SelectItem key={c.value} value={c.value} className="text-[10px] py-1">{c.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <div className="flex">
+                  <Select value={form.currency} onValueChange={(v) => setForm((f) => ({ ...f, currency: v }))}>
+                    <SelectTrigger className="w-[68px] rounded-r-none border-r-0 px-1.5 shrink-0"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CURRENCY_OPTIONS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Input type="number" min="0" value={form.startingPrice} onChange={(e) => setForm((f) => ({ ...f, startingPrice: e.target.value }))} placeholder="0" className="rounded-l-none flex-1 min-w-0" />
+                </div>
               </div>
               <div>
                 <Label>每口加幅</Label>
