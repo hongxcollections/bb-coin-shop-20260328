@@ -139,11 +139,13 @@ export default function MerchantOrders() {
   const merchantName = myApp?.merchantName ?? user?.name ?? "商戶";
 
   const allOrders = (orders ?? []) as MerchantOrder[];
+  const wonOrders = useMemo(() => allOrders.filter(o => !!o.winnerName), [allOrders]);
+  const flowPaiOrders = useMemo(() => allOrders.filter(o => !o.winnerName), [allOrders]);
 
   const uniqueWinners = useMemo(() => {
-    const names = allOrders.map(o => o.winnerName).filter((n): n is string => !!n);
+    const names = wonOrders.map(o => o.winnerName).filter((n): n is string => !!n);
     return [...new Set(names)].sort();
-  }, [allOrders]);
+  }, [wonOrders]);
 
   if (!isAuthenticated) {
     return (
@@ -172,11 +174,8 @@ export default function MerchantOrders() {
   startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const filtered = allOrders.filter((o) => {
-    if (statusFilter !== "all") {
-      if (statusFilter === "unset" && o.paymentStatus) return false;
-      if (statusFilter !== "unset" && o.paymentStatus !== statusFilter) return false;
-    }
+  const filteredWon = wonOrders.filter((o) => {
+    if (statusFilter !== "all" && o.paymentStatus !== statusFilter) return false;
 
     if (dateFilter !== "all") {
       const end = new Date(o.endTime);
@@ -199,11 +198,10 @@ export default function MerchantOrders() {
   });
 
   const stats = {
-    total: allOrders.length,
-    unset: allOrders.filter(o => !o.paymentStatus).length,
-    pending: allOrders.filter(o => o.paymentStatus === "pending_payment").length,
-    paid: allOrders.filter(o => o.paymentStatus === "paid").length,
-    delivered: allOrders.filter(o => o.paymentStatus === "delivered").length,
+    total: wonOrders.length,
+    pending: wonOrders.filter(o => o.paymentStatus === "pending_payment").length,
+    paid: wonOrders.filter(o => o.paymentStatus === "paid").length,
+    delivered: wonOrders.filter(o => o.paymentStatus === "delivered").length,
   };
 
   return (
@@ -227,21 +225,20 @@ export default function MerchantOrders() {
             <h1 className="text-xl font-bold flex items-center gap-2">
               <Trophy className="w-5 h-5 text-amber-500" />訂單管理
             </h1>
-            <p className="text-xs text-muted-foreground mt-0.5">共 {stats.total} 筆訂單</p>
+            <p className="text-xs text-muted-foreground mt-0.5">得標 {stats.total} 筆　流拍 {flowPaiOrders.length} 筆</p>
           </div>
           <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5 h-8 text-xs">
             <RefreshCw className="w-3.5 h-3.5" />刷新
           </Button>
         </div>
 
-        {/* 統計卡片 */}
-        <div className="grid grid-cols-5 gap-2">
+        {/* 統計卡片：只計得標訂單 */}
+        <div className="grid grid-cols-4 gap-2">
           {[
-            { label: "全部", value: stats.total, color: "text-foreground", key: "all" },
-            { label: "未設定", value: stats.unset, color: "text-gray-500", key: "unset" },
-            { label: "待付款", value: stats.pending, color: "text-yellow-700", key: "pending_payment" },
-            { label: "已付款", value: stats.paid, color: "text-blue-700", key: "paid" },
-            { label: "已交收", value: stats.delivered, color: "text-green-700", key: "delivered" },
+            { label: "全部得標", value: stats.total,     color: "text-foreground",  key: "all" },
+            { label: "待付款",   value: stats.pending,   color: "text-yellow-700",  key: "pending_payment" },
+            { label: "已付款",   value: stats.paid,      color: "text-blue-700",    key: "paid" },
+            { label: "已交收",   value: stats.delivered, color: "text-green-700",   key: "delivered" },
           ].map((s) => (
             <button
               key={s.key}
@@ -287,37 +284,66 @@ export default function MerchantOrders() {
           </Select>
         </div>
 
-        {/* 訂單列表 */}
+        {/* 得標訂單列表 */}
         <Card>
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-sm flex items-center gap-1.5">
-              訂單列表
+              🏆 得標訂單
               <span className="font-normal text-muted-foreground">
-                {filtered.length !== allOrders.length
-                  ? `${filtered.length} / ${allOrders.length} 筆`
-                  : `共 ${filtered.length} 筆`}
+                {filteredWon.length !== wonOrders.length
+                  ? `${filteredWon.length} / ${wonOrders.length} 筆`
+                  : `共 ${filteredWon.length} 筆`}
               </span>
             </CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-3">
             {isLoading ? (
               <div className="space-y-2">
-                {[...Array(5)].map((_, i) => <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />)}
+                {[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-muted rounded-lg animate-pulse" />)}
               </div>
-            ) : filtered.length === 0 ? (
-              <div className="text-center py-10 text-muted-foreground">
-                <Trophy className="w-10 h-10 mx-auto mb-2 opacity-20" />
-                <p className="text-sm">沒有符合條件的訂單</p>
+            ) : filteredWon.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Trophy className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                <p className="text-sm">沒有符合條件的得標訂單</p>
               </div>
             ) : (
               <div className="space-y-1.5">
-                {filtered.map((o: MerchantOrder) => (
+                {filteredWon.map((o: MerchantOrder) => (
                   <OrderRow key={o.id} order={o} onUpdate={() => refetch()} merchantName={merchantName} />
                 ))}
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* 流拍記錄（獨立分區） */}
+        {flowPaiOrders.length > 0 && (
+          <Card className="border-dashed border-muted-foreground/30">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm flex items-center gap-1.5 text-muted-foreground">
+                🔕 流拍記錄
+                <span className="font-normal">共 {flowPaiOrders.length} 筆</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 pb-3">
+              <div className="space-y-1.5">
+                {flowPaiOrders.map((o: MerchantOrder) => (
+                  <div key={o.id} className="px-3 py-2 rounded-lg border border-dashed bg-muted/20">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-xs text-muted-foreground">🔕</span>
+                      <Link href={`/auctions/${o.id}`}>
+                        <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer truncate block max-w-[220px]">{o.title}</span>
+                      </Link>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 pl-5">
+                      結標：{new Date(o.endTime).toLocaleDateString("zh-HK", { month: "numeric", day: "numeric" })}　無人出價
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

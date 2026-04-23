@@ -2543,7 +2543,14 @@ export const appRouter = router({
           console.warn(`[myOrders] FORBIDDEN userId=${ctx.user.id}`);
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
         }
-        return getWonOrdersByCreator(ctx.user.id);
+        const orders = await getWonOrdersByCreator(ctx.user.id);
+        // 有得標者但狀態未設定 → 自動設為 pending_payment
+        const toInit = orders.filter(o => o.winnerName && !o.paymentStatus);
+        if (toInit.length > 0) {
+          await Promise.all(toInit.map(o => updateAuction(o.id, { paymentStatus: 'pending_payment' })));
+          toInit.forEach(o => { o.paymentStatus = 'pending_payment'; });
+        }
+        return orders;
       }),
 
     /** 商戶更新自己拍賣的付款狀態 */
