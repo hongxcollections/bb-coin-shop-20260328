@@ -856,7 +856,7 @@ export default function MerchantAuctions() {
                 <Label>起拍價 *</Label>
                 <div className="flex">
                   <Select value={form.currency} onValueChange={(v) => setForm((f) => ({ ...f, currency: v }))}>
-                    <SelectTrigger className="w-[68px] rounded-r-none border-r-0 px-1.5 shrink-0"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-[68px] rounded-r-none border-r-0 px-1.5 shrink-0 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {CURRENCY_OPTIONS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                     </SelectContent>
