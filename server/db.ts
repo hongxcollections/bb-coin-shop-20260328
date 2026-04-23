@@ -3709,14 +3709,24 @@ export async function getProductOrdersByMerchant(merchantId: number, status?: st
   await ensureProductOrdersTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
-  const statusFilter = status && status !== 'all' ? sql`AND o.status = ${status}` : sql``;
-  const rows = await db.execute(sql`
-    SELECT o.*, u.displayName as buyerDisplayName, u.phone as buyerPhoneFromUser
-    FROM productOrders o
-    LEFT JOIN users u ON u.id = o.buyerId
-    WHERE o.merchantId = ${merchantId} ${statusFilter}
-    ORDER BY o.createdAt DESC
-  `);
+  let rows: any;
+  if (status && status !== 'all') {
+    rows = await db.execute(sql`
+      SELECT o.*, u.displayName as buyerDisplayName, u.phone as buyerPhoneFromUser
+      FROM productOrders o
+      LEFT JOIN users u ON u.id = o.buyerId
+      WHERE o.merchantId = ${merchantId} AND o.status = ${status}
+      ORDER BY o.createdAt DESC
+    `);
+  } else {
+    rows = await db.execute(sql`
+      SELECT o.*, u.displayName as buyerDisplayName, u.phone as buyerPhoneFromUser
+      FROM productOrders o
+      LEFT JOIN users u ON u.id = o.buyerId
+      WHERE o.merchantId = ${merchantId}
+      ORDER BY o.createdAt DESC
+    `);
+  }
   return (rows[0] as any[]) ?? [];
 }
 
