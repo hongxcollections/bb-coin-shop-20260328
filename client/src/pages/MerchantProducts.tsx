@@ -66,8 +66,8 @@ function OrderActionDialog({ order, type, onClose, onConfirm, isPending }: {
   const imgs: string[] = (() => { try { return order.productImages ? JSON.parse(order.productImages) : []; } catch { return []; } })();
   const isConfirm = type === "confirm";
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-5 pb-20 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
         <h2 className="font-bold text-gray-800 text-base flex items-center gap-2">
           {isConfirm
             ? <><CheckCircle2 className="w-5 h-5 text-green-500" />確認成交</>
