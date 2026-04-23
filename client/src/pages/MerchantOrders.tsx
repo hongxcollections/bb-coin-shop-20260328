@@ -342,18 +342,21 @@ export default function MerchantOrders() {
               <div className="space-y-1.5">
                 {flowPaiOrders.map((o: MerchantOrder) => (
                   <div key={o.id} className="px-3 py-2 rounded-lg border border-dashed bg-muted/20">
+                    {/* 行1：拍賣名稱 */}
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="text-xs text-muted-foreground flex-shrink-0">🔕</span>
                       <Link href={`/auctions/${o.id}`}>
-                        <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer truncate block max-w-[200px]">{o.title}</span>
+                        <span className="text-sm text-muted-foreground hover:text-foreground cursor-pointer truncate block">{o.title}</span>
                       </Link>
-                      <span className="ml-auto text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
-                        起拍 {o.currency}${Number(o.currentPrice).toLocaleString()}
-                      </span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 pl-5">
-                      結標：{new Date(o.endTime).toLocaleDateString("zh-HK", { month: "numeric", day: "numeric" })}　無人出價
-                    </p>
+                    {/* 行2：起拍價 + 日期 + 無人出價 */}
+                    <div className="flex items-center gap-2 mt-0.5 pl-5 text-xs text-muted-foreground">
+                      <span className="font-medium">起拍 {o.currency}${Number(o.currentPrice).toLocaleString()}</span>
+                      <span>·</span>
+                      <span>{new Date(o.endTime).toLocaleDateString("zh-HK", { month: "numeric", day: "numeric" })}</span>
+                      <span>·</span>
+                      <span>無人出價</span>
+                    </div>
                   </div>
                 ))}
               </div>
