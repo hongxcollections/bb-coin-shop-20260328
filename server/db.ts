@@ -169,7 +169,7 @@ export async function getAuctions(limit = 20, offset = 0, category?: string) {
 
     const conditions = [
       sql`${auctions.status} != 'draft'`,
-      sql`${auctions.archived} = 0`,
+      sql`(${auctions.archived} = 0 OR ${auctions.archived} IS NULL)`,
     ];
     if (category && category !== 'all') {
       conditions.push(sql`${auctions.category} = ${category}`);
