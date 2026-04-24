@@ -331,6 +331,122 @@ function ProductHeroCarousel({ products, onBuy }: { products: any[]; onBuy: (p: 
   );
 }
 
+// ── 精選商品＋精選拍品 合併輪播（同位置淡入淡出切換）──
+function CombinedHeroCarousel({
+  products,
+  auctions,
+  onBuy,
+}: {
+  products: any[];
+  auctions: any[];
+  onBuy: (p: any) => void;
+}) {
+  const hasProducts = products.length > 0;
+  const hasAuctions = auctions.length > 0;
+  const bothExist = hasProducts && hasAuctions;
+
+  const [mode, setMode] = useState<"products" | "auctions">(hasProducts ? "products" : "auctions");
+  const [itemIdx, setItemIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  const modeRef = useRef(mode);
+  const itemIdxRef = useRef(itemIdx);
+  const productsRef = useRef(products);
+  const auctionsRef = useRef(auctions);
+  modeRef.current = mode;
+  itemIdxRef.current = itemIdx;
+  productsRef.current = products;
+  auctionsRef.current = auctions;
+
+  useEffect(() => {
+    if (!hasProducts && !hasAuctions) return;
+    const timer = setInterval(() => {
+      const curItems = modeRef.current === "products" ? productsRef.current : auctionsRef.current;
+      const nextIdx = itemIdxRef.current + 1;
+      if (nextIdx >= curItems.length) {
+        if (bothExist) {
+          const nextMode = modeRef.current === "products" ? "auctions" : "products";
+          setVisible(false);
+          setTimeout(() => {
+            setMode(nextMode);
+            setItemIdx(0);
+            setVisible(true);
+          }, 600);
+        } else {
+          setItemIdx(0);
+        }
+      } else {
+        setItemIdx(nextIdx);
+      }
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [bothExist, hasProducts, hasAuctions]);
+
+  if (!hasProducts && !hasAuctions) return null;
+
+  const currentItems = mode === "products" ? products : auctions;
+  const currentItem = currentItems[Math.min(itemIdx, currentItems.length - 1)];
+  if (!currentItem) return null;
+
+  const gradientText = {
+    background: "linear-gradient(135deg, #b45309 0%, #f59e0b 35%, #fde68a 55%, #f59e0b 70%, #d97706 100%)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    backgroundClip: "text" as const,
+  };
+
+  return (
+    <section className="pt-1 pb-1">
+      <div className="container">
+        <p className="text-xs font-semibold mb-1.5 pl-1" style={{ filter: "drop-shadow(0 1px 3px rgba(251,191,36,0.7))", minHeight: 16 }}>
+          <span style={gradientText}>
+            {mode === "products" ? "🏪 精選出售商品" : "🔨 精選拍品"}
+          </span>
+        </p>
+        <div
+          style={{
+            opacity: visible ? 1 : 0,
+            transition: "opacity 0.55s ease-in-out",
+            height: 260,
+            position: "relative",
+            borderRadius: "1rem",
+            overflow: "hidden",
+            boxShadow: "0 4px 24px 0 rgba(0,0,0,0.13)",
+          }}
+        >
+          {mode === "products" ? (
+            <ProductHeroSlide product={currentItem} onBuy={onBuy} />
+          ) : (
+            <HeroSlide auction={currentItem} />
+          )}
+          {/* 圓點指示器（item 位置） */}
+          {currentItems.length > 1 && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-1.5">
+              {currentItems.map((_, i) => (
+                <span
+                  key={i}
+                  className={`rounded-full transition-all duration-300 ${
+                    i === itemIdx
+                      ? (mode === "products" ? "w-5 h-2 bg-orange-400" : "w-5 h-2 bg-amber-400")
+                      : "w-2 h-2 bg-white/50"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+          {/* 類型 badge（右下，若兩種都有） */}
+          {bothExist && (
+            <div className="absolute top-3 left-3 z-10 flex gap-1.5">
+              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold backdrop-blur-sm transition-all ${mode === "products" ? "bg-orange-500 text-white" : "bg-black/35 text-white/60"}`}>商品</span>
+              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold backdrop-blur-sm transition-all ${mode === "auctions" ? "bg-amber-500 text-white" : "bg-black/35 text-white/60"}`}>拍品</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ── 首頁落單彈窗 ──
 function HomeBuyDialog({ product, onClose }: { product: any; onClose: () => void }) {
   const { user, isAuthenticated } = useAuth();
@@ -794,31 +910,13 @@ export default function Home() {
         );
       })()}
 
-      {/* ── 精選出售商品輪播（Hero）── */}
-      {heroProducts.length > 0 && (
-        <section className="pt-1 pb-1">
-          <div className="container">
-            <p className="text-xs font-semibold mb-1.5 pl-1" style={{ filter: "drop-shadow(0 1px 3px rgba(251,191,36,0.7))" }}>
-              <span>🏪 </span>
-              <span style={{
-                background: "linear-gradient(135deg, #b45309 0%, #f59e0b 35%, #fde68a 55%, #f59e0b 70%, #d97706 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}>精選出售商品</span>
-            </p>
-            <ProductHeroCarousel products={heroProducts} onBuy={setBuyingProduct} />
-          </div>
-        </section>
-      )}
-
-      {/* ── Hero 精選拍品輪播（商戶商品 banner 上方）── */}
-      {heroAuctions.length > 0 && (
-        <section className="pt-1 pb-1">
-          <div className="container">
-            <HeroCarousel auctions={heroAuctions} />
-          </div>
-        </section>
+      {/* ── 精選商品＋精選拍品 合併輪播（同位置淡入淡出切換）── */}
+      {(heroProducts.length > 0 || heroAuctions.length > 0) && (
+        <CombinedHeroCarousel
+          products={heroProducts}
+          auctions={heroAuctions}
+          onBuy={setBuyingProduct}
+        />
       )}
 
       {/* ── Section 1b: Merchant Products Marquee ── */}
