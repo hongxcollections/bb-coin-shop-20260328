@@ -4089,8 +4089,7 @@ export const appRouter = router({
       .mutation(async ({ ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: '管理員限定' });
         const { runBackup } = await import('./backup');
-        const result = await runBackup();
-        return result;
+        return await runBackup();
       }),
 
     /** 列出所有備份檔案 */
@@ -4099,6 +4098,30 @@ export const appRouter = router({
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: '管理員限定' });
         const { listBackups } = await import('./backup');
         return await listBackups();
+      }),
+
+    /** 手動觸發通知清理 */
+    cleanupNotifications: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: '管理員限定' });
+        const { runNotificationCleanup } = await import('./backup');
+        return await runNotificationCleanup();
+      }),
+
+    /** 手動觸發出價記錄歸檔 */
+    archiveBids: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: '管理員限定' });
+        const { runBidsArchive } = await import('./backup');
+        return await runBidsArchive();
+      }),
+
+    /** DB 容量查詢 */
+    dbSize: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: '管理員限定' });
+        const { getDbSize } = await import('./backup');
+        return await getDbSize();
       }),
   }),
 

@@ -202,11 +202,164 @@ export async function runBackup(): Promise<{ key: string; url: string; sizeKb: n
   return { key, url, sizeKb: Math.round(compressed.length / 1024) };
 }
 
+// ── ① 清理舊通知 & 過期日誌 ──
+// notifications > 90 天刪除
+// proxyBidLogs  > 6 個月刪除
+// pushSubscriptions > 6 個月未更新刪除（stale device tokens）
+export async function runNotificationCleanup(): Promise<{
+  notificationsDeleted: number;
+  proxyBidLogsDeleted: number;
+  pushSubsDeleted: number;
+}> {
+  const pool = await getRawPool();
+  console.log("[maintenance] Starting notification cleanup...");
+
+  const [notifRes]: any = await pool.execute(
+    `DELETE FROM \`notifications\`
+     WHERE createdAt < DATE_SUB(NOW(), INTERVAL 90 DAY)`
+  );
+  const notificationsDeleted = notifRes.affectedRows ?? 0;
+
+  const [pbLogRes]: any = await pool.execute(
+    `DELETE FROM \`proxyBidLogs\`
+     WHERE createdAt < DATE_SUB(NOW(), INTERVAL 6 MONTH)`
+  );
+  const proxyBidLogsDeleted = pbLogRes.affectedRows ?? 0;
+
+  // pushSubscriptions 沒有 updatedAt，用 createdAt 代替
+  let pushSubsDeleted = 0;
+  try {
+    const [psRes]: any = await pool.execute(
+      `DELETE FROM \`pushSubscriptions\`
+       WHERE createdAt < DATE_SUB(NOW(), INTERVAL 6 MONTH)`
+    );
+    pushSubsDeleted = psRes.affectedRows ?? 0;
+  } catch {}
+
+  console.log(`[maintenance] Cleanup done: notifications=${notificationsDeleted}, proxyBidLogs=${proxyBidLogsDeleted}, pushSubs=${pushSubsDeleted}`);
+  return { notificationsDeleted, proxyBidLogsDeleted, pushSubsDeleted };
+}
+
+// ── ② 歸檔舊出價記錄（bids_archive）──
+// 結拍超過 1 年的拍賣：只保留得標那一口，其餘 bids 移入 bids_archive
+export async function runBidsArchive(): Promise<{
+  archived: number;
+  deleted: number;
+  auctionsProcessed: number;
+}> {
+  const pool = await getRawPool();
+  console.log("[maintenance] Starting bids archive...");
+
+  // 確保 bids_archive 表存在（與 bids 結構一致，加 archivedAt）
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS \`bids_archive\` (
+      \`id\` int NOT NULL,
+      \`auctionId\` int NOT NULL,
+      \`userId\` int NOT NULL,
+      \`bidAmount\` decimal(10,2) NOT NULL,
+      \`isAnonymous\` int NOT NULL DEFAULT 0,
+      \`createdAt\` timestamp NOT NULL,
+      \`archivedAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`id\`),
+      KEY \`idx_auctionId\` (\`auctionId\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  // 找出結拍超過 1 年、且有 bids 的拍賣 ID
+  const [oldAuctions]: any = await pool.execute(
+    `SELECT a.id, a.highestBidderId
+     FROM \`auctions\` a
+     WHERE a.status = 'ended'
+       AND a.endTime < DATE_SUB(NOW(), INTERVAL 1 YEAR)
+       AND EXISTS (SELECT 1 FROM \`bids\` b WHERE b.auctionId = a.id)`
+  );
+
+  let totalArchived = 0;
+  let totalDeleted = 0;
+
+  for (const auction of oldAuctions as any[]) {
+    const aId = auction.id;
+    const winnerId = auction.highestBidderId;
+
+    // 1. 先把全部 bids 複製到 bids_archive（忽略已存在）
+    const [archRes]: any = await pool.execute(
+      `INSERT IGNORE INTO \`bids_archive\` (id, auctionId, userId, bidAmount, isAnonymous, createdAt)
+       SELECT id, auctionId, userId, bidAmount, isAnonymous, createdAt
+       FROM \`bids\` WHERE auctionId = ?`,
+      [aId]
+    );
+    totalArchived += archRes.affectedRows ?? 0;
+
+    // 2. 從 bids 刪除，保留得標者最後一口（最高金額那條）
+    if (winnerId) {
+      await pool.execute(
+        `DELETE FROM \`bids\`
+         WHERE auctionId = ?
+           AND id NOT IN (
+             SELECT id FROM (
+               SELECT id FROM \`bids\`
+               WHERE auctionId = ? AND userId = ?
+               ORDER BY bidAmount DESC LIMIT 1
+             ) AS keep
+           )`,
+        [aId, aId, winnerId]
+      );
+    } else {
+      // 無得標者：全部刪除
+      const [delRes]: any = await pool.execute(
+        `DELETE FROM \`bids\` WHERE auctionId = ?`, [aId]
+      );
+      totalDeleted += delRes.affectedRows ?? 0;
+    }
+  }
+
+  console.log(`[maintenance] Bids archive done: auctionsProcessed=${oldAuctions.length}, archived=${totalArchived}`);
+  return { archived: totalArchived, deleted: totalDeleted, auctionsProcessed: oldAuctions.length };
+}
+
+// ── ③ DB 容量查詢 ──
+export async function getDbSize(): Promise<{
+  totalMb: number;
+  dataMb: number;
+  indexMb: number;
+  tableCount: number;
+  tables: Array<{ name: string; sizeMb: number; rows: number }>;
+}> {
+  const pool = await getRawPool();
+  const [summary]: any = await pool.execute(
+    `SELECT
+       ROUND(SUM(DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 3) AS totalMb,
+       ROUND(SUM(DATA_LENGTH) / 1024 / 1024, 3) AS dataMb,
+       ROUND(SUM(INDEX_LENGTH) / 1024 / 1024, 3) AS indexMb,
+       COUNT(*) AS tableCount
+     FROM information_schema.TABLES
+     WHERE TABLE_SCHEMA = DATABASE()`
+  );
+  const [tableRows]: any = await pool.execute(
+    `SELECT TABLE_NAME AS name,
+       ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 3) AS sizeMb,
+       COALESCE(TABLE_ROWS, 0) AS rows
+     FROM information_schema.TABLES
+     WHERE TABLE_SCHEMA = DATABASE()
+     ORDER BY (DATA_LENGTH + INDEX_LENGTH) DESC`
+  );
+  return {
+    totalMb: parseFloat(summary[0]?.totalMb ?? "0"),
+    dataMb: parseFloat(summary[0]?.dataMb ?? "0"),
+    indexMb: parseFloat(summary[0]?.indexMb ?? "0"),
+    tableCount: parseInt(summary[0]?.tableCount ?? "0"),
+    tables: (tableRows as any[]).map((r: any) => ({
+      name: r.name,
+      sizeMb: parseFloat(r.sizeMb ?? "0"),
+      rows: parseInt(r.rows ?? "0"),
+    })),
+  };
+}
+
 // ── 啟動定時排程（每日 HKT 02:00 = UTC 18:00）──
 export function startBackupCron() {
-  // 動態 import node-cron 避免載入時出錯
   import("node-cron").then(({ default: cron }) => {
-    // "0 18 * * *" = 每日 UTC 18:00 (HKT 02:00)
+    // 每日 UTC 18:00 (HKT 02:00) — 備份 + 通知清理
     cron.schedule("0 18 * * *", async () => {
       try {
         const result = await runBackup();
@@ -214,8 +367,23 @@ export function startBackupCron() {
       } catch (err) {
         console.error("[backup] Daily backup FAILED:", err);
       }
+      try {
+        await runNotificationCleanup();
+      } catch (err) {
+        console.error("[maintenance] Notification cleanup FAILED:", err);
+      }
     });
-    console.log("[backup] Cron scheduled: daily at HKT 02:00 (UTC 18:00)");
+
+    // 每週一 UTC 19:00 (HKT 03:00) — 出價記錄歸檔（避免與備份同時執行）
+    cron.schedule("0 19 * * 1", async () => {
+      try {
+        await runBidsArchive();
+      } catch (err) {
+        console.error("[maintenance] Bids archive FAILED:", err);
+      }
+    });
+
+    console.log("[backup] Cron scheduled: daily backup HKT 02:00, weekly bids archive HKT 03:00 Mon");
   }).catch(err => {
     console.error("[backup] Failed to load node-cron:", err);
   });
