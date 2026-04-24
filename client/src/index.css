@@ -241,6 +241,39 @@
   .hero-bg {
     background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 30%, #fff7ed 60%, #fef9ee 100%);
   }
+
+  /* ── 首頁背景視覺升級 ── */
+  .home-bg {
+    background-color: #fefbf3;
+    background-image:
+      /* 頂部琥珀光暈 */
+      radial-gradient(ellipse 130% 38% at 50% 0%, rgba(251,191,36,0.18) 0%, transparent 58%),
+      /* 左下角微光 */
+      radial-gradient(ellipse 60% 40% at -5% 90%, rgba(245,158,11,0.07) 0%, transparent 60%),
+      /* 右上角微光 */
+      radial-gradient(ellipse 50% 35% at 105% 5%, rgba(251,191,36,0.08) 0%, transparent 55%),
+      /* 細圓點水印（硬幣感）*/
+      radial-gradient(circle, rgba(180,83,9,0.065) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 100% 100%, 24px 24px;
+  }
+
+  /* 首頁 marquee 漸層邊緣配合暖底色 */
+  .home-bg .marquee-wrapper::before {
+    background: linear-gradient(to right, #fefbf3, transparent) !important;
+  }
+  .home-bg .marquee-wrapper::after {
+    background: linear-gradient(to left, #fefbf3, transparent) !important;
+  }
+
+  /* 首頁 section 白卡風格 */
+  .home-section-card {
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 1rem;
+    border: 1px solid rgba(251, 191, 36, 0.18);
+    box-shadow: 0 2px 12px rgba(180, 83, 9, 0.06), 0 1px 3px rgba(0,0,0,0.04);
+  }
 }
 
 @keyframes pulse-border {

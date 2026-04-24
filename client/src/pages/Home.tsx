@@ -116,7 +116,7 @@ function RecentSalesFader() {
             backgroundClip: "text",
           }}>近期成交紀錄</span>
         </p>
-        <div className="border border-green-100 rounded-2xl shadow-sm overflow-hidden" style={{ background: "oklch(98% 0.025 145)" }}>
+        <div className="home-section-card overflow-hidden">
           <div
             className="flex items-center gap-4 px-5 py-4"
             style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.5s ease' }}
@@ -185,7 +185,7 @@ function MerchantProductsStrip() {
             backgroundClip: "text",
           }}>商戶出售商品</span>
         </p>
-        <div className="marquee-wrapper border border-amber-100 rounded-2xl bg-white py-3 overflow-hidden shadow-sm">
+        <div className="marquee-wrapper rounded-2xl py-3 overflow-hidden home-section-card">
           <div className="marquee-track flex" style={{ animationDuration: duration }}>
             {doubled.map((p: any, idx: number) => {
               const imgs = parseProductImages(p.images);
@@ -324,7 +324,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="min-h-screen home-bg overflow-x-hidden">
       {/* 首頁歡迎 popup */}
       {showWelcome && (
         <div className="bottom-nav-toast" style={{ zIndex: 9999 }}>
@@ -347,11 +347,11 @@ export default function Home() {
       {/* 早鳥會員名額 banner */}
       <EarlyBirdBanner />
       {/* ── Section 1: Stats (Top) ── */}
-      <section className="pt-3 pb-2 bg-amber-50/30">
+      <section className="pt-3 pb-2">
         <div className="container">
           <div className="grid grid-cols-3 gap-2 max-w-md mx-auto">
             {stats.map((s) => (
-              <div key={s.label} className="bg-white/80 backdrop-blur rounded-xl p-2 border border-amber-100 shadow-sm text-center">
+              <div key={s.label} className="home-section-card p-2 text-center">
                 <div className="text-lg font-extrabold text-amber-700">{s.value}{s.suffix}</div>
                 <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{s.label}</div>
               </div>
@@ -377,7 +377,7 @@ export default function Home() {
                 backgroundClip: "text",
               }}>商戶拍賣品</span>
             </p>
-            <div className="marquee-wrapper border border-amber-100 rounded-2xl bg-white py-3 overflow-hidden shadow-sm">
+            <div className="marquee-wrapper rounded-2xl py-3 overflow-hidden home-section-card">
               {(() => {
                 const activeAuctions = (auctions ?? []).filter(a =>
                   a.status === 'active' && new Date(a.endTime).getTime() > Date.now()
@@ -426,7 +426,7 @@ export default function Home() {
       </section>
 
       {/* ── Section 3: Auction List (Main Content) ── */}
-      <section className="py-3 bg-white">
+      <section className="py-3">
         <div className="container">
           {/* Header */}
           <div className="flex items-center gap-3 mb-3">
