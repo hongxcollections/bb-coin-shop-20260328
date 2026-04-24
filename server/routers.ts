@@ -1201,54 +1201,65 @@ export const appRouter = router({
         return result;
       }),
 
-    // Admin: clear OWN auction data (createdBy OR highestBidder = admin)
+    // Admin: clear OWN auction data (createdBy OR highestBidder = admin) — raw SQL for reliability
     adminClearOwnAuctions: protectedProcedure
       .mutation(async ({ ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
         const adminId = ctx.user.id;
-        const db = await getDb();
-        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
-        const { auctions: auctionsTable, bids: bidsTable, auctionImages: auctionImagesTable, proxyBids: proxyBidsTable, proxyBidLogs: proxyBidLogsTable, favorites: favoritesTable, depositTransactions: depositTransactionsTable, commissionRefundRequests: commissionRefundRequestsTable } = await import('../drizzle/schema');
-        const { or, eq, inArray } = await import('drizzle-orm');
+        const pool = await getRawPool();
+        try {
+          // 1. Find all auction IDs where admin is creator OR highest bidder
+          const [rows] = await pool.execute(
+            'SELECT id FROM `auctions` WHERE `createdBy` = ? OR `highestBidderId` = ?',
+            [adminId, adminId]
+          ) as any[];
+          const ids: number[] = (rows as any[]).map((r: any) => r.id);
+          console.log(`[adminClearOwnAuctions] adminId=${adminId}, found ${ids.length} auctions:`, ids);
 
-        // Find all auctions where admin is creator OR highest bidder
-        const targetAuctions = await db
-          .select({ id: auctionsTable.id })
-          .from(auctionsTable)
-          .where(or(eq(auctionsTable.createdBy, adminId), eq(auctionsTable.highestBidderId, adminId)));
-        const ids = targetAuctions.map(a => a.id);
+          if (ids.length > 0) {
+            const placeholders = ids.map(() => '?').join(',');
+            // Delete child records first
+            await pool.execute(`DELETE FROM \`proxyBidLogs\` WHERE \`auctionId\` IN (${placeholders})`, ids);
+            await pool.execute(`DELETE FROM \`proxyBids\` WHERE \`auctionId\` IN (${placeholders})`, ids);
+            await pool.execute(`DELETE FROM \`bids\` WHERE \`auctionId\` IN (${placeholders})`, ids);
+            await pool.execute(`DELETE FROM \`auctionImages\` WHERE \`auctionId\` IN (${placeholders})`, ids);
+            await pool.execute(`DELETE FROM \`favorites\` WHERE \`auctionId\` IN (${placeholders})`, ids);
+            await pool.execute(`DELETE FROM \`deposit_transactions\` WHERE \`relatedAuctionId\` IN (${placeholders})`, ids);
+            await pool.execute(`DELETE FROM \`commissionRefundRequests\` WHERE \`auctionId\` IN (${placeholders})`, ids);
+            // Delete the auctions themselves
+            await pool.execute(`DELETE FROM \`auctions\` WHERE \`id\` IN (${placeholders})`, ids);
+          }
 
-        let deletedAuctions = 0;
-        if (ids.length > 0) {
-          await db.delete(proxyBidLogsTable).where(inArray(proxyBidLogsTable.auctionId, ids));
-          await db.delete(proxyBidsTable).where(inArray(proxyBidsTable.auctionId, ids));
-          await db.delete(bidsTable).where(inArray(bidsTable.auctionId, ids));
-          await db.delete(auctionImagesTable).where(inArray(auctionImagesTable.auctionId, ids));
-          await db.delete(favoritesTable).where(inArray(favoritesTable.auctionId, ids));
-          await db.delete(depositTransactionsTable).where(inArray(depositTransactionsTable.relatedAuctionId, ids));
-          await db.delete(commissionRefundRequestsTable).where(inArray(commissionRefundRequestsTable.auctionId, ids));
-          await db.delete(auctionsTable).where(inArray(auctionsTable.id, ids));
-          deletedAuctions = ids.length;
+          // 2. Clean up any remaining bids BY admin on other auctions
+          await pool.execute('DELETE FROM `bids` WHERE `userId` = ?', [adminId]);
+          await pool.execute('DELETE FROM `proxyBids` WHERE `userId` = ?', [adminId]);
+          await pool.execute('DELETE FROM `proxyBidLogs` WHERE `proxyUserId` = ? OR `triggerUserId` = ?', [adminId, adminId]);
+
+          console.log(`[adminClearOwnAuctions] Done. Deleted ${ids.length} auctions for adminId=${adminId}`);
+          return { success: true, deletedAuctions: ids.length, deletedBids: 0, deletedImages: 0, deletedProxyBids: 0, deletedFavorites: 0, deletedDepositTxns: 0, deletedRefundRequests: 0, deletedExternalBids: 0 };
+        } catch (err) {
+          console.error('[adminClearOwnAuctions] Error:', err);
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: err instanceof Error ? err.message : '清除失敗' });
         }
-
-        // Also clear any remaining bids placed BY admin on other auctions
-        await db.delete(bidsTable).where(eq(bidsTable.userId, adminId));
-        await db.delete(proxyBidsTable).where(eq(proxyBidsTable.userId, adminId));
-
-        return { success: true, deletedAuctions, deletedBids: 0, deletedImages: 0, deletedProxyBids: 0, deletedFavorites: 0, deletedDepositTxns: 0, deletedRefundRequests: 0, deletedExternalBids: 0 };
       }),
 
     // Admin: clear OWN merchant products
     adminClearOwnProducts: protectedProcedure
       .mutation(async ({ ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
-        const db = await getDb();
-        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
-        const { merchantProducts: mpTable } = await import('../drizzle/schema');
-        const { eq } = await import('drizzle-orm');
-        const result = await db.delete(mpTable).where(eq(mpTable.merchantId, ctx.user.id));
-        const deleted = (result as any).rowsAffected ?? 0;
-        return { deleted };
+        const pool = await getRawPool();
+        try {
+          const [result] = await pool.execute(
+            'DELETE FROM `merchantProducts` WHERE `merchantId` = ?',
+            [ctx.user.id]
+          ) as any[];
+          const deleted = (result as any).affectedRows ?? 0;
+          console.log(`[adminClearOwnProducts] adminId=${ctx.user.id}, deleted ${deleted} products`);
+          return { deleted };
+        } catch (err) {
+          console.error('[adminClearOwnProducts] Error:', err);
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: err instanceof Error ? err.message : '清除失敗' });
+        }
       }),
 
     // Admin: one-shot cleanup of all orphan merchant data (records whose userId no longer exists in users table)
