@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
 import { Link, useLocation } from "wouter";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -106,7 +106,7 @@ function HeroSlide({ auction }: { auction: any }) {
             <span className="text-8xl opacity-55">🪙</span>
           </div>
         )}
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.28) 38%, transparent 62%)" }} />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.22) 28%, transparent 55%)" }} />
         <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
           <Flame className="w-3 h-3" />精選拍品
         </div>
@@ -237,7 +237,7 @@ function ProductHeroSlide({ product, onBuy }: { product: any; onBuy: (p: any) =>
           <span className="text-8xl opacity-55">🏪</span>
         </div>
       )}
-      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.26) 38%, transparent 62%)" }} />
+      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.22) 28%, transparent 55%)" }} />
       <Link href={`/merchant-products/${product.id}`}>
         <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
           <Store className="w-3 h-3" />精選商品
@@ -770,10 +770,14 @@ export default function Home() {
   // 出售商品（公開）
   const { data: allProducts } = trpc.merchants.listProducts.useQuery(undefined, { staleTime: 60_000 });
   const activeProducts = (allProducts ?? []).filter((p: any) => p.status === 'active' && (p.stock ?? 1) > 0);
-  // 精選出售商品：前三件
-  const heroProducts = activeProducts.slice(0, 3);
-  // 主打出售商品：第一件（最大圖展示）
-  const featuredProduct = activeProducts[0] ?? null;
+  // 精選出售商品：隨機選三件（每次載入資料重新隨機，不固定最新）
+  const heroProducts = useMemo(() => {
+    if (activeProducts.length <= 3) return activeProducts;
+    const shuffled = [...activeProducts].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 3);
+  }, [allProducts]);
+  // 主打出售商品：從精選隨機三件中取第一件
+  const featuredProduct = heroProducts[0] ?? null;
 
   const activeAuctions = (auctions ?? []).filter(a => a.status === "active" && new Date(a.endTime).getTime() > Date.now());
   const activeCount = activeAuctions.length;
@@ -872,7 +876,7 @@ export default function Home() {
                     <span className="text-8xl opacity-50">🏪</span>
                   </div>
                 )}
-                <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.26) 38%, transparent 62%)" }} />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.22) 28%, transparent 55%)" }} />
                 {featuredProduct.merchantName && (
                   <div className="absolute top-3 right-3 bg-black/55 text-white text-[10px] px-2.5 py-1 rounded-full backdrop-blur-sm">{featuredProduct.merchantName}</div>
                 )}
