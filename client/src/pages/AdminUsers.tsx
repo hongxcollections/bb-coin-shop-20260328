@@ -413,6 +413,111 @@ function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userNam
   );
 }
 
+/** 管理員帳號：一鍵清除自己名下的拍賣紀錄 / 出售商品 */
+function AdminSelfClearPanel({ userName }: { userName: string }) {
+  const [openAuctions, setOpenAuctions] = useState(false);
+  const [openProducts, setOpenProducts] = useState(false);
+  const [confirmedAuctions, setConfirmedAuctions] = useState(false);
+  const [confirmedProducts, setConfirmedProducts] = useState(false);
+  const utils = trpc.useUtils();
+
+  const clearAuctionsMutation = trpc.users.adminClearOwnAuctions.useMutation({
+    onSuccess: (data) => {
+      toast.success(`已清除 ${data.deletedAuctions ?? 0} 個拍賣紀錄`);
+      setOpenAuctions(false); setConfirmedAuctions(false);
+      utils.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const clearProductsMutation = trpc.users.adminClearOwnProducts.useMutation({
+    onSuccess: (data) => {
+      toast.success(`已清除 ${data.deleted} 件出售商品`);
+      setOpenProducts(false); setConfirmedProducts(false);
+      utils.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      {/* ── 清除拍賣紀錄 ── */}
+      <div>
+        <button
+          type="button"
+          onClick={() => { setOpenAuctions(!openAuctions); setConfirmedAuctions(false); }}
+          className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium transition-colors whitespace-nowrap"
+          style={{ background: openAuctions ? "#FEE2E2" : "#F5F5F5", color: openAuctions ? "#991B1B" : "#666" }}
+        >
+          <Trash2 size={10} />
+          一鍵清除所有拍賣紀錄
+          <ChevronDown size={11} style={{ transform: openAuctions ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }} />
+        </button>
+        {openAuctions && (
+          <div className="mt-1.5 rounded-xl p-3 space-y-2" style={{ background: "#FFF5F5", border: "1px solid #FCA5A5" }}>
+            <p className="text-xs text-red-700">清除 <strong>{userName}</strong> 名下所有拍賣、出價紀錄及相關圖片（不可復原）</p>
+            {!confirmedAuctions ? (
+              <button
+                type="button"
+                onClick={() => setConfirmedAuctions(true)}
+                className="w-full h-7 rounded-lg text-xs font-semibold text-white"
+                style={{ background: "#DC2626" }}
+              >確認清除</button>
+            ) : (
+              <button
+                type="button"
+                disabled={clearAuctionsMutation.isPending}
+                onClick={() => clearAuctionsMutation.mutate()}
+                className="w-full h-7 rounded-lg text-xs font-semibold text-white flex items-center justify-center gap-1 disabled:opacity-50"
+                style={{ background: "#991B1B" }}
+              >
+                {clearAuctionsMutation.isPending ? <><Loader2 size={12} className="animate-spin" />清除中…</> : "⚠️ 確認！永久刪除全部拍賣"}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── 清除出售商品 ── */}
+      <div>
+        <button
+          type="button"
+          onClick={() => { setOpenProducts(!openProducts); setConfirmedProducts(false); }}
+          className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium transition-colors whitespace-nowrap"
+          style={{ background: openProducts ? "#FEE2E2" : "#F5F5F5", color: openProducts ? "#991B1B" : "#666" }}
+        >
+          <Package size={10} />
+          一鍵清除所有出售商品
+          <ChevronDown size={11} style={{ transform: openProducts ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }} />
+        </button>
+        {openProducts && (
+          <div className="mt-1.5 rounded-xl p-3 space-y-2" style={{ background: "#FFF5F5", border: "1px solid #FCA5A5" }}>
+            <p className="text-xs text-red-700">清除 <strong>{userName}</strong> 名下所有出售商品紀錄（不可復原）</p>
+            {!confirmedProducts ? (
+              <button
+                type="button"
+                onClick={() => setConfirmedProducts(true)}
+                className="w-full h-7 rounded-lg text-xs font-semibold text-white"
+                style={{ background: "#DC2626" }}
+              >確認清除</button>
+            ) : (
+              <button
+                type="button"
+                disabled={clearProductsMutation.isPending}
+                onClick={() => clearProductsMutation.mutate()}
+                className="w-full h-7 rounded-lg text-xs font-semibold text-white flex items-center justify-center gap-1 disabled:opacity-50"
+                style={{ background: "#991B1B" }}
+              >
+                {clearProductsMutation.isPending ? <><Loader2 size={12} className="animate-spin" />清除中…</> : "⚠️ 確認！永久刪除全部商品"}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** 管理員直接修改商戶保證金（充值 / 調整） */
 function DepositModifyPanel({ userId, currentBalance, onDone }: { userId: number; currentBalance: string; onDone: () => void }) {
   const [open, setOpen] = useState(false);
@@ -1091,6 +1196,8 @@ export default function AdminUsers() {
             {u.depositId && <ClearProductsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
             {/* Danger zone: purge all auction data for this merchant */}
             {u.depositId && <PurgeMerchantDataPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} onDone={refetch} />}
+            {/* Admin self-clear: shown only for admin role accounts */}
+            {u.role === "admin" && <AdminSelfClearPanel userName={u.name ?? `管理員 #${u.id}`} />}
           </div>
         ))}
       </div>

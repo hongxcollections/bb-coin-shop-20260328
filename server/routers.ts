@@ -1201,6 +1201,28 @@ export const appRouter = router({
         return result;
       }),
 
+    // Admin: clear OWN auction data (allow self-purge for admin accounts)
+    adminClearOwnAuctions: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const result = await purgeMerchantAuctionData(ctx.user.id);
+        if (!result.success) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: result.error ?? '清除失敗' });
+        return result;
+      }),
+
+    // Admin: clear OWN merchant products
+    adminClearOwnProducts: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const { merchantProducts: mpTable } = await import('../drizzle/schema');
+        const { eq } = await import('drizzle-orm');
+        const result = await db.delete(mpTable).where(eq(mpTable.merchantId, ctx.user.id));
+        const deleted = (result as any).rowsAffected ?? 0;
+        return { deleted };
+      }),
+
     // Admin: one-shot cleanup of all orphan merchant data (records whose userId no longer exists in users table)
     adminCleanOrphanData: protectedProcedure
       .mutation(async ({ ctx }) => {
