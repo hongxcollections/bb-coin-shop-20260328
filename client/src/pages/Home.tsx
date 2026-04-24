@@ -530,7 +530,7 @@ function FeaturedProductSideCard({ product, onBuy }: { product: any; onBuy: (p: 
             <X className="w-2.5 h-2.5 text-white" />
           </button>
           <div className="flex items-center gap-0.5 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow">
-            <Store className="w-2 h-2" />主打
+            <Store className="w-2 h-2" />主打商品
           </div>
         </div>
 
