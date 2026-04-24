@@ -529,8 +529,9 @@ function FeaturedProductSideCard({ product, onBuy }: { product: any; onBuy: (p: 
           >
             <X className="w-2.5 h-2.5 text-white" />
           </button>
-          <div className="flex items-center gap-0.5 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow">
-            <Store className="w-2 h-2" />主打商品
+          <div className={`flex items-center gap-0.5 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow ${product._isPaid ? 'bg-gradient-to-r from-yellow-500 to-orange-500' : 'bg-orange-500'}`}>
+            {product._isPaid ? <span className="text-[8px]">🔥</span> : <Store className="w-2 h-2" />}
+            {product._isPaid ? '付費主打' : '主打商品'}
           </div>
         </div>
 
@@ -900,8 +901,36 @@ export default function Home() {
     const shuffled = [...activeProducts].sort(() => Math.random() - 0.5);
     return shuffled.slice(0, 3);
   }, [allProducts]);
-  // 主打出售商品：從精選隨機三件中取第一件
-  const featuredProduct = heroProducts[0] ?? null;
+
+  // 付費主打商品：從 API 取得，輪播顯示（30 秒換一個）
+  const { data: paidFeatured } = trpc.featuredListings.getActive.useQuery(undefined, { staleTime: 30_000, refetchInterval: 60_000 });
+  const [featuredIdx, setFeaturedIdx] = useState(0);
+  useEffect(() => {
+    if (!paidFeatured || paidFeatured.length <= 1) return;
+    const t = setInterval(() => setFeaturedIdx(i => (i + 1) % paidFeatured.length), 30_000);
+    return () => clearInterval(t);
+  }, [paidFeatured]);
+
+  // 優先用付費主打，若無則 fallback 用隨機精選
+  const featuredProduct = useMemo(() => {
+    if (paidFeatured && paidFeatured.length > 0) {
+      const f = paidFeatured[featuredIdx % paidFeatured.length];
+      // 把 featuredListing 記錄轉換成 merchantProduct 格式，供 FeaturedProductSideCard 使用
+      return {
+        id: f.productId,
+        title: f.productTitle,
+        merchantName: f.merchantName,
+        price: f.price,
+        currency: f.currency,
+        images: f.images,
+        whatsapp: f.whatsapp,
+        stock: f.stock,
+        _isPaid: true,
+        _endAt: f.endAt,
+      };
+    }
+    return heroProducts[0] ?? null;
+  }, [paidFeatured, featuredIdx, heroProducts]);
 
   const activeAuctions = (auctions ?? []).filter(a => a.status === "active" && new Date(a.endTime).getTime() > Date.now());
   const activeCount = activeAuctions.length;

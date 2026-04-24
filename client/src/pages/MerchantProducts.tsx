@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import {
   ChevronLeft, Plus, Package, Pencil, Trash2, Eye, EyeOff,
   ImageIcon, X, Loader2, LayoutList, LayoutGrid, Grid3X3, Maximize2,
-  ShoppingBag, CheckCircle2, XCircle, Clock,
+  ShoppingBag, CheckCircle2, XCircle, Clock, Flame,
 } from "lucide-react";
 import { parseCategories } from "@/lib/categories";
 
@@ -281,6 +281,84 @@ function MerchantOrdersTab() {
   );
 }
 
+// ── 主打申請 Dialog ──────────────────────────────────────────────────────────
+const TIER_OPTIONS = [
+  { tier: "day1", label: "24 小時主打", price: 30, desc: "適合限時急售" },
+  { tier: "day3", label: "3 天主打", price: 70, desc: "適合週末旺季" },
+  { tier: "day7", label: "7 天主打", price: 120, desc: "最大曝光率" },
+];
+
+function FeaturedApplyDialog({
+  product,
+  depositBalance,
+  onClose,
+  onSuccess,
+}: {
+  product: { id: number; title: string };
+  depositBalance: number;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [tier, setTier] = useState<"day1" | "day3" | "day7">("day1");
+  const apply = trpc.featuredListings.submit.useMutation({
+    onSuccess: () => {
+      toast.success("🔥 已成功申請主打，即時生效！");
+      onSuccess();
+      onClose();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const selected = TIER_OPTIONS.find(o => o.tier === tier)!;
+  const canAfford = depositBalance >= selected.price;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="bg-gradient-to-r from-yellow-500 to-orange-500 px-5 py-4">
+          <div className="flex items-center gap-2 text-white">
+            <Flame className="w-5 h-5" />
+            <h2 className="font-bold text-base">申請主打刊登</h2>
+          </div>
+          <p className="text-yellow-100 text-xs mt-0.5 line-clamp-1">{product.title}</p>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-gray-500">費用從保證金扣除。目前餘額：<span className="font-semibold text-gray-700">HK${depositBalance.toFixed(2)}</span></p>
+          <div className="space-y-2">
+            {TIER_OPTIONS.map(o => (
+              <button
+                key={o.tier}
+                onClick={() => setTier(o.tier as any)}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all text-left ${tier === o.tier ? 'border-orange-400 bg-orange-50' : 'border-gray-100 hover:border-orange-200'}`}
+              >
+                <div>
+                  <div className={`text-sm font-semibold ${tier === o.tier ? 'text-orange-600' : 'text-gray-700'}`}>{o.label}</div>
+                  <div className="text-xs text-gray-400">{o.desc}</div>
+                </div>
+                <div className={`text-base font-bold ${tier === o.tier ? 'text-orange-500' : 'text-gray-500'}`}>HK${o.price}</div>
+              </button>
+            ))}
+          </div>
+          {!canAfford && (
+            <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">保證金不足，請先充值</p>
+          )}
+          <div className="flex gap-2 pt-1">
+            <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition">取消</button>
+            <button
+              disabled={!canAfford || apply.isPending}
+              onClick={() => apply.mutate({ productId: product.id, tier })}
+              className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+              style={{ background: canAfford ? "linear-gradient(135deg,#f59e0b,#ea580c)" : undefined, backgroundColor: canAfford ? undefined : "#d1d5db" }}
+            >
+              {apply.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Flame className="w-4 h-4" />}
+              確認申請
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MerchantProducts() {
   const { isAuthenticated } = useAuth();
   const utils = trpc.useUtils();
@@ -339,6 +417,14 @@ export default function MerchantProducts() {
   });
 
   const uploadImage = trpc.merchants.uploadProductImage.useMutation();
+
+  // 主打刊登
+  const [featuredDialog, setFeaturedDialog] = useState<{ id: number; title: string } | null>(null);
+  const { data: myDeposit } = trpc.sellerDeposits.myDeposit.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: myFeatured = [] } = trpc.featuredListings.myListings.useQuery(undefined, { enabled: isAuthenticated, staleTime: 30_000 });
+  const activeFeaturedIds = new Set(
+    (myFeatured as any[]).filter((f: any) => f.status === 'active').map((f: any) => f.productId)
+  );
 
   function resetForm() {
     setShowForm(false);
@@ -685,13 +771,20 @@ export default function MerchantProducts() {
                       <span className="font-bold text-amber-600 text-sm">{p.currency} ${price.toLocaleString()}</span>
                       <span className="text-xs text-gray-400">庫存 {p.stock}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 mt-2">
+                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                       <button onClick={() => startEdit(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
                         <Pencil className="w-3 h-3" />編輯
                       </button>
                       <button onClick={() => toggleStatus(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
                         {p.status === "active" ? <><EyeOff className="w-3 h-3" />下架</> : <><Eye className="w-3 h-3" />上架</>}
                       </button>
+                      {p.status === "active" && (
+                        activeFeaturedIds.has(p.id)
+                          ? <span className="flex items-center gap-1 text-xs px-2 py-1 bg-orange-50 text-orange-500 rounded-lg font-medium"><Flame className="w-3 h-3" />主打中</span>
+                          : <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="flex items-center gap-1 text-xs px-2 py-1 bg-gradient-to-r from-yellow-50 to-orange-50 text-orange-500 border border-orange-200 rounded-lg hover:from-yellow-100 hover:to-orange-100 transition-colors font-medium">
+                              <Flame className="w-3 h-3" />申請主打
+                            </button>
+                      )}
                       <button onClick={() => { if (confirm("確定刪除此商品？")) deleteProduct.mutate({ id: p.id }); }} className="flex items-center gap-1 text-xs px-2 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />刪除
                       </button>
@@ -738,13 +831,20 @@ export default function MerchantProducts() {
                       </div>
                       <span className="text-xs text-gray-400">庫存 {p.stock}</span>
                     </div>
-                    <div className="flex items-center gap-2 pt-1">
+                    <div className="flex items-center gap-2 pt-1 flex-wrap">
                       <button onClick={() => startEdit(p)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex-1 justify-center">
                         <Pencil className="w-3 h-3" />編輯
                       </button>
                       <button onClick={() => toggleStatus(p)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex-1 justify-center">
                         {p.status === "active" ? <><EyeOff className="w-3 h-3" />下架</> : <><Eye className="w-3 h-3" />上架</>}
                       </button>
+                      {p.status === "active" && (
+                        activeFeaturedIds.has(p.id)
+                          ? <span className="flex items-center gap-1 text-xs px-2 py-1.5 bg-orange-50 text-orange-500 rounded-lg font-medium"><Flame className="w-3 h-3" />主打中</span>
+                          : <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="flex items-center gap-1 text-xs px-2 py-1.5 text-orange-500 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors font-medium">
+                              <Flame className="w-3 h-3" />申請主打
+                            </button>
+                      )}
                       <button onClick={() => { if (confirm("確定刪除此商品？")) deleteProduct.mutate({ id: p.id }); }} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />刪除
                       </button>
@@ -778,13 +878,20 @@ export default function MerchantProducts() {
                     </div>
                     <span className="font-bold text-amber-600 text-xs">{p.currency} ${price.toLocaleString()}</span>
                     <span className="text-[10px] text-gray-400">庫存 {p.stock}</span>
-                    <div className="flex gap-1 mt-auto pt-1">
+                    <div className="flex gap-1 mt-auto pt-1 flex-wrap">
                       <button onClick={() => startEdit(p)} className="flex-1 text-[10px] py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-center">
                         編輯
                       </button>
                       <button onClick={() => toggleStatus(p)} className="flex-1 text-[10px] py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-center">
                         {p.status === "active" ? "下架" : "上架"}
                       </button>
+                      {p.status === "active" && (
+                        activeFeaturedIds.has(p.id)
+                          ? <span className="text-[10px] px-1.5 py-1 bg-orange-50 text-orange-500 rounded-lg"><Flame className="w-3 h-3" /></span>
+                          : <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="text-[10px] px-1.5 py-1 text-orange-500 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors">
+                              <Flame className="w-3 h-3" />
+                            </button>
+                      )}
                       <button onClick={() => { if (confirm("確定刪除？")) deleteProduct.mutate({ id: p.id }); }} className="text-[10px] px-1.5 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -817,13 +924,20 @@ export default function MerchantProducts() {
                   <div className="p-1.5 flex flex-col gap-0.5 flex-1">
                     <h3 className="text-[10px] font-semibold text-gray-800 line-clamp-2 leading-tight">{p.title}</h3>
                     <span className="text-[10px] font-bold text-amber-600">${price.toLocaleString()}</span>
-                    <div className="flex gap-1 mt-1">
+                    <div className="flex gap-1 mt-1 flex-wrap">
                       <button onClick={() => startEdit(p)} className="flex-1 text-[9px] py-0.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors text-center">
                         編輯
                       </button>
                       <button onClick={() => toggleStatus(p)} className="flex-1 text-[9px] py-0.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors text-center">
                         {p.status === "active" ? "下架" : "上架"}
                       </button>
+                      {p.status === "active" && (
+                        activeFeaturedIds.has(p.id)
+                          ? <span className="text-[9px] px-1 py-0.5 bg-orange-50 text-orange-500 rounded"><Flame className="w-2.5 h-2.5" /></span>
+                          : <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="text-[9px] px-1 py-0.5 text-orange-500 border border-orange-200 rounded hover:bg-orange-50 transition-colors">
+                              <Flame className="w-2.5 h-2.5" />
+                            </button>
+                      )}
                       <button onClick={() => { if (confirm("確定刪除？")) deleteProduct.mutate({ id: p.id }); }} className="text-[9px] px-1 py-0.5 bg-red-50 text-red-500 rounded hover:bg-red-100 transition-colors">
                         <Trash2 className="w-2.5 h-2.5" />
                       </button>
@@ -919,6 +1033,18 @@ export default function MerchantProducts() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 主打申請 Dialog */}
+      {featuredDialog && (
+        <FeaturedApplyDialog
+          product={featuredDialog}
+          depositBalance={myDeposit?.balance ?? 0}
+          onClose={() => setFeaturedDialog(null)}
+          onSuccess={() => {
+            utils.featuredListings.myListings.invalidate();
+          }}
+        />
+      )}
     </div>
   );
 }

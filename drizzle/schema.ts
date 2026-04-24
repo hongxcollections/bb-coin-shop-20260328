@@ -453,3 +453,21 @@ export const pushSubscriptions = mysqlTable("pushSubscriptions", {
   userAgent: varchar("userAgent", { length: 255 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
+
+// 主打商品付費刊登
+export const featuredListings = mysqlTable("featuredListings", {
+  id: int("id").autoincrement().primaryKey(),
+  merchantId: int("merchantId").notNull(),
+  productId: int("productId").notNull(),
+  productTitle: varchar("productTitle", { length: 200 }).notNull(),
+  merchantName: varchar("merchantName", { length: 100 }).notNull(),
+  tier: mysqlEnum("tier", ["day1", "day3", "day7"]).notNull(), // 24小時 / 3天 / 7天
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(), // 實際扣費金額
+  status: mysqlEnum("status", ["active", "expired", "cancelled"]).default("active").notNull(),
+  startAt: timestamp("startAt").defaultNow().notNull(),
+  endAt: timestamp("endAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type FeaturedListing = typeof featuredListings.$inferSelect;
+export type InsertFeaturedListing = typeof featuredListings.$inferInsert;

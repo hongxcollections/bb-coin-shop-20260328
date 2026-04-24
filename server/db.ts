@@ -1,7 +1,7 @@
 import { eq, desc, asc, and, or, gte, lte, gt, sql, inArray, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, merchantProducts, MerchantProduct } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, merchantProducts, MerchantProduct, featuredListings, FeaturedListing } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -3869,5 +3869,178 @@ export async function cancelProductOrder(orderId: number, byUserId: number, isAd
     UPDATE productOrders SET status = 'cancelled', cancelledAt = NOW(), cancelReason = ${reason ?? null}
     WHERE id = ${orderId}
   `);
+  return { ok: true };
+}
+
+// ── 主打商品付費刊登 (featuredListings) ────────────────────────────────────
+
+// 各時段預設收費（HKD）
+export const FEATURED_TIER_PRICES: Record<string, number> = {
+  day1: 30,  // 24 小時
+  day3: 70,  // 3 天
+  day7: 120, // 7 天
+};
+
+export const FEATURED_TIER_HOURS: Record<string, number> = {
+  day1: 24,
+  day3: 72,
+  day7: 168,
+};
+
+export const FEATURED_TIER_LABELS: Record<string, string> = {
+  day1: "24 小時（HK$30）",
+  day3: "3 天（HK$70）",
+  day7: "7 天（HK$120）",
+};
+
+let _featuredTableChecked = false;
+async function ensureFeaturedListingsTable() {
+  if (_featuredTableChecked) return;
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS featuredListings (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        merchantId INT NOT NULL,
+        productId INT NOT NULL,
+        productTitle VARCHAR(200) NOT NULL,
+        merchantName VARCHAR(100) NOT NULL,
+        tier ENUM('day1','day3','day7') NOT NULL,
+        amount DECIMAL(10,2) NOT NULL,
+        status ENUM('active','expired','cancelled') NOT NULL DEFAULT 'active',
+        startAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        endAt TIMESTAMP NOT NULL,
+        createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    _featuredTableChecked = true;
+  } catch (e) {
+    console.error('[featuredListings] ensureTable error:', e);
+  }
+}
+
+/** 商戶申請主打：扣保證金 + 建記錄 */
+export async function createFeaturedListing(
+  merchantId: number,
+  productId: number,
+  productTitle: string,
+  merchantName: string,
+  tier: 'day1' | 'day3' | 'day7',
+): Promise<{ ok: boolean; error?: string; listing?: any }> {
+  await ensureFeaturedListingsTable();
+  const db = await getDb();
+  if (!db) return { ok: false, error: 'DB unavailable' };
+
+  const amount = FEATURED_TIER_PRICES[tier];
+  const hours = FEATURED_TIER_HOURS[tier];
+
+  // 檢查保證金是否足夠
+  const deposit = await getOrCreateSellerDeposit(merchantId);
+  if (!deposit) return { ok: false, error: '無法讀取保證金記錄' };
+  const balance = parseFloat(deposit.balance.toString());
+  if (balance < amount) return { ok: false, error: `保證金不足，需要 HK$${amount}，目前餘額 HK$${balance.toFixed(2)}` };
+
+  // 檢查此商品是否已有進行中的主打
+  const existing = await db.execute(sql`
+    SELECT id FROM featuredListings
+    WHERE productId = ${productId} AND status = 'active' AND endAt > NOW()
+    LIMIT 1
+  `);
+  const rows = (existing[0] as any[]);
+  if (rows.length > 0) return { ok: false, error: '此商品已有進行中的主打刊登' };
+
+  // 扣保證金
+  await deductCommission(merchantId, amount, 0, `主打商品刊登費（${FEATURED_TIER_LABELS[tier]}）：${productTitle}`);
+
+  // 建記錄
+  const endAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+  await db.execute(sql`
+    INSERT INTO featuredListings (merchantId, productId, productTitle, merchantName, tier, amount, status, startAt, endAt)
+    VALUES (${merchantId}, ${productId}, ${productTitle}, ${merchantName}, ${tier}, ${amount}, 'active', NOW(), ${endAt})
+  `);
+
+  const newRows = await db.execute(sql`SELECT * FROM featuredListings WHERE merchantId = ${merchantId} ORDER BY id DESC LIMIT 1`);
+  const listing = ((newRows[0] as any[])[0]) ?? null;
+  return { ok: true, listing };
+}
+
+/** 首頁用：取得所有進行中的主打（含商品詳情），按 endAt 升序（快到期在前）*/
+export async function getActiveFeaturedListings(): Promise<any[]> {
+  await ensureFeaturedListingsTable();
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    // 先過期舊記錄
+    await db.execute(sql`UPDATE featuredListings SET status = 'expired' WHERE status = 'active' AND endAt <= NOW()`);
+
+    const rows = await db.execute(sql`
+      SELECT fl.*, mp.price, mp.currency, mp.images, mp.whatsapp, mp.stock, mp.status AS productStatus
+      FROM featuredListings fl
+      JOIN merchantProducts mp ON fl.productId = mp.id
+      WHERE fl.status = 'active' AND fl.endAt > NOW() AND mp.status = 'active' AND mp.stock > 0
+      ORDER BY fl.endAt ASC
+    `);
+    return (rows[0] as any[]) ?? [];
+  } catch (e) {
+    console.error('[getActiveFeaturedListings] error:', e);
+    return [];
+  }
+}
+
+/** 商戶自己的主打記錄 */
+export async function getMerchantFeaturedListings(merchantId: number): Promise<any[]> {
+  await ensureFeaturedListingsTable();
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    await db.execute(sql`UPDATE featuredListings SET status = 'expired' WHERE status = 'active' AND endAt <= NOW()`);
+    const rows = await db.execute(sql`
+      SELECT * FROM featuredListings WHERE merchantId = ${merchantId} ORDER BY createdAt DESC LIMIT 50
+    `);
+    return (rows[0] as any[]) ?? [];
+  } catch (e) { return []; }
+}
+
+/** 管理員：所有主打記錄（含過期） */
+export async function getAllFeaturedListings(limit = 100): Promise<any[]> {
+  await ensureFeaturedListingsTable();
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    await db.execute(sql`UPDATE featuredListings SET status = 'expired' WHERE status = 'active' AND endAt <= NOW()`);
+    const rows = await db.execute(sql`
+      SELECT * FROM featuredListings ORDER BY createdAt DESC LIMIT ${limit}
+    `);
+    return (rows[0] as any[]) ?? [];
+  } catch (e) { return []; }
+}
+
+/** 管理員：取消主打（退費） */
+export async function cancelFeaturedListing(id: number, adminId: number): Promise<{ ok: boolean; error?: string }> {
+  await ensureFeaturedListingsTable();
+  const db = await getDb();
+  if (!db) return { ok: false, error: 'DB unavailable' };
+
+  const rows = await db.execute(sql`SELECT * FROM featuredListings WHERE id = ${id} LIMIT 1`);
+  const listing = ((rows[0] as any[])[0]) as any;
+  if (!listing) return { ok: false, error: '記錄不存在' };
+  if (listing.status !== 'active') return { ok: false, error: '此主打已結束，無法取消' };
+
+  // 計算退費（按剩餘時間比例）
+  const now = Date.now();
+  const endAt = new Date(listing.endAt).getTime();
+  const startAt = new Date(listing.startAt).getTime();
+  const totalMs = endAt - startAt;
+  const remainMs = Math.max(0, endAt - now);
+  const refundRatio = totalMs > 0 ? remainMs / totalMs : 0;
+  const refundAmount = parseFloat((parseFloat(listing.amount) * refundRatio).toFixed(2));
+
+  await db.execute(sql`UPDATE featuredListings SET status = 'cancelled' WHERE id = ${id}`);
+
+  if (refundAmount > 0) {
+    await adjustDeposit(listing.merchantId, refundAmount, `主打商品取消退費（剩餘 ${Math.round(remainMs / 3600000)}h）：${listing.productTitle}`, adminId);
+  }
+
   return { ok: true };
 }
