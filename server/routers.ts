@@ -4085,26 +4085,33 @@ export const appRouter = router({
   /** 首頁：本網站近期成交（競拍 + 商品） */
   home: router({
     recentActivity: publicProcedure
-      .input(z.object({ limit: z.number().default(10) }))
+      .input(z.object({ limit: z.number().default(20) }))
       .query(async ({ input }) => {
         const pool = await getRawPool();
-        const limit = Math.max(1, Math.min(20, Number(input.limit)));
-        // 已結拍且有人出價的拍賣（圖片從 auctionImages 子查詢取第一張）
+        const limit = Math.max(1, Math.min(50, Number(input.limit)));
+        // 最近 3 個月已結拍且有人出價的拍賣（隨機抽樣）
         const [auctionRows]: any = await pool.execute(
           `SELECT a.id, a.title, a.currentPrice AS price, a.currency,
                   (SELECT ai.imageUrl FROM \`auctionImages\` ai
                    WHERE ai.auctionId = a.id ORDER BY ai.displayOrder ASC LIMIT 1) AS thumb,
                   a.endTime AS date, 'auction' AS type
            FROM \`auctions\` a
-           WHERE a.status = 'ended' AND a.highestBidderId IS NOT NULL AND a.currentPrice > 0 AND a.archived = 0
-           ORDER BY a.endTime DESC LIMIT 10`
+           WHERE a.status = 'ended'
+             AND a.highestBidderId IS NOT NULL
+             AND a.currentPrice > 0
+             AND a.archived = 0
+             AND a.endTime >= DATE_SUB(NOW(), INTERVAL 3 MONTH)
+           ORDER BY RAND()
+           LIMIT 40`
         );
-        // 已售出的商品（解析 images JSON 取第一個）
+        // 最近 3 個月已售出的商品（隨機抽樣）
         const [productRows]: any = await pool.execute(
           `SELECT id, title, price, currency, images, updatedAt AS date, 'product' AS type
            FROM \`merchantProducts\`
            WHERE status = 'sold'
-           ORDER BY updatedAt DESC LIMIT 10`
+             AND updatedAt >= DATE_SUB(NOW(), INTERVAL 3 MONTH)
+           ORDER BY RAND()
+           LIMIT 40`
         );
         // 解析商品圖片
         const processedProducts = (productRows as any[]).map((p: any) => {
@@ -4122,11 +4129,13 @@ export const appRouter = router({
           }
           return { ...p, thumb };
         });
-        // 合併、排序、取前 limit 筆
-        const combined = [...auctionRows, ...processedProducts]
-          .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-          .slice(0, limit);
-        return combined as Array<{
+        // 合併後再隨機洗牌，取前 limit 筆
+        const combined = [...auctionRows, ...processedProducts];
+        for (let i = combined.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [combined[i], combined[j]] = [combined[j], combined[i]];
+        }
+        return combined.slice(0, limit) as Array<{
           id: number;
           title: string;
           price: string;
