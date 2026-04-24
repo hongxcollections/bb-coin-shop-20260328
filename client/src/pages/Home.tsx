@@ -504,15 +504,6 @@ export default function Home() {
       {/* 早鳥會員名額 banner */}
       <EarlyBirdBanner />
 
-      {/* ── Hero 精選拍品輪播 ── */}
-      {heroAuctions.length > 0 && (
-        <section className="pt-3 pb-1">
-          <div className="container">
-            <HeroCarousel auctions={heroAuctions} />
-          </div>
-        </section>
-      )}
-
       {/* ── Section 1: Stats (Top) ── */}
       <section className="pt-3 pb-2">
         <div className="container">
@@ -526,6 +517,15 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* ── Hero 精選拍品輪播（商戶商品 banner 上方）── */}
+      {heroAuctions.length > 0 && (
+        <section className="pt-1 pb-1">
+          <div className="container">
+            <HeroCarousel auctions={heroAuctions} />
+          </div>
+        </section>
+      )}
 
       {/* ── Section 1b: Merchant Products Marquee ── */}
       <MerchantProductsStrip />
