@@ -154,11 +154,16 @@ export default function EarlyBirdBanner() {
                 <Gift className="eb-gift w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="text-sm font-bold text-amber-900 flex items-center gap-1.5 flex-wrap">
-                  {isHot && <Flame className="eb-fire w-4 h-4 text-red-500" />}
-                  <span>🎁 每日早鳥會員 · 今日仲剩</span>
-                  <span className="eb-num text-pink-600 font-extrabold text-base">{data.remaining}</span>
-                  <span>/ {data.total} 個名額！</span>
+                <div className="text-sm font-bold text-amber-900">
+                  <div className="flex items-center gap-1.5">
+                    {isHot && <Flame className="eb-fire w-4 h-4 text-red-500" />}
+                    <span>🎁 每日早鳥註冊會員 ·</span>
+                  </div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span>今日剩餘</span>
+                    <span className="eb-num text-pink-600 font-extrabold text-base">{data.remaining}</span>
+                    <span>/ {data.total} 個名額！</span>
+                  </div>
                 </div>
                 <div className="text-xs text-amber-700 mt-0.5 flex items-center gap-1.5 flex-wrap">
                   <span>新註冊即享 <span className="font-semibold">{levelLabel} {data.trialDays} 日試用</span>，先到先得</span>
