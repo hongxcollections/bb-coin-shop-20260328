@@ -411,7 +411,7 @@ function CombinedHeroCarousel({
             position: "relative",
             borderRadius: "1rem",
             overflow: "hidden",
-            boxShadow: "0 0 0 1.5px rgba(251,191,36,0.30), 0 8px 28px rgba(251,146,60,0.18), 0 2px 8px rgba(0,0,0,0.08)",
+            boxShadow: "0 6px 28px rgba(251,146,60,0.28), 0 2px 6px rgba(0,0,0,0.07)",
           }}
         >
           {mode === "products" ? (
@@ -864,7 +864,7 @@ export default function Home() {
                   backgroundClip: "text",
                 }}>主打出售商品</span>
               </p>
-              <div className="relative rounded-2xl overflow-hidden home-section-card" style={{ height: 230, boxShadow: "0 0 0 1.5px rgba(251,191,36,0.35), 0 8px 32px rgba(251,146,60,0.22), 0 2px 8px rgba(0,0,0,0.10)" }}>
+              <div className="relative rounded-2xl overflow-hidden home-section-card" style={{ height: 230, boxShadow: "0 6px 28px rgba(251,146,60,0.30), 0 2px 6px rgba(0,0,0,0.08)" }}>
                 {fThumb ? (
                   <img src={fThumb} alt={featuredProduct.title} className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" style={{ objectPosition: "center" }} />
                 ) : (
