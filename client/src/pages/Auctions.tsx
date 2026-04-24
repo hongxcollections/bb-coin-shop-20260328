@@ -312,7 +312,7 @@ export default function Auctions() {
 
         {/* ── Marquee Ticker ── Strictly show only active auctions with future end time */}
         {!isLoading && (auctions ?? []).filter(a => a.status === 'active' && new Date(a.endTime).getTime() > Date.now()).length > 0 && (
-          <div className="marquee-wrapper mb-4 border border-amber-100 rounded-xl bg-amber-50/60 py-2 overflow-hidden">
+          <div className="marquee-wrapper mb-4 border border-amber-200 rounded-xl py-2 overflow-hidden" style={{ background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fef3c7 100%)" }}>
             {(() => {
               const activeAuctions = (auctions ?? []).filter(a =>
                 a.status === 'active' && new Date(a.endTime).getTime() > Date.now()
