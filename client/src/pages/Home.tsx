@@ -501,9 +501,6 @@ export default function Home() {
       )}
       {/* Navigation */}
       <Header />
-      {/* 早鳥會員名額 banner */}
-      <EarlyBirdBanner />
-
       {/* ── Section 1: Stats (Top) ── */}
       <section className="pt-3 pb-2">
         <div className="container">
@@ -517,6 +514,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* 早鳥會員名額 banner */}
+      <EarlyBirdBanner />
 
       {/* ── Hero 精選拍品輪播（商戶商品 banner 上方）── */}
       {heroAuctions.length > 0 && (
