@@ -102,11 +102,11 @@ function HeroSlide({ auction }: { auction: any }) {
             style={{ objectPosition: "center" }}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-amber-100 to-amber-300">
-            <span className="text-8xl opacity-40">🪙</span>
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-amber-400 via-orange-400 to-yellow-300">
+            <span className="text-8xl opacity-55">🪙</span>
           </div>
         )}
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.04) 100%)" }} />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(120,53,15,0.82) 0%, rgba(154,52,18,0.28) 48%, rgba(251,191,36,0.06) 100%)" }} />
         <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
           <Flame className="w-3 h-3" />精選拍品
         </div>
@@ -233,11 +233,11 @@ function ProductHeroSlide({ product, onBuy }: { product: any; onBuy: (p: any) =>
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           style={{ objectPosition: "center" }} />
       ) : (
-        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-100 to-amber-300">
-          <span className="text-8xl opacity-40">🏪</span>
+        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-400 via-amber-400 to-yellow-300">
+          <span className="text-8xl opacity-55">🏪</span>
         </div>
       )}
-      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.04) 100%)" }} />
+      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(124,45,18,0.85) 0%, rgba(154,52,18,0.28) 48%, rgba(251,191,36,0.07) 100%)" }} />
       <Link href={`/merchant-products/${product.id}`}>
         <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
           <Store className="w-3 h-3" />精選商品
@@ -411,7 +411,7 @@ function CombinedHeroCarousel({
             position: "relative",
             borderRadius: "1rem",
             overflow: "hidden",
-            boxShadow: "0 4px 24px 0 rgba(0,0,0,0.13)",
+            boxShadow: "0 0 0 1.5px rgba(251,191,36,0.30), 0 8px 28px rgba(251,146,60,0.18), 0 2px 8px rgba(0,0,0,0.08)",
           }}
         >
           {mode === "products" ? (
@@ -864,15 +864,15 @@ export default function Home() {
                   backgroundClip: "text",
                 }}>主打出售商品</span>
               </p>
-              <div className="relative rounded-2xl overflow-hidden shadow-lg home-section-card" style={{ height: 230 }}>
+              <div className="relative rounded-2xl overflow-hidden home-section-card" style={{ height: 230, boxShadow: "0 0 0 1.5px rgba(251,191,36,0.35), 0 8px 32px rgba(251,146,60,0.22), 0 2px 8px rgba(0,0,0,0.10)" }}>
                 {fThumb ? (
-                  <img src={fThumb} alt={featuredProduct.title} className="w-full h-full object-cover" style={{ objectPosition: "center" }} />
+                  <img src={fThumb} alt={featuredProduct.title} className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" style={{ objectPosition: "center" }} />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-100 to-amber-200">
-                    <span className="text-8xl opacity-30">🏪</span>
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-400 via-amber-400 to-yellow-300">
+                    <span className="text-8xl opacity-50">🏪</span>
                   </div>
                 )}
-                <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.90) 0%, rgba(0,0,0,0.45) 50%, rgba(0,0,0,0.05) 100%)" }} />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(120,53,15,0.86) 0%, rgba(154,52,18,0.32) 46%, rgba(251,191,36,0.06) 100%)" }} />
                 {featuredProduct.merchantName && (
                   <div className="absolute top-3 right-3 bg-black/55 text-white text-[10px] px-2.5 py-1 rounded-full backdrop-blur-sm">{featuredProduct.merchantName}</div>
                 )}
