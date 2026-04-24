@@ -109,6 +109,7 @@ export default function Login() {
   const [step, setStep] = useState<"form" | "otp">("form");
 
   const [identifier, setIdentifier] = useState("");
+  const [loginInputMethod, setLoginInputMethod] = useState<"phone" | "email">("phone");
   const [email, setEmail] = useState("");
   const [countryCode, setCountryCode] = useState("+852");
   const [localPhone, setLocalPhone] = useState("");
@@ -373,12 +374,16 @@ export default function Login() {
   };
 
   const handleLogin = async () => {
+    // Determine the actual identifier based on login method
+    const loginIdentifier = loginInputMethod === "phone" ? (countryCode + localPhone) : identifier;
+    if (loginInputMethod === "phone" && !localPhone) { showError("請輸入手機號碼"); return; }
+    if (loginInputMethod === "email" && !identifier) { showError("請輸入電郵地址"); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, password }),
+        body: JSON.stringify({ identifier: loginIdentifier, password }),
       });
       const data = await res.json();
       if (!res.ok) { showError(data.error || "登入失敗"); return; }
@@ -390,7 +395,7 @@ export default function Login() {
         return;
       }
       // Set flag so BottomNav can show login success toast after redirect
-      localStorage.setItem("showLoginToast", identifier.includes("@") ? "email" : "phone");
+      localStorage.setItem("showLoginToast", loginInputMethod === "email" ? "email" : "phone");
       window.location.href = "/";
     } catch {
       showError("網絡錯誤，請稍後再試");
@@ -1101,15 +1106,91 @@ export default function Login() {
             {/* LOGIN FIELDS */}
             {mode === "login" && (
               <>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5" style={{ color: "#333" }}>電郵 / 手機號碼</label>
-                  <div className="relative">
-                    <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#aaa" }} />
-                    <input type="text" value={identifier} onChange={e => setIdentifier(e.target.value)}
-                      placeholder="輸入電郵或手機號碼" required
-                      className="w-full pl-9 pr-4 py-3 rounded-xl border text-sm outline-none" style={inputStyle} />
-                  </div>
+                {/* 登入方式切換 */}
+                <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: "#E5E5E5" }}>
+                  <button
+                    type="button"
+                    onClick={() => setLoginInputMethod("phone")}
+                    className="flex-1 py-2 text-sm font-semibold transition-colors"
+                    style={{
+                      background: loginInputMethod === "phone" ? "#E07B00" : "#fff",
+                      color: loginInputMethod === "phone" ? "#fff" : "#888",
+                    }}
+                  >
+                    📱 手機號碼
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLoginInputMethod("email")}
+                    className="flex-1 py-2 text-sm font-semibold transition-colors"
+                    style={{
+                      background: loginInputMethod === "email" ? "#E07B00" : "#fff",
+                      color: loginInputMethod === "email" ? "#fff" : "#888",
+                    }}
+                  >
+                    ✉️ 電郵地址
+                  </button>
                 </div>
+
+                {loginInputMethod === "phone" ? (
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5" style={{ color: "#333" }}>手機號碼</label>
+                    <div className="flex gap-2 items-stretch">
+                      {/* Country code dropdown */}
+                      <div className="relative flex-shrink-0" ref={countryDropdownRef}>
+                        <button
+                          type="button"
+                          onClick={() => setShowCountryDropdown(v => !v)}
+                          className="flex items-center gap-1.5 px-3 py-3 rounded-xl border text-sm font-medium whitespace-nowrap h-full"
+                          style={{ ...inputStyle, minWidth: "100px" }}
+                        >
+                          <span className="text-base leading-none">{COUNTRIES.find(c => c.code === countryCode)?.flag}</span>
+                          <span>{countryCode}</span>
+                          <ChevronDown size={13} className="ml-0.5 transition-transform duration-150"
+                            style={{ color: "#aaa", transform: showCountryDropdown ? "rotate(180deg)" : "rotate(0deg)" }} />
+                        </button>
+                        {showCountryDropdown && (
+                          <div className="absolute left-0 top-full mt-1.5 rounded-2xl border shadow-xl overflow-hidden z-[9999]"
+                            style={{ background: "#fff", borderColor: "#E5E5E5", minWidth: "210px", maxHeight: "300px", overflowY: "auto" }}>
+                            {COUNTRIES.map(c => {
+                              const selected = c.code === countryCode;
+                              return (
+                                <button key={c.code} type="button"
+                                  onClick={() => { setCountryCode(c.code); setShowCountryDropdown(false); }}
+                                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors"
+                                  style={{ background: selected ? "#FFF3E0" : "transparent", color: selected ? "#E07B00" : "#333" }}>
+                                  <span className="text-lg leading-none">{c.flag}</span>
+                                  <span className="font-semibold w-10 flex-shrink-0">{c.code}</span>
+                                  <span style={{ color: selected ? "#E07B00" : "#666" }}>{c.name}</span>
+                                  {selected && <span className="ml-auto text-base" style={{ color: "#E07B00" }}>✓</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                      <input
+                        type="tel"
+                        value={localPhone}
+                        onChange={e => setLocalPhone(e.target.value.replace(/\D/g, ""))}
+                        placeholder={countryCode === "+852" ? "XXXX XXXX" : countryCode === "+86" ? "1XX XXXX XXXX" : "電話號碼"}
+                        className="flex-1 px-3 py-3 rounded-xl border text-sm outline-none"
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5" style={{ color: "#333" }}>電郵地址</label>
+                    <div className="relative">
+                      <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#aaa" }} />
+                      <input type="email" value={identifier} onChange={e => setIdentifier(e.target.value)}
+                        placeholder="輸入電郵地址"
+                        className="w-full pl-9 pr-4 py-3 rounded-xl border text-sm outline-none" style={inputStyle} />
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-sm font-medium" style={{ color: "#333" }}>密碼</label>
