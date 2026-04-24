@@ -786,6 +786,14 @@ Output ONLY the JSON, nothing else.`;
       console.error('[Scheduler] Initial loyalty maintenance error:', err);
     }
   }, 30 * 1000);
+
+  // ── 資料庫定時備份（每日 HKT 02:00）──
+  try {
+    const { startBackupCron } = await import('../backup');
+    startBackupCron();
+  } catch (err) {
+    console.error('[Scheduler] Failed to start backup cron:', err);
+  }
 }
 
 startServer().catch(console.error);

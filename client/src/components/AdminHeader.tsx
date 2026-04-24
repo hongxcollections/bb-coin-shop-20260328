@@ -31,6 +31,7 @@ export default function AdminHeader() {
     { href: "/admin/subscriptions", label: "👑 訂閱管理", bg: "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100" },
     { href: "/admin/loyalty", label: "🎖️ 會員等級", bg: "bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100" },
     { href: "/admin/auction-records", label: "🪙 成交紀錄庫", bg: "bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100" },
+    { href: "/admin/backup", label: "🗄️ 資料庫備份", bg: "bg-green-50 text-green-700 border-green-200 hover:bg-green-100" },
     { href: "/profile", label: "👤 " + (user?.name ?? "個人資料"), bg: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" },
   ];
 

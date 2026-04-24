@@ -45,6 +45,7 @@ import MerchantSettings from "./pages/MerchantSettings";
 import MerchantRefundRequests from "./pages/MerchantRefundRequests";
 import AdminRefundRequests from "./pages/AdminRefundRequests";
 import AdminAuctionRecords from "./pages/AdminAuctionRecords";
+import AdminBackup from "./pages/AdminBackup";
 import AuctionSearch from "./pages/AuctionSearch";
 import Merchants from "./pages/Merchants";
 import MerchantProducts from "./pages/MerchantProducts";
@@ -172,6 +173,7 @@ function Router() {
       <Route path={"/merchant-refund-requests"} component={MerchantRefundRequests} />
       <Route path={"/admin/refund-requests"} component={AdminRefundRequests} />
       <Route path={"/admin/auction-records"} component={AdminAuctionRecords} />
+      <Route path={"/admin/backup"} component={AdminBackup} />
       <Route path={"/records"} component={AuctionSearch} />
       <Route path={"/merchants"} component={Merchants} />
       <Route path={"/merchants/:userId"} component={MerchantStore} />

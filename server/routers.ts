@@ -4082,6 +4082,26 @@ export const appRouter = router({
       }),
   }),
 
+  /** 資料庫備份管理（管理員專用） */
+  backup: router({
+    /** 手動立即觸發備份 */
+    run: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: '管理員限定' });
+        const { runBackup } = await import('./backup');
+        const result = await runBackup();
+        return result;
+      }),
+
+    /** 列出所有備份檔案 */
+    list: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: '管理員限定' });
+        const { listBackups } = await import('./backup');
+        return await listBackups();
+      }),
+  }),
+
   /** 首頁：本網站近期成交（競拍 + 商品） */
   home: router({
     recentActivity: publicProcedure
