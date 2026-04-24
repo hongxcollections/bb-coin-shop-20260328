@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +27,9 @@ import {
   ChevronRight,
   Flame,
   Gavel,
+  ShoppingCart,
+  Store,
+  Loader2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -211,6 +215,208 @@ function HeroCarousel({ auctions }: { auctions: any[] }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── 精選商品 Hero 輪播 ──
+function ProductHeroSlide({ product, onBuy }: { product: any; onBuy: (p: any) => void }) {
+  const imgs = parseProductImages(product.images);
+  const thumb = imgs[0] ?? null;
+  const currSymbol = getCurrencySymbol(product.currency ?? "HKD");
+  const price = parseFloat(product.price ?? "0");
+
+  return (
+    <div className="relative w-full h-full rounded-2xl overflow-hidden group">
+      {thumb ? (
+        <img src={thumb} alt={product.title}
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          style={{ objectPosition: "center" }} />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-100 to-amber-300">
+          <span className="text-8xl opacity-40">🏪</span>
+        </div>
+      )}
+      <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.04) 100%)" }} />
+      <Link href={`/merchant-products/${product.id}`}>
+        <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+          <Store className="w-3 h-3" />精選商品
+        </div>
+      </Link>
+      {product.merchantName && (
+        <div className="absolute top-3 right-3 bg-black/50 text-white text-[10px] px-2.5 py-1 rounded-full backdrop-blur-sm">
+          {product.merchantName}
+        </div>
+      )}
+      <div className="absolute bottom-0 left-0 right-0 p-4">
+        <Link href={`/merchant-products/${product.id}`}>
+          <h2 className="text-white font-bold text-base leading-snug line-clamp-2 drop-shadow mb-2">{product.title}</h2>
+        </Link>
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-white/60 text-[10px] mb-0.5">售價</p>
+            <p className="text-amber-300 font-extrabold text-xl leading-none drop-shadow">
+              {currSymbol}{price.toLocaleString()}
+            </p>
+          </div>
+          <button
+            onClick={() => onBuy(product)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white shadow-lg transition-transform group-hover:scale-105"
+            style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
+          >
+            <ShoppingCart className="w-3.5 h-3.5" />立即落單
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductHeroCarousel({ products, onBuy }: { products: any[]; onBuy: (p: any) => void }) {
+  const [idx, setIdx] = useState(0);
+  const total = products.length;
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const goTo = (i: number) => setIdx((i + total) % total);
+  const resetTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => setIdx(p => (p + 1) % total), 4500);
+  };
+
+  useEffect(() => {
+    if (total <= 1) return;
+    resetTimer();
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [total]);
+
+  const prev = () => { goTo(idx - 1); resetTimer(); };
+  const next = () => { goTo(idx + 1); resetTimer(); };
+
+  return (
+    <div className="relative w-full select-none" style={{ height: 260 }}>
+      <div className="absolute inset-0 overflow-hidden rounded-2xl shadow-lg">
+        <div className="flex h-full"
+          style={{
+            width: `${total * 100}%`,
+            transform: `translateX(-${(idx * 100) / total}%)`,
+            transition: "transform 0.45s cubic-bezier(0.4,0,0.2,1)",
+          }}>
+          {products.map((p) => (
+            <div key={p.id} style={{ width: `${100 / total}%`, height: "100%" }} className="shrink-0">
+              <ProductHeroSlide product={p} onBuy={onBuy} />
+            </div>
+          ))}
+        </div>
+      </div>
+      {total > 1 && (
+        <>
+          <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full flex items-center justify-center bg-black/45 text-white hover:bg-black/70 transition backdrop-blur-sm" aria-label="上一個">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full flex items-center justify-center bg-black/45 text-white hover:bg-black/70 transition backdrop-blur-sm" aria-label="下一個">
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </>
+      )}
+      {total > 1 && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-1.5">
+          {products.map((_, i) => (
+            <button key={i} onClick={() => { goTo(i); resetTimer(); }}
+              className={`rounded-full transition-all duration-300 ${i === idx ? "w-5 h-2 bg-orange-400" : "w-2 h-2 bg-white/50 hover:bg-white/80"}`}
+              aria-label={`第${i + 1}件`} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 首頁落單彈窗 ──
+function HomeBuyDialog({ product, onClose }: { product: any; onClose: () => void }) {
+  const { user, isAuthenticated } = useAuth();
+  const [, navigate] = useLocation();
+  const [qty, setQty] = useState(1);
+  const [note, setNote] = useState("");
+  const utils = trpc.useUtils();
+  const price = parseFloat(product.price ?? "0");
+  const currSymbol = getCurrencySymbol(product.currency ?? "HKD");
+
+  const createOrder = trpc.productOrders.create.useMutation({
+    onSuccess: () => {
+      toast.success("已成功落單！請等候商戶確認成交");
+      utils.merchants.listProducts.invalidate();
+      onClose();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  if (!isAuthenticated) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4" onClick={onClose}>
+        <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center" onClick={e => e.stopPropagation()}>
+          <ShoppingCart className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+          <p className="font-semibold text-gray-800 mb-1">請先登入</p>
+          <p className="text-sm text-gray-500 mb-4">登入後才可落單購買</p>
+          <button onClick={() => { onClose(); navigate("/login"); }}
+            className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 rounded-xl transition-colors">前往登入</button>
+          <button onClick={onClose} className="w-full mt-2 text-sm text-gray-400 py-2">取消</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (product.merchantId === user?.id) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4" onClick={onClose}>
+        <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center" onClick={e => e.stopPropagation()}>
+          <span className="text-4xl mb-3 block">🚫</span>
+          <p className="font-semibold text-gray-800 mb-1">不能購買自己的商品</p>
+          <button onClick={onClose} className="w-full bg-gray-100 text-gray-600 font-semibold py-2.5 rounded-xl hover:bg-gray-200">關閉</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3">
+          <ShoppingCart className="w-5 h-5 text-amber-500 shrink-0" />
+          <h2 className="font-bold text-gray-800 text-base">確認落單</h2>
+        </div>
+        <div className="bg-amber-50 rounded-xl p-3 space-y-1">
+          <p className="font-semibold text-gray-800 text-sm line-clamp-2">{product.title}</p>
+          <p className="text-amber-600 font-bold">{currSymbol} ${price.toLocaleString()}</p>
+          <p className="text-xs text-gray-500">庫存：{product.stock} 件</p>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-gray-500 font-medium">數量</label>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setQty(q => Math.max(1, q - 1))}
+              className="w-8 h-8 rounded-full border border-amber-200 text-amber-600 font-bold text-lg flex items-center justify-center hover:bg-amber-50">−</button>
+            <span className="text-lg font-bold text-gray-800 w-8 text-center">{qty}</span>
+            <button onClick={() => setQty(q => Math.min(product.stock, q + 1))}
+              className="w-8 h-8 rounded-full border border-amber-200 text-amber-600 font-bold text-lg flex items-center justify-center hover:bg-amber-50">+</button>
+            <span className="text-sm text-gray-500 ml-auto">合計：<span className="text-amber-600 font-bold">{currSymbol}${(price * qty).toLocaleString()}</span></span>
+          </div>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-gray-500 font-medium">備注（選填）</label>
+          <textarea className="w-full border border-gray-200 rounded-xl p-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300"
+            rows={2} maxLength={200} placeholder="如有特別要求請在此說明…"
+            value={note} onChange={e => setNote(e.target.value)} />
+        </div>
+        <p className="text-xs text-gray-400 bg-gray-50 rounded-lg p-2.5">落單後商戶會聯絡你確認成交，傭金於商戶確認後才自動扣除。</p>
+        <div className="flex gap-2 pt-1">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50">取消</button>
+          <button disabled={createOrder.isPending}
+            onClick={() => createOrder.mutate({ productId: product.id, quantity: qty, buyerNote: note || undefined })}
+            className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-60">
+            {createOrder.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
+            確認落單
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -401,6 +607,8 @@ export default function Home() {
   const [auctionListOpen, setAuctionListOpen] = useState(false);
   // 隨機索引在 mount 時固定，避免重新 render 時跳字
   const [randomIdx] = useState(() => Math.floor(Math.random() * 10000));
+  // 商品落單彈窗
+  const [buyingProduct, setBuyingProduct] = useState<any | null>(null);
 
   const { data: auctions, isLoading } = trpc.auctions.list.useQuery(
     { limit: 100, offset: 0, category: category === "all" ? undefined : category },
@@ -450,6 +658,14 @@ export default function Home() {
     return () => clearTimeout(t);
   }, [ss.homeWelcomeEnabled, ss.homeWelcomeMessage]);
 
+  // 出售商品（公開）
+  const { data: allProducts } = trpc.merchants.listProducts.useQuery(undefined, { staleTime: 60_000 });
+  const activeProducts = (allProducts ?? []).filter((p: any) => p.status === 'active' && (p.stock ?? 1) > 0);
+  // 精選出售商品：前三件
+  const heroProducts = activeProducts.slice(0, 3);
+  // 主打出售商品：第一件（最大圖展示）
+  const featuredProduct = activeProducts[0] ?? null;
+
   const activeAuctions = (auctions ?? []).filter(a => a.status === "active" && new Date(a.endTime).getTime() > Date.now());
   const activeCount = activeAuctions.length;
 
@@ -482,6 +698,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen home-bg overflow-x-hidden">
+      {/* 落單彈窗 */}
+      {buyingProduct && <HomeBuyDialog product={buyingProduct} onClose={() => setBuyingProduct(null)} />}
+
       {/* 首頁歡迎 popup */}
       {showWelcome && (
         <div className="bottom-nav-toast" style={{ zIndex: 9999 }}>
@@ -515,8 +734,83 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── 主打出售商品大卡（Stats 下方）── */}
+      {featuredProduct && (() => {
+        const fImgs = parseProductImages(featuredProduct.images);
+        const fThumb = fImgs[0] ?? null;
+        const fPrice = parseFloat(featuredProduct.price ?? "0");
+        const fCurr = getCurrencySymbol(featuredProduct.currency ?? "HKD");
+        return (
+          <section className="pt-2 pb-1">
+            <div className="container">
+              <p className="text-xs font-semibold mb-1.5 pl-1" style={{ filter: "drop-shadow(0 1px 3px rgba(251,191,36,0.7))" }}>
+                <span>🌟 </span>
+                <span style={{
+                  background: "linear-gradient(135deg, #b45309 0%, #f59e0b 35%, #fde68a 55%, #f59e0b 70%, #d97706 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}>主打出售商品</span>
+              </p>
+              <div className="relative rounded-2xl overflow-hidden shadow-lg home-section-card" style={{ height: 230 }}>
+                {fThumb ? (
+                  <img src={fThumb} alt={featuredProduct.title} className="w-full h-full object-cover" style={{ objectPosition: "center" }} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-100 to-amber-200">
+                    <span className="text-8xl opacity-30">🏪</span>
+                  </div>
+                )}
+                <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.90) 0%, rgba(0,0,0,0.45) 50%, rgba(0,0,0,0.05) 100%)" }} />
+                {featuredProduct.merchantName && (
+                  <div className="absolute top-3 right-3 bg-black/55 text-white text-[10px] px-2.5 py-1 rounded-full backdrop-blur-sm">{featuredProduct.merchantName}</div>
+                )}
+                <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+                  <Store className="w-3 h-3" />主打商品
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 p-4">
+                  <Link href={`/merchant-products/${featuredProduct.id}`}>
+                    <h2 className="text-white font-bold text-base leading-snug line-clamp-2 drop-shadow mb-3">{featuredProduct.title}</h2>
+                  </Link>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-white/60 text-[10px] mb-0.5">售價</p>
+                      <p className="text-amber-300 font-extrabold text-2xl leading-none drop-shadow">{fCurr}{fPrice.toLocaleString()}</p>
+                    </div>
+                    <button
+                      onClick={() => setBuyingProduct(featuredProduct)}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold text-white shadow-lg"
+                      style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
+                    >
+                      <ShoppingCart className="w-4 h-4" />立即落單
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
+
       {/* 早鳥會員名額 banner */}
       <EarlyBirdBanner />
+
+      {/* ── 精選出售商品輪播（Hero）── */}
+      {heroProducts.length > 0 && (
+        <section className="pt-1 pb-1">
+          <div className="container">
+            <p className="text-xs font-semibold mb-1.5 pl-1" style={{ filter: "drop-shadow(0 1px 3px rgba(251,191,36,0.7))" }}>
+              <span>🏪 </span>
+              <span style={{
+                background: "linear-gradient(135deg, #b45309 0%, #f59e0b 35%, #fde68a 55%, #f59e0b 70%, #d97706 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}>精選出售商品</span>
+            </p>
+            <ProductHeroCarousel products={heroProducts} onBuy={setBuyingProduct} />
+          </div>
+        </section>
+      )}
 
       {/* ── Hero 精選拍品輪播（商戶商品 banner 上方）── */}
       {heroAuctions.length > 0 && (
