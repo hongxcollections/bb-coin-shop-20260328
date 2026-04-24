@@ -461,7 +461,7 @@ function HomeBuyDialog({ product, onClose }: { product: any; onClose: () => void
 
   if (!isAuthenticated) {
     return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20" onClick={onClose}>
         <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center" onClick={e => e.stopPropagation()}>
           <ShoppingCart className="w-10 h-10 text-amber-400 mx-auto mb-3" />
           <p className="font-semibold text-gray-800 mb-1">請先登入</p>
@@ -476,7 +476,7 @@ function HomeBuyDialog({ product, onClose }: { product: any; onClose: () => void
 
   if (product.merchantId === user?.id) {
     return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20" onClick={onClose}>
         <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center" onClick={e => e.stopPropagation()}>
           <span className="text-4xl mb-3 block">🚫</span>
           <p className="font-semibold text-gray-800 mb-1">不能購買自己的商品</p>
