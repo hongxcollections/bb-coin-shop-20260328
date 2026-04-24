@@ -306,17 +306,17 @@ function GenerateProductsPanel({ userId, userName }: { userId: number; userName:
   );
 }
 
-/** 管理員為任意會員生成測試結標貨品（該用戶為商戶，中標者隨機抽取） */
+/** 管理員為商戶生成拍賣結果（從該商戶出售商品隨機抽取，中標者為隨機生成名字） */
 function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userName: string }) {
   const [open, setOpen] = useState(false);
   const [countStr, setCountStr] = useState("1");
   const count = Math.min(30, Math.max(1, parseInt(countStr, 10) || 1));
   const [results, setResults] = useState<{ auctionId: number; winningPrice: number; title: string; winnerName: string }[]>([]);
 
-  const genMutation = trpc.auctions.adminGenerateTestWonAuction.useMutation({
+  const genMutation = trpc.auctions.adminGenerateAuctionResult.useMutation({
     onSuccess: (data) => {
       setResults(data.items);
-      toast.success(`已生成 ${data.count} 個測試結標記錄`);
+      toast.success(`已生成 ${data.count} 個拍賣結果`);
     },
     onError: (err) => toast.error(err.message),
   });
@@ -330,7 +330,7 @@ function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userNam
         style={{ background: open ? "#FEF3C7" : "#F5F5F5", color: open ? "#92400E" : "#666" }}
       >
         <Gavel size={10} />
-        生成測試結標
+        生成拍賣結果
         <ChevronDown size={11} style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }} />
       </button>
 
@@ -340,11 +340,11 @@ function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userNam
             <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: "#D97706" }}>
               <Gavel size={11} className="text-white" />
             </div>
-            <span className="text-xs font-semibold" style={{ color: "#92400E" }}>生成測試結標貨品</span>
+            <span className="text-xs font-semibold" style={{ color: "#92400E" }}>生成拍賣結果</span>
             <span className="text-xs text-gray-400 ml-auto">商戶：{userName}</span>
           </div>
           <p className="text-xs text-amber-700">
-            以 <strong>{userName}</strong> 為商戶，系統隨機抽取會員作中標者，生成已結標拍賣（隨機金額）。
+            隨機抽取 <strong>{userName}</strong> 的出售商品，中標價與商品售價相同，中標會員為系統隨機生成名字。
           </p>
 
           {/* Count input */}
@@ -388,7 +388,7 @@ function GenerateWonAuctionPanel({ userId, userName }: { userId: number; userNam
           >
             {genMutation.isPending
               ? <><Loader2 size={12} className="animate-spin" />生成中…</>
-              : <><span>🏆</span>立即生成 {count} 個結標記錄</>}
+              : <><span>🏆</span>立即生成 {count} 個拍賣結果</>}
           </button>
 
           {results.length > 0 && (

@@ -554,6 +554,75 @@ export const appRouter = router({
         return { items: results, count: results.length };
       }),
 
+    adminGenerateAuctionResult: protectedProcedure
+      .input(z.object({
+        merchantUserId: z.number().int().positive(),
+        count: z.number().int().min(1).max(30).default(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+
+        const { merchantProducts: mpTable } = await import('../drizzle/schema');
+        const { eq, inArray } = await import('drizzle-orm');
+
+        // 隨機中文名生成
+        const surnames = ['陳', '李', '張', '劉', '黃', '吳', '鄭', '王', '林', '周', '何', '梁', '盧', '蔡', '謝', '羅', '曾', '許', '鄧', '馮'];
+        const givenNames = ['志明', '偉強', '嘉倫', '美玲', '小燕', '建國', '麗雯', '文輝', '子聰', '翠珊', '逸飛', '寶儀', '家豪', '欣怡', '浩然', '敏儀', '俊傑', '雅詩', '永康', '碧珊'];
+        const randomName = () => surnames[Math.floor(Math.random() * surnames.length)] + givenNames[Math.floor(Math.random() * givenNames.length)];
+
+        // 取該商戶的出售商品
+        const products = await db
+          .select()
+          .from(mpTable)
+          .where(eq(mpTable.merchantId, input.merchantUserId));
+
+        if (products.length === 0) throw new TRPCError({ code: 'BAD_REQUEST', message: '此用戶沒有出售商品，請先生成出售商品' });
+
+        // 隨機抽取（允許重複抽，但優先不重複）
+        const shuffled = [...products].sort(() => Math.random() - 0.5);
+        const picked = Array.from({ length: input.count }, (_, i) => shuffled[i % shuffled.length]);
+
+        const results: { auctionId: number; winningPrice: number; title: string; winnerName: string }[] = [];
+
+        for (const product of picked) {
+          const winningPrice = Number(product.price);
+          const startingPrice = Math.floor(winningPrice * 0.5);
+          const endTime = new Date(Date.now() - 60 * 60 * 1000);
+          const fakeWinnerName = randomName();
+
+          // 取商品圖片
+          let imageUrl: string | null = null;
+          try {
+            const imgs = product.images ? JSON.parse(product.images) : [];
+            imageUrl = Array.isArray(imgs) && imgs.length > 0 ? (imgs[0]?.imageUrl ?? imgs[0]) : null;
+          } catch {}
+          imageUrl = imageUrl ?? await getAnyExistingImageUrl() ?? 'https://placehold.co/400x400/d4af37/ffffff?text=拍賣';
+
+          // 以 admin 作 highestBidderId（系統操作），但展示假名字
+          const adminUserId = ctx.user.id;
+          const newAuction = await createAuction({
+            title: product.title,
+            description: product.description ?? '',
+            startingPrice: startingPrice.toString(),
+            currentPrice: winningPrice.toString(),
+            highestBidderId: adminUserId,
+            endTime,
+            bidIncrement: 30,
+            currency: (product.currency ?? 'HKD') as 'HKD' | 'USD' | 'CNY' | 'GBP',
+            status: 'ended' as const,
+            createdBy: input.merchantUserId,
+            category: (product.category ?? '其他') as any,
+          });
+          await addAuctionImage({ auctionId: newAuction.id, imageUrl, displayOrder: 0 });
+          await autoDeductCommissionOnAuctionEnd(newAuction.id).catch(() => {});
+          results.push({ auctionId: newAuction.id, winningPrice, title: product.title, winnerName: fakeWinnerName });
+        }
+
+        return { items: results, count: results.length };
+      }),
+
     adminGenerateTestListings: protectedProcedure
       .input(z.object({
         merchantUserId: z.number().int().positive(),
