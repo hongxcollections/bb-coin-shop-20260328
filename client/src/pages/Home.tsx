@@ -267,7 +267,7 @@ function RecentSalesFader() {
             backgroundClip: "text",
           }}>近期成交紀錄</span>
         </p>
-        <div className="home-section-card overflow-hidden">
+        <div className="home-section-card overflow-hidden border-green-100" style={{ background: "oklch(97% 0.03 145)" }}>
           <div
             className="flex items-center gap-4 px-5 py-4"
             style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.5s ease' }}
