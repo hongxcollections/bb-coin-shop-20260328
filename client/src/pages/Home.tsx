@@ -443,68 +443,93 @@ function CombinedHeroCarousel({
 
 // ── 主打商品右側浮動滑入卡 ──
 function FeaturedProductSideCard({ product, onBuy }: { product: any; onBuy: (p: any) => void }) {
-  // "hidden" = 右邊藏起 | "visible" = 滑出 | "gone" = 永久關閉
+  // "hidden" = 縮回留條邊 | "visible" = 完全滑出 | "gone" = X 永久關閉
   const [phase, setPhase] = useState<"hidden" | "visible" | "gone">("hidden");
   const imgs = parseProductImages(product.images);
   const thumb = imgs[0] ?? null;
   const price = parseFloat(product.price ?? "0");
   const curr = getCurrencySymbol(product.currency ?? "HKD");
 
-  // 1.5s 後自動滑出
+  // 頁面載入 1.2s 後自動滑出
   useEffect(() => {
-    const t = setTimeout(() => setPhase("visible"), 1500);
+    const t = setTimeout(() => setPhase("visible"), 1200);
     return () => clearTimeout(t);
   }, []);
 
-  // 滑出後停留 5s 再縮回
+  // 滑出後停留 10s 再縮回留邊
   useEffect(() => {
     if (phase !== "visible") return;
-    const t = setTimeout(() => setPhase("hidden"), 5000);
+    const t = setTimeout(() => setPhase("hidden"), 10000);
     return () => clearTimeout(t);
   }, [phase]);
 
   if (phase === "gone") return null;
 
-  const slideX = phase === "visible" ? "translateX(0)" : "translateX(calc(100% + 2px))";
+  // 縮回時留 22px 條邊供用戶點擊再彈出
+  const CARD_W = 178;
+  const STRIP = 22;
+  const slideX =
+    phase === "visible"
+      ? "translateX(0)"
+      : `translateX(${CARD_W - STRIP}px)`;
 
   return (
     <div
       style={{
         position: "fixed",
         right: 0,
-        top: "38%",
+        top: "35%",
         transform: slideX,
-        transition: "transform 0.55s cubic-bezier(0.34,1.2,0.64,1)",
+        transition: "transform 0.55s cubic-bezier(0.34,1.15,0.64,1)",
         zIndex: 45,
-        width: 190,
+        width: CARD_W,
+        cursor: phase === "hidden" ? "pointer" : "default",
       }}
+      onClick={() => { if (phase === "hidden") setPhase("visible"); }}
     >
-      {/* ✕ 關閉按鈕 */}
-      <button
-        onClick={() => setPhase("gone")}
-        className="absolute -left-3.5 top-2.5 z-20 w-7 h-7 rounded-full bg-white shadow-lg flex items-center justify-center text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition"
-        style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.18)" }}
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
+      {/* ✕ 關閉按鈕（只在展開時顯示） */}
+      {phase === "visible" && (
+        <button
+          onClick={e => { e.stopPropagation(); setPhase("gone"); }}
+          className="absolute -left-4 top-3 z-20 w-7 h-7 rounded-full bg-white shadow-lg flex items-center justify-center text-gray-500 hover:text-gray-800 transition"
+          style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.20)" }}
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      )}
 
-      {/* 卡片本體（右邊緊貼螢幕，只左側有圓角） */}
+      {/* 縮回時：條邊提示箭頭 */}
+      {phase === "hidden" && (
+        <div
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center"
+          style={{ width: STRIP, height: 48 }}
+        >
+          <ChevronLeft className="w-3.5 h-3.5 text-white drop-shadow" />
+        </div>
+      )}
+
+      {/* 卡片本體 */}
       <div
         className="relative overflow-hidden"
         style={{
-          height: 270,
-          borderRadius: "16px 0 0 16px",
-          boxShadow: "-4px 4px 24px rgba(0,0,0,0.22)",
+          height: 300,
+          borderRadius: "14px 0 0 14px",
+          boxShadow: "-4px 6px 28px rgba(0,0,0,0.26)",
         }}
       >
         {thumb ? (
-          <img src={thumb} alt={product.title} className="w-full h-full object-cover" style={{ objectPosition: "center" }} />
+          <img
+            src={thumb}
+            alt={product.title}
+            className="w-full h-full object-cover"
+            style={{ objectPosition: "center" }}
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-400 via-amber-400 to-yellow-300">
             <span className="text-6xl opacity-50">🏪</span>
           </div>
         )}
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.22) 30%, transparent 56%)" }} />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.76) 0%, rgba(0,0,0,0.22) 30%, transparent 56%)" }} />
 
         {/* 主打 badge */}
         <div className="absolute top-3 left-3 flex items-center gap-1 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
@@ -513,19 +538,21 @@ function FeaturedProductSideCard({ product, onBuy }: { product: any; onBuy: (p: 
 
         {/* 商戶名 */}
         {product.merchantName && (
-          <div className="absolute top-3 right-3 bg-black/50 text-white text-[9px] px-1.5 py-0.5 rounded-full backdrop-blur-sm max-w-[70px] truncate">
+          <div className="absolute top-3 right-2 bg-black/50 text-white text-[9px] px-1.5 py-0.5 rounded-full backdrop-blur-sm max-w-[68px] truncate">
             {product.merchantName}
           </div>
         )}
 
         {/* 底部資訊 */}
         <div className="absolute bottom-0 left-0 right-0 p-3">
-          <h3 className="text-white font-bold text-xs leading-snug line-clamp-2 drop-shadow mb-1.5">{product.title}</h3>
+          <h3 className="text-white font-bold text-xs leading-snug line-clamp-2 drop-shadow mb-1.5">
+            {product.title}
+          </h3>
           <p className="text-amber-300 font-extrabold text-base leading-none drop-shadow mb-2.5">
             {curr}{price.toLocaleString()}
           </p>
           <button
-            onClick={() => onBuy(product)}
+            onClick={e => { e.stopPropagation(); onBuy(product); }}
             className="w-full flex items-center justify-center gap-1 py-1.5 rounded-full text-xs font-bold text-white shadow-md"
             style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
           >
