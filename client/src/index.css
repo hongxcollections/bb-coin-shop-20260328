@@ -244,28 +244,25 @@
 
   /* ── 首頁背景視覺升級 ── */
   .home-bg {
-    background-color: #fceea8;
+    background-color: #fdf7e8;
     background-image:
-      /* 頂部強琥珀光暈 */
-      radial-gradient(ellipse 140% 55% at 50% -5%, rgba(251,191,36,0.55) 0%, transparent 65%),
-      /* 中央暗金色加深層次 */
-      radial-gradient(ellipse 80% 60% at 50% 50%, rgba(180,83,9,0.06) 0%, transparent 70%),
+      /* 頂部琥珀光暈 */
+      radial-gradient(ellipse 140% 45% at 50% -5%, rgba(251,191,36,0.28) 0%, transparent 62%),
       /* 左下暖光 */
-      radial-gradient(ellipse 70% 50% at -5% 100%, rgba(245,158,11,0.22) 0%, transparent 60%),
+      radial-gradient(ellipse 65% 45% at -5% 100%, rgba(245,158,11,0.12) 0%, transparent 60%),
       /* 右上暖光 */
-      radial-gradient(ellipse 60% 45% at 105% 0%, rgba(251,191,36,0.22) 0%, transparent 55%),
+      radial-gradient(ellipse 55% 40% at 105% 0%, rgba(251,191,36,0.12) 0%, transparent 55%),
       /* 圓點水印（硬幣感）*/
-      radial-gradient(circle, rgba(180,83,9,0.13) 1.2px, transparent 1.2px);
-    background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 22px 22px;
-    background-attachment: local;
+      radial-gradient(circle, rgba(180,83,9,0.09) 1.2px, transparent 1.2px);
+    background-size: 100% 100%, 100% 100%, 100% 100%, 22px 22px;
   }
 
   /* 首頁 marquee 漸層邊緣配合底色 */
   .home-bg .marquee-wrapper::before {
-    background: linear-gradient(to right, #fceea8, transparent) !important;
+    background: linear-gradient(to right, #fdf7e8, transparent) !important;
   }
   .home-bg .marquee-wrapper::after {
-    background: linear-gradient(to left, #fceea8, transparent) !important;
+    background: linear-gradient(to left, #fdf7e8, transparent) !important;
   }
 
   /* 首頁 section 白卡風格 */
