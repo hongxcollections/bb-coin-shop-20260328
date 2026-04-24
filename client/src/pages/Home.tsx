@@ -442,69 +442,64 @@ function CombinedHeroCarousel({
 }
 
 // ── 主打商品右側浮動滑入卡 ──
+// 尺寸：精選商品卡 (~330×260) 縮 1/3 → 220×173px
+// 行為：載入 1.2s 後滑出，停留 8s 自動縮回；點卡收回，點條邊彈出
 function FeaturedProductSideCard({ product, onBuy }: { product: any; onBuy: (p: any) => void }) {
-  // "hidden" = 縮回留條邊 | "visible" = 完全滑出 | "gone" = X 永久關閉
-  const [phase, setPhase] = useState<"hidden" | "visible" | "gone">("hidden");
+  const [phase, setPhase] = useState<"hidden" | "visible">("hidden");
   const imgs = parseProductImages(product.images);
   const thumb = imgs[0] ?? null;
   const price = parseFloat(product.price ?? "0");
   const curr = getCurrencySymbol(product.currency ?? "HKD");
 
-  // 頁面載入 1.2s 後自動滑出
+  const CARD_W = 220;
+  const CARD_H = 173;
+  const STRIP  = 20; // 縮回時可見條邊寬度
+
+  // 載入 1.2s 後自動滑出
   useEffect(() => {
     const t = setTimeout(() => setPhase("visible"), 1200);
     return () => clearTimeout(t);
   }, []);
 
-  // 滑出後停留 10s 再縮回留邊
+  // 展開後停留 8s 自動縮回
   useEffect(() => {
     if (phase !== "visible") return;
-    const t = setTimeout(() => setPhase("hidden"), 10000);
+    const t = setTimeout(() => setPhase("hidden"), 8000);
     return () => clearTimeout(t);
   }, [phase]);
 
-  if (phase === "gone") return null;
-
-  // 縮回時留 22px 條邊供用戶點擊再彈出
-  const CARD_W = 178;
-  const STRIP = 22;
-  const slideX =
-    phase === "visible"
-      ? "translateX(0)"
-      : `translateX(${CARD_W - STRIP}px)`;
+  const slideX = phase === "visible"
+    ? "translateX(0)"
+    : `translateX(${CARD_W - STRIP}px)`;
 
   return (
     <div
       style={{
         position: "fixed",
         right: 0,
-        top: "35%",
+        top: "40%",
         transform: slideX,
-        transition: "transform 0.55s cubic-bezier(0.34,1.15,0.64,1)",
+        transition: "transform 0.5s cubic-bezier(0.34,1.1,0.64,1)",
         zIndex: 45,
         width: CARD_W,
-        cursor: phase === "hidden" ? "pointer" : "default",
+        cursor: "pointer",
       }}
-      onClick={() => { if (phase === "hidden") setPhase("visible"); }}
+      onClick={() => setPhase(p => p === "visible" ? "hidden" : "visible")}
     >
-      {/* ✕ 關閉按鈕（只在展開時顯示） */}
-      {phase === "visible" && (
-        <button
-          onClick={e => { e.stopPropagation(); setPhase("gone"); }}
-          className="absolute -left-4 top-3 z-20 w-7 h-7 rounded-full bg-white shadow-lg flex items-center justify-center text-gray-500 hover:text-gray-800 transition"
-          style={{ boxShadow: "0 2px 10px rgba(0,0,0,0.20)" }}
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
-      )}
-
-      {/* 縮回時：條邊提示箭頭 */}
+      {/* 縮回時條邊箭頭提示 */}
       {phase === "hidden" && (
         <div
           className="absolute left-0 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center"
-          style={{ width: STRIP, height: 48 }}
+          style={{ width: STRIP, height: 44 }}
         >
           <ChevronLeft className="w-3.5 h-3.5 text-white drop-shadow" />
+        </div>
+      )}
+
+      {/* 展開時右上角收回提示 */}
+      {phase === "visible" && (
+        <div className="absolute top-2 right-2 z-20 bg-black/40 rounded-full p-0.5 backdrop-blur-sm">
+          <ChevronRight className="w-3 h-3 text-white" />
         </div>
       )}
 
@@ -512,9 +507,9 @@ function FeaturedProductSideCard({ product, onBuy }: { product: any; onBuy: (p: 
       <div
         className="relative overflow-hidden"
         style={{
-          height: 300,
-          borderRadius: "14px 0 0 14px",
-          boxShadow: "-4px 6px 28px rgba(0,0,0,0.26)",
+          height: CARD_H,
+          borderRadius: "12px 0 0 12px",
+          boxShadow: "-3px 4px 20px rgba(0,0,0,0.24)",
         }}
       >
         {thumb ? (
@@ -526,38 +521,40 @@ function FeaturedProductSideCard({ product, onBuy }: { product: any; onBuy: (p: 
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-400 via-amber-400 to-yellow-300">
-            <span className="text-6xl opacity-50">🏪</span>
+            <span className="text-5xl opacity-50">🏪</span>
           </div>
         )}
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.76) 0%, rgba(0,0,0,0.22) 30%, transparent 56%)" }} />
+        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.76) 0%, rgba(0,0,0,0.20) 30%, transparent 58%)" }} />
 
         {/* 主打 badge */}
-        <div className="absolute top-3 left-3 flex items-center gap-1 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-          <Store className="w-2.5 h-2.5" />主打
+        <div className="absolute top-2 left-2 flex items-center gap-1 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow">
+          <Store className="w-2 h-2" />主打
         </div>
 
         {/* 商戶名 */}
         {product.merchantName && (
-          <div className="absolute top-3 right-2 bg-black/50 text-white text-[9px] px-1.5 py-0.5 rounded-full backdrop-blur-sm max-w-[68px] truncate">
+          <div className="absolute top-2 right-6 bg-black/50 text-white text-[8px] px-1.5 py-0.5 rounded-full backdrop-blur-sm max-w-[60px] truncate">
             {product.merchantName}
           </div>
         )}
 
         {/* 底部資訊 */}
-        <div className="absolute bottom-0 left-0 right-0 p-3">
-          <h3 className="text-white font-bold text-xs leading-snug line-clamp-2 drop-shadow mb-1.5">
+        <div className="absolute bottom-0 left-0 right-0 p-2.5">
+          <h3 className="text-white font-bold text-[11px] leading-snug line-clamp-1 drop-shadow mb-1">
             {product.title}
           </h3>
-          <p className="text-amber-300 font-extrabold text-base leading-none drop-shadow mb-2.5">
-            {curr}{price.toLocaleString()}
-          </p>
-          <button
-            onClick={e => { e.stopPropagation(); onBuy(product); }}
-            className="w-full flex items-center justify-center gap-1 py-1.5 rounded-full text-xs font-bold text-white shadow-md"
-            style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
-          >
-            <ShoppingCart className="w-3 h-3" />立即落單
-          </button>
+          <div className="flex items-center justify-between gap-1.5">
+            <p className="text-amber-300 font-extrabold text-sm leading-none drop-shadow">
+              {curr}{price.toLocaleString()}
+            </p>
+            <button
+              onClick={e => { e.stopPropagation(); onBuy(product); }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white shadow"
+              style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
+            >
+              <ShoppingCart className="w-2.5 h-2.5" />落單
+            </button>
+          </div>
         </div>
       </div>
     </div>
