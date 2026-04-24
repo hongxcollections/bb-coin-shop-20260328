@@ -300,16 +300,45 @@ function FeaturedApplyDialog({
   onSuccess: () => void;
 }) {
   const [tier, setTier] = useState<"day1" | "day3" | "day7">("day1");
+  const [result, setResult] = useState<{ queued: boolean; queuePosition?: number } | null>(null);
+
+  const { data: slotStatus } = trpc.featuredListings.slotStatus.useQuery(undefined, { staleTime: 10_000 });
+  const isFull = slotStatus ? slotStatus.active >= slotStatus.maxSlots : false;
+  const slotsLeft = slotStatus ? Math.max(0, slotStatus.maxSlots - slotStatus.active) : null;
+
   const apply = trpc.featuredListings.submit.useMutation({
-    onSuccess: () => {
-      toast.success("🔥 已成功申請主打，即時生效！");
+    onSuccess: (data) => {
       onSuccess();
-      onClose();
+      if (data.queued) {
+        setResult({ queued: true, queuePosition: data.queuePosition });
+      } else {
+        toast.success("🔥 已成功申請主打，即時生效！");
+        onClose();
+      }
     },
     onError: (e) => toast.error(e.message),
   });
   const selected = TIER_OPTIONS.find(o => o.tier === tier)!;
   const canAfford = depositBalance >= selected.price;
+
+  // 排隊成功後的確認畫面
+  if (result?.queued) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20">
+        <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden text-center p-6 space-y-3">
+          <div className="text-4xl">⏳</div>
+          <h2 className="font-bold text-gray-800 text-base">已加入排隊！</h2>
+          <div className="bg-amber-50 rounded-xl p-3 space-y-1">
+            <p className="text-amber-700 font-semibold text-sm">目前排隊位置：第 {result.queuePosition} 位</p>
+            <p className="text-xs text-gray-500">主打位額滿（{slotStatus?.maxSlots} 個），當有位置空出時系統將自動升級啟動。費用已扣除，取消可全額退費。</p>
+          </div>
+          <button onClick={onClose} className="w-full py-2.5 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition">
+            明白了
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20" onClick={onClose}>
@@ -322,6 +351,16 @@ function FeaturedApplyDialog({
           <p className="text-yellow-100 text-xs mt-0.5 line-clamp-1">{product.title}</p>
         </div>
         <div className="p-4 space-y-3">
+          {/* 主打位狀態列 */}
+          {slotStatus && (
+            <div className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs ${isFull ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}>
+              <span>{isFull ? '⚠️ 主打位已額滿，申請後排隊等候' : `✅ 尚有 ${slotsLeft} 個空位，立即生效`}</span>
+              <span className="font-semibold">{slotStatus.active}/{slotStatus.maxSlots} 位</span>
+            </div>
+          )}
+          {slotStatus && slotStatus.queued > 0 && (
+            <p className="text-xs text-gray-400 -mt-1">目前排隊等候：{slotStatus.queued} 個</p>
+          )}
           <p className="text-xs text-gray-500">費用從保證金扣除。目前餘額：<span className="font-semibold text-gray-700">HK${depositBalance.toFixed(2)}</span></p>
           <div className="space-y-2">
             {TIER_OPTIONS.map(o => (
@@ -350,7 +389,7 @@ function FeaturedApplyDialog({
               style={{ background: canAfford ? "linear-gradient(135deg,#f59e0b,#ea580c)" : undefined, backgroundColor: canAfford ? undefined : "#d1d5db" }}
             >
               {apply.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Flame className="w-4 h-4" />}
-              確認申請
+              {isFull ? '排隊申請' : '確認申請'}
             </button>
           </div>
         </div>
@@ -425,6 +464,20 @@ export default function MerchantProducts() {
   const activeFeaturedIds = new Set(
     (myFeatured as any[]).filter((f: any) => f.status === 'active').map((f: any) => f.productId)
   );
+  const queuedFeaturedMap = new Map<number, { id: number; queuePosition: number }>(
+    (myFeatured as any[])
+      .filter((f: any) => f.status === 'queued')
+      .map((f: any) => [f.productId, { id: f.id, queuePosition: f.queuePosition ?? 1 }])
+  );
+
+  const cancelFeatured = trpc.featuredListings.cancelMine.useMutation({
+    onSuccess: () => {
+      utils.featuredListings.myListings.invalidate();
+      utils.sellerDeposits.myDeposit.invalidate();
+      toast.success("已取消主打，費用已退回保證金");
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   function resetForm() {
     setShowForm(false);
@@ -778,13 +831,23 @@ export default function MerchantProducts() {
                       <button onClick={() => toggleStatus(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
                         {p.status === "active" ? <><EyeOff className="w-3 h-3" />下架</> : <><Eye className="w-3 h-3" />上架</>}
                       </button>
-                      {p.status === "active" && (
-                        activeFeaturedIds.has(p.id)
-                          ? <span className="flex items-center gap-1 text-xs px-2 py-1 bg-orange-50 text-orange-500 rounded-lg font-medium"><Flame className="w-3 h-3" />主打中</span>
-                          : <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="flex items-center gap-1 text-xs px-2 py-1 bg-gradient-to-r from-yellow-50 to-orange-50 text-orange-500 border border-orange-200 rounded-lg hover:from-yellow-100 hover:to-orange-100 transition-colors font-medium">
-                              <Flame className="w-3 h-3" />申請主打
-                            </button>
-                      )}
+                      {p.status === "active" && (() => {
+                        if (activeFeaturedIds.has(p.id)) return (
+                          <span className="flex items-center gap-1 text-xs px-2 py-1 bg-orange-50 text-orange-500 rounded-lg font-medium"><Flame className="w-3 h-3" />主打中</span>
+                        );
+                        const queued = queuedFeaturedMap.get(p.id);
+                        if (queued) return (
+                          <span className="flex items-center gap-1 text-xs">
+                            <span className="px-2 py-1 bg-amber-50 text-amber-600 rounded-lg font-medium">⏳ 排隊第{queued.queuePosition}位</span>
+                            <button onClick={() => { if (confirm("取消排隊將全額退費，確定嗎？")) cancelFeatured.mutate({ id: queued.id }); }} className="px-1.5 py-1 text-red-400 hover:text-red-600 transition-colors" title="取消排隊（全額退費）"><X className="w-3 h-3" /></button>
+                          </span>
+                        );
+                        return (
+                          <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="flex items-center gap-1 text-xs px-2 py-1 bg-gradient-to-r from-yellow-50 to-orange-50 text-orange-500 border border-orange-200 rounded-lg hover:from-yellow-100 hover:to-orange-100 transition-colors font-medium">
+                            <Flame className="w-3 h-3" />申請主打
+                          </button>
+                        );
+                      })()}
                       <button onClick={() => { if (confirm("確定刪除此商品？")) deleteProduct.mutate({ id: p.id }); }} className="flex items-center gap-1 text-xs px-2 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />刪除
                       </button>
@@ -838,13 +901,12 @@ export default function MerchantProducts() {
                       <button onClick={() => toggleStatus(p)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex-1 justify-center">
                         {p.status === "active" ? <><EyeOff className="w-3 h-3" />下架</> : <><Eye className="w-3 h-3" />上架</>}
                       </button>
-                      {p.status === "active" && (
-                        activeFeaturedIds.has(p.id)
-                          ? <span className="flex items-center gap-1 text-xs px-2 py-1.5 bg-orange-50 text-orange-500 rounded-lg font-medium"><Flame className="w-3 h-3" />主打中</span>
-                          : <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="flex items-center gap-1 text-xs px-2 py-1.5 text-orange-500 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors font-medium">
-                              <Flame className="w-3 h-3" />申請主打
-                            </button>
-                      )}
+                      {p.status === "active" && (() => {
+                        if (activeFeaturedIds.has(p.id)) return <span className="flex items-center gap-1 text-xs px-2 py-1.5 bg-orange-50 text-orange-500 rounded-lg font-medium"><Flame className="w-3 h-3" />主打中</span>;
+                        const queued = queuedFeaturedMap.get(p.id);
+                        if (queued) return <span className="flex items-center gap-1 text-xs"><span className="px-2 py-1 bg-amber-50 text-amber-600 rounded-lg font-medium">⏳ 第{queued.queuePosition}位</span><button onClick={() => { if (confirm("取消排隊將全額退費，確定嗎？")) cancelFeatured.mutate({ id: queued.id }); }} className="px-1 text-red-400 hover:text-red-600"><X className="w-3 h-3" /></button></span>;
+                        return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="flex items-center gap-1 text-xs px-2 py-1.5 text-orange-500 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors font-medium"><Flame className="w-3 h-3" />申請主打</button>;
+                      })()}
                       <button onClick={() => { if (confirm("確定刪除此商品？")) deleteProduct.mutate({ id: p.id }); }} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />刪除
                       </button>
@@ -885,13 +947,12 @@ export default function MerchantProducts() {
                       <button onClick={() => toggleStatus(p)} className="flex-1 text-[10px] py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-center">
                         {p.status === "active" ? "下架" : "上架"}
                       </button>
-                      {p.status === "active" && (
-                        activeFeaturedIds.has(p.id)
-                          ? <span className="text-[10px] px-1.5 py-1 bg-orange-50 text-orange-500 rounded-lg"><Flame className="w-3 h-3" /></span>
-                          : <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="text-[10px] px-1.5 py-1 text-orange-500 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors">
-                              <Flame className="w-3 h-3" />
-                            </button>
-                      )}
+                      {p.status === "active" && (() => {
+                        if (activeFeaturedIds.has(p.id)) return <span className="text-[10px] px-1.5 py-1 bg-orange-50 text-orange-500 rounded-lg"><Flame className="w-3 h-3" /></span>;
+                        const queued = queuedFeaturedMap.get(p.id);
+                        if (queued) return <span className="flex items-center gap-0.5 text-[10px]"><span className="px-1.5 py-1 bg-amber-50 text-amber-600 rounded-lg">⏳{queued.queuePosition}</span><button onClick={() => { if (confirm("取消排隊將全額退費，確定嗎？")) cancelFeatured.mutate({ id: queued.id }); }} className="text-red-400 hover:text-red-600"><X className="w-2.5 h-2.5" /></button></span>;
+                        return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="text-[10px] px-1.5 py-1 text-orange-500 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors"><Flame className="w-3 h-3" /></button>;
+                      })()}
                       <button onClick={() => { if (confirm("確定刪除？")) deleteProduct.mutate({ id: p.id }); }} className="text-[10px] px-1.5 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -931,13 +992,12 @@ export default function MerchantProducts() {
                       <button onClick={() => toggleStatus(p)} className="flex-1 text-[9px] py-0.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors text-center">
                         {p.status === "active" ? "下架" : "上架"}
                       </button>
-                      {p.status === "active" && (
-                        activeFeaturedIds.has(p.id)
-                          ? <span className="text-[9px] px-1 py-0.5 bg-orange-50 text-orange-500 rounded"><Flame className="w-2.5 h-2.5" /></span>
-                          : <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="text-[9px] px-1 py-0.5 text-orange-500 border border-orange-200 rounded hover:bg-orange-50 transition-colors">
-                              <Flame className="w-2.5 h-2.5" />
-                            </button>
-                      )}
+                      {p.status === "active" && (() => {
+                        if (activeFeaturedIds.has(p.id)) return <span className="text-[9px] px-1 py-0.5 bg-orange-50 text-orange-500 rounded"><Flame className="w-2.5 h-2.5" /></span>;
+                        const queued = queuedFeaturedMap.get(p.id);
+                        if (queued) return <span className="flex items-center gap-0.5 text-[9px]"><span className="px-1 py-0.5 bg-amber-50 text-amber-600 rounded">⏳{queued.queuePosition}</span><button onClick={() => { if (confirm("取消排隊將全額退費，確定嗎？")) cancelFeatured.mutate({ id: queued.id }); }} className="text-red-400 hover:text-red-600"><X className="w-2 h-2" /></button></span>;
+                        return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="text-[9px] px-1 py-0.5 text-orange-500 border border-orange-200 rounded hover:bg-orange-50 transition-colors"><Flame className="w-2.5 h-2.5" /></button>;
+                      })()}
                       <button onClick={() => { if (confirm("確定刪除？")) deleteProduct.mutate({ id: p.id }); }} className="text-[9px] px-1 py-0.5 bg-red-50 text-red-500 rounded hover:bg-red-100 transition-colors">
                         <Trash2 className="w-2.5 h-2.5" />
                       </button>

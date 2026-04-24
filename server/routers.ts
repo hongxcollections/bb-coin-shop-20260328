@@ -9,7 +9,7 @@ import type { Auction } from "../drizzle/schema";
 import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, adminSetUserPassword, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, adminSetUserPassword, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS } from "./db";
 import { storagePut } from "./storage";
 import { applyWatermark } from "./watermark";
 import { getRawPool } from "./db";
@@ -4209,12 +4209,17 @@ export const appRouter = router({
       return getActiveFeaturedListings();
     }),
 
-    /** 商戶：查看自己的主打記錄 */
+    /** 公開：查看主打位狀態（幾個 active、幾個 queued、上限）*/
+    slotStatus: publicProcedure.query(async () => {
+      return getFeaturedSlotStatus();
+    }),
+
+    /** 商戶：查看自己的主打記錄（含排隊位置） */
     myListings: protectedProcedure.query(async ({ ctx }) => {
       return getMerchantFeaturedListings(ctx.user.id);
     }),
 
-    /** 商戶：申請主打（自動扣保證金） */
+    /** 商戶：申請主打（自動扣保證金；有位即啟動，滿則排隊）*/
     submit: protectedProcedure
       .input(z.object({
         productId: z.number().int().positive(),
@@ -4225,7 +4230,6 @@ export const appRouter = router({
         if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '只有通過審核的商戶才可申請主打刊登' });
         }
-        // 取商品資訊
         const product = await getMerchantProduct(input.productId);
         if (!product) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到此商品' });
         if (product.merchantId !== ctx.user.id && ctx.user.role !== 'admin') {
@@ -4242,6 +4246,15 @@ export const appRouter = router({
           input.tier,
         );
         if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error ?? '申請失敗' });
+        return result; // { ok, queued, queuePosition, listing }
+      }),
+
+    /** 商戶：取消自己的主打（排隊中全額退費，進行中按比例）*/
+    cancelMine: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const result = await cancelFeaturedListing(input.id, ctx.user.id, true, ctx.user.id);
+        if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
         return result;
       }),
 
@@ -4263,13 +4276,14 @@ export const appRouter = router({
         return result;
       }),
 
-    /** 公開：取各時段收費資訊 */
+    /** 公開：取各時段收費資訊及主打上限 */
     pricing: publicProcedure.query(() => {
-      return Object.entries(FEATURED_TIER_PRICES).map(([tier, price]) => ({
-        tier,
-        price,
-        label: FEATURED_TIER_LABELS[tier],
-      }));
+      return {
+        tiers: Object.entries(FEATURED_TIER_PRICES).map(([tier, price]) => ({
+          tier, price, label: FEATURED_TIER_LABELS[tier],
+        })),
+        maxSlots: MAX_FEATURED_SLOTS,
+      };
     }),
   }),
 });

@@ -463,7 +463,7 @@ export const featuredListings = mysqlTable("featuredListings", {
   merchantName: varchar("merchantName", { length: 100 }).notNull(),
   tier: mysqlEnum("tier", ["day1", "day3", "day7"]).notNull(), // 24小時 / 3天 / 7天
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(), // 實際扣費金額
-  status: mysqlEnum("status", ["active", "expired", "cancelled"]).default("active").notNull(),
+  status: mysqlEnum("status", ["active", "queued", "expired", "cancelled"]).default("active").notNull(),
   startAt: timestamp("startAt").defaultNow().notNull(),
   endAt: timestamp("endAt").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
