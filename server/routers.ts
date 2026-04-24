@@ -1201,13 +1201,41 @@ export const appRouter = router({
         return result;
       }),
 
-    // Admin: clear OWN auction data (allow self-purge for admin accounts)
+    // Admin: clear OWN auction data (createdBy OR highestBidder = admin)
     adminClearOwnAuctions: protectedProcedure
       .mutation(async ({ ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
-        const result = await purgeMerchantAuctionData(ctx.user.id);
-        if (!result.success) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: result.error ?? '清除失敗' });
-        return result;
+        const adminId = ctx.user.id;
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const { auctions: auctionsTable, bids: bidsTable, auctionImages: auctionImagesTable, proxyBids: proxyBidsTable, proxyBidLogs: proxyBidLogsTable, favorites: favoritesTable, depositTransactions: depositTransactionsTable, commissionRefundRequests: commissionRefundRequestsTable } = await import('../drizzle/schema');
+        const { or, eq, inArray } = await import('drizzle-orm');
+
+        // Find all auctions where admin is creator OR highest bidder
+        const targetAuctions = await db
+          .select({ id: auctionsTable.id })
+          .from(auctionsTable)
+          .where(or(eq(auctionsTable.createdBy, adminId), eq(auctionsTable.highestBidderId, adminId)));
+        const ids = targetAuctions.map(a => a.id);
+
+        let deletedAuctions = 0;
+        if (ids.length > 0) {
+          await db.delete(proxyBidLogsTable).where(inArray(proxyBidLogsTable.auctionId, ids));
+          await db.delete(proxyBidsTable).where(inArray(proxyBidsTable.auctionId, ids));
+          await db.delete(bidsTable).where(inArray(bidsTable.auctionId, ids));
+          await db.delete(auctionImagesTable).where(inArray(auctionImagesTable.auctionId, ids));
+          await db.delete(favoritesTable).where(inArray(favoritesTable.auctionId, ids));
+          await db.delete(depositTransactionsTable).where(inArray(depositTransactionsTable.relatedAuctionId, ids));
+          await db.delete(commissionRefundRequestsTable).where(inArray(commissionRefundRequestsTable.auctionId, ids));
+          await db.delete(auctionsTable).where(inArray(auctionsTable.id, ids));
+          deletedAuctions = ids.length;
+        }
+
+        // Also clear any remaining bids placed BY admin on other auctions
+        await db.delete(bidsTable).where(eq(bidsTable.userId, adminId));
+        await db.delete(proxyBidsTable).where(eq(proxyBidsTable.userId, adminId));
+
+        return { success: true, deletedAuctions, deletedBids: 0, deletedImages: 0, deletedProxyBids: 0, deletedFavorites: 0, deletedDepositTxns: 0, deletedRefundRequests: 0, deletedExternalBids: 0 };
       }),
 
     // Admin: clear OWN merchant products
