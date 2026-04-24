@@ -734,7 +734,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── 主打出售商品大卡（Stats 下方）── */}
+      {/* 早鳥會員名額 banner */}
+      <EarlyBirdBanner />
+
+      {/* ── 主打出售商品大卡（早鳥卡下方）── */}
       {featuredProduct && (() => {
         const fImgs = parseProductImages(featuredProduct.images);
         const fThumb = fImgs[0] ?? null;
@@ -790,9 +793,6 @@ export default function Home() {
           </section>
         );
       })()}
-
-      {/* 早鳥會員名額 banner */}
-      <EarlyBirdBanner />
 
       {/* ── 精選出售商品輪播（Hero）── */}
       {heroProducts.length > 0 && (
