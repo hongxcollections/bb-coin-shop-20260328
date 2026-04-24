@@ -423,20 +423,31 @@ function AdminSelfClearPanel({ userName }: { userName: string }) {
 
   const clearAuctionsMutation = trpc.users.adminClearOwnAuctions.useMutation({
     onSuccess: (data) => {
-      toast.success(`已清除 ${data.deletedAuctions ?? 0} 個拍賣紀錄`);
+      const n = data.deletedAuctions ?? 0;
+      if (n === 0) {
+        toast("未找到可清除的拍賣紀錄", { icon: "ℹ️" });
+      } else {
+        toast.success(`已清除 ${n} 個拍賣紀錄，頁面將重新載入…`);
+      }
       setOpenAuctions(false); setConfirmedAuctions(false);
-      utils.invalidate();
+      setTimeout(() => window.location.reload(), 1200);
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => {
+      toast.error(`清除失敗：${err.message}`);
+      setConfirmedAuctions(false);
+    },
   });
 
   const clearProductsMutation = trpc.users.adminClearOwnProducts.useMutation({
     onSuccess: (data) => {
-      toast.success(`已清除 ${data.deleted} 件出售商品`);
+      toast.success(`已清除 ${data.deleted} 件出售商品，頁面將重新載入…`);
       setOpenProducts(false); setConfirmedProducts(false);
-      utils.invalidate();
+      setTimeout(() => window.location.reload(), 1200);
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => {
+      toast.error(`清除失敗：${err.message}`);
+      setConfirmedProducts(false);
+    },
   });
 
   return (

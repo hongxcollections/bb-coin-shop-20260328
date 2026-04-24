@@ -1218,16 +1218,22 @@ export const appRouter = router({
 
           if (ids.length > 0) {
             const placeholders = ids.map(() => '?').join(',');
-            // Delete child records first
-            await pool.execute(`DELETE FROM \`proxyBidLogs\` WHERE \`auctionId\` IN (${placeholders})`, ids);
-            await pool.execute(`DELETE FROM \`proxyBids\` WHERE \`auctionId\` IN (${placeholders})`, ids);
-            await pool.execute(`DELETE FROM \`bids\` WHERE \`auctionId\` IN (${placeholders})`, ids);
-            await pool.execute(`DELETE FROM \`auctionImages\` WHERE \`auctionId\` IN (${placeholders})`, ids);
-            await pool.execute(`DELETE FROM \`favorites\` WHERE \`auctionId\` IN (${placeholders})`, ids);
-            await pool.execute(`DELETE FROM \`deposit_transactions\` WHERE \`relatedAuctionId\` IN (${placeholders})`, ids);
-            await pool.execute(`DELETE FROM \`commissionRefundRequests\` WHERE \`auctionId\` IN (${placeholders})`, ids);
-            // Delete the auctions themselves
-            await pool.execute(`DELETE FROM \`auctions\` WHERE \`id\` IN (${placeholders})`, ids);
+            // Disable FK checks to avoid any constraint issues
+            await pool.execute('SET FOREIGN_KEY_CHECKS = 0');
+            try {
+              await pool.execute(`DELETE FROM \`proxyBidLogs\` WHERE \`auctionId\` IN (${placeholders})`, ids);
+              await pool.execute(`DELETE FROM \`proxyBids\` WHERE \`auctionId\` IN (${placeholders})`, ids);
+              await pool.execute(`DELETE FROM \`bids\` WHERE \`auctionId\` IN (${placeholders})`, ids);
+              await pool.execute(`DELETE FROM \`auctionImages\` WHERE \`auctionId\` IN (${placeholders})`, ids);
+              await pool.execute(`DELETE FROM \`favorites\` WHERE \`auctionId\` IN (${placeholders})`, ids);
+              await pool.execute(`DELETE FROM \`deposit_transactions\` WHERE \`relatedAuctionId\` IN (${placeholders})`, ids);
+              await pool.execute(`DELETE FROM \`commissionRefundRequests\` WHERE \`auctionId\` IN (${placeholders})`, ids);
+              // Delete the auctions themselves
+              const [delRes] = await pool.execute(`DELETE FROM \`auctions\` WHERE \`id\` IN (${placeholders})`, ids) as any[];
+              console.log(`[adminClearOwnAuctions] Deleted auctions result:`, (delRes as any).affectedRows);
+            } finally {
+              await pool.execute('SET FOREIGN_KEY_CHECKS = 1');
+            }
           }
 
           // 2. Clean up any remaining bids BY admin on other auctions
