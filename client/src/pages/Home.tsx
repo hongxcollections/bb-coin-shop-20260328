@@ -23,7 +23,9 @@ import {
   Filter, 
   ChevronDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Flame,
+  Gavel,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -63,6 +65,104 @@ function CountdownTimer({ endTime }: { endTime: Date }) {
 }
 
 const PAGE_SIZE = 20;
+
+function HeroAuctionCard({ auction }: { auction: any }) {
+  const [timeLeft, setTimeLeft] = useState({ h: 0, m: 0, s: 0, urgent: false, ended: false });
+
+  useEffect(() => {
+    function calc() {
+      const diff = new Date(auction.endTime).getTime() - Date.now();
+      if (diff <= 0) { setTimeLeft({ h: 0, m: 0, s: 0, urgent: false, ended: true }); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft({ h, m, s, urgent: diff < 3600000, ended: false });
+    }
+    calc();
+    const id = setInterval(calc, 1000);
+    return () => clearInterval(id);
+  }, [auction.endTime]);
+
+  const thumb = (auction.images as Array<{ imageUrl: string }>)?.[0]?.imageUrl ?? null;
+  const currSymbol = getCurrencySymbol(auction.currency ?? "HKD");
+  const hasBids = !!auction.highestBidderId;
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  return (
+    <Link href={`/auctions/${auction.id}`}>
+      <div className="relative w-full rounded-2xl overflow-hidden shadow-lg cursor-pointer group" style={{ minHeight: 220 }}>
+        {/* 大圖 */}
+        {thumb ? (
+          <img
+            src={thumb}
+            alt={auction.title}
+            className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            style={{ height: 260, objectPosition: "center" }}
+          />
+        ) : (
+          <div className="w-full flex items-center justify-center bg-gradient-to-br from-amber-100 to-amber-200" style={{ height: 260 }}>
+            <span className="text-8xl opacity-40">🪙</span>
+          </div>
+        )}
+
+        {/* 漸層疊層 */}
+        <div
+          className="absolute inset-0"
+          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.38) 50%, rgba(0,0,0,0.05) 100%)" }}
+        />
+
+        {/* 精選徽章 */}
+        <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+          <Flame className="w-3 h-3" />
+          精選拍品
+        </div>
+
+        {/* 商戶名 */}
+        {auction.sellerName && (
+          <div className="absolute top-3 right-3 bg-black/50 text-white text-[10px] px-2.5 py-1 rounded-full backdrop-blur-sm">
+            {auction.sellerName}
+          </div>
+        )}
+
+        {/* 底部內容 */}
+        <div className="absolute bottom-0 left-0 right-0 p-4">
+          {/* 標題 */}
+          <h2 className="text-white font-bold text-base leading-snug line-clamp-2 drop-shadow mb-2">
+            {auction.title}
+          </h2>
+
+          <div className="flex items-end justify-between gap-3">
+            {/* 左：出價資訊 */}
+            <div>
+              <p className="text-white/60 text-[10px] mb-0.5">{hasBids ? "目前出價" : "起拍價"}</p>
+              <p className="text-amber-300 font-extrabold text-xl leading-none drop-shadow">
+                {currSymbol}{Number(auction.currentPrice).toLocaleString()}
+              </p>
+            </div>
+
+            {/* 右：倒數 + 出價按鈕 */}
+            <div className="flex flex-col items-end gap-2">
+              {/* 倒數計時 */}
+              <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono font-bold ${timeLeft.urgent ? "bg-red-500/90 text-white animate-pulse" : "bg-black/50 text-white/90"} backdrop-blur-sm`}>
+                <Clock className="w-3 h-3 shrink-0" />
+                {timeLeft.ended ? "已結束" : `${timeLeft.h > 0 ? `${timeLeft.h}h ` : ""}${pad(timeLeft.m)}m ${pad(timeLeft.s)}s`}
+              </div>
+              {/* 出價按鈕 */}
+              <div
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white shadow-lg transition-transform group-hover:scale-105"
+                style={{ background: "linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)" }}
+              >
+                <Gavel className="w-3.5 h-3.5" />
+                立即出價
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
 
 /** 解析商品圖片（images 可能是 JSON 陣列或純字串 URL） */
 function parseProductImages(images: string | null | undefined): string[] {
@@ -299,7 +399,13 @@ export default function Home() {
     return () => clearTimeout(t);
   }, [ss.homeWelcomeEnabled, ss.homeWelcomeMessage]);
 
-  const activeCount = (auctions ?? []).filter(a => a.status === "active" && new Date(a.endTime).getTime() > Date.now()).length;
+  const activeAuctions = (auctions ?? []).filter(a => a.status === "active" && new Date(a.endTime).getTime() > Date.now());
+  const activeCount = activeAuctions.length;
+
+  // 精選拍品：選最快結標的（最緊迫 = 最吸引點擊）
+  const heroAuction = activeAuctions.length > 0
+    ? [...activeAuctions].sort((a, b) => new Date(a.endTime).getTime() - new Date(b.endTime).getTime())[0]
+    : null;
 
   const filtered = (auctions ?? []).filter((a) => {
     const isEnded = new Date(a.endTime).getTime() <= Date.now() || a.status === 'ended';
@@ -346,6 +452,16 @@ export default function Home() {
       <Header />
       {/* 早鳥會員名額 banner */}
       <EarlyBirdBanner />
+
+      {/* ── Hero 精選拍品 ── */}
+      {heroAuction && (
+        <section className="pt-3 pb-1">
+          <div className="container">
+            <HeroAuctionCard auction={heroAuction} />
+          </div>
+        </section>
+      )}
+
       {/* ── Section 1: Stats (Top) ── */}
       <section className="pt-3 pb-2">
         <div className="container">
