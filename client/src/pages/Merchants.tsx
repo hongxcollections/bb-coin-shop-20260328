@@ -115,6 +115,19 @@ function BuyDialog({ product, onClose }: { product: any; onClose: () => void }) 
     );
   }
 
+  if (product.merchantId === user.id) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4" onClick={onClose}>
+        <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center" onClick={e => e.stopPropagation()}>
+          <span className="text-4xl mb-3 block">🚫</span>
+          <p className="font-semibold text-gray-800 mb-1">不能購買自己的商品</p>
+          <p className="text-sm text-gray-500 mb-4">此商品屬於你的商戶帳號</p>
+          <button onClick={onClose} className="w-full bg-gray-100 text-gray-600 font-semibold py-2.5 rounded-xl transition-colors hover:bg-gray-200">關閉</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20" onClick={onClose}>
       <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
@@ -170,7 +183,7 @@ function BuyDialog({ product, onClose }: { product: any; onClose: () => void }) 
   );
 }
 
-function ProductCard({ p, layout, whatsapp, messengerLink, onBuy }: { p: any; layout: LayoutMode; whatsapp: string; messengerLink: string; onBuy: (p: any) => void }) {
+function ProductCard({ p, layout, whatsapp, messengerLink, onBuy, currentUserId }: { p: any; layout: LayoutMode; whatsapp: string; messengerLink: string; onBuy: (p: any) => void; currentUserId?: number | null }) {
   const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
   const price = parseFloat(p.price ?? "0");
   const href = `/merchant-products/${p.id}`;
@@ -180,8 +193,13 @@ function ProductCard({ p, layout, whatsapp, messengerLink, onBuy }: { p: any; la
   const _mWa = (whatsapp ?? "").toString();
   const _mWaDigits = _mWa.replace(/[^0-9]/g, "");
   const effWa = _mWaDigits.length >= 7 ? _mWa : (_pWaDigits.length >= 7 ? _pWa : "");
+  const isOwner = currentUserId != null && p.merchantId === currentUserId;
 
-  const buyBtn = (
+  const buyBtn = isOwner ? (
+    <span className="flex items-center gap-1 bg-gray-100 text-gray-400 text-xs font-semibold px-2.5 py-1.5 rounded-full shrink-0 cursor-not-allowed">
+      🚫 自己
+    </span>
+  ) : (
     <button
       onClick={e => { e.preventDefault(); e.stopPropagation(); onBuy(p); }}
       className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-full transition-colors shrink-0 shadow-sm"
@@ -247,10 +265,14 @@ function ProductCard({ p, layout, whatsapp, messengerLink, onBuy }: { p: any; la
           <span className="text-[10px] font-bold text-amber-600">${price.toLocaleString()}</span>
           {p.stock > 0 ? (
             <div className="flex items-center gap-1 mt-auto">
-              <button onClick={e => { e.preventDefault(); e.stopPropagation(); onBuy(p); }}
-                className="flex-1 flex items-center justify-center gap-0.5 bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-semibold py-1 rounded-full transition-colors">
-                <ShoppingCart className="w-2.5 h-2.5" />落單
-              </button>
+              {isOwner ? (
+                <span className="flex-1 flex items-center justify-center text-[9px] font-semibold py-1 rounded-full bg-gray-100 text-gray-400 cursor-not-allowed">🚫 自己</span>
+              ) : (
+                <button onClick={e => { e.preventDefault(); e.stopPropagation(); onBuy(p); }}
+                  className="flex-1 flex items-center justify-center gap-0.5 bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-semibold py-1 rounded-full transition-colors">
+                  <ShoppingCart className="w-2.5 h-2.5" />落單
+                </button>
+              )}
               <ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="sm" />
             </div>
           ) : (
@@ -277,10 +299,14 @@ function ProductCard({ p, layout, whatsapp, messengerLink, onBuy }: { p: any; la
             <div className="flex items-center gap-1">
             {p.stock > 0 ? (
               <>
-                <button onClick={e => { e.preventDefault(); e.stopPropagation(); onBuy(p); }}
-                  className="flex items-center gap-0.5 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-semibold px-2 py-1 rounded-full transition-colors shadow-sm">
-                  <ShoppingCart className="w-2.5 h-2.5" />落單
-                </button>
+                {isOwner ? (
+                  <span className="flex items-center gap-0.5 bg-gray-100 text-gray-400 text-[10px] font-semibold px-2 py-1 rounded-full cursor-not-allowed">🚫 自己</span>
+                ) : (
+                  <button onClick={e => { e.preventDefault(); e.stopPropagation(); onBuy(p); }}
+                    className="flex items-center gap-0.5 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-semibold px-2 py-1 rounded-full transition-colors shadow-sm">
+                    <ShoppingCart className="w-2.5 h-2.5" />落單
+                  </button>
+                )}
                 <ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="sm" />
               </>
             ) : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
@@ -292,16 +318,17 @@ function ProductCard({ p, layout, whatsapp, messengerLink, onBuy }: { p: any; la
   );
 }
 
-function ProductsGrid({ products, layout, whatsapp, messengerLink, onBuy }: { products: any[]; layout: LayoutMode; whatsapp: string; messengerLink: string; onBuy: (p: any) => void }) {
-  if (layout === "list") return <div className="space-y-2">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} onBuy={onBuy} />)}</div>;
-  if (layout === "big") return <div className="space-y-4">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} onBuy={onBuy} />)}</div>;
-  if (layout === "grid3") return <div className="grid grid-cols-3 gap-2">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} onBuy={onBuy} />)}</div>;
-  return <div className="grid grid-cols-2 gap-3">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} onBuy={onBuy} />)}</div>;
+function ProductsGrid({ products, layout, whatsapp, messengerLink, onBuy, currentUserId }: { products: any[]; layout: LayoutMode; whatsapp: string; messengerLink: string; onBuy: (p: any) => void; currentUserId?: number | null }) {
+  if (layout === "list") return <div className="space-y-2">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} onBuy={onBuy} currentUserId={currentUserId} />)}</div>;
+  if (layout === "big") return <div className="space-y-4">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} onBuy={onBuy} currentUserId={currentUserId} />)}</div>;
+  if (layout === "grid3") return <div className="grid grid-cols-3 gap-2">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} onBuy={onBuy} currentUserId={currentUserId} />)}</div>;
+  return <div className="grid grid-cols-2 gap-3">{products.map(p => <ProductCard key={p.id} p={p} layout={layout} whatsapp={whatsapp} messengerLink={messengerLink} onBuy={onBuy} currentUserId={currentUserId} />)}</div>;
 }
 
 const PAGE_SIZE = 10;
 
 function MerchantSection({ merchant, selectedCategory, onBuy }: { merchant: any; selectedCategory: string; onBuy: (p: any) => void }) {
+  const { user } = useAuth();
   const { data: products = [], isLoading } = trpc.merchants.listProducts.useQuery({
     merchantId: merchant.userId,
     category: selectedCategory !== "全部" ? selectedCategory : undefined,
@@ -343,7 +370,7 @@ function MerchantSection({ merchant, selectedCategory, onBuy }: { merchant: any;
         <div className="text-center py-6 text-2xl animate-spin">💰</div>
       ) : (
         <>
-          <ProductsGrid products={pageItems} layout={layout} whatsapp={merchant.whatsapp ?? ""} messengerLink={messengerLink} onBuy={onBuy} />
+          <ProductsGrid products={pageItems} layout={layout} whatsapp={merchant.whatsapp ?? ""} messengerLink={messengerLink} onBuy={onBuy} currentUserId={user?.id} />
           {totalPages > 1 && (
             <div className="flex items-center justify-between gap-2 mt-3 px-1">
               <button
