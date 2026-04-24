@@ -229,7 +229,7 @@ export default function BottomNav() {
                             style={{ background: "none", border: "none", cursor: "pointer", width: "100%", borderTop: "1px solid rgba(0,0,0,0.06)", marginTop: "2px", paddingTop: "6px" }}
                           >
                             <LogOut className="w-4 h-4" style={{ color: "#dc2626" }} />
-                            <span>登出 <span style={{ fontSize: "10px", color: "#999" }}>({user?.name})</span></span>
+                            <span>登出 <span style={{ fontSize: "11px", color: "#E07B00", fontWeight: 600 }}>({user?.name})</span></span>
                           </button>
                         </>
                       ) : (
