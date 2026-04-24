@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
 import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, adminSetUserPassword, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder } from "./db";
 import { storagePut } from "./storage";
+import { applyWatermark } from "./watermark";
 import { getRawPool } from "./db";
 import { TRPCError } from "@trpc/server";
 import { getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser } from "./push";
@@ -2286,7 +2287,11 @@ export const appRouter = router({
         if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '只能為自己的拍賣上傳圖片' });
         }
-        const buffer = Buffer.from(input.imageData, 'base64');
+        let buffer = Buffer.from(input.imageData, 'base64');
+        // 加上商戶名稱水印
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        const merchantName = app?.merchantName || ctx.user.name || `用戶#${ctx.user.id}`;
+        buffer = await applyWatermark(buffer, merchantName, input.mimeType);
         const ext = input.mimeType === 'image/png' ? 'png' : input.mimeType === 'image/gif' ? 'gif' : input.mimeType === 'image/webp' ? 'webp' : 'jpg';
         const key = `auctions/${input.auctionId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
         const { url: imageUrl } = await storagePut(key, buffer, input.mimeType);
@@ -2302,7 +2307,11 @@ export const appRouter = router({
         fileName: z.string().default('image.jpg'),
       }))
       .mutation(async ({ input, ctx }) => {
-        const buffer = Buffer.from(input.imageData, 'base64');
+        let buffer = Buffer.from(input.imageData, 'base64');
+        // 加上商戶名稱水印
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        const merchantName = app?.merchantName || ctx.user.name || `用戶#${ctx.user.id}`;
+        buffer = await applyWatermark(buffer, merchantName, input.mimeType);
         const ext = input.mimeType === 'image/png' ? 'png' : input.mimeType === 'image/webp' ? 'webp' : 'jpg';
         const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const key = `temp/${ctx.user.id}/${uid}.${ext}`;
@@ -3108,10 +3117,13 @@ export const appRouter = router({
         if (!allowedMimes.includes(mimeToUse)) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: `不支援此圖片格式（${mimeToUse}），請使用 JPG、PNG 或 WebP` });
         }
-        const buffer = Buffer.from(input.imageData, 'base64');
+        let buffer = Buffer.from(input.imageData, 'base64');
         if (buffer.length > 8 * 1024 * 1024) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '圖片不可超過 8MB' });
         }
+        // 加上商戶名稱水印
+        const merchantName = app?.merchantName || ctx.user.name || `用戶#${ctx.user.id}`;
+        buffer = await applyWatermark(buffer, merchantName, mimeToUse);
         const fileKey = `merchant-products/${ctx.user.id}/${Date.now()}-${input.fileName}`;
         const { url } = await storagePut(fileKey, buffer, mimeToUse);
         return { url };
