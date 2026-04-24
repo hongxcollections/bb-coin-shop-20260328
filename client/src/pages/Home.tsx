@@ -667,19 +667,37 @@ function parseProductImages(images: string | null | undefined): string[] {
 }
 
 function RecentSalesFader() {
-  const { data: items, isLoading } = trpc.home.recentActivity.useQuery(
+  const { data: items } = trpc.home.recentActivity.useQuery(
     { limit: 20 },
     { staleTime: 5 * 60 * 1000 }
   );
   const list = items ?? [];
+  const [index, setIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
 
-  if (isLoading) return null;
+  useEffect(() => {
+    if (list.length <= 1) return;
+    const timer = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIndex(i => (i + 1) % list.length);
+        setVisible(true);
+      }, 500);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [list.length]);
+
   if (list.length === 0) return null;
+
+  const item = list[index];
+  const thumb = (item as any).thumb ?? null;
+  const currSymbol = getCurrencySymbol(item.currency ?? 'HKD');
+  const isAuction = item.type === 'auction';
 
   return (
     <section className="py-2">
       <div className="container">
-        <p className="text-xs font-semibold mb-2 pl-1" style={{ filter: "drop-shadow(0 1px 3px rgba(251,191,36,0.7))" }}>
+        <p className="text-xs font-semibold mb-1 pl-1" style={{ filter: "drop-shadow(0 1px 3px rgba(251,191,36,0.7))" }}>
           <span>🏆 </span>
           <span style={{
             background: "linear-gradient(135deg, #b45309 0%, #f59e0b 35%, #fde68a 55%, #f59e0b 70%, #d97706 100%)",
@@ -687,44 +705,47 @@ function RecentSalesFader() {
             WebkitTextFillColor: "transparent",
             backgroundClip: "text",
           }}>近期成交紀錄</span>
-          <span className="ml-1.5 text-[10px] text-amber-500 font-normal">（最近三個月 · {list.length} 條）</span>
         </p>
-        <div className="grid grid-cols-2 gap-2">
-          {list.map((item, i) => {
-            const thumb = (item as any).thumb ?? null;
-            const currSymbol = getCurrencySymbol(item.currency ?? 'HKD');
-            const isAuction = item.type === 'auction';
-            return (
-              <div
-                key={`${item.type}-${item.id}-${i}`}
-                className="home-section-card flex items-center gap-2.5 px-3 py-2.5 overflow-hidden"
-                style={{ background: isAuction ? "oklch(98% 0.02 85)" : "oklch(98% 0.02 145)" }}
-              >
-                {/* 縮圖 */}
-                <div className="w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center shrink-0 border border-amber-100 bg-amber-50">
-                  {thumb ? (
-                    <img src={thumb} alt={item.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-xl">🪙</span>
-                  )}
-                </div>
-                {/* 資料 */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-bold text-amber-900 truncate leading-snug">{item.title}</p>
-                  <p className="text-xs font-extrabold text-amber-600 leading-snug">
-                    {currSymbol}{Number(item.price).toLocaleString()}
-                  </p>
-                  <span className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 ${
-                    isAuction
-                      ? 'bg-amber-100 text-amber-700'
-                      : 'bg-green-100 text-green-700'
-                  }`}>
-                    {isAuction ? '🔨 競拍' : '🏪 售出'}
-                  </span>
-                </div>
+        <div className="home-section-card overflow-hidden" style={{ background: "oklch(96% 0.04 145)" }}>
+          <div
+            className="flex items-center gap-4 px-5 py-4"
+            style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.5s ease' }}
+          >
+            {/* 縮圖 */}
+            <div className="w-14 h-14 rounded-xl overflow-hidden bg-green-50 flex items-center justify-center shrink-0 shadow-inner border border-green-100">
+              {thumb ? (
+                <img src={thumb} alt={item.title} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-2xl">🪙</span>
+              )}
+            </div>
+            {/* 資料 */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-amber-900 truncate">{item.title}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-base font-extrabold text-amber-600">
+                  {currSymbol}{Number(item.price).toLocaleString()}
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  isAuction
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-green-50 text-green-700 border-green-200'
+                }`}>
+                  {isAuction ? '🔨 競拍成交' : '🏪 商品售出'}
+                </span>
               </div>
-            );
-          })}
+            </div>
+            {/* 圓點指示器 */}
+            <div className="flex flex-col gap-1 shrink-0">
+              {list.map((_, i) => (
+                <div
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full transition-all duration-300"
+                  style={{ background: i === index ? '#16a34a' : '#bbf7d0' }}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>
