@@ -445,7 +445,7 @@ function CombinedHeroCarousel({
 // 尺寸：精選商品卡 (~330×260) 縮 1/3 → 220×173px
 // 行為：載入 1.2s 後滑出，停留 8s 自動縮回；點卡收回，點條邊彈出
 function FeaturedProductSideCard({ product, onBuy }: { product: any; onBuy: (p: any) => void }) {
-  const [phase, setPhase] = useState<"hidden" | "visible">("hidden");
+  const [phase, setPhase] = useState<"hidden" | "visible" | "gone">("hidden");
   const imgs = parseProductImages(product.images);
   const thumb = imgs[0] ?? null;
   const price = parseFloat(product.price ?? "0");
@@ -468,6 +468,8 @@ function FeaturedProductSideCard({ product, onBuy }: { product: any; onBuy: (p: 
     return () => clearTimeout(t);
   }, [phase]);
 
+  if (phase === "gone") return null;
+
   const slideX = phase === "visible"
     ? "translateX(0)"
     : `translateX(${CARD_W - STRIP}px)`;
@@ -477,7 +479,7 @@ function FeaturedProductSideCard({ product, onBuy }: { product: any; onBuy: (p: 
       style={{
         position: "fixed",
         right: 0,
-        top: "40%",
+        bottom: 80,
         transform: slideX,
         transition: "transform 0.5s cubic-bezier(0.34,1.1,0.64,1)",
         zIndex: 45,
@@ -493,13 +495,6 @@ function FeaturedProductSideCard({ product, onBuy }: { product: any; onBuy: (p: 
           style={{ width: STRIP, height: 44 }}
         >
           <ChevronLeft className="w-3.5 h-3.5 text-white drop-shadow" />
-        </div>
-      )}
-
-      {/* 展開時右上角收回提示 */}
-      {phase === "visible" && (
-        <div className="absolute top-2 right-2 z-20 bg-black/40 rounded-full p-0.5 backdrop-blur-sm">
-          <ChevronRight className="w-3 h-3 text-white" />
         </div>
       )}
 
@@ -526,14 +521,22 @@ function FeaturedProductSideCard({ product, onBuy }: { product: any; onBuy: (p: 
         )}
         <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.76) 0%, rgba(0,0,0,0.20) 30%, transparent 58%)" }} />
 
-        {/* 主打 badge */}
-        <div className="absolute top-2 left-2 flex items-center gap-1 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow">
-          <Store className="w-2 h-2" />主打
+        {/* 卡內左上角：X 關閉按鈕 + 主打 badge */}
+        <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5">
+          <button
+            onClick={e => { e.stopPropagation(); setPhase("gone"); }}
+            className="w-5 h-5 rounded-full bg-black/55 flex items-center justify-center backdrop-blur-sm hover:bg-black/75 transition"
+          >
+            <X className="w-2.5 h-2.5 text-white" />
+          </button>
+          <div className="flex items-center gap-0.5 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow">
+            <Store className="w-2 h-2" />主打
+          </div>
         </div>
 
         {/* 商戶名 */}
         {product.merchantName && (
-          <div className="absolute top-2 right-6 bg-black/50 text-white text-[8px] px-1.5 py-0.5 rounded-full backdrop-blur-sm max-w-[60px] truncate">
+          <div className="absolute top-2 right-2 bg-black/50 text-white text-[8px] px-1.5 py-0.5 rounded-full backdrop-blur-sm max-w-[60px] truncate">
             {product.merchantName}
           </div>
         )}
