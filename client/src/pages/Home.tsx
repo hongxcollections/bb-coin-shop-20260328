@@ -434,13 +434,6 @@ function CombinedHeroCarousel({
               ))}
             </div>
           )}
-          {/* 類型 badge（右下，若兩種都有） */}
-          {bothExist && (
-            <div className="absolute top-3 left-3 z-10 flex gap-1.5">
-              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold backdrop-blur-sm transition-all ${mode === "products" ? "bg-orange-500 text-white" : "bg-black/35 text-white/60"}`}>商品</span>
-              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold backdrop-blur-sm transition-all ${mode === "auctions" ? "bg-amber-500 text-white" : "bg-black/35 text-white/60"}`}>拍品</span>
-            </div>
-          )}
         </div>
       </div>
     </section>
