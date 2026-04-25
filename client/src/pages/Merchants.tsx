@@ -271,6 +271,7 @@ function ProductCard({ p, layout, whatsapp, messengerLink, onBuy, currentUserId 
         </div>
         <div className="p-1.5 flex flex-col gap-1 flex-1">
           <h3 className={`text-[10px] font-semibold line-clamp-2 leading-tight ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
+          <span className={`text-[10px] font-bold ${isSold ? "text-gray-400 line-through" : "text-amber-600"}`}>{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
           {!isSold ? (
             <div className="flex items-center gap-1 mt-auto">
               {isOwner ? (

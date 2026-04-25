@@ -518,8 +518,8 @@ export default function MerchantProductDetail() {
                           <div className="p-2 flex flex-col gap-1 flex-1">
                             <h3 className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">{p.title}</h3>
                             {p.category && <span className="text-[10px] text-amber-600">{p.category}</span>}
-                            <div className="mt-auto pt-1 flex items-center justify-between gap-1">
-                              <span className="font-bold text-amber-600 text-xs">{p.currency ?? "HKD"} ${pPrice.toLocaleString()}</span>
+                            <span className="font-bold text-amber-600 text-xs">{p.currency ?? "HKD"} ${pPrice.toLocaleString()}</span>
+                            <div className="mt-auto pt-1 flex items-center justify-end gap-1">
                               <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                                 {p.merchantId === user?.id ? (
                                   <span className="flex items-center gap-0.5 bg-gray-100 text-gray-400 text-[10px] font-semibold px-2 py-1 rounded-full cursor-not-allowed">🚫 自己</span>
