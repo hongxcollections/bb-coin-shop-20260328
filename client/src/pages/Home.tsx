@@ -221,11 +221,12 @@ function HeroCarousel({ auctions }: { auctions: any[] }) {
 }
 
 // ── 精選商品 Hero 輪播 ──
-function ProductHeroSlide({ product, onBuy }: { product: any; onBuy: (p: any) => void }) {
+function ProductHeroSlide({ product, onBuy, currentUserId }: { product: any; onBuy: (p: any) => void; currentUserId?: number | null }) {
   const imgs = parseProductImages(product.images);
   const thumb = imgs[0] ?? null;
   const currSymbol = getCurrencySymbol(product.currency ?? "HKD");
   const price = parseFloat(product.price ?? "0");
+  const isOwn = currentUserId != null && product.merchantId === currentUserId;
 
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden group">
@@ -260,13 +261,19 @@ function ProductHeroSlide({ product, onBuy }: { product: any; onBuy: (p: any) =>
               {currSymbol}{price.toLocaleString()}
             </p>
           </div>
-          <button
-            onClick={() => onBuy(product)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white shadow-lg transition-transform group-hover:scale-105"
-            style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
-          >
-            <ShoppingCart className="w-3.5 h-3.5" />立即落單
-          </button>
+          {isOwn ? (
+            <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white/60 bg-white/20 cursor-not-allowed select-none">
+              🚫 自己商品
+            </span>
+          ) : (
+            <button
+              onClick={() => onBuy(product)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white shadow-lg transition-transform group-hover:scale-105"
+              style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />立即落單
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -337,10 +344,12 @@ function CombinedHeroCarousel({
   products,
   auctions,
   onBuy,
+  currentUserId,
 }: {
   products: any[];
   auctions: any[];
   onBuy: (p: any) => void;
+  currentUserId?: number | null;
 }) {
   const hasProducts = products.length > 0;
   const hasAuctions = auctions.length > 0;
@@ -416,7 +425,7 @@ function CombinedHeroCarousel({
           }}
         >
           {mode === "products" ? (
-            <ProductHeroSlide product={currentItem} onBuy={onBuy} />
+            <ProductHeroSlide product={currentItem} onBuy={onBuy} currentUserId={currentUserId} />
           ) : (
             <HeroSlide auction={currentItem} />
           )}
@@ -444,12 +453,13 @@ function CombinedHeroCarousel({
 // ── 主打商品右側浮動滑入卡 ──
 // 尺寸：精選商品卡 (~330×260) 縮 1/3 → 220×173px
 // 行為：載入 1.2s 後滑出，停留 8s 自動縮回；點卡收回，點條邊彈出
-function FeaturedProductSideCard({ product, onBuy }: { product: any; onBuy: (p: any) => void }) {
+function FeaturedProductSideCard({ product, onBuy, currentUserId }: { product: any; onBuy: (p: any) => void; currentUserId?: number | null }) {
   const [phase, setPhase] = useState<"hidden" | "visible" | "gone">("hidden");
   const imgs = parseProductImages(product.images);
   const thumb = imgs[0] ?? null;
   const price = parseFloat(product.price ?? "0");
   const curr = getCurrencySymbol(product.currency ?? "HKD");
+  const isOwn = currentUserId != null && product.merchantId === currentUserId;
 
   const CARD_W = 220;
   const CARD_H = 173;
@@ -551,13 +561,19 @@ function FeaturedProductSideCard({ product, onBuy }: { product: any; onBuy: (p: 
             <p className="text-amber-300 font-extrabold text-sm leading-none drop-shadow">
               {curr}{price.toLocaleString()}
             </p>
-            <button
-              onClick={e => { e.stopPropagation(); onBuy(product); }}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white shadow"
-              style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
-            >
-              <ShoppingCart className="w-2.5 h-2.5" />落單
-            </button>
+            {isOwn ? (
+              <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white/50 bg-white/20 cursor-not-allowed select-none">
+                🚫 自己
+              </span>
+            ) : (
+              <button
+                onClick={e => { e.stopPropagation(); onBuy(product); }}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white shadow"
+                style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
+              >
+                <ShoppingCart className="w-2.5 h-2.5" />落單
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -918,6 +934,7 @@ export default function Home() {
       // 把 featuredListing 記錄轉換成 merchantProduct 格式，供 FeaturedProductSideCard 使用
       return {
         id: f.productId,
+        merchantId: f.merchantId,
         title: f.productTitle,
         merchantName: f.merchantName,
         price: f.price,
@@ -1005,7 +1022,7 @@ export default function Home() {
 
       {/* ── 主打出售商品：右側浮動滑入卡 ── */}
       {featuredProduct && (
-        <FeaturedProductSideCard product={featuredProduct} onBuy={setBuyingProduct} />
+        <FeaturedProductSideCard product={featuredProduct} onBuy={setBuyingProduct} currentUserId={user?.id} />
       )}
 
       {/* ── 精選商品＋精選拍品 合併輪播（同位置淡入淡出切換）── */}
@@ -1014,6 +1031,7 @@ export default function Home() {
           products={heroProducts}
           auctions={heroAuctions}
           onBuy={setBuyingProduct}
+          currentUserId={user?.id}
         />
       )}
 
