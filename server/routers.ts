@@ -4286,5 +4286,63 @@ export const appRouter = router({
       };
     }),
   }),
+
+  // ─── 系統測試（管理員專用）───────────────────────────────────────────────
+  systemTest: router({
+    /** 伺服器 Ping — 回傳伺服器時間戳及往返時延 */
+    ping: protectedProcedure.mutation(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+      const serverTime = new Date().toISOString();
+      return { ok: true, serverTime };
+    }),
+
+    /** 資料庫延遲 — 執行最輕量 SQL 並量測耗時 */
+    dbCheck: protectedProcedure.mutation(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+      const t0 = Date.now();
+      try {
+        const pool = getRawPool();
+        await pool.query('SELECT 1 AS ping');
+        const ms = Date.now() - t0;
+        return { ok: true, ms };
+      } catch (err: any) {
+        return { ok: false, ms: Date.now() - t0, error: err?.message ?? String(err) };
+      }
+    }),
+
+    /** 發送測試電郵 */
+    sendTestEmail: protectedProcedure
+      .input(z.object({ to: z.string().email() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const { sendEmailWithDetails } = await import('./email');
+        const html = `
+          <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;background:#fdf8f0;border-radius:12px;">
+            <h2 style="color:#b45309;margin-bottom:8px;">🔔 系統測試電郵</h2>
+            <p style="color:#555;">這是由管理員發送的測試電郵，確認電郵系統運作正常。</p>
+            <hr style="border:1px solid #f0e0c0;margin:16px 0;" />
+            <p style="font-size:12px;color:#999;">發送時間：${new Date().toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' })}</p>
+          </div>`;
+        const result = await sendEmailWithDetails({
+          to: input.to,
+          senderName: 'hongxcollections 系統',
+          senderEmail: 'noreply@hongxcollections.com',
+          subject: '【測試】系統電郵通知測試',
+          html,
+        });
+        return result;
+      }),
+
+    /** 發送測試短訊 */
+    sendTestSms: protectedProcedure
+      .input(z.object({ phone: z.string().min(8) }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const { sendOtpSms } = await import('./_core/sms');
+        const testCode = '000000';
+        const result = await sendOtpSms(input.phone, testCode);
+        return result;
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
