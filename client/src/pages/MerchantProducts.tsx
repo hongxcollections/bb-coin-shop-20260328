@@ -416,10 +416,15 @@ export default function MerchantProducts() {
   const [layout, setLayout] = useState<LayoutMode>(() => {
     return (localStorage.getItem("mp_layout") as LayoutMode) ?? "list";
   });
+  const [productTab, setProductTab] = useState<"all" | "active" | "hidden" | "sold">("all");
 
   const { data: products = [], isLoading } = trpc.merchants.myProducts.useQuery(undefined, {
     enabled: isAuthenticated,
   });
+
+  const displayProducts = productTab === "all"
+    ? (products as any[])
+    : (products as any[]).filter((p: any) => p.status === productTab);
 
   const { data: quotaInfo, isLoading: quotaLoading } = trpc.merchants.getQuotaInfo.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -784,10 +789,37 @@ export default function MerchantProducts() {
           </div>
         )}
 
+        {/* 狀態篩選 Tabs */}
+        {!isLoading && (products as any[]).length > 0 && (
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+            {([
+              { key: "all", label: "全部", count: (products as any[]).length },
+              { key: "active", label: "已上架", count: (products as any[]).filter((p: any) => p.status === "active").length },
+              { key: "hidden", label: "已下架", count: (products as any[]).filter((p: any) => p.status === "hidden").length },
+              { key: "sold", label: "已售出", count: (products as any[]).filter((p: any) => p.status === "sold").length },
+            ] as const).map(({ key, label, count }) => (
+              <button
+                key={key}
+                onClick={() => setProductTab(key)}
+                className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                  productTab === key
+                    ? "bg-green-600 text-white border-green-600"
+                    : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {label}
+                <span className={`text-[10px] px-1 py-0.5 rounded-full font-bold ${
+                  productTab === key ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
+                }`}>{count}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* 版面切換列 */}
-        {!isLoading && products.length > 0 && (
+        {!isLoading && displayProducts.length > 0 && (
           <div className="flex items-center justify-between bg-white border border-gray-100 rounded-xl px-3 py-2">
-            <span className="text-xs text-gray-400">共 {products.length} 件商品</span>
+            <span className="text-xs text-gray-400">共 {displayProducts.length} 件商品</span>
             <div className="flex items-center gap-1">
               {([
                 { mode: "list" as LayoutMode, icon: <LayoutList className="w-4 h-4" />, label: "列表" },
@@ -811,16 +843,21 @@ export default function MerchantProducts() {
         {/* 商品列表 */}
         {isLoading ? (
           <div className="text-center py-12 text-4xl animate-spin">💰</div>
-        ) : products.length === 0 ? (
+        ) : (products as any[]).length === 0 ? (
           <div className="text-center py-16">
             <Package className="w-12 h-12 text-green-200 mx-auto mb-3" />
             <p className="text-gray-400 text-sm">尚未上架任何商品</p>
             <p className="text-gray-300 text-xs mt-1">點擊「上架商品」開始添加</p>
           </div>
+        ) : displayProducts.length === 0 ? (
+          <div className="text-center py-12">
+            <Package className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+            <p className="text-gray-400 text-sm">此類別暫無商品</p>
+          </div>
         ) : layout === "list" ? (
           /* ── 列表版面：橫排縮圖＋詳情 ── */
           <div className="space-y-3">
-            {(products as any[]).map((p) => {
+            {(displayProducts as any[]).map((p) => {
               const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
               const price = parseFloat(p.price ?? "0");
               return (
@@ -902,7 +939,7 @@ export default function MerchantProducts() {
         ) : layout === "big" ? (
           /* ── 大圖版面：全寬圖片＋資料在下 ── */
           <div className="space-y-4">
-            {(products as any[]).map((p) => {
+            {(displayProducts as any[]).map((p) => {
               const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
               const price = parseFloat(p.price ?? "0");
               return (
@@ -983,7 +1020,7 @@ export default function MerchantProducts() {
         ) : layout === "grid2" ? (
           /* ── 兩欄版面 ── */
           <div className="grid grid-cols-2 gap-3">
-            {(products as any[]).map((p) => {
+            {(displayProducts as any[]).map((p) => {
               const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
               const price = parseFloat(p.price ?? "0");
               return (
@@ -1051,7 +1088,7 @@ export default function MerchantProducts() {
         ) : (
           /* ── 三欄版面（精簡方格）── */
           <div className="grid grid-cols-3 gap-2">
-            {(products as any[]).map((p) => {
+            {(displayProducts as any[]).map((p) => {
               const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
               const price = parseFloat(p.price ?? "0");
               return (
