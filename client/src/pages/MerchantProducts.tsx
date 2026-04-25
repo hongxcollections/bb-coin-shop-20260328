@@ -413,7 +413,7 @@ export default function MerchantProducts() {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string; img?: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string; img?: string; price?: number; currency?: string } | null>(null);
   const [layout, setLayout] = useState<LayoutMode>(() => {
     return (localStorage.getItem("mp_layout") as LayoutMode) ?? "list";
   });
@@ -928,7 +928,7 @@ export default function MerchantProducts() {
                           </button>
                         );
                       })()}
-                      <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0] })} className="flex items-center gap-1 text-xs px-2 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
+                      <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="flex items-center gap-1 text-xs px-2 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />刪除
                       </button>
                     </div>
@@ -1009,7 +1009,7 @@ export default function MerchantProducts() {
                         if (queued) return <span className="flex items-center gap-1 text-xs"><span className="px-2 py-1 bg-amber-50 text-amber-600 rounded-lg font-medium">⏳ 第{queued.queuePosition}位</span><button onClick={() => { if (confirm("取消排隊將全額退費，確定嗎？")) cancelFeatured.mutate({ id: queued.id }); }} className="px-1 text-red-400 hover:text-red-600"><X className="w-3 h-3" /></button></span>;
                         return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="flex items-center gap-1 text-xs px-2 py-1.5 text-orange-500 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors font-medium"><Flame className="w-3 h-3" />申請主打</button>;
                       })()}
-                      <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0] })} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
+                      <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />刪除
                       </button>
                     </div>
@@ -1077,7 +1077,7 @@ export default function MerchantProducts() {
                         if (queued) return <span className="flex items-center gap-0.5 text-[10px]"><span className="px-1.5 py-1 bg-amber-50 text-amber-600 rounded-lg">⏳{queued.queuePosition}</span><button onClick={() => { if (confirm("取消排隊將全額退費，確定嗎？")) cancelFeatured.mutate({ id: queued.id }); }} className="text-red-400 hover:text-red-600"><X className="w-2.5 h-2.5" /></button></span>;
                         return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="text-[10px] px-1.5 py-1 text-orange-500 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors"><Flame className="w-3 h-3" /></button>;
                       })()}
-                      <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0] })} className="text-[10px] px-1.5 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
+                      <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="text-[10px] px-1.5 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
@@ -1144,7 +1144,7 @@ export default function MerchantProducts() {
                         if (queued) return <span className="flex items-center gap-0.5 text-[9px]"><span className="px-1 py-0.5 bg-amber-50 text-amber-600 rounded">⏳{queued.queuePosition}</span><button onClick={() => { if (confirm("取消排隊將全額退費，確定嗎？")) cancelFeatured.mutate({ id: queued.id }); }} className="text-red-400 hover:text-red-600"><X className="w-2 h-2" /></button></span>;
                         return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="text-[9px] px-1 py-0.5 text-orange-500 border border-orange-200 rounded hover:bg-orange-50 transition-colors"><Flame className="w-2.5 h-2.5" /></button>;
                       })()}
-                      <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0] })} className="text-[9px] px-1 py-0.5 bg-red-50 text-red-500 rounded hover:bg-red-100 transition-colors">
+                      <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="text-[9px] px-1 py-0.5 bg-red-50 text-red-500 rounded hover:bg-red-100 transition-colors">
                         <Trash2 className="w-2.5 h-2.5" />
                       </button>
                     </div>
@@ -1178,7 +1178,12 @@ export default function MerchantProducts() {
                   <Package className="w-6 h-6 text-gray-300" />
                 </div>
               )}
-              <p className="text-sm font-medium text-gray-700 line-clamp-2 flex-1">{deleteTarget.title}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-700 line-clamp-2">{deleteTarget.title}</p>
+                {deleteTarget.price !== undefined && (
+                  <p className="text-sm font-bold text-amber-600 mt-1">{deleteTarget.currency} ${deleteTarget.price.toLocaleString()}</p>
+                )}
+              </div>
             </div>
             <div className="flex gap-2 pt-1">
               <button
