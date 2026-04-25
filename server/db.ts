@@ -3397,7 +3397,9 @@ export async function deleteDepositTierPreset(id: number) {
 
 // ─── Merchant Products ────────────────────────────────────────────────────────
 
+let _merchantProductsTableChecked = false;
 async function ensureMerchantProductsTable() {
+  if (_merchantProductsTableChecked) return;
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
   await db.execute(sql`
@@ -3419,6 +3421,7 @@ async function ensureMerchantProductsTable() {
       updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
+  _merchantProductsTableChecked = true;
 }
 
 export async function listMerchantProducts(opts: { merchantId?: number; category?: string; status?: string } = {}): Promise<MerchantProduct[]> {

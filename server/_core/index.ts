@@ -752,6 +752,21 @@ Output ONLY the JSON, nothing else.`;
     console.log(`Server running on http://localhost:${port}/`);
   });
 
+  // ── 預熱：提前觸發 ensure*Table（避免首個用戶請求等待 DDL）──
+  setTimeout(async () => {
+    try {
+      const { listMerchantProducts, listApprovedMerchants, getActiveFeaturedListings, getOrCreateSellerDeposit, getUserActiveSubscription } = await import('../db');
+      await Promise.allSettled([
+        listMerchantProducts({ status: 'active' }),
+        listApprovedMerchants(),
+        getActiveFeaturedListings(),
+      ]);
+      console.log('[Warmup] ensure*Table pre-run complete');
+    } catch (err) {
+      console.error('[Warmup] Pre-run error (non-fatal):', err);
+    }
+  }, 3_000); // 伺服器啟動 3 秒後執行
+
   // Ending-soon notification scheduler: poll every 5 minutes
   setInterval(async () => {
     try {
