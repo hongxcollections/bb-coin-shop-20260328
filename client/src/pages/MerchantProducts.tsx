@@ -602,6 +602,11 @@ export default function MerchantProducts() {
     toast.success("已重新上架");
   }
 
+  async function hideFromSold(p: any) {
+    await updateStatus.mutateAsync({ id: p.id, status: "hidden" });
+    toast.success("商品已下架");
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-6 text-center">
@@ -859,9 +864,14 @@ export default function MerchantProducts() {
                         </button>
                       )}
                       {p.status === "sold" && (
-                        <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
-                          <RotateCcw className="w-3 h-3" />重售
-                        </button>
+                        <>
+                          <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+                            <RotateCcw className="w-3 h-3" />重售
+                          </button>
+                          <button onClick={() => hideFromSold(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50">
+                            下架
+                          </button>
+                        </>
                       )}
                       {p.status === "active" && (() => {
                         if (activeFeaturedIds.has(p.id)) return (
@@ -946,9 +956,14 @@ export default function MerchantProducts() {
                         </button>
                       )}
                       {p.status === "sold" && (
-                        <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex-1 justify-center disabled:opacity-50">
-                          <RotateCcw className="w-3 h-3" />重售
-                        </button>
+                        <>
+                          <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex-1 justify-center disabled:opacity-50">
+                            <RotateCcw className="w-3 h-3" />重售
+                          </button>
+                          <button onClick={() => hideFromSold(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex-1 justify-center disabled:opacity-50">
+                            下架
+                          </button>
+                        </>
                       )}
                       {p.status === "active" && (() => {
                         if (activeFeaturedIds.has(p.id)) return <span className="flex items-center gap-1 text-xs px-2 py-1.5 bg-orange-50 text-orange-500 rounded-lg font-medium"><Flame className="w-3 h-3" />主打中</span>;
@@ -1009,9 +1024,14 @@ export default function MerchantProducts() {
                         </button>
                       )}
                       {p.status === "sold" && (
-                        <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex-1 text-[10px] py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center disabled:opacity-50">
-                          重售
-                        </button>
+                        <>
+                          <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex-1 text-[10px] py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center disabled:opacity-50">
+                            重售
+                          </button>
+                          <button onClick={() => hideFromSold(p)} disabled={updateStatus.isPending} className="flex-1 text-[10px] py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-center disabled:opacity-50">
+                            下架
+                          </button>
+                        </>
                       )}
                       {p.status === "active" && (() => {
                         if (activeFeaturedIds.has(p.id)) return <span className="text-[10px] px-1.5 py-1 bg-orange-50 text-orange-500 rounded-lg"><Flame className="w-3 h-3" /></span>;
@@ -1071,9 +1091,14 @@ export default function MerchantProducts() {
                         </button>
                       )}
                       {p.status === "sold" && (
-                        <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex-1 text-[9px] py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-center disabled:opacity-50">
-                          重售
-                        </button>
+                        <>
+                          <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex-1 text-[9px] py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-center disabled:opacity-50">
+                            重售
+                          </button>
+                          <button onClick={() => hideFromSold(p)} disabled={updateStatus.isPending} className="flex-1 text-[9px] py-0.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors text-center disabled:opacity-50">
+                            下架
+                          </button>
+                        </>
                       )}
                       {p.status === "active" && (() => {
                         if (activeFeaturedIds.has(p.id)) return <span className="text-[9px] px-1 py-0.5 bg-orange-50 text-orange-500 rounded"><Flame className="w-2.5 h-2.5" /></span>;

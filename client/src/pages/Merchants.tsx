@@ -187,15 +187,17 @@ function ProductCard({ p, layout, whatsapp, messengerLink, onBuy, currentUserId 
   const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
   const price = parseFloat(p.price ?? "0");
   const href = `/merchant-products/${p.id}`;
-  // 有效 whatsapp：商戶 whatsapp（更新源頭）優先，否則 fallback 商品自身 whatsapp
   const _pWa = (p.whatsapp ?? "").toString();
   const _pWaDigits = _pWa.replace(/[^0-9]/g, "");
   const _mWa = (whatsapp ?? "").toString();
   const _mWaDigits = _mWa.replace(/[^0-9]/g, "");
   const effWa = _mWaDigits.length >= 7 ? _mWa : (_pWaDigits.length >= 7 ? _pWa : "");
   const isOwner = currentUserId != null && p.merchantId === currentUserId;
+  const isSold = p.status === "sold" || p.stock <= 0;
 
-  const buyBtn = isOwner ? (
+  const buyBtn = isSold ? (
+    <span className="flex items-center gap-1 bg-gray-100 text-gray-500 text-xs font-semibold px-2.5 py-1.5 rounded-full shrink-0">已售出</span>
+  ) : isOwner ? (
     <span className="flex items-center gap-1 bg-gray-100 text-gray-400 text-xs font-semibold px-2.5 py-1.5 rounded-full shrink-0 cursor-not-allowed">
       🚫 自己
     </span>
@@ -210,17 +212,20 @@ function ProductCard({ p, layout, whatsapp, messengerLink, onBuy, currentUserId 
 
   if (layout === "list") return (
     <Link href={href}>
-      <div className="bg-white rounded-xl border border-amber-100 shadow-sm p-3 flex gap-3 items-start cursor-pointer hover:border-amber-300 transition-colors">
-        {imgs[0] ? <img src={imgs[0]} alt={p.title} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
-          : <div className="w-16 h-16 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0"><Package className="w-6 h-6 text-amber-200" /></div>}
+      <div className={`bg-white rounded-xl border shadow-sm p-3 flex gap-3 items-start cursor-pointer transition-colors ${isSold ? "border-gray-100 opacity-75 hover:border-gray-200" : "border-amber-100 hover:border-amber-300"}`}>
+        <div className="relative shrink-0">
+          {imgs[0] ? <img src={imgs[0]} alt={p.title} className="w-16 h-16 rounded-lg object-cover" />
+            : <div className="w-16 h-16 rounded-lg bg-amber-50 flex items-center justify-center"><Package className="w-6 h-6 text-amber-200" /></div>}
+          {isSold && <div className="absolute inset-0 bg-gray-500/30 rounded-lg flex items-center justify-center"><span className="text-white text-[9px] font-bold bg-gray-600/80 px-1 py-0.5 rounded">已售出</span></div>}
+        </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-semibold text-gray-800 line-clamp-1">{p.title}</h3>
+          <h3 className={`text-sm font-semibold line-clamp-1 ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
           {p.category && <div className="flex flex-wrap gap-1">{(p.category.includes("|") ? p.category.split("|") : [p.category]).map((c: string) => <span key={c} className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{c.trim()}</span>)}</div>}
           {p.description && <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{p.description}</p>}
           <div className="flex items-center justify-between mt-1.5 gap-2">
-            <span className="font-bold text-amber-600 text-sm">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
+            <span className={`font-bold text-sm ${isSold ? "text-gray-400 line-through" : "text-amber-600"}`}>{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
             <div className="flex items-center gap-1.5">
-              {p.stock > 0 ? <>{buyBtn}<ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /></> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
+              {!isSold ? <>{buyBtn}<ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /></> : buyBtn}
             </div>
           </div>
         </div>
@@ -230,9 +235,12 @@ function ProductCard({ p, layout, whatsapp, messengerLink, onBuy, currentUserId 
 
   if (layout === "big") return (
     <Link href={href}>
-      <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden cursor-pointer hover:border-amber-300 transition-colors">
-        {imgs[0] ? <img src={imgs[0]} alt={p.title} className="w-full h-56 object-cover" />
-          : <div className="w-full h-56 bg-amber-50 flex items-center justify-center"><Package className="w-10 h-10 text-amber-200" /></div>}
+      <div className={`bg-white rounded-xl border shadow-sm overflow-hidden cursor-pointer transition-colors ${isSold ? "border-gray-100 opacity-75 hover:border-gray-200" : "border-amber-100 hover:border-amber-300"}`}>
+        <div className="relative">
+          {imgs[0] ? <img src={imgs[0]} alt={p.title} className="w-full h-56 object-cover" />
+            : <div className="w-full h-56 bg-amber-50 flex items-center justify-center"><Package className="w-10 h-10 text-amber-200" /></div>}
+          {isSold && <div className="absolute inset-0 bg-gray-500/30 flex items-center justify-center"><span className="text-white text-sm font-bold bg-gray-600/80 px-3 py-1 rounded-full">已售出</span></div>}
+        </div>
         {imgs.length > 1 && (
           <div className="flex gap-1.5 px-3 pt-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {imgs.slice(1).map((u, i) => <img key={i} src={u} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0 border border-amber-100" />)}
@@ -240,14 +248,14 @@ function ProductCard({ p, layout, whatsapp, messengerLink, onBuy, currentUserId 
         )}
         <div className="p-3 space-y-1.5">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-semibold text-gray-800 line-clamp-2 text-sm flex-1">{p.title}</h3>
+            <h3 className={`font-semibold line-clamp-2 text-sm flex-1 ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
             {p.category && (p.category.includes("|") ? p.category.split("|") : [p.category]).slice(0,1).map((c: string) => <span key={c} className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">{c.trim()}</span>)}
           </div>
           {p.description && <p className="text-xs text-gray-500 line-clamp-3">{p.description}</p>}
           <div className="flex items-center justify-between pt-1 gap-2">
-            <span className="font-bold text-amber-600 text-base">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
+            <span className={`font-bold text-base ${isSold ? "text-gray-400 line-through" : "text-amber-600"}`}>{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
             <div className="flex items-center gap-1.5">
-              {p.stock > 0 ? <>{buyBtn}<ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /></> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
+              {!isSold ? <>{buyBtn}<ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /></> : buyBtn}
             </div>
           </div>
         </div>
@@ -257,13 +265,16 @@ function ProductCard({ p, layout, whatsapp, messengerLink, onBuy, currentUserId 
 
   if (layout === "grid3") return (
     <Link href={href}>
-      <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-amber-300 transition-colors">
-        {imgs[0] ? <img src={imgs[0]} alt={p.title} className="w-full aspect-square object-cover" />
-          : <div className="w-full aspect-square bg-amber-50 flex items-center justify-center"><Package className="w-5 h-5 text-amber-200" /></div>}
+      <div className={`bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col cursor-pointer transition-colors ${isSold ? "border-gray-100 opacity-75 hover:border-gray-200" : "border-amber-100 hover:border-amber-300"}`}>
+        <div className="relative">
+          {imgs[0] ? <img src={imgs[0]} alt={p.title} className="w-full aspect-square object-cover" />
+            : <div className="w-full aspect-square bg-amber-50 flex items-center justify-center"><Package className="w-5 h-5 text-amber-200" /></div>}
+          {isSold && <div className="absolute inset-0 bg-gray-500/30 flex items-center justify-center"><span className="text-white text-[9px] font-bold bg-gray-600/80 px-1 py-0.5 rounded">已售出</span></div>}
+        </div>
         <div className="p-1.5 flex flex-col gap-1 flex-1">
-          <h3 className="text-[10px] font-semibold text-gray-800 line-clamp-2 leading-tight">{p.title}</h3>
-          <span className="text-[10px] font-bold text-amber-600">${price.toLocaleString()}</span>
-          {p.stock > 0 ? (
+          <h3 className={`text-[10px] font-semibold line-clamp-2 leading-tight ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
+          <span className={`text-[10px] font-bold ${isSold ? "text-gray-400 line-through" : "text-amber-600"}`}>${price.toLocaleString()}</span>
+          {!isSold ? (
             <div className="flex items-center gap-1 mt-auto">
               {isOwner ? (
                 <span className="flex-1 flex items-center justify-center text-[9px] font-semibold py-1 rounded-full bg-gray-100 text-gray-400 cursor-not-allowed">🚫 自己</span>
@@ -285,32 +296,35 @@ function ProductCard({ p, layout, whatsapp, messengerLink, onBuy, currentUserId 
 
   return (
     <Link href={href}>
-      <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-amber-300 transition-colors">
-        {imgs[0] ? <div className="aspect-square w-full overflow-hidden bg-amber-50"><img src={imgs[0]} alt={p.title} className="w-full h-full object-cover" /></div>
-          : <div className="aspect-square w-full bg-amber-50 flex items-center justify-center"><Package className="w-10 h-10 text-amber-200" /></div>}
+      <div className={`bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col cursor-pointer transition-colors ${isSold ? "border-gray-100 opacity-75 hover:border-gray-200" : "border-amber-100 hover:border-amber-300"}`}>
+        <div className="relative">
+          {imgs[0] ? <div className="aspect-square w-full overflow-hidden bg-amber-50"><img src={imgs[0]} alt={p.title} className="w-full h-full object-cover" /></div>
+            : <div className="aspect-square w-full bg-amber-50 flex items-center justify-center"><Package className="w-10 h-10 text-amber-200" /></div>}
+          {isSold && <div className="absolute inset-0 bg-gray-500/30 flex items-center justify-center"><span className="text-white text-xs font-bold bg-gray-600/80 px-2 py-0.5 rounded-full">已售出</span></div>}
+        </div>
         <div className="p-2.5 flex flex-col gap-1 flex-1">
           <div className="flex items-start justify-between gap-1">
-            <h3 className="text-xs font-semibold text-gray-800 leading-snug line-clamp-2 flex-1">{p.title}</h3>
+            <h3 className={`text-xs font-semibold leading-snug line-clamp-2 flex-1 ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
             {p.category && (p.category.includes("|") ? p.category.split("|") : [p.category]).slice(0,1).map((c: string) => <span key={c} className="text-[10px] bg-amber-100 text-amber-700 px-1 py-0.5 rounded-full shrink-0">{c.trim()}</span>)}
           </div>
           {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
           <div className="mt-auto pt-1.5 flex items-center justify-between gap-1">
-            <span className="font-bold text-amber-600 text-xs">{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
+            <span className={`font-bold text-xs ${isSold ? "text-gray-400 line-through" : "text-amber-600"}`}>{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
             <div className="flex items-center gap-1">
-            {p.stock > 0 ? (
-              <>
-                {isOwner ? (
-                  <span className="flex items-center gap-0.5 bg-gray-100 text-gray-400 text-[10px] font-semibold px-2 py-1 rounded-full cursor-not-allowed">🚫 自己</span>
-                ) : (
-                  <button onClick={e => { e.preventDefault(); e.stopPropagation(); onBuy(p); }}
-                    className="flex items-center gap-0.5 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-semibold px-2 py-1 rounded-full transition-colors shadow-sm">
-                    <ShoppingCart className="w-2.5 h-2.5" />落單
-                  </button>
-                )}
-                <ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="sm" />
-              </>
-            ) : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
-          </div>
+              {!isSold ? (
+                <>
+                  {isOwner ? (
+                    <span className="flex items-center gap-0.5 bg-gray-100 text-gray-400 text-[10px] font-semibold px-2 py-1 rounded-full cursor-not-allowed">🚫 自己</span>
+                  ) : (
+                    <button onClick={e => { e.preventDefault(); e.stopPropagation(); onBuy(p); }}
+                      className="flex items-center gap-0.5 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-semibold px-2 py-1 rounded-full transition-colors shadow-sm">
+                      <ShoppingCart className="w-2.5 h-2.5" />落單
+                    </button>
+                  )}
+                  <ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="sm" />
+                </>
+              ) : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
+            </div>
           </div>
         </div>
       </div>
@@ -340,13 +354,14 @@ function MerchantSection({ merchant, selectedCategory, onBuy }: { merchant: any;
     ? (fbRaw.startsWith("http") ? fbRaw : `https://m.me/${fbRaw}`)
     : "";
   const visible = products.filter((p: any) => p.status === "active" && p.stock > 0);
+  const soldProducts = products.filter((p: any) => p.status === "sold");
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const [page, setPage] = useState(1);
 
   useEffect(() => { setPage(1); }, [selectedCategory, merchant.userId]);
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [totalPages, page]);
 
-  if (!isLoading && visible.length === 0) return null;
+  if (!isLoading && visible.length === 0 && soldProducts.length === 0) return null;
 
   const start = (page - 1) * PAGE_SIZE;
   const pageItems = visible.slice(start, start + PAGE_SIZE);
@@ -370,24 +385,38 @@ function MerchantSection({ merchant, selectedCategory, onBuy }: { merchant: any;
         <div className="text-center py-6 text-2xl animate-spin">💰</div>
       ) : (
         <>
-          <ProductsGrid products={pageItems} layout={layout} whatsapp={merchant.whatsapp ?? ""} messengerLink={messengerLink} onBuy={onBuy} currentUserId={user?.id} />
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between gap-2 mt-3 px-1">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />上一頁
-              </button>
-              <span className="text-xs text-gray-500">第 {page} / {totalPages} 頁</span>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                下一頁<ChevronRight className="w-3.5 h-3.5" />
-              </button>
+          {visible.length > 0 && (
+            <>
+              <ProductsGrid products={pageItems} layout={layout} whatsapp={merchant.whatsapp ?? ""} messengerLink={messengerLink} onBuy={onBuy} currentUserId={user?.id} />
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between gap-2 mt-3 px-1">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />上一頁
+                  </button>
+                  <span className="text-xs text-gray-500">第 {page} / {totalPages} 頁</span>
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                    className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    下一頁<ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+          {soldProducts.length > 0 && (
+            <div className="mt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-[11px] text-gray-400 px-2">已售出商品（{soldProducts.length}）</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
+              <ProductsGrid products={soldProducts} layout={layout} whatsapp={merchant.whatsapp ?? ""} messengerLink={messengerLink} onBuy={onBuy} currentUserId={user?.id} />
             </div>
           )}
         </>

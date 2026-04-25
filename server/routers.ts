@@ -2999,7 +2999,7 @@ export const appRouter = router({
         category: z.string().optional(),
       }).optional())
       .query(async ({ input }) => {
-        return listMerchantProducts({ merchantId: input?.merchantId, category: input?.category });
+        return listMerchantProducts({ merchantId: input?.merchantId, category: input?.category, status: 'active_and_sold' });
       }),
 
     /** 商戶：取得自己的商品（包括 hidden/sold） */

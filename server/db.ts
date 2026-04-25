@@ -3431,8 +3431,13 @@ export async function listMerchantProducts(opts: { merchantId?: number; category
   const conditions: any[] = [];
   if (opts.merchantId) conditions.push(eq(merchantProducts.merchantId, opts.merchantId));
   if (opts.category) conditions.push(eq(merchantProducts.category, opts.category));
-  if (opts.status && opts.status !== 'all') conditions.push(eq(merchantProducts.status, opts.status as any));
-  else if (!opts.status) conditions.push(eq(merchantProducts.status, 'active'));
+  if (opts.status === 'active_and_sold') {
+    conditions.push(or(eq(merchantProducts.status, 'active'), eq(merchantProducts.status, 'sold'))!);
+  } else if (opts.status && opts.status !== 'all') {
+    conditions.push(eq(merchantProducts.status, opts.status as any));
+  } else if (!opts.status) {
+    conditions.push(eq(merchantProducts.status, 'active'));
+  }
   const rows = await db.select().from(merchantProducts)
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(merchantProducts.createdAt));
