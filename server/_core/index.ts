@@ -755,11 +755,12 @@ Output ONLY the JSON, nothing else.`;
   // ── 預熱：提前觸發 ensure*Table（避免首個用戶請求等待 DDL）──
   setTimeout(async () => {
     try {
-      const { listMerchantProducts, listApprovedMerchants, getActiveFeaturedListings, getOrCreateSellerDeposit, getUserActiveSubscription } = await import('../db');
+      const { listMerchantProducts, listApprovedMerchants, getActiveFeaturedListings, getAllProductOrders } = await import('../db');
       await Promise.allSettled([
         listMerchantProducts({ status: 'active' }),
         listApprovedMerchants(),
         getActiveFeaturedListings(),
+        getAllProductOrders(), // triggers ensureProductOrdersTable (incl. finalPrice migration)
       ]);
       console.log('[Warmup] ensure*Table pre-run complete');
     } catch (err) {

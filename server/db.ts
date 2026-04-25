@@ -3707,6 +3707,8 @@ async function ensureProductOrdersTable() {
       cancelReason VARCHAR(500)
     )
   `);
+  // 欄位遷移（一次性）
+  try { await db.execute(sql`ALTER TABLE productOrders ADD COLUMN finalPrice DECIMAL(12,2)`); } catch {}
   _ordersTableEnsured = true;
 }
 
@@ -3815,9 +3817,6 @@ export async function confirmProductOrder(orderId: number, merchantId: number, f
   await ensureProductOrdersTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
-
-  // 確保 finalPrice 欄位存在
-  try { await db.execute(sql`ALTER TABLE productOrders ADD COLUMN finalPrice DECIMAL(12,2)`); } catch {}
 
   const rows = await db.execute(sql`SELECT * FROM productOrders WHERE id = ${orderId} AND merchantId = ${merchantId} LIMIT 1`);
   const order = ((rows[0] as any[])[0]) as any;
