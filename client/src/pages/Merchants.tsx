@@ -222,8 +222,7 @@ function ProductCard({ p, layout, whatsapp, messengerLink, onBuy, currentUserId 
           <h3 className={`text-sm font-semibold line-clamp-1 ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
           {p.category && <div className="flex flex-wrap gap-1">{(p.category.includes("|") ? p.category.split("|") : [p.category]).map((c: string) => <span key={c} className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{c.trim()}</span>)}</div>}
           {p.description && <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{p.description}</p>}
-          <div className="flex items-center justify-between mt-1.5 gap-2">
-            <span className={`font-bold text-sm ${isSold ? "text-gray-400 line-through" : "text-amber-600"}`}>{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
+          <div className="flex items-center justify-end mt-1.5 gap-2">
             <div className="flex items-center gap-1.5">
               {!isSold ? <>{buyBtn}<ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /></> : buyBtn}
             </div>
@@ -252,8 +251,7 @@ function ProductCard({ p, layout, whatsapp, messengerLink, onBuy, currentUserId 
             {p.category && (p.category.includes("|") ? p.category.split("|") : [p.category]).slice(0,1).map((c: string) => <span key={c} className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">{c.trim()}</span>)}
           </div>
           {p.description && <p className="text-xs text-gray-500 line-clamp-3">{p.description}</p>}
-          <div className="flex items-center justify-between pt-1 gap-2">
-            <span className={`font-bold text-base ${isSold ? "text-gray-400 line-through" : "text-amber-600"}`}>{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
+          <div className="flex items-center justify-end pt-1 gap-2">
             <div className="flex items-center gap-1.5">
               {!isSold ? <>{buyBtn}<ContactBtns whatsapp={effWa} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /></> : buyBtn}
             </div>
@@ -273,7 +271,6 @@ function ProductCard({ p, layout, whatsapp, messengerLink, onBuy, currentUserId 
         </div>
         <div className="p-1.5 flex flex-col gap-1 flex-1">
           <h3 className={`text-[10px] font-semibold line-clamp-2 leading-tight ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
-          <span className={`text-[10px] font-bold ${isSold ? "text-gray-400 line-through" : "text-amber-600"}`}>${price.toLocaleString()}</span>
           {!isSold ? (
             <div className="flex items-center gap-1 mt-auto">
               {isOwner ? (
@@ -308,8 +305,7 @@ function ProductCard({ p, layout, whatsapp, messengerLink, onBuy, currentUserId 
             {p.category && (p.category.includes("|") ? p.category.split("|") : [p.category]).slice(0,1).map((c: string) => <span key={c} className="text-[10px] bg-amber-100 text-amber-700 px-1 py-0.5 rounded-full shrink-0">{c.trim()}</span>)}
           </div>
           {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
-          <div className="mt-auto pt-1.5 flex items-center justify-between gap-1">
-            <span className={`font-bold text-xs ${isSold ? "text-gray-400 line-through" : "text-amber-600"}`}>{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
+          <div className="mt-auto pt-1.5 flex items-center justify-end gap-1">
             <div className="flex items-center gap-1">
               {!isSold ? (
                 <>

@@ -103,8 +103,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
                 <h3 className={`text-sm font-semibold line-clamp-1 ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
                 {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{p.category}</span>}
                 {p.description && <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{p.description}</p>}
-                <div className="flex items-center justify-between mt-1.5">
-                  <span className={`font-bold text-sm ${isSold ? "text-gray-400 line-through" : "text-amber-600"}`}>{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
+                <div className="flex items-center justify-end mt-1.5">
                   {!isSold ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
                 </div>
               </div>
@@ -149,8 +148,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
                   {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">{p.category}</span>}
                 </div>
                 {p.description && <p className="text-xs text-gray-500 line-clamp-3">{p.description}</p>}
-                <div className="flex items-center justify-between pt-1">
-                  <span className={`font-bold text-base ${isSold ? "text-gray-400 line-through" : "text-amber-600"}`}>{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
+                <div className="flex items-center justify-end pt-1">
                   {!isSold ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
                 </div>
               </div>
@@ -184,7 +182,6 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
               </div>
               <div className="p-1.5 flex flex-col gap-0.5 flex-1">
                 <h3 className={`text-[10px] font-semibold line-clamp-2 leading-tight ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
-                <span className={`text-[10px] font-bold ${isSold ? "text-gray-400 line-through" : "text-amber-600"}`}>${price.toLocaleString()}</span>
                 {!isSold ? (
                   <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="sm" />
                 ) : (
@@ -226,8 +223,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
                 {p.category && <span className="text-[10px] bg-amber-100 text-amber-700 px-1 py-0.5 rounded-full shrink-0">{p.category}</span>}
               </div>
               {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
-              <div className="mt-auto pt-1.5 flex items-center justify-between gap-1">
-                <span className={`font-bold text-xs ${isSold ? "text-gray-400 line-through" : "text-amber-600"}`}>{p.currency ?? "HKD"} ${price.toLocaleString()}</span>
+              <div className="mt-auto pt-1.5 flex items-center justify-end gap-1">
                 {!isSold ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
               </div>
             </div>
@@ -461,8 +457,7 @@ export default function MerchantStore() {
                       <div className="p-2 flex flex-col gap-0.5 flex-1">
                         <h3 className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">{a.title}</h3>
                         {a.category && <span className="text-[10px] text-purple-600">{a.category}</span>}
-                        <div className="mt-auto pt-1 flex items-center justify-between gap-1">
-                          <span className="font-bold text-amber-600 text-xs">{a.currency ?? "HKD"} ${price.toLocaleString()}</span>
+                        <div className="mt-auto pt-1 flex items-center justify-end gap-1">
                           <span className="flex items-center gap-0.5 text-[10px] text-gray-400">
                             <Clock className="w-2.5 h-2.5" />
                             <AuctionCountdown endTime={a.endTime} />

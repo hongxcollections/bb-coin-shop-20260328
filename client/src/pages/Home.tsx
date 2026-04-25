@@ -254,13 +254,7 @@ function ProductHeroSlide({ product, onBuy, currentUserId }: { product: any; onB
         <Link href={`/merchant-products/${product.id}`}>
           <h2 className="text-white font-bold text-base leading-snug line-clamp-2 drop-shadow mb-2">{product.title}</h2>
         </Link>
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <p className="text-white/60 text-[10px] mb-0.5">售價</p>
-            <p className="text-amber-300 font-extrabold text-xl leading-none drop-shadow">
-              {currSymbol}{price.toLocaleString()}
-            </p>
-          </div>
+        <div className="flex items-end justify-end gap-3">
           {isOwn ? (
             <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white/60 bg-white/20 cursor-not-allowed select-none">
               🚫 自己商品
@@ -557,10 +551,7 @@ function FeaturedProductSideCard({ product, onBuy, currentUserId }: { product: a
           <h3 className="text-white font-bold text-[11px] leading-snug line-clamp-1 drop-shadow mb-1">
             {product.title}
           </h3>
-          <div className="flex items-center justify-between gap-1.5">
-            <p className="text-amber-300 font-extrabold text-sm leading-none drop-shadow">
-              {curr}{price.toLocaleString()}
-            </p>
+          <div className="flex items-center justify-end gap-1.5">
             {isOwn ? (
               <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white/50 bg-white/20 cursor-not-allowed select-none">
                 🚫 自己
