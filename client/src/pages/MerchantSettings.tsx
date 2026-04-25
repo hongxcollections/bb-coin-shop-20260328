@@ -125,15 +125,16 @@ export default function MerchantSettings() {
   });
 
   useEffect(() => {
-    if (wmData && !wmInitialized) {
+    if (wmData && !wmInitialized && (myApp !== undefined || !loadingApp)) {
       setWmEnabled(wmData.watermarkEnabled === 1);
-      setWmText(wmData.watermarkText ?? "");
+      // 水印文字預設為商戶名稱（若尚未自訂）
+      setWmText(wmData.watermarkText ?? myApp?.merchantName ?? "");
       setWmOpacity(wmData.watermarkOpacity);
       setWmShadow(wmData.watermarkShadow === 1);
       setWmPosition(wmData.watermarkPosition);
       setWmInitialized(true);
     }
-  }, [wmData, wmInitialized]);
+  }, [wmData, wmInitialized, myApp, loadingApp]);
 
   const handleSaveWatermark = () => {
     wmMutation.mutate({
@@ -694,9 +695,9 @@ export default function MerchantSettings() {
                       value={wmText}
                       onChange={(e) => setWmText(e.target.value)}
                       maxLength={100}
-                      placeholder={`預設使用商戶名稱（${profileMerchantName || "你的商戶名稱"}）`}
+                      placeholder="輸入水印文字"
                     />
-                    <p className="text-xs text-muted-foreground">留空則自動使用商戶名稱</p>
+                    <p className="text-xs text-muted-foreground">預設為商戶名稱，可自行修改</p>
                   </div>
 
                   {/* 透明度 */}
