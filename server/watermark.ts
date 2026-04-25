@@ -140,8 +140,25 @@ export async function applyWatermark(
     const rotatedShadow = await (sharp as any)(shadowTextBuf).rotate(rotationAngle, rotateOpts).png().toBuffer();
 
     const rm = await (sharp as any)(rotatedWhite).metadata();
-    const rw: number = rm.width ?? tw;
-    const rh: number = rm.height ?? th;
+    let rw: number = rm.width ?? tw;
+    let rh: number = rm.height ?? th;
+
+    // ── 若旋轉後文字超出圖片，等比縮小到 90% 邊界內 ──────────
+    let finalWhite: Buffer = rotatedWhite;
+    let finalShadow: Buffer = rotatedShadow;
+    const maxW = Math.floor(w * 0.9);
+    const maxH = Math.floor(h * 0.9);
+    if (rw > maxW || rh > maxH) {
+      const downScale = Math.min(maxW / rw, maxH / rh);
+      rw = Math.max(1, Math.round(rw * downScale));
+      rh = Math.max(1, Math.round(rh * downScale));
+      finalWhite = await (sharp as any)(rotatedWhite)
+        .resize(rw, rh, { fit: "fill", kernel: "lanczos3" })
+        .png().toBuffer();
+      finalShadow = await (sharp as any)(rotatedShadow)
+        .resize(rw, rh, { fit: "fill", kernel: "lanczos3" })
+        .png().toBuffer();
+    }
 
     // ── 計算放置座標 ──────────────────────────────────────────
     const PADDING = Math.round(minDim * 0.03); // 邊距 3%
@@ -181,8 +198,8 @@ export async function applyWatermark(
     const st = Math.max(0, Math.min(top + SHADOW_OFFSET, h - 1));
 
     const composites: { input: Buffer; left: number; top: number; blend: string }[] = [
-      { input: rotatedShadow, left: sl, top: st, blend: "over" },
-      { input: rotatedWhite, left: safeLeft, top: safeTop, blend: "over" },
+      { input: finalShadow, left: sl, top: st, blend: "over" },
+      { input: finalWhite, left: safeLeft, top: safeTop, blend: "over" },
     ];
 
     const composed = await sharp(buffer).composite(composites);
