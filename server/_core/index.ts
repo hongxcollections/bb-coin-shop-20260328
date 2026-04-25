@@ -805,6 +805,9 @@ Output ONLY the JSON, nothing else.`;
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
+  server.keepAliveTimeout = 65_000;  // > Railway proxy 60s idle timeout
+  server.headersTimeout   = 66_000;  // must be > keepAliveTimeout
+
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
   });
