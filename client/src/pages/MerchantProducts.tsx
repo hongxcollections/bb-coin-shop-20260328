@@ -413,6 +413,7 @@ export default function MerchantProducts() {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string; img?: string } | null>(null);
   const [layout, setLayout] = useState<LayoutMode>(() => {
     return (localStorage.getItem("mp_layout") as LayoutMode) ?? "list";
   });
@@ -927,7 +928,7 @@ export default function MerchantProducts() {
                           </button>
                         );
                       })()}
-                      <button onClick={() => { if (confirm("確定刪除此商品？")) deleteProduct.mutate({ id: p.id }); }} className="flex items-center gap-1 text-xs px-2 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
+                      <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0] })} className="flex items-center gap-1 text-xs px-2 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />刪除
                       </button>
                     </div>
@@ -1008,7 +1009,7 @@ export default function MerchantProducts() {
                         if (queued) return <span className="flex items-center gap-1 text-xs"><span className="px-2 py-1 bg-amber-50 text-amber-600 rounded-lg font-medium">⏳ 第{queued.queuePosition}位</span><button onClick={() => { if (confirm("取消排隊將全額退費，確定嗎？")) cancelFeatured.mutate({ id: queued.id }); }} className="px-1 text-red-400 hover:text-red-600"><X className="w-3 h-3" /></button></span>;
                         return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="flex items-center gap-1 text-xs px-2 py-1.5 text-orange-500 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors font-medium"><Flame className="w-3 h-3" />申請主打</button>;
                       })()}
-                      <button onClick={() => { if (confirm("確定刪除此商品？")) deleteProduct.mutate({ id: p.id }); }} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
+                      <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0] })} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />刪除
                       </button>
                     </div>
@@ -1076,7 +1077,7 @@ export default function MerchantProducts() {
                         if (queued) return <span className="flex items-center gap-0.5 text-[10px]"><span className="px-1.5 py-1 bg-amber-50 text-amber-600 rounded-lg">⏳{queued.queuePosition}</span><button onClick={() => { if (confirm("取消排隊將全額退費，確定嗎？")) cancelFeatured.mutate({ id: queued.id }); }} className="text-red-400 hover:text-red-600"><X className="w-2.5 h-2.5" /></button></span>;
                         return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="text-[10px] px-1.5 py-1 text-orange-500 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors"><Flame className="w-3 h-3" /></button>;
                       })()}
-                      <button onClick={() => { if (confirm("確定刪除？")) deleteProduct.mutate({ id: p.id }); }} className="text-[10px] px-1.5 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
+                      <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0] })} className="text-[10px] px-1.5 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
@@ -1143,7 +1144,7 @@ export default function MerchantProducts() {
                         if (queued) return <span className="flex items-center gap-0.5 text-[9px]"><span className="px-1 py-0.5 bg-amber-50 text-amber-600 rounded">⏳{queued.queuePosition}</span><button onClick={() => { if (confirm("取消排隊將全額退費，確定嗎？")) cancelFeatured.mutate({ id: queued.id }); }} className="text-red-400 hover:text-red-600"><X className="w-2 h-2" /></button></span>;
                         return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="text-[9px] px-1 py-0.5 text-orange-500 border border-orange-200 rounded hover:bg-orange-50 transition-colors"><Flame className="w-2.5 h-2.5" /></button>;
                       })()}
-                      <button onClick={() => { if (confirm("確定刪除？")) deleteProduct.mutate({ id: p.id }); }} className="text-[9px] px-1 py-0.5 bg-red-50 text-red-500 rounded hover:bg-red-100 transition-colors">
+                      <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0] })} className="text-[9px] px-1 py-0.5 bg-red-50 text-red-500 rounded hover:bg-red-100 transition-colors">
                         <Trash2 className="w-2.5 h-2.5" />
                       </button>
                     </div>
@@ -1155,6 +1156,48 @@ export default function MerchantProducts() {
         )}
         </>}
       </div>
+
+      {/* 刪除確認彈窗 */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-8" onClick={() => setDeleteTarget(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800">確認刪除商品</h3>
+                <p className="text-xs text-gray-400 mt-0.5">刪除後不可復原</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+              {deleteTarget.img ? (
+                <img src={deleteTarget.img} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0 border border-gray-100" />
+              ) : (
+                <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                  <Package className="w-6 h-6 text-gray-300" />
+                </div>
+              )}
+              <p className="text-sm font-medium text-gray-700 line-clamp-2 flex-1">{deleteTarget.title}</p>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                disabled={deleteProduct.isPending}
+                onClick={() => { deleteProduct.mutate({ id: deleteTarget.id }); setDeleteTarget(null); }}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold disabled:opacity-60 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Trash2 className="w-4 h-4" />確認刪除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 確認上架彈窗 */}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
