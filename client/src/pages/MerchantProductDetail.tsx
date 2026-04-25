@@ -420,9 +420,11 @@ export default function MerchantProductDetail() {
                   <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{product.description}</p>
                 )}
 
-                {/* 庫存 */}
+                {/* 出售價錢 + 庫存 */}
                 <div className="flex items-end justify-between pt-1">
                   <div>
+                    <p className="text-xs text-gray-400 mb-0.5">出售價錢</p>
+                    <span className="text-2xl font-bold text-amber-600">{product.currency} ${price.toLocaleString()}</span>
                     <div className="text-xs text-gray-400 mt-0.5">
                       {product.stock > 0 ? `庫存 ${product.stock} 件` : "已售出"}
                     </div>
