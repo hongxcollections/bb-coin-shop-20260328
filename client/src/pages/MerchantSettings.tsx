@@ -111,6 +111,7 @@ export default function MerchantSettings() {
   const [wmOpacity, setWmOpacity] = useState(45);
   const [wmShadow, setWmShadow] = useState(true);
   const [wmPosition, setWmPosition] = useState("center-diagonal");
+  const [wmSize, setWmSize] = useState(12);
   const [wmInitialized, setWmInitialized] = useState(false);
 
   const { data: wmData, isLoading: wmLoading } = trpc.merchants.getWatermarkSettings.useQuery(undefined, {
@@ -127,11 +128,11 @@ export default function MerchantSettings() {
   useEffect(() => {
     if (wmData && !wmInitialized && (myApp !== undefined || !loadingApp)) {
       setWmEnabled(wmData.watermarkEnabled === 1);
-      // 水印文字預設為商戶名稱（若尚未自訂）
       setWmText(wmData.watermarkText ?? myApp?.merchantName ?? "");
       setWmOpacity(wmData.watermarkOpacity);
       setWmShadow(wmData.watermarkShadow === 1);
       setWmPosition(wmData.watermarkPosition);
+      setWmSize(wmData.watermarkSize);
       setWmInitialized(true);
     }
   }, [wmData, wmInitialized, myApp, loadingApp]);
@@ -143,6 +144,7 @@ export default function MerchantSettings() {
       watermarkOpacity: wmOpacity,
       watermarkShadow: wmShadow ? 1 : 0,
       watermarkPosition: wmPosition as any,
+      watermarkSize: wmSize,
     });
   };
 
@@ -698,6 +700,26 @@ export default function MerchantSettings() {
                       placeholder="輸入水印文字"
                     />
                     <p className="text-xs text-muted-foreground">預設為商戶名稱，可自行修改</p>
+                  </div>
+
+                  {/* 水印尺寸 */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label>水印尺寸</Label>
+                      <span className="text-sm font-medium text-amber-600">{wmSize}%</span>
+                    </div>
+                    <Slider
+                      min={1}
+                      max={100}
+                      step={1}
+                      value={[wmSize]}
+                      onValueChange={([v]) => setWmSize(v)}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>1%（細小）</span>
+                      <span>100%（全圖滿版）</span>
+                    </div>
                   </div>
 
                   {/* 透明度 */}

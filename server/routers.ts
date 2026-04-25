@@ -2298,6 +2298,7 @@ export const appRouter = router({
             opacity: wmSettings.watermarkOpacity,
             shadow: wmSettings.watermarkShadow === 1,
             position: wmSettings.watermarkPosition as any,
+            size: wmSettings.watermarkSize,
           });
         }
         const ext = input.mimeType === 'image/png' ? 'png' : input.mimeType === 'image/gif' ? 'gif' : input.mimeType === 'image/webp' ? 'webp' : 'jpg';
@@ -2326,6 +2327,7 @@ export const appRouter = router({
             opacity: wmSettings2.watermarkOpacity,
             shadow: wmSettings2.watermarkShadow === 1,
             position: wmSettings2.watermarkPosition as any,
+            size: wmSettings2.watermarkSize,
           });
         }
         const ext = input.mimeType === 'image/png' ? 'png' : input.mimeType === 'image/webp' ? 'webp' : 'jpg';
@@ -2791,6 +2793,7 @@ export const appRouter = router({
           watermarkOpacity: s.watermarkOpacity,
           watermarkShadow: s.watermarkShadow,
           watermarkPosition: s.watermarkPosition,
+          watermarkSize: s.watermarkSize,
         };
       }),
 
@@ -2809,6 +2812,7 @@ export const appRouter = router({
           "bottom-left",
           "bottom-right",
         ]),
+        watermarkSize: z.number().int().min(1).max(100),
       }))
       .mutation(async ({ input, ctx }) => {
         await upsertWatermarkSettings(
@@ -2818,6 +2822,7 @@ export const appRouter = router({
           input.watermarkOpacity,
           input.watermarkShadow,
           input.watermarkPosition,
+          input.watermarkSize,
         );
         return { success: true };
       }),
@@ -3191,6 +3196,7 @@ export const appRouter = router({
             opacity: wmSettingsProd.watermarkOpacity,
             shadow: wmSettingsProd.watermarkShadow === 1,
             position: wmSettingsProd.watermarkPosition as any,
+            size: wmSettingsProd.watermarkSize,
           });
         }
         const fileKey = `merchant-products/${ctx.user.id}/${Date.now()}-${input.fileName}`;

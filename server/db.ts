@@ -2843,6 +2843,7 @@ async function ensureMerchantSettingsTable() {
       ['watermarkOpacity', 'INT NOT NULL DEFAULT 45'],
       ['watermarkShadow', 'INT NOT NULL DEFAULT 1'],
       ['watermarkPosition', "VARCHAR(30) NOT NULL DEFAULT 'center-diagonal'"],
+      ['watermarkSize', 'INT NOT NULL DEFAULT 12'],
     ] as [string, string][]) {
       const chk = await db.execute(sql`
         SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
@@ -2878,13 +2879,14 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   watermarkOpacity: 45,
   watermarkShadow: 1,
   watermarkPosition: 'center-diagonal',
+  watermarkSize: 12,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -2909,6 +2911,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         watermarkOpacity: Number(row.watermarkOpacity ?? 45),
         watermarkShadow: Number(row.watermarkShadow ?? 1),
         watermarkPosition: String(row.watermarkPosition ?? 'center-diagonal'),
+        watermarkSize: Number(row.watermarkSize ?? 12),
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -2918,19 +2921,20 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
   }
 }
 
-export async function upsertWatermarkSettings(userId: number, enabled: number, text: string | null, opacity: number, shadow: number, position: string): Promise<void> {
+export async function upsertWatermarkSettings(userId: number, enabled: number, text: string | null, opacity: number, shadow: number, position: string, size: number): Promise<void> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
   await db.execute(sql`
-    INSERT INTO merchant_settings (userId, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition)
-    VALUES (${userId}, ${enabled}, ${text}, ${opacity}, ${shadow}, ${position})
+    INSERT INTO merchant_settings (userId, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize)
+    VALUES (${userId}, ${enabled}, ${text}, ${opacity}, ${shadow}, ${position}, ${size})
     ON DUPLICATE KEY UPDATE
       watermarkEnabled = ${enabled},
       watermarkText = ${text},
       watermarkOpacity = ${opacity},
       watermarkShadow = ${shadow},
       watermarkPosition = ${position},
+      watermarkSize = ${size},
       updatedAt = CURRENT_TIMESTAMP
   `);
 }

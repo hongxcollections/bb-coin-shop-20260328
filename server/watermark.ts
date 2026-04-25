@@ -25,12 +25,14 @@ export interface WatermarkOptions {
   opacity: number;        // 1-100，預設 45
   shadow: boolean;        // 預設 true
   position: WatermarkPosition; // 預設 center-diagonal
+  size: number;           // 1-100（%），控制文字高度佔較短邊比例，預設 12
 }
 
 const DEFAULT_OPTS: WatermarkOptions = {
   opacity: 45,
   shadow: true,
   position: "center-diagonal",
+  size: 12,
 };
 
 export async function applyWatermark(
@@ -57,11 +59,13 @@ export async function applyWatermark(
 
   try {
     // ── 字體大小 ──────────────────────────────────────────────
-    // 角落：較小字；居中：較大字
+    // size(1-100) → 文字高度為較短邊的 size%
+    // 角落位置再縮小 60%，避免過大
     const isCorner = options.position !== "center-horizontal" && options.position !== "center-diagonal";
+    const sizeRatio = Math.max(1, Math.min(100, options.size)) / 100;
     const targetH = isCorner
-      ? Math.round(minDim * 0.065)          // 角落：短邊 6.5%
-      : Math.round(minDim * 0.12);          // 居中：短邊 12%
+      ? Math.round(minDim * sizeRatio * 0.6)
+      : Math.round(minDim * sizeRatio);
 
     const dpi = Math.round(150 * (targetH / 25));
 
