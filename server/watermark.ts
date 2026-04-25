@@ -67,6 +67,8 @@ export async function applyWatermark(
       ? Math.round(minDim * sizeRatio * 0.6)
       : Math.round(minDim * sizeRatio));
 
+    console.log(`[watermark] size=${options.size} sizeRatio=${sizeRatio} minDim=${minDim} targetH=${targetH} pos=${options.position}`);
+
     const rotationAngle = options.position === "center-diagonal" ? -30 : 0;
 
     // ── 渲染文字（固定 DPI，之後再 resize 到精確 targetH）────

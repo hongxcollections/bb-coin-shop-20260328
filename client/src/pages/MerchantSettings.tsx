@@ -132,7 +132,7 @@ export default function MerchantSettings() {
       setWmOpacity(wmData.watermarkOpacity);
       setWmShadow(wmData.watermarkShadow === 1);
       setWmPosition(wmData.watermarkPosition);
-      setWmSize(wmData.watermarkSize);
+      setWmSize(wmData.watermarkSize ?? 12);
       setWmInitialized(true);
     }
   }, [wmData, wmInitialized, myApp, loadingApp]);
