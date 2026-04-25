@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag, ShieldCheck, Store, Camera, X } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag, ShieldCheck, Store, Camera, X, Droplets } from "lucide-react";
 
 const BID_INCREMENT_OPTIONS = [30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
 
@@ -103,6 +104,46 @@ export default function MerchantSettings() {
   const [paymentInstructions, setPaymentInstructions] = useState<string>("");
   const [deliveryInfo, setDeliveryInfo] = useState<string>("");
   const [initialized, setInitialized] = useState(false);
+
+  // ── 水印設定 ──
+  const [wmEnabled, setWmEnabled] = useState(true);
+  const [wmText, setWmText] = useState("");
+  const [wmOpacity, setWmOpacity] = useState(45);
+  const [wmShadow, setWmShadow] = useState(true);
+  const [wmPosition, setWmPosition] = useState("center-diagonal");
+  const [wmInitialized, setWmInitialized] = useState(false);
+
+  const { data: wmData, isLoading: wmLoading } = trpc.merchants.getWatermarkSettings.useQuery(undefined, {
+    enabled: isAuthenticated,
+  });
+  const wmMutation = trpc.merchants.updateWatermarkSettings.useMutation({
+    onSuccess: () => {
+      toast.success("水印設定已儲存！");
+      utils.merchants.getWatermarkSettings.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "儲存失敗"),
+  });
+
+  useEffect(() => {
+    if (wmData && !wmInitialized) {
+      setWmEnabled(wmData.watermarkEnabled === 1);
+      setWmText(wmData.watermarkText ?? "");
+      setWmOpacity(wmData.watermarkOpacity);
+      setWmShadow(wmData.watermarkShadow === 1);
+      setWmPosition(wmData.watermarkPosition);
+      setWmInitialized(true);
+    }
+  }, [wmData, wmInitialized]);
+
+  const handleSaveWatermark = () => {
+    wmMutation.mutate({
+      watermarkEnabled: wmEnabled ? 1 : 0,
+      watermarkText: wmText.trim() || null,
+      watermarkOpacity: wmOpacity,
+      watermarkShadow: wmShadow ? 1 : 0,
+      watermarkPosition: wmPosition as any,
+    });
+  };
 
   useEffect(() => {
     if (settings && !initialized) {
@@ -614,6 +655,159 @@ export default function MerchantSettings() {
           <p>• 每次打開發佈彈窗時，系統自動帶入你設定的天數及時間。</p>
           <p>• 你隨時可在發佈前修改具體結束時間。</p>
         </div>
+
+        {/* 水印設定卡片 */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Droplets className="w-4 h-4 text-amber-500" />
+              水印設定
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {wmLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground py-4">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm">載入中…</span>
+              </div>
+            ) : (
+              <>
+                {/* 開關 */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>啟用水印</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">上傳商品圖片時自動加上水印</p>
+                  </div>
+                  <Switch
+                    checked={wmEnabled}
+                    onCheckedChange={setWmEnabled}
+                    className="data-[state=checked]:bg-amber-500"
+                  />
+                </div>
+
+                <div className={`space-y-5 transition-opacity ${wmEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+                  {/* 水印文字 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="wmText">水印文字</Label>
+                    <Input
+                      id="wmText"
+                      value={wmText}
+                      onChange={(e) => setWmText(e.target.value)}
+                      maxLength={100}
+                      placeholder={`預設使用商戶名稱（${profileMerchantName || "你的商戶名稱"}）`}
+                    />
+                    <p className="text-xs text-muted-foreground">留空則自動使用商戶名稱</p>
+                  </div>
+
+                  {/* 透明度 */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label>透明度</Label>
+                      <span className="text-sm font-medium text-amber-600">{wmOpacity}%</span>
+                    </div>
+                    <Slider
+                      min={10}
+                      max={90}
+                      step={5}
+                      value={[wmOpacity]}
+                      onValueChange={([v]) => setWmOpacity(v)}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>10%（極淡）</span>
+                      <span>90%（深色）</span>
+                    </div>
+                  </div>
+
+                  {/* 陰影 */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>文字陰影</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">讓水印在淺色圖片上更清晰</p>
+                    </div>
+                    <Switch
+                      checked={wmShadow}
+                      onCheckedChange={setWmShadow}
+                      className="data-[state=checked]:bg-amber-500"
+                    />
+                  </div>
+
+                  {/* 位置選擇 */}
+                  <div className="space-y-3">
+                    <Label>水印位置</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        { key: "center-horizontal", label: "置中打橫", svg: (
+                          <svg viewBox="0 0 48 36" fill="none" className="w-full h-full">
+                            <rect x="1" y="1" width="46" height="34" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                            <rect x="10" y="16" width="28" height="4" rx="1" fill="currentColor" opacity="0.7"/>
+                          </svg>
+                        )},
+                        { key: "center-diagonal", label: "置中斜角", svg: (
+                          <svg viewBox="0 0 48 36" fill="none" className="w-full h-full">
+                            <rect x="1" y="1" width="46" height="34" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                            <rect x="8" y="15" width="32" height="4" rx="1" fill="currentColor" opacity="0.7" transform="rotate(-30 24 17)"/>
+                          </svg>
+                        )},
+                        { key: "top-left", label: "左上角", svg: (
+                          <svg viewBox="0 0 48 36" fill="none" className="w-full h-full">
+                            <rect x="1" y="1" width="46" height="34" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                            <rect x="5" y="6" width="18" height="3" rx="1" fill="currentColor" opacity="0.7"/>
+                          </svg>
+                        )},
+                        { key: "top-right", label: "右上角", svg: (
+                          <svg viewBox="0 0 48 36" fill="none" className="w-full h-full">
+                            <rect x="1" y="1" width="46" height="34" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                            <rect x="25" y="6" width="18" height="3" rx="1" fill="currentColor" opacity="0.7"/>
+                          </svg>
+                        )},
+                        { key: "bottom-left", label: "左下角", svg: (
+                          <svg viewBox="0 0 48 36" fill="none" className="w-full h-full">
+                            <rect x="1" y="1" width="46" height="34" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                            <rect x="5" y="27" width="18" height="3" rx="1" fill="currentColor" opacity="0.7"/>
+                          </svg>
+                        )},
+                        { key: "bottom-right", label: "右下角", svg: (
+                          <svg viewBox="0 0 48 36" fill="none" className="w-full h-full">
+                            <rect x="1" y="1" width="46" height="34" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                            <rect x="25" y="27" width="18" height="3" rx="1" fill="currentColor" opacity="0.7"/>
+                          </svg>
+                        )},
+                      ] as { key: string; label: string; svg: React.ReactNode }[]).map(({ key, label, svg }) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setWmPosition(key)}
+                          className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border-2 transition-all ${
+                            wmPosition === key
+                              ? "border-amber-500 bg-amber-50 text-amber-700"
+                              : "border-border bg-background text-muted-foreground hover:border-amber-300 hover:bg-amber-50/50"
+                          }`}
+                        >
+                          <div className="w-12 h-9">{svg}</div>
+                          <span className="text-xs font-medium leading-tight text-center">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <Button
+                    onClick={handleSaveWatermark}
+                    disabled={wmMutation.isPending}
+                    className="gold-gradient text-white border-0 gap-1.5"
+                  >
+                    {wmMutation.isPending
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Save className="w-4 h-4" />}
+                    儲存水印設定
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

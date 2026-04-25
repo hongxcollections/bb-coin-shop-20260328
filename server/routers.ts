@@ -9,7 +9,7 @@ import type { Auction } from "../drizzle/schema";
 import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, adminSetUserPassword, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getAllUsersExtended, adminUpdateUser, adminSetUserPassword, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS } from "./db";
 import { storagePut } from "./storage";
 import { applyWatermark } from "./watermark";
 import { getRawPool } from "./db";
@@ -2288,10 +2288,18 @@ export const appRouter = router({
           throw new TRPCError({ code: 'FORBIDDEN', message: '只能為自己的拍賣上傳圖片' });
         }
         let buffer = Buffer.from(input.imageData, 'base64');
-        // 加上商戶名稱水印
+        // 加上水印（依商戶設定）
         const app = await getMerchantApplicationByUser(ctx.user.id);
         const merchantName = app?.merchantName || ctx.user.name || `用戶#${ctx.user.id}`;
-        buffer = await applyWatermark(buffer, merchantName, input.mimeType);
+        const wmSettings = await getMerchantSettings(ctx.user.id);
+        if (wmSettings.watermarkEnabled) {
+          const wmText = wmSettings.watermarkText?.trim() || merchantName;
+          buffer = await applyWatermark(buffer, wmText, input.mimeType, {
+            opacity: wmSettings.watermarkOpacity,
+            shadow: wmSettings.watermarkShadow === 1,
+            position: wmSettings.watermarkPosition as any,
+          });
+        }
         const ext = input.mimeType === 'image/png' ? 'png' : input.mimeType === 'image/gif' ? 'gif' : input.mimeType === 'image/webp' ? 'webp' : 'jpg';
         const key = `auctions/${input.auctionId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
         const { url: imageUrl } = await storagePut(key, buffer, input.mimeType);
@@ -2308,10 +2316,18 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         let buffer = Buffer.from(input.imageData, 'base64');
-        // 加上商戶名稱水印
-        const app = await getMerchantApplicationByUser(ctx.user.id);
-        const merchantName = app?.merchantName || ctx.user.name || `用戶#${ctx.user.id}`;
-        buffer = await applyWatermark(buffer, merchantName, input.mimeType);
+        // 加上水印（依商戶設定）
+        const app2 = await getMerchantApplicationByUser(ctx.user.id);
+        const merchantName2 = app2?.merchantName || ctx.user.name || `用戶#${ctx.user.id}`;
+        const wmSettings2 = await getMerchantSettings(ctx.user.id);
+        if (wmSettings2.watermarkEnabled) {
+          const wmText2 = wmSettings2.watermarkText?.trim() || merchantName2;
+          buffer = await applyWatermark(buffer, wmText2, input.mimeType, {
+            opacity: wmSettings2.watermarkOpacity,
+            shadow: wmSettings2.watermarkShadow === 1,
+            position: wmSettings2.watermarkPosition as any,
+          });
+        }
         const ext = input.mimeType === 'image/png' ? 'png' : input.mimeType === 'image/webp' ? 'webp' : 'jpg';
         const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const key = `temp/${ctx.user.id}/${uid}.${ext}`;
@@ -2762,6 +2778,51 @@ export const appRouter = router({
       }),
 
     // ═══════════════════════════════════════════════════════
+    //  商戶：水印設定
+    // ═══════════════════════════════════════════════════════
+
+    /** 取得水印設定 */
+    getWatermarkSettings: protectedProcedure
+      .query(async ({ ctx }) => {
+        const s = await getMerchantSettings(ctx.user.id);
+        return {
+          watermarkEnabled: s.watermarkEnabled,
+          watermarkText: s.watermarkText,
+          watermarkOpacity: s.watermarkOpacity,
+          watermarkShadow: s.watermarkShadow,
+          watermarkPosition: s.watermarkPosition,
+        };
+      }),
+
+    /** 更新水印設定 */
+    updateWatermarkSettings: protectedProcedure
+      .input(z.object({
+        watermarkEnabled: z.number().int().min(0).max(1),
+        watermarkText: z.string().max(100).nullable().optional(),
+        watermarkOpacity: z.number().int().min(1).max(100),
+        watermarkShadow: z.number().int().min(0).max(1),
+        watermarkPosition: z.enum([
+          "center-horizontal",
+          "center-diagonal",
+          "top-left",
+          "top-right",
+          "bottom-left",
+          "bottom-right",
+        ]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await upsertWatermarkSettings(
+          ctx.user.id,
+          input.watermarkEnabled,
+          input.watermarkText ?? null,
+          input.watermarkOpacity,
+          input.watermarkShadow,
+          input.watermarkPosition,
+        );
+        return { success: true };
+      }),
+
+    // ═══════════════════════════════════════════════════════
     //  商戶：發佈配額
     // ═══════════════════════════════════════════════════════
 
@@ -3121,9 +3182,17 @@ export const appRouter = router({
         if (buffer.length > 8 * 1024 * 1024) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '圖片不可超過 8MB' });
         }
-        // 加上商戶名稱水印
+        // 加上水印（依商戶設定）
         const merchantName = app?.merchantName || ctx.user.name || `用戶#${ctx.user.id}`;
-        buffer = await applyWatermark(buffer, merchantName, mimeToUse);
+        const wmSettingsProd = await getMerchantSettings(ctx.user.id);
+        if (wmSettingsProd.watermarkEnabled) {
+          const wmTextProd = wmSettingsProd.watermarkText?.trim() || merchantName;
+          buffer = await applyWatermark(buffer, wmTextProd, mimeToUse, {
+            opacity: wmSettingsProd.watermarkOpacity,
+            shadow: wmSettingsProd.watermarkShadow === 1,
+            position: wmSettingsProd.watermarkPosition as any,
+          });
+        }
         const fileKey = `merchant-products/${ctx.user.id}/${Date.now()}-${input.fileName}`;
         const { url } = await storagePut(fileKey, buffer, mimeToUse);
         return { url };

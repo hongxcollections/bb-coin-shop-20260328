@@ -2836,19 +2836,55 @@ async function ensureMerchantSettingsTable() {
         await db.execute(sql.raw(`ALTER TABLE merchant_settings ADD COLUMN ${colName} ${colDef}`));
       }
     }
+    // Add watermark columns if missing
+    for (const [colName, colDef] of [
+      ['watermarkEnabled', 'INT NOT NULL DEFAULT 1'],
+      ['watermarkText', 'VARCHAR(100) NULL'],
+      ['watermarkOpacity', 'INT NOT NULL DEFAULT 45'],
+      ['watermarkShadow', 'INT NOT NULL DEFAULT 1'],
+      ['watermarkPosition', "VARCHAR(30) NOT NULL DEFAULT 'center-diagonal'"],
+    ] as [string, string][]) {
+      const chk = await db.execute(sql`
+        SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'merchant_settings'
+          AND COLUMN_NAME = ${colName}
+      `);
+      const chkRows = chk as unknown as [Array<Record<string, unknown>>, unknown];
+      const chkRow = Array.isArray(chkRows[0]) ? chkRows[0][0] : (chkRows as unknown as Array<Record<string, unknown>>)[0];
+      if (chkRow && Number(chkRow.cnt) === 0) {
+        await db.execute(sql.raw(`ALTER TABLE merchant_settings ADD COLUMN ${colName} ${colDef}`));
+      }
+    }
     _merchantSettingsTableChecked = true;
   } catch (error) {
     console.error('[Database] Failed to ensure merchant_settings table:', error);
   }
 }
 
-const MERCHANT_SETTINGS_DEFAULTS = { defaultEndDayOffset: 7, defaultEndTime: '23:00', defaultStartingPrice: 0, defaultBidIncrement: 30, defaultAntiSnipeEnabled: 1, defaultAntiSnipeMinutes: 3, defaultExtendMinutes: 3, listingLayout: 'grid2', paymentInstructions: null as string | null, deliveryInfo: null as string | null };
+const MERCHANT_SETTINGS_DEFAULTS = {
+  defaultEndDayOffset: 7,
+  defaultEndTime: '23:00',
+  defaultStartingPrice: 0,
+  defaultBidIncrement: 30,
+  defaultAntiSnipeEnabled: 1,
+  defaultAntiSnipeMinutes: 3,
+  defaultExtendMinutes: 3,
+  listingLayout: 'grid2',
+  paymentInstructions: null as string | null,
+  deliveryInfo: null as string | null,
+  watermarkEnabled: 1,
+  watermarkText: null as string | null,
+  watermarkOpacity: 45,
+  watermarkShadow: 1,
+  watermarkPosition: 'center-diagonal',
+};
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -2868,6 +2904,11 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         listingLayout: String(row.listingLayout ?? 'grid2'),
         paymentInstructions: row.paymentInstructions != null ? String(row.paymentInstructions) : null,
         deliveryInfo: row.deliveryInfo != null ? String(row.deliveryInfo) : null,
+        watermarkEnabled: Number(row.watermarkEnabled ?? 1),
+        watermarkText: row.watermarkText != null ? String(row.watermarkText) : null,
+        watermarkOpacity: Number(row.watermarkOpacity ?? 45),
+        watermarkShadow: Number(row.watermarkShadow ?? 1),
+        watermarkPosition: String(row.watermarkPosition ?? 'center-diagonal'),
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -2875,6 +2916,23 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
     console.error('[Database] getMerchantSettings error:', error);
     return { ...MERCHANT_SETTINGS_DEFAULTS };
   }
+}
+
+export async function upsertWatermarkSettings(userId: number, enabled: number, text: string | null, opacity: number, shadow: number, position: string): Promise<void> {
+  await ensureMerchantSettingsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  await db.execute(sql`
+    INSERT INTO merchant_settings (userId, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition)
+    VALUES (${userId}, ${enabled}, ${text}, ${opacity}, ${shadow}, ${position})
+    ON DUPLICATE KEY UPDATE
+      watermarkEnabled = ${enabled},
+      watermarkText = ${text},
+      watermarkOpacity = ${opacity},
+      watermarkShadow = ${shadow},
+      watermarkPosition = ${position},
+      updatedAt = CURRENT_TIMESTAMP
+  `);
 }
 
 export async function setMerchantListingLayout(userId: number, listingLayout: string): Promise<void> {
