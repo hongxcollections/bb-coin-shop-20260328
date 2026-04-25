@@ -22,6 +22,10 @@ const s3 = new S3Client({
   },
   endpoint: ENV.s3Endpoint || undefined,
   forcePathStyle: true,
+  requestHandler: {
+    requestTimeout: 30_000,   // 30 秒個別請求 timeout
+    connectionTimeout: 10_000, // 10 秒連線 timeout
+  } as any,
 });
 
 function getBucket() {
