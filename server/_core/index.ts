@@ -439,6 +439,11 @@ async function startServer() {
     console.warn('[OTP] Could not load rate config from DB, using defaults:', err instanceof Error ? err.message : err);
   }
 
+  // Healthcheck — Railway 用來確認服務已就緒
+  app.get('/health', (_req, res) => {
+    res.json({ status: 'ok', ts: new Date().toISOString() });
+  });
+
   // Dev/Sandbox mock login (non-production only)
   registerDevLoginRoutes(app);
   // Facebook Groups Watcher webhook
