@@ -1,0 +1,5 @@
+[phases.setup]
+nixPkgs = ["wqy-microhei", "fontconfig"]
+
+[phases.build]
+cmds = ["fc-cache -fv"]

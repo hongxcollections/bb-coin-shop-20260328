@@ -27,9 +27,9 @@ export async function applyWatermark(
   const w = meta.width ?? 800;
   const h = meta.height ?? 600;
 
-  // 字型大小：較短邊的 10%，最小 32px，最大 140px
+  // 字型大小：較短邊的 12%，最小 36px，最大 160px
   const minDim = Math.min(w, h);
-  const fontSize = Math.max(32, Math.min(140, Math.round(minDim * 0.10)));
+  const fontSize = Math.max(36, Math.min(160, Math.round(minDim * 0.12)));
 
   // 估算單個水印文字所佔的寬高（每字元約 0.6 × fontSize）
   const charW = fontSize * 0.62;
@@ -66,13 +66,13 @@ export async function applyWatermark(
       x="${cx + 2}"
       y="${cy + 2}"
       transform="rotate(-30, ${cx + 2}, ${cy + 2})"
-      fill="rgba(0,0,0,0.22)"
+      fill="rgba(0,0,0,0.40)"
     >${escapeXml(text)}</text>
     <text
       x="${cx}"
       y="${cy}"
       transform="rotate(-30, ${cx}, ${cy})"
-      fill="rgba(255,255,255,0.50)"
+      fill="rgba(255,255,255,0.70)"
     >${escapeXml(text)}</text>`;
     })
     .join("\n");
@@ -80,7 +80,7 @@ export async function applyWatermark(
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
   <style>
     text {
-      font-family: "Noto Sans CJK TC", "PingFang TC", "Microsoft JhengHei", "Arial", sans-serif;
+      font-family: "WenQuanYi Micro Hei", "Noto Sans CJK TC", "PingFang TC", "Microsoft JhengHei", "Arial", sans-serif;
       font-size: ${fontSize}px;
       font-weight: bold;
       text-anchor: middle;
