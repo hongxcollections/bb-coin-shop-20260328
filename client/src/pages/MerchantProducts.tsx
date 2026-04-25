@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import {
   ChevronLeft, Plus, Package, Pencil, Trash2, Eye, EyeOff,
   ImageIcon, X, Loader2, LayoutList, LayoutGrid, Grid3X3, Maximize2,
-  ShoppingBag, CheckCircle2, XCircle, Clock, Flame,
+  ShoppingBag, CheckCircle2, XCircle, Clock, Flame, RotateCcw, Tag,
 } from "lucide-react";
 import { parseCategories } from "@/lib/categories";
 
@@ -587,6 +587,18 @@ export default function MerchantProducts() {
     utils.merchants.myProducts.invalidate();
   }
 
+  async function markSold(p: any) {
+    await updateProduct.mutateAsync({ id: p.id, status: "sold" });
+    utils.merchants.myProducts.invalidate();
+    toast.success("已標記為已售出");
+  }
+
+  async function reList(p: any) {
+    await updateProduct.mutateAsync({ id: p.id, status: "active" });
+    utils.merchants.myProducts.invalidate();
+    toast.success("已重新上架");
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-6 text-center">
@@ -828,9 +840,26 @@ export default function MerchantProducts() {
                       <button onClick={() => startEdit(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
                         <Pencil className="w-3 h-3" />編輯
                       </button>
-                      <button onClick={() => toggleStatus(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
-                        {p.status === "active" ? <><EyeOff className="w-3 h-3" />下架</> : <><Eye className="w-3 h-3" />上架</>}
-                      </button>
+                      {p.status === "active" && (
+                        <button onClick={() => toggleStatus(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
+                          <EyeOff className="w-3 h-3" />下架
+                        </button>
+                      )}
+                      {p.status === "active" && (
+                        <button onClick={() => markSold(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors">
+                          <Tag className="w-3 h-3" />已售出
+                        </button>
+                      )}
+                      {p.status === "hidden" && (
+                        <button onClick={() => toggleStatus(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors">
+                          <Eye className="w-3 h-3" />上架
+                        </button>
+                      )}
+                      {p.status === "sold" && (
+                        <button onClick={() => reList(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                          <RotateCcw className="w-3 h-3" />重售
+                        </button>
+                      )}
                       {p.status === "active" && (() => {
                         if (activeFeaturedIds.has(p.id)) return (
                           <span className="flex items-center gap-1 text-xs px-2 py-1 bg-orange-50 text-orange-500 rounded-lg font-medium"><Flame className="w-3 h-3" />主打中</span>
@@ -898,9 +927,26 @@ export default function MerchantProducts() {
                       <button onClick={() => startEdit(p)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex-1 justify-center">
                         <Pencil className="w-3 h-3" />編輯
                       </button>
-                      <button onClick={() => toggleStatus(p)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex-1 justify-center">
-                        {p.status === "active" ? <><EyeOff className="w-3 h-3" />下架</> : <><Eye className="w-3 h-3" />上架</>}
-                      </button>
+                      {p.status === "active" && (
+                        <button onClick={() => toggleStatus(p)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex-1 justify-center">
+                          <EyeOff className="w-3 h-3" />下架
+                        </button>
+                      )}
+                      {p.status === "active" && (
+                        <button onClick={() => markSold(p)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors flex-1 justify-center">
+                          <Tag className="w-3 h-3" />已售出
+                        </button>
+                      )}
+                      {p.status === "hidden" && (
+                        <button onClick={() => toggleStatus(p)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors flex-1 justify-center">
+                          <Eye className="w-3 h-3" />上架
+                        </button>
+                      )}
+                      {p.status === "sold" && (
+                        <button onClick={() => reList(p)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex-1 justify-center">
+                          <RotateCcw className="w-3 h-3" />重售
+                        </button>
+                      )}
                       {p.status === "active" && (() => {
                         if (activeFeaturedIds.has(p.id)) return <span className="flex items-center gap-1 text-xs px-2 py-1.5 bg-orange-50 text-orange-500 rounded-lg font-medium"><Flame className="w-3 h-3" />主打中</span>;
                         const queued = queuedFeaturedMap.get(p.id);
@@ -944,9 +990,26 @@ export default function MerchantProducts() {
                       <button onClick={() => startEdit(p)} className="flex-1 text-[10px] py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-center">
                         編輯
                       </button>
-                      <button onClick={() => toggleStatus(p)} className="flex-1 text-[10px] py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-center">
-                        {p.status === "active" ? "下架" : "上架"}
-                      </button>
+                      {p.status === "active" && (
+                        <button onClick={() => toggleStatus(p)} className="flex-1 text-[10px] py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-center">
+                          下架
+                        </button>
+                      )}
+                      {p.status === "active" && (
+                        <button onClick={() => markSold(p)} className="flex-1 text-[10px] py-1 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors text-center">
+                          已售出
+                        </button>
+                      )}
+                      {p.status === "hidden" && (
+                        <button onClick={() => toggleStatus(p)} className="flex-1 text-[10px] py-1 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-center">
+                          上架
+                        </button>
+                      )}
+                      {p.status === "sold" && (
+                        <button onClick={() => reList(p)} className="flex-1 text-[10px] py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center">
+                          重售
+                        </button>
+                      )}
                       {p.status === "active" && (() => {
                         if (activeFeaturedIds.has(p.id)) return <span className="text-[10px] px-1.5 py-1 bg-orange-50 text-orange-500 rounded-lg"><Flame className="w-3 h-3" /></span>;
                         const queued = queuedFeaturedMap.get(p.id);
@@ -989,9 +1052,26 @@ export default function MerchantProducts() {
                       <button onClick={() => startEdit(p)} className="flex-1 text-[9px] py-0.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors text-center">
                         編輯
                       </button>
-                      <button onClick={() => toggleStatus(p)} className="flex-1 text-[9px] py-0.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors text-center">
-                        {p.status === "active" ? "下架" : "上架"}
-                      </button>
+                      {p.status === "active" && (
+                        <button onClick={() => toggleStatus(p)} className="flex-1 text-[9px] py-0.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors text-center">
+                          下架
+                        </button>
+                      )}
+                      {p.status === "active" && (
+                        <button onClick={() => markSold(p)} className="flex-1 text-[9px] py-0.5 bg-gray-700 text-white rounded hover:bg-gray-800 transition-colors text-center">
+                          售出
+                        </button>
+                      )}
+                      {p.status === "hidden" && (
+                        <button onClick={() => toggleStatus(p)} className="flex-1 text-[9px] py-0.5 bg-green-50 text-green-600 rounded hover:bg-green-100 transition-colors text-center">
+                          上架
+                        </button>
+                      )}
+                      {p.status === "sold" && (
+                        <button onClick={() => reList(p)} className="flex-1 text-[9px] py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-center">
+                          重售
+                        </button>
+                      )}
                       {p.status === "active" && (() => {
                         if (activeFeaturedIds.has(p.id)) return <span className="text-[9px] px-1 py-0.5 bg-orange-50 text-orange-500 rounded"><Flame className="w-2.5 h-2.5" /></span>;
                         const queued = queuedFeaturedMap.get(p.id);
