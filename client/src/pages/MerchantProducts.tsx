@@ -1159,7 +1159,7 @@ export default function MerchantProducts() {
 
       {/* 刪除確認彈窗 */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-8" onClick={() => setDeleteTarget(null)}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-24" onClick={() => setDeleteTarget(null)}>
           <div className="bg-white rounded-2xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
