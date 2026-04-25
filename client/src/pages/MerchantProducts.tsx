@@ -450,6 +450,11 @@ export default function MerchantProducts() {
     onError: (e) => toast.error(e.message),
   });
 
+  const updateStatus = trpc.merchants.updateProduct.useMutation({
+    onSuccess: () => { utils.merchants.myProducts.invalidate(); },
+    onError: (e) => toast.error(e.message),
+  });
+
   const deleteProduct = trpc.merchants.deleteProduct.useMutation({
     onSuccess: () => { utils.merchants.myProducts.invalidate(); toast.success("商品已刪除"); },
     onError: (e) => toast.error(e.message),
@@ -583,19 +588,17 @@ export default function MerchantProducts() {
 
   async function toggleStatus(p: any) {
     const next = p.status === "active" ? "hidden" : "active";
-    await updateProduct.mutateAsync({ id: p.id, status: next });
-    utils.merchants.myProducts.invalidate();
+    await updateStatus.mutateAsync({ id: p.id, status: next });
+    toast.success(next === "hidden" ? "商品已下架" : "商品已重新上架");
   }
 
   async function markSold(p: any) {
-    await updateProduct.mutateAsync({ id: p.id, status: "sold" });
-    utils.merchants.myProducts.invalidate();
+    await updateStatus.mutateAsync({ id: p.id, status: "sold" });
     toast.success("已標記為已售出");
   }
 
   async function reList(p: any) {
-    await updateProduct.mutateAsync({ id: p.id, status: "active" });
-    utils.merchants.myProducts.invalidate();
+    await updateStatus.mutateAsync({ id: p.id, status: "active" });
     toast.success("已重新上架");
   }
 
@@ -841,22 +844,22 @@ export default function MerchantProducts() {
                         <Pencil className="w-3 h-3" />編輯
                       </button>
                       {p.status === "active" && (
-                        <button onClick={() => toggleStatus(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
+                        <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50">
                           <EyeOff className="w-3 h-3" />下架
                         </button>
                       )}
                       {p.status === "active" && (
-                        <button onClick={() => markSold(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors">
+                        <button onClick={() => markSold(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50">
                           <Tag className="w-3 h-3" />已售出
                         </button>
                       )}
                       {p.status === "hidden" && (
-                        <button onClick={() => toggleStatus(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors">
+                        <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2 py-1 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50">
                           <Eye className="w-3 h-3" />上架
                         </button>
                       )}
                       {p.status === "sold" && (
-                        <button onClick={() => reList(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
                           <RotateCcw className="w-3 h-3" />重售
                         </button>
                       )}
@@ -928,22 +931,22 @@ export default function MerchantProducts() {
                         <Pencil className="w-3 h-3" />編輯
                       </button>
                       {p.status === "active" && (
-                        <button onClick={() => toggleStatus(p)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex-1 justify-center">
+                        <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex-1 justify-center disabled:opacity-50">
                           <EyeOff className="w-3 h-3" />下架
                         </button>
                       )}
                       {p.status === "active" && (
-                        <button onClick={() => markSold(p)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors flex-1 justify-center">
+                        <button onClick={() => markSold(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors flex-1 justify-center disabled:opacity-50">
                           <Tag className="w-3 h-3" />已售出
                         </button>
                       )}
                       {p.status === "hidden" && (
-                        <button onClick={() => toggleStatus(p)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors flex-1 justify-center">
+                        <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors flex-1 justify-center disabled:opacity-50">
                           <Eye className="w-3 h-3" />上架
                         </button>
                       )}
                       {p.status === "sold" && (
-                        <button onClick={() => reList(p)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex-1 justify-center">
+                        <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex-1 justify-center disabled:opacity-50">
                           <RotateCcw className="w-3 h-3" />重售
                         </button>
                       )}
@@ -991,22 +994,22 @@ export default function MerchantProducts() {
                         編輯
                       </button>
                       {p.status === "active" && (
-                        <button onClick={() => toggleStatus(p)} className="flex-1 text-[10px] py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-center">
+                        <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex-1 text-[10px] py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-center disabled:opacity-50">
                           下架
                         </button>
                       )}
                       {p.status === "active" && (
-                        <button onClick={() => markSold(p)} className="flex-1 text-[10px] py-1 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors text-center">
+                        <button onClick={() => markSold(p)} disabled={updateStatus.isPending} className="flex-1 text-[10px] py-1 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors text-center disabled:opacity-50">
                           已售出
                         </button>
                       )}
                       {p.status === "hidden" && (
-                        <button onClick={() => toggleStatus(p)} className="flex-1 text-[10px] py-1 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-center">
+                        <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex-1 text-[10px] py-1 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-center disabled:opacity-50">
                           上架
                         </button>
                       )}
                       {p.status === "sold" && (
-                        <button onClick={() => reList(p)} className="flex-1 text-[10px] py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center">
+                        <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex-1 text-[10px] py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center disabled:opacity-50">
                           重售
                         </button>
                       )}
@@ -1053,22 +1056,22 @@ export default function MerchantProducts() {
                         編輯
                       </button>
                       {p.status === "active" && (
-                        <button onClick={() => toggleStatus(p)} className="flex-1 text-[9px] py-0.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors text-center">
+                        <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex-1 text-[9px] py-0.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors text-center disabled:opacity-50">
                           下架
                         </button>
                       )}
                       {p.status === "active" && (
-                        <button onClick={() => markSold(p)} className="flex-1 text-[9px] py-0.5 bg-gray-700 text-white rounded hover:bg-gray-800 transition-colors text-center">
+                        <button onClick={() => markSold(p)} disabled={updateStatus.isPending} className="flex-1 text-[9px] py-0.5 bg-gray-700 text-white rounded hover:bg-gray-800 transition-colors text-center disabled:opacity-50">
                           售出
                         </button>
                       )}
                       {p.status === "hidden" && (
-                        <button onClick={() => toggleStatus(p)} className="flex-1 text-[9px] py-0.5 bg-green-50 text-green-600 rounded hover:bg-green-100 transition-colors text-center">
+                        <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex-1 text-[9px] py-0.5 bg-green-50 text-green-600 rounded hover:bg-green-100 transition-colors text-center disabled:opacity-50">
                           上架
                         </button>
                       )}
                       {p.status === "sold" && (
-                        <button onClick={() => reList(p)} className="flex-1 text-[9px] py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-center">
+                        <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex-1 text-[9px] py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-center disabled:opacity-50">
                           重售
                         </button>
                       )}
