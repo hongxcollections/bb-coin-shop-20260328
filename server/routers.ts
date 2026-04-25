@@ -4301,8 +4301,9 @@ export const appRouter = router({
       if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
       const t0 = Date.now();
       try {
-        const pool = getRawPool();
-        await pool.query('SELECT 1 AS ping');
+        const pool = await getRawPool();
+        if (!pool) throw new Error('資料庫未初始化 (pool is null)');
+        await pool.execute('SELECT 1');
         const ms = Date.now() - t0;
         return { ok: true, ms };
       } catch (err: any) {
