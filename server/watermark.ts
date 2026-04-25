@@ -58,35 +58,46 @@ export async function applyWatermark(
   const minDim = Math.min(w, h);
 
   try {
-    // ── 字體大小 ──────────────────────────────────────────────
+    // ── 目標文字高度 ──────────────────────────────────────────
     // size(1-100) → 文字高度為較短邊的 size%
     // 角落位置再縮小 60%，避免過大
     const isCorner = options.position !== "center-horizontal" && options.position !== "center-diagonal";
-    const sizeRatio = Math.max(1, Math.min(100, options.size)) / 100;
-    const targetH = isCorner
+    const sizeRatio = Math.max(1, Math.min(100, options.size ?? 12)) / 100;
+    const targetH = Math.max(4, isCorner
       ? Math.round(minDim * sizeRatio * 0.6)
-      : Math.round(minDim * sizeRatio);
-
-    const dpi = Math.round(150 * (targetH / 25));
+      : Math.round(minDim * sizeRatio));
 
     const rotationAngle = options.position === "center-diagonal" ? -30 : 0;
 
-    // ── 渲染文字 ──────────────────────────────────────────────
+    // ── 渲染文字（固定 DPI，之後再 resize 到精確 targetH）────
     const rawTextBuf = await (sharp as any)({
       text: {
         text,
         fontfile: FONT_PATH,
         rgba: true,
-        dpi,
+        dpi: 300,           // 固定高解析度渲染，然後縮放
       },
     }).png().toBuffer();
 
     const tm = await (sharp as any)(rawTextBuf).metadata();
-    const tw: number = tm.width ?? 200;
-    const th: number = tm.height ?? 40;
+    const origW: number = tm.width ?? 200;
+    const origH: number = tm.height ?? 40;
+
+    // 按比例縮放到 targetH
+    const scale = targetH / origH;
+    const scaledW = Math.max(1, Math.round(origW * scale));
+    const scaledH = targetH;
+
+    const scaledTextBuf = await (sharp as any)(rawTextBuf)
+      .resize(scaledW, scaledH, { fit: "fill", kernel: "lanczos3" })
+      .png()
+      .toBuffer();
+
+    const tw: number = scaledW;
+    const th: number = scaledH;
 
     // ── 正規化 alpha + 製作白字 / 陰影 ───────────────────────
-    const rawPx = await (sharp as any)(rawTextBuf).raw().toBuffer();
+    const rawPx = await (sharp as any)(scaledTextBuf).raw().toBuffer();
     const totalBytes = rawPx.length;
 
     let maxAlpha = 0;
