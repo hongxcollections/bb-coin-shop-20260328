@@ -1,6 +1,6 @@
 /**
  * Watermark Utility
- * 在圖片中央加上商戶名稱透明水印（30 度打斜）
+ * 在圖片上以 -30 度斜線平鋪商戶名稱透明水印
  */
 
 /**
@@ -14,7 +14,6 @@ export async function applyWatermark(
   text: string,
   mimeType = "image/jpeg"
 ): Promise<Buffer> {
-  // 動態 import sharp（避免啟動時若平台缺 binary 導致整個 server 掛掉）
   let sharp: typeof import("sharp");
   try {
     sharp = (await import("sharp")).default as any;
@@ -23,66 +22,89 @@ export async function applyWatermark(
     return buffer;
   }
 
-  // 讀取圖片 metadata 取得寬高
   const img = sharp(buffer);
   const meta = await img.metadata();
   const w = meta.width ?? 800;
   const h = meta.height ?? 600;
 
-  // 字型大小：依圖片較短邊的 6%~8%，最小 24px，最大 80px
+  // 字型大小：較短邊的 10%，最小 32px，最大 140px
   const minDim = Math.min(w, h);
-  const fontSize = Math.max(24, Math.min(80, Math.round(minDim * 0.07)));
+  const fontSize = Math.max(32, Math.min(140, Math.round(minDim * 0.10)));
 
-  // 估算文字寬度（每字元約 0.6 × fontSize，取最大不超過 w*0.7）
-  const estTextW = Math.min(text.length * fontSize * 0.65, w * 0.8);
-  const estTextH = fontSize * 1.4;
+  // 估算單個水印文字所佔的寬高（每字元約 0.6 × fontSize）
+  const charW = fontSize * 0.62;
+  const textW = text.length * charW;
+  const textH = fontSize * 1.2;
 
-  // SVG 水印層：文字置中、旋轉 -30 度
-  // 白色文字 + 輕微黑色陰影，在淺色/深色背景都可見
+  // 平鋪間距（橫向 / 縱向）
+  const gapX = textW * 1.6;
+  const gapY = textH * 3.5;
+
+  // 產生覆蓋整張圖的所有水印座標（加 padding 確保邊角也有）
+  const positions: { x: number; y: number }[] = [];
+  const cols = Math.ceil(w / gapX) + 2;
+  const rows = Math.ceil(h / gapY) + 2;
+
+  for (let row = -1; row < rows; row++) {
+    for (let col = -1; col < cols; col++) {
+      // 奇數列偏移半個 gapX，形成錯排效果
+      const offsetX = row % 2 === 0 ? 0 : gapX / 2;
+      positions.push({
+        x: col * gapX + offsetX,
+        y: row * gapY,
+      });
+    }
+  }
+
+  // 把所有水印文字合成為一個 SVG
+  const textElements = positions
+    .map(({ x, y }) => {
+      const cx = x + textW / 2;
+      const cy = y + textH / 2;
+      return `
+    <text
+      x="${cx + 2}"
+      y="${cy + 2}"
+      transform="rotate(-30, ${cx + 2}, ${cy + 2})"
+      fill="rgba(0,0,0,0.22)"
+    >${escapeXml(text)}</text>
+    <text
+      x="${cx}"
+      y="${cy}"
+      transform="rotate(-30, ${cx}, ${cy})"
+      fill="rgba(255,255,255,0.50)"
+    >${escapeXml(text)}</text>`;
+    })
+    .join("\n");
+
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-    <style>
-      text {
-        font-family: "Noto Sans CJK TC", "PingFang TC", "Microsoft JhengHei", "Arial", sans-serif;
-        font-size: ${fontSize}px;
-        font-weight: bold;
-        text-anchor: middle;
-        dominant-baseline: middle;
-      }
-    </style>
-    <!-- 黑色陰影層（略偏移）提升在淺色背景的可讀性 -->
-    <text
-      x="${w / 2 + 2}"
-      y="${h / 2 + 2}"
-      transform="rotate(-30, ${w / 2 + 2}, ${h / 2 + 2})"
-      fill="rgba(0,0,0,0.25)"
-    >${escapeXml(text)}</text>
-    <!-- 主水印文字：白色半透明 -->
-    <text
-      x="${w / 2}"
-      y="${h / 2}"
-      transform="rotate(-30, ${w / 2}, ${h / 2})"
-      fill="rgba(255,255,255,0.45)"
-    >${escapeXml(text)}</text>
-  </svg>`;
+  <style>
+    text {
+      font-family: "Noto Sans CJK TC", "PingFang TC", "Microsoft JhengHei", "Arial", sans-serif;
+      font-size: ${fontSize}px;
+      font-weight: bold;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+  </style>
+  ${textElements}
+</svg>`;
 
-  // 合成
   try {
     const svgBuffer = Buffer.from(svg);
     const composed = await sharp(buffer)
       .composite([{ input: svgBuffer, blend: "over" }]);
 
-    // 輸出格式與原圖一致（保持 JPEG 或 PNG）
     if (mimeType === "image/png") {
       return await composed.png({ compressionLevel: 8 }).toBuffer();
     }
     if (mimeType === "image/webp") {
       return await composed.webp({ quality: 88 }).toBuffer();
     }
-    // 預設輸出 JPEG
     return await composed.jpeg({ quality: 90 }).toBuffer();
   } catch (err) {
     console.error("[watermark] Failed to apply watermark:", err);
-    return buffer; // 失敗時返回原圖，確保上傳不中斷
+    return buffer;
   }
 }
 
