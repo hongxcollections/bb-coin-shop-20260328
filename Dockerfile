@@ -7,7 +7,7 @@ COPY package.json pnpm-lock.yaml ./
 # Copy patches directory if it exists
 COPY patches/ ./patches/
 # Install all dependencies (including devDependencies for build)
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 # Copy source code
 COPY . .
 # VITE_GOOGLE_CLIENT_ID must be available at build time for Vite to embed it.
