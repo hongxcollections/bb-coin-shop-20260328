@@ -325,6 +325,55 @@ async function bootstrapMissingColumns() {
     }
   } catch (e) { console.warn('[Bootstrap] saleStatus fix skipped:', e); }
 
+  // ── 補充缺失的 Index（提升查詢效能）──────────────────────────────────────
+  // 用 try/catch 模式：MySQL 8.0+ 支援 IF NOT EXISTS，舊版則 skip duplicate key error
+  const addIndex = async (name: string, sql: string) => {
+    try { await pool.execute(sql); console.log(`[Bootstrap] Created index: ${name}`); }
+    catch (e: any) {
+      // 忽略已存在的 index 錯誤（Duplicate key name）
+      if (!e?.message?.includes('Duplicate key name') && !e?.message?.includes('already exists')) {
+        console.warn(`[Bootstrap] Index ${name} skipped:`, e?.message ?? e);
+      }
+    }
+  };
+
+  // bids: 最常查 auctionId（出價歷史）、userId（我的出價）
+  await addIndex('idx_bids_auctionId', 'CREATE INDEX `idx_bids_auctionId` ON `bids` (`auctionId`)');
+  await addIndex('idx_bids_userId',    'CREATE INDEX `idx_bids_userId`    ON `bids` (`userId`)');
+
+  // auctions: 依 status 篩選（首頁列表）、依 createdBy 找商戶拍賣
+  await addIndex('idx_auctions_status',    'CREATE INDEX `idx_auctions_status`    ON `auctions` (`status`)');
+  await addIndex('idx_auctions_createdBy', 'CREATE INDEX `idx_auctions_createdBy` ON `auctions` (`createdBy`)');
+  await addIndex('idx_auctions_endTime',   'CREATE INDEX `idx_auctions_endTime`   ON `auctions` (`endTime`)');
+
+  // auctionImages: 每個拍賣頁都要 JOIN
+  await addIndex('idx_auctionImages_auctionId', 'CREATE INDEX `idx_auctionImages_auctionId` ON `auctionImages` (`auctionId`)');
+
+  // merchantProducts: 商戶商品列表、狀態篩選
+  await addIndex('idx_merchantProducts_merchantId', 'CREATE INDEX `idx_merchantProducts_merchantId` ON `merchantProducts` (`merchantId`)');
+  await addIndex('idx_merchantProducts_status',     'CREATE INDEX `idx_merchantProducts_status`     ON `merchantProducts` (`status`)');
+
+  // depositTransactions: 交易記錄按用戶查詢
+  await addIndex('idx_depositTx_userId', 'CREATE INDEX `idx_depositTx_userId` ON `deposit_transactions` (`userId`)');
+
+  // userSubscriptions: 按用戶查訂閱
+  await addIndex('idx_userSubs_userId', 'CREATE INDEX `idx_userSubs_userId` ON `user_subscriptions` (`userId`)');
+  await addIndex('idx_userSubs_status', 'CREATE INDEX `idx_userSubs_status` ON `user_subscriptions` (`status`)');
+
+  // merchantApplications: 按 userId 找商戶申請
+  await addIndex('idx_merchantApp_userId', 'CREATE INDEX `idx_merchantApp_userId` ON `merchantApplications` (`userId`)');
+  await addIndex('idx_merchantApp_status', 'CREATE INDEX `idx_merchantApp_status` ON `merchantApplications` (`status`)');
+
+  // featuredListings: 首頁取 active 主打
+  await addIndex('idx_featuredListings_status', 'CREATE INDEX `idx_featuredListings_status` ON `featuredListings` (`status`)');
+  await addIndex('idx_featuredListings_merchantId', 'CREATE INDEX `idx_featuredListings_merchantId` ON `featuredListings` (`merchantId`)');
+
+  // proxyBids: 代理出價按 auctionId 查（uniq_proxy_auction_user 已建，但單欄 index 更高效）
+  await addIndex('idx_proxyBids_auctionId', 'CREATE INDEX `idx_proxyBids_auctionId` ON `proxyBids` (`auctionId`)');
+
+  // favorites: 我的收藏
+  await addIndex('idx_favorites_userId', 'CREATE INDEX `idx_favorites_userId` ON `favorites` (`userId`)');
+
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
 }
