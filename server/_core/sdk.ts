@@ -24,6 +24,13 @@ export type SessionPayload = {
   name: string;
 };
 
+// ── 用戶資料內存快取（減少每次請求的 DB 查詢）────────────────────────────
+const USER_CACHE_TTL_MS = 30_000; // 30 秒
+const LAST_SIGNED_IN_TTL_MS = 5 * 60_000; // 每 5 分鐘才更新一次 lastSignedIn
+interface CachedUser { user: User; expiresAt: number }
+const _userCache = new Map<string, CachedUser>();
+const _lastSignedInUpdated = new Map<string, number>(); // openId → timestamp
+
 const EXCHANGE_TOKEN_PATH = `/webdev.v1.WebDevAuthPublicService/ExchangeToken`;
 const GET_USER_INFO_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfo`;
 const GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfoWithJwt`;
@@ -254,8 +261,12 @@ class SDKServer {
     } as GetUserInfoWithJwtResponse;
   }
 
+  /** 清除指定用戶的快取（用戶資料更新後呼叫） */
+  invalidateUserCache(openId: string) {
+    _userCache.delete(openId);
+  }
+
   async authenticateRequest(req: Request): Promise<User> {
-    // Regular authentication flow
     const cookies = this.parseCookies(req.headers.cookie);
     const sessionCookie = cookies.get(COOKIE_NAME);
     const session = await this.verifySession(sessionCookie);
@@ -265,12 +276,19 @@ class SDKServer {
     }
 
     const sessionUserId = session.openId;
+    const now = Date.now();
+
+    // ── 1. 從快取取用戶（避免每次請求查 DB）──────────────────────────
+    const cached = _userCache.get(sessionUserId);
+    if (cached && cached.expiresAt > now) {
+      return cached.user;
+    }
+
+    // ── 2. 快取過期或首次請求，才查 DB ──────────────────────────────
     const signedInAt = new Date();
     let user = await db.getUserByOpenId(sessionUserId);
 
-    // If user not in DB, try to sync from OAuth server or use session data directly
     if (!user) {
-      // Try to upsert user from session data (works even without OAuth server)
       try {
         await db.upsertUser({
           openId: sessionUserId,
@@ -284,37 +302,29 @@ class SDKServer {
         console.warn("[Auth] Failed to upsert user from session:", dbError);
       }
 
-      // If DB is not available, construct a minimal user object from session
       if (!user) {
         const ownerOpenId = ENV.ownerOpenId || process.env.OWNER_OPEN_ID || "";
         const isOwner = ownerOpenId.length > 0 && sessionUserId === ownerOpenId;
-        console.warn(`[Auth] Database unavailable, using session data directly for: ${sessionUserId}, ownerOpenId: ${ownerOpenId}, isOwner: ${isOwner}`);
+        console.warn(`[Auth] Database unavailable, using session data for: ${sessionUserId}`);
         return {
-          id: 0,
-          openId: sessionUserId,
-          name: session.name || null,
-          email: null,
-          loginMethod: "google",
-          role: (isOwner ? "admin" : "user") as "admin" | "user",
-          notifyOutbid: 1,
-          notifyWon: 1,
-          notifyEndingSoon: 1,
-          memberLevel: "bronze",
-          defaultAnonymous: 0,
-          lastSignedIn: signedInAt,
-          createdAt: signedInAt,
-          updatedAt: signedInAt,
+          id: 0, openId: sessionUserId, name: session.name || null, email: null,
+          loginMethod: "google", role: (isOwner ? "admin" : "user") as "admin" | "user",
+          notifyOutbid: 1, notifyWon: 1, notifyEndingSoon: 1, memberLevel: "bronze",
+          defaultAnonymous: 0, lastSignedIn: signedInAt, createdAt: signedInAt, updatedAt: signedInAt,
         } as User;
       }
     }
 
-    try {
-      await db.upsertUser({
-        openId: user.openId,
-        lastSignedIn: signedInAt,
-      });
-    } catch (dbError) {
-      console.warn("[Auth] Failed to update lastSignedIn:", dbError);
+    // ── 3. 寫入快取（30秒 TTL）──────────────────────────────────────
+    _userCache.set(sessionUserId, { user, expiresAt: now + USER_CACHE_TTL_MS });
+
+    // ── 4. lastSignedIn 每 5 分鐘才更新一次（非阻塞）────────────────
+    const lastUpdated = _lastSignedInUpdated.get(sessionUserId) ?? 0;
+    if (now - lastUpdated > LAST_SIGNED_IN_TTL_MS) {
+      _lastSignedInUpdated.set(sessionUserId, now);
+      db.upsertUser({ openId: user.openId, lastSignedIn: signedInAt }).catch(err =>
+        console.warn("[Auth] Failed to update lastSignedIn:", err)
+      );
     }
 
     return user;
