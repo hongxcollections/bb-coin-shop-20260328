@@ -625,6 +625,9 @@ function HomeBuyDialog({ product, onClose }: { product: any; onClose: () => void
         <div className="flex items-center gap-3">
           <ShoppingCart className="w-5 h-5 text-amber-500 shrink-0" />
           <h2 className="font-bold text-gray-800 text-base">確認落單</h2>
+          <button onClick={onClose} className="ml-auto p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors" aria-label="關閉">
+            <X className="w-4 h-4" />
+          </button>
         </div>
         <div className="bg-amber-50 rounded-xl p-3 space-y-1">
           <p className="font-semibold text-gray-800 text-sm line-clamp-2">{product.title}</p>
