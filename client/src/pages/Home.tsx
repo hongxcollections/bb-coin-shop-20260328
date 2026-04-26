@@ -630,7 +630,11 @@ function HomeBuyDialog({ product, onClose }: { product: any; onClose: () => void
             <CheckCircle2 className="w-9 h-9 text-green-500" />
           </div>
           <h2 className="font-bold text-gray-800 text-lg mb-1">落單成功！</h2>
-          <p className="text-sm text-gray-500 mb-1">已成功落單 <span className="font-semibold text-gray-700">{orderedQty} 件</span></p>
+          <p className="text-sm text-gray-500 mb-2">已成功落單 <span className="font-semibold text-gray-700">{orderedQty} 件</span></p>
+          <div className="bg-amber-50 rounded-xl px-4 py-2.5 mb-4 text-left">
+            <p className="text-sm font-medium text-gray-800 line-clamp-2">{product.title}</p>
+            <p className="text-amber-600 font-bold text-sm mt-0.5">{currSymbol} ${(price * orderedQty).toLocaleString()}</p>
+          </div>
           <p className="text-sm text-gray-500 mb-6">請等候商戶確認成交，確認後我們會通知你。</p>
           <button onClick={onClose} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 rounded-xl transition-colors">完成</button>
         </div>
