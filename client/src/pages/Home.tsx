@@ -578,6 +578,7 @@ function HomeBuyDialog({ product, onClose }: { product: any; onClose: () => void
   const [, navigate] = useLocation();
   const [qty, setQty] = useState(1);
   const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const utils = trpc.useUtils();
   const price = parseFloat(product.price ?? "0");
   const currSymbol = getCurrencySymbol(product.currency ?? "HKD");
@@ -650,23 +651,28 @@ function HomeBuyDialog({ product, onClose }: { product: any; onClose: () => void
         <p className="text-xs text-gray-400 bg-gray-50 rounded-lg p-2.5">落單後商戶會聯絡你確認成交，傭金於商戶確認後才自動扣除。</p>
         <div className="flex gap-2 pt-1">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50">取消</button>
-          <button disabled={createOrder.isPending}
+          <button disabled={submitting}
             onClick={async () => {
-              let buyerPushEndpoint: string | undefined;
+              setSubmitting(true);
               try {
-                const swReady = navigator.serviceWorker?.ready;
-                if (swReady) {
-                  const timeout = new Promise<undefined>((res) => setTimeout(() => res(undefined), 1500));
-                  const reg = await Promise.race([swReady, timeout]);
-                  const sub = await reg?.pushManager?.getSubscription();
-                  if (sub?.endpoint) buyerPushEndpoint = sub.endpoint;
-                }
-              } catch {}
-              createOrder.mutate({ productId: product.id, quantity: qty, buyerNote: note || undefined, buyerPushEndpoint });
+                let buyerPushEndpoint: string | undefined;
+                try {
+                  const swReady = navigator.serviceWorker?.ready;
+                  if (swReady) {
+                    const timeout = new Promise<undefined>((res) => setTimeout(() => res(undefined), 1500));
+                    const reg = await Promise.race([swReady, timeout]);
+                    const sub = await reg?.pushManager?.getSubscription();
+                    if (sub?.endpoint) buyerPushEndpoint = sub.endpoint;
+                  }
+                } catch {}
+                await createOrder.mutateAsync({ productId: product.id, quantity: qty, buyerNote: note || undefined, buyerPushEndpoint });
+              } catch {} finally {
+                setSubmitting(false);
+              }
             }}
             className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-60">
-            {createOrder.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
-            確認落單
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
+            {submitting ? "處理中…" : "確認落單"}
           </button>
         </div>
       </div>
