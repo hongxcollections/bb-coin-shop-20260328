@@ -3247,7 +3247,7 @@ export const appRouter = router({
         const currency = product.currency ?? 'HKD';
         const total = (parseFloat(String(product.price)) * input.quantity).toLocaleString('zh-HK', { minimumFractionDigits: 0 });
         const noteStr = input.buyerNote?.trim() ? `\n備註：${input.buyerNote.trim()}` : '';
-        const siteBase = ENV.siteUrl || '';
+        const siteBase = getEmailOrigin(ctx.req);
         const productUrl = `${siteBase}/merchant-products/${product.id}`;
         sendPushToUser(product.merchantId, {
           title: '🛒 新訂單',
