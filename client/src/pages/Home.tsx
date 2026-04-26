@@ -31,6 +31,7 @@ import {
   Store,
   Loader2,
   X,
+  CheckCircle2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -579,15 +580,17 @@ function HomeBuyDialog({ product, onClose }: { product: any; onClose: () => void
   const [qty, setQty] = useState(1);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [ordered, setOrdered] = useState(false);
+  const [orderedQty, setOrderedQty] = useState(0);
   const utils = trpc.useUtils();
   const price = parseFloat(product.price ?? "0");
   const currSymbol = getCurrencySymbol(product.currency ?? "HKD");
 
   const createOrder = trpc.productOrders.create.useMutation({
     onSuccess: () => {
-      toast.success("已成功落單！請等候商戶確認成交");
       utils.merchants.listProducts.invalidate();
-      onClose();
+      setOrderedQty(qty);
+      setOrdered(true);
     },
     onError: (e) => toast.error(e.message),
   });
@@ -614,6 +617,22 @@ function HomeBuyDialog({ product, onClose }: { product: any; onClose: () => void
           <span className="text-4xl mb-3 block">🚫</span>
           <p className="font-semibold text-gray-800 mb-1">不能購買自己的商品</p>
           <button onClick={onClose} className="w-full bg-gray-100 text-gray-600 font-semibold py-2.5 rounded-xl hover:bg-gray-200">關閉</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (ordered) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20" onClick={onClose}>
+        <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center" onClick={e => e.stopPropagation()}>
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle2 className="w-9 h-9 text-green-500" />
+          </div>
+          <h2 className="font-bold text-gray-800 text-lg mb-1">落單成功！</h2>
+          <p className="text-sm text-gray-500 mb-1">已成功落單 <span className="font-semibold text-gray-700">{orderedQty} 件</span></p>
+          <p className="text-sm text-gray-500 mb-6">請等候商戶確認成交，確認後我們會通知你。</p>
+          <button onClick={onClose} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 rounded-xl transition-colors">完成</button>
         </div>
       </div>
     );
