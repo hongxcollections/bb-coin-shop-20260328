@@ -3249,10 +3249,11 @@ export const appRouter = router({
         const noteStr = input.buyerNote?.trim() ? `\n備註：${input.buyerNote.trim()}` : '';
         const siteBase = getEmailOrigin(ctx.req);
         const productUrl = `${siteBase}/merchant-products/${product.id}`;
+        const merchantOrdersUrl = `${siteBase}/merchant-products?tab=orders`;
         sendPushToUser(product.merchantId, {
           title: '🛒 新訂單',
           body: `${buyerName} 落單：${product.title}${input.quantity > 1 ? ` ×${input.quantity}` : ''} $${total} ${currency}${noteStr}`,
-          url: productUrl,
+          url: merchantOrdersUrl,
           tag: `product-order-${orderId}`,
         }).catch(() => {});
 

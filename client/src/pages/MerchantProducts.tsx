@@ -402,7 +402,10 @@ export default function MerchantProducts() {
   const { isAuthenticated } = useAuth();
   const utils = trpc.useUtils();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<"products" | "orders">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "orders">(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("tab") === "orders" ? "orders" : "products";
+  });
 
   const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const CATEGORIES = parseCategories(siteSettings as Record<string, string> | undefined);
