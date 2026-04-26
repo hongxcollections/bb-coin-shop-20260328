@@ -94,9 +94,13 @@ function BuyDialog({ product, onClose }: { product: any; onClose: () => void }) 
             onClick={async () => {
               let buyerPushEndpoint: string | undefined;
               try {
-                const reg = await navigator.serviceWorker?.ready;
-                const sub = await reg?.pushManager?.getSubscription();
-                if (sub?.endpoint) buyerPushEndpoint = sub.endpoint;
+                const swReady = navigator.serviceWorker?.ready;
+                if (swReady) {
+                  const timeout = new Promise<undefined>((res) => setTimeout(() => res(undefined), 1500));
+                  const reg = await Promise.race([swReady, timeout]);
+                  const sub = await reg?.pushManager?.getSubscription();
+                  if (sub?.endpoint) buyerPushEndpoint = sub.endpoint;
+                }
               } catch {}
               createOrder.mutate({ productId: product.id, quantity: qty, buyerNote: note || undefined, buyerPushEndpoint });
             }}
