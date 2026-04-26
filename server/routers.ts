@@ -14,7 +14,7 @@ import { storagePut } from "./storage";
 import { applyWatermark } from "./watermark";
 import { getRawPool } from "./db";
 import { TRPCError } from "@trpc/server";
-import { getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser } from "./push";
+import { getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushToUser, sendPushToEndpoint } from "./push";
 import { getLoyaltyConfig, updateLoyaltyConfig, getEarlyBirdTodayStatus, getMyLoyaltyStatus, recalculateUserLevel, runDailyLoyaltyMaintenance, getMyAutoBidStatus, enforceAutoBidLimit, enforceAnonymousBidPermission, type LoyaltyConfig } from "./loyalty";
 import { ENV } from "./_core/env";
 import type { IncomingMessage } from "http";
@@ -3213,6 +3213,7 @@ export const appRouter = router({
         productId: z.number(),
         quantity: z.number().min(1).max(99).default(1),
         buyerNote: z.string().max(500).optional(),
+        buyerPushEndpoint: z.string().url().optional(), // 買家當前瀏覽器的推送識別碼
       }))
       .mutation(async ({ input, ctx }) => {
         const product = await getMerchantProduct(input.productId);
@@ -3253,13 +3254,18 @@ export const appRouter = router({
           tag: `product-order-${orderId}`,
         }).catch(() => {});
 
-        // 通知買家：落單確認（推送到買家已登記的瀏覽器）
-        sendPushToUser(ctx.user.id, {
+        // 通知買家：落單確認（精準推送到落單的那個瀏覽器，如無則推全部）
+        const buyerPayload = {
           title: '✅ 訂單已收到',
           body: `${product.title}${input.quantity > 1 ? ` ×${input.quantity}` : ''} $${total} ${currency}，等待商戶確認`,
           url: `/merchant-products/${product.id}`,
           tag: `order-confirm-${orderId}`,
-        }).catch(() => {});
+        };
+        if (input.buyerPushEndpoint) {
+          sendPushToEndpoint(input.buyerPushEndpoint, buyerPayload).catch(() => {});
+        } else {
+          sendPushToUser(ctx.user.id, buyerPayload).catch(() => {});
+        }
 
         return { orderId };
       }),

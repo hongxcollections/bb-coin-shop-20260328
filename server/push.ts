@@ -100,6 +100,35 @@ export async function sendPushToUser(userId: number, payload: PushPayload): Prom
   return sent;
 }
 
+/** 精準推送到指定 endpoint（只推那一個瀏覽器） */
+export async function sendPushToEndpoint(endpoint: string, payload: PushPayload): Promise<boolean> {
+  configure();
+  if (!_configured) return false;
+  const db = await getDb();
+  const rows = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
+  if (rows.length === 0) return false;
+  const s = rows[0];
+  const host = (() => { try { return new URL(s.endpoint).host; } catch { return "unknown"; } })();
+  const tail = s.endpoint.slice(-12);
+  try {
+    const res: any = await webpush.sendNotification(
+      { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+      JSON.stringify(payload),
+    );
+    console.log(`[Push] OK (endpoint) user=${s.userId} host=${host} tail=...${tail} status=${res?.statusCode ?? '?'}`);
+    return true;
+  } catch (err: any) {
+    const code = err?.statusCode;
+    if (code === 410 || code === 404) {
+      await removePushSubscription(s.endpoint).catch(() => {});
+      console.warn(`[Push] EXPIRED (endpoint) host=${host} tail=...${tail} status=${code} — cleaned up`);
+    } else {
+      console.error(`[Push] FAIL (endpoint) host=${host} tail=...${tail} status=${code ?? '?'} msg=${err?.message ?? err}`);
+    }
+    return false;
+  }
+}
+
 // 快速判斷會員等級是否 silver+
 export async function isSilverOrAbove(userId: number): Promise<boolean> {
   const db = await getDb();

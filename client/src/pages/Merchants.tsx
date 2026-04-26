@@ -171,7 +171,15 @@ function BuyDialog({ product, onClose }: { product: any; onClose: () => void }) 
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50">取消</button>
           <button
             disabled={createOrder.isPending}
-            onClick={() => createOrder.mutate({ productId: product.id, quantity: qty, buyerNote: note || undefined })}
+            onClick={async () => {
+              let buyerPushEndpoint: string | undefined;
+              try {
+                const reg = await navigator.serviceWorker?.ready;
+                const sub = await reg?.pushManager?.getSubscription();
+                if (sub?.endpoint) buyerPushEndpoint = sub.endpoint;
+              } catch {}
+              createOrder.mutate({ productId: product.id, quantity: qty, buyerNote: note || undefined, buyerPushEndpoint });
+            }}
             className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-60"
           >
             {createOrder.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
