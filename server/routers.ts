@@ -3240,6 +3240,18 @@ export const appRouter = router({
           buyerPhone: ctx.user.phone ?? undefined,
           buyerNote: input.buyerNote,
         });
+
+        // 通知商戶：新訂單
+        const buyerName = (ctx.user as any).name ?? `會員#${ctx.user.id}`;
+        const currency = product.currency ?? 'HKD';
+        const total = (parseFloat(String(product.price)) * input.quantity).toLocaleString('zh-HK', { minimumFractionDigits: 0 });
+        sendPushToUser(product.merchantId, {
+          title: '🛒 新訂單',
+          body: `${buyerName} 落單：${product.title}${input.quantity > 1 ? ` ×${input.quantity}` : ''} $${total} ${currency}`,
+          url: '/merchant/orders',
+          tag: `product-order-${orderId}`,
+        }).catch(() => {});
+
         return { orderId };
       }),
 
