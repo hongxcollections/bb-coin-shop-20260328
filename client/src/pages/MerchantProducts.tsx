@@ -228,7 +228,24 @@ function MerchantOrdersTab() {
                     </div>
                   )}
                   <div><span className="text-gray-400">買家</span><span className="ml-1 font-medium">{o.buyerDisplayName ?? "—"}</span></div>
-                  <div><span className="text-gray-400">電話</span><span className="ml-1 font-medium">{o.buyerPhoneFromUser ?? o.buyerPhone ?? "—"}</span></div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-gray-400">電話</span>
+                    <span className="ml-1 font-medium">{o.buyerPhoneFromUser ?? o.buyerPhone ?? "—"}</span>
+                    {(o.buyerPhoneFromUser ?? o.buyerPhone) && (
+                      <a
+                        href={`https://wa.me/${(o.buyerPhoneFromUser ?? o.buyerPhone ?? '').replace(/[^0-9]/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-1 flex-shrink-0"
+                        title="WhatsApp 聯絡買家"
+                      >
+                        <svg viewBox="0 0 32 32" className="w-4 h-4" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <circle cx="16" cy="16" r="16" fill="#25D366"/>
+                          <path d="M22.5 9.5A8.93 8.93 0 0 0 16 7C11.03 7 7 11.03 7 16c0 1.59.42 3.14 1.21 4.5L7 25l4.62-1.21A8.96 8.96 0 0 0 16 25c4.97 0 9-4.03 9-9 0-2.4-.94-4.66-2.5-6.5Zm-6.5 13.83c-1.35 0-2.67-.36-3.83-1.04l-.27-.16-2.74.72.73-2.68-.18-.28A7.44 7.44 0 0 1 8.56 16c0-4.1 3.34-7.44 7.44-7.44 1.99 0 3.85.77 5.25 2.17A7.38 7.38 0 0 1 23.44 16c0 4.1-3.34 7.33-7.44 7.33Zm4.08-5.5c-.22-.11-1.32-.65-1.53-.73-.2-.07-.35-.11-.5.11-.15.22-.58.73-.71.88-.13.15-.26.17-.48.06-.22-.11-.94-.35-1.79-1.1-.66-.59-1.1-1.32-1.23-1.54-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.15-.22.22-.37.07-.15.04-.28-.02-.39-.06-.11-.5-1.2-.68-1.64-.18-.43-.36-.37-.5-.38h-.43c-.15 0-.39.06-.6.28-.2.22-.78.76-.78 1.86 0 1.1.8 2.16.91 2.31.11.15 1.58 2.41 3.83 3.38.54.23.95.37 1.28.47.54.17 1.03.15 1.42.09.43-.07 1.32-.54 1.51-1.06.19-.52.19-.97.13-1.06-.06-.09-.2-.15-.43-.26Z" fill="white"/>
+                        </svg>
+                      </a>
+                    )}
+                  </div>
                 </div>
 
                 {o.buyerNote && (
