@@ -3245,11 +3245,20 @@ export const appRouter = router({
         const buyerName = (ctx.user as any).name ?? `會員#${ctx.user.id}`;
         const currency = product.currency ?? 'HKD';
         const total = (parseFloat(String(product.price)) * input.quantity).toLocaleString('zh-HK', { minimumFractionDigits: 0 });
+        const noteStr = input.buyerNote?.trim() ? `\n備註：${input.buyerNote.trim()}` : '';
         sendPushToUser(product.merchantId, {
           title: '🛒 新訂單',
-          body: `${buyerName} 落單：${product.title}${input.quantity > 1 ? ` ×${input.quantity}` : ''} $${total} ${currency}`,
-          url: '/merchant/orders',
+          body: `${buyerName} 落單：${product.title}${input.quantity > 1 ? ` ×${input.quantity}` : ''} $${total} ${currency}${noteStr}`,
+          url: `/merchant-products/${product.id}`,
           tag: `product-order-${orderId}`,
+        }).catch(() => {});
+
+        // 通知買家：落單確認（推送到買家已登記的瀏覽器）
+        sendPushToUser(ctx.user.id, {
+          title: '✅ 訂單已收到',
+          body: `${product.title}${input.quantity > 1 ? ` ×${input.quantity}` : ''} $${total} ${currency}，等待商戶確認`,
+          url: `/merchant-products/${product.id}`,
+          tag: `order-confirm-${orderId}`,
         }).catch(() => {});
 
         return { orderId };
