@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff, ChevronDown, ChevronUp, EyeOff, Heart, Trophy } from "lucide-react";
+import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff, ChevronDown, ChevronUp, EyeOff, Heart, Trophy, Lock } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ShareMenu } from "@/components/ShareMenu";
@@ -339,42 +339,70 @@ export default function Profile() {
         <LoyaltyProgressCard />
 
         {/* Anonymous Bid Default Setting */}
-        <Card className="mb-6 border-slate-200">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <EyeOff className="w-4 h-4 text-slate-500" />
-              匿名出價設定
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              開啟後，每次出價預設為匿名模式。您仍可在出價時臨時切換。
-            </p>
-            <div className={`flex items-center justify-between rounded-lg px-4 py-3 border transition-all ${
-              defaultAnonymous ? 'bg-slate-50 border-slate-300' : 'bg-white border-slate-100'
-            }`}>
-              <div className="flex items-center gap-3">
-                <EyeOff className={`w-5 h-5 ${defaultAnonymous ? 'text-slate-500' : 'text-muted-foreground'}`} />
-                <div>
-                  <p className="text-sm font-medium">預設匿名出價</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {defaultAnonymous ? '已開啟：出價時將顯示「🕵️ 匿名買家」' : '關閉：出價時顯示您的名字'}
-                  </p>
-                </div>
-              </div>
-              <Switch
-                checked={defaultAnonymous}
-                onCheckedChange={handleToggleDefaultAnon}
-                disabled={setDefaultAnonMutation.isPending}
-                className="data-[state=checked]:bg-slate-500"
-              />
-            </div>
-            <div className="flex items-start gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
-              <EyeOff className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-              <span>匿名出價時，競標歷史將顯示「🕵️ 匿名買家」。管理員仍可查看真實身份。得標後商戶將以真實資料聯絡您。</span>
-            </div>
-          </CardContent>
-        </Card>
+        {(() => {
+          const memberLevel = (user as { memberLevel?: string } | null)?.memberLevel;
+          const canUseAnon = memberLevel === 'silver' || memberLevel === 'gold' || memberLevel === 'vip';
+          return (
+            <Card className={`mb-6 ${canUseAnon ? 'border-slate-200' : 'border-slate-100 opacity-80'}`}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <EyeOff className="w-4 h-4 text-slate-500" />
+                  匿名出價設定
+                  {!canUseAnon && (
+                    <span className="ml-auto flex items-center gap-1 text-xs font-normal text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                      <Lock className="w-3 h-3" />
+                      🥈 銀牌或以上限定
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {canUseAnon ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      開啟後，每次出價預設為匿名模式。您仍可在出價時臨時切換。
+                    </p>
+                    <div className={`flex items-center justify-between rounded-lg px-4 py-3 border transition-all ${
+                      defaultAnonymous ? 'bg-slate-50 border-slate-300' : 'bg-white border-slate-100'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <EyeOff className={`w-5 h-5 ${defaultAnonymous ? 'text-slate-500' : 'text-muted-foreground'}`} />
+                        <div>
+                          <p className="text-sm font-medium">預設匿名出價</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {defaultAnonymous ? '已開啟：出價時將顯示「🕵️ 匿名買家」' : '關閉：出價時顯示您的名字'}
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={defaultAnonymous}
+                        onCheckedChange={handleToggleDefaultAnon}
+                        disabled={setDefaultAnonMutation.isPending}
+                        className="data-[state=checked]:bg-slate-500"
+                      />
+                    </div>
+                    <div className="flex items-start gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
+                      <EyeOff className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                      <span>匿名出價時，競標歷史將顯示「🕵️ 匿名買家」。管理員仍可查看真實身份。得標後商戶將以真實資料聯絡您。</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center gap-3 py-4 text-center">
+                    <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
+                      <Lock className="w-5 h-5 text-slate-400" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      匿名出價功能僅限 <span className="font-semibold text-slate-600">🥈 銀牌或以上會員</span> 使用。
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      升級會籍後即可隱藏身份競投，保護您的出價策略。
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* Email Notification Settings */}
         <Card className="mb-6 border-amber-100">
