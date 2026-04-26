@@ -3247,10 +3247,12 @@ export const appRouter = router({
         const currency = product.currency ?? 'HKD';
         const total = (parseFloat(String(product.price)) * input.quantity).toLocaleString('zh-HK', { minimumFractionDigits: 0 });
         const noteStr = input.buyerNote?.trim() ? `\n備註：${input.buyerNote.trim()}` : '';
+        const siteBase = ENV.siteUrl || '';
+        const productUrl = `${siteBase}/merchant-products/${product.id}`;
         sendPushToUser(product.merchantId, {
           title: '🛒 新訂單',
           body: `${buyerName} 落單：${product.title}${input.quantity > 1 ? ` ×${input.quantity}` : ''} $${total} ${currency}${noteStr}`,
-          url: `/merchant-products/${product.id}`,
+          url: productUrl,
           tag: `product-order-${orderId}`,
         }).catch(() => {});
 
@@ -3258,7 +3260,7 @@ export const appRouter = router({
         const buyerPayload = {
           title: '✅ 訂單已收到',
           body: `${product.title}${input.quantity > 1 ? ` ×${input.quantity}` : ''} $${total} ${currency}，等待商戶確認`,
-          url: `/merchant-products/${product.id}`,
+          url: productUrl,
           tag: `order-confirm-${orderId}`,
         };
         if (input.buyerPushEndpoint) {

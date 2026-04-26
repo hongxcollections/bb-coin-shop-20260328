@@ -40,7 +40,11 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/";
+  const rawUrl = event.notification.data?.url || "/";
+  // 若是相對路徑，用 service worker 的 scope 補全（避免 Railway 內部域名出現）
+  const url = rawUrl.startsWith("http")
+    ? rawUrl
+    : new URL(rawUrl, self.registration.scope).href;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
       for (const c of clients) {
