@@ -401,7 +401,7 @@ export const merchantProducts = mysqlTable("merchantProducts", {
   description: text("description"),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   currency: varchar("currency", { length: 10 }).default("HKD").notNull(),
-  category: varchar("category", { length: 50 }),
+  category: varchar("category", { length: 500 }),
   images: text("images"),
   stock: int("stock").default(1).notNull(),
   status: mysqlEnum("status", ["active", "sold", "hidden"]).default("active").notNull(),

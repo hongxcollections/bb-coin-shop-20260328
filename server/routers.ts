@@ -3084,7 +3084,7 @@ export const appRouter = router({
         description: z.string().max(2000).optional(),
         price: z.number().positive(),
         currency: z.string().default('HKD'),
-        category: z.string().max(50).optional(),
+        category: z.string().max(500).optional(),
         images: z.string().optional(),
         stock: z.number().int().min(1).default(1),
       }))
@@ -3139,7 +3139,7 @@ export const appRouter = router({
         description: z.string().max(2000).optional(),
         price: z.number().positive().optional(),
         currency: z.string().optional(),
-        category: z.string().max(50).optional(),
+        category: z.string().max(500).optional(),
         images: z.string().optional(),
         stock: z.number().int().min(0).optional(),
         status: z.enum(['active', 'sold', 'hidden']).optional(),

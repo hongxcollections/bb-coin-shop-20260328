@@ -452,12 +452,12 @@ export default function MerchantProducts() {
   });
 
   const updateProduct = trpc.merchants.updateProduct.useMutation({
-    onSuccess: () => { utils.merchants.myProducts.invalidate(); toast.success("商品已更新"); resetForm(); },
+    onSuccess: () => { utils.merchants.myProducts.invalidate(); utils.merchants.myProducts.refetch(); toast.success("商品已更新"); resetForm(); },
     onError: (e) => toast.error(e.message),
   });
 
   const updateStatus = trpc.merchants.updateProduct.useMutation({
-    onSuccess: () => { utils.merchants.myProducts.invalidate(); },
+    onSuccess: () => { utils.merchants.myProducts.invalidate(); utils.merchants.myProducts.refetch(); },
     onError: (e) => toast.error(e.message),
   });
 

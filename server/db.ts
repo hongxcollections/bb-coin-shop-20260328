@@ -3475,7 +3475,7 @@ async function ensureMerchantProductsTable() {
       description TEXT,
       price DECIMAL(10,2) NOT NULL,
       currency VARCHAR(10) NOT NULL DEFAULT 'HKD',
-      category VARCHAR(50),
+      category VARCHAR(500),
       images TEXT,
       stock INT NOT NULL DEFAULT 1,
       status ENUM('active','sold','hidden') NOT NULL DEFAULT 'active',
@@ -3483,6 +3483,10 @@ async function ensureMerchantProductsTable() {
       updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
+  // 升級現有 category 欄位至 VARCHAR(500)（原本 VARCHAR(50) 在多分類時會截斷）
+  try {
+    await db.execute(sql`ALTER TABLE merchantProducts MODIFY COLUMN category VARCHAR(500)`);
+  } catch {}
   _merchantProductsTableChecked = true;
 }
 
