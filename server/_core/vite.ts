@@ -65,15 +65,19 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
     if (!auction) return null;
 
     const images = await getAuctionImages(auctionId);
-    const imageUrl = images.length > 0 ? images[0].imageUrl : "";
+    const hasImage = images.length > 0 && !!images[0].imageUrl;
+    // Use our own server as image proxy so Facebook's crawler always succeeds.
+    // Direct S3 URLs (especially temp/ paths) can be blocked by S3 IP policies
+    // when accessed from Facebook's crawler servers.
+    const proxyImageUrl = hasImage
+      ? `${protocol}://${host}/api/og-image/${auctionId}`
+      : "";
+    const imgMime = "image/jpeg";
+
     const currSymbol = getCurrencySymbol((auction as { currency?: string }).currency ?? "HKD");
     const startPrice = Number(auction.startingPrice).toLocaleString();
     const currPrice = Number(auction.currentPrice).toLocaleString();
     const endTimeStr = formatEndTime(new Date(auction.endTime));
-
-    // Detect image content type from URL extension
-    const imgExt = imageUrl ? imageUrl.split("?")[0].split(".").pop()?.toLowerCase() : "";
-    const imgMime = imgExt === "png" ? "image/png" : imgExt === "gif" ? "image/gif" : imgExt === "webp" ? "image/webp" : "image/jpeg";
 
     // Facebook large-image preview ONLY shows og:title (not description/site_name).
     // So we pack all key info into og:title for maximum visibility.
@@ -89,23 +93,24 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
       `<meta property="og:title" content="${esc(ogTitle)}" />`,
       `<meta property="og:description" content="${esc(ogDesc)}" />`,
       `<meta property="og:url" content="${esc(fullUrl)}" />`,
-      // og:image block — width/height hints required by Facebook for reliable display
-      imageUrl ? `<meta property="og:image" content="${esc(imageUrl)}" />` : "",
-      imageUrl ? `<meta property="og:image:secure_url" content="${esc(imageUrl)}" />` : "",
-      imageUrl ? `<meta property="og:image:type" content="${imgMime}" />` : "",
-      imageUrl ? `<meta property="og:image:width" content="1200" />` : "",
-      imageUrl ? `<meta property="og:image:height" content="1200" />` : "",
-      `<meta name="twitter:card" content="${imageUrl ? "summary_large_image" : "summary"}" />`,
+      // og:image — use proxy URL so Facebook can always fetch the image
+      // (direct S3 temp/ URLs can be blocked by S3 IP policies for Facebook's crawler IPs)
+      proxyImageUrl ? `<meta property="og:image" content="${esc(proxyImageUrl)}" />` : "",
+      proxyImageUrl ? `<meta property="og:image:secure_url" content="${esc(proxyImageUrl)}" />` : "",
+      proxyImageUrl ? `<meta property="og:image:type" content="${imgMime}" />` : "",
+      proxyImageUrl ? `<meta property="og:image:width" content="1200" />` : "",
+      proxyImageUrl ? `<meta property="og:image:height" content="1200" />` : "",
+      `<meta name="twitter:card" content="${proxyImageUrl ? "summary_large_image" : "summary"}" />`,
       `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
       `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
-      imageUrl ? `<meta name="twitter:image" content="${esc(imageUrl)}" />` : "",
+      proxyImageUrl ? `<meta name="twitter:image" content="${esc(proxyImageUrl)}" />` : "",
       `<title>${esc(ogTitle)}</title>`,
     ].filter(Boolean).join("\n    ");
 
     // Replace existing <title> and inject OG meta before </head>
     let result = html.replace(/<title>[^<]*<\/title>/, "");
     result = result.replace("</head>", `    ${ogMeta}\n  </head>`);
-    console.log(`[OG Meta] Injected for auction ${auctionId}: title="${ogTitle}" imageUrl="${imageUrl}"`);
+    console.log(`[OG Meta] Injected for auction ${auctionId}: title="${ogTitle}" proxyImageUrl="${proxyImageUrl}"`);
     return result;
   } catch (err) {
     console.error("[OG Meta] Error generating OG tags:", err);
