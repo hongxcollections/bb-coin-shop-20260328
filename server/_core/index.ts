@@ -418,6 +418,11 @@ async function startServer() {
   await runMigrations();
   const app = express();
   const server = createServer(app);
+  // 健康檢查端點（Railway 用於確認服務已就緒）
+  app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok', uptime: Math.floor(process.uptime()), ts: Date.now() });
+  });
+
   // Gzip 壓縮 — 減少回應體積 60-80%
   app.use(compression());
   // Configure body parser with larger size limit for file uploads
@@ -880,4 +885,22 @@ Output ONLY the JSON, nothing else.`;
   }
 }
 
-startServer().catch(console.error);
+// ── 全域崩潰防護：阻止未處理錯誤令整個進程死亡 ──────────────────────────────
+process.on('uncaughtException', (err) => {
+  console.error('[Process] Uncaught exception (server keeps running):', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[Process] Unhandled promise rejection (server keeps running):', reason);
+});
+
+// ── 優雅關機（Railway SIGTERM）────────────────────────────────────────────────
+process.on('SIGTERM', () => {
+  console.log('[Process] SIGTERM received — shutting down gracefully');
+  process.exit(0);
+});
+
+startServer().catch((err) => {
+  console.error('[Process] Fatal startup error:', err);
+  process.exit(1);
+});
