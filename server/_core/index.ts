@@ -822,60 +822,6 @@ Output ONLY the JSON, nothing else.`;
     }
   });
 
-  // ── OG 圖片代理：讓 Facebook 爬蟲透過我們的伺服器拿圖片，繞過 S3 的 IP 限制 ──
-  // Facebook 的爬蟲 IP 有時被 S3 bucket policy 阻擋，回傳 403 導致 og:image 顯示「圖像損壞」。
-  // 改用 /api/og-image/:auctionId，伺服器從 S3 拉取圖片再轉發，Facebook 始終能訪問。
-  app.get('/api/og-image/:auctionId', async (req, res) => {
-    try {
-      const auctionId = parseInt(req.params.auctionId, 10);
-      if (isNaN(auctionId) || auctionId <= 0) {
-        res.status(400).send('Invalid auction ID');
-        return;
-      }
-      const { getAuctionImages } = await import('../db');
-      const images = await getAuctionImages(auctionId);
-      if (!images || images.length === 0) {
-        res.status(404).send('No image');
-        return;
-      }
-      const s3Url = images[0].imageUrl;
-      if (!s3Url) {
-        res.status(404).send('No image URL');
-        return;
-      }
-      const s3Res = await fetch(s3Url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HongxCollections/1.0)' },
-      });
-      if (!s3Res.ok) {
-        res.status(s3Res.status).send('Image fetch failed');
-        return;
-      }
-      const rawBuf = Buffer.from(await s3Res.arrayBuffer());
-
-      // Resize to Facebook-recommended landscape OG image: 1200×630 (1.91:1)
-      // This makes Facebook's link preview card use landscape layout → shorter image
-      // → more space below for title/description text to be fully visible.
-      // We "contain" the original image within 1200×630 with a warm white background
-      // so no cropping occurs and all product detail remains visible.
-      const sharp = (await import('sharp')).default;
-      const ogBuf = await sharp(rawBuf)
-        .resize(1200, 630, {
-          fit: 'contain',
-          background: { r: 255, g: 251, b: 240, alpha: 1 }, // warm white #fffbf0
-        })
-        .jpeg({ quality: 90 })
-        .toBuffer();
-
-      res.set({
-        'Content-Type': 'image/jpeg',
-        'Content-Length': ogBuf.length.toString(),
-        'Cache-Control': 'public, max-age=3600',
-      }).end(ogBuf);
-    } catch (err) {
-      console.error('[OG Image Proxy] Error:', err);
-      res.status(500).send('Error');
-    }
-  });
 
   // tRPC API
   app.use(

@@ -66,13 +66,7 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
 
     const images = await getAuctionImages(auctionId);
     const hasImage = images.length > 0 && !!images[0].imageUrl;
-    // Use our own server as image proxy so Facebook's crawler always succeeds.
-    // Direct S3 URLs (especially temp/ paths) can be blocked by S3 IP policies
-    // when accessed from Facebook's crawler servers.
-    // v=2 forces Facebook to re-fetch after the landscape resize update (2026-04-27)
-    const proxyImageUrl = hasImage
-      ? `${protocol}://${host}/api/og-image/${auctionId}?v=2`
-      : "";
+    const ogImageUrl = hasImage ? images[0].imageUrl : "";
     const imgMime = "image/jpeg";
 
     const currSymbol = getCurrencySymbol((auction as { currency?: string }).currency ?? "HKD");
@@ -94,24 +88,20 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
       `<meta property="og:title" content="${esc(ogTitle)}" />`,
       `<meta property="og:description" content="${esc(ogDesc)}" />`,
       `<meta property="og:url" content="${esc(fullUrl)}" />`,
-      // og:image — use proxy URL so Facebook can always fetch the image
-      // (direct S3 temp/ URLs can be blocked by S3 IP policies for Facebook's crawler IPs)
-      proxyImageUrl ? `<meta property="og:image" content="${esc(proxyImageUrl)}" />` : "",
-      proxyImageUrl ? `<meta property="og:image:secure_url" content="${esc(proxyImageUrl)}" />` : "",
-      proxyImageUrl ? `<meta property="og:image:type" content="${imgMime}" />` : "",
-      proxyImageUrl ? `<meta property="og:image:width" content="1200" />` : "",
-      proxyImageUrl ? `<meta property="og:image:height" content="630" />` : "",
-      `<meta name="twitter:card" content="${proxyImageUrl ? "summary_large_image" : "summary"}" />`,
+      ogImageUrl ? `<meta property="og:image" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:secure_url" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:type" content="${imgMime}" />` : "",
+      `<meta name="twitter:card" content="${ogImageUrl ? "summary_large_image" : "summary"}" />`,
       `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
       `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
-      proxyImageUrl ? `<meta name="twitter:image" content="${esc(proxyImageUrl)}" />` : "",
+      ogImageUrl ? `<meta name="twitter:image" content="${esc(ogImageUrl)}" />` : "",
       `<title>${esc(ogTitle)}</title>`,
     ].filter(Boolean).join("\n    ");
 
     // Replace existing <title> and inject OG meta before </head>
     let result = html.replace(/<title>[^<]*<\/title>/, "");
     result = result.replace("</head>", `    ${ogMeta}\n  </head>`);
-    console.log(`[OG Meta] Injected for auction ${auctionId}: title="${ogTitle}" proxyImageUrl="${proxyImageUrl}"`);
+    console.log(`[OG Meta] Injected for auction ${auctionId}: title="${ogTitle}" imageUrl="${ogImageUrl}"`);
     return result;
   } catch (err) {
     console.error("[OG Meta] Error generating OG tags:", err);
