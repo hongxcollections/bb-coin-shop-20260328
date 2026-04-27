@@ -938,81 +938,110 @@ export default function MerchantProducts() {
             <p className="text-gray-400 text-sm">此類別暫無商品</p>
           </div>
         ) : layout === "list" ? (
-          /* ── 列表版面：橫排縮圖＋詳情 ── */
+          /* ── 列表版面：重新設計卡片 ── */
           <div className="space-y-3">
             {(displayProducts as any[]).map((p) => {
               const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
               const price = parseFloat(p.price ?? "0");
+              const isActive = p.status === "active";
+              const isHidden = p.status === "hidden";
+              const isSold = p.status === "sold";
+              const isFeatured = activeFeaturedIds.has(p.id);
+              const queued = queuedFeaturedMap.get(p.id);
+              const accentColor = isActive ? "bg-green-500" : isSold ? "bg-gray-400" : "bg-yellow-400";
+              const categories: string[] = p.category ? (p.category.includes("|") ? p.category.split("|") : [p.category]).map((c: string) => c.trim()) : [];
               return (
-                <div key={p.id} className="bg-white rounded-2xl border border-gray-100 p-3 flex gap-3 items-start">
-                  {imgs[0] ? (
-                    <img src={imgs[0]} alt={p.title} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
-                  ) : (
-                    <div className="w-16 h-16 rounded-xl bg-gray-50 flex items-center justify-center flex-shrink-0">
-                      <Package className="w-6 h-6 text-gray-300" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-1">
-                      <h3 className="text-sm font-semibold text-gray-800 line-clamp-1">{p.title}</h3>
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full shrink-0 ${STATUS_COLORS[p.status] ?? ""}`}>
-                        {STATUS_LABELS[p.status] ?? p.status}
-                      </span>
-                    </div>
-                    {p.category && <div className="flex flex-wrap gap-1">{(p.category.includes("|") ? p.category.split("|") : [p.category]).map((c: string) => <span key={c} className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">{c.trim()}</span>)}</div>}
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="font-bold text-amber-600 text-sm">{p.currency} ${price.toLocaleString()}</span>
-                      <span className="text-xs text-gray-400">庫存 {p.stock}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                      <button onClick={() => startEdit(p)} className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
-                        <Pencil className="w-3 h-3" />編輯
-                      </button>
-                      {p.status === "active" && (
-                        <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50">
-                          <EyeOff className="w-3 h-3" />下架
-                        </button>
+                <div key={p.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex">
+                  {/* 狀態色條 */}
+                  <div className={`w-1 shrink-0 ${accentColor}`} />
+
+                  <div className="flex flex-1 gap-3 p-3 min-w-0">
+                    {/* 商品圖片 */}
+                    <div className="shrink-0">
+                      {imgs[0] ? (
+                        <img src={imgs[0]} alt={p.title} className="w-[72px] h-[72px] rounded-xl object-cover border border-gray-100" />
+                      ) : (
+                        <div className="w-[72px] h-[72px] rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100">
+                          <Package className="w-7 h-7 text-gray-300" />
+                        </div>
                       )}
-                      {p.status === "active" && (
-                        <button onClick={() => markSold(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50">
-                          <Tag className="w-3 h-3" />已售出
-                        </button>
+                    </div>
+
+                    {/* 商品資訊 */}
+                    <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                      {/* 標題列 */}
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-sm font-bold text-gray-800 line-clamp-2 leading-snug flex-1">{p.title}</h3>
+                        <span className={`shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[p.status] ?? ""}`}>
+                          {STATUS_LABELS[p.status] ?? p.status}
+                        </span>
+                      </div>
+
+                      {/* 分類 + 價格列 */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {categories.slice(0, 2).map(c => (
+                          <span key={c} className="text-[11px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-medium">{c}</span>
+                        ))}
+                        <span className="font-extrabold text-green-600 text-base leading-none">{p.currency} ${price.toLocaleString()}</span>
+                        <span className="text-[11px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">庫存 {p.stock}</span>
+                      </div>
+
+                      {/* 主打狀態列 */}
+                      {isActive && isFeatured && (
+                        <div className="flex items-center gap-1 text-[11px] text-orange-500 font-semibold">
+                          <Flame className="w-3 h-3" />主打刊登中
+                        </div>
                       )}
-                      {p.status === "hidden" && (
-                        <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2 py-1 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50">
-                          <Eye className="w-3 h-3" />上架
-                        </button>
+                      {isActive && queued && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[11px] text-amber-600 font-medium">⏳ 排隊第 {queued.queuePosition} 位</span>
+                          <button onClick={() => setCancelQueueTarget({ id: queued.id, productTitle: p.title })} className="text-red-400 hover:text-red-600 transition-colors p-0.5" title="取消排隊（免費）"><X className="w-3 h-3" /></button>
+                        </div>
                       )}
-                      {p.status === "sold" && (
-                        <>
-                          <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
-                            <RotateCcw className="w-3 h-3" />重售
+
+                      {/* 操作按鈕列 */}
+                      <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                        {/* 編輯 */}
+                        <button onClick={() => startEdit(p)} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors font-medium">
+                          <Pencil className="w-3 h-3" />編輯
+                        </button>
+                        {/* 狀態操作 */}
+                        {isActive && (
+                          <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 font-medium">
+                            <EyeOff className="w-3 h-3" />下架
                           </button>
-                          <button onClick={() => hideFromSold(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50">
-                            下架
+                        )}
+                        {isActive && (
+                          <button onClick={() => markSold(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 font-medium">
+                            <Tag className="w-3 h-3" />已售出
                           </button>
-                        </>
-                      )}
-                      {p.status === "active" && (() => {
-                        if (activeFeaturedIds.has(p.id)) return (
-                          <span className="flex items-center gap-1 text-xs px-2 py-1 bg-orange-50 text-orange-500 rounded-lg font-medium"><Flame className="w-3 h-3" />主打中</span>
-                        );
-                        const queued = queuedFeaturedMap.get(p.id);
-                        if (queued) return (
-                          <span className="flex items-center gap-1 text-xs">
-                            <span className="px-2 py-1 bg-amber-50 text-amber-600 rounded-lg font-medium">⏳ 排隊第{queued.queuePosition}位</span>
-                            <button onClick={() => setCancelQueueTarget({ id: queued.id, productTitle: p.title })} className="px-1.5 py-1 text-red-400 hover:text-red-600 transition-colors" title="取消排隊（免費）"><X className="w-3 h-3" /></button>
-                          </span>
-                        );
-                        return (
-                          <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title, price: parseFloat(p.price ?? '0'), currency: p.currency ?? 'HKD' })} className="flex items-center gap-1 text-xs px-2 py-1 bg-gradient-to-r from-yellow-50 to-orange-50 text-orange-500 border border-orange-200 rounded-lg hover:from-yellow-100 hover:to-orange-100 transition-colors font-medium">
+                        )}
+                        {isHidden && (
+                          <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 font-medium">
+                            <Eye className="w-3 h-3" />上架
+                          </button>
+                        )}
+                        {isSold && (
+                          <>
+                            <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium">
+                              <RotateCcw className="w-3 h-3" />重售
+                            </button>
+                            <button onClick={() => hideFromSold(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 font-medium">
+                              <EyeOff className="w-3 h-3" />下架
+                            </button>
+                          </>
+                        )}
+                        {/* 申請主打 */}
+                        {isActive && !isFeatured && !queued && (
+                          <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title, price: parseFloat(p.price ?? '0'), currency: p.currency ?? 'HKD' })} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg hover:from-amber-500 hover:to-orange-600 transition-colors font-medium shadow-sm">
                             <Flame className="w-3 h-3" />申請主打
                           </button>
-                        );
-                      })()}
-                      <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="flex items-center gap-1 text-xs px-2 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
-                        <Trash2 className="w-3 h-3" />刪除
-                      </button>
+                        )}
+                        {/* 刪除 */}
+                        <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors font-medium ml-auto">
+                          <Trash2 className="w-3 h-3" />刪除
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
