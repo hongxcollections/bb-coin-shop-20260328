@@ -72,10 +72,32 @@ export default function AdBanner() {
           0%, 100% { transform: translateX(-50%) scaleX(1);   opacity: 0.22; }
           50%       { transform: translateX(-50%) scaleX(0.88); opacity: 0.14; }
         }
+        /* 標題文字金屬光掃過 */
+        @keyframes adTitleShimmer {
+          0%   { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+        .ad-title-shimmer {
+          background: linear-gradient(
+            90deg,
+            #fde68a 0%,
+            #fff9e0 30%,
+            #ffffff 45%,
+            #fff9e0 60%,
+            #fbbf24 80%,
+            #fde68a 100%
+          );
+          background-size: 200% auto;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: adTitleShimmer 3s linear infinite;
+        }
         @media (prefers-reduced-motion: reduce) {
           .ad-sphere-inner   { animation: none !important; }
           .ad-sphere-shimmer { animation: none !important; }
           .ad-sphere-shadow  { animation: none !important; }
+          .ad-title-shimmer  { animation: none !important; }
         }
       `}</style>
 
@@ -183,27 +205,42 @@ export default function AdBanner() {
             <div style={{
               position: "relative",
               textAlign: "center",
-              maxWidth: 140,
+              maxWidth: 144,
             }}>
               {data.title && (
-                <div style={{
-                  fontWeight: 800,
-                  fontSize: "12px",
-                  color: "#fff",
-                  lineHeight: 1.3,
-                  marginBottom: data.body ? 4 : 0,
-                  textShadow: "0 1px 4px rgba(0,0,0,0.45)",
-                  letterSpacing: "0.01em",
-                }}>
+                <div
+                  className="ad-title-shimmer"
+                  style={{
+                    fontWeight: 900,
+                    fontSize: "13px",
+                    lineHeight: 1.25,
+                    letterSpacing: "0.06em",
+                    marginBottom: data.body ? 6 : 0,
+                    filter: "drop-shadow(0 0 6px rgba(255,200,50,0.7)) drop-shadow(0 2px 4px rgba(0,0,0,0.5))",
+                  }}
+                >
                   {data.title}
                 </div>
               )}
+              {/* 金色分隔線 */}
+              {data.title && data.body && (
+                <div style={{
+                  width: "60%",
+                  height: 1,
+                  margin: "0 auto 6px",
+                  background: "linear-gradient(90deg, transparent, rgba(255,220,80,0.7), transparent)",
+                  borderRadius: 1,
+                }} />
+              )}
               {data.body && (
                 <div style={{
-                  fontSize: "11px",
-                  color: "rgba(255,248,220,0.92)",
-                  lineHeight: 1.45,
-                  textShadow: "0 1px 3px rgba(0,0,0,0.4)",
+                  fontSize: "10.5px",
+                  fontWeight: 500,
+                  fontStyle: "italic",
+                  color: "rgba(255,245,200,0.88)",
+                  lineHeight: 1.5,
+                  letterSpacing: "0.02em",
+                  textShadow: "0 1px 6px rgba(0,0,0,0.55), 0 0 12px rgba(255,180,0,0.3)",
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-word",
                 }}>
