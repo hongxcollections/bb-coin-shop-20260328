@@ -850,13 +850,27 @@ Output ONLY the JSON, nothing else.`;
         res.status(s3Res.status).send('Image fetch failed');
         return;
       }
-      const contentType = s3Res.headers.get('content-type') || 'image/jpeg';
-      const buf = Buffer.from(await s3Res.arrayBuffer());
+      const rawBuf = Buffer.from(await s3Res.arrayBuffer());
+
+      // Resize to Facebook-recommended landscape OG image: 1200×630 (1.91:1)
+      // This makes Facebook's link preview card use landscape layout → shorter image
+      // → more space below for title/description text to be fully visible.
+      // We "contain" the original image within 1200×630 with a warm white background
+      // so no cropping occurs and all product detail remains visible.
+      const sharp = (await import('sharp')).default;
+      const ogBuf = await sharp(rawBuf)
+        .resize(1200, 630, {
+          fit: 'contain',
+          background: { r: 255, g: 251, b: 240, alpha: 1 }, // warm white #fffbf0
+        })
+        .jpeg({ quality: 90 })
+        .toBuffer();
+
       res.set({
-        'Content-Type': contentType,
-        'Content-Length': buf.length.toString(),
+        'Content-Type': 'image/jpeg',
+        'Content-Length': ogBuf.length.toString(),
         'Cache-Control': 'public, max-age=86400, immutable',
-      }).end(buf);
+      }).end(ogBuf);
     } catch (err) {
       console.error('[OG Image Proxy] Error:', err);
       res.status(500).send('Error');

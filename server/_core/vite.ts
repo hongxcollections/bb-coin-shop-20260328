@@ -99,7 +99,7 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
       proxyImageUrl ? `<meta property="og:image:secure_url" content="${esc(proxyImageUrl)}" />` : "",
       proxyImageUrl ? `<meta property="og:image:type" content="${imgMime}" />` : "",
       proxyImageUrl ? `<meta property="og:image:width" content="1200" />` : "",
-      proxyImageUrl ? `<meta property="og:image:height" content="1200" />` : "",
+      proxyImageUrl ? `<meta property="og:image:height" content="630" />` : "",
       `<meta name="twitter:card" content="${proxyImageUrl ? "summary_large_image" : "summary"}" />`,
       `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
       `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
