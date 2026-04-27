@@ -65,9 +65,9 @@ export default function AdBanner() {
         }
         /* 星星持續旋轉 */
         @keyframes adSparkle {
-          from { transform: rotate(0deg) scale(1);   opacity: 0.22; }
+          from { transform: rotate(0deg)   scale(1);    opacity: 0.22; }
           50%  { transform: rotate(180deg) scale(1.12); opacity: 0.38; }
-          to   { transform: rotate(360deg) scale(1);  opacity: 0.22; }
+          to   { transform: rotate(360deg) scale(1);    opacity: 0.22; }
         }
         @media (prefers-reduced-motion: reduce) {
           .ad-banner-inner { animation: none !important; }
@@ -75,21 +75,19 @@ export default function AdBanner() {
         }
       `}</style>
 
-      {/* 外層：fixed 定位 + flex 置中（不用 transform，避免衝突動畫） */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: "calc(4.5rem + env(safe-area-inset-bottom, 0px))",
-          left: 0,
-          right: 0,
-          display: "flex",
-          justifyContent: "center",
-          padding: "0 12px",
-          zIndex: 99995,
-          pointerEvents: "none",
-        }}
-      >
-        {/* 內層：鐘擺動畫在這裡，transform-origin 設頂部中央模擬懸吊感 */}
+      {/* 外層：fixed + flex 置中（無 transform，免衝突動畫） */}
+      <div style={{
+        position: "fixed",
+        bottom: "calc(4.5rem + env(safe-area-inset-bottom, 0px))",
+        left: 0,
+        right: 0,
+        display: "flex",
+        justifyContent: "center",
+        padding: "0 12px",
+        zIndex: 99995,
+        pointerEvents: "none",
+      }}>
+        {/* 動畫層：鐘擺 transform 在這裡 */}
         <div
           className="ad-banner-inner"
           style={{
@@ -102,56 +100,47 @@ export default function AdBanner() {
               : "adBannerFadeUp 0.4s ease-in both",
           }}
         >
-          {/* 卡片 */}
-          <div
-            style={{
+          {/* 氣泡外殼：relative，讓尾巴 absolute 定位在這裡 */}
+          <div style={{ position: "relative" }}>
+
+            {/* 卡片主體 */}
+            <div style={{
               position: "relative",
               overflow: "hidden",
               background: "linear-gradient(110deg, #fef3c7 0%, #fce7f3 40%, #fef3c7 55%, #fce7f3 70%, #fef3c7 100%)",
               border: "1.5px solid #f59e0b",
-              borderRadius: "16px",
+              borderRadius: "22px",
               boxShadow: "0 8px 28px rgba(180,100,0,0.16), 0 2px 8px rgba(0,0,0,0.08)",
-              padding: "14px 14px 14px 14px",
+              padding: "14px",
               display: "flex",
               alignItems: "flex-start",
               gap: "10px",
-            }}
-          >
-            {/* 裝飾星星（右上） */}
-            <div
-              className="ad-sparkle"
-              style={{
+            }}>
+              {/* 裝飾星星（右上） */}
+              <div className="ad-sparkle" style={{
                 position: "absolute",
-                top: -10,
-                right: -10,
+                top: -10, right: -10,
                 pointerEvents: "none",
                 animation: "adSparkle 9s linear infinite",
-              }}
-            >
-              <Sparkles style={{ width: 56, height: 56, color: "#f59e0b" }} />
-            </div>
+              }}>
+                <Sparkles style={{ width: 56, height: 56, color: "#f59e0b" }} />
+              </div>
 
-            {/* 裝飾星星（左下，反向） */}
-            <div
-              className="ad-sparkle"
-              style={{
+              {/* 裝飾星星（左下，反向） */}
+              <div className="ad-sparkle" style={{
                 position: "absolute",
-                bottom: -8,
-                left: -8,
+                bottom: -8, left: -8,
                 pointerEvents: "none",
                 animation: "adSparkle 12s linear infinite reverse",
-              }}
-            >
-              <Sparkles style={{ width: 38, height: 38, color: "#ec4899" }} />
-            </div>
+              }}>
+                <Sparkles style={{ width: 38, height: 38, color: "#ec4899" }} />
+              </div>
 
-            {/* Icon */}
-            <div
-              style={{
+              {/* Icon */}
+              <div style={{
                 position: "relative",
                 flexShrink: 0,
-                width: 36,
-                height: 36,
+                width: 36, height: 36,
                 borderRadius: "50%",
                 background: "linear-gradient(135deg, #f59e0b, #ec4899)",
                 display: "flex",
@@ -159,66 +148,89 @@ export default function AdBanner() {
                 justifyContent: "center",
                 marginTop: 1,
                 boxShadow: "0 2px 8px rgba(245,158,11,0.35)",
-              }}
-            >
-              <Megaphone style={{ width: 17, height: 17, color: "#fff" }} />
-            </div>
+              }}>
+                <Megaphone style={{ width: 17, height: 17, color: "#fff" }} />
+              </div>
 
-            {/* Content */}
-            <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
-              {data.title && (
-                <div
-                  style={{
+              {/* 文字內容 */}
+              <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+                {data.title && (
+                  <div style={{
                     fontWeight: 700,
                     fontSize: "13px",
                     color: "#92400e",
                     lineHeight: 1.35,
                     marginBottom: data.body ? 4 : 0,
-                  }}
-                >
-                  {data.title}
-                </div>
-              )}
-              {data.body && (
-                <div
-                  style={{
+                  }}>
+                    {data.title}
+                  </div>
+                )}
+                {data.body && (
+                  <div style={{
                     fontSize: "12.5px",
                     color: "#a16207",
                     lineHeight: 1.5,
                     whiteSpace: "pre-wrap",
                     wordBreak: "break-word",
-                  }}
-                >
-                  {data.body}
-                </div>
-              )}
-            </div>
+                  }}>
+                    {data.body}
+                  </div>
+                )}
+              </div>
 
-            {/* Close button */}
-            <button
-              onClick={handleDismiss}
-              style={{
-                position: "relative",
-                flexShrink: 0,
-                padding: 5,
-                borderRadius: "50%",
-                border: "none",
-                background: "rgba(180,100,0,0.12)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#b45309",
-                marginTop: -3,
-                marginRight: -2,
-              }}
-              aria-label="關閉廣告"
-            >
-              <X style={{ width: 14, height: 14 }} />
-            </button>
-          </div>
-        </div>
-      </div>
+              {/* 關閉按鈕 */}
+              <button
+                onClick={handleDismiss}
+                style={{
+                  position: "relative",
+                  flexShrink: 0,
+                  padding: 5,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: "rgba(180,100,0,0.12)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#b45309",
+                  marginTop: -3,
+                  marginRight: -2,
+                }}
+                aria-label="關閉廣告"
+              >
+                <X style={{ width: 14, height: 14 }} />
+              </button>
+            </div>{/* 卡片主體 end */}
+
+            {/* ▼ 對話氣泡向下尾巴（兩層三角形） */}
+            {/* 外層三角：amber border 色 */}
+            <div style={{
+              position: "absolute",
+              bottom: -14,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 0, height: 0,
+              borderLeft: "14px solid transparent",
+              borderRight: "14px solid transparent",
+              borderTop: "13px solid #f59e0b",
+              zIndex: 1,
+            }} />
+            {/* 內層三角：填色（卡片底部中央色） */}
+            <div style={{
+              position: "absolute",
+              bottom: -11,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 0, height: 0,
+              borderLeft: "12px solid transparent",
+              borderRight: "12px solid transparent",
+              borderTop: "12px solid #fef3c7",
+              zIndex: 2,
+            }} />
+
+          </div>{/* 氣泡外殼 end */}
+        </div>{/* 動畫層 end */}
+      </div>{/* 外層 fixed end */}
     </>
   );
 }
