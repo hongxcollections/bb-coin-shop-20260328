@@ -1214,7 +1214,6 @@ export default function MerchantAuctions() {
               const endStr = `${mo}月${dy}日(${wd}) ${period}${dh}:${mi}`;
               const shareText = `${a.title}\n目前出價 ${sym}${currentBid.toLocaleString()}\n結標時間：${endStr}\n快來競拍！`;
               const auctionUrl = `${window.location.origin}/auctions/${a.id}`;
-              const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}`;
               const img = a.images?.[0]?.imageUrl;
               const isCopied = copiedIds.has(a.id);
               return (
@@ -1235,10 +1234,22 @@ export default function MerchantAuctions() {
                       size="sm"
                       className="flex-1 h-7 text-xs gap-1 bg-[#1877F2] hover:bg-[#1560c8] text-white border-0"
                       onClick={async () => {
-                        // Open window first (synchronous) to avoid popup blocker on mobile
-                        window.open(fbUrl, "_blank", "noopener,noreferrer");
-                        try { await navigator.clipboard.writeText(shareText); } catch {}
-                        toast.success("拍賣文字已複製！在 Facebook 貼文框長按「貼上」即可", { duration: 5000 });
+                        // Use navigator.share() on mobile so users can pick Facebook GROUP
+                        // (sharer.php only goes to personal timeline, not groups)
+                        if (navigator.share) {
+                          try {
+                            await navigator.clipboard.writeText(shareText).catch(() => {});
+                            await navigator.share({ title: a.title, text: shareText, url: auctionUrl });
+                          } catch (err: unknown) {
+                            if (err instanceof Error && err.name !== "AbortError") {
+                              window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}`, "_blank", "noopener,noreferrer");
+                            }
+                          }
+                        } else {
+                          window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}`, "_blank", "noopener,noreferrer");
+                          try { await navigator.clipboard.writeText(shareText); } catch {}
+                          toast.success("拍賣文字已複製！在 Facebook 貼文框長按「貼上」即可", { duration: 5000 });
+                        }
                       }}
                     >
                       <Facebook className="w-3 h-3" />

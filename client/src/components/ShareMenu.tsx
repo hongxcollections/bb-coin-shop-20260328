@@ -132,14 +132,27 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime }: Sh
 
   async function handleFacebook() {
     setOpen(false);
-    // IMPORTANT: window.open() must be called FIRST, synchronously within the
-    // click handler, before any await. On mobile, an await (e.g. clipboard write)
-    // breaks the user-gesture context and causes popup blockers to reject the window.
-    const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}`;
-    window.open(fbUrl, "_blank", "noopener,noreferrer");
-    // Clipboard write after window.open — async is fine here
-    try { await navigator.clipboard.writeText(shareText); } catch {}
-    toast.success("拍賣文字已複製！在 Facebook 貼文框長按「貼上」即可", { duration: 5000 });
+    // On mobile: use navigator.share() so the OS share sheet opens —
+    // the user can then pick "Facebook" and choose a GROUP (not just timeline).
+    // On desktop: fall back to sharer.php (no group choice available on desktop).
+    if (navigator.share) {
+      try {
+        await navigator.clipboard.writeText(shareText).catch(() => {});
+        await navigator.share({ title, text: shareText, url: auctionUrl });
+        toast.success("已開啟分享選單，可選擇 Facebook 群組", { duration: 3000 });
+      } catch (err: unknown) {
+        // User cancelled share — ignore AbortError
+        if (err instanceof Error && err.name !== "AbortError") {
+          // Fallback to sharer.php if share() fails for other reasons
+          window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}`, "_blank", "noopener,noreferrer");
+        }
+      }
+    } else {
+      // Desktop fallback
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}`, "_blank", "noopener,noreferrer");
+      try { await navigator.clipboard.writeText(shareText); } catch {}
+      toast.success("拍賣文字已複製！在 Facebook 貼文框長按「貼上」即可", { duration: 5000 });
+    }
   }
 
   function handleTwitter() {
