@@ -16,7 +16,7 @@ import { parseCategories } from "@/lib/categories";
 import {
   Plus, Pencil, Trash2, Archive, RotateCcw, Upload, X,
   ImageIcon, CheckCircle2, AlertCircle, Loader2, ChevronLeft,
-  RefreshCw, Eye, Send, CheckSquare, Square, CreditCard, Facebook,
+  RefreshCw, Eye, Send, CheckSquare, Square, CreditCard, Facebook, Copy, Check,
 } from "lucide-react";
 
 const MAX_IMAGES = 10;
@@ -386,6 +386,8 @@ export default function MerchantAuctions() {
 
   // Batch Facebook share
   const [batchShareOpen, setBatchShareOpen] = useState(false);
+  const [copiedIds, setCopiedIds] = useState<Set<number>>(new Set());
+  const [copiedAll, setCopiedAll] = useState(false);
 
   // Active auction limited edit dialog
   const [activeEditOpen, setActiveEditOpen] = useState(false);
@@ -1147,7 +1149,7 @@ export default function MerchantAuctions() {
       </Dialog>
 
       {/* ── 批量分享 Facebook Dialog ── */}
-      <Dialog open={batchShareOpen} onOpenChange={setBatchShareOpen}>
+      <Dialog open={batchShareOpen} onOpenChange={(v) => { if (!v) { setBatchShareOpen(false); setCopiedIds(new Set()); setCopiedAll(false); } }}>
         <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[#1877F2]">
@@ -1155,8 +1157,38 @@ export default function MerchantAuctions() {
               批量分享 Facebook
             </DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground -mt-1">點擊各拍賣的「分享」按鈕，在 Facebook 發佈該拍賣</p>
-          <div className="overflow-y-auto flex-1 space-y-2 pr-1 mt-2">
+          <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700 space-y-0.5 -mt-1">
+            <p>• <b>分享連結</b>：開啟 Facebook 分享，適合個人動態</p>
+            <p>• <b>複製文字</b>：複製格式化文字+連結，貼入 <b>Facebook 群組</b>帖子</p>
+          </div>
+          {/* 複製全部按鈕 */}
+          <Button
+            size="sm"
+            variant="outline"
+            className={`h-7 text-xs gap-1.5 border-dashed ${copiedAll ? "border-green-400 text-green-600" : "border-amber-400 text-amber-700 hover:bg-amber-50"}`}
+            onClick={async () => {
+              const allText = activeAuctions.map((a) => {
+                const sym = getCurrencySymbol(a.currency ?? "HKD");
+                const currentBid = Number(a.currentPrice);
+                const endDate = new Date(a.endTime);
+                const weekdays = ["日","一","二","三","四","五","六"];
+                const mo = endDate.getMonth()+1, dy = endDate.getDate(), wd = weekdays[endDate.getDay()];
+                const h = endDate.getHours(), mi = String(endDate.getMinutes()).padStart(2,"0");
+                const period = h < 6 ? "凌晨" : h < 12 ? "上午" : h === 12 ? "中午" : h < 18 ? "下午" : "晚上";
+                const dh = h < 12 ? h : h === 12 ? 12 : h - 12;
+                const endStr = `${mo}月${dy}日(${wd}) ${period}${dh}:${mi}`;
+                return `【hongxcollections.com】${a.title}\n目前出價 ${sym}${currentBid.toLocaleString()}\n結標時間：${endStr}\n快來競拍！\nhttps://hongxcollections.com/auctions/${a.id}`;
+              }).join("\n\n---\n\n");
+              await navigator.clipboard.writeText(allText);
+              setCopiedAll(true);
+              toast.success("已複製全部拍賣文字！貼入 Facebook 群組即可");
+              setTimeout(() => setCopiedAll(false), 3000);
+            }}
+          >
+            {copiedAll ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+            {copiedAll ? "已複製全部！" : `一鍵複製全部（${activeAuctions.length}）個拍賣文字`}
+          </Button>
+          <div className="overflow-y-auto flex-1 space-y-2 pr-1">
             {activeAuctions.map((a) => {
               const sym = getCurrencySymbol(a.currency ?? "HKD");
               const currentBid = Number(a.currentPrice);
@@ -1164,41 +1196,55 @@ export default function MerchantAuctions() {
               const weekdays = ["日","一","二","三","四","五","六"];
               const mo = endDate.getMonth()+1, dy = endDate.getDate(), wd = weekdays[endDate.getDay()];
               const h = endDate.getHours(), mi = String(endDate.getMinutes()).padStart(2,"0");
-              let period = h < 6 ? "凌晨" : h < 12 ? "上午" : h === 12 ? "中午" : h < 18 ? "下午" : "晚上";
-              let dh = h < 12 ? h : h === 12 ? 12 : h - 12;
+              const period = h < 6 ? "凌晨" : h < 12 ? "上午" : h === 12 ? "中午" : h < 18 ? "下午" : "晚上";
+              const dh = h < 12 ? h : h === 12 ? 12 : h - 12;
               const endStr = `${mo}月${dy}日(${wd}) ${period}${dh}:${mi}`;
               const shareText = `【hongxcollections.com】${a.title}\n目前出價 ${sym}${currentBid.toLocaleString()}\n結標時間：${endStr}\n快來競拍！`;
-              const auctionUrl = `${window.location.origin}/auctions/${a.id}`;
-              const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}&quote=${encodeURIComponent(shareText)}`;
+              const auctionUrl = `https://hongxcollections.com/auctions/${a.id}`;
+              const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}`;
               const img = a.images?.[0]?.imageUrl;
+              const isCopied = copiedIds.has(a.id);
               return (
-                <div key={a.id} className="flex items-center gap-2.5 p-2.5 rounded-lg border border-amber-100 bg-amber-50/40">
-                  <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                    {img
-                      ? <img src={img} alt="" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground/40" /></div>}
+                <div key={a.id} className="rounded-lg border border-amber-100 bg-amber-50/40 overflow-hidden">
+                  <div className="flex items-center gap-2.5 p-2.5">
+                    <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                      {img
+                        ? <img src={img} alt="" className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground/40" /></div>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{a.title}</p>
+                      <p className="text-xs text-muted-foreground">{sym}{currentBid.toLocaleString()} · 結標 {endStr}</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{a.title}</p>
-                    <p className="text-xs text-muted-foreground">{sym}{currentBid.toLocaleString()} · 結標 {endStr}</p>
-                  </div>
-                  <a
-                    href={fbUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-shrink-0"
-                  >
-                    <Button size="sm" className="h-7 px-2.5 text-xs gap-1 bg-[#1877F2] hover:bg-[#1560c8] text-white border-0">
-                      <Facebook className="w-3 h-3" />
-                      分享
+                  <div className="flex gap-1.5 px-2.5 pb-2.5">
+                    <a href={fbUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                      <Button size="sm" className="w-full h-7 text-xs gap-1 bg-[#1877F2] hover:bg-[#1560c8] text-white border-0">
+                        <Facebook className="w-3 h-3" />
+                        分享連結
+                      </Button>
+                    </a>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className={`flex-1 h-7 text-xs gap-1 ${isCopied ? "border-green-400 text-green-600 bg-green-50" : "border-amber-300 text-amber-700 hover:bg-amber-50"}`}
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(`${shareText}\n${auctionUrl}`);
+                        setCopiedIds(prev => new Set([...prev, a.id]));
+                        toast.success("已複製！貼入群組帖子即可");
+                        setTimeout(() => setCopiedIds(prev => { const n = new Set(prev); n.delete(a.id); return n; }), 3000);
+                      }}
+                    >
+                      {isCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                      {isCopied ? "已複製！" : "複製文字"}
                     </Button>
-                  </a>
+                  </div>
                 </div>
               );
             })}
           </div>
           <div className="pt-2 border-t">
-            <Button variant="outline" className="w-full h-8 text-sm" onClick={() => setBatchShareOpen(false)}>
+            <Button variant="outline" className="w-full h-8 text-sm" onClick={() => { setBatchShareOpen(false); setCopiedIds(new Set()); setCopiedAll(false); }}>
               關閉
             </Button>
           </div>
