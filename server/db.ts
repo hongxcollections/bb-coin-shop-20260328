@@ -4283,25 +4283,10 @@ export async function cancelFeaturedListing(
 
   await db.execute(sql`UPDATE featuredListings SET status = 'cancelled' WHERE id = ${id}`);
 
-  // 計算退費
-  // 排隊中：費用尚未扣除（排隊轉 active 才扣），取消不退費
-  // 進行中：已扣費，按剩餘時間比例退費
-  let refundAmount = 0;
-  if (listing.status === 'active') {
-    const now = Date.now();
-    const endAt = new Date(listing.endAt).getTime();
-    const startAt = new Date(listing.startAt).getTime();
-    const totalMs = endAt - startAt;
-    const remainMs = Math.max(0, endAt - now);
-    const refundRatio = totalMs > 0 ? remainMs / totalMs : 0;
-    refundAmount = parseFloat((parseFloat(listing.amount) * refundRatio).toFixed(2));
-  }
-  // queued 狀態：費用未扣，不退費
-
-  if (refundAmount > 0) {
-    const desc = `主打商品取消退費（剩餘 ${Math.round((new Date(listing.endAt).getTime() - Date.now()) / 3600000)}h）：${listing.productTitle}`;
-    await adjustDeposit(listing.merchantId, refundAmount, desc, adminId);
-  }
+  // 退費規則：
+  // - queued 狀態：費用尚未扣除，取消不退費
+  // - active 狀態：費用已扣，取消不退費（費用不設退款）
+  const refundAmount = 0;
 
   // 空出位子後嘗試升級排隊
   if (listing.status === 'active') {
