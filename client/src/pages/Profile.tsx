@@ -308,7 +308,7 @@ export default function Profile() {
     <div className="min-h-screen bg-background">
       {/* Navigation */}
       <Header />
-      <div className="container py-8 max-w-3xl">
+      <div className="container pt-8 pb-28 max-w-3xl">
         {/* Profile Header */}
         <Card className="mb-6 border-amber-100 overflow-hidden">
           <MemberHeroBanner
