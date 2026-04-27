@@ -132,14 +132,14 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime }: Sh
 
   async function handleFacebook() {
     setOpen(false);
+    try { await navigator.clipboard.writeText(shareText); } catch {}
     if (navigator.share) {
-      try {
-        await navigator.share({ title, text: shareText, url: auctionUrl });
-      } catch {}
+      try { await navigator.share({ title, url: auctionUrl }); } catch {}
     } else {
       const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}`;
       window.open(fbUrl, "_blank", "noopener,noreferrer,width=600,height=500");
     }
+    toast.success("拍賣文字已複製！在 Facebook 貼文框長按「貼上」即可", { duration: 5000 });
   }
 
   function handleTwitter() {
