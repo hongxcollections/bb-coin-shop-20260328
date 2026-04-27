@@ -219,6 +219,8 @@ export function serveStatic(app: Express) {
             "Content-Range": `bytes ${start}-${end}/${buf.length}`,
             "Content-Length": chunk.length.toString(),
             "Accept-Ranges": "bytes",
+            "Cache-Control": "no-store",
+            "Surrogate-Control": "no-store",
           }).end(chunk);
           return;
         }
@@ -227,6 +229,8 @@ export function serveStatic(app: Express) {
         "Content-Type": "text/plain; charset=utf-8",
         "Accept-Ranges": "bytes",
         "Content-Length": buf.length.toString(),
+        "Cache-Control": "no-store",
+        "Surrogate-Control": "no-store",
       }).end(buf);
       return;
     }
@@ -244,6 +248,8 @@ export function serveStatic(app: Express) {
           "Content-Range": `bytes ${start}-${end}/${content.length}`,
           "Content-Length": chunk.length.toString(),
           "Accept-Ranges": "bytes",
+          "Cache-Control": "no-store",
+          "Surrogate-Control": "no-store",
         }).end(chunk);
         return;
       }
@@ -252,6 +258,8 @@ export function serveStatic(app: Express) {
       "Content-Type": "text/plain; charset=utf-8",
       "Accept-Ranges": "bytes",
       "Content-Length": content.length.toString(),
+      "Cache-Control": "no-store",
+      "Surrogate-Control": "no-store",
     }).end(content);
   });
 
@@ -276,13 +284,26 @@ export function serveStatic(app: Express) {
     const protocol = typeof forwardedProto === "string" ? forwardedProto.split(",")[0].trim() : req.protocol;
     const host = req.get("host") || "";
 
+    // Prevent Railway/Fastly CDN from caching HTML responses.
+    // A cached 403 during deployment would otherwise be served to Facebook's crawler.
+    const noCacheHeaders = {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Surrogate-Control": "no-store",
+      "Pragma": "no-cache",
+    };
+
     let html = await fs.promises.readFile(indexPath, "utf-8");
     const ogHtml = await injectOgMeta(html, req.path, protocol, host);
     if (ogHtml) {
-      res.status(200).set({ "Content-Type": "text/html" }).end(ogHtml);
+      res.status(200).set({ "Content-Type": "text/html", ...noCacheHeaders }).end(ogHtml);
       return;
     }
 
-    res.sendFile(indexPath);
+    res.set(noCacheHeaders).sendFile(indexPath, (err) => {
+      if (err && !res.headersSent) {
+        console.error("[Static] sendFile error:", err);
+        res.status(500).send("Server error");
+      }
+    });
   });
 }
