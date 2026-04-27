@@ -311,13 +311,14 @@ function FeaturedApplyDialog({
   onClose,
   onSuccess,
 }: {
-  product: { id: number; title: string };
+  product: { id: number; title: string; price: number; currency: string };
   depositBalance: number;
   onClose: () => void;
   onSuccess: () => void;
 }) {
   const [tier, setTier] = useState<"day1" | "day3" | "day7">("day1");
   const [result, setResult] = useState<{ queued: boolean; queuePosition?: number } | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const { data: slotStatus } = trpc.featuredListings.slotStatus.useQuery(undefined, { staleTime: 10_000 });
   const { data: pricingData } = trpc.featuredListings.pricing.useQuery(undefined, { staleTime: 60_000 });
@@ -343,8 +344,7 @@ function FeaturedApplyDialog({
       if (data.queued) {
         setResult({ queued: true, queuePosition: data.queuePosition });
       } else {
-        toast.success("🔥 已成功申請主打，即時生效！");
-        onClose();
+        setShowSuccess(true);
       }
     },
     onError: (e) => toast.error(e.message),
@@ -352,34 +352,75 @@ function FeaturedApplyDialog({
   const selected = TIER_OPTIONS.find(o => o.tier === tier) ?? TIER_OPTIONS[0];
   const canAfford = depositBalance >= (selected?.price ?? 0);
 
-  // 排隊成功後的確認畫面
-  if (result?.queued) {
+  const productPriceStr = `${product.currency ?? 'HKD'} $${product.price.toFixed(2)}`;
+
+  // ── 立即生效成功畫面 ──
+  if (showSuccess) {
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20">
-        <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden text-center p-6 space-y-3">
-          <div className="text-4xl">⏳</div>
-          <h2 className="font-bold text-gray-800 text-base">已加入排隊！</h2>
-          <div className="bg-amber-50 rounded-xl p-3 space-y-1">
-            <p className="text-amber-700 font-semibold text-sm">目前排隊位置：第 {result.queuePosition} 位</p>
-            <p className="text-xs text-gray-500">主打位額滿（{slotStatus?.maxSlots} 個），當有位置空出時系統將自動升級啟動並扣費。排隊期間<strong>不收費</strong>，可隨時免費取消。</p>
+        <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden">
+          <div className="relative bg-gradient-to-r from-orange-500 to-red-500 px-5 py-4 text-white">
+            <button onClick={onClose} className="absolute right-3 top-3 text-white/80 hover:text-white"><X className="w-5 h-5" /></button>
+            <div className="text-3xl mb-1">🔥</div>
+            <h2 className="font-bold text-base">已成功申請主打！</h2>
           </div>
-          <button onClick={onClose} className="w-full py-2.5 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition">
-            明白了
-          </button>
+          <div className="p-5 space-y-3">
+            <div className="bg-gray-50 rounded-xl p-3 space-y-1">
+              <p className="text-sm font-semibold text-gray-800 line-clamp-2">{product.title}</p>
+              <p className="text-xs text-gray-500">售價：<span className="font-semibold text-gray-700">{productPriceStr}</span></p>
+            </div>
+            <div className="bg-orange-50 rounded-xl px-3 py-2 text-xs text-orange-700 font-medium">
+              ✅ 即時生效，主打刊登費已從保證金扣除
+            </div>
+            <button onClick={onClose} className="w-full py-2.5 rounded-xl bg-orange-500 text-white font-semibold text-sm hover:bg-orange-600 transition">
+              明白了
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
+  // ── 排隊成功確認畫面 ──
+  if (result?.queued) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20">
+        <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden">
+          <div className="relative bg-gradient-to-r from-amber-400 to-orange-400 px-5 py-4 text-white">
+            <button onClick={onClose} className="absolute right-3 top-3 text-white/80 hover:text-white"><X className="w-5 h-5" /></button>
+            <div className="text-3xl mb-1">⏳</div>
+            <h2 className="font-bold text-base">已加入排隊！</h2>
+          </div>
+          <div className="p-5 space-y-3">
+            <div className="bg-gray-50 rounded-xl p-3 space-y-1">
+              <p className="text-sm font-semibold text-gray-800 line-clamp-2">{product.title}</p>
+              <p className="text-xs text-gray-500">售價：<span className="font-semibold text-gray-700">{productPriceStr}</span></p>
+            </div>
+            <div className="bg-amber-50 rounded-xl p-3 space-y-1">
+              <p className="text-amber-700 font-semibold text-sm">目前排隊位置：第 {result.queuePosition} 位</p>
+              <p className="text-xs text-gray-500">主打位額滿（{slotStatus?.maxSlots} 個），當有位置空出時系統將自動升級啟動並扣費。排隊期間<strong>不收費</strong>，可隨時免費取消。</p>
+            </div>
+            <button onClick={onClose} className="w-full py-2.5 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition">
+              明白了
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── 主申請畫面 ──
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20" onClick={onClose}>
       <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="bg-gradient-to-r from-yellow-500 to-orange-500 px-5 py-4">
+        <div className="relative bg-gradient-to-r from-yellow-500 to-orange-500 px-5 py-4">
+          <button onClick={onClose} className="absolute right-3 top-3 text-white/80 hover:text-white"><X className="w-5 h-5" /></button>
           <div className="flex items-center gap-2 text-white">
             <Flame className="w-5 h-5" />
             <h2 className="font-bold text-base">申請主打刊登</h2>
           </div>
           <p className="text-yellow-100 text-xs mt-0.5 line-clamp-1">{product.title}</p>
+          <p className="text-yellow-200 text-xs font-semibold">{productPriceStr}</p>
         </div>
         <div className="p-4 space-y-3">
           {/* 主打位狀態列 */}
@@ -503,7 +544,7 @@ export default function MerchantProducts() {
   const uploadImage = trpc.merchants.uploadProductImage.useMutation();
 
   // 主打刊登
-  const [featuredDialog, setFeaturedDialog] = useState<{ id: number; title: string } | null>(null);
+  const [featuredDialog, setFeaturedDialog] = useState<{ id: number; title: string; price: number; currency: string } | null>(null);
   const { data: myDeposit } = trpc.sellerDeposits.myDeposit.useQuery(undefined, { enabled: isAuthenticated });
   const { data: myFeatured = [] } = trpc.featuredListings.myListings.useQuery(undefined, { enabled: isAuthenticated, staleTime: 30_000 });
   const activeFeaturedIds = new Set(
@@ -963,7 +1004,7 @@ export default function MerchantProducts() {
                           </span>
                         );
                         return (
-                          <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="flex items-center gap-1 text-xs px-2 py-1 bg-gradient-to-r from-yellow-50 to-orange-50 text-orange-500 border border-orange-200 rounded-lg hover:from-yellow-100 hover:to-orange-100 transition-colors font-medium">
+                          <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title, price: parseFloat(p.price ?? '0'), currency: p.currency ?? 'HKD' })} className="flex items-center gap-1 text-xs px-2 py-1 bg-gradient-to-r from-yellow-50 to-orange-50 text-orange-500 border border-orange-200 rounded-lg hover:from-yellow-100 hover:to-orange-100 transition-colors font-medium">
                             <Flame className="w-3 h-3" />申請主打
                           </button>
                         );
@@ -1047,7 +1088,7 @@ export default function MerchantProducts() {
                         if (activeFeaturedIds.has(p.id)) return <span className="flex items-center gap-1 text-xs px-2 py-1.5 bg-orange-50 text-orange-500 rounded-lg font-medium"><Flame className="w-3 h-3" />主打中</span>;
                         const queued = queuedFeaturedMap.get(p.id);
                         if (queued) return <span className="flex items-center gap-1 text-xs"><span className="px-2 py-1 bg-amber-50 text-amber-600 rounded-lg font-medium">⏳ 第{queued.queuePosition}位</span><button onClick={() => { if (confirm("排隊期間不收費，取消後免費退出。確定取消排隊？")) cancelFeatured.mutate({ id: queued.id }); }} className="px-1 text-red-400 hover:text-red-600" title="取消排隊（免費）"><X className="w-3 h-3" /></button></span>;
-                        return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="flex items-center gap-1 text-xs px-2 py-1.5 text-orange-500 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors font-medium"><Flame className="w-3 h-3" />申請主打</button>;
+                        return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title, price: parseFloat(p.price ?? '0'), currency: p.currency ?? 'HKD' })} className="flex items-center gap-1 text-xs px-2 py-1.5 text-orange-500 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors font-medium"><Flame className="w-3 h-3" />申請主打</button>;
                       })()}
                       <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />刪除
@@ -1115,7 +1156,7 @@ export default function MerchantProducts() {
                         if (activeFeaturedIds.has(p.id)) return <span className="text-[10px] px-1.5 py-1 bg-orange-50 text-orange-500 rounded-lg"><Flame className="w-3 h-3" /></span>;
                         const queued = queuedFeaturedMap.get(p.id);
                         if (queued) return <span className="flex items-center gap-0.5 text-[10px]"><span className="px-1.5 py-1 bg-amber-50 text-amber-600 rounded-lg">⏳{queued.queuePosition}</span><button onClick={() => { if (confirm("排隊期間不收費，取消後免費退出。確定取消排隊？")) cancelFeatured.mutate({ id: queued.id }); }} className="text-red-400 hover:text-red-600" title="取消排隊（免費）"><X className="w-2.5 h-2.5" /></button></span>;
-                        return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="text-[10px] px-1.5 py-1 text-orange-500 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors"><Flame className="w-3 h-3" /></button>;
+                        return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title, price: parseFloat(p.price ?? '0'), currency: p.currency ?? 'HKD' })} className="text-[10px] px-1.5 py-1 text-orange-500 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors"><Flame className="w-3 h-3" /></button>;
                       })()}
                       <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="text-[10px] px-1.5 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />
@@ -1182,7 +1223,7 @@ export default function MerchantProducts() {
                         if (activeFeaturedIds.has(p.id)) return <span className="text-[9px] px-1 py-0.5 bg-orange-50 text-orange-500 rounded"><Flame className="w-2.5 h-2.5" /></span>;
                         const queued = queuedFeaturedMap.get(p.id);
                         if (queued) return <span className="flex items-center gap-0.5 text-[9px]"><span className="px-1 py-0.5 bg-amber-50 text-amber-600 rounded">⏳{queued.queuePosition}</span><button onClick={() => { if (confirm("排隊期間不收費，取消後免費退出。確定取消排隊？")) cancelFeatured.mutate({ id: queued.id }); }} className="text-red-400 hover:text-red-600" title="取消排隊（免費）"><X className="w-2 h-2" /></button></span>;
-                        return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title })} className="text-[9px] px-1 py-0.5 text-orange-500 border border-orange-200 rounded hover:bg-orange-50 transition-colors"><Flame className="w-2.5 h-2.5" /></button>;
+                        return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title, price: parseFloat(p.price ?? '0'), currency: p.currency ?? 'HKD' })} className="text-[9px] px-1 py-0.5 text-orange-500 border border-orange-200 rounded hover:bg-orange-50 transition-colors"><Flame className="w-2.5 h-2.5" /></button>;
                       })()}
                       <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="text-[9px] px-1 py-0.5 bg-red-50 text-red-500 rounded hover:bg-red-100 transition-colors">
                         <Trash2 className="w-2.5 h-2.5" />
