@@ -8,6 +8,20 @@ interface ShareMenuProps {
   latestBid: number;
   currency?: string | null;
   endTime?: string | Date | null;
+  shareTemplate?: string | null;
+}
+
+const DEFAULT_SHARE_TEMPLATE = "{title}\n目前出價 {price}\n結標時間：{endTime}\n快來競拍！";
+
+function buildShareText(
+  template: string | null | undefined,
+  vars: { title: string; price: string; endTime: string }
+): string {
+  const tpl = (template?.trim()) || DEFAULT_SHARE_TEMPLATE;
+  return tpl
+    .replace(/\{title\}/g, vars.title)
+    .replace(/\{price\}/g, vars.price)
+    .replace(/\{endTime\}/g, vars.endTime);
 }
 
 function formatEndTimeDisplay(endTime: Date): string {
@@ -70,7 +84,7 @@ const WhatsAppIcon = () => (
 const MENU_WIDTH = 176;
 const MENU_HEIGHT = 220;
 
-export function ShareMenu({ auctionId, title, latestBid, currency, endTime }: ShareMenuProps) {
+export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shareTemplate }: ShareMenuProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
@@ -88,9 +102,11 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime }: Sh
     }
   }
 
-  const shareText = endTimeStr
-    ? `${title}\n目前出價 ${currSymbol}${latestBid.toLocaleString()}\n結標時間：${endTimeStr}\n快來競拍！`
-    : `${title}\n目前出價 ${currSymbol}${latestBid.toLocaleString()}，快來競拍！`;
+  const shareText = buildShareText(shareTemplate, {
+    title,
+    price: `${currSymbol}${latestBid.toLocaleString()}`,
+    endTime: endTimeStr || "—",
+  });
 
   const calcPosition = useCallback(() => {
     if (!btnRef.current) return;

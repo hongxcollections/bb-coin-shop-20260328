@@ -163,6 +163,7 @@ export async function getAuctions(limit = 20, offset = 0, category?: string) {
         createdBy: auctions.createdBy,
         createdAt: auctions.createdAt,
         updatedAt: auctions.updatedAt,
+        fbShareTemplate: sql<string | null>`(SELECT fbShareTemplate FROM merchant_settings WHERE userId = ${auctions.createdBy} LIMIT 1)`,
       })
       .from(auctions)
       .leftJoin(users, eq(auctions.highestBidderId, users.id));
@@ -2840,6 +2841,22 @@ async function ensureMerchantSettingsTable() {
         await db.execute(sql.raw(`ALTER TABLE merchant_settings ADD COLUMN ${colName} ${colDef}`));
       }
     }
+    // Add fbShareTemplate column if missing
+    for (const [colName, colDef] of [
+      ['fbShareTemplate', 'TEXT NULL'],
+    ] as [string, string][]) {
+      const chk = await db.execute(sql`
+        SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'merchant_settings'
+          AND COLUMN_NAME = ${colName}
+      `);
+      const chkRows = chk as unknown as [Array<Record<string, unknown>>, unknown];
+      const chkRow = Array.isArray(chkRows[0]) ? chkRows[0][0] : (chkRows as unknown as Array<Record<string, unknown>>)[0];
+      if (chkRow && Number(chkRow.cnt) === 0) {
+        await db.execute(sql.raw(`ALTER TABLE merchant_settings ADD COLUMN ${colName} ${colDef}`));
+      }
+    }
     // Add watermark columns if missing
     for (const [colName, colDef] of [
       ['watermarkEnabled', 'INT NOT NULL DEFAULT 1'],
@@ -2884,13 +2901,14 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   watermarkShadow: 1,
   watermarkPosition: 'center-diagonal',
   watermarkSize: 12,
+  fbShareTemplate: null as string | null,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -2916,6 +2934,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         watermarkShadow: Number(row.watermarkShadow ?? 1),
         watermarkPosition: String(row.watermarkPosition ?? 'center-diagonal'),
         watermarkSize: Number(row.watermarkSize ?? 12),
+        fbShareTemplate: row.fbShareTemplate != null ? String(row.fbShareTemplate) : null,
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -2954,15 +2973,16 @@ export async function setMerchantListingLayout(userId: number, listingLayout: st
   `);
 }
 
-export async function upsertMerchantSettings(userId: number, defaultEndDayOffset: number, defaultEndTime: string, defaultStartingPrice: number, defaultBidIncrement: number, defaultAntiSnipeEnabled: number, defaultAntiSnipeMinutes: number, defaultExtendMinutes: number, paymentInstructions?: string | null, deliveryInfo?: string | null): Promise<void> {
+export async function upsertMerchantSettings(userId: number, defaultEndDayOffset: number, defaultEndTime: string, defaultStartingPrice: number, defaultBidIncrement: number, defaultAntiSnipeEnabled: number, defaultAntiSnipeMinutes: number, defaultExtendMinutes: number, paymentInstructions?: string | null, deliveryInfo?: string | null, fbShareTemplate?: string | null): Promise<void> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
   const pi = paymentInstructions ?? null;
   const di = deliveryInfo ?? null;
+  const fst = fbShareTemplate ?? null;
   await db.execute(sql`
-    INSERT INTO merchant_settings (userId, defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, paymentInstructions, deliveryInfo)
-    VALUES (${userId}, ${defaultEndDayOffset}, ${defaultEndTime}, ${defaultStartingPrice}, ${defaultBidIncrement}, ${defaultAntiSnipeEnabled}, ${defaultAntiSnipeMinutes}, ${defaultExtendMinutes}, ${pi}, ${di})
+    INSERT INTO merchant_settings (userId, defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, paymentInstructions, deliveryInfo, fbShareTemplate)
+    VALUES (${userId}, ${defaultEndDayOffset}, ${defaultEndTime}, ${defaultStartingPrice}, ${defaultBidIncrement}, ${defaultAntiSnipeEnabled}, ${defaultAntiSnipeMinutes}, ${defaultExtendMinutes}, ${pi}, ${di}, ${fst})
     ON DUPLICATE KEY UPDATE
       defaultEndDayOffset = ${defaultEndDayOffset},
       defaultEndTime = ${defaultEndTime},
@@ -2973,6 +2993,7 @@ export async function upsertMerchantSettings(userId: number, defaultEndDayOffset
       defaultExtendMinutes = ${defaultExtendMinutes},
       paymentInstructions = ${pi},
       deliveryInfo = ${di},
+      fbShareTemplate = ${fst},
       updatedAt = CURRENT_TIMESTAMP
   `);
 }

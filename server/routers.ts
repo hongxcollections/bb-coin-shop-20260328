@@ -2788,9 +2788,10 @@ export const appRouter = router({
         defaultExtendMinutes: z.number().int().min(1).max(60),
         paymentInstructions: z.string().max(3000).nullable().optional(),
         deliveryInfo: z.string().max(3000).nullable().optional(),
+        fbShareTemplate: z.string().max(2000).nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        await upsertMerchantSettings(ctx.user.id, input.defaultEndDayOffset, input.defaultEndTime, input.defaultStartingPrice, input.defaultBidIncrement, input.defaultAntiSnipeEnabled, input.defaultAntiSnipeMinutes, input.defaultExtendMinutes, input.paymentInstructions, input.deliveryInfo);
+        await upsertMerchantSettings(ctx.user.id, input.defaultEndDayOffset, input.defaultEndTime, input.defaultStartingPrice, input.defaultBidIncrement, input.defaultAntiSnipeEnabled, input.defaultAntiSnipeMinutes, input.defaultExtendMinutes, input.paymentInstructions, input.deliveryInfo, input.fbShareTemplate);
         return { success: true };
       }),
 

@@ -103,6 +103,7 @@ export default function MerchantSettings() {
   const [extendMinutes, setExtendMinutes] = useState<string>("3");
   const [paymentInstructions, setPaymentInstructions] = useState<string>("");
   const [deliveryInfo, setDeliveryInfo] = useState<string>("");
+  const [fbShareTemplate, setFbShareTemplate] = useState<string>("");
   const [initialized, setInitialized] = useState(false);
 
   // ── 水印設定 ──
@@ -159,6 +160,7 @@ export default function MerchantSettings() {
       setExtendMinutes(String(settings.defaultExtendMinutes ?? 3));
       setPaymentInstructions(settings.paymentInstructions ?? "");
       setDeliveryInfo(settings.deliveryInfo ?? "");
+      setFbShareTemplate(settings.fbShareTemplate ?? "");
       setInitialized(true);
     }
   }, [settings, initialized]);
@@ -205,7 +207,7 @@ export default function MerchantSettings() {
     const exm = parseInt(extendMinutes, 10);
     if (isNaN(asm) || asm < 0 || asm > 60) { toast.error("反狙擊觸發時間請填 0–60 分鐘"); return; }
     if (isNaN(exm) || exm < 1 || exm > 60) { toast.error("延長時間請填 1–60 分鐘"); return; }
-    updateMutation.mutate({ defaultEndDayOffset: offset, defaultEndTime: endTime, defaultStartingPrice: sp, defaultBidIncrement: bi, defaultAntiSnipeEnabled: antiSnipeEnabled ? 1 : 0, defaultAntiSnipeMinutes: asm, defaultExtendMinutes: exm, paymentInstructions: paymentInstructions.trim() || null, deliveryInfo: deliveryInfo.trim() || null });
+    updateMutation.mutate({ defaultEndDayOffset: offset, defaultEndTime: endTime, defaultStartingPrice: sp, defaultBidIncrement: bi, defaultAntiSnipeEnabled: antiSnipeEnabled ? 1 : 0, defaultAntiSnipeMinutes: asm, defaultExtendMinutes: exm, paymentInstructions: paymentInstructions.trim() || null, deliveryInfo: deliveryInfo.trim() || null, fbShareTemplate: fbShareTemplate.trim() || null });
   };
 
   if (!isAuthenticated) {
@@ -554,6 +556,36 @@ export default function MerchantSettings() {
                     className="text-sm resize-none"
                   />
                 </div>
+
+                {/* Facebook 分享訊息模板 */}
+                <div className="pt-2 border-t border-amber-100">
+                  <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-xs text-blue-700 leading-relaxed mb-3">
+                    <b>Facebook 分享訊息模板</b>：按「分享」時自動複製的文字。<br />
+                    可用佔位符：<code className="bg-white px-1 rounded">&#123;title&#125;</code>（商品名稱）、<code className="bg-white px-1 rounded">&#123;price&#125;</code>（目前出價）、<code className="bg-white px-1 rounded">&#123;endTime&#125;</code>（結標時間）。<br />
+                    留空則使用預設格式。
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="fbShareTemplate">Facebook 分享訊息模板</Label>
+                    <Textarea
+                      id="fbShareTemplate"
+                      rows={5}
+                      placeholder={"{title}\n目前出價 {price}\n結標時間：{endTime}\n快來競拍！\n\n（此為預設格式，可自由修改）"}
+                      value={fbShareTemplate}
+                      onChange={(e) => setFbShareTemplate(e.target.value)}
+                      className="text-sm font-mono resize-none"
+                    />
+                    {fbShareTemplate.trim() && (
+                      <div className="text-xs text-muted-foreground bg-amber-50 border border-amber-100 rounded p-2.5 whitespace-pre-wrap leading-relaxed">
+                        <span className="font-semibold text-amber-700 block mb-1">預覽效果：</span>
+                        {fbShareTemplate
+                          .replace(/\{title\}/g, "〔商品名稱〕")
+                          .replace(/\{price\}/g, "HK$180")
+                          .replace(/\{endTime\}/g, "5月4日(一) 下午3:00")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="flex justify-end pt-1">
                   <Button onClick={handleSave} disabled={updateMutation.isPending} className="gold-gradient text-white border-0 gap-1.5">
                     {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

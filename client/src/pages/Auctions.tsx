@@ -453,6 +453,7 @@ export default function Auctions() {
                             latestBid={Number(auction.currentPrice)}
                             currency={(auction as { currency?: string }).currency}
                             endTime={auction.endTime}
+                            shareTemplate={(auction as { fbShareTemplate?: string | null }).fbShareTemplate}
                           />
                         </div>
                       </div>
