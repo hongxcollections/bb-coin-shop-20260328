@@ -1,6 +1,7 @@
 import { useState } from "react";
 import AdminHeader from "@/components/AdminHeader";
 import { trpc } from "@/lib/trpc";
+import { X, Flame, Clock } from "lucide-react";
 
 const TIER_ORDER = ["day1", "day3", "day7"];
 
@@ -28,6 +29,7 @@ export default function AdminFeaturedListings() {
   const [editMode, setEditMode] = useState(false);
   const [draftTiers, setDraftTiers] = useState<DraftTier[]>([]);
   const [draftMaxSlots, setDraftMaxSlots] = useState("5");
+  const [confirmTarget, setConfirmTarget] = useState<{ id: number; productTitle: string; type: "active" | "queued" } | null>(null);
 
   function startEdit() {
     if (!configQuery.data) return;
@@ -208,9 +210,7 @@ export default function AdminFeaturedListings() {
           title={`進行中主打（${active.length} / ${configQuery.data?.maxSlots ?? "…"} 位）`}
           color="green"
           listings={active}
-          onCancel={(id) => {
-            if (confirm("確定取消這個主打？費用不退還。")) cancelMutation.mutate({ id });
-          }}
+          onCancel={(id, productTitle) => setConfirmTarget({ id, productTitle, type: "active" })}
           loading={allQuery.isLoading}
           showExpiry
         />
@@ -220,9 +220,7 @@ export default function AdminFeaturedListings() {
           title={`排隊中（${queued.length}）`}
           color="amber"
           listings={queued}
-          onCancel={(id) => {
-            if (confirm("確定取消排隊？")) cancelMutation.mutate({ id });
-          }}
+          onCancel={(id, productTitle) => setConfirmTarget({ id, productTitle, type: "queued" })}
           loading={allQuery.isLoading}
         />
 
@@ -235,6 +233,63 @@ export default function AdminFeaturedListings() {
           readOnly
         />
       </div>
+
+      {/* ── 取消主打 Confirm Dialog ── */}
+      {confirmTarget && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm" onClick={() => setConfirmTarget(null)}>
+          <div className="w-full max-w-md bg-white rounded-t-3xl px-5 pt-5 pb-8 shadow-2xl" onClick={e => e.stopPropagation()}>
+            {/* 拖動把手 */}
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+
+            {/* 標題 */}
+            <div className={`flex items-center gap-2 mb-3 ${confirmTarget.type === "active" ? "text-red-600" : "text-amber-600"}`}>
+              {confirmTarget.type === "active"
+                ? <Flame className="w-5 h-5 shrink-0" />
+                : <Clock className="w-5 h-5 shrink-0" />
+              }
+              <h3 className="text-base font-bold">
+                {confirmTarget.type === "active" ? "取消主打刊登" : "取消排隊"}
+              </h3>
+              <button className="ml-auto p-1 hover:bg-gray-100 rounded-full" onClick={() => setConfirmTarget(null)}>
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+
+            {/* 商品名稱 */}
+            <div className={`rounded-xl p-3 mb-3 ${confirmTarget.type === "active" ? "bg-red-50" : "bg-amber-50"}`}>
+              <p className={`text-xs font-medium mb-0.5 ${confirmTarget.type === "active" ? "text-red-400" : "text-amber-400"}`}>商品</p>
+              <p className={`text-sm font-semibold leading-snug ${confirmTarget.type === "active" ? "text-red-700" : "text-amber-700"}`}>
+                {confirmTarget.productTitle}
+              </p>
+            </div>
+
+            {/* 說明文字 */}
+            <p className="text-sm text-gray-500 mb-5 leading-relaxed">
+              {confirmTarget.type === "active"
+                ? "確定要取消這個主打刊登？費用不退還，取消後立即失效。"
+                : "確定要取消排隊？排隊期間不收費，取消後免費退出。"
+              }
+            </p>
+
+            {/* 按鈕 */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmTarget(null)}
+                className="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200 transition-colors"
+              >
+                {confirmTarget.type === "active" ? "保留主打" : "保留排隊"}
+              </button>
+              <button
+                onClick={() => { cancelMutation.mutate({ id: confirmTarget.id }); setConfirmTarget(null); }}
+                disabled={cancelMutation.isPending}
+                className={`flex-1 py-3 rounded-2xl text-white text-sm font-semibold transition-colors disabled:opacity-50 ${confirmTarget.type === "active" ? "bg-red-500 hover:bg-red-600" : "bg-amber-500 hover:bg-amber-600"}`}
+              >
+                確認取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -245,7 +300,7 @@ function ListingSection({
   title: string;
   color: "green" | "amber" | "gray";
   listings: any[];
-  onCancel?: (id: number) => void;
+  onCancel?: (id: number, productTitle: string) => void;
   loading?: boolean;
   showExpiry?: boolean;
   readOnly?: boolean;
@@ -285,7 +340,7 @@ function ListingSection({
                 )}
                 {!readOnly && (
                   <button
-                    onClick={() => onCancel?.(l.id)}
+                    onClick={() => onCancel?.(l.id, l.productTitle ?? "")}
                     className="text-xs px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 border border-red-100 shrink-0"
                   >
                     取消主打
