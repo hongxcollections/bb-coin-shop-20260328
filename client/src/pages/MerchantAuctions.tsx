@@ -16,7 +16,7 @@ import { parseCategories } from "@/lib/categories";
 import {
   Plus, Pencil, Trash2, Archive, RotateCcw, Upload, X,
   ImageIcon, CheckCircle2, AlertCircle, Loader2, ChevronLeft,
-  RefreshCw, Eye, Send, CheckSquare, Square, CreditCard,
+  RefreshCw, Eye, Send, CheckSquare, Square, CreditCard, Facebook,
 } from "lucide-react";
 
 const MAX_IMAGES = 10;
@@ -383,6 +383,9 @@ export default function MerchantAuctions() {
 
   // No-subscription dialog
   const [noSubDialogOpen, setNoSubDialogOpen] = useState(false);
+
+  // Batch Facebook share
+  const [batchShareOpen, setBatchShareOpen] = useState(false);
 
   // Active auction limited edit dialog
   const [activeEditOpen, setActiveEditOpen] = useState(false);
@@ -862,6 +865,20 @@ export default function MerchantAuctions() {
       </div>
 
       <div className="max-w-4xl mx-auto px-2 pt-2 pb-28 space-y-1.5">
+        {/* ── 進行中 Tab 批量分享欄 ── */}
+        {tab === "進行中" && activeAuctions.length > 0 && (
+          <div className="flex items-center gap-2 px-1 py-1">
+            <Button
+              size="sm"
+              className="h-7 px-2.5 text-xs gap-1.5 bg-[#1877F2] hover:bg-[#1560c8] text-white border-0"
+              onClick={() => setBatchShareOpen(true)}
+            >
+              <Facebook className="w-3 h-3" />
+              批量分享 Facebook（{activeAuctions.length}）
+            </Button>
+          </div>
+        )}
+
         {/* ── 草稿 Tab 批量操作欄 ── */}
         {tab === "草稿" && draftAuctions.length > 0 && (
           <div className="flex items-center gap-2 px-1 py-1">
@@ -1125,6 +1142,65 @@ export default function MerchantAuctions() {
                 確認批量發佈
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── 批量分享 Facebook Dialog ── */}
+      <Dialog open={batchShareOpen} onOpenChange={setBatchShareOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[#1877F2]">
+              <Facebook className="w-5 h-5" />
+              批量分享 Facebook
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground -mt-1">點擊各拍賣的「分享」按鈕，在 Facebook 發佈該拍賣</p>
+          <div className="overflow-y-auto flex-1 space-y-2 pr-1 mt-2">
+            {activeAuctions.map((a) => {
+              const sym = getCurrencySymbol(a.currency ?? "HKD");
+              const currentBid = Number(a.currentPrice);
+              const endDate = new Date(a.endTime);
+              const weekdays = ["日","一","二","三","四","五","六"];
+              const mo = endDate.getMonth()+1, dy = endDate.getDate(), wd = weekdays[endDate.getDay()];
+              const h = endDate.getHours(), mi = String(endDate.getMinutes()).padStart(2,"0");
+              let period = h < 6 ? "凌晨" : h < 12 ? "上午" : h === 12 ? "中午" : h < 18 ? "下午" : "晚上";
+              let dh = h < 12 ? h : h === 12 ? 12 : h - 12;
+              const endStr = `${mo}月${dy}日(${wd}) ${period}${dh}:${mi}`;
+              const shareText = `【hongxcollections.com】${a.title}\n目前出價 ${sym}${currentBid.toLocaleString()}\n結標時間：${endStr}\n快來競拍！`;
+              const auctionUrl = `${window.location.origin}/auctions/${a.id}`;
+              const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}&quote=${encodeURIComponent(shareText)}`;
+              const img = a.images?.[0]?.imageUrl;
+              return (
+                <div key={a.id} className="flex items-center gap-2.5 p-2.5 rounded-lg border border-amber-100 bg-amber-50/40">
+                  <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                    {img
+                      ? <img src={img} alt="" className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground/40" /></div>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{a.title}</p>
+                    <p className="text-xs text-muted-foreground">{sym}{currentBid.toLocaleString()} · 結標 {endStr}</p>
+                  </div>
+                  <a
+                    href={fbUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0"
+                  >
+                    <Button size="sm" className="h-7 px-2.5 text-xs gap-1 bg-[#1877F2] hover:bg-[#1560c8] text-white border-0">
+                      <Facebook className="w-3 h-3" />
+                      分享
+                    </Button>
+                  </a>
+                </div>
+              );
+            })}
+          </div>
+          <div className="pt-2 border-t">
+            <Button variant="outline" className="w-full h-8 text-sm" onClick={() => setBatchShareOpen(false)}>
+              關閉
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
