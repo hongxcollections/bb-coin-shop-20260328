@@ -481,7 +481,8 @@ export default function MerchantSettings() {
                       <Input
                         type="number" min={0} max={60}
                         value={antiSnipeMinutes}
-                        onChange={(e) => setAntiSnipeMinutes(String(Math.max(0, Math.min(60, parseInt(e.target.value) || 0))))}
+                        onChange={(e) => setAntiSnipeMinutes(e.target.value)}
+                        onBlur={(e) => { const v = parseInt(e.target.value); setAntiSnipeMinutes(String(isNaN(v) ? 0 : Math.max(0, Math.min(60, v)))); }}
                         className="h-8 w-20 text-center border-amber-200"
                       />
                       <span className="text-xs text-amber-600">分鐘</span>
@@ -493,7 +494,8 @@ export default function MerchantSettings() {
                       <Input
                         type="number" min={1} max={60}
                         value={extendMinutes}
-                        onChange={(e) => setExtendMinutes(String(Math.max(1, Math.min(60, parseInt(e.target.value) || 1))))}
+                        onChange={(e) => setExtendMinutes(e.target.value)}
+                        onBlur={(e) => { const v = parseInt(e.target.value); setExtendMinutes(String(isNaN(v) ? 1 : Math.max(1, Math.min(60, v)))); }}
                         className="h-8 w-20 text-center border-amber-200"
                       />
                       <span className="text-xs text-amber-600">分鐘</span>
