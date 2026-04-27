@@ -201,17 +201,11 @@ export default function AdBanner() {
               <Megaphone style={{ width: 16, height: 16, color: "#fff" }} />
             </div>
 
-            {/* 文字容器：深色磨砂玻璃框，確保文字從金球底色突出 */}
+            {/* 文字區：無框，靠描邊+陰影從金球底色浮出 */}
             <div style={{
               position: "relative",
               textAlign: "center",
               maxWidth: 148,
-              background: "rgba(30, 10, 0, 0.55)",
-              border: "1px solid rgba(255, 210, 60, 0.45)",
-              borderRadius: 12,
-              padding: "8px 10px 9px",
-              boxShadow: "inset 0 1px 0 rgba(255,230,100,0.18), 0 2px 12px rgba(0,0,0,0.35)",
-              backdropFilter: "blur(2px)",
             }}>
               {data.title && (
                 <div
@@ -221,29 +215,36 @@ export default function AdBanner() {
                     fontSize: "13px",
                     lineHeight: 1.25,
                     letterSpacing: "0.07em",
-                    marginBottom: data.body ? 5 : 0,
+                    marginBottom: data.body ? 6 : 0,
+                    WebkitTextStroke: "0.6px rgba(60,20,0,0.7)",
+                    filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.8)) drop-shadow(0 0 3px rgba(0,0,0,0.9))",
                   }}
                 >
                   {data.title}
                 </div>
               )}
-              {/* 金色分隔線 */}
               {data.title && data.body && (
                 <div style={{
-                  width: "70%",
+                  width: "65%",
                   height: 1,
-                  margin: "0 auto 5px",
-                  background: "linear-gradient(90deg, transparent, rgba(255,210,60,0.8), transparent)",
+                  margin: "0 auto 6px",
+                  background: "linear-gradient(90deg, transparent, rgba(255,210,60,0.9), transparent)",
                 }} />
               )}
               {data.body && (
                 <div style={{
                   fontSize: "10.5px",
-                  fontWeight: 600,
+                  fontWeight: 700,
                   color: "#ffffff",
                   lineHeight: 1.5,
-                  letterSpacing: "0.03em",
-                  textShadow: "0 1px 3px rgba(0,0,0,0.8)",
+                  letterSpacing: "0.02em",
+                  textShadow: [
+                    "1px  1px 0 rgba(0,0,0,0.9)",
+                    "-1px -1px 0 rgba(0,0,0,0.9)",
+                    "1px -1px 0 rgba(0,0,0,0.9)",
+                    "-1px  1px 0 rgba(0,0,0,0.9)",
+                    "0 2px 8px rgba(0,0,0,0.95)",
+                  ].join(", "),
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-word",
                 }}>
