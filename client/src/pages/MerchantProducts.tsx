@@ -299,11 +299,11 @@ function MerchantOrdersTab() {
 }
 
 // ── 主打申請 Dialog ──────────────────────────────────────────────────────────
-const TIER_OPTIONS = [
-  { tier: "day1", label: "24 小時主打", price: 30, desc: "適合限時急售" },
-  { tier: "day3", label: "3 天主打", price: 70, desc: "適合週末旺季" },
-  { tier: "day7", label: "7 天主打", price: 120, desc: "最大曝光率" },
-];
+const TIER_DESCS: Record<string, string> = {
+  day1: "適合限時急售",
+  day3: "適合週末旺季",
+  day7: "最大曝光率",
+};
 
 function FeaturedApplyDialog({
   product,
@@ -320,8 +320,22 @@ function FeaturedApplyDialog({
   const [result, setResult] = useState<{ queued: boolean; queuePosition?: number } | null>(null);
 
   const { data: slotStatus } = trpc.featuredListings.slotStatus.useQuery(undefined, { staleTime: 10_000 });
+  const { data: pricingData } = trpc.featuredListings.pricing.useQuery(undefined, { staleTime: 60_000 });
+
   const isFull = slotStatus ? slotStatus.active >= slotStatus.maxSlots : false;
   const slotsLeft = slotStatus ? Math.max(0, slotStatus.maxSlots - slotStatus.active) : null;
+
+  const TIER_OPTIONS = pricingData?.tiers?.map((t: any) => ({
+    tier: t.tier,
+    label: t.label,
+    price: t.price,
+    hours: t.hours,
+    desc: TIER_DESCS[t.tier] ?? "",
+  })) ?? [
+    { tier: "day1", label: "24 小時主打", price: 30, hours: 24, desc: "適合限時急售" },
+    { tier: "day3", label: "3 天主打", price: 70, hours: 72, desc: "適合週末旺季" },
+    { tier: "day7", label: "7 天主打", price: 120, hours: 168, desc: "最大曝光率" },
+  ];
 
   const apply = trpc.featuredListings.submit.useMutation({
     onSuccess: (data) => {
@@ -335,8 +349,8 @@ function FeaturedApplyDialog({
     },
     onError: (e) => toast.error(e.message),
   });
-  const selected = TIER_OPTIONS.find(o => o.tier === tier)!;
-  const canAfford = depositBalance >= selected.price;
+  const selected = TIER_OPTIONS.find(o => o.tier === tier) ?? TIER_OPTIONS[0];
+  const canAfford = depositBalance >= (selected?.price ?? 0);
 
   // 排隊成功後的確認畫面
   if (result?.queued) {

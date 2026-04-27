@@ -4400,15 +4400,37 @@ export const appRouter = router({
         return result;
       }),
 
-    /** 公開：取各時段收費資訊及主打上限 */
-    pricing: publicProcedure.query(() => {
-      return {
-        tiers: Object.entries(FEATURED_TIER_PRICES).map(([tier, price]) => ({
-          tier, price, label: FEATURED_TIER_LABELS[tier],
-        })),
-        maxSlots: MAX_FEATURED_SLOTS,
-      };
+    /** 公開：取各時段收費資訊及主打上限（動態讀取 siteSettings） */
+    pricing: publicProcedure.query(async () => {
+      const { getFeaturedConfig } = await import('./db');
+      return getFeaturedConfig();
     }),
+
+    /** 管理員：取主打方案設定 */
+    getConfig: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+      const { getFeaturedConfig } = await import('./db');
+      return getFeaturedConfig();
+    }),
+
+    /** 管理員：更新主打方案設定 */
+    updateConfig: protectedProcedure
+      .input(z.object({
+        tiers: z.array(z.object({
+          tier: z.string(),
+          label: z.string().min(1),
+          price: z.number().min(0),
+          hours: z.number().int().min(1),
+        })),
+        maxSlots: z.number().int().min(1).max(100),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const { updateFeaturedConfig } = await import('./db');
+        const ok = await updateFeaturedConfig(input);
+        if (!ok) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '儲存設定失敗' });
+        return { success: true };
+      }),
   }),
 
   // ─── 系統測試（管理員專用）───────────────────────────────────────────────

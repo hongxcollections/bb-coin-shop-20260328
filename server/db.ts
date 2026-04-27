@@ -3951,7 +3951,7 @@ export async function cancelProductOrder(orderId: number, byUserId: number, isAd
 
 // ── 主打商品付費刊登 (featuredListings) ────────────────────────────────────
 
-// 各時段預設收費（HKD）
+// 各時段預設收費（HKD）— 程式碼預設值，可被 siteSettings 覆蓋
 export const FEATURED_TIER_PRICES: Record<string, number> = {
   day1: 30,  // 24 小時
   day3: 70,  // 3 天
@@ -3965,13 +3965,53 @@ export const FEATURED_TIER_HOURS: Record<string, number> = {
 };
 
 export const FEATURED_TIER_LABELS: Record<string, string> = {
-  day1: "24 小時（HK$30）",
-  day3: "3 天（HK$70）",
-  day7: "7 天（HK$120）",
+  day1: "24 小時",
+  day3: "3 天",
+  day7: "7 天",
 };
 
-/** 最多同時主打位數（可在此調整） */
+/** 最多同時主打位數（預設） */
 export const MAX_FEATURED_SLOTS = 10;
+
+export interface FeaturedTierConfig {
+  tier: string;
+  label: string;
+  price: number;
+  hours: number;
+}
+
+export interface FeaturedConfig {
+  tiers: FeaturedTierConfig[];
+  maxSlots: number;
+}
+
+/** 從 siteSettings 讀取主打方案設定（找不到則用程式碼預設） */
+export async function getFeaturedConfig(): Promise<FeaturedConfig> {
+  const s = await getAllSiteSettings();
+  const tiers: FeaturedTierConfig[] = ['day1', 'day3', 'day7'].map((tier) => ({
+    tier,
+    label: s[`featured.${tier}.label`] ?? FEATURED_TIER_LABELS[tier],
+    price: parseFloat(s[`featured.${tier}.price`] ?? String(FEATURED_TIER_PRICES[tier])),
+    hours: parseInt(s[`featured.${tier}.hours`] ?? String(FEATURED_TIER_HOURS[tier]), 10),
+  }));
+  const maxSlots = parseInt(s['featured.maxSlots'] ?? String(MAX_FEATURED_SLOTS), 10);
+  return { tiers, maxSlots };
+}
+
+/** 管理員：更新主打方案設定到 siteSettings */
+export async function updateFeaturedConfig(config: FeaturedConfig): Promise<boolean> {
+  try {
+    for (const t of config.tiers) {
+      await setSiteSetting(`featured.${t.tier}.label`, t.label);
+      await setSiteSetting(`featured.${t.tier}.price`, String(t.price));
+      await setSiteSetting(`featured.${t.tier}.hours`, String(t.hours));
+    }
+    await setSiteSetting('featured.maxSlots', String(config.maxSlots));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 let _featuredTableChecked = false;
 async function ensureFeaturedListingsTable() {
@@ -4005,14 +4045,16 @@ async function ensureFeaturedListingsTable() {
 }
 
 /** 內部：將排隊中的記錄依序升為 active（填滿空出的位子） */
-async function promoteFeaturedQueue(db: any): Promise<void> {
+async function promoteFeaturedQueue(db: any, cfg?: FeaturedConfig): Promise<void> {
   try {
+    const config = cfg ?? await getFeaturedConfig();
+    const maxSlots = config.maxSlots;
     // 計算現在 active 數
     const activeRes = await db.execute(sql`
       SELECT COUNT(*) AS cnt FROM featuredListings WHERE status = 'active' AND endAt > NOW()
     `);
     const activeCount = parseInt(String(((activeRes[0] as any[])[0] as any)?.cnt ?? 0));
-    const freeSlots = MAX_FEATURED_SLOTS - activeCount;
+    const freeSlots = maxSlots - activeCount;
     if (freeSlots <= 0) return;
 
     // 取最早排隊的若干筆（先到先得）
@@ -4022,7 +4064,8 @@ async function promoteFeaturedQueue(db: any): Promise<void> {
     const queued = (queuedRes[0] as any[]) ?? [];
 
     for (const q of queued) {
-      const hours = FEATURED_TIER_HOURS[q.tier as string] ?? 24;
+      const tierCfg = config.tiers.find(t => t.tier === q.tier);
+      const hours = tierCfg?.hours ?? FEATURED_TIER_HOURS[q.tier as string] ?? 24;
       const endAt = new Date(Date.now() + hours * 60 * 60 * 1000);
       await db.execute(sql`
         UPDATE featuredListings SET status = 'active', startAt = NOW(), endAt = ${endAt}
@@ -4046,8 +4089,12 @@ export async function createFeaturedListing(
   const db = await getDb();
   if (!db) return { ok: false, error: 'DB unavailable' };
 
-  const amount = FEATURED_TIER_PRICES[tier];
-  const hours = FEATURED_TIER_HOURS[tier];
+  // 讀取動態設定（可在管理後台更改）
+  const config = await getFeaturedConfig();
+  const tierCfg = config.tiers.find(t => t.tier === tier);
+  const amount = tierCfg?.price ?? FEATURED_TIER_PRICES[tier];
+  const hours = tierCfg?.hours ?? FEATURED_TIER_HOURS[tier];
+  const tierLabel = tierCfg?.label ?? FEATURED_TIER_LABELS[tier];
 
   // 檢查保證金是否足夠
   const deposit = await getOrCreateSellerDeposit(merchantId);
@@ -4057,7 +4104,7 @@ export async function createFeaturedListing(
 
   // 先過期到期的 active，再升級排隊中的
   await db.execute(sql`UPDATE featuredListings SET status = 'expired' WHERE status = 'active' AND endAt <= NOW()`);
-  await promoteFeaturedQueue(db);
+  await promoteFeaturedQueue(db, config);
 
   // 檢查此商品是否已有進行中或排隊的主打
   const existing = await db.execute(sql`
@@ -4072,13 +4119,13 @@ export async function createFeaturedListing(
     SELECT COUNT(*) AS cnt FROM featuredListings WHERE status = 'active' AND endAt > NOW()
   `);
   const activeCount = parseInt(String(((activeRes[0] as any[])[0] as any)?.cnt ?? 0));
-  const hasSlot = activeCount < MAX_FEATURED_SLOTS;
+  const hasSlot = activeCount < config.maxSlots;
 
   // 扣保證金（無論排隊還是立即啟動，都先扣費）
   await deductCommission(merchantId, amount, 0,
     hasSlot
-      ? `主打商品刊登費（${FEATURED_TIER_LABELS[tier]}）：${productTitle}`
-      : `主打商品排隊費（${FEATURED_TIER_LABELS[tier]}，排隊中）：${productTitle}`
+      ? `主打商品刊登費（${tierLabel}）：${productTitle}`
+      : `主打商品排隊費（${tierLabel}，排隊中）：${productTitle}`
   );
 
   if (hasSlot) {
@@ -4136,10 +4183,11 @@ export async function getActiveFeaturedListings(): Promise<any[]> {
 export async function getFeaturedSlotStatus(): Promise<{ active: number; queued: number; maxSlots: number }> {
   await ensureFeaturedListingsTable();
   const db = await getDb();
-  if (!db) return { active: 0, queued: 0, maxSlots: MAX_FEATURED_SLOTS };
+  const config = await getFeaturedConfig();
+  if (!db) return { active: 0, queued: 0, maxSlots: config.maxSlots };
   try {
     await db.execute(sql`UPDATE featuredListings SET status = 'expired' WHERE status = 'active' AND endAt <= NOW()`);
-    await promoteFeaturedQueue(db);
+    await promoteFeaturedQueue(db, config);
     const res = await db.execute(sql`
       SELECT
         SUM(status = 'active') AS active,
@@ -4150,9 +4198,9 @@ export async function getFeaturedSlotStatus(): Promise<{ active: number; queued:
     return {
       active: parseInt(String(row?.active ?? 0)),
       queued: parseInt(String(row?.queued ?? 0)),
-      maxSlots: MAX_FEATURED_SLOTS,
+      maxSlots: config.maxSlots,
     };
-  } catch { return { active: 0, queued: 0, maxSlots: MAX_FEATURED_SLOTS }; }
+  } catch { return { active: 0, queued: 0, maxSlots: config.maxSlots }; }
 }
 
 /** 商戶自己的主打記錄（含排隊位置） */
