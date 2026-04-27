@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { parseCategories } from "@/lib/categories";
 import {
   Plus, Pencil, Trash2, Archive, RotateCcw, Upload, X,
-  ImageIcon, CheckCircle2, AlertCircle, Loader2, ChevronLeft,
+  ImageIcon, CheckCircle2, AlertCircle, AlertTriangle, Loader2, ChevronLeft,
   RefreshCw, Eye, Send, CheckSquare, Square, CreditCard, Facebook, Copy, Check,
 } from "lucide-react";
 
@@ -1481,31 +1481,43 @@ export default function MerchantAuctions() {
 
       {/* ── 刪除進行中拍賣確認 Dialog（零出價） ── */}
       <Dialog open={activeDeleteConfirm !== null} onOpenChange={(v) => { if (!v) setActiveDeleteConfirm(null); }}>
-        <DialogContent className="max-w-xs">
-          <DialogHeader>
-            <DialogTitle>確認刪除拍賣</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-1">
-            <div>
-              <p className="text-sm text-foreground">
-                {activeDeleteConfirm ? (activeDeleteConfirm.title.length > 20 ? activeDeleteConfirm.title.slice(0, 20) + "…" : activeDeleteConfirm.title) : ""}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">此拍賣目前零出價，確認後將永久刪除，不可復原。</p>
+        <DialogContent className="max-w-xs rounded-2xl p-0 overflow-hidden">
+          {/* 頂部紅色警告區 */}
+          <div className="bg-red-50 flex flex-col items-center pt-6 pb-4 px-5 border-b border-red-100">
+            <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mb-3">
+              <Trash2 className="w-7 h-7 text-red-500" />
             </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setActiveDeleteConfirm(null)}>取消</Button>
-              <Button
-                variant="destructive"
-                disabled={merchantDeleteMutation.isPending}
-                onClick={() => {
-                  if (!activeDeleteConfirm) return;
-                  merchantDeleteMutation.mutate({ id: activeDeleteConfirm.id });
-                }}
-              >
-                {merchantDeleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-                確認刪除
-              </Button>
+            <h2 className="text-base font-semibold text-red-700">刪除拍賣</h2>
+          </div>
+          {/* 內容 */}
+          <div className="px-5 py-4 space-y-3">
+            <p className="text-sm font-medium text-foreground text-center leading-snug">
+              {activeDeleteConfirm ? (activeDeleteConfirm.title.length > 28 ? activeDeleteConfirm.title.slice(0, 28) + "…" : activeDeleteConfirm.title) : ""}
+            </p>
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700 leading-relaxed">此拍賣目前<span className="font-semibold">零出價</span>，刪除後將永久移除，無法復原。</p>
             </div>
+          </div>
+          {/* 按鈕 */}
+          <div className="flex border-t border-border">
+            <button
+              className="flex-1 py-3.5 text-sm text-muted-foreground hover:bg-muted/50 transition-colors font-medium border-r border-border"
+              onClick={() => setActiveDeleteConfirm(null)}
+            >
+              取消
+            </button>
+            <button
+              className="flex-1 py-3.5 text-sm text-red-600 hover:bg-red-50 transition-colors font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50"
+              disabled={merchantDeleteMutation.isPending}
+              onClick={() => {
+                if (!activeDeleteConfirm) return;
+                merchantDeleteMutation.mutate({ id: activeDeleteConfirm.id });
+              }}
+            >
+              {merchantDeleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              確認刪除
+            </button>
           </div>
         </DialogContent>
       </Dialog>
