@@ -47,6 +47,7 @@ type UserRow = {
   commissionRate: string | null;
   depositIsActive: number | null;
   mustChangePassword: number | null;
+  isBanned: number;
   wonCount: number;
   activeAuctionCount: number;
   activeProductCount: number;
@@ -865,6 +866,7 @@ type EditState = {
   requiredDeposit: string;
   commissionRate: string;
   depositIsActive: number;
+  isBanned: number;
 };
 
 export default function AdminUsers() {
@@ -1023,6 +1025,7 @@ export default function AdminUsers() {
       requiredDeposit: u.requiredDeposit ?? "500.00",
       commissionRate: u.commissionRate ? (parseFloat(u.commissionRate) * 100).toFixed(1) : "5.0",
       depositIsActive: u.depositIsActive ?? 1,
+      isBanned: u.isBanned ?? 0,
     });
   }
 
@@ -1034,6 +1037,7 @@ export default function AdminUsers() {
       email: editState.email || undefined,
       phone: editState.phone || undefined,
       memberLevel: editState.memberLevel,
+      isBanned: editState.isBanned,
     });
     if (editState.isMerchant) {
       adminUpdateDeposit.mutate({
@@ -1084,11 +1088,14 @@ export default function AdminUsers() {
                     )}
                     {u.depositId && (
                       <Badge className={`text-[0.6rem] px-1.5 py-0 ${u.depositIsActive ? "bg-emerald-600 text-white" : "bg-gray-400 text-white"}`}>
-                        {u.depositIsActive ? "商戶活躍" : "商戶停用"}
+                        {u.depositIsActive ? "商戶活躍" : "商戶停權"}
                       </Badge>
                     )}
                     {u.mustChangePassword === 1 && (
                       <Badge className="text-[0.6rem] px-1.5 py-0 bg-orange-500 text-white">🔑 須更改密碼</Badge>
+                    )}
+                    {u.isBanned === 1 && (
+                      <Badge className="text-[0.6rem] px-1.5 py-0 bg-red-600 text-white">🚫 停權</Badge>
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground space-y-0.5 min-w-0">
@@ -1595,6 +1602,26 @@ export default function AdminUsers() {
                 </Select>
               </div>
 
+              {/* 帳號狀態（所有會員） */}
+              <div className="border border-red-100 rounded-lg p-3 space-y-2 bg-red-50/40">
+                <p className="text-xs font-semibold text-red-800 uppercase tracking-wide">帳號狀態</p>
+                <Select
+                  value={String(editState.isBanned)}
+                  onValueChange={(val) => setEditState({ ...editState, isBanned: parseInt(val) })}
+                >
+                  <SelectTrigger className="border-red-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">✅ 正常（可使用一切功能）</SelectItem>
+                    <SelectItem value="1">🚫 停權（禁止出價、上拍、出售）</SelectItem>
+                  </SelectContent>
+                </Select>
+                {editState.isBanned === 1 && (
+                  <p className="text-xs text-red-600">停權後，此會員將無法出價、刊登拍賣或上架商品。</p>
+                )}
+              </div>
+
               {editState.isMerchant && (
                 <div className="border border-amber-100 rounded-lg p-3 space-y-3 bg-amber-50/50">
                   <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">商戶設定</p>
@@ -1610,7 +1637,7 @@ export default function AdminUsers() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>商戶狀態</Label>
+                    <Label>商戶上架狀態</Label>
                     <Select
                       value={String(editState.depositIsActive)}
                       onValueChange={(val) => setEditState({ ...editState, depositIsActive: parseInt(val) })}
@@ -1620,7 +1647,7 @@ export default function AdminUsers() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="1">✅ 活躍（可上架）</SelectItem>
-                        <SelectItem value="0">🚫 停用（不可上架）</SelectItem>
+                        <SelectItem value="0">🚫 停權（不可上架）</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

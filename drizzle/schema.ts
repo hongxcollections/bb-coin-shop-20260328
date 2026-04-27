@@ -21,6 +21,7 @@ export const users = mysqlTable("users", {
   memberLevelExpiresAt: timestamp("memberLevelExpiresAt"),
   defaultAnonymous: int("defaultAnonymous").default(0).notNull(), // 1 = always bid anonymously by default
   mustChangePassword: int("mustChangePassword").default(0).notNull(), // 1 = 管理員設定密碼後，會員首次登入須強制更改
+  isBanned: int("isBanned").default(0).notNull(), // 1 = 停權，禁止一切出價/上拍/出售功能
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

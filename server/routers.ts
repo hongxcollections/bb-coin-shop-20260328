@@ -210,6 +210,10 @@ export const appRouter = router({
         isAnonymous: z.number().int().min(0).max(1).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        // 停權檢查
+        if ((ctx.user as any).isBanned === 1) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '您的帳號已被停權，無法進行出價' });
+        }
         // 防抖：同一用戶對同一拍賣，3 秒內不允許重複出價
         const debounceKey = `${ctx.user.id}:${input.auctionId}`;
         const lastBidTime = bidDebounceMap.get(debounceKey) ?? 0;
@@ -857,6 +861,10 @@ export const appRouter = router({
         maxAmount: z.number().positive(),
       }))
       .mutation(async ({ input, ctx }) => {
+        // 停權檢查
+        if ((ctx.user as any).isBanned === 1) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '您的帳號已被停權，無法進行代理出價' });
+        }
         const auction = await getAuctionById(input.auctionId);
         if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
         if (auction.createdBy === ctx.user.id) throw new TRPCError({ code: 'FORBIDDEN', message: '不能競投自己刊登的拍賣' });
@@ -1103,7 +1111,7 @@ export const appRouter = router({
         return getWonOrdersByCreator(input.merchantUserId);
       }),
 
-    // Admin: update any user's profile (name, email, phone, memberLevel)
+    // Admin: update any user's profile (name, email, phone, memberLevel, isBanned)
     adminUpdate: protectedProcedure
       .input(z.object({
         userId: z.number().int().positive(),
@@ -1111,12 +1119,15 @@ export const appRouter = router({
         email: z.string().email().optional(),
         phone: z.string().max(20).optional(),
         memberLevel: z.enum(['bronze', 'silver', 'gold', 'vip']).optional(),
+        isBanned: z.number().int().min(0).max(1).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
-        const { userId, memberLevel, ...profileData } = input;
-        if (Object.keys(profileData).length > 0) {
-          const ok = await adminUpdateUser(userId, profileData);
+        const { userId, memberLevel, isBanned, ...profileData } = input;
+        const userUpdate: { name?: string; email?: string; phone?: string; isBanned?: number } = { ...profileData };
+        if (isBanned !== undefined) userUpdate.isBanned = isBanned;
+        if (Object.keys(userUpdate).length > 0) {
+          const ok = await adminUpdateUser(userId, userUpdate);
           if (!ok) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '更新用戶資料失敗' });
         }
         if (memberLevel) {
@@ -2250,6 +2261,10 @@ export const appRouter = router({
         category: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        // 停權檢查
+        if ((ctx.user as any).isBanned === 1) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '您的帳號已被停權，無法刊登拍賣' });
+        }
         const app = await getMerchantApplicationByUser(ctx.user.id);
         if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '只有已審批商戶才可刊登拍賣' });
@@ -3089,6 +3104,10 @@ export const appRouter = router({
         stock: z.number().int().min(1).default(1),
       }))
       .mutation(async ({ input, ctx }) => {
+        // 停權檢查
+        if ((ctx.user as any).isBanned === 1) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '您的帳號已被停權，無法上架商品' });
+        }
         const app = await getMerchantApplicationByUser(ctx.user.id);
         if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });

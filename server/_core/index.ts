@@ -203,6 +203,14 @@ async function bootstrapMissingColumns() {
     );
   }
 
+  // 新增 users.isBanned 欄位（停權：禁止一切出價/上拍/出售功能）
+  if (!(await check('users', 'isBanned'))) {
+    await alter(
+      `ALTER TABLE \`users\` ADD COLUMN \`isBanned\` tinyint(1) NOT NULL DEFAULT 0`,
+      'Added isBanned to users'
+    );
+  }
+
   // dailyEarlyBird table (每日早鳥會員名額)
   await alter(`CREATE TABLE IF NOT EXISTS \`dailyEarlyBird\` (
     \`id\` int AUTO_INCREMENT NOT NULL,

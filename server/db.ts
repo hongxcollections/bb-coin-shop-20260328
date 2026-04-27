@@ -2333,6 +2333,7 @@ export async function getAllUsersExtended() {
         commissionRate: sellerDeposits.commissionRate,
         depositIsActive: sellerDeposits.isActive,
         mustChangePassword: users.mustChangePassword,
+        isBanned: users.isBanned,
         wonCount: sql<number>`(SELECT COUNT(*) FROM auctions WHERE highestBidderId = ${users.id} AND status = 'ended')`,
         activeAuctionCount: sql<number>`(SELECT COUNT(*) FROM auctions WHERE createdBy = ${users.id} AND status = 'active')`,
         activeProductCount: sql<number>`(SELECT COUNT(*) FROM merchantProducts WHERE userId = ${users.id} AND status = 'active')`,
@@ -2377,7 +2378,7 @@ export async function getWonAuctionsByUser(userId: number) {
  */
 export async function adminUpdateUser(
   userId: number,
-  data: { name?: string; email?: string; phone?: string }
+  data: { name?: string; email?: string; phone?: string; isBanned?: number }
 ): Promise<boolean> {
   const db = await getDb();
   if (!db) return false;
@@ -2386,6 +2387,7 @@ export async function adminUpdateUser(
     if (data.name !== undefined) updateData.name = data.name;
     if (data.email !== undefined) updateData.email = data.email;
     if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.isBanned !== undefined) updateData.isBanned = data.isBanned;
     if (Object.keys(updateData).length === 0) return true;
     await db.update(users).set(updateData).where(eq(users.id, userId));
     return true;
