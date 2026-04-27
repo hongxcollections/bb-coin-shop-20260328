@@ -4066,6 +4066,25 @@ async function promoteFeaturedQueue(db: any, cfg?: FeaturedConfig): Promise<void
     for (const q of queued) {
       const tierCfg = config.tiers.find(t => t.tier === q.tier);
       const hours = tierCfg?.hours ?? FEATURED_TIER_HOURS[q.tier as string] ?? 24;
+      const amount = parseFloat(q.amount ?? '0');
+      const tierLabel = tierCfg?.label ?? FEATURED_TIER_LABELS[q.tier as string] ?? q.tier;
+
+      // 排隊時未扣費，升為 active 時才扣保證金
+      if (amount > 0) {
+        try {
+          await deductCommission(
+            q.merchantId,
+            amount,
+            0,
+            `主打商品刊登費（${tierLabel}，排隊轉啟動）：${q.productTitle}`,
+          );
+        } catch (e) {
+          // 若扣費失敗（餘額不足等），跳過此筆，不升級
+          console.error('[promoteFeaturedQueue] deductCommission failed for id', q.id, e);
+          continue;
+        }
+      }
+
       const endAt = new Date(Date.now() + hours * 60 * 60 * 1000);
       await db.execute(sql`
         UPDATE featuredListings SET status = 'active', startAt = NOW(), endAt = ${endAt}
@@ -4121,15 +4140,9 @@ export async function createFeaturedListing(
   const activeCount = parseInt(String(((activeRes[0] as any[])[0] as any)?.cnt ?? 0));
   const hasSlot = activeCount < config.maxSlots;
 
-  // 扣保證金（無論排隊還是立即啟動，都先扣費）
-  await deductCommission(merchantId, amount, 0,
-    hasSlot
-      ? `主打商品刊登費（${tierLabel}）：${productTitle}`
-      : `主打商品排隊費（${tierLabel}，排隊中）：${productTitle}`
-  );
-
   if (hasSlot) {
-    // 有空位：立即啟動
+    // 有空位：立即扣費並啟動
+    await deductCommission(merchantId, amount, 0, `主打商品刊登費（${tierLabel}）：${productTitle}`);
     const endAt = new Date(Date.now() + hours * 60 * 60 * 1000);
     await db.execute(sql`
       INSERT INTO featuredListings (merchantId, productId, productTitle, merchantName, tier, amount, status, startAt, endAt)
@@ -4139,14 +4152,14 @@ export async function createFeaturedListing(
     const listing = ((newRows[0] as any[])[0]) ?? null;
     return { ok: true, queued: false, listing };
   } else {
-    // 已滿：加入排隊（startAt/endAt 留空，等候升級）
+    // 已滿：加入排隊，不扣費，等升為 active 時才扣
     await db.execute(sql`
       INSERT INTO featuredListings (merchantId, productId, productTitle, merchantName, tier, amount, status, startAt, endAt)
       VALUES (${merchantId}, ${productId}, ${productTitle}, ${merchantName}, ${tier}, ${amount}, 'queued', NULL, NULL)
     `);
     // 計算排隊位置
     const posRes = await db.execute(sql`
-      SELECT COUNT(*) AS pos FROM featuredListings WHERE status = 'queued' ORDER BY createdAt ASC
+      SELECT COUNT(*) AS pos FROM featuredListings WHERE status = 'queued'
     `);
     const queuePosition = parseInt(String(((posRes[0] as any[])[0] as any)?.pos ?? 1));
     const newRows = await db.execute(sql`SELECT * FROM featuredListings WHERE merchantId = ${merchantId} ORDER BY id DESC LIMIT 1`);
@@ -4253,7 +4266,7 @@ export async function cancelFeaturedListing(
   adminId: number,
   allowMerchantCancel = false,
   requesterId?: number,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; wasQueued?: boolean; refundAmount?: number }> {
   await ensureFeaturedListingsTable();
   const db = await getDb();
   if (!db) return { ok: false, error: 'DB unavailable' };
@@ -4271,12 +4284,10 @@ export async function cancelFeaturedListing(
   await db.execute(sql`UPDATE featuredListings SET status = 'cancelled' WHERE id = ${id}`);
 
   // 計算退費
+  // 排隊中：費用尚未扣除（排隊轉 active 才扣），取消不退費
+  // 進行中：已扣費，按剩餘時間比例退費
   let refundAmount = 0;
-  if (listing.status === 'queued') {
-    // 排隊中：全額退費
-    refundAmount = parseFloat(listing.amount);
-  } else {
-    // 進行中：按剩餘時間比例退費
+  if (listing.status === 'active') {
     const now = Date.now();
     const endAt = new Date(listing.endAt).getTime();
     const startAt = new Date(listing.startAt).getTime();
@@ -4285,11 +4296,10 @@ export async function cancelFeaturedListing(
     const refundRatio = totalMs > 0 ? remainMs / totalMs : 0;
     refundAmount = parseFloat((parseFloat(listing.amount) * refundRatio).toFixed(2));
   }
+  // queued 狀態：費用未扣，不退費
 
   if (refundAmount > 0) {
-    const desc = listing.status === 'queued'
-      ? `主打排隊取消全額退費：${listing.productTitle}`
-      : `主打商品取消退費（剩餘 ${Math.round((new Date(listing.endAt).getTime() - Date.now()) / 3600000)}h）：${listing.productTitle}`;
+    const desc = `主打商品取消退費（剩餘 ${Math.round((new Date(listing.endAt).getTime() - Date.now()) / 3600000)}h）：${listing.productTitle}`;
     await adjustDeposit(listing.merchantId, refundAmount, desc, adminId);
   }
 
@@ -4298,5 +4308,5 @@ export async function cancelFeaturedListing(
     await promoteFeaturedQueue(db);
   }
 
-  return { ok: true };
+  return { ok: true, wasQueued: listing.status === 'queued', refundAmount };
 }
