@@ -47,16 +47,18 @@ export default function AdBanner() {
     <>
       <style>{`
         @keyframes adBannerDrop {
-          0%   { transform: translateY(-110%); opacity: 0; }
-          55%  { transform: translateY(7px);   opacity: 1; }
-          72%  { transform: translateY(-4px);  opacity: 1; }
-          85%  { transform: translateY(2px);   opacity: 1; }
-          93%  { transform: translateY(-1px);  opacity: 1; }
+          0%   { transform: translateY(-130%); opacity: 0; }
+          40%  { transform: translateY(0);     opacity: 1; }
+          55%  { transform: translateY(-28%);  opacity: 1; }
+          68%  { transform: translateY(0);     opacity: 1; }
+          78%  { transform: translateY(-13%);  opacity: 1; }
+          88%  { transform: translateY(0);     opacity: 1; }
+          94%  { transform: translateY(-5%);   opacity: 1; }
           100% { transform: translateY(0);     opacity: 1; }
         }
         @keyframes adBannerRise {
           0%   { transform: translateY(0);     opacity: 1; }
-          100% { transform: translateY(-120%); opacity: 0; }
+          100% { transform: translateY(-130%); opacity: 0; }
         }
       `}</style>
 
@@ -84,8 +86,8 @@ export default function AdBanner() {
             maxWidth: 480,
             pointerEvents: "auto",
             animation: visible
-              ? "adBannerDrop 0.75s cubic-bezier(0.22, 1, 0.36, 1) both"
-              : "adBannerRise 0.4s ease-in both",
+              ? "adBannerDrop 1.1s linear both"
+              : "adBannerRise 0.35s ease-in both",
           }}
         >
           <div
