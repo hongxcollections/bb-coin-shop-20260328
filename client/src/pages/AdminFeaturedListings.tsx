@@ -4,6 +4,9 @@ import { trpc } from "@/lib/trpc";
 
 const TIER_ORDER = ["day1", "day3", "day7"];
 
+// 用字串型態儲存草稿，避免 parseInt("") 跳回預設值的問題
+type DraftTier = { tier: string; label: string; price: string; hours: string };
+
 export default function AdminFeaturedListings() {
   const configQuery = trpc.featuredListings.getConfig.useQuery();
   const allQuery = trpc.featuredListings.adminList.useQuery();
@@ -23,34 +26,45 @@ export default function AdminFeaturedListings() {
   });
 
   const [editMode, setEditMode] = useState(false);
-  const [draftTiers, setDraftTiers] = useState<
-    Array<{ tier: string; label: string; price: number; hours: number }>
-  >([]);
-  const [draftMaxSlots, setDraftMaxSlots] = useState(5);
+  const [draftTiers, setDraftTiers] = useState<DraftTier[]>([]);
+  const [draftMaxSlots, setDraftMaxSlots] = useState("5");
 
   function startEdit() {
     if (!configQuery.data) return;
     const tiers = TIER_ORDER.map((t) => {
       const found = configQuery.data!.tiers.find((x: any) => x.tier === t);
-      return { tier: t, label: found?.label ?? t, price: found?.price ?? 0, hours: found?.hours ?? 24 };
+      return {
+        tier: t,
+        label: found?.label ?? t,
+        price: String(found?.price ?? 0),
+        hours: String(found?.hours ?? 24),
+      };
     });
     setDraftTiers(tiers);
-    setDraftMaxSlots(configQuery.data.maxSlots);
+    setDraftMaxSlots(String(configQuery.data.maxSlots));
     setEditMode(true);
   }
 
-  function updateDraftTier(idx: number, field: string, val: string | number) {
+  function updateDraftTier(idx: number, field: keyof DraftTier, val: string) {
     setDraftTiers((prev) => prev.map((t, i) => (i === idx ? { ...t, [field]: val } : t)));
   }
 
   function handleSave() {
+    const slots = parseInt(draftMaxSlots);
+    if (!draftMaxSlots.trim() || isNaN(slots) || slots < 1) return alert("最多同時主打數至少為 1");
+    if (slots > 100) return alert("最多同時主打數不能超過 100");
+
+    const parsedTiers = [];
     for (const t of draftTiers) {
-      if (!t.label.trim()) return alert("方案名稱不可空白");
-      if (t.price < 0) return alert("價格不能為負數");
-      if (t.hours < 1) return alert("時長至少 1 小時");
+      if (!t.label.trim()) return alert(`${t.tier} 方案名稱不可空白`);
+      const price = parseFloat(t.price);
+      const hours = parseInt(t.hours);
+      if (isNaN(price) || price < 0) return alert(`${t.tier} 費用必須為 0 或以上`);
+      if (isNaN(hours) || hours < 1) return alert(`${t.tier} 時長至少 1 小時`);
+      parsedTiers.push({ tier: t.tier, label: t.label.trim(), price, hours });
     }
-    if (draftMaxSlots < 1) return alert("最多同時主打數至少為 1");
-    updateConfig.mutate({ tiers: draftTiers, maxSlots: draftMaxSlots });
+
+    updateConfig.mutate({ tiers: parsedTiers, maxSlots: slots });
   }
 
   const listings = allQuery.data ?? [];
@@ -85,17 +99,17 @@ export default function AdminFeaturedListings() {
 
           {/* 顯示模式 */}
           {!editMode && configQuery.data && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between py-2 border-b border-gray-50">
+            <div className="space-y-0">
+              <div className="flex items-center justify-between py-2.5 border-b border-gray-100">
                 <span className="text-xs text-gray-500">最多同時主打數</span>
                 <span className="text-sm font-bold text-indigo-700">{configQuery.data.maxSlots} 個</span>
               </div>
               {TIER_ORDER.map((t) => {
                 const tier = configQuery.data!.tiers.find((x: any) => x.tier === t);
                 return (
-                  <div key={t} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                    <div>
-                      <span className="text-xs font-mono text-gray-400 mr-2">{t}</span>
+                  <div key={t} className="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-gray-300">{t}</span>
                       <span className="text-sm font-medium text-gray-700">{tier?.label ?? "-"}</span>
                     </div>
                     <div className="text-right">
@@ -112,13 +126,16 @@ export default function AdminFeaturedListings() {
           {editMode && (
             <div className="space-y-4">
               {/* 同時主打數 */}
-              <div className="flex items-center justify-between py-2 border-b border-gray-100">
+              <div className="flex items-center justify-between py-2.5 border-b border-gray-100">
                 <span className="text-sm text-gray-700 font-medium">最多同時主打數</span>
                 <div className="flex items-center gap-2">
                   <input
-                    type="number" min={1} max={100} value={draftMaxSlots}
-                    onChange={(e) => setDraftMaxSlots(parseInt(e.target.value) || 1)}
-                    className="w-16 border border-gray-300 rounded-lg px-2 py-1 text-sm text-center"
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={draftMaxSlots}
+                    onChange={(e) => setDraftMaxSlots(e.target.value)}
+                    className="w-20 border border-gray-300 rounded-lg px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-indigo-300"
                   />
                   <span className="text-xs text-gray-400">個</span>
                 </div>
@@ -126,36 +143,42 @@ export default function AdminFeaturedListings() {
 
               {/* 各方案 */}
               {draftTiers.map((t, idx) => (
-                <div key={t.tier} className="p-3 bg-gray-50 rounded-xl space-y-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono bg-gray-200 text-gray-500 px-2 py-0.5 rounded">{t.tier}</span>
+                <div key={t.tier} className="p-4 bg-gray-50 rounded-xl space-y-3">
+                  <span className="inline-block text-xs font-mono bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-md">
+                    {t.tier}
+                  </span>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">方案名稱</label>
+                    <input
+                      type="text"
+                      value={t.label}
+                      onChange={(e) => updateDraftTier(idx, "label", e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                      placeholder="例如：1天主打"
+                    />
                   </div>
-                  <div className="grid grid-cols-1 gap-2">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs text-gray-500 mb-1 block">方案名稱</label>
+                      <label className="text-xs text-gray-500 mb-1 block">費用 (HK$)</label>
                       <input
-                        type="text" value={t.label}
-                        onChange={(e) => updateDraftTier(idx, "label", e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+                        type="number"
+                        min={0}
+                        value={t.price}
+                        onChange={(e) => updateDraftTier(idx, "price", e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        placeholder="0"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-xs text-gray-500 mb-1 block">費用 (HK$)</label>
-                        <input
-                          type="number" min={0} value={t.price}
-                          onChange={(e) => updateDraftTier(idx, "price", parseFloat(e.target.value) || 0)}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500 mb-1 block">時長（小時）</label>
-                        <input
-                          type="number" min={1} value={t.hours}
-                          onChange={(e) => updateDraftTier(idx, "hours", parseInt(e.target.value) || 1)}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
-                        />
-                      </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">時長（小時）</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={t.hours}
+                        onChange={(e) => updateDraftTier(idx, "hours", e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        placeholder="24"
+                      />
                     </div>
                   </div>
                 </div>
@@ -243,17 +266,12 @@ function ListingSection({
         <div className="space-y-3">
           {listings.map((l: any) => (
             <div key={l.id} className="border border-gray-100 rounded-xl p-3 space-y-2">
-              {/* 商品名稱 */}
               <div className="text-sm font-medium text-gray-800 leading-snug">{l.productTitle}</div>
-
-              {/* 標籤行 */}
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${tierBadge}`}>{l.tier}</span>
                 <span className="text-xs text-green-700 font-bold">HK${Number(l.amount).toFixed(0)}</span>
                 <span className="text-xs text-gray-400">{l.merchantName}</span>
               </div>
-
-              {/* 到期時間 + 取消按鈕 */}
               <div className="flex items-center justify-between gap-2">
                 {showExpiry && l.endAt ? (
                   <span className="text-xs text-gray-400">
