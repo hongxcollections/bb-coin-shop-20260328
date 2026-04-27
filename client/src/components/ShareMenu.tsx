@@ -89,8 +89,8 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime }: Sh
   }
 
   const shareText = endTimeStr
-    ? `【hongxcollections.com】${title}\n目前出價 ${currSymbol}${latestBid.toLocaleString()}\n結標時間：${endTimeStr}\n快來競拍！`
-    : `【hongxcollections.com】${title}\n目前出價 ${currSymbol}${latestBid.toLocaleString()}，快來競拍！`;
+    ? `${title}\n目前出價 ${currSymbol}${latestBid.toLocaleString()}\n結標時間：${endTimeStr}\n快來競拍！`
+    : `${title}\n目前出價 ${currSymbol}${latestBid.toLocaleString()}，快來競拍！`;
 
   const calcPosition = useCallback(() => {
     if (!btnRef.current) return;
