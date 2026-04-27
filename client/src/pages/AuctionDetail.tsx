@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { getCurrencySymbol } from "./AdminAuctions";
 import Header from "@/components/Header";
 import { MembershipBenefitsDialog, useMembershipBenefitsDialog } from "@/components/MembershipBenefitsDialog";
+import { useSeoMeta } from "@/lib/useSeoMeta";
+import { ShareMenu } from "@/components/ShareMenu";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -372,6 +374,20 @@ export default function AuctionDetail() {
   };
   const isActive = auction.status === "active" && new Date() < new Date(auction.endTime);
 
+  const auctionImages = auction.images as Array<{ id: number; imageUrl: string }>;
+  const firstImage = auctionImages[0]?.imageUrl;
+  const descSnippet = auction.description
+    ? auction.description.slice(0, 120) + (auction.description.length > 120 ? "…" : "")
+    : `起拍價 ${getCurrencySymbol((auction as { currency?: string })?.currency ?? "HKD")}${Number(auction.startingPrice).toLocaleString()}，立即前往 hongxcollections 競投！`;
+
+  useSeoMeta({
+    title: auction.title,
+    description: descSnippet,
+    ogImage: firstImage,
+    ogUrl: `${window.location.origin}/auctions/${auctionId}`,
+    ogType: "article",
+  });
+
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       {/* No-bid floating popup — fixed top-center, only when active with zero bids */}
@@ -454,7 +470,7 @@ export default function AuctionDetail() {
                       <span className="text-white text-xs font-medium drop-shadow">{auction.sellerName}</span>
                     </div>
                   )}
-                  {/* 右下：圖片計數 + 分享 */}
+                  {/* 右下：圖片計數 + 快速分享 */}
                   <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
                     {images.length > 1 && (
                       <span className="text-white/90 text-xs font-semibold tabular-nums drop-shadow pointer-events-none">
@@ -465,13 +481,9 @@ export default function AuctionDetail() {
                       type="button"
                       onClick={async () => {
                         const url = window.location.href;
-                        const title = auction.title;
+                        const shareText = `${auction.title}\n目前出價 ${getCurrencySymbol((auction as { currency?: string })?.currency ?? "HKD")}${Number(auction.currentPrice).toLocaleString()}\n結標：${new Date(auction.endTime).toLocaleString("zh-HK", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}\n\n${url}`;
                         if (navigator.share) {
-                          try {
-                            await navigator.share({ title, url });
-                          } catch {
-                            // user cancelled — do nothing
-                          }
+                          try { await navigator.share({ title: auction.title, text: shareText, url }); } catch {}
                         } else {
                           await navigator.clipboard.writeText(url);
                           toast.success("連結已複製");
@@ -502,6 +514,13 @@ export default function AuctionDetail() {
                   <Badge className={isActive ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}>
                     {isActive ? "競拍中" : "已結束"}
                   </Badge>
+                  <ShareMenu
+                    auctionId={auctionId}
+                    title={auction.title}
+                    latestBid={Number(auction.currentPrice)}
+                    currency={(auction as { currency?: string })?.currency}
+                    endTime={auction.endTime}
+                  />
                   {isAuthenticated && (
                     <button
                       onClick={() => toggleFavoriteMutation.mutate({ auctionId })}

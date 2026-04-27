@@ -81,8 +81,14 @@ const WhatsAppIcon = () => (
   </svg>
 );
 
+const ThreadsIcon = () => (
+  <svg viewBox="0 0 192 192" className="w-4 h-4 fill-current shrink-0" aria-hidden="true">
+    <path d="M141.537 88.988a66.667 66.667 0 0 0-2.518-1.143c-1.482-27.307-16.403-42.94-41.457-43.1h-.34c-14.986 0-27.449 6.396-35.12 18.036l13.779 9.452c5.73-8.695 14.724-10.548 21.348-10.548h.229c8.249.053 14.474 2.452 18.503 7.129 2.932 3.405 4.893 8.111 5.864 14.05-7.314-1.243-15.224-1.626-23.68-1.14-23.82 1.371-39.134 15.264-38.105 34.568.522 9.792 5.4 18.216 13.735 23.719 7.047 4.652 16.124 6.927 25.557 6.412 12.458-.683 22.231-5.436 29.049-14.127 5.178-6.6 8.453-15.153 9.899-25.93 5.937 3.583 10.337 8.298 12.767 13.966 4.132 9.635 4.373 25.468-8.546 38.376-11.319 11.308-24.925 16.2-45.488 16.351-22.809-.169-40.06-7.484-51.275-21.742C91.346 146.194 85 128.922 85 107.5c0-21.422 6.346-38.694 18.87-51.319 11.315-11.419 28.566-18.734 51.273-21.742"/><path d="M96 64.748c1.617 0 3.212.088 4.783.26-.406-6.696-1.697-12.28-3.885-16.582-2.624-5.144-6.611-8.695-12.11-10.784-8.26-3.115-18.57-1.69-27.84 3.92l-7.087-12.376c12.29-7.04 26.512-9.6 39.568-6.984 12.21 2.45 21.824 9.346 27.805 19.787 5.074 8.93 7.578 20.554 7.455 34.546l-.051 1.04c-.162 5.017-.3 12.32-.156 19.972.082 4.287.303 8.46.67 12.312 1.05 11.024.086 19.72-2.888 27.286-3.367 8.586-9.003 15.037-17.23 19.716-8.69 4.94-18.83 7.278-29.96 6.972-13.02-.363-24.49-4.573-33.17-12.19C33.086 144.116 27.5 133.444 27.5 120.5c0-15.29 8.167-27.853 22.955-35.44 10.073-5.18 22.28-7.627 36.304-7.306-.14 2.828-.217 5.693-.217 8.594 0 2.6.064 5.16.184 7.668-11.14-.325-20.085 1.596-26.582 5.698-6.988 4.424-10.644 10.69-10.644 18.286 0 8.126 4.03 14.453 11.664 18.304 7.053 3.558 15.64 4.357 24.316 2.26 10.576-2.558 17.824-8.54 21.546-17.783 2.25-5.587 3.017-12.306 2.353-20.46a193.36 193.36 0 0 1-.437-10.007c-.084-5.018.043-10.186.178-14.99A55.06 55.06 0 0 0 96 64.748z"/>
+  </svg>
+);
+
 const MENU_WIDTH = 176;
-const MENU_HEIGHT = 220;
+const MENU_HEIGHT = 260;
 
 export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shareTemplate }: ShareMenuProps) {
   const [open, setOpen] = useState(false);
@@ -183,6 +189,22 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
     setOpen(false);
   }
 
+  function handleThreads() {
+    const url = `https://www.threads.net/intent/post?text=${encodeURIComponent(shareText + "\n" + auctionUrl)}`;
+    window.open(url, "_blank", "noopener,noreferrer,width=600,height=600");
+    setOpen(false);
+  }
+
+  async function handleCopyText() {
+    try {
+      await navigator.clipboard.writeText(shareText + "\n" + auctionUrl);
+      toast.success("已複製廣告文字！");
+    } catch {
+      toast.error("複製失敗");
+    }
+    setOpen(false);
+  }
+
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(auctionUrl);
@@ -248,7 +270,25 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
             WhatsApp
           </button>
 
+          <button
+            type="button"
+            onClick={handleThreads}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-black/10 hover:text-black"
+          >
+            <ThreadsIcon />
+            Threads
+          </button>
+
           <div className="my-1 border-t border-amber-50" />
+
+          <button
+            type="button"
+            onClick={handleCopyText}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground hover:bg-amber-50/80 hover:text-amber-700 transition-colors"
+          >
+            <Copy className="w-4 h-4 shrink-0" />
+            複製廣告文字
+          </button>
 
           <button
             type="button"
