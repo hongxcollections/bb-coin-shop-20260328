@@ -71,6 +71,10 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
     const currPrice = Number(auction.currentPrice).toLocaleString();
     const endTimeStr = formatEndTime(new Date(auction.endTime));
 
+    // Detect image content type from URL extension
+    const imgExt = imageUrl ? imageUrl.split("?")[0].split(".").pop()?.toLowerCase() : "";
+    const imgMime = imgExt === "png" ? "image/png" : imgExt === "gif" ? "image/gif" : imgExt === "webp" ? "image/webp" : "image/jpeg";
+
     // Facebook large-image preview ONLY shows og:title (not description/site_name).
     // So we pack all key info into og:title for maximum visibility.
     const ogTitle = `${auction.title} ｜ 起拍 ${currSymbol}${startPrice}｜結標：${endTimeStr}`;
@@ -85,9 +89,12 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
       `<meta property="og:title" content="${esc(ogTitle)}" />`,
       `<meta property="og:description" content="${esc(ogDesc)}" />`,
       `<meta property="og:url" content="${esc(fullUrl)}" />`,
+      // og:image block — width/height hints required by Facebook for reliable display
       imageUrl ? `<meta property="og:image" content="${esc(imageUrl)}" />` : "",
       imageUrl ? `<meta property="og:image:secure_url" content="${esc(imageUrl)}" />` : "",
-      imageUrl ? `<meta property="og:image:type" content="image/jpeg" />` : "",
+      imageUrl ? `<meta property="og:image:type" content="${imgMime}" />` : "",
+      imageUrl ? `<meta property="og:image:width" content="1200" />` : "",
+      imageUrl ? `<meta property="og:image:height" content="1200" />` : "",
       `<meta name="twitter:card" content="${imageUrl ? "summary_large_image" : "summary"}" />`,
       `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
       `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
@@ -98,7 +105,7 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
     // Replace existing <title> and inject OG meta before </head>
     let result = html.replace(/<title>[^<]*<\/title>/, "");
     result = result.replace("</head>", `    ${ogMeta}\n  </head>`);
-    console.log(`[OG Meta] Injected for auction ${auctionId}: "${ogTitle}"`);
+    console.log(`[OG Meta] Injected for auction ${auctionId}: title="${ogTitle}" imageUrl="${imageUrl}"`);
     return result;
   } catch (err) {
     console.error("[OG Meta] Error generating OG tags:", err);
