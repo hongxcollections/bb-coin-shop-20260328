@@ -66,7 +66,11 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
 
     const images = await getAuctionImages(auctionId);
     const hasImage = images.length > 0 && !!images[0].imageUrl;
-    const ogImageUrl = hasImage ? images[0].imageUrl : "";
+    // Facebook 爬蟲 IP 被 S3 bucket policy 阻擋，直接用 S3 URL 會 403。
+    // 改用伺服器代理拉圖再轉發，讓 Facebook 始終能取得圖片。
+    const ogImageUrl = hasImage
+      ? `${protocol}://${host}/api/og-image/${auctionId}`
+      : "";
     const imgMime = "image/jpeg";
 
     const currSymbol = getCurrencySymbol((auction as { currency?: string }).currency ?? "HKD");

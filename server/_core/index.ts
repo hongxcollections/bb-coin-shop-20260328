@@ -823,6 +823,31 @@ Output ONLY the JSON, nothing else.`;
   });
 
 
+  // ── OG 圖片代理：讓 Facebook 爬蟲透過我們的伺服器拿圖片，繞過 S3 的 IP 限制 ──
+  app.get('/api/og-image/:auctionId', async (req, res) => {
+    try {
+      const auctionId = parseInt(req.params.auctionId, 10);
+      if (isNaN(auctionId) || auctionId <= 0) { res.status(400).send('Invalid auction ID'); return; }
+      const { getAuctionImages } = await import('../db');
+      const images = await getAuctionImages(auctionId);
+      if (!images || images.length === 0 || !images[0].imageUrl) { res.status(404).send('No image'); return; }
+      const s3Res = await fetch(images[0].imageUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HongxCollections/1.0)' },
+      });
+      if (!s3Res.ok) { res.status(s3Res.status).send('Image fetch failed'); return; }
+      const buf = Buffer.from(await s3Res.arrayBuffer());
+      const contentType = s3Res.headers.get('content-type') || 'image/jpeg';
+      res.set({
+        'Content-Type': contentType,
+        'Content-Length': buf.length.toString(),
+        'Cache-Control': 'public, max-age=3600',
+      }).end(buf);
+    } catch (err) {
+      console.error('[OG Image Proxy] Error:', err);
+      res.status(500).send('Error');
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",
