@@ -69,8 +69,9 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
     // Use our own server as image proxy so Facebook's crawler always succeeds.
     // Direct S3 URLs (especially temp/ paths) can be blocked by S3 IP policies
     // when accessed from Facebook's crawler servers.
+    // v=2 forces Facebook to re-fetch after the landscape resize update (2026-04-27)
     const proxyImageUrl = hasImage
-      ? `${protocol}://${host}/api/og-image/${auctionId}`
+      ? `${protocol}://${host}/api/og-image/${auctionId}?v=2`
       : "";
     const imgMime = "image/jpeg";
 

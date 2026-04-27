@@ -869,7 +869,7 @@ Output ONLY the JSON, nothing else.`;
       res.set({
         'Content-Type': 'image/jpeg',
         'Content-Length': ogBuf.length.toString(),
-        'Cache-Control': 'public, max-age=86400, immutable',
+        'Cache-Control': 'public, max-age=3600',
       }).end(ogBuf);
     } catch (err) {
       console.error('[OG Image Proxy] Error:', err);
