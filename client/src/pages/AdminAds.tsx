@@ -166,38 +166,25 @@ export default function AdminAds() {
                 />
               </div>
 
-              <div className={`space-y-1 transition-opacity ${cur.enabled ? "" : "opacity-40 pointer-events-none"}`}>
-                <Label className="text-xs text-amber-700">當前顯示版本</Label>
-                <div className="flex gap-2">
-                  {[1, 2, 3].map(n => (
-                    <button
-                      key={n}
-                      onClick={() => setState(p => ({ ...p, [activeTab]: { ...p[activeTab], activeSlot: n } }))}
-                      className={`flex-1 py-1.5 rounded-lg border text-sm font-medium transition-all ${
-                        cur.activeSlot === n
-                          ? "bg-amber-500 text-white border-amber-500"
-                          : "bg-white text-muted-foreground border-border hover:border-amber-300"
-                      }`}
-                    >
-                      版本 {n}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-xs text-amber-500 mt-1">選擇要在前台顯示的廣告版本</p>
+              <div className={`transition-opacity ${cur.enabled ? "" : "opacity-40"}`}>
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  🎲 系統每次自動從<strong>有內容的版本</strong>中隨機選一個顯示，可同時填寫多個版本輪流出現
+                </p>
               </div>
 
               {/* 三個版本的內容編輯 */}
               <div className="space-y-4">
                 {[1, 2, 3].map(n => {
                   const slotData = cur.slots[n - 1];
-                  const isActive = cur.activeSlot === n;
+                  const hasCnt = !!(slotData.title.trim() || slotData.body.trim());
                   return (
-                    <div key={n} className={`rounded-xl border p-3.5 space-y-2.5 transition-all ${isActive && cur.enabled ? "border-amber-300 bg-amber-50/60" : "border-border bg-white"}`}>
+                    <div key={n} className={`rounded-xl border p-3.5 space-y-2.5 transition-all ${hasCnt && cur.enabled ? "border-amber-300 bg-amber-50/60" : "border-border bg-white"}`}>
                       <div className="flex items-center gap-2">
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${isActive && cur.enabled ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"}`}>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${hasCnt ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"}`}>
                           版本 {n}
                         </span>
-                        {isActive && cur.enabled && <span className="text-xs text-amber-600 font-medium">▲ 目前顯示中</span>}
+                        {hasCnt && cur.enabled && <span className="text-xs text-amber-600 font-medium">🎲 納入隨機池</span>}
+                        {!hasCnt && <span className="text-xs text-muted-foreground">（空白，不會顯示）</span>}
                       </div>
                       <div className="space-y-1.5">
                         <Label htmlFor={`title-${activeTab}-${n}`} className="text-xs">標題（選填）</Label>

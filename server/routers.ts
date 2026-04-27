@@ -4532,11 +4532,11 @@ export const appRouter = router({
         const { targetType } = input;
         const enabled = await getSiteSetting(`ad.${targetType}.enabled`);
         if (enabled !== 'true') return null;
-        const activeSlot = parseInt(await getSiteSetting(`ad.${targetType}.activeSlot`) ?? '1', 10) || 1;
         const banners = await getAdBanners(targetType as AdTargetType);
-        const banner = banners.find(b => b.slot === activeSlot);
-        if (!banner || (!banner.title && !banner.body)) return null;
-        return { slot: activeSlot, title: banner.title, body: banner.body };
+        const filled = banners.filter(b => b.title || b.body);
+        if (filled.length === 0) return null;
+        const banner = filled[Math.floor(Math.random() * filled.length)];
+        return { slot: banner.slot, title: banner.title, body: banner.body };
       }),
 
     /** 公開：server 自動判斷身份，返回當前廣告（前台用） */
@@ -4553,11 +4553,11 @@ export const appRouter = router({
         }
         const enabled = await getSiteSetting(`ad.${targetType}.enabled`);
         if (enabled !== 'true') return null;
-        const activeSlot = parseInt(await getSiteSetting(`ad.${targetType}.activeSlot`) ?? '1', 10) || 1;
         const banners = await getAdBanners(targetType);
-        const banner = banners.find(b => b.slot === activeSlot);
-        if (!banner || (!banner.title && !banner.body)) return null;
-        return { targetType, slot: activeSlot, title: banner.title, body: banner.body };
+        const filled = banners.filter(b => b.title || b.body);
+        if (filled.length === 0) return null;
+        const banner = filled[Math.floor(Math.random() * filled.length)];
+        return { targetType, slot: banner.slot, title: banner.title, body: banner.body };
       }),
 
     /** 管理員：取得所有廣告內容 */
