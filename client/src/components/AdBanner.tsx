@@ -101,19 +101,14 @@ export default function AdBanner() {
         }
       `}</style>
 
-      {/* 外層：fixed 定位，left:50% 作為水平錨點 */}
+      {/* 外層：fixed 定位，貼左邊 */}
       <div style={{
         position: "fixed",
         bottom: "calc(4.8rem + env(safe-area-inset-bottom, 0px))",
-        left: "50%",
+        left: 16,
         zIndex: 99995,
         pointerEvents: "none",
       }}>
-        {/* 置中層：translateX(-50%) 永遠只管水平置中，不參與動畫 */}
-        <div style={{
-          transform: "translateX(-50%)",
-          pointerEvents: "none",
-        }}>
         {/* 動畫層：鐘擺，transform-origin 頂部中央，只做 Y 移動 + 旋轉 */}
         <div
           className="ad-sphere-inner"
@@ -309,7 +304,6 @@ export default function AdBanner() {
             }}
           />
         </div>
-        </div>{/* 置中層結束 */}
       </div>
     </>
   );
