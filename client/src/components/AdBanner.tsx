@@ -48,16 +48,15 @@ export default function AdBanner() {
       <style>{`
         /* 鐘擺落下：從頂部左右慢擺落底，擺幅遞減停住 */
         @keyframes adBannerPendulum {
-          0%   { transform: translateY(-135%) rotate(-28deg); opacity: 0; }
-          12%  { transform: translateY(-95%)  rotate(22deg);  opacity: 1; }
-          24%  { transform: translateY(-60%)  rotate(-16deg); opacity: 1; }
-          36%  { transform: translateY(-28%)  rotate(11deg);  opacity: 1; }
-          48%  { transform: translateY(-5%)   rotate(-7deg);  opacity: 1; }
-          58%  { transform: translateY(0)     rotate(4deg);   opacity: 1; }
-          67%  { transform: translateY(0)     rotate(-2.5deg);opacity: 1; }
-          75%  { transform: translateY(0)     rotate(1.5deg); opacity: 1; }
-          83%  { transform: translateY(0)     rotate(-0.8deg);opacity: 1; }
-          90%  { transform: translateY(0)     rotate(0.3deg); opacity: 1; }
+          0%   { transform: translateY(-135%) rotate(-26deg); opacity: 0; }
+          18%  { transform: translateY(-90%)  rotate(20deg);  opacity: 1; }
+          34%  { transform: translateY(-52%)  rotate(-14deg); opacity: 1; }
+          48%  { transform: translateY(-18%)  rotate(9deg);   opacity: 1; }
+          59%  { transform: translateY(0)     rotate(-5deg);  opacity: 1; }
+          68%  { transform: translateY(0)     rotate(3deg);   opacity: 1; }
+          76%  { transform: translateY(0)     rotate(-1.8deg);opacity: 1; }
+          84%  { transform: translateY(0)     rotate(0.9deg); opacity: 1; }
+          91%  { transform: translateY(0)     rotate(-0.3deg);opacity: 1; }
           100% { transform: translateY(0)     rotate(0deg);   opacity: 1; }
         }
         @keyframes adBannerFadeUp {
@@ -99,7 +98,7 @@ export default function AdBanner() {
             pointerEvents: "auto",
             transformOrigin: "top center",
             animation: visible
-              ? "adBannerPendulum 2.4s ease-out both"
+              ? "adBannerPendulum 3.8s ease-out both"
               : "adBannerFadeUp 0.4s ease-in both",
           }}
         >
