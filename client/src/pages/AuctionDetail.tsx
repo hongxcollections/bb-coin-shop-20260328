@@ -125,6 +125,21 @@ export default function AuctionDetail() {
     }
   );
 
+  // SEO meta — 必須在頂層無條件呼叫（hooks 規則），auction 為 undefined 時傳空值
+  const _seoFirstImage = (auction?.images as Array<{ imageUrl: string }> | undefined)?.[0]?.imageUrl;
+  const _seoDesc = auction
+    ? (auction.description
+        ? String(auction.description).slice(0, 120) + (String(auction.description).length > 120 ? "…" : "")
+        : `起拍價 ${getCurrencySymbol((auction as { currency?: string })?.currency ?? "HKD")}${Number(auction.startingPrice).toLocaleString()}，立即前往 hongxcollections 競投！`)
+    : undefined;
+  useSeoMeta({
+    title: auction?.title,
+    description: _seoDesc,
+    ogImage: _seoFirstImage,
+    ogUrl: `${window.location.origin}/auctions/${auctionId}`,
+    ogType: "article",
+  });
+
   // 偵測其他用戶出價導致的價格變動，主動提示 B 用戶
   useEffect(() => {
     if (!auction) return;
@@ -373,20 +388,6 @@ export default function AuctionDetail() {
     return bid.username ?? `用戶 #${bid.userId}`;
   };
   const isActive = auction.status === "active" && new Date() < new Date(auction.endTime);
-
-  const auctionImages = auction.images as Array<{ id: number; imageUrl: string }>;
-  const firstImage = auctionImages[0]?.imageUrl;
-  const descSnippet = auction.description
-    ? auction.description.slice(0, 120) + (auction.description.length > 120 ? "…" : "")
-    : `起拍價 ${getCurrencySymbol((auction as { currency?: string })?.currency ?? "HKD")}${Number(auction.startingPrice).toLocaleString()}，立即前往 hongxcollections 競投！`;
-
-  useSeoMeta({
-    title: auction.title,
-    description: descSnippet,
-    ogImage: firstImage,
-    ogUrl: `${window.location.origin}/auctions/${auctionId}`,
-    ogType: "article",
-  });
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
