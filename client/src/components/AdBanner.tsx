@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { X, Megaphone, Sparkles } from "lucide-react";
+import { X, Megaphone } from "lucide-react";
 
 const DISMISS_KEY = "adBanner_dismissed_v1";
 const SHOW_DELAY_MS = 1800;
@@ -46,7 +46,6 @@ export default function AdBanner() {
   return (
     <>
       <style>{`
-        /* 鐘擺落下：從頂部左右慢擺落底，擺幅遞減停住 */
         @keyframes adBannerPendulum {
           0%   { transform: translateY(-135%) rotate(-26deg); opacity: 0; }
           18%  { transform: translateY(-90%)  rotate(20deg);  opacity: 1; }
@@ -60,177 +59,214 @@ export default function AdBanner() {
           100% { transform: translateY(0)     rotate(0deg);   opacity: 1; }
         }
         @keyframes adBannerFadeUp {
-          0%   { transform: translateY(0)     rotate(0deg);   opacity: 1; }
+          0%   { transform: translateY(0)  rotate(0deg);   opacity: 1; }
           100% { transform: translateY(-140%) rotate(-20deg); opacity: 0; }
         }
-        /* 星星持續旋轉 */
-        @keyframes adSparkle {
-          from { transform: rotate(0deg)   scale(1);    opacity: 0.22; }
-          50%  { transform: rotate(180deg) scale(1.12); opacity: 0.38; }
-          to   { transform: rotate(360deg) scale(1);    opacity: 0.22; }
+        /* 球體表面光暈浮動 */
+        @keyframes adSphereShimmer {
+          0%, 100% { opacity: 0.55; transform: scale(1) translate(0, 0); }
+          50%       { opacity: 0.75; transform: scale(1.06) translate(2px, -2px); }
+        }
+        /* 底部陰影跟著球體脈動 */
+        @keyframes adShadowPulse {
+          0%, 100% { transform: translateX(-50%) scaleX(1);   opacity: 0.22; }
+          50%       { transform: translateX(-50%) scaleX(0.88); opacity: 0.14; }
         }
         @media (prefers-reduced-motion: reduce) {
-          .ad-banner-inner { animation: none !important; }
-          .ad-sparkle      { animation: none !important; }
+          .ad-sphere-inner   { animation: none !important; }
+          .ad-sphere-shimmer { animation: none !important; }
+          .ad-sphere-shadow  { animation: none !important; }
         }
       `}</style>
 
-      {/* 外層：fixed + flex 置中（無 transform，免衝突動畫） */}
+      {/* 外層：fixed 定位 + flex 置中 */}
       <div style={{
         position: "fixed",
-        bottom: "calc(4.5rem + env(safe-area-inset-bottom, 0px))",
+        bottom: "calc(4.8rem + env(safe-area-inset-bottom, 0px))",
         left: 0,
         right: 0,
         display: "flex",
         justifyContent: "center",
-        padding: "0 12px",
         zIndex: 99995,
         pointerEvents: "none",
       }}>
-        {/* 動畫層：鐘擺 transform 在這裡 */}
+        {/* 動畫層：鐘擺，transform-origin 頂部中央 */}
         <div
-          className="ad-banner-inner"
+          className="ad-sphere-inner"
           style={{
-            width: "100%",
-            maxWidth: 480,
             pointerEvents: "auto",
             transformOrigin: "top center",
+            position: "relative",
             animation: visible
               ? "adBannerPendulum 3.8s ease-out both"
               : "adBannerFadeUp 0.4s ease-in both",
           }}
         >
-          {/* 氣泡外殼：relative，讓尾巴 absolute 定位在這裡 */}
-          <div style={{ position: "relative" }}>
+          {/* ── 球體主體 ── */}
+          <div style={{
+            position: "relative",
+            width: 190,
+            height: 190,
+            borderRadius: "50%",
+            /* 模擬金色球體：光源在左上方，右下漸深 */
+            background: `
+              radial-gradient(
+                circle at 36% 30%,
+                #fff7c0 0%,
+                #fde68a 18%,
+                #f59e0b 42%,
+                #d97706 65%,
+                #92400e 88%,
+                #78350f 100%
+              )
+            `,
+            boxShadow: `
+              0 24px 60px rgba(120, 60, 0, 0.55),
+              0 8px 24px rgba(0, 0, 0, 0.35),
+              inset 0 -12px 28px rgba(0, 0, 0, 0.30),
+              inset 0 6px 18px rgba(255, 255, 220, 0.22)
+            `,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px 18px 24px",
+            overflow: "hidden",
+            cursor: "default",
+          }}>
+            {/* 高光圓斑：模擬球體反射亮點 */}
+            <div
+              className="ad-sphere-shimmer"
+              style={{
+                position: "absolute",
+                top: "13%",
+                left: "18%",
+                width: "46%",
+                height: "32%",
+                borderRadius: "50%",
+                background: "radial-gradient(ellipse at 40% 40%, rgba(255,255,255,0.82) 0%, rgba(255,255,240,0.35) 55%, transparent 100%)",
+                animation: "adSphereShimmer 3.5s ease-in-out infinite",
+                pointerEvents: "none",
+              }}
+            />
 
-            {/* 卡片主體 */}
+            {/* 小高光：右上邊緣反射 */}
+            <div style={{
+              position: "absolute",
+              top: "8%",
+              right: "15%",
+              width: "12%",
+              height: "8%",
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.38)",
+              pointerEvents: "none",
+            }} />
+
+            {/* 廣播圖示 */}
             <div style={{
               position: "relative",
-              overflow: "hidden",
-              background: "linear-gradient(110deg, #fef3c7 0%, #fce7f3 40%, #fef3c7 55%, #fce7f3 70%, #fef3c7 100%)",
-              border: "1.5px solid #f59e0b",
-              borderRadius: "22px",
-              boxShadow: "0 8px 28px rgba(180,100,0,0.16), 0 2px 8px rgba(0,0,0,0.08)",
-              padding: "14px",
+              width: 34,
+              height: 34,
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.18)",
+              border: "1px solid rgba(255,255,255,0.35)",
               display: "flex",
-              alignItems: "flex-start",
-              gap: "10px",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 7,
+              flexShrink: 0,
             }}>
-              {/* 裝飾星星（右上） */}
-              <div className="ad-sparkle" style={{
-                position: "absolute",
-                top: -10, right: -10,
-                pointerEvents: "none",
-                animation: "adSparkle 9s linear infinite",
-              }}>
-                <Sparkles style={{ width: 56, height: 56, color: "#f59e0b" }} />
-              </div>
+              <Megaphone style={{ width: 16, height: 16, color: "#fff" }} />
+            </div>
 
-              {/* 裝飾星星（左下，反向） */}
-              <div className="ad-sparkle" style={{
-                position: "absolute",
-                bottom: -8, left: -8,
-                pointerEvents: "none",
-                animation: "adSparkle 12s linear infinite reverse",
-              }}>
-                <Sparkles style={{ width: 38, height: 38, color: "#ec4899" }} />
-              </div>
+            {/* 文字 */}
+            <div style={{
+              position: "relative",
+              textAlign: "center",
+              maxWidth: 140,
+            }}>
+              {data.title && (
+                <div style={{
+                  fontWeight: 800,
+                  fontSize: "12px",
+                  color: "#fff",
+                  lineHeight: 1.3,
+                  marginBottom: data.body ? 4 : 0,
+                  textShadow: "0 1px 4px rgba(0,0,0,0.45)",
+                  letterSpacing: "0.01em",
+                }}>
+                  {data.title}
+                </div>
+              )}
+              {data.body && (
+                <div style={{
+                  fontSize: "11px",
+                  color: "rgba(255,248,220,0.92)",
+                  lineHeight: 1.45,
+                  textShadow: "0 1px 3px rgba(0,0,0,0.4)",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}>
+                  {data.body}
+                </div>
+              )}
+            </div>
 
-              {/* Icon */}
-              <div style={{
-                position: "relative",
-                flexShrink: 0,
-                width: 36, height: 36,
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #f59e0b, #ec4899)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                marginTop: 1,
-                boxShadow: "0 2px 8px rgba(245,158,11,0.35)",
-              }}>
-                <Megaphone style={{ width: 17, height: 17, color: "#fff" }} />
-              </div>
-
-              {/* 文字內容 */}
-              <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
-                {data.title && (
-                  <div style={{
-                    fontWeight: 700,
-                    fontSize: "13px",
-                    color: "#92400e",
-                    lineHeight: 1.35,
-                    marginBottom: data.body ? 4 : 0,
-                  }}>
-                    {data.title}
-                  </div>
-                )}
-                {data.body && (
-                  <div style={{
-                    fontSize: "12.5px",
-                    color: "#a16207",
-                    lineHeight: 1.5,
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                  }}>
-                    {data.body}
-                  </div>
-                )}
-              </div>
-
-              {/* 關閉按鈕 */}
-              <button
-                onClick={handleDismiss}
-                style={{
-                  position: "relative",
-                  flexShrink: 0,
-                  padding: 5,
-                  borderRadius: "50%",
-                  border: "none",
-                  background: "rgba(180,100,0,0.12)",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#b45309",
-                  marginTop: -3,
-                  marginRight: -2,
-                }}
-                aria-label="關閉廣告"
-              >
-                <X style={{ width: 14, height: 14 }} />
-              </button>
-            </div>{/* 卡片主體 end */}
-
-            {/* ▼ 對話氣泡向下尾巴（兩層三角形） */}
-            {/* 外層三角：amber border 色 */}
+            {/* 底部內陰影加深感 */}
             <div style={{
               position: "absolute",
-              bottom: -14,
-              left: "50%",
-              transform: "translateX(-50%)",
-              width: 0, height: 0,
-              borderLeft: "14px solid transparent",
-              borderRight: "14px solid transparent",
-              borderTop: "13px solid #f59e0b",
-              zIndex: 1,
+              bottom: 0, left: 0, right: 0,
+              height: "40%",
+              borderRadius: "0 0 50% 50%",
+              background: "linear-gradient(to top, rgba(0,0,0,0.20), transparent)",
+              pointerEvents: "none",
             }} />
-            {/* 內層三角：填色（卡片底部中央色） */}
-            <div style={{
-              position: "absolute",
-              bottom: -11,
-              left: "50%",
-              transform: "translateX(-50%)",
-              width: 0, height: 0,
-              borderLeft: "12px solid transparent",
-              borderRight: "12px solid transparent",
-              borderTop: "12px solid #fef3c7",
-              zIndex: 2,
-            }} />
+          </div>
 
-          </div>{/* 氣泡外殼 end */}
-        </div>{/* 動畫層 end */}
-      </div>{/* 外層 fixed end */}
+          {/* 關閉按鈕：懸浮在球體右上方 */}
+          <button
+            onClick={handleDismiss}
+            style={{
+              position: "absolute",
+              top: 6,
+              right: 6,
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              border: "1.5px solid rgba(255,255,255,0.6)",
+              background: "rgba(120,53,15,0.75)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#fff",
+              backdropFilter: "blur(4px)",
+              zIndex: 10,
+            }}
+            aria-label="關閉廣告"
+          >
+            <X style={{ width: 12, height: 12 }} />
+          </button>
+
+          {/* 球體落地陰影 */}
+          <div
+            className="ad-sphere-shadow"
+            style={{
+              position: "absolute",
+              bottom: -10,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 130,
+              height: 18,
+              borderRadius: "50%",
+              background: "rgba(120,53,15,0.28)",
+              filter: "blur(8px)",
+              animation: "adShadowPulse 3.5s ease-in-out infinite",
+              pointerEvents: "none",
+            }}
+          />
+        </div>
+      </div>
     </>
   );
 }
