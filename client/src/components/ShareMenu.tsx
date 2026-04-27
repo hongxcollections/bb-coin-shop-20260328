@@ -76,7 +76,7 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime }: Sh
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  const auctionUrl = `https://hongxcollections.com/auctions/${auctionId}`;
+  const auctionUrl = `${window.location.origin}/auctions/${auctionId}`;
   const curr = currency ?? "HKD";
   const currSymbol = getCurrSymbol(curr);
 

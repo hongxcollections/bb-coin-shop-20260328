@@ -1200,7 +1200,7 @@ export default function MerchantAuctions() {
               const dh = h < 12 ? h : h === 12 ? 12 : h - 12;
               const endStr = `${mo}月${dy}日(${wd}) ${period}${dh}:${mi}`;
               const shareText = `${a.title}\n目前出價 ${sym}${currentBid.toLocaleString()}\n結標時間：${endStr}\n快來競拍！`;
-              const auctionUrl = `https://hongxcollections.com/auctions/${a.id}`;
+              const auctionUrl = `${window.location.origin}/auctions/${a.id}`;
               const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}`;
               const img = a.images?.[0]?.imageUrl;
               const isCopied = copiedIds.has(a.id);
