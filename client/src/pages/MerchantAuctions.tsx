@@ -876,7 +876,7 @@ export default function MerchantAuctions() {
               onClick={() => setBatchShareOpen(true)}
             >
               <Facebook className="w-3 h-3" />
-              批量分享 Facebook（{activeAuctions.length}）
+              批量分享（{activeAuctions.length}）
             </Button>
           </div>
         )}
@@ -1154,12 +1154,12 @@ export default function MerchantAuctions() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[#1877F2]">
               <Facebook className="w-5 h-5" />
-              批量分享 Facebook
+              批量分享
             </DialogTitle>
           </DialogHeader>
           <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700 space-y-0.5 -mt-1">
-            <p>• <b>分享連結</b>：開啟 Facebook 分享，適合個人動態</p>
-            <p>• <b>複製文字</b>：複製格式化文字+連結，貼入 <b>Facebook 群組</b>帖子</p>
+            <p>• <b>分享</b>：彈出系統分享選單，可選擇 Facebook 群組、WhatsApp 等</p>
+            <p>• <b>複製文字</b>：複製格式化文字+連結，手動貼入任何平台</p>
           </div>
           {/* 複製全部按鈕 */}
           <Button
@@ -1218,12 +1218,22 @@ export default function MerchantAuctions() {
                     </div>
                   </div>
                   <div className="flex gap-1.5 px-2.5 pb-2.5">
-                    <a href={fbUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
-                      <Button size="sm" className="w-full h-7 text-xs gap-1 bg-[#1877F2] hover:bg-[#1560c8] text-white border-0">
-                        <Facebook className="w-3 h-3" />
-                        分享連結
-                      </Button>
-                    </a>
+                    <Button
+                      size="sm"
+                      className="flex-1 h-7 text-xs gap-1 bg-[#1877F2] hover:bg-[#1560c8] text-white border-0"
+                      onClick={async () => {
+                        if (navigator.share) {
+                          try {
+                            await navigator.share({ title: a.title, text: shareText, url: auctionUrl });
+                          } catch {}
+                        } else {
+                          window.open(fbUrl, "_blank", "noopener,noreferrer,width=600,height=500");
+                        }
+                      }}
+                    >
+                      <Facebook className="w-3 h-3" />
+                      分享
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
