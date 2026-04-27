@@ -865,6 +865,49 @@ Output ONLY the JSON, nothing else.`;
     })
   );
 
+  // ── 動態 sitemap.xml ───────────────────────────────────────────────────────
+  app.get('/sitemap.xml', async (_req, res) => {
+    try {
+      const { getDb } = await import('../db');
+      const db = getDb();
+      const rows = await db.execute(
+        `SELECT id, updated_at, created_at FROM auctions
+         WHERE status IN ('active','completed')
+         ORDER BY updated_at DESC LIMIT 1000`
+      ) as [Array<{ id: number; updated_at: Date | null; created_at: Date | null }>, unknown];
+      const auctions = rows[0] ?? [];
+
+      const base = 'https://hongxcollections.com';
+      const now = new Date().toISOString().split('T')[0];
+
+      const staticPages = [
+        { loc: `${base}/`,           changefreq: 'daily',   priority: '1.0', lastmod: now },
+        { loc: `${base}/auctions`,   changefreq: 'hourly',  priority: '0.9', lastmod: now },
+        { loc: `${base}/merchants`,  changefreq: 'weekly',  priority: '0.6', lastmod: now },
+        { loc: `${base}/plans`,      changefreq: 'monthly', priority: '0.5', lastmod: now },
+      ];
+
+      const auctionEntries = auctions.map((a) => {
+        const lastmod = a.updated_at
+          ? new Date(a.updated_at).toISOString().split('T')[0]
+          : (a.created_at ? new Date(a.created_at).toISOString().split('T')[0] : now);
+        return `  <url>\n    <loc>${base}/auctions/${a.id}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>hourly</changefreq>\n    <priority>0.8</priority>\n  </url>`;
+      });
+
+      const staticEntries = staticPages.map(p =>
+        `  <url>\n    <loc>${p.loc}</loc>\n    <lastmod>${p.lastmod}</lastmod>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`
+      );
+
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...staticEntries, ...auctionEntries].join('\n')}\n</urlset>`;
+      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.send(xml);
+    } catch (err) {
+      console.error('[Sitemap] Error generating sitemap:', err);
+      res.status(500).send('Error generating sitemap');
+    }
+  });
+
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);

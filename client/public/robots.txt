@@ -1,10 +1,21 @@
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: facebookexternalhit
 Allow: /
 
 User-agent: Twitterbot
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: Googlebot
 Allow: /
 
 Sitemap: https://hongxcollections.com/sitemap.xml
