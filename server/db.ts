@@ -2334,6 +2334,8 @@ export async function getAllUsersExtended() {
         depositIsActive: sellerDeposits.isActive,
         mustChangePassword: users.mustChangePassword,
         wonCount: sql<number>`(SELECT COUNT(*) FROM auctions WHERE highestBidderId = ${users.id} AND status = 'ended')`,
+        activeAuctionCount: sql<number>`(SELECT COUNT(*) FROM auctions WHERE createdBy = ${users.id} AND status = 'active')`,
+        activeProductCount: sql<number>`(SELECT COUNT(*) FROM merchantProducts WHERE userId = ${users.id} AND status = 'active')`,
       })
       .from(users)
       .leftJoin(sellerDeposits, eq(sellerDeposits.userId, users.id))

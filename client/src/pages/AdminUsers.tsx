@@ -48,6 +48,8 @@ type UserRow = {
   depositIsActive: number | null;
   mustChangePassword: number | null;
   wonCount: number;
+  activeAuctionCount: number;
+  activeProductCount: number;
 };
 
 /** Expandable list of won auctions for a user — fetches on demand */
@@ -1108,22 +1110,34 @@ export default function AdminUsers() {
                     <div className="text-gray-400 whitespace-nowrap">加入：{formatDate(u.createdAt)}</div>
 
                     {/* Won auctions toggle */}
-                    <button
-                      type="button"
-                      onClick={() => setExpandedUserId(expandedUserId === u.id ? null : u.id)}
-                      className="flex items-center gap-1 mt-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium transition-colors"
-                      style={{
-                        background: expandedUserId === u.id ? "#FFF3E0" : "#F5F5F5",
-                        color: expandedUserId === u.id ? "#C8860A" : "#666",
-                      }}
-                    >
-                      <Gavel size={10} />
-                      中標 {Number(u.wonCount)} 件
-                      <ChevronDown
-                        size={11}
-                        style={{ transform: expandedUserId === u.id ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
-                      />
-                    </button>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedUserId(expandedUserId === u.id ? null : u.id)}
+                        className="flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium transition-colors"
+                        style={{
+                          background: expandedUserId === u.id ? "#FFF3E0" : "#F5F5F5",
+                          color: expandedUserId === u.id ? "#C8860A" : "#666",
+                        }}
+                      >
+                        <Gavel size={10} />
+                        中標 {Number(u.wonCount)} 件
+                        <ChevronDown
+                          size={11}
+                          style={{ transform: expandedUserId === u.id ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
+                        />
+                      </button>
+                      {Number(u.activeAuctionCount) > 0 && (
+                        <span className="flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700">
+                          🔨 拍賣中 {Number(u.activeAuctionCount)}
+                        </span>
+                      )}
+                      {Number(u.activeProductCount) > 0 && (
+                        <span className="flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700">
+                          📦 商品 {Number(u.activeProductCount)}
+                        </span>
+                      )}
+                    </div>
 
                     {/* Won auctions expandable list */}
                     {expandedUserId === u.id && <WonAuctionsList userId={u.id} />}
