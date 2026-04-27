@@ -231,7 +231,7 @@ function ImageUploadZone({
 // ─── Auction Card ─────────────────────────────────────────────────────────────
 function AuctionCard({
   auction, tab, selected, onToggleSelect,
-  onEdit, onDelete, onPublish, onArchive, onRestore, onRelist, onActiveEdit,
+  onEdit, onDelete, onPublish, onArchive, onRestore, onRelist, onActiveEdit, onActiveDelete,
 }: {
   auction: AuctionItem;
   tab: string;
@@ -244,6 +244,7 @@ function AuctionCard({
   onRestore: (id: number) => void;
   onRelist: (id: number) => void;
   onActiveEdit: (a: AuctionItem) => void;
+  onActiveDelete?: (id: number, title: string) => void;
 }) {
   const img = auction.images?.[0]?.imageUrl;
   const isDraft = tab === "草稿";
@@ -335,6 +336,16 @@ function AuctionCard({
                   <Eye className="w-2.5 h-2.5" />查看
                 </Button>
               </Link>
+              {Number((auction as { bidCount?: number }).bidCount ?? 1) === 0 && onActiveDelete && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 px-1.5 text-xs gap-0.5 border-red-200 text-red-600 hover:bg-red-50"
+                  onClick={() => onActiveDelete(auction.id, auction.title)}
+                >
+                  <Trash2 className="w-2.5 h-2.5" />刪除
+                </Button>
+              )}
             </>
           )}
           {tab === "已結束" && (
@@ -388,6 +399,7 @@ export default function MerchantAuctions() {
 
   // Delete confirm
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; title: string } | null>(null);
+  const [activeDeleteConfirm, setActiveDeleteConfirm] = useState<{ id: number; title: string } | null>(null);
 
   // Batch publish
   const [selectedDrafts, setSelectedDrafts] = useState<Set<number>>(new Set());
@@ -472,6 +484,11 @@ export default function MerchantAuctions() {
   const deleteMutation = trpc.merchants.deleteAuction.useMutation({
     onSuccess: () => { toast.success("草稿已刪除"); refetchDrafts(); },
     onError: (err) => toast.error(err.message || "刪除失敗"),
+  });
+
+  const merchantDeleteMutation = trpc.auctions.merchantDelete.useMutation({
+    onSuccess: () => { toast.success("拍賣已刪除"); refetchActive(); setActiveDeleteConfirm(null); },
+    onError: (err) => { toast.error(err.message || "刪除失敗"); setActiveDeleteConfirm(null); },
   });
 
   const publishMutation = trpc.merchants.publishDraft.useMutation({
@@ -957,6 +974,7 @@ export default function MerchantAuctions() {
                 onRestore={(id) => restoreMutation.mutate({ id })}
                 onRelist={(id) => relistMutation.mutate({ id })}
                 onActiveEdit={openActiveEdit}
+                onActiveDelete={(id, title) => setActiveDeleteConfirm({ id, title })}
               />
             ))}
           </div>
@@ -1455,6 +1473,37 @@ export default function MerchantAuctions() {
                 {updateActiveAuctionMutation.isPending || isActiveEditUploading
                   ? <><Loader2 className="w-4 h-4 animate-spin mr-1" />儲存中...</>
                   : "儲存修改"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── 刪除進行中拍賣確認 Dialog（零出價） ── */}
+      <Dialog open={activeDeleteConfirm !== null} onOpenChange={(v) => { if (!v) setActiveDeleteConfirm(null); }}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>確認刪除拍賣</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-1">
+            <div>
+              <p className="text-sm text-foreground">
+                {activeDeleteConfirm ? (activeDeleteConfirm.title.length > 20 ? activeDeleteConfirm.title.slice(0, 20) + "…" : activeDeleteConfirm.title) : ""}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">此拍賣目前零出價，確認後將永久刪除，不可復原。</p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setActiveDeleteConfirm(null)}>取消</Button>
+              <Button
+                variant="destructive"
+                disabled={merchantDeleteMutation.isPending}
+                onClick={() => {
+                  if (!activeDeleteConfirm) return;
+                  merchantDeleteMutation.mutate({ id: activeDeleteConfirm.id });
+                }}
+              >
+                {merchantDeleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                確認刪除
               </Button>
             </div>
           </div>

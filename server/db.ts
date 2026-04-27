@@ -522,6 +522,7 @@ export async function getAuctionsByCreator(userId: number) {
         createdAt: auctions.createdAt,
         updatedAt: auctions.updatedAt,
         relistSourceId: auctions.relistSourceId,
+        bidCount: sql<number>`(SELECT COUNT(*) FROM bids WHERE bids.auctionId = ${auctions.id})`,
       })
       .from(auctions)
       .leftJoin(users, eq(auctions.highestBidderId, users.id))
