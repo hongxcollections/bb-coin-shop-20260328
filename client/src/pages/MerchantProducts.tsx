@@ -545,6 +545,7 @@ export default function MerchantProducts() {
 
   // 主打刊登
   const [featuredDialog, setFeaturedDialog] = useState<{ id: number; title: string; price: number; currency: string } | null>(null);
+  const [cancelQueueTarget, setCancelQueueTarget] = useState<{ id: number; productTitle: string } | null>(null);
   const { data: myDeposit } = trpc.sellerDeposits.myDeposit.useQuery(undefined, { enabled: isAuthenticated });
   const { data: myFeatured = [] } = trpc.featuredListings.myListings.useQuery(undefined, { enabled: isAuthenticated, staleTime: 30_000 });
   const activeFeaturedIds = new Set(
@@ -1000,7 +1001,7 @@ export default function MerchantProducts() {
                         if (queued) return (
                           <span className="flex items-center gap-1 text-xs">
                             <span className="px-2 py-1 bg-amber-50 text-amber-600 rounded-lg font-medium">⏳ 排隊第{queued.queuePosition}位</span>
-                            <button onClick={() => { if (confirm("排隊期間不收費，取消後免費退出。確定取消排隊？")) cancelFeatured.mutate({ id: queued.id }); }} className="px-1.5 py-1 text-red-400 hover:text-red-600 transition-colors" title="取消排隊（免費）"><X className="w-3 h-3" /></button>
+                            <button onClick={() => setCancelQueueTarget({ id: queued.id, productTitle: p.title })} className="px-1.5 py-1 text-red-400 hover:text-red-600 transition-colors" title="取消排隊（免費）"><X className="w-3 h-3" /></button>
                           </span>
                         );
                         return (
@@ -1087,7 +1088,7 @@ export default function MerchantProducts() {
                       {p.status === "active" && (() => {
                         if (activeFeaturedIds.has(p.id)) return <span className="flex items-center gap-1 text-xs px-2 py-1.5 bg-orange-50 text-orange-500 rounded-lg font-medium"><Flame className="w-3 h-3" />主打中</span>;
                         const queued = queuedFeaturedMap.get(p.id);
-                        if (queued) return <span className="flex items-center gap-1 text-xs"><span className="px-2 py-1 bg-amber-50 text-amber-600 rounded-lg font-medium">⏳ 第{queued.queuePosition}位</span><button onClick={() => { if (confirm("排隊期間不收費，取消後免費退出。確定取消排隊？")) cancelFeatured.mutate({ id: queued.id }); }} className="px-1 text-red-400 hover:text-red-600" title="取消排隊（免費）"><X className="w-3 h-3" /></button></span>;
+                        if (queued) return <span className="flex items-center gap-1 text-xs"><span className="px-2 py-1 bg-amber-50 text-amber-600 rounded-lg font-medium">⏳ 第{queued.queuePosition}位</span><button onClick={() => setCancelQueueTarget({ id: queued.id, productTitle: p.title })} className="px-1 text-red-400 hover:text-red-600" title="取消排隊（免費）"><X className="w-3 h-3" /></button></span>;
                         return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title, price: parseFloat(p.price ?? '0'), currency: p.currency ?? 'HKD' })} className="flex items-center gap-1 text-xs px-2 py-1.5 text-orange-500 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors font-medium"><Flame className="w-3 h-3" />申請主打</button>;
                       })()}
                       <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
@@ -1155,7 +1156,7 @@ export default function MerchantProducts() {
                       {p.status === "active" && (() => {
                         if (activeFeaturedIds.has(p.id)) return <span className="text-[10px] px-1.5 py-1 bg-orange-50 text-orange-500 rounded-lg"><Flame className="w-3 h-3" /></span>;
                         const queued = queuedFeaturedMap.get(p.id);
-                        if (queued) return <span className="flex items-center gap-0.5 text-[10px]"><span className="px-1.5 py-1 bg-amber-50 text-amber-600 rounded-lg">⏳{queued.queuePosition}</span><button onClick={() => { if (confirm("排隊期間不收費，取消後免費退出。確定取消排隊？")) cancelFeatured.mutate({ id: queued.id }); }} className="text-red-400 hover:text-red-600" title="取消排隊（免費）"><X className="w-2.5 h-2.5" /></button></span>;
+                        if (queued) return <span className="flex items-center gap-0.5 text-[10px]"><span className="px-1.5 py-1 bg-amber-50 text-amber-600 rounded-lg">⏳{queued.queuePosition}</span><button onClick={() => setCancelQueueTarget({ id: queued.id, productTitle: p.title })} className="text-red-400 hover:text-red-600" title="取消排隊（免費）"><X className="w-2.5 h-2.5" /></button></span>;
                         return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title, price: parseFloat(p.price ?? '0'), currency: p.currency ?? 'HKD' })} className="text-[10px] px-1.5 py-1 text-orange-500 border border-orange-200 rounded-lg hover:bg-orange-50 transition-colors"><Flame className="w-3 h-3" /></button>;
                       })()}
                       <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="text-[10px] px-1.5 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
@@ -1222,7 +1223,7 @@ export default function MerchantProducts() {
                       {p.status === "active" && (() => {
                         if (activeFeaturedIds.has(p.id)) return <span className="text-[9px] px-1 py-0.5 bg-orange-50 text-orange-500 rounded"><Flame className="w-2.5 h-2.5" /></span>;
                         const queued = queuedFeaturedMap.get(p.id);
-                        if (queued) return <span className="flex items-center gap-0.5 text-[9px]"><span className="px-1 py-0.5 bg-amber-50 text-amber-600 rounded">⏳{queued.queuePosition}</span><button onClick={() => { if (confirm("排隊期間不收費，取消後免費退出。確定取消排隊？")) cancelFeatured.mutate({ id: queued.id }); }} className="text-red-400 hover:text-red-600" title="取消排隊（免費）"><X className="w-2 h-2" /></button></span>;
+                        if (queued) return <span className="flex items-center gap-0.5 text-[9px]"><span className="px-1 py-0.5 bg-amber-50 text-amber-600 rounded">⏳{queued.queuePosition}</span><button onClick={() => setCancelQueueTarget({ id: queued.id, productTitle: p.title })} className="text-red-400 hover:text-red-600" title="取消排隊（免費）"><X className="w-2 h-2" /></button></span>;
                         return <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title, price: parseFloat(p.price ?? '0'), currency: p.currency ?? 'HKD' })} className="text-[9px] px-1 py-0.5 text-orange-500 border border-orange-200 rounded hover:bg-orange-50 transition-colors"><Flame className="w-2.5 h-2.5" /></button>;
                       })()}
                       <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="text-[9px] px-1 py-0.5 bg-red-50 text-red-500 rounded hover:bg-red-100 transition-colors">
@@ -1378,6 +1379,47 @@ export default function MerchantProducts() {
             utils.featuredListings.myListings.invalidate();
           }}
         />
+      )}
+
+      {/* 取消排隊確認 Dialog */}
+      {cancelQueueTarget && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20">
+          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden">
+            <div className="relative bg-gradient-to-r from-red-400 to-rose-500 px-5 py-4 text-white">
+              <button onClick={() => setCancelQueueTarget(null)} className="absolute right-3 top-3 text-white/80 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+              <div className="text-2xl mb-1">❌</div>
+              <h2 className="font-bold text-base">取消排隊</h2>
+            </div>
+            <div className="p-5 space-y-3">
+              <div className="bg-gray-50 rounded-xl p-3">
+                <p className="text-sm font-semibold text-gray-800 line-clamp-2">{cancelQueueTarget.productTitle}</p>
+              </div>
+              <div className="bg-amber-50 rounded-xl px-3 py-2 text-xs text-amber-700">
+                排隊期間<strong>不收費</strong>，取消後免費退出，不會扣除任何保證金。
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => setCancelQueueTarget(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition"
+                >
+                  保留排隊
+                </button>
+                <button
+                  disabled={cancelFeatured.isPending}
+                  onClick={() => {
+                    cancelFeatured.mutate({ id: cancelQueueTarget.id });
+                    setCancelQueueTarget(null);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-red-500 hover:bg-red-600 transition disabled:opacity-50 flex items-center justify-center gap-1"
+                >
+                  確認取消
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
