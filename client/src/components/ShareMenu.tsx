@@ -132,14 +132,13 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime }: Sh
 
   async function handleFacebook() {
     setOpen(false);
-    // Always open the Facebook sharer URL directly so Facebook's server
-    // crawls the page and reads og:image — this is what makes the product
-    // photo appear automatically in the post preview.
-    // DO NOT use navigator.share here: the native share sheet hands off to the
-    // Facebook mobile app, which does NOT scrape OG tags in real-time.
-    try { await navigator.clipboard.writeText(shareText); } catch {}
+    // IMPORTANT: window.open() must be called FIRST, synchronously within the
+    // click handler, before any await. On mobile, an await (e.g. clipboard write)
+    // breaks the user-gesture context and causes popup blockers to reject the window.
     const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}`;
     window.open(fbUrl, "_blank", "noopener,noreferrer");
+    // Clipboard write after window.open — async is fine here
+    try { await navigator.clipboard.writeText(shareText); } catch {}
     toast.success("拍賣文字已複製！在 Facebook 貼文框長按「貼上」即可", { duration: 5000 });
   }
 
