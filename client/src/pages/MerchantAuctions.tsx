@@ -1222,14 +1222,11 @@ export default function MerchantAuctions() {
                       size="sm"
                       className="flex-1 h-7 text-xs gap-1 bg-[#1877F2] hover:bg-[#1560c8] text-white border-0"
                       onClick={async () => {
-                        try { await navigator.clipboard.writeText(shareText); } catch {}
                         if (navigator.share) {
                           try {
-                            toast.info("分享文字已複製，請在 Facebook 貼文框長按貼上", { duration: 4000 });
-                            await navigator.share({ title: a.title, url: auctionUrl });
+                            await navigator.share({ title: a.title, text: shareText, url: auctionUrl });
                           } catch {}
                         } else {
-                          toast.info("分享文字已複製，請貼入 Facebook 帖子", { duration: 4000 });
                           window.open(fbUrl, "_blank", "noopener,noreferrer,width=600,height=500");
                         }
                       }}
