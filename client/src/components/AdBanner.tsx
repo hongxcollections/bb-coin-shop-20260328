@@ -201,11 +201,17 @@ export default function AdBanner() {
               <Megaphone style={{ width: 16, height: 16, color: "#fff" }} />
             </div>
 
-            {/* 文字 */}
+            {/* 文字容器：深色磨砂玻璃框，確保文字從金球底色突出 */}
             <div style={{
               position: "relative",
               textAlign: "center",
-              maxWidth: 144,
+              maxWidth: 148,
+              background: "rgba(30, 10, 0, 0.55)",
+              border: "1px solid rgba(255, 210, 60, 0.45)",
+              borderRadius: 12,
+              padding: "8px 10px 9px",
+              boxShadow: "inset 0 1px 0 rgba(255,230,100,0.18), 0 2px 12px rgba(0,0,0,0.35)",
+              backdropFilter: "blur(2px)",
             }}>
               {data.title && (
                 <div
@@ -214,9 +220,8 @@ export default function AdBanner() {
                     fontWeight: 900,
                     fontSize: "13px",
                     lineHeight: 1.25,
-                    letterSpacing: "0.06em",
-                    marginBottom: data.body ? 6 : 0,
-                    filter: "drop-shadow(0 0 6px rgba(255,200,50,0.7)) drop-shadow(0 2px 4px rgba(0,0,0,0.5))",
+                    letterSpacing: "0.07em",
+                    marginBottom: data.body ? 5 : 0,
                   }}
                 >
                   {data.title}
@@ -225,22 +230,20 @@ export default function AdBanner() {
               {/* 金色分隔線 */}
               {data.title && data.body && (
                 <div style={{
-                  width: "60%",
+                  width: "70%",
                   height: 1,
-                  margin: "0 auto 6px",
-                  background: "linear-gradient(90deg, transparent, rgba(255,220,80,0.7), transparent)",
-                  borderRadius: 1,
+                  margin: "0 auto 5px",
+                  background: "linear-gradient(90deg, transparent, rgba(255,210,60,0.8), transparent)",
                 }} />
               )}
               {data.body && (
                 <div style={{
                   fontSize: "10.5px",
-                  fontWeight: 500,
-                  fontStyle: "italic",
-                  color: "rgba(255,245,200,0.88)",
+                  fontWeight: 600,
+                  color: "#ffffff",
                   lineHeight: 1.5,
-                  letterSpacing: "0.02em",
-                  textShadow: "0 1px 6px rgba(0,0,0,0.55), 0 0 12px rgba(255,180,0,0.3)",
+                  letterSpacing: "0.03em",
+                  textShadow: "0 1px 3px rgba(0,0,0,0.8)",
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-word",
                 }}>
