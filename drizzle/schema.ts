@@ -472,3 +472,15 @@ export const featuredListings = mysqlTable("featuredListings", {
 
 export type FeaturedListing = typeof featuredListings.$inferSelect;
 export type InsertFeaturedListing = typeof featuredListings.$inferInsert;
+
+// ── Ad Banners (彈出廣告) ───────────────────────────────────────────────────
+// 三種用戶身份各三個版本：targetType = guest | member | merchant, slot = 1|2|3
+export const adBanners = mysqlTable("ad_banners", {
+  id: int("id").autoincrement().primaryKey(),
+  targetType: mysqlEnum("targetType", ["guest", "member", "merchant"]).notNull(),
+  slot: int("slot").notNull(),          // 1, 2, 3
+  title: varchar("title", { length: 200 }),
+  body: text("body"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type AdBanner = typeof adBanners.$inferSelect;

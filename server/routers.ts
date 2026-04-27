@@ -4,7 +4,8 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl } from "./db";
+import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner } from "./db";
+import type { AdTargetType } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids } from "../drizzle/schema";
 import { eq, sql } from "drizzle-orm";
@@ -4521,5 +4522,89 @@ export const appRouter = router({
         return result;
       }),
   }),
+
+  // ── 廣告橫幅管理 ─────────────────────────────────────────────────────────
+  ads: router({
+    /** 公開：取得某身份的當前廣告（前台用） */
+    getActive: publicProcedure
+      .input(z.object({ targetType: z.enum(['guest', 'member', 'merchant']) }))
+      .query(async ({ input }) => {
+        const { targetType } = input;
+        const enabled = await getSiteSetting(`ad.${targetType}.enabled`);
+        if (enabled !== 'true') return null;
+        const activeSlot = parseInt(await getSiteSetting(`ad.${targetType}.activeSlot`) ?? '1', 10) || 1;
+        const banners = await getAdBanners(targetType as AdTargetType);
+        const banner = banners.find(b => b.slot === activeSlot);
+        if (!banner || (!banner.title && !banner.body)) return null;
+        return { slot: activeSlot, title: banner.title, body: banner.body };
+      }),
+
+    /** 公開：server 自動判斷身份，返回當前廣告（前台用） */
+    getBanner: publicProcedure
+      .query(async ({ ctx }) => {
+        let targetType: AdTargetType = 'guest';
+        if (ctx.user) {
+          const isMerchant = await (async () => {
+            const { canSellerList } = await import('./db');
+            const result = await canSellerList(ctx.user!.id);
+            return result.canList;
+          })();
+          targetType = isMerchant ? 'merchant' : 'member';
+        }
+        const enabled = await getSiteSetting(`ad.${targetType}.enabled`);
+        if (enabled !== 'true') return null;
+        const activeSlot = parseInt(await getSiteSetting(`ad.${targetType}.activeSlot`) ?? '1', 10) || 1;
+        const banners = await getAdBanners(targetType);
+        const banner = banners.find(b => b.slot === activeSlot);
+        if (!banner || (!banner.title && !banner.body)) return null;
+        return { targetType, slot: activeSlot, title: banner.title, body: banner.body };
+      }),
+
+    /** 管理員：取得所有廣告內容 */
+    getAll: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const banners = await getAllAdBanners();
+        const configs = await Promise.all(['guest', 'member', 'merchant'].map(async (t) => ({
+          targetType: t,
+          enabled: (await getSiteSetting(`ad.${t}.enabled`)) === 'true',
+          activeSlot: parseInt(await getSiteSetting(`ad.${t}.activeSlot`) ?? '1', 10) || 1,
+        })));
+        return { banners, configs };
+      }),
+
+    /** 管理員：儲存某個版本的廣告內容 */
+    upsert: protectedProcedure
+      .input(z.object({
+        targetType: z.enum(['guest', 'member', 'merchant']),
+        slot: z.number().int().min(1).max(3),
+        title: z.string().max(200).nullable().optional(),
+        body: z.string().max(5000).nullable().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        await upsertAdBanner(input.targetType as AdTargetType, input.slot, input.title ?? null, input.body ?? null);
+        return { success: true };
+      }),
+
+    /** 管理員：設定某身份的 on/off 和當前版本 */
+    setConfig: protectedProcedure
+      .input(z.object({
+        targetType: z.enum(['guest', 'member', 'merchant']),
+        enabled: z.boolean().optional(),
+        activeSlot: z.number().int().min(1).max(3).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const { targetType, enabled, activeSlot } = input;
+        if (enabled !== undefined) await setSiteSetting(`ad.${targetType}.enabled`, enabled ? 'true' : 'false');
+        if (activeSlot !== undefined) await setSiteSetting(`ad.${targetType}.activeSlot`, String(activeSlot));
+        return { success: true };
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
+
+// ─── Ads router helper ────────────────────────────────────────────────────────
+const AD_TYPES: AdTargetType[] = ['guest', 'member', 'merchant'];
+export { AD_TYPES };

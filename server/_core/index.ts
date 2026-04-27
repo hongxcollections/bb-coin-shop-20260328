@@ -448,6 +448,14 @@ async function startServer() {
   // ── 現在才跑 bootstrap / migration（伺服器已在監聽，/health 回應正常）──
   await bootstrapMissingColumns();
   await runMigrations();
+  // 廣告橫幅表
+  try {
+    const { ensureAdBannersTable } = await import('../db');
+    await ensureAdBannersTable();
+    console.log('[Bootstrap] Ensured adBanners table');
+  } catch (e) {
+    console.warn('[Bootstrap] adBanners table skipped:', (e as Error).message);
+  }
   bootstrapDone = true;
 
   // Gzip 壓縮 — 減少回應體積 60-80%

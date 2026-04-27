@@ -4317,3 +4317,66 @@ export async function cancelFeaturedListing(
 
   return { ok: true, wasQueued: listing.status === 'queued', refundAmount };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// 廣告橫幅 (Ad Banners)
+// ═══════════════════════════════════════════════════════════════
+
+export async function ensureAdBannersTable(): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ad_banners (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        targetType ENUM('guest','member','merchant') NOT NULL,
+        slot INT NOT NULL,
+        title VARCHAR(200),
+        body TEXT,
+        updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_type_slot (targetType, slot)
+      )
+    `);
+  } catch (e) {
+    console.error('[ad_banners] ensureTable error:', e);
+  }
+}
+
+export type AdTargetType = 'guest' | 'member' | 'merchant';
+
+export async function getAdBanners(targetType: AdTargetType): Promise<{ slot: number; title: string | null; body: string | null }[]> {
+  await ensureAdBannersTable();
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const rows = await db.execute(sql`SELECT slot, title, body FROM ad_banners WHERE targetType = ${targetType} ORDER BY slot`);
+    return (rows[0] as any[]).map((r: any) => ({ slot: r.slot, title: r.title ?? null, body: r.body ?? null }));
+  } catch { return []; }
+}
+
+export async function getAllAdBanners(): Promise<{ targetType: string; slot: number; title: string | null; body: string | null }[]> {
+  await ensureAdBannersTable();
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const rows = await db.execute(sql`SELECT targetType, slot, title, body FROM ad_banners ORDER BY targetType, slot`);
+    return (rows[0] as any[]).map((r: any) => ({ targetType: r.targetType, slot: r.slot, title: r.title ?? null, body: r.body ?? null }));
+  } catch { return []; }
+}
+
+export async function upsertAdBanner(targetType: AdTargetType, slot: number, title: string | null, body: string | null): Promise<boolean> {
+  await ensureAdBannersTable();
+  const db = await getDb();
+  if (!db) return false;
+  try {
+    await db.execute(sql`
+      INSERT INTO ad_banners (targetType, slot, title, body)
+      VALUES (${targetType}, ${slot}, ${title}, ${body})
+      ON DUPLICATE KEY UPDATE title = ${title}, body = ${body}
+    `);
+    return true;
+  } catch (e) {
+    console.error('[ad_banners] upsert error:', e);
+    return false;
+  }
+}

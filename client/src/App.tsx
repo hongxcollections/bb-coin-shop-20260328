@@ -48,6 +48,8 @@ import AdminAuctionRecords from "./pages/AdminAuctionRecords";
 import AdminBackup from "./pages/AdminBackup";
 import AdminSystemTest from "./pages/AdminSystemTest";
 import AdminFeaturedListings from "./pages/AdminFeaturedListings";
+import AdminAds from "./pages/AdminAds";
+import AdBanner from "./components/AdBanner";
 import AuctionSearch from "./pages/AuctionSearch";
 import Merchants from "./pages/Merchants";
 import MerchantProducts from "./pages/MerchantProducts";
@@ -178,6 +180,7 @@ function Router() {
       <Route path={"/admin/backup"} component={AdminBackup} />
       <Route path={"/admin/system-test"} component={AdminSystemTest} />
       <Route path={"/admin/featured-listings"} component={AdminFeaturedListings} />
+      <Route path={"/admin/ads"} component={AdminAds} />
       <Route path={"/records"} component={AuctionSearch} />
       <Route path={"/merchants"} component={Merchants} />
       <Route path={"/merchants/:userId"} component={MerchantStore} />
@@ -205,6 +208,7 @@ function App() {
               }}
             />
             <AnnouncementBanner />
+            <AdBanner />
             <MerchantPendingOrdersNotice />
             <AutoPushSubscribe />
             <PushForegroundHandler />
