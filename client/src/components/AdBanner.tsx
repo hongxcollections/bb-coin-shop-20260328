@@ -27,7 +27,7 @@ export default function AdBanner() {
     if (sessionStorage.getItem(key)) return;
     timerRef.current = setTimeout(() => {
       setShown(true);
-      requestAnimationFrame(() => setVisible(true));
+      requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
     }, SHOW_DELAY_MS);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [isLoading, data]);
@@ -47,111 +47,128 @@ export default function AdBanner() {
     <>
       <style>{`
         @keyframes adBannerDrop {
-          0%   { transform: translateY(-120%); opacity: 0; }
-          55%  { transform: translateY(8px);    opacity: 1; }
-          72%  { transform: translateY(-5px);   opacity: 1; }
-          85%  { transform: translateY(3px);    opacity: 1; }
-          93%  { transform: translateY(-2px);   opacity: 1; }
-          100% { transform: translateY(0);      opacity: 1; }
+          0%   { transform: translateY(-110%); opacity: 0; }
+          55%  { transform: translateY(7px);   opacity: 1; }
+          72%  { transform: translateY(-4px);  opacity: 1; }
+          85%  { transform: translateY(2px);   opacity: 1; }
+          93%  { transform: translateY(-1px);  opacity: 1; }
+          100% { transform: translateY(0);     opacity: 1; }
         }
         @keyframes adBannerRise {
-          0%   { transform: translateY(0);      opacity: 1; }
-          100% { transform: translateY(-130%);  opacity: 0; }
+          0%   { transform: translateY(0);     opacity: 1; }
+          100% { transform: translateY(-120%); opacity: 0; }
         }
       `}</style>
 
+      {/*
+        外層：fixed 定位 + flex 水平置中
+        不用 transform: translateX(-50%) — 這樣 animation 才不會搶走置中效果
+      */}
       <div
         style={{
           position: "fixed",
           bottom: "calc(4.5rem + env(safe-area-inset-bottom, 0px))",
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: "min(480px, 94vw)",
-          zIndex: 99990,
-          animation: visible
-            ? "adBannerDrop 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards"
-            : "adBannerRise 0.4s ease-in forwards",
+          left: 0,
+          right: 0,
+          display: "flex",
+          justifyContent: "center",
+          padding: "0 12px",
+          zIndex: 99995,
+          pointerEvents: "none",
         }}
       >
+        {/* 內層：限寬 + 動畫（transform 只在這裡）*/}
         <div
           style={{
-            background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 60%, #fde68a 100%)",
-            border: "1.5px solid #f59e0b",
-            borderRadius: "16px",
-            boxShadow: "0 8px 32px rgba(180,120,0,0.18), 0 2px 8px rgba(0,0,0,0.08)",
-            padding: "14px 16px 14px 14px",
-            display: "flex",
-            alignItems: "flex-start",
-            gap: "10px",
+            width: "100%",
+            maxWidth: 480,
+            pointerEvents: "auto",
+            animation: visible
+              ? "adBannerDrop 0.75s cubic-bezier(0.22, 1, 0.36, 1) both"
+              : "adBannerRise 0.4s ease-in both",
           }}
         >
-          {/* Icon */}
           <div
             style={{
-              flexShrink: 0,
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, #f59e0b, #d97706)",
+              background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 60%, #fde68a 100%)",
+              border: "1.5px solid #f59e0b",
+              borderRadius: "16px",
+              boxShadow: "0 8px 32px rgba(180,120,0,0.18), 0 2px 8px rgba(0,0,0,0.10)",
+              padding: "14px 14px 14px 14px",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginTop: 1,
+              alignItems: "flex-start",
+              gap: "10px",
             }}
           >
-            <Megaphone style={{ width: 16, height: 16, color: "#fff" }} />
-          </div>
+            {/* Icon */}
+            <div
+              style={{
+                flexShrink: 0,
+                width: 34,
+                height: 34,
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginTop: 1,
+              }}
+            >
+              <Megaphone style={{ width: 16, height: 16, color: "#fff" }} />
+            </div>
 
-          {/* Content */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {data.title && (
-              <div
-                style={{
-                  fontWeight: 600,
-                  fontSize: "13px",
-                  color: "#92400e",
-                  lineHeight: 1.3,
-                  marginBottom: data.body ? 4 : 0,
-                }}
-              >
-                {data.title}
-              </div>
-            )}
-            {data.body && (
-              <div
-                style={{
-                  fontSize: "12.5px",
-                  color: "#a16207",
-                  lineHeight: 1.5,
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {data.body}
-              </div>
-            )}
-          </div>
+            {/* Content */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {data.title && (
+                <div
+                  style={{
+                    fontWeight: 600,
+                    fontSize: "13px",
+                    color: "#92400e",
+                    lineHeight: 1.35,
+                    marginBottom: data.body ? 4 : 0,
+                  }}
+                >
+                  {data.title}
+                </div>
+              )}
+              {data.body && (
+                <div
+                  style={{
+                    fontSize: "12.5px",
+                    color: "#a16207",
+                    lineHeight: 1.5,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {data.body}
+                </div>
+              )}
+            </div>
 
-          {/* Close button */}
-          <button
-            onClick={handleDismiss}
-            style={{
-              flexShrink: 0,
-              padding: 4,
-              borderRadius: "50%",
-              border: "none",
-              background: "rgba(180,120,0,0.1)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#b45309",
-              marginTop: -2,
-              marginRight: -4,
-            }}
-            aria-label="關閉廣告"
-          >
-            <X style={{ width: 14, height: 14 }} />
-          </button>
+            {/* Close button */}
+            <button
+              onClick={handleDismiss}
+              style={{
+                flexShrink: 0,
+                padding: 5,
+                borderRadius: "50%",
+                border: "none",
+                background: "rgba(180,120,0,0.12)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#b45309",
+                marginTop: -3,
+                marginRight: -2,
+              }}
+              aria-label="關閉廣告"
+            >
+              <X style={{ width: 14, height: 14 }} />
+            </button>
+          </div>
         </div>
       </div>
     </>
