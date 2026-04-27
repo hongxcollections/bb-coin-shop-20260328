@@ -414,14 +414,41 @@ async function runMigrations() {
 }
 
 async function startServer() {
-  await bootstrapMissingColumns();
-  await runMigrations();
   const app = express();
   const server = createServer(app);
-  // 健康檢查端點（Railway 用於確認服務已就緒）
+
+  // ── 健康檢查端點必須最優先登記 ──────────────────────────────────────────────
+  // 原因：Railway 在容器啟動後馬上開始輪詢 /health，
+  // 但 bootstrapMissingColumns + runMigrations 需要 10-60 秒。
+  // 若讓 bootstrap 先跑再監聽，Railway healthcheckTimeout 30s 必然超時，
+  // 導致部署被標為失敗、持續重啟、網站不通。
+  // 解法：先開始監聽 + 登記 /health，讓 Railway 確認服務存活，
+  // 再在背景完成 bootstrap / migration，之後才登記其他路由。
+  let bootstrapDone = false;
   app.get('/health', (_req, res) => {
-    res.status(200).json({ status: 'ok', uptime: Math.floor(process.uptime()), ts: Date.now() });
+    res.status(200).json({
+      status: 'ok',
+      ready: bootstrapDone,
+      uptime: Math.floor(process.uptime()),
+      ts: Date.now(),
+    });
   });
+
+  const preferredPort = parseInt(process.env.PORT || "3000");
+  const port = await findAvailablePort(preferredPort);
+  if (port !== preferredPort) {
+    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
+  }
+  server.keepAliveTimeout = 65_000;
+  server.headersTimeout   = 66_000;
+  server.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}/`);
+  });
+
+  // ── 現在才跑 bootstrap / migration（伺服器已在監聽，/health 回應正常）──
+  await bootstrapMissingColumns();
+  await runMigrations();
+  bootstrapDone = true;
 
   // Gzip 壓縮 — 減少回應體積 60-80%
   app.use(compression());
@@ -811,21 +838,8 @@ Output ONLY the JSON, nothing else.`;
     serveStatic(app);
   }
 
-  const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
-
-  if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
-  }
-
-  server.keepAliveTimeout = 65_000;  // > Railway proxy 60s idle timeout
-  server.headersTimeout   = 66_000;  // must be > keepAliveTimeout
-
-  server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
-  });
-
   // ── 預熱：提前觸發 ensure*Table（避免首個用戶請求等待 DDL）──
+  // （伺服器監聽 + 健康檢查已在 bootstrap 之前完成，見上方）
   setTimeout(async () => {
     try {
       const { listMerchantProducts, listApprovedMerchants, getActiveFeaturedListings, getAllProductOrders } = await import('../db');
