@@ -235,7 +235,7 @@ export default function BottomNav() {
                       ) : (
                         <>
                           <a
-                            href="/login"
+                            href={`/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`}
                             className="bottom-nav-more-item"
                           >
                             <User className="w-4 h-4" />

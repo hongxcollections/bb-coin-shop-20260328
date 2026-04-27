@@ -329,7 +329,7 @@ export default function MerchantDashboard() {
   );
 
   if (!isAuthenticated) {
-    navigate("/login");
+    navigate(`/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`);
     return null;
   }
 
