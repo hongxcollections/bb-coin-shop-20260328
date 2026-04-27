@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { X, Megaphone } from "lucide-react";
+import { X, Megaphone, Sparkles } from "lucide-react";
 
 const DISMISS_KEY = "adBanner_dismissed_v1";
 const SHOW_DELAY_MS = 1800;
@@ -34,7 +34,7 @@ export default function AdBanner() {
 
   const handleDismiss = () => {
     setVisible(false);
-    setTimeout(() => setDismissed(true), 450);
+    setTimeout(() => setDismissed(true), 500);
     if (data) {
       const key = getDismissedKey(data.slot, data.targetType);
       sessionStorage.setItem(key, "1");
@@ -46,26 +46,37 @@ export default function AdBanner() {
   return (
     <>
       <style>{`
-        @keyframes adBannerDrop {
-          0%   { transform: translateY(-130%); opacity: 0; }
-          40%  { transform: translateY(0);     opacity: 1; }
-          55%  { transform: translateY(-28%);  opacity: 1; }
-          68%  { transform: translateY(0);     opacity: 1; }
-          78%  { transform: translateY(-13%);  opacity: 1; }
-          88%  { transform: translateY(0);     opacity: 1; }
-          94%  { transform: translateY(-5%);   opacity: 1; }
-          100% { transform: translateY(0);     opacity: 1; }
+        /* 鐘擺落下：從頂部左右慢擺落底，擺幅遞減停住 */
+        @keyframes adBannerPendulum {
+          0%   { transform: translateY(-135%) rotate(-28deg); opacity: 0; }
+          12%  { transform: translateY(-95%)  rotate(22deg);  opacity: 1; }
+          24%  { transform: translateY(-60%)  rotate(-16deg); opacity: 1; }
+          36%  { transform: translateY(-28%)  rotate(11deg);  opacity: 1; }
+          48%  { transform: translateY(-5%)   rotate(-7deg);  opacity: 1; }
+          58%  { transform: translateY(0)     rotate(4deg);   opacity: 1; }
+          67%  { transform: translateY(0)     rotate(-2.5deg);opacity: 1; }
+          75%  { transform: translateY(0)     rotate(1.5deg); opacity: 1; }
+          83%  { transform: translateY(0)     rotate(-0.8deg);opacity: 1; }
+          90%  { transform: translateY(0)     rotate(0.3deg); opacity: 1; }
+          100% { transform: translateY(0)     rotate(0deg);   opacity: 1; }
         }
-        @keyframes adBannerRise {
-          0%   { transform: translateY(0);     opacity: 1; }
-          100% { transform: translateY(-130%); opacity: 0; }
+        @keyframes adBannerFadeUp {
+          0%   { transform: translateY(0)     rotate(0deg);   opacity: 1; }
+          100% { transform: translateY(-140%) rotate(-20deg); opacity: 0; }
+        }
+        /* 星星持續旋轉 */
+        @keyframes adSparkle {
+          from { transform: rotate(0deg) scale(1);   opacity: 0.22; }
+          50%  { transform: rotate(180deg) scale(1.12); opacity: 0.38; }
+          to   { transform: rotate(360deg) scale(1);  opacity: 0.22; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .ad-banner-inner { animation: none !important; }
+          .ad-sparkle      { animation: none !important; }
         }
       `}</style>
 
-      {/*
-        外層：fixed 定位 + flex 水平置中
-        不用 transform: translateX(-50%) — 這樣 animation 才不會搶走置中效果
-      */}
+      {/* 外層：fixed 定位 + flex 置中（不用 transform，避免衝突動畫） */}
       <div
         style={{
           position: "fixed",
@@ -79,52 +90,87 @@ export default function AdBanner() {
           pointerEvents: "none",
         }}
       >
-        {/* 內層：限寬 + 動畫（transform 只在這裡）*/}
+        {/* 內層：鐘擺動畫在這裡，transform-origin 設頂部中央模擬懸吊感 */}
         <div
+          className="ad-banner-inner"
           style={{
             width: "100%",
             maxWidth: 480,
             pointerEvents: "auto",
+            transformOrigin: "top center",
             animation: visible
-              ? "adBannerDrop 1.1s linear both"
-              : "adBannerRise 0.35s ease-in both",
+              ? "adBannerPendulum 2.4s ease-out both"
+              : "adBannerFadeUp 0.4s ease-in both",
           }}
         >
+          {/* 卡片 */}
           <div
             style={{
-              background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 60%, #fde68a 100%)",
+              position: "relative",
+              overflow: "hidden",
+              background: "linear-gradient(110deg, #fef3c7 0%, #fce7f3 40%, #fef3c7 55%, #fce7f3 70%, #fef3c7 100%)",
               border: "1.5px solid #f59e0b",
               borderRadius: "16px",
-              boxShadow: "0 8px 32px rgba(180,120,0,0.18), 0 2px 8px rgba(0,0,0,0.10)",
+              boxShadow: "0 8px 28px rgba(180,100,0,0.16), 0 2px 8px rgba(0,0,0,0.08)",
               padding: "14px 14px 14px 14px",
               display: "flex",
               alignItems: "flex-start",
               gap: "10px",
             }}
           >
+            {/* 裝飾星星（右上） */}
+            <div
+              className="ad-sparkle"
+              style={{
+                position: "absolute",
+                top: -10,
+                right: -10,
+                pointerEvents: "none",
+                animation: "adSparkle 9s linear infinite",
+              }}
+            >
+              <Sparkles style={{ width: 56, height: 56, color: "#f59e0b" }} />
+            </div>
+
+            {/* 裝飾星星（左下，反向） */}
+            <div
+              className="ad-sparkle"
+              style={{
+                position: "absolute",
+                bottom: -8,
+                left: -8,
+                pointerEvents: "none",
+                animation: "adSparkle 12s linear infinite reverse",
+              }}
+            >
+              <Sparkles style={{ width: 38, height: 38, color: "#ec4899" }} />
+            </div>
+
             {/* Icon */}
             <div
               style={{
+                position: "relative",
                 flexShrink: 0,
-                width: 34,
-                height: 34,
+                width: 36,
+                height: 36,
                 borderRadius: "50%",
-                background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                background: "linear-gradient(135deg, #f59e0b, #ec4899)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 marginTop: 1,
+                boxShadow: "0 2px 8px rgba(245,158,11,0.35)",
               }}
             >
-              <Megaphone style={{ width: 16, height: 16, color: "#fff" }} />
+              <Megaphone style={{ width: 17, height: 17, color: "#fff" }} />
             </div>
 
             {/* Content */}
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
               {data.title && (
                 <div
                   style={{
-                    fontWeight: 600,
+                    fontWeight: 700,
                     fontSize: "13px",
                     color: "#92400e",
                     lineHeight: 1.35,
@@ -153,11 +199,12 @@ export default function AdBanner() {
             <button
               onClick={handleDismiss}
               style={{
+                position: "relative",
                 flexShrink: 0,
                 padding: 5,
                 borderRadius: "50%",
                 border: "none",
-                background: "rgba(180,120,0,0.12)",
+                background: "rgba(180,100,0,0.12)",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
