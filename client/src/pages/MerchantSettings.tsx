@@ -516,6 +516,56 @@ export default function MerchantSettings() {
           </CardContent>
         </Card>
 
+        {/* Facebook 分享訊息模板卡片 */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <svg className="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg>
+              Facebook 分享訊息模板
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground py-4">
+                <Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">載入中…</span>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-xs text-blue-700 leading-relaxed">
+                  按「分享」時會自動複製此訊息供貼上 Facebook。<br />
+                  可用佔位符：<code className="bg-white px-1 rounded">&#123;title&#125;</code>（商品名稱）、<code className="bg-white px-1 rounded">&#123;price&#125;</code>（目前出價）、<code className="bg-white px-1 rounded">&#123;endTime&#125;</code>（結標時間）。留空則使用預設格式。
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fbShareTemplate">分享訊息模板</Label>
+                  <Textarea
+                    id="fbShareTemplate"
+                    rows={5}
+                    placeholder={"{title}\n目前出價 {price}\n結標時間：{endTime}\n快來競拍！\n\n（此為預設格式，可自由修改）"}
+                    value={fbShareTemplate}
+                    onChange={(e) => setFbShareTemplate(e.target.value)}
+                    className="text-sm font-mono resize-none"
+                  />
+                  {fbShareTemplate.trim() && (
+                    <div className="text-xs text-muted-foreground bg-blue-50 border border-blue-100 rounded p-2.5 whitespace-pre-wrap leading-relaxed">
+                      <span className="font-semibold text-blue-700 block mb-1">預覽效果：</span>
+                      {fbShareTemplate
+                        .replace(/\{title\}/g, "〔商品名稱〕")
+                        .replace(/\{price\}/g, "HK$180")
+                        .replace(/\{endTime\}/g, "5月4日(一) 下午3:00")}
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-end pt-1">
+                  <Button onClick={handleSave} disabled={updateMutation.isPending} className="gold-gradient text-white border-0 gap-1.5">
+                    {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    儲存設定
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         {/* 得標通知內容卡片 */}
         <Card>
           <CardHeader className="pb-3">
@@ -556,36 +606,6 @@ export default function MerchantSettings() {
                     className="text-sm resize-none"
                   />
                 </div>
-
-                {/* Facebook 分享訊息模板 */}
-                <div className="pt-2 border-t border-amber-100">
-                  <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-xs text-blue-700 leading-relaxed mb-3">
-                    <b>Facebook 分享訊息模板</b>：按「分享」時自動複製的文字。<br />
-                    可用佔位符：<code className="bg-white px-1 rounded">&#123;title&#125;</code>（商品名稱）、<code className="bg-white px-1 rounded">&#123;price&#125;</code>（目前出價）、<code className="bg-white px-1 rounded">&#123;endTime&#125;</code>（結標時間）。<br />
-                    留空則使用預設格式。
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="fbShareTemplate">Facebook 分享訊息模板</Label>
-                    <Textarea
-                      id="fbShareTemplate"
-                      rows={5}
-                      placeholder={"{title}\n目前出價 {price}\n結標時間：{endTime}\n快來競拍！\n\n（此為預設格式，可自由修改）"}
-                      value={fbShareTemplate}
-                      onChange={(e) => setFbShareTemplate(e.target.value)}
-                      className="text-sm font-mono resize-none"
-                    />
-                    {fbShareTemplate.trim() && (
-                      <div className="text-xs text-muted-foreground bg-amber-50 border border-amber-100 rounded p-2.5 whitespace-pre-wrap leading-relaxed">
-                        <span className="font-semibold text-amber-700 block mb-1">預覽效果：</span>
-                        {fbShareTemplate
-                          .replace(/\{title\}/g, "〔商品名稱〕")
-                          .replace(/\{price\}/g, "HK$180")
-                          .replace(/\{endTime\}/g, "5月4日(一) 下午3:00")}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
                 <div className="flex justify-end pt-1">
                   <Button onClick={handleSave} disabled={updateMutation.isPending} className="gold-gradient text-white border-0 gap-1.5">
                     {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
