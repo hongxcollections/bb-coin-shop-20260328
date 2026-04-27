@@ -905,7 +905,7 @@ export default function AuctionDetail() {
                     </div>
                     )
                   ) : (
-                    <a href="/login">
+                    <a href={`/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`}>
                       <Button className="w-full gold-gradient text-white border-0 shadow-md hover:opacity-90">
                         {notLoggedInBidText}
                       </Button>

@@ -331,6 +331,8 @@ export default function Login() {
     }
   };
 
+  const fromPath = new URLSearchParams(window.location.search).get("from") || "/";
+
   const handleRegister = async () => {
     if (password !== confirmPassword) { showError("兩次輸入的密碼不一致"); return; }
     if (registerMethod === "phone" && otpCode.length < 6) { showError("請輸入完整的6位驗證碼"); return; }
@@ -365,7 +367,7 @@ export default function Login() {
       if (registerMethod === "phone") {
         localStorage.setItem("showWelcomeToast", "phone");
       }
-      window.location.href = "/";
+      window.location.href = fromPath;
     } catch {
       showError("網絡錯誤，請稍後再試");
     } finally {
@@ -396,7 +398,7 @@ export default function Login() {
       }
       // Set flag so BottomNav can show login success toast after redirect
       localStorage.setItem("showLoginToast", loginInputMethod === "email" ? "email" : "phone");
-      window.location.href = "/";
+      window.location.href = fromPath;
     } catch {
       showError("網絡錯誤，請稍後再試");
     } finally {
@@ -1395,7 +1397,7 @@ export default function Login() {
                     const data = await res.json();
                     if (!res.ok) { showError(data.error || "更改失敗"); return; }
                     localStorage.setItem("showLoginToast", identifier.includes("@") ? "email" : "phone");
-                    window.location.href = "/";
+                    window.location.href = fromPath;
                   } catch {
                     showError("網絡錯誤，請稍後再試");
                   } finally {

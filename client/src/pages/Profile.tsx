@@ -263,7 +263,7 @@ export default function Profile() {
         <div className="text-center">
           <div className="text-5xl mb-4">🔒</div>
           <p className="text-lg font-medium mb-4">請先登入查看個人資料</p>
-          <a href="/login">
+          <a href="/login?from=/profile">
             <Button className="gold-gradient text-white border-0">立即登入</Button>
           </a>
         </div>

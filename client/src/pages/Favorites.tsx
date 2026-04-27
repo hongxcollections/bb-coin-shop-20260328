@@ -52,7 +52,7 @@ export default function Favorites() {
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <Heart className="w-12 h-12 text-amber-300" />
         <p className="text-muted-foreground">請先登入以查看收藏清單</p>
-        <a href="/login"><Button className="gold-gradient text-white border-0">立即登入</Button></a>
+        <a href="/login?from=/favorites"><Button className="gold-gradient text-white border-0">立即登入</Button></a>
       </div>
     );
   }

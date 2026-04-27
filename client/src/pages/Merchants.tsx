@@ -108,7 +108,7 @@ function BuyDialog({ product, onClose }: { product: any; onClose: () => void }) 
           <ShoppingCart className="w-10 h-10 text-amber-400 mx-auto mb-3" />
           <p className="font-semibold text-gray-800 mb-1">請先登入</p>
           <p className="text-sm text-gray-500 mb-4">登入後才可落單購買</p>
-          <button onClick={() => { onClose(); navigate("/login"); }}
+          <button onClick={() => { onClose(); navigate(`/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`); }}
             className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 rounded-xl transition-colors">
             前往登入
           </button>
