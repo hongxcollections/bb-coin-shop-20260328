@@ -336,21 +336,18 @@ export const appRouter = router({
     merchantDelete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
-        if (ctx.user.role !== 'merchant' && ctx.user.role !== 'admin') {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only merchants can delete their own auctions' });
-        }
         const auction = await getAuctionById(input.id);
         if (!auction) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Auction not found' });
+          throw new TRPCError({ code: 'NOT_FOUND', message: '找不到此拍賣' });
         }
         if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'You can only delete your own auctions' });
+          throw new TRPCError({ code: 'FORBIDDEN', message: '你只能刪除自己的拍賣' });
         }
         if (auction.status !== 'active') {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Only active auctions can be deleted by merchants' });
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只能刪除進行中的拍賣' });
         }
         const db = await getDb();
-        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '資料庫暫時無法連接' });
         const [bidRow] = await db.select({ count: sql<number>`COUNT(*)` }).from(bids).where(eq(bids.auctionId, input.id));
         const bidCount = Number(bidRow?.count ?? 0);
         if (bidCount > 0) {
@@ -361,7 +358,7 @@ export const appRouter = router({
           return { success: true };
         } catch (error) {
           console.error('[Router] merchantDelete failed:', error);
-          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete auction' });
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '刪除失敗，請稍後再試' });
         }
       }),
 
