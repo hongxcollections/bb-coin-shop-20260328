@@ -1,5 +1,5 @@
-import { useState } from "preact/hooks";
-import AdminHeader from "../components/AdminHeader";
+import { useState } from "react";
+import AdminHeader from "@/components/AdminHeader";
 import { trpc } from "@/lib/trpc";
 
 const TIER_ORDER = ["day1", "day3", "day7"];
