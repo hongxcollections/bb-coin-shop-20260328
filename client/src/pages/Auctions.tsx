@@ -533,7 +533,7 @@ export default function Auctions() {
       {/* Footer */}
       <footer className="bg-amber-950 text-amber-100/60 py-4 pb-24 border-t border-amber-900/50">
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
-          <p>© 2026 大BB錢幣店 · 專業錢幣拍賣平台 · 誠信鑑定</p>
+          <p>© 2026 hongxcollections.com · 專業錢幣拍賣平台 · 誠信鑑定</p>
           <div className="flex gap-4 font-bold">
             <Link href="/" className="hover:text-amber-400 transition-colors">首頁</Link>
             <a href="#" className="hover:text-amber-400 transition-colors">服務條款</a>
