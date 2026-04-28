@@ -55,6 +55,56 @@ function formatEndTime(endTime: Date): string {
  * - og:url is included (required by Facebook for proper link preview)
  * - og:image includes width/height hints for high-quality rendering
  */
+/**
+ * Inject page-specific meta tags for static pages (auctions list, merchants, plans).
+ * Returns modified HTML or null if not a known static page.
+ */
+function injectStaticPageMeta(html: string, reqPath: string, base: string): string | null {
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  const pages: Record<string, { title: string; description: string; canonical: string }> = {
+    "/auctions": {
+      title: "錢幣拍賣｜所有拍品 — hongxcollections",
+      description: "瀏覽香港最齊全的錢幣拍賣列表，包括古幣、評級幣、紀念幣、舊紙幣等，免費登記即可出價競投。",
+      canonical: `${base}/auctions`,
+    },
+    "/merchants": {
+      title: "錢幣商戶市集 — hongxcollections",
+      description: "香港錢幣商戶一覽，選購古幣、紀念幣、評級幣及各類收藏品，安全可靠，直接與商戶交易。",
+      canonical: `${base}/merchants`,
+    },
+    "/plans": {
+      title: "會員及商戶方案 — hongxcollections",
+      description: "了解 hongxcollections 各級會員及商戶訂閱方案，享受更多競投優惠、優先預覽及商戶刊登功能。",
+      canonical: `${base}/plans`,
+    },
+  };
+
+  const page = pages[reqPath];
+  if (!page) return null;
+
+  const metaTags = [
+    `<title>${esc(page.title)}</title>`,
+    `<meta name="description" content="${esc(page.description)}" />`,
+    `<link rel="canonical" href="${esc(page.canonical)}" />`,
+    `<meta property="og:title" content="${esc(page.title)}" />`,
+    `<meta property="og:description" content="${esc(page.description)}" />`,
+    `<meta property="og:url" content="${esc(page.canonical)}" />`,
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:site_name" content="hongxcollections" />`,
+    `<meta property="og:locale" content="zh_HK" />`,
+  ].join("\n    ");
+
+  let result = html
+    .replace(/<title>[^<]*<\/title>/gi, "")
+    .replace(/<meta\s+(?:property|name)="(?:og:|twitter:)[^"]*"[^>]*\/?>/gi, "")
+    .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "")
+    .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "")
+    .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
+  result = result.replace("</head>", `    ${metaTags}\n  </head>`);
+  return result;
+}
+
 async function injectOgMeta(html: string, reqPath: string, protocol: string, host: string): Promise<string | null> {
   const auctionMatch = reqPath.match(/^\/auctions\/(\d+)$/);
   if (!auctionMatch) return null;
@@ -86,28 +136,58 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
 
     const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+    // JSON-LD structured data for the auction (AuctionEvent + Product)
+    const jsonLd = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": auction.title,
+      "description": ogDesc,
+      "url": fullUrl,
+      ...(ogImageUrl ? { "image": ogImageUrl } : {}),
+      "offers": {
+        "@type": "Offer",
+        "priceCurrency": (auction as { currency?: string }).currency ?? "HKD",
+        "price": Number(auction.currentPrice).toFixed(2),
+        "availability": auction.status === "active"
+          ? "https://schema.org/InStock"
+          : "https://schema.org/SoldOut",
+        "url": fullUrl,
+        "seller": {
+          "@type": "Organization",
+          "name": "hongxcollections 大BB錢幣店"
+        }
+      }
+    });
+
     const ogMeta = [
       `<meta property="og:type" content="website" />`,
       `<meta property="og:site_name" content="大BB錢幣店" />`,
       `<meta property="og:title" content="${esc(ogTitle)}" />`,
       `<meta property="og:description" content="${esc(ogDesc)}" />`,
       `<meta property="og:url" content="${esc(fullUrl)}" />`,
+      `<meta property="og:locale" content="zh_HK" />`,
       ogImageUrl ? `<meta property="og:image" content="${esc(ogImageUrl)}" />` : "",
       ogImageUrl ? `<meta property="og:image:secure_url" content="${esc(ogImageUrl)}" />` : "",
       ogImageUrl ? `<meta property="og:image:type" content="${imgMime}" />` : "",
+      ogImageUrl ? `<meta property="og:image:width" content="1200" />` : "",
+      ogImageUrl ? `<meta property="og:image:height" content="630" />` : "",
       `<meta name="twitter:card" content="${ogImageUrl ? "summary_large_image" : "summary"}" />`,
       `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
       `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
       ogImageUrl ? `<meta name="twitter:image" content="${esc(ogImageUrl)}" />` : "",
+      `<link rel="canonical" href="${esc(fullUrl)}" />`,
       `<title>${esc(ogTitle)}</title>`,
+      `<script type="application/ld+json">${jsonLd}</script>`,
     ].filter(Boolean).join("\n    ");
 
-    // Strip ALL existing title, og:, twitter: tags from index.html before injecting auction-specific ones.
-    // Without stripping, Facebook reads the FIRST occurrence (the default from index.html) and ignores the injected ones.
+    // Strip ALL existing title, og:, twitter:, canonical, description, ld+json tags from index.html
+    // before injecting auction-specific ones.
     let result = html
       .replace(/<title>[^<]*<\/title>/gi, "")
       .replace(/<meta\s+(?:property|name)="(?:og:|twitter:)[^"]*"[^>]*\/?>/gi, "")
-      .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "");
+      .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "")
+      .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "")
+      .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
     result = result.replace("</head>", `    ${ogMeta}\n  </head>`);
     console.log(`[OG Meta] Injected for auction ${auctionId}: title="${ogTitle}" imageUrl="${ogImageUrl}"`);
     return result;
@@ -154,7 +234,11 @@ export async function setupVite(app: Express, server: Server) {
       const forwardedProto = req.headers["x-forwarded-proto"];
       const protocol = typeof forwardedProto === "string" ? forwardedProto.split(",")[0].trim() : req.protocol;
       const host = req.get("host") || "";
-      const ogHtml = await injectOgMeta(template, req.path, protocol, host);
+      const base = `${protocol}://${host}`;
+
+      // Try auction-specific OG injection first, then static page meta
+      const ogHtml = await injectOgMeta(template, req.path, protocol, host)
+        ?? injectStaticPageMeta(template, req.path, base);
       if (ogHtml) {
         // For bots: serve injected HTML directly (skip Vite transform to preserve tags)
         const ua = req.headers["user-agent"] ?? "";
@@ -296,8 +380,10 @@ export function serveStatic(app: Express) {
       "Pragma": "no-cache",
     };
 
+    const base = `${protocol}://${host}`;
     let html = await fs.promises.readFile(indexPath, "utf-8");
-    const ogHtml = await injectOgMeta(html, req.path, protocol, host);
+    const ogHtml = await injectOgMeta(html, req.path, protocol, host)
+      ?? injectStaticPageMeta(html, req.path, base);
     if (ogHtml) {
       res.status(200).set({ "Content-Type": "text/html", ...noCacheHeaders }).end(ogHtml);
       return;

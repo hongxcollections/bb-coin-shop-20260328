@@ -869,36 +869,54 @@ Output ONLY the JSON, nothing else.`;
   app.get('/sitemap.xml', async (_req, res) => {
     try {
       const { getDb } = await import('../db');
-      const db = getDb();
-      const rows = await db.execute(
-        `SELECT id, updated_at, created_at FROM auctions
-         WHERE status IN ('active','completed')
-         ORDER BY updated_at DESC LIMIT 1000`
-      ) as [Array<{ id: number; updated_at: Date | null; created_at: Date | null }>, unknown];
-      const auctions = rows[0] ?? [];
-
+      const db = await getDb();
       const base = 'https://hongxcollections.com';
       const now = new Date().toISOString().split('T')[0];
+
+      // Auctions (use correct camelCase column names as defined in schema)
+      const auctionRows = await db!.execute(
+        `SELECT id, updatedAt, createdAt FROM auctions
+         WHERE status IN ('active','ended')
+         ORDER BY updatedAt DESC LIMIT 2000`
+      ) as [Array<{ id: number; updatedAt: Date | null; createdAt: Date | null }>, unknown];
+      const auctions = (Array.isArray(auctionRows[0]) ? auctionRows[0] : auctionRows) as Array<{ id: number; updatedAt: Date | null; createdAt: Date | null }>;
+
+      // Merchant products
+      const productRows = await db!.execute(
+        `SELECT id, updatedAt, createdAt FROM merchantProducts
+         WHERE status = 'active'
+         ORDER BY updatedAt DESC LIMIT 1000`
+      ) as [Array<{ id: number; updatedAt: Date | null; createdAt: Date | null }>, unknown];
+      const products = (Array.isArray(productRows[0]) ? productRows[0] : productRows) as Array<{ id: number; updatedAt: Date | null; createdAt: Date | null }>;
 
       const staticPages = [
         { loc: `${base}/`,           changefreq: 'daily',   priority: '1.0', lastmod: now },
         { loc: `${base}/auctions`,   changefreq: 'hourly',  priority: '0.9', lastmod: now },
-        { loc: `${base}/merchants`,  changefreq: 'weekly',  priority: '0.6', lastmod: now },
+        { loc: `${base}/merchants`,  changefreq: 'daily',   priority: '0.7', lastmod: now },
         { loc: `${base}/plans`,      changefreq: 'monthly', priority: '0.5', lastmod: now },
       ];
 
+      const toEntry = (loc: string, lastmod: string, changefreq: string, priority: string) =>
+        `  <url>\n    <loc>${loc}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
+
+      const staticEntries = staticPages.map(p => toEntry(p.loc, now, p.changefreq, p.priority));
+
       const auctionEntries = auctions.map((a) => {
-        const lastmod = a.updated_at
-          ? new Date(a.updated_at).toISOString().split('T')[0]
-          : (a.created_at ? new Date(a.created_at).toISOString().split('T')[0] : now);
-        return `  <url>\n    <loc>${base}/auctions/${a.id}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>hourly</changefreq>\n    <priority>0.8</priority>\n  </url>`;
+        const lastmod = a.updatedAt
+          ? new Date(a.updatedAt).toISOString().split('T')[0]
+          : (a.createdAt ? new Date(a.createdAt).toISOString().split('T')[0] : now);
+        return toEntry(`${base}/auctions/${a.id}`, lastmod, 'hourly', '0.8');
       });
 
-      const staticEntries = staticPages.map(p =>
-        `  <url>\n    <loc>${p.loc}</loc>\n    <lastmod>${p.lastmod}</lastmod>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`
-      );
+      const productEntries = products.map((p) => {
+        const lastmod = p.updatedAt
+          ? new Date(p.updatedAt).toISOString().split('T')[0]
+          : (p.createdAt ? new Date(p.createdAt).toISOString().split('T')[0] : now);
+        return toEntry(`${base}/merchants?product=${p.id}`, lastmod, 'weekly', '0.6');
+      });
 
-      const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...staticEntries, ...auctionEntries].join('\n')}\n</urlset>`;
+      const allEntries = [...staticEntries, ...auctionEntries, ...productEntries];
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${allEntries.join('\n')}\n</urlset>`;
       res.setHeader('Content-Type', 'application/xml; charset=utf-8');
       res.setHeader('Cache-Control', 'public, max-age=3600');
       res.send(xml);
