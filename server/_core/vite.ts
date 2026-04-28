@@ -237,8 +237,9 @@ export async function setupVite(app: Express, server: Server) {
       const base = `${protocol}://${host}`;
 
       // Try auction-specific OG injection first, then static page meta
-      const ogHtml = await injectOgMeta(template, req.path, protocol, host)
-        ?? injectStaticPageMeta(template, req.path, base);
+      const _cleanPath = req.path.split("?")[0].replace(/\/+$/, "") || "/";
+      const ogHtml = await injectOgMeta(template, _cleanPath, protocol, host)
+        ?? injectStaticPageMeta(template, _cleanPath, base);
       if (ogHtml) {
         // For bots: serve injected HTML directly (skip Vite transform to preserve tags)
         const ua = req.headers["user-agent"] ?? "";
@@ -381,9 +382,10 @@ export function serveStatic(app: Express) {
     };
 
     const base = `${protocol}://${host}`;
+    const cleanPath = req.path.split("?")[0].replace(/\/+$/, "") || "/";
     let html = await fs.promises.readFile(indexPath, "utf-8");
-    const ogHtml = await injectOgMeta(html, req.path, protocol, host)
-      ?? injectStaticPageMeta(html, req.path, base);
+    const ogHtml = await injectOgMeta(html, cleanPath, protocol, host)
+      ?? injectStaticPageMeta(html, cleanPath, base);
     if (ogHtml) {
       res.status(200).set({ "Content-Type": "text/html", ...noCacheHeaders }).end(ogHtml);
       return;
