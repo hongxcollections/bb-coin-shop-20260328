@@ -4009,29 +4009,38 @@ export async function getProductOrdersByBuyer(buyerId: number): Promise<any[]> {
   return (rows[0] as any[]) ?? [];
 }
 
-export async function getAllProductOrders(): Promise<any[]> {
+export async function getAllProductOrders(status?: string): Promise<any[]> {
   await ensureProductOrdersTable();
-  const db = await getDb();
-  if (!db) throw new Error('DB unavailable');
-  const rows = await db.execute(sql`
-    SELECT o.*, u.name as buyerDisplayName,
+  const pool = await getRawPool();
+  let query = `
+    SELECT o.*,
+           buyer.name as buyerDisplayName, buyer.phone as buyerPhoneFromUser,
+           merchant.name as merchantDisplayName, merchant.phone as merchantPhone,
            ma.merchantName,
            TIMESTAMPDIFF(DAY, o.createdAt, NOW()) AS pendingDays
     FROM productOrders o
-    LEFT JOIN users u ON u.id = o.buyerId
+    LEFT JOIN users buyer ON buyer.id = o.buyerId
+    LEFT JOIN users merchant ON merchant.id = o.merchantId
     LEFT JOIN merchantApplications ma ON ma.userId = o.merchantId AND ma.status = 'approved'
-    ORDER BY o.createdAt DESC
-    LIMIT 500
-  `);
-  return (rows[0] as any[]) ?? [];
+  `;
+  const params: any[] = [];
+  if (status && status !== 'all') {
+    query += ' WHERE o.status = ?';
+    params.push(status);
+  }
+  query += ' ORDER BY o.createdAt DESC LIMIT 500';
+  const [rows]: any = await pool.execute(query, params);
+  return rows ?? [];
 }
 
-export async function confirmProductOrder(orderId: number, merchantId: number, finalPrice?: number): Promise<{ ok: boolean; error?: string }> {
+export async function confirmProductOrder(orderId: number, merchantId: number, finalPrice?: number, isAdmin = false): Promise<{ ok: boolean; error?: string }> {
   await ensureProductOrdersTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
 
-  const rows = await db.execute(sql`SELECT * FROM productOrders WHERE id = ${orderId} AND merchantId = ${merchantId} LIMIT 1`);
+  const rows = isAdmin
+    ? await db.execute(sql`SELECT * FROM productOrders WHERE id = ${orderId} LIMIT 1`)
+    : await db.execute(sql`SELECT * FROM productOrders WHERE id = ${orderId} AND merchantId = ${merchantId} LIMIT 1`);
   const order = ((rows[0] as any[])[0]) as any;
   if (!order) return { ok: false, error: '找不到此訂單' };
   if (order.status !== 'pending') return { ok: false, error: '訂單狀態不可確認' };

@@ -27,6 +27,7 @@ export default function AdminHeader() {
     { href: "/admin/export-bids", label: "📥 匯出記錄", bg: "bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100" },
     { href: "/admin/settings", label: "⚙️ 站點設定", bg: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100" },
     { href: "/admin/won-orders", label: "🏆 得標訂單", bg: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" },
+    { href: "/admin/product-orders", label: "🛒 商品訂單", bg: "bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100" },
     { href: "/admin/deposits", label: "💰 保證金管理", bg: "bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100" },
     { href: "/admin/subscriptions", label: "👑 訂閱管理", bg: "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100" },
     { href: "/admin/loyalty", label: "🎖️ 會員等級", bg: "bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100" },

@@ -3375,9 +3375,20 @@ export const appRouter = router({
 
     /** 管理員：所有訂單 */
     adminList: protectedProcedure
-      .query(async ({ ctx }) => {
+      .input(z.object({ status: z.string().optional() }).optional())
+      .query(async ({ ctx, input }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
-        return getAllProductOrders();
+        return getAllProductOrders(input?.status);
+      }),
+
+    /** 管理員：代商戶確認成交 */
+    adminConfirm: protectedProcedure
+      .input(z.object({ orderId: z.number(), finalPrice: z.number().positive().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        const result = await confirmProductOrder(input.orderId, ctx.user.id, input.finalPrice, true);
+        if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
+        return { success: true };
       }),
   }),
 

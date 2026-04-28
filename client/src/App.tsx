@@ -27,6 +27,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminExportBids from "./pages/AdminExportBids";
 import AdminSiteSettings from "./pages/AdminSiteSettings";
 import AdminWonOrders from "./pages/AdminWonOrders";
+import AdminProductOrders from "./pages/AdminProductOrders";
 import AdminDeposits from "./pages/AdminDeposits";
 import AdminSubscriptions from "./pages/AdminSubscriptions";
 import AdminLoyalty from "./pages/AdminLoyalty";
@@ -162,6 +163,7 @@ function Router() {
       <Route path={"/admin/webhook-setup"} component={WebhookSetup} />
       <Route path={"/admin/settings"} component={AdminSiteSettings} />
       <Route path={"/admin/won-orders"} component={AdminWonOrders} />
+      <Route path={"/admin/product-orders"} component={AdminProductOrders} />
       <Route path={"/admin/deposits"} component={AdminDeposits} />
       <Route path={"/admin/subscriptions"} component={AdminSubscriptions} />
       <Route path={"/admin/loyalty"} component={AdminLoyalty} />
