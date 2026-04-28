@@ -2386,9 +2386,9 @@ export async function adminGetUserStats(userId: number) {
       db.execute(sql`SELECT COUNT(*) AS cnt FROM auctions WHERE createdBy = ${userId} AND status = 'ended'`),
       db.execute(sql`SELECT COUNT(*) AS cnt FROM auctions WHERE createdBy = ${userId} AND status = 'draft'`),
       db.execute(sql`SELECT COALESCE(SUM(currentPrice),0) AS total FROM auctions WHERE createdBy = ${userId} AND status = 'ended' AND highestBidderId IS NOT NULL`),
-      db.execute(sql`SELECT COUNT(*) AS cnt FROM merchantProducts WHERE userId = ${userId}`),
-      db.execute(sql`SELECT COUNT(*) AS cnt FROM merchantProducts WHERE userId = ${userId} AND status = 'active'`),
-      db.execute(sql`SELECT COUNT(*) AS cnt FROM depositTransactions WHERE userId = ${userId}`),
+      db.execute(sql`SELECT COUNT(*) AS cnt FROM merchantProducts WHERE merchantId = ${userId}`),
+      db.execute(sql`SELECT COUNT(*) AS cnt FROM merchantProducts WHERE merchantId = ${userId} AND status = 'active'`),
+      db.execute(sql`SELECT COUNT(*) AS cnt FROM deposit_transactions WHERE userId = ${userId}`),
     ]);
 
     // Product orders (table may not exist on all envs — catch safely)
