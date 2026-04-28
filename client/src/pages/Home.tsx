@@ -956,33 +956,38 @@ export default function Home() {
   // 付費主打商品：從 API 取得，輪播顯示（30 秒換一個）
   const { data: paidFeatured } = trpc.featuredListings.getActive.useQuery(undefined, { staleTime: 30_000, refetchInterval: 60_000 });
   const [featuredIdx, setFeaturedIdx] = useState(0);
-  useEffect(() => {
-    if (!paidFeatured || paidFeatured.length <= 1) return;
-    const t = setInterval(() => setFeaturedIdx(i => (i + 1) % paidFeatured.length), 30_000);
-    return () => clearInterval(t);
+
+  // 付費主打：先做客戶端過期雙重篩選，剔除 endAt 已過的記錄
+  const validPaidFeatured = useMemo(() => {
+    const now = new Date();
+    return (paidFeatured ?? []).filter((f: any) => !f.endAt || new Date(f.endAt) > now);
   }, [paidFeatured]);
 
-  // 優先用付費主打，若無則 fallback 用隨機精選
+  useEffect(() => {
+    if (!validPaidFeatured || validPaidFeatured.length <= 1) return;
+    const t = setInterval(() => setFeaturedIdx(i => (i + 1) % validPaidFeatured.length), 30_000);
+    return () => clearInterval(t);
+  }, [validPaidFeatured]);
+
+  // 只有真正有效的付費主打才顯示主打卡，絕不 fallback 至普通商品
   const featuredProduct = useMemo(() => {
-    if (paidFeatured && paidFeatured.length > 0) {
-      const f = paidFeatured[featuredIdx % paidFeatured.length];
-      // 把 featuredListing 記錄轉換成 merchantProduct 格式，供 FeaturedProductSideCard 使用
-      return {
-        id: f.productId,
-        merchantId: f.merchantId,
-        title: f.productTitle,
-        merchantName: f.merchantName,
-        price: f.price,
-        currency: f.currency,
-        images: f.images,
-        whatsapp: f.whatsapp,
-        stock: f.stock,
-        _isPaid: true,
-        _endAt: f.endAt,
-      };
-    }
-    return heroProducts[0] ?? null;
-  }, [paidFeatured, featuredIdx, heroProducts]);
+    if (validPaidFeatured.length === 0) return null;
+    const f = validPaidFeatured[featuredIdx % validPaidFeatured.length];
+    // 把 featuredListing 記錄轉換成 merchantProduct 格式，供 FeaturedProductSideCard 使用
+    return {
+      id: f.productId,
+      merchantId: f.merchantId,
+      title: f.productTitle,
+      merchantName: f.merchantName,
+      price: f.price,
+      currency: f.currency,
+      images: f.images,
+      whatsapp: f.whatsapp,
+      stock: f.stock,
+      _isPaid: true,
+      _endAt: f.endAt,
+    };
+  }, [validPaidFeatured, featuredIdx]);
 
   const activeAuctions = (auctions ?? []).filter(a => a.status === "active" && new Date(a.endTime).getTime() > Date.now());
   const activeCount = activeAuctions.length;
