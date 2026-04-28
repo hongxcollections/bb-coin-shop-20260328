@@ -102,8 +102,12 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
       `<title>${esc(ogTitle)}</title>`,
     ].filter(Boolean).join("\n    ");
 
-    // Replace existing <title> and inject OG meta before </head>
-    let result = html.replace(/<title>[^<]*<\/title>/, "");
+    // Strip ALL existing title, og:, twitter: tags from index.html before injecting auction-specific ones.
+    // Without stripping, Facebook reads the FIRST occurrence (the default from index.html) and ignores the injected ones.
+    let result = html
+      .replace(/<title>[^<]*<\/title>/gi, "")
+      .replace(/<meta\s+(?:property|name)="(?:og:|twitter:)[^"]*"[^>]*\/?>/gi, "")
+      .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "");
     result = result.replace("</head>", `    ${ogMeta}\n  </head>`);
     console.log(`[OG Meta] Injected for auction ${auctionId}: title="${ogTitle}" imageUrl="${ogImageUrl}"`);
     return result;
