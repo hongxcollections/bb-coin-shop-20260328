@@ -4457,6 +4457,24 @@ export async function cancelFeaturedListing(
   return { ok: true, wasQueued: listing.status === 'queued', refundAmount };
 }
 
+/** 管理員：一鍵清除所有進行中及排隊中的主打（維護用），不退費 */
+export async function purgeActiveFeaturedListings(): Promise<{ cleared: number }> {
+  await ensureFeaturedListingsTable();
+  const db = await getDb();
+  if (!db) return { cleared: 0 };
+  try {
+    const res = await db.execute(sql`
+      UPDATE featuredListings SET status = 'cancelled'
+      WHERE status IN ('active', 'queued')
+    `);
+    const cleared = (res as any)?.[0]?.affectedRows ?? 0;
+    return { cleared };
+  } catch (e) {
+    console.error('[purgeActiveFeaturedListings] error:', e);
+    return { cleared: 0 };
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // 廣告橫幅 (Ad Banners)
 // ═══════════════════════════════════════════════════════════════

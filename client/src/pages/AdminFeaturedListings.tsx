@@ -1,7 +1,7 @@
 import { useState } from "react";
 import AdminHeader from "@/components/AdminHeader";
 import { trpc } from "@/lib/trpc";
-import { X, Flame, Clock } from "lucide-react";
+import { X, Flame, Clock, Trash2 } from "lucide-react";
 
 const TIER_ORDER = ["day1", "day3", "day7"];
 
@@ -26,7 +26,17 @@ export default function AdminFeaturedListings() {
     onError: (e) => alert("❌ 取消失敗：" + e.message),
   });
 
+  const purgeMutation = trpc.featuredListings.adminPurge.useMutation({
+    onSuccess: (res) => {
+      setShowPurgeConfirm(false);
+      allQuery.refetch();
+      alert(`✅ 已清除 ${res.cleared} 條進行中/排隊主打記錄`);
+    },
+    onError: (e) => alert("❌ 清除失敗：" + e.message),
+  });
+
   const [editMode, setEditMode] = useState(false);
+  const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
   const [draftTiers, setDraftTiers] = useState<DraftTier[]>([]);
   const [draftMaxSlots, setDraftMaxSlots] = useState("5");
   const [confirmTarget, setConfirmTarget] = useState<{ id: number; productTitle: string; type: "active" | "queued" } | null>(null);
@@ -235,7 +245,66 @@ export default function AdminFeaturedListings() {
           loading={allQuery.isLoading}
           readOnly
         />
+
+        {/* ── 危險區域：一鍵清除 ── */}
+        <div className="border border-red-200 bg-red-50 rounded-2xl p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-red-700 flex items-center gap-1.5">
+                <Trash2 className="w-4 h-4" />一鍵清除所有主打
+              </p>
+              <p className="text-xs text-red-400 mt-0.5">清除所有進行中及排隊中的記錄，費用不退還。用於資料混亂時重置。</p>
+            </div>
+            <button
+              onClick={() => setShowPurgeConfirm(true)}
+              disabled={active.length + queued.length === 0}
+              className="shrink-0 px-3 py-2 bg-red-500 text-white text-xs font-bold rounded-xl hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              清除（{active.length + queued.length}）
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* ── 一鍵清除 Confirm Dialog ── */}
+      {showPurgeConfirm && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowPurgeConfirm(false)}>
+          <div className="w-full max-w-md bg-white rounded-t-3xl px-5 pt-5 pb-8 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+            <div className="flex items-center gap-2 mb-3 text-red-600">
+              <Trash2 className="w-5 h-5 shrink-0" />
+              <h3 className="text-base font-bold">確認一鍵清除所有主打？</h3>
+              <button className="ml-auto p-1 hover:bg-gray-100 rounded-full" onClick={() => setShowPurgeConfirm(false)}>
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+            <div className="bg-red-50 rounded-xl p-3 mb-4">
+              <p className="text-xs text-red-400 font-medium mb-1">將被清除</p>
+              <p className="text-sm font-semibold text-red-700">
+                進行中：{active.length} 條　排隊中：{queued.length} 條
+              </p>
+            </div>
+            <p className="text-sm text-gray-500 mb-5 leading-relaxed">
+              此操作不可逆。所有進行中及排隊的主打將標為「已取消」，費用不退還。只在系統數據混亂時使用。
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowPurgeConfirm(false)}
+                className="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => purgeMutation.mutate()}
+                disabled={purgeMutation.isPending}
+                className="flex-1 py-3 rounded-2xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-50"
+              >
+                {purgeMutation.isPending ? "清除中…" : "確認清除"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── 取消主打 Confirm Dialog ── */}
       {confirmTarget && (
@@ -270,7 +339,7 @@ export default function AdminFeaturedListings() {
             <p className="text-sm text-gray-500 mb-5 leading-relaxed">
               {confirmTarget.type === "active"
                 ? "確定要取消這個主打刊登？費用不退還，取消後立即失效。"
-                : "確定要取消排隊？排隊期間不收費，取消後免費退出。"
+                : "確定要取消排隊？排隊預扣的費用將退回商戶保證金。"
               }
             </p>
 
