@@ -448,17 +448,24 @@ function CombinedHeroCarousel({
 // ── 主打商品右側浮動滑入卡 ──
 // 尺寸：精選商品卡 (~330×260) 縮 1/3 → 220×173px
 // 行為：載入 1.2s 後滑出，停留 8s 自動縮回；點卡收回，點條邊彈出
-function FeaturedProductSideCard({ product, onBuy, currentUserId }: { product: any; onBuy: (p: any) => void; currentUserId?: number | null }) {
+function FeaturedProductSideCard({ products, onBuy, currentUserId }: { products: any[]; onBuy: (p: any) => void; currentUserId?: number | null }) {
   const [phase, setPhase] = useState<"hidden" | "visible" | "gone">("hidden");
-  const imgs = parseProductImages(product.images);
+  const [idx, setIdx] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+  const [animDir, setAnimDir] = useState<"left" | "right" | null>(null);
+
+  const total = products.length;
+  const product = products[idx] ?? products[0];
+
+  const imgs = parseProductImages(product?.images);
   const thumb = imgs[0] ?? null;
-  const price = parseFloat(product.price ?? "0");
-  const curr = getCurrencySymbol(product.currency ?? "HKD");
-  const isOwn = currentUserId != null && product.merchantId === currentUserId;
+  const price = parseFloat(product?.price ?? "0");
+  const curr = getCurrencySymbol(product?.currency ?? "HKD");
+  const isOwn = currentUserId != null && product?.merchantId === currentUserId;
 
   const CARD_W = 220;
   const CARD_H = 173;
-  const STRIP  = 20; // 縮回時可見條邊寬度
+  const STRIP  = 20;
 
   // 載入 1.2s 後自動滑出
   useEffect(() => {
@@ -473,7 +480,27 @@ function FeaturedProductSideCard({ product, onBuy, currentUserId }: { product: a
     return () => clearTimeout(t);
   }, [phase]);
 
-  if (phase === "gone") return null;
+  const goTo = (dir: "left" | "right") => {
+    setAnimDir(dir);
+    setTimeout(() => {
+      setIdx(i => dir === "right" ? (i + 1) % total : (i - 1 + total) % total);
+      setAnimDir(null);
+    }, 200);
+  };
+
+  // 觸控滑動
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(dx) < 30) return;
+    if (total > 1) goTo(dx < 0 ? "right" : "left");
+  };
+
+  if (phase === "gone" || !product) return null;
 
   const slideX = phase === "visible"
     ? "translateX(0)"
@@ -510,7 +537,11 @@ function FeaturedProductSideCard({ product, onBuy, currentUserId }: { product: a
           height: CARD_H,
           borderRadius: "12px 0 0 12px",
           boxShadow: "-3px 4px 20px rgba(0,0,0,0.24)",
+          opacity: animDir ? 0 : 1,
+          transition: "opacity 0.18s ease",
         }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         {thumb ? (
           <img
@@ -534,9 +565,8 @@ function FeaturedProductSideCard({ product, onBuy, currentUserId }: { product: a
           >
             <X className="w-2.5 h-2.5 text-white" />
           </button>
-          <div className={`flex items-center gap-0.5 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow ${product._isPaid ? 'bg-gradient-to-r from-yellow-500 to-orange-500' : 'bg-orange-500'}`}>
-            {product._isPaid ? <span className="text-[8px]">🔥</span> : <Store className="w-2 h-2" />}
-            {product._isPaid ? '付費主打' : '主打商品'}
+          <div className="flex items-center gap-0.5 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow bg-gradient-to-r from-yellow-500 to-orange-500">
+            <span className="text-[8px]">🔥</span>付費主打
           </div>
         </div>
 
@@ -545,6 +575,40 @@ function FeaturedProductSideCard({ product, onBuy, currentUserId }: { product: a
           <div className="absolute top-2 right-2 bg-black/50 text-white text-[8px] px-1.5 py-0.5 rounded-full backdrop-blur-sm max-w-[60px] truncate">
             {product.merchantName}
           </div>
+        )}
+
+        {/* 左右切換箭咀（展開時 + 多於一件時顯示） */}
+        {phase === "visible" && total > 1 && (
+          <>
+            <button
+              onClick={e => { e.stopPropagation(); goTo("left"); }}
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 z-30 w-6 h-6 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center hover:bg-black/70 transition"
+              title="上一個"
+            >
+              <ChevronLeft className="w-3.5 h-3.5 text-white" />
+            </button>
+            <button
+              onClick={e => { e.stopPropagation(); goTo("right"); }}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 z-30 w-6 h-6 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center hover:bg-black/70 transition"
+              title="下一個"
+            >
+              <ChevronRight className="w-3.5 h-3.5 text-white" />
+            </button>
+            {/* 圓點指示器 */}
+            <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-1 z-30">
+              {products.map((_, i) => (
+                <span
+                  key={i}
+                  className="rounded-full transition-all"
+                  style={{
+                    width: i === idx ? 10 : 5,
+                    height: 5,
+                    background: i === idx ? "#f97316" : "rgba(255,255,255,0.55)",
+                  }}
+                />
+              ))}
+            </div>
+          </>
         )}
 
         {/* 底部資訊 */}
@@ -955,39 +1019,25 @@ export default function Home() {
 
   // 付費主打商品：從 API 取得，輪播顯示（30 秒換一個）
   const { data: paidFeatured } = trpc.featuredListings.getActive.useQuery(undefined, { staleTime: 30_000, refetchInterval: 60_000 });
-  const [featuredIdx, setFeaturedIdx] = useState(0);
-
-  // 付費主打：先做客戶端過期雙重篩選，剔除 endAt 已過的記錄
-  const validPaidFeatured = useMemo(() => {
+  // 付費主打：客戶端過期雙重篩選，格式化為卡片所需格式；導航邏輯移至卡片組件內部處理
+  const featuredProducts = useMemo(() => {
     const now = new Date();
-    return (paidFeatured ?? []).filter((f: any) => !f.endAt || new Date(f.endAt) > now);
+    return (paidFeatured ?? [])
+      .filter((f: any) => !f.endAt || new Date(f.endAt) > now)
+      .map((f: any) => ({
+        id: f.productId,
+        merchantId: f.merchantId,
+        title: f.productTitle,
+        merchantName: f.merchantName,
+        price: f.price,
+        currency: f.currency,
+        images: f.images,
+        whatsapp: f.whatsapp,
+        stock: f.stock,
+        _isPaid: true,
+        _endAt: f.endAt,
+      }));
   }, [paidFeatured]);
-
-  useEffect(() => {
-    if (!validPaidFeatured || validPaidFeatured.length <= 1) return;
-    const t = setInterval(() => setFeaturedIdx(i => (i + 1) % validPaidFeatured.length), 30_000);
-    return () => clearInterval(t);
-  }, [validPaidFeatured]);
-
-  // 只有真正有效的付費主打才顯示主打卡，絕不 fallback 至普通商品
-  const featuredProduct = useMemo(() => {
-    if (validPaidFeatured.length === 0) return null;
-    const f = validPaidFeatured[featuredIdx % validPaidFeatured.length];
-    // 把 featuredListing 記錄轉換成 merchantProduct 格式，供 FeaturedProductSideCard 使用
-    return {
-      id: f.productId,
-      merchantId: f.merchantId,
-      title: f.productTitle,
-      merchantName: f.merchantName,
-      price: f.price,
-      currency: f.currency,
-      images: f.images,
-      whatsapp: f.whatsapp,
-      stock: f.stock,
-      _isPaid: true,
-      _endAt: f.endAt,
-    };
-  }, [validPaidFeatured, featuredIdx]);
 
   const activeAuctions = (auctions ?? []).filter(a => a.status === "active" && new Date(a.endTime).getTime() > Date.now());
   const activeCount = activeAuctions.length;
@@ -1061,8 +1111,8 @@ export default function Home() {
       <EarlyBirdBanner />
 
       {/* ── 主打出售商品：右側浮動滑入卡 ── */}
-      {featuredProduct && (
-        <FeaturedProductSideCard product={featuredProduct} onBuy={setBuyingProduct} currentUserId={user?.id} />
+      {featuredProducts.length > 0 && (
+        <FeaturedProductSideCard products={featuredProducts} onBuy={setBuyingProduct} currentUserId={user?.id} />
       )}
 
       {/* ── 精選商品＋精選拍品 合併輪播（同位置淡入淡出切換）── */}
