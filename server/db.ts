@@ -4223,25 +4223,8 @@ async function promoteFeaturedQueue(db: any, cfg?: FeaturedConfig): Promise<void
     for (const q of queued) {
       const tierCfg = config.tiers.find(t => t.tier === q.tier);
       const hours = tierCfg?.hours ?? FEATURED_TIER_HOURS[q.tier as string] ?? 24;
-      const amount = parseFloat(q.amount ?? '0');
-      const tierLabel = tierCfg?.label ?? FEATURED_TIER_LABELS[q.tier as string] ?? q.tier;
 
-      // 排隊時未扣費，升為 active 時才扣保證金
-      if (amount > 0) {
-        try {
-          await deductCommission(
-            q.merchantId,
-            amount,
-            0,
-            `主打商品刊登費（${tierLabel}，排隊轉啟動）：${q.productTitle}`,
-          );
-        } catch (e) {
-          // 若扣費失敗（餘額不足等），跳過此筆，不升級
-          console.error('[promoteFeaturedQueue] deductCommission failed for id', q.id, e);
-          continue;
-        }
-      }
-
+      // 費用已在排隊時預扣，升格時直接啟動，不再重複扣費
       const endAt = new Date(Date.now() + hours * 60 * 60 * 1000);
       await db.execute(sql`
         UPDATE featuredListings SET status = 'active', startAt = NOW(), endAt = ${endAt}
@@ -4309,7 +4292,8 @@ export async function createFeaturedListing(
     const listing = ((newRows[0] as any[])[0]) ?? null;
     return { ok: true, queued: false, listing };
   } else {
-    // 已滿：加入排隊，不扣費，等升為 active 時才扣
+    // 已滿：立即扣費後加入排隊（確保升格時無需再扣，排隊取消時原額退回）
+    await deductCommission(merchantId, amount, 0, `主打商品刊登費（${tierLabel}，排隊預扣）：${productTitle}`);
     await db.execute(sql`
       INSERT INTO featuredListings (merchantId, productId, productTitle, merchantName, tier, amount, status, startAt, endAt)
       VALUES (${merchantId}, ${productId}, ${productTitle}, ${merchantName}, ${tier}, ${amount}, 'queued', NULL, NULL)
@@ -4444,9 +4428,26 @@ export async function cancelFeaturedListing(
   await db.execute(sql`UPDATE featuredListings SET status = 'cancelled' WHERE id = ${id}`);
 
   // 退費規則：
-  // - queued 狀態：費用尚未扣除，取消不退費
-  // - active 狀態：費用已扣，取消不退費（費用不設退款）
-  const refundAmount = 0;
+  // - queued 狀態：費用已在排隊時預扣，取消時原額退回保證金
+  // - active 狀態：費用已扣且已開始使用，取消不退費
+  let refundAmount = 0;
+  if (listing.status === 'queued') {
+    const amount = parseFloat(listing.amount ?? '0');
+    if (amount > 0) {
+      try {
+        await refundCommission(
+          listing.merchantId,
+          amount,
+          0,
+          `主打商品取消排隊退款（${listing.tier}）：${listing.productTitle}`,
+          0,
+        );
+        refundAmount = amount;
+      } catch (e) {
+        console.error('[cancelFeaturedListing] refund failed for id', id, e);
+      }
+    }
+  }
 
   // 空出位子後嘗試升級排隊
   if (listing.status === 'active') {
