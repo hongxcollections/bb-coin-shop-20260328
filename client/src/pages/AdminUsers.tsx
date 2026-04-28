@@ -1525,7 +1525,8 @@ export default function AdminUsers() {
               <div className="space-y-1.5">
                 <Label>新密碼（至少 6 個字符）</Label>
                 <Input
-                  type="text"
+                  type="password"
+                  autoComplete="new-password"
                   value={adminPwInput}
                   onChange={(e) => setAdminPwInput(e.target.value)}
                   placeholder="輸入新密碼"
@@ -1788,7 +1789,7 @@ export default function AdminUsers() {
             </div>
             <div className="space-y-1.5">
               <Label>密碼 *</Label>
-              <Input type="text" placeholder="初始密碼" value={newUserForm.password} onChange={(e) => setNewUserForm(f => ({ ...f, password: e.target.value }))} className="border-amber-200" />
+              <Input type="password" autoComplete="new-password" placeholder="初始密碼" value={newUserForm.password} onChange={(e) => setNewUserForm(f => ({ ...f, password: e.target.value }))} className="border-amber-200" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
