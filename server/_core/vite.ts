@@ -169,8 +169,6 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
       ogImageUrl ? `<meta property="og:image" content="${esc(ogImageUrl)}" />` : "",
       ogImageUrl ? `<meta property="og:image:secure_url" content="${esc(ogImageUrl)}" />` : "",
       ogImageUrl ? `<meta property="og:image:type" content="${imgMime}" />` : "",
-      ogImageUrl ? `<meta property="og:image:width" content="1200" />` : "",
-      ogImageUrl ? `<meta property="og:image:height" content="630" />` : "",
       `<meta name="twitter:card" content="${ogImageUrl ? "summary_large_image" : "summary"}" />`,
       `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
       `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
