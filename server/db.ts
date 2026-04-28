@@ -4320,7 +4320,10 @@ export async function getActiveFeaturedListings(): Promise<any[]> {
       WHERE fl.status = 'active' AND fl.endAt > NOW() AND mp.status = 'active' AND mp.stock > 0
       ORDER BY fl.endAt ASC
     `);
-    return (rows[0] as any[]) ?? [];
+    const rowsArr = (Array.isArray(rows) && Array.isArray((rows as any)[0]))
+      ? (rows as any)[0] as any[]
+      : rows as any[];
+    return rowsArr ?? [];
   } catch (e) {
     console.error('[getActiveFeaturedListings] error:', e);
     return [];
