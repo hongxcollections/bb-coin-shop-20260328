@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Clock, ChevronLeft, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X, EyeOff, AlertCircle, Heart, Share2 } from "lucide-react";
+import { Clock, ChevronLeft, ChevronRight, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X, EyeOff, AlertCircle, Heart, Share2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -459,6 +459,23 @@ export default function AuctionDetail() {
                       transition: 'opacity 0.38s ease-in-out',
                     }}
                   />
+                  {/* 左右箭咀 */}
+                  {images.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => goToImage((selectedImage - 1 + images.length) % images.length, 'right')}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors z-10"
+                      >
+                        <ChevronLeft className="w-5 h-5 text-white" />
+                      </button>
+                      <button
+                        onClick={() => goToImage((selectedImage + 1) % images.length, 'left')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors z-10"
+                      >
+                        <ChevronRight className="w-5 h-5 text-white" />
+                      </button>
+                    </>
+                  )}
                   {/* 底部漸層遮罩 */}
                   <div
                     className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"

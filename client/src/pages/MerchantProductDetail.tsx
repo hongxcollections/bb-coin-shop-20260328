@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -161,6 +161,7 @@ export default function MerchantProductDetail() {
   const params = useParams<{ id: string }>();
   const productId = parseInt(params.id ?? "0", 10);
   const [imgIdx, setImgIdx] = useState(0);
+  const imgTouchStartX = useRef(0);
   const [merchantOpen, setMerchantOpen] = useState(false);
   const [buyingProduct, setBuyingProduct] = useState<any | null>(null);
   const { user } = useAuth();
@@ -271,7 +272,15 @@ export default function MerchantProductDetail() {
               {/* 圖片 gallery */}
               {imgs.length > 0 ? (
                 <div className="relative">
-                  <div className="w-full aspect-square bg-amber-50 overflow-hidden">
+                  <div
+                    className="w-full aspect-square bg-amber-50 overflow-hidden"
+                    onTouchStart={e => { imgTouchStartX.current = e.touches[0].clientX; }}
+                    onTouchEnd={e => {
+                      const diff = imgTouchStartX.current - e.changedTouches[0].clientX;
+                      if (Math.abs(diff) < 40 || imgs.length <= 1) return;
+                      setImgIdx(i => diff > 0 ? (i + 1) % imgs.length : (i - 1 + imgs.length) % imgs.length);
+                    }}
+                  >
                     <img src={imgs[imgIdx]} alt={product.title} className="w-full h-full object-cover" />
                   </div>
                   {imgs.length > 1 && (
