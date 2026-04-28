@@ -133,6 +133,116 @@ function MerchantOrdersList({ merchantUserId }: { merchantUserId: number }) {
   );
 }
 
+/** 會員/商戶全面統計總結面板 — 按需載入 */
+function UserStatsPanel({ userId, isMerchant }: { userId: number; isMerchant: boolean }) {
+  const { data, isLoading } = trpc.users.adminUserStats.useQuery({ userId });
+
+  if (isLoading) return (
+    <div className="flex items-center gap-2 text-xs text-gray-400 py-2 pl-1">
+      <Loader2 size={12} className="animate-spin" />載入統計中…
+    </div>
+  );
+  if (!data) return <div className="text-xs text-gray-400 py-1 pl-1">無法載入統計</div>;
+
+  const fmtAmt = (n: number) => `HK$${n.toLocaleString("zh-HK", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  const fmtDate = (d: string | null | undefined) => d ? new Date(d).toLocaleDateString("zh-HK", { year: "numeric", month: "2-digit", day: "2-digit" }) : "—";
+
+  const StatBox = ({ label, value, sub, color = "#6B7280" }: { label: string; value: string | number; sub?: string; color?: string }) => (
+    <div className="rounded-lg px-3 py-2 flex flex-col gap-0.5" style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+      <span className="text-[0.6rem] text-gray-400 leading-tight">{label}</span>
+      <span className="font-bold text-sm leading-tight" style={{ color }}>{value}</span>
+      {sub && <span className="text-[0.6rem] text-gray-400 leading-tight">{sub}</span>}
+    </div>
+  );
+
+  return (
+    <div className="mt-2 space-y-3">
+      {/* 買家活動 */}
+      <div>
+        <p className="text-[0.65rem] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">📥 買家活動</p>
+        <div className="grid grid-cols-3 gap-1.5">
+          <StatBox label="參與拍賣" value={data.auctionsBidOn} color="#2563EB" />
+          <StatBox label="成功得標" value={data.auctionsWon} color="#D97706" />
+          <StatBox label="得標總金額" value={fmtAmt(data.auctionsWonTotal)} color="#D97706" />
+        </div>
+      </div>
+
+      {/* 商戶 — 拍賣 */}
+      {isMerchant && (
+        <div>
+          <p className="text-[0.65rem] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">🔨 商戶拍賣</p>
+          <div className="grid grid-cols-3 gap-1.5">
+            <StatBox label="拍賣總上架" value={data.auctionsTotal} color="#1D4ED8" />
+            <StatBox label="進行中" value={data.auctionsActive} color="#059669" />
+            <StatBox label="已結束" value={data.auctionsEnded} color="#6B7280" sub={`草稿 ${data.auctionsDraft}`} />
+          </div>
+          <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+            <StatBox label="拍賣成交金額" value={fmtAmt(data.auctionRevenue)} color="#B45309" />
+            <StatBox label="佣金交易記錄" value={`${data.commissionTxCount} 筆`} color="#6B7280" />
+          </div>
+        </div>
+      )}
+
+      {/* 商戶 — 商品 */}
+      {isMerchant && (
+        <div>
+          <p className="text-[0.65rem] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">📦 商戶商品</p>
+          <div className="grid grid-cols-3 gap-1.5">
+            <StatBox label="商品總上架" value={data.productsTotal} color="#1D4ED8" />
+            <StatBox label="進行中" value={data.productsActive} color="#059669" />
+            <StatBox label="已售出" value={data.productsSold} color="#D97706" />
+          </div>
+          {data.productRevenue > 0 && (
+            <div className="mt-1.5">
+              <StatBox label="商品成交金額" value={fmtAmt(data.productRevenue)} color="#B45309" />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 商戶 — 保證金 & 訂閱 */}
+      {isMerchant && (
+        <div>
+          <p className="text-[0.65rem] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">💰 保證金 & 訂閱</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {data.deposit ? (
+              <>
+                <StatBox
+                  label="保證金餘額"
+                  value={fmtAmt(data.deposit.balance)}
+                  color={data.deposit.balance < data.deposit.requiredDeposit ? "#DC2626" : "#059669"}
+                  sub={`門檻 ${fmtAmt(data.deposit.requiredDeposit)}`}
+                />
+                <StatBox
+                  label="佣金率"
+                  value={`${(data.deposit.commissionRate * 100).toFixed(1)}%`}
+                  color="#6B7280"
+                  sub={data.deposit.isActive ? "商戶活躍" : "商戶停權"}
+                />
+              </>
+            ) : (
+              <StatBox label="保證金" value="未設置" color="#9CA3AF" />
+            )}
+          </div>
+          {data.subscription ? (
+            <div className="mt-1.5 rounded-lg px-3 py-2" style={{ background: "#F0FDF4", border: "1px solid #BBF7D0" }}>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-emerald-700">✅ {data.subscription.planName}</span>
+                <span className="text-[0.6rem] text-gray-500">到期：{fmtDate(data.subscription.endDate)}</span>
+              </div>
+              <span className="text-[0.6rem] text-gray-400">{data.subscription.currency} {data.subscription.price.toLocaleString()} / 月</span>
+            </div>
+          ) : (
+            <div className="mt-1.5 rounded-lg px-3 py-1.5" style={{ background: "#FFF7ED", border: "1px solid #FED7AA" }}>
+              <span className="text-xs text-orange-600">無有效月費訂閱</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** 管理員為商戶生成測試草稿商品 */
 function GenerateListingsPanel({ userId, userName }: { userId: number; userName: string }) {
   const [open, setOpen] = useState(false);
@@ -879,6 +989,7 @@ export default function AdminUsers() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
   const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
   const [expandedMerchantOrdersId, setExpandedMerchantOrdersId] = useState<number | null>(null);
+  const [expandedStatsId, setExpandedStatsId] = useState<number | null>(null);
   const [newUserOpen, setNewUserOpen] = useState(false);
   const [newUserForm, setNewUserForm] = useState({
     name: "", phone: "", email: "", password: "",
@@ -1171,6 +1282,25 @@ export default function AdminUsers() {
                         {expandedMerchantOrdersId === u.id && <MerchantOrdersList merchantUserId={u.id} />}
                       </>
                     )}
+
+                    {/* 統計總結 toggle */}
+                    <button
+                      type="button"
+                      onClick={() => setExpandedStatsId(expandedStatsId === u.id ? null : u.id)}
+                      className="flex items-center gap-1 mt-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium transition-colors"
+                      style={{
+                        background: expandedStatsId === u.id ? "#EFF6FF" : "#F5F5F5",
+                        color: expandedStatsId === u.id ? "#1D4ED8" : "#666",
+                      }}
+                    >
+                      <Package size={10} />
+                      統計總結
+                      <ChevronDown
+                        size={11}
+                        style={{ transform: expandedStatsId === u.id ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
+                      />
+                    </button>
+                    {expandedStatsId === u.id && <UserStatsPanel userId={u.id} isMerchant={!!u.depositId} />}
 
                     {/* Action buttons — inside info column so they never crowd the name */}
                     {u.role !== "admin" && (

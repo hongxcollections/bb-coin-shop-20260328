@@ -2351,6 +2351,114 @@ export async function getAllUsersExtended() {
 }
 
 /**
+ * Admin: get comprehensive stats for a single user — auctions, products, deposit, subscription
+ */
+export async function adminGetUserStats(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  try {
+    // --- Buyer stats ---
+    const [[bidAuctionsRow], [wonRow], [wonAmountRow]] = await Promise.all([
+      db.execute(sql`SELECT COUNT(DISTINCT auctionId) AS cnt FROM bids WHERE userId = ${userId}`),
+      db.execute(sql`SELECT COUNT(*) AS cnt FROM auctions WHERE highestBidderId = ${userId} AND status = 'ended'`),
+      db.execute(sql`SELECT COALESCE(SUM(currentPrice),0) AS total FROM auctions WHERE highestBidderId = ${userId} AND status = 'ended'`),
+    ]);
+    const auctionsBidOn = Number((bidAuctionsRow as any[])[0]?.cnt ?? 0);
+    const auctionsWon = Number((wonRow as any[])[0]?.cnt ?? 0);
+    const auctionsWonTotal = Number((wonAmountRow as any[])[0]?.total ?? 0);
+
+    // --- Seller / auction stats ---
+    const [[auctionTotalRow], [auctionActiveRow], [auctionEndedRow], [auctionDraftRow], [auctionRevenueRow]] = await Promise.all([
+      db.execute(sql`SELECT COUNT(*) AS cnt FROM auctions WHERE createdBy = ${userId}`),
+      db.execute(sql`SELECT COUNT(*) AS cnt FROM auctions WHERE createdBy = ${userId} AND status = 'active'`),
+      db.execute(sql`SELECT COUNT(*) AS cnt FROM auctions WHERE createdBy = ${userId} AND status = 'ended'`),
+      db.execute(sql`SELECT COUNT(*) AS cnt FROM auctions WHERE createdBy = ${userId} AND status = 'draft'`),
+      db.execute(sql`SELECT COALESCE(SUM(currentPrice),0) AS total FROM auctions WHERE createdBy = ${userId} AND status = 'ended' AND highestBidderId IS NOT NULL`),
+    ]);
+    const auctionsTotal = Number((auctionTotalRow as any[])[0]?.cnt ?? 0);
+    const auctionsActive = Number((auctionActiveRow as any[])[0]?.cnt ?? 0);
+    const auctionsEnded = Number((auctionEndedRow as any[])[0]?.cnt ?? 0);
+    const auctionsDraft = Number((auctionDraftRow as any[])[0]?.cnt ?? 0);
+    const auctionRevenue = Number((auctionRevenueRow as any[])[0]?.total ?? 0);
+
+    // --- Seller / product stats ---
+    const [[productTotalRow], [productActiveRow], [productSoldRow], [productRevenueRow]] = await Promise.all([
+      db.execute(sql`SELECT COUNT(*) AS cnt FROM merchantProducts WHERE userId = ${userId}`),
+      db.execute(sql`SELECT COUNT(*) AS cnt FROM merchantProducts WHERE userId = ${userId} AND status = 'active'`),
+      db.execute(sql`SELECT COUNT(*) AS cnt FROM productOrders WHERE merchantId = ${userId} AND status IN ('confirmed','completed')`).catch(() => [[{cnt:0}]]),
+      db.execute(sql`SELECT COALESCE(SUM(finalPrice),0) AS total FROM productOrders WHERE merchantId = ${userId} AND status IN ('confirmed','completed')`).catch(() => [[{total:0}]]),
+    ]);
+    const productsTotal = Number((productTotalRow as any[])[0]?.cnt ?? 0);
+    const productsActive = Number((productActiveRow as any[])[0]?.cnt ?? 0);
+    const productsSold = Number((productSoldRow as any[])[0]?.cnt ?? 0);
+    const productRevenue = Number((productRevenueRow as any[])[0]?.total ?? 0);
+
+    // --- Deposit ---
+    const depositRows = await db.select({
+      balance: sellerDeposits.balance,
+      requiredDeposit: sellerDeposits.requiredDeposit,
+      commissionRate: sellerDeposits.commissionRate,
+      isActive: sellerDeposits.isActive,
+    }).from(sellerDeposits).where(eq(sellerDeposits.userId, userId)).limit(1);
+    const deposit = depositRows[0] ?? null;
+
+    // --- Active subscription ---
+    const subRows = await db.execute(sql`
+      SELECT us.status, us.startDate, us.endDate, sp.name AS planName, sp.price, sp.currency
+      FROM user_subscriptions us
+      JOIN subscription_plans sp ON sp.id = us.planId
+      WHERE us.userId = ${userId} AND us.status = 'active'
+      ORDER BY us.endDate DESC LIMIT 1
+    `).catch(() => [[]]);
+    const subRow = (subRows[0] as any[])[0] ?? null;
+
+    // --- Commission transactions count ---
+    const [[commTxRow]] = await Promise.all([
+      db.execute(sql`SELECT COUNT(*) AS cnt FROM depositTransactions WHERE userId = ${userId}`),
+    ]);
+    const commissionTxCount = Number((commTxRow as any[])[0]?.cnt ?? 0);
+
+    return {
+      // Buyer
+      auctionsBidOn,
+      auctionsWon,
+      auctionsWonTotal,
+      // Seller - auctions
+      auctionsTotal,
+      auctionsActive,
+      auctionsEnded,
+      auctionsDraft,
+      auctionRevenue,
+      // Seller - products
+      productsTotal,
+      productsActive,
+      productsSold,
+      productRevenue,
+      // Deposit
+      deposit: deposit ? {
+        balance: Number(deposit.balance),
+        requiredDeposit: Number(deposit.requiredDeposit),
+        commissionRate: Number(deposit.commissionRate),
+        isActive: deposit.isActive,
+      } : null,
+      // Subscription
+      subscription: subRow ? {
+        planName: subRow.planName as string,
+        status: subRow.status as string,
+        endDate: subRow.endDate as string,
+        price: Number(subRow.price),
+        currency: subRow.currency as string,
+      } : null,
+      // Deposit tx
+      commissionTxCount,
+    };
+  } catch (error) {
+    console.error('[Database] Failed to get admin user stats:', error);
+    return null;
+  }
+}
+
+/**
  * Get won auctions (ended + highestBidder) for a specific user — admin use
  */
 export async function getWonAuctionsByUser(userId: number) {
