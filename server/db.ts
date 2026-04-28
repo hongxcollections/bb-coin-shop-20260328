@@ -2356,42 +2356,52 @@ export async function getAllUsersExtended() {
 export async function adminGetUserStats(userId: number) {
   const db = await getDb();
   if (!db) return null;
+
+  // Helper: drizzle mysql2 execute() returns [rows, fields] tuple OR rows array directly.
+  // Normalise to get the rows array regardless.
+  function extractRows(result: unknown): Record<string, unknown>[] {
+    const r = result as any;
+    if (Array.isArray(r) && Array.isArray(r[0])) return r[0];
+    if (Array.isArray(r)) return r;
+    return [];
+  }
+  function getNum(result: unknown, key: string): number {
+    const rows = extractRows(result);
+    return Number(rows[0]?.[key] ?? 0);
+  }
+
   try {
-    // --- Buyer stats ---
-    const [[bidAuctionsRow], [wonRow], [wonAmountRow]] = await Promise.all([
+    // Run all count/sum queries in parallel
+    const [
+      bidAuctions, wonCount, wonAmount,
+      auctionTotal, auctionActive, auctionEnded, auctionDraft, auctionRevenue,
+      productTotal, productActive,
+      commTx,
+    ] = await Promise.all([
       db.execute(sql`SELECT COUNT(DISTINCT auctionId) AS cnt FROM bids WHERE userId = ${userId}`),
       db.execute(sql`SELECT COUNT(*) AS cnt FROM auctions WHERE highestBidderId = ${userId} AND status = 'ended'`),
       db.execute(sql`SELECT COALESCE(SUM(currentPrice),0) AS total FROM auctions WHERE highestBidderId = ${userId} AND status = 'ended'`),
-    ]);
-    const auctionsBidOn = Number((bidAuctionsRow as any[])[0]?.cnt ?? 0);
-    const auctionsWon = Number((wonRow as any[])[0]?.cnt ?? 0);
-    const auctionsWonTotal = Number((wonAmountRow as any[])[0]?.total ?? 0);
-
-    // --- Seller / auction stats ---
-    const [[auctionTotalRow], [auctionActiveRow], [auctionEndedRow], [auctionDraftRow], [auctionRevenueRow]] = await Promise.all([
       db.execute(sql`SELECT COUNT(*) AS cnt FROM auctions WHERE createdBy = ${userId}`),
       db.execute(sql`SELECT COUNT(*) AS cnt FROM auctions WHERE createdBy = ${userId} AND status = 'active'`),
       db.execute(sql`SELECT COUNT(*) AS cnt FROM auctions WHERE createdBy = ${userId} AND status = 'ended'`),
       db.execute(sql`SELECT COUNT(*) AS cnt FROM auctions WHERE createdBy = ${userId} AND status = 'draft'`),
       db.execute(sql`SELECT COALESCE(SUM(currentPrice),0) AS total FROM auctions WHERE createdBy = ${userId} AND status = 'ended' AND highestBidderId IS NOT NULL`),
-    ]);
-    const auctionsTotal = Number((auctionTotalRow as any[])[0]?.cnt ?? 0);
-    const auctionsActive = Number((auctionActiveRow as any[])[0]?.cnt ?? 0);
-    const auctionsEnded = Number((auctionEndedRow as any[])[0]?.cnt ?? 0);
-    const auctionsDraft = Number((auctionDraftRow as any[])[0]?.cnt ?? 0);
-    const auctionRevenue = Number((auctionRevenueRow as any[])[0]?.total ?? 0);
-
-    // --- Seller / product stats ---
-    const [[productTotalRow], [productActiveRow], [productSoldRow], [productRevenueRow]] = await Promise.all([
       db.execute(sql`SELECT COUNT(*) AS cnt FROM merchantProducts WHERE userId = ${userId}`),
       db.execute(sql`SELECT COUNT(*) AS cnt FROM merchantProducts WHERE userId = ${userId} AND status = 'active'`),
-      db.execute(sql`SELECT COUNT(*) AS cnt FROM productOrders WHERE merchantId = ${userId} AND status IN ('confirmed','completed')`).catch(() => [[{cnt:0}]]),
-      db.execute(sql`SELECT COALESCE(SUM(finalPrice),0) AS total FROM productOrders WHERE merchantId = ${userId} AND status IN ('confirmed','completed')`).catch(() => [[{total:0}]]),
+      db.execute(sql`SELECT COUNT(*) AS cnt FROM depositTransactions WHERE userId = ${userId}`),
     ]);
-    const productsTotal = Number((productTotalRow as any[])[0]?.cnt ?? 0);
-    const productsActive = Number((productActiveRow as any[])[0]?.cnt ?? 0);
-    const productsSold = Number((productSoldRow as any[])[0]?.cnt ?? 0);
-    const productRevenue = Number((productRevenueRow as any[])[0]?.total ?? 0);
+
+    // Product orders (table may not exist on all envs — catch safely)
+    let productsSold = 0;
+    let productRevenue = 0;
+    try {
+      const [soldRes, revRes] = await Promise.all([
+        db.execute(sql`SELECT COUNT(*) AS cnt FROM productOrders WHERE merchantId = ${userId} AND status IN ('confirmed','completed')`),
+        db.execute(sql`SELECT COALESCE(SUM(finalPrice),0) AS total FROM productOrders WHERE merchantId = ${userId} AND status IN ('confirmed','completed')`),
+      ]);
+      productsSold = getNum(soldRes, 'cnt');
+      productRevenue = getNum(revRes, 'total');
+    } catch { /* productOrders table might not exist */ }
 
     // --- Deposit ---
     const depositRows = await db.select({
@@ -2402,55 +2412,50 @@ export async function adminGetUserStats(userId: number) {
     }).from(sellerDeposits).where(eq(sellerDeposits.userId, userId)).limit(1);
     const deposit = depositRows[0] ?? null;
 
-    // --- Active subscription ---
-    const subRows = await db.execute(sql`
-      SELECT us.status, us.startDate, us.endDate, sp.name AS planName, sp.price, sp.currency
-      FROM user_subscriptions us
-      JOIN subscription_plans sp ON sp.id = us.planId
-      WHERE us.userId = ${userId} AND us.status = 'active'
-      ORDER BY us.endDate DESC LIMIT 1
-    `).catch(() => [[]]);
-    const subRow = (subRows[0] as any[])[0] ?? null;
-
-    // --- Commission transactions count ---
-    const [[commTxRow]] = await Promise.all([
-      db.execute(sql`SELECT COUNT(*) AS cnt FROM depositTransactions WHERE userId = ${userId}`),
-    ]);
-    const commissionTxCount = Number((commTxRow as any[])[0]?.cnt ?? 0);
+    // --- Active subscription (use correct column names: monthlyPrice, billingCycle) ---
+    let subscription: { planName: string; status: string; endDate: string; monthlyPrice: number; billingCycle: string } | null = null;
+    try {
+      const subRes = await db.execute(sql`
+        SELECT us.status, us.endDate, us.billingCycle, sp.name AS planName, sp.monthlyPrice, sp.yearlyPrice
+        FROM user_subscriptions us
+        JOIN subscription_plans sp ON sp.id = us.planId
+        WHERE us.userId = ${userId} AND us.status = 'active'
+        ORDER BY us.endDate DESC LIMIT 1
+      `);
+      const subRows = extractRows(subRes);
+      const r = subRows[0];
+      if (r) {
+        subscription = {
+          planName: String(r.planName ?? ''),
+          status: String(r.status ?? ''),
+          endDate: r.endDate ? String(r.endDate) : '',
+          monthlyPrice: Number(r.monthlyPrice ?? 0),
+          billingCycle: String(r.billingCycle ?? 'monthly'),
+        };
+      }
+    } catch { /* subscription tables might not exist */ }
 
     return {
-      // Buyer
-      auctionsBidOn,
-      auctionsWon,
-      auctionsWonTotal,
-      // Seller - auctions
-      auctionsTotal,
-      auctionsActive,
-      auctionsEnded,
-      auctionsDraft,
-      auctionRevenue,
-      // Seller - products
-      productsTotal,
-      productsActive,
+      auctionsBidOn: getNum(bidAuctions, 'cnt'),
+      auctionsWon: getNum(wonCount, 'cnt'),
+      auctionsWonTotal: getNum(wonAmount, 'total'),
+      auctionsTotal: getNum(auctionTotal, 'cnt'),
+      auctionsActive: getNum(auctionActive, 'cnt'),
+      auctionsEnded: getNum(auctionEnded, 'cnt'),
+      auctionsDraft: getNum(auctionDraft, 'cnt'),
+      auctionRevenue: getNum(auctionRevenue, 'total'),
+      productsTotal: getNum(productTotal, 'cnt'),
+      productsActive: getNum(productActive, 'cnt'),
       productsSold,
       productRevenue,
-      // Deposit
+      commissionTxCount: getNum(commTx, 'cnt'),
       deposit: deposit ? {
         balance: Number(deposit.balance),
         requiredDeposit: Number(deposit.requiredDeposit),
         commissionRate: Number(deposit.commissionRate),
         isActive: deposit.isActive,
       } : null,
-      // Subscription
-      subscription: subRow ? {
-        planName: subRow.planName as string,
-        status: subRow.status as string,
-        endDate: subRow.endDate as string,
-        price: Number(subRow.price),
-        currency: subRow.currency as string,
-      } : null,
-      // Deposit tx
-      commissionTxCount,
+      subscription,
     };
   } catch (error) {
     console.error('[Database] Failed to get admin user stats:', error);
