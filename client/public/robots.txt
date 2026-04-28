@@ -1,21 +1,27 @@
 User-agent: *
 Allow: /
+Allow: /api/og-image/
 Disallow: /admin/
-Disallow: /api/
+Disallow: /api/trpc/
 
 User-agent: facebookexternalhit
 Allow: /
+Allow: /api/og-image/
 
 User-agent: Twitterbot
 Allow: /
+Allow: /api/og-image/
 
 User-agent: WhatsApp
 Allow: /
+Allow: /api/og-image/
 
 User-agent: LinkedInBot
 Allow: /
+Allow: /api/og-image/
 
 User-agent: Googlebot
 Allow: /
+Disallow: /admin/
 
 Sitemap: https://hongxcollections.com/sitemap.xml
