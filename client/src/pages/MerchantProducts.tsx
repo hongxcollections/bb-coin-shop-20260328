@@ -451,14 +451,21 @@ function FeaturedApplyDialog({
           {/* 主打位狀態列 */}
           {slotStatus && (
             <div className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs ${isFull ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}>
-              <span>{isFull ? '⚠️ 主打位已額滿，申請後免費排隊，輪到時才扣費' : `✅ 尚有 ${slotsLeft} 個空位，立即生效`}</span>
-              <span className="font-semibold">{slotStatus.active}/{slotStatus.maxSlots} 位</span>
+              <span>{isFull ? `⚠️ 主打位已額滿（${slotStatus.active}/${slotStatus.maxSlots}），申請後加入排隊` : `✅ 尚有 ${slotsLeft} 個空位，立即生效`}</span>
+              {!isFull && <span className="font-semibold">{slotStatus.active}/{slotStatus.maxSlots} 位</span>}
+            </div>
+          )}
+          {isFull && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-xs text-orange-700 space-y-0.5">
+              <p className="font-semibold">💳 申請排隊時立即扣費</p>
+              <p>費用會即時從保證金扣除。輪到你時自動升為進行中，無需額外付費。</p>
+              <p className="text-orange-500">如取消排隊，已扣費用將<strong>全額退回</strong>保證金。</p>
             </div>
           )}
           {slotStatus && slotStatus.queued > 0 && (
             <p className="text-xs text-gray-400 -mt-1">目前排隊等候：{slotStatus.queued} 個</p>
           )}
-          <p className="text-xs text-gray-500">{isFull ? '排隊期間不扣費，輪到時才從保證金扣除。' : '費用立即從保證金扣除。'}目前餘額：<span className="font-semibold text-gray-700">HK${depositBalance.toFixed(2)}</span></p>
+          <p className="text-xs text-gray-500">費用立即從保證金扣除。目前餘額：<span className="font-semibold text-gray-700">HK${depositBalance.toFixed(2)}</span></p>
           <div className="space-y-2">
             {TIER_OPTIONS.map(o => (
               <button
@@ -486,7 +493,7 @@ function FeaturedApplyDialog({
               style={{ background: canAfford ? "linear-gradient(135deg,#f59e0b,#ea580c)" : undefined, backgroundColor: canAfford ? undefined : "#d1d5db" }}
             >
               {apply.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Flame className="w-4 h-4" />}
-              {isFull ? '排隊申請' : '確認申請'}
+              {isFull ? '💳 立即扣費排隊' : '確認申請'}
             </button>
           </div>
         </div>
