@@ -450,7 +450,7 @@ function CombinedHeroCarousel({
 // 行為：載入 1.2s 後滑出，停留 8s 自動縮回；點卡收回，點條邊彈出
 function FeaturedProductSideCard({ products, onBuy, currentUserId }: { products: any[]; onBuy: (p: any) => void; currentUserId?: number | null }) {
   const [phase, setPhase] = useState<"hidden" | "visible" | "gone">("hidden");
-  const [idx, setIdx] = useState(0);
+  const [idx, setIdx] = useState(() => Math.floor(Math.random() * Math.max(products.length, 1)));
   const touchStartX = useRef<number | null>(null);
   const [animDir, setAnimDir] = useState<"left" | "right" | null>(null);
 
