@@ -5,9 +5,84 @@ import AdminHeader from "@/components/AdminHeader";
 import { toast } from "sonner";
 import {
   ShoppingBag, CheckCircle2, XCircle, Clock, AlertTriangle, Phone,
-  ChevronLeft, User, Store,
+  ChevronLeft, User, Store, Shield, Save, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Link } from "wouter";
+
+function LargeOrderSettings() {
+  const utils = trpc.useUtils();
+  const { data: siteSettings = {} } = trpc.siteSettings.getAll.useQuery();
+  const setSetting = trpc.siteSettings.set.useMutation({
+    onSuccess: () => { toast.success("設定已儲存"); utils.siteSettings.getAll.invalidate(); },
+    onError: e => toast.error(e.message),
+  });
+  const s = siteSettings as any;
+  const [threshold, setThreshold] = useState("");
+  const [days, setDays] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const currentThreshold = s.largeOrderCancelThreshold ?? "5000";
+  const currentDays = s.largeOrderPendingDays ?? "7";
+
+  return (
+    <div className="bg-orange-50 border border-orange-200 rounded-2xl overflow-hidden">
+      <button
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-orange-700"
+        onClick={() => setOpen(v => !v)}
+      >
+        <span className="flex items-center gap-2">
+          <Shield className="w-4 h-4" />
+          大額訂單保護設定（門檻：HKD ${parseFloat(currentThreshold).toLocaleString()}｜逾期：{currentDays} 天）
+        </span>
+        {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-3 border-t border-orange-200 pt-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-orange-700">取消保護門檻（HKD）</label>
+              <input
+                type="number" min="0"
+                className="w-full border border-orange-200 bg-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                placeholder={currentThreshold}
+                value={threshold}
+                onChange={e => setThreshold(e.target.value)}
+              />
+              <p className="text-xs text-orange-500">訂單總額 ≥ 此金額時商戶不能自行取消</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-orange-700">逾期警告天數</label>
+              <input
+                type="number" min="1"
+                className="w-full border border-orange-200 bg-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                placeholder={currentDays}
+                value={days}
+                onChange={e => setDays(e.target.value)}
+              />
+              <p className="text-xs text-orange-500">待確認超過此天數顯示紅色警告</p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const t = parseFloat(threshold || currentThreshold);
+              const d = parseInt(days || currentDays, 10);
+              if (isNaN(t) || t < 0) { toast.error("請輸入有效的門檻金額"); return; }
+              if (isNaN(d) || d < 1) { toast.error("請輸入有效的逾期天數"); return; }
+              setSetting.mutate({ key: "largeOrderCancelThreshold", value: String(t) });
+              setSetting.mutate({ key: "largeOrderPendingDays", value: String(d) });
+              setThreshold(""); setDays("");
+            }}
+            disabled={setSetting.isPending}
+            className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold px-4 py-2 rounded-xl disabled:opacity-60 transition-colors"
+          >
+            <Save className="w-3.5 h-3.5" />
+            {setSetting.isPending ? "儲存中…" : "儲存設定"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
   pending: "待確認", confirmed: "已成交", cancelled: "已取消",
@@ -171,6 +246,8 @@ export default function AdminProductOrders() {
             <p className="text-xs text-gray-400 mt-0.5">管理員可取消任何訂單、代商戶確認成交</p>
           </div>
         </div>
+
+        <LargeOrderSettings />
 
         {statusFilter === "pending" && (pendingCount > 0 || overdueCount > 0 || largeOrderCount > 0) && (
           <div className="grid grid-cols-3 gap-3">
