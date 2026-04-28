@@ -572,9 +572,10 @@ export default function MerchantProducts() {
   const [featuredDialog, setFeaturedDialog] = useState<{ id: number; title: string; price: number; currency: string } | null>(null);
   const [cancelQueueTarget, setCancelQueueTarget] = useState<{ id: number; productTitle: string } | null>(null);
   const { data: myDeposit } = trpc.sellerDeposits.myDeposit.useQuery(undefined, { enabled: isAuthenticated });
-  const { data: myFeatured = [] } = trpc.featuredListings.myListings.useQuery(undefined, { enabled: isAuthenticated, staleTime: 30_000 });
+  const { data: myFeatured = [] } = trpc.featuredListings.myListings.useQuery(undefined, { enabled: isAuthenticated, staleTime: 30_000, refetchInterval: 60_000 });
+  const _now = new Date();
   const activeFeaturedIds = new Set(
-    (myFeatured as any[]).filter((f: any) => f.status === 'active').map((f: any) => f.productId)
+    (myFeatured as any[]).filter((f: any) => f.status === 'active' && (!f.endAt || new Date(f.endAt) > _now)).map((f: any) => f.productId)
   );
   const queuedFeaturedMap = new Map<number, { id: number; queuePosition: number }>(
     (myFeatured as any[])

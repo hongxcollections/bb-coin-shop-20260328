@@ -10,7 +10,7 @@ type DraftTier = { tier: string; label: string; price: string; hours: string };
 
 export default function AdminFeaturedListings() {
   const configQuery = trpc.featuredListings.getConfig.useQuery();
-  const allQuery = trpc.featuredListings.adminList.useQuery();
+  const allQuery = trpc.featuredListings.adminList.useQuery(undefined, { refetchInterval: 60_000 });
 
   const updateConfig = trpc.featuredListings.updateConfig.useMutation({
     onSuccess: () => {
@@ -70,9 +70,12 @@ export default function AdminFeaturedListings() {
   }
 
   const listings = allQuery.data ?? [];
-  const active = listings.filter((l: any) => l.status === "active");
+  const now = new Date();
+  const isReallyActive = (l: any) => l.status === "active" && (!l.endAt || new Date(l.endAt) > now);
+  const isReallyExpired = (l: any) => l.status === "expired" || (l.status === "active" && l.endAt && new Date(l.endAt) <= now);
+  const active = listings.filter((l: any) => isReallyActive(l));
   const queued = listings.filter((l: any) => l.status === "queued");
-  const expired = listings.filter((l: any) => l.status === "expired");
+  const expired = listings.filter((l: any) => isReallyExpired(l));
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -328,14 +331,18 @@ function ListingSection({
                 <span className="text-xs text-gray-400">{l.merchantName}</span>
               </div>
               <div className="flex items-center justify-between gap-2">
-                {showExpiry && l.endAt ? (
-                  <span className="text-xs text-gray-400">
-                    到期：{new Date(l.endAt).toLocaleString("zh-HK", {
-                      month: "2-digit", day: "2-digit",
-                      hour: "2-digit", minute: "2-digit",
-                    })}
-                  </span>
-                ) : (
+                {showExpiry && l.endAt ? (() => {
+                  const end = new Date(l.endAt);
+                  const isExpired = end <= new Date();
+                  const soonMs = end.getTime() - Date.now();
+                  const isSoon = !isExpired && soonMs < 60 * 60 * 1000;
+                  return (
+                    <span className={`text-xs ${isExpired ? "text-red-500 font-semibold" : isSoon ? "text-orange-500 font-medium" : "text-gray-400"}`}>
+                      {isExpired ? "⚠️ 已過期：" : isSoon ? "⏰ 到期：" : "到期："}
+                      {end.toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  );
+                })() : (
                   <span />
                 )}
                 {!readOnly && (
