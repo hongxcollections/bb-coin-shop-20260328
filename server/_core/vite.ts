@@ -373,10 +373,16 @@ export function serveStatic(app: Express) {
 
     // Prevent Railway/Fastly CDN from caching HTML responses.
     // A cached 403 during deployment would otherwise be served to Facebook's crawler.
+    // - Cache-Control: private prevents shared CDN caches (Fastly) from storing the response.
+    // - Surrogate-Control: no-store is the Fastly-specific directive.
+    // - CDN-Cache-Control: no-store covers other CDN layers.
+    // - Vary: * prevents Fastly from using cached variants per Accept-Encoding.
     const noCacheHeaders = {
-      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Cache-Control": "private, no-store, no-cache, must-revalidate",
       "Surrogate-Control": "no-store",
+      "CDN-Cache-Control": "no-store",
       "Pragma": "no-cache",
+      "Vary": "*",
     };
 
     const base = `${protocol}://${host}`;
