@@ -45,10 +45,15 @@ function StatusBanner({ status, adminNote }: { status: string; adminNote?: strin
 }
 
 function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
-  const imgRef = useRef<HTMLDivElement>(null);
-  const scale = useRef(1);
-  const minScale = 1;
-  const maxScale = 5;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const imgWrapRef = useRef<HTMLDivElement>(null);
+  const imgElRef = useRef<HTMLImageElement>(null);
+
+  // naturalScale = the initial fit-to-screen scale; user scale multiplies on top of it
+  const naturalScale = useRef(1);
+  const userScale = useRef(1);
+  const minUserScale = 1;
+  const maxUserScale = 6;
   const offsetX = useRef(0);
   const offsetY = useRef(0);
   const lastTouchDist = useRef<number | null>(null);
@@ -57,25 +62,38 @@ function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClos
   const isPinching = useRef(false);
 
   const applyTransform = useCallback(() => {
-    if (!imgRef.current) return;
-    imgRef.current.style.transform = `translate(${offsetX.current}px, ${offsetY.current}px) scale(${scale.current})`;
+    if (!imgWrapRef.current) return;
+    const s = naturalScale.current * userScale.current;
+    imgWrapRef.current.style.transform = `translate(${offsetX.current}px, ${offsetY.current}px) scale(${s})`;
   }, []);
 
   const clampOffset = useCallback(() => {
-    if (!imgRef.current) return;
-    const el = imgRef.current;
-    const pw = el.parentElement?.clientWidth ?? window.innerWidth;
-    const ph = el.parentElement?.clientHeight ?? window.innerHeight;
-    const iw = el.clientWidth * scale.current;
-    const ih = el.clientHeight * scale.current;
-    const maxOx = Math.max(0, (iw - pw) / 2);
-    const maxOy = Math.max(0, (ih - ph) / 2);
+    const el = imgWrapRef.current;
+    if (!el) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const iw = el.clientWidth * naturalScale.current * userScale.current;
+    const ih = el.clientHeight * naturalScale.current * userScale.current;
+    const maxOx = Math.max(0, (iw - vw) / 2);
+    const maxOy = Math.max(0, (ih - vh) / 2);
     offsetX.current = Math.max(-maxOx, Math.min(maxOx, offsetX.current));
     offsetY.current = Math.max(-maxOy, Math.min(maxOy, offsetY.current));
   }, []);
 
+  // Compute initial fit scale once image loads
+  const onImgLoad = useCallback(() => {
+    const img = imgElRef.current;
+    if (!img) return;
+    const vw = window.innerWidth * 0.96;
+    const vh = window.innerHeight * 0.92;
+    const sw = vw / img.naturalWidth;
+    const sh = vh / img.naturalHeight;
+    naturalScale.current = Math.min(sw, sh, 1); // never upscale initially
+    applyTransform();
+  }, [applyTransform]);
+
   useEffect(() => {
-    const el = imgRef.current;
+    const el = imgWrapRef.current;
     if (!el) return;
 
     const getTouchDist = (t: TouchList) =>
@@ -94,8 +112,7 @@ function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClos
         isPinching.current = false;
         const now = Date.now();
         if (now - lastTapTime.current < 280) {
-          // double tap: reset
-          scale.current = 1;
+          userScale.current = 1;
           offsetX.current = 0;
           offsetY.current = 0;
           applyTransform();
@@ -116,19 +133,17 @@ function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClos
         const rect = el.getBoundingClientRect();
         const cx = mid.x - rect.left - rect.width / 2;
         const cy = mid.y - rect.top - rect.height / 2;
-        const prevScale = scale.current;
-        scale.current = Math.max(minScale, Math.min(maxScale, prevScale * ratio));
-        const scaleDelta = scale.current / prevScale;
-        offsetX.current = cx + (offsetX.current - cx) * scaleDelta;
-        offsetY.current = cy + (offsetY.current - cy) * scaleDelta;
+        const prevUser = userScale.current;
+        userScale.current = Math.max(minUserScale, Math.min(maxUserScale, prevUser * ratio));
+        const delta = userScale.current / prevUser;
+        offsetX.current = cx + (offsetX.current - cx) * delta;
+        offsetY.current = cy + (offsetY.current - cy) * delta;
         lastTouchDist.current = newDist;
         clampOffset();
         applyTransform();
       } else if (e.touches.length === 1 && dragStart.current && !isPinching.current) {
-        const dx = e.touches[0].clientX - dragStart.current.x;
-        const dy = e.touches[0].clientY - dragStart.current.y;
-        offsetX.current = dragStart.current.ox + dx;
-        offsetY.current = dragStart.current.oy + dy;
+        offsetX.current = dragStart.current.ox + (e.touches[0].clientX - dragStart.current.x);
+        offsetY.current = dragStart.current.oy + (e.touches[0].clientY - dragStart.current.y);
         clampOffset();
         applyTransform();
       }
@@ -138,9 +153,6 @@ function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClos
       if (e.touches.length < 2) {
         lastTouchDist.current = null;
         if (e.touches.length === 0) isPinching.current = false;
-      }
-      if (e.touches.length === 0 && scale.current <= 1.05) {
-        dragStart.current = null;
       }
     };
 
@@ -154,25 +166,25 @@ function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClos
     };
   }, [applyTransform, clampOffset]);
 
-  const handleBackdropClick = () => {
-    if (scale.current <= 1.05) onClose();
-  };
-
   return (
     <div
+      ref={containerRef}
       className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center overflow-hidden"
-      onClick={handleBackdropClick}
+      onClick={() => { if (userScale.current <= 1.05) onClose(); }}
     >
       <div
-        ref={imgRef}
+        ref={imgWrapRef}
         className="select-none"
-        style={{ transformOrigin: "center center", transition: "none", willChange: "transform" }}
+        style={{ transformOrigin: "center center", willChange: "transform" }}
         onClick={e => e.stopPropagation()}
       >
         <img
+          ref={imgElRef}
           src={src}
           alt={alt}
-          className="max-w-[95vw] max-h-[90vh] rounded-lg object-contain pointer-events-none"
+          onLoad={onImgLoad}
+          className="block rounded-lg pointer-events-none"
+          style={{ imageRendering: "high-quality" }}
           draggable={false}
         />
       </div>
