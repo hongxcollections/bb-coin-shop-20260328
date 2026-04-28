@@ -520,6 +520,21 @@ export default function AuctionDetail() {
                 </div>
               )}
             </div>
+
+            {/* 縮圖列 */}
+            {images.length > 1 && (
+              <div className="flex gap-1.5 px-0.5 pt-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                {images.map((img, i) => (
+                  <button
+                    key={img.id}
+                    onClick={() => goToImage(i, i > selectedImage ? 'left' : 'right')}
+                    className={`flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 transition-all ${i === selectedImage ? "border-amber-400 scale-105 shadow-md" : "border-transparent opacity-70 hover:opacity-100"}`}
+                  >
+                    <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Right: Details */}
