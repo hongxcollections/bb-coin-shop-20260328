@@ -53,7 +53,7 @@ function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClos
   const naturalScale = useRef(1);
   const userScale = useRef(1);
   const minUserScale = 1;
-  const maxUserScale = 6;
+  const maxUserScale = 10;
   const offsetX = useRef(0);
   const offsetY = useRef(0);
   const lastTouchDist = useRef<number | null>(null);
