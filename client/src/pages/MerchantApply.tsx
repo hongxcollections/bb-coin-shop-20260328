@@ -7,7 +7,7 @@ import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ChevronLeft, Store, X, CheckCircle2, Clock, XCircle, ImagePlus } from "lucide-react";
+import { ChevronLeft, Store, X, CheckCircle2, Clock, XCircle, ImagePlus, ChevronDown, ChevronUp } from "lucide-react";
 
 const errTop = (msg: string) => toast.error(msg, { position: "top-center" });
 
@@ -42,6 +42,50 @@ function StatusBanner({ status, adminNote }: { status: string; adminNote?: strin
     </div>
   );
   return null;
+}
+
+function WhyBBSection() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mb-6 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 overflow-hidden shadow-sm">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3.5 text-left"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-lg">💡</span>
+          <div>
+            <p className="font-semibold text-amber-900 text-sm">為什麼選擇大BB錢幣店？</p>
+            <p className="text-xs text-amber-600">告別 Facebook 拍賣的繁瑣，讓系統幫你省時省力</p>
+          </div>
+        </div>
+        {open
+          ? <ChevronUp className="w-4 h-4 text-amber-500 flex-shrink-0" />
+          : <ChevronDown className="w-4 h-4 text-amber-500 flex-shrink-0" />
+        }
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-3">
+          <img
+            src="/fb-vs-pro-auction.png"
+            alt="臉書拍賣 VS 專業拍賣網站對比"
+            className="w-full rounded-xl border border-amber-100 shadow-sm"
+          />
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            {[
+              { icon: "😩", label: "Facebook 痛點", points: ["不斷盯著留言回覆出價", "人手倒數結標易出錯", "逐一通知買家費時"], color: "bg-red-50 border-red-200 text-red-700" },
+              { icon: "✅", label: "大BB 解決方案", points: ["出價即時更新自動記錄", "系統自動結標及通知", "買家自助付款省心省力"], color: "bg-green-50 border-green-200 text-green-700" },
+            ].map(col => (
+              <div key={col.label} className={`rounded-xl border p-2.5 ${col.color}`}>
+                <p className="font-semibold mb-1.5">{col.icon} {col.label}</p>
+                {col.points.map(p => <p key={p} className="leading-snug mb-0.5">· {p}</p>)}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function MerchantApply() {
@@ -155,6 +199,9 @@ export default function MerchantApply() {
             <p className="text-xs text-muted-foreground">填寫以下資料，我們審核後將聯絡你</p>
           </div>
         </div>
+
+        {/* Why BB Infographic */}
+        <WhyBBSection />
 
         {/* Existing application status */}
         {myApp && (
