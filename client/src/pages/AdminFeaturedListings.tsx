@@ -2,6 +2,7 @@ import { useState } from "react";
 import AdminHeader from "@/components/AdminHeader";
 import { trpc } from "@/lib/trpc";
 import { X, Flame, Clock, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 const TIER_ORDER = ["day1", "day3", "day7"];
 
@@ -16,23 +17,23 @@ export default function AdminFeaturedListings() {
     onSuccess: () => {
       setEditMode(false);
       configQuery.refetch();
-      alert("✅ 主打方案設定已儲存");
+      toast.success("主打方案設定已儲存");
     },
-    onError: (e) => alert("❌ 儲存失敗：" + e.message),
+    onError: (e) => toast.error("儲存失敗：" + e.message),
   });
 
   const cancelMutation = trpc.featuredListings.adminCancel.useMutation({
-    onSuccess: () => allQuery.refetch(),
-    onError: (e) => alert("❌ 取消失敗：" + e.message),
+    onSuccess: () => { allQuery.refetch(); toast.success("主打已取消"); },
+    onError: (e) => toast.error("取消失敗：" + e.message),
   });
 
   const purgeMutation = trpc.featuredListings.adminPurge.useMutation({
     onSuccess: (res) => {
       setShowPurgeConfirm(false);
       allQuery.refetch();
-      alert(`✅ 已清除 ${res.cleared} 條進行中/排隊主打記錄`);
+      toast.success(`已清除 ${res.cleared} 條進行中／排隊主打記錄`);
     },
-    onError: (e) => alert("❌ 清除失敗：" + e.message),
+    onError: (e) => toast.error("清除失敗：" + e.message),
   });
 
   const [editMode, setEditMode] = useState(false);
@@ -63,16 +64,16 @@ export default function AdminFeaturedListings() {
 
   function handleSave() {
     const slots = parseInt(draftMaxSlots);
-    if (!draftMaxSlots.trim() || isNaN(slots) || slots < 1) return alert("最多同時主打數至少為 1");
-    if (slots > 100) return alert("最多同時主打數不能超過 100");
+    if (!draftMaxSlots.trim() || isNaN(slots) || slots < 1) { toast.error("最多同時主打數至少為 1"); return; }
+    if (slots > 100) { toast.error("最多同時主打數不能超過 100"); return; }
 
     const parsedTiers = [];
     for (const t of draftTiers) {
-      if (!t.label.trim()) return alert(`${t.tier} 方案名稱不可空白`);
+      if (!t.label.trim()) { toast.error(`${t.tier} 方案名稱不可空白`); return; }
       const price = parseFloat(t.price);
       const hours = parseInt(t.hours);
-      if (isNaN(price) || price < 0) return alert(`${t.tier} 費用必須為 0 或以上`);
-      if (isNaN(hours) || hours < 1) return alert(`${t.tier} 時長至少 1 小時`);
+      if (isNaN(price) || price < 0) { toast.error(`${t.tier} 費用必須為 0 或以上`); return; }
+      if (isNaN(hours) || hours < 1) { toast.error(`${t.tier} 時長至少 1 小時`); return; }
       parsedTiers.push({ tier: t.tier, label: t.label.trim(), price, hours });
     }
 
