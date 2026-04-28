@@ -131,7 +131,7 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
     // Facebook large-image preview ONLY shows og:title (not description/site_name).
     // So we pack all key info into og:title for maximum visibility.
     const ogTitle = `${auction.title} ｜ 起拍 ${currSymbol}${startPrice}｜結標：${endTimeStr}`;
-    const ogDesc = `【大BB錢幣店】${auction.title}\n起拍價：${currSymbol}${startPrice}｜目前出價：${currSymbol}${currPrice}\n結標：${endTimeStr}\n快來競拍！`;
+    const ogDesc = `【大BB錢幣店】${auction.title} ｜ 起拍價：${currSymbol}${startPrice}｜目前出價：${currSymbol}${currPrice}｜結標：${endTimeStr}｜快來競拍！`;
     const fullUrl = `${protocol}://${host}${reqPath}`;
 
     const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
