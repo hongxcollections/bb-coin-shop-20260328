@@ -87,6 +87,10 @@ export default function AdminSiteSettings() {
   const [otpIpMaxPerWindow, setOtpIpMaxPerWindow] = useState("10");
   const [otpIpWindowMins, setOtpIpWindowMins] = useState("15");
 
+  // 大額訂單保護設定
+  const [largeOrderCancelThreshold, setLargeOrderCancelThreshold] = useState("5000");
+  const [largeOrderPendingDays, setLargeOrderPendingDays] = useState("7");
+
   // 套餐資料同步
   const [importLoading, setImportLoading] = useState(false);
   const exportPackagesMut = trpc.users.adminExportPackages.useMutation();
@@ -156,6 +160,8 @@ export default function AdminSiteSettings() {
     if (s.otpMaxPerHour) setOtpMaxPerHour(s.otpMaxPerHour);
     if (s.otpIpMaxPerWindow) setOtpIpMaxPerWindow(s.otpIpMaxPerWindow);
     if (s.otpIpWindowMins) setOtpIpWindowMins(s.otpIpWindowMins);
+    if (s.largeOrderCancelThreshold) setLargeOrderCancelThreshold(s.largeOrderCancelThreshold);
+    if (s.largeOrderPendingDays) setLargeOrderPendingDays(s.largeOrderPendingDays);
     if (s.productCategories) {
       try {
         const parsed = JSON.parse(s.productCategories);
@@ -891,6 +897,60 @@ export default function AdminSiteSettings() {
                     {setSetting.isPending ? "儲存中..." : "儲存 OTP 限制設定"}
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* 大額訂單保護設定 */}
+            <Card className="border-orange-200">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-orange-600" />
+                  大額訂單保護
+                </CardTitle>
+                <CardDescription>
+                  當訂單總額達到門檻，商戶將無法自行取消訂單，須聯絡管理員處理。逾期天數超過設定值將顯示紅色警告。
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>取消保護門檻（HKD）</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={largeOrderCancelThreshold}
+                      onChange={e => setLargeOrderCancelThreshold(e.target.value)}
+                      placeholder="5000"
+                    />
+                    <p className="text-xs text-muted-foreground">訂單總額 ≥ 此金額時商戶不能自行取消</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>逾期警告天數</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={largeOrderPendingDays}
+                      onChange={e => setLargeOrderPendingDays(e.target.value)}
+                      placeholder="7"
+                    />
+                    <p className="text-xs text-muted-foreground">待確認超過此天數將顯示紅色警告</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => {
+                    const t = parseFloat(largeOrderCancelThreshold);
+                    const d = parseInt(largeOrderPendingDays, 10);
+                    if (isNaN(t) || t < 0) { toast.error("請輸入有效的門檻金額"); return; }
+                    if (isNaN(d) || d < 1) { toast.error("請輸入有效的逾期天數"); return; }
+                    setSetting.mutate({ key: 'largeOrderCancelThreshold', value: String(t) });
+                    setSetting.mutate({ key: 'largeOrderPendingDays', value: String(d) });
+                  }}
+                  disabled={setSetting.isPending}
+                  className="bg-orange-600 hover:bg-orange-700 text-white gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  {setSetting.isPending ? "儲存中..." : "儲存大額訂單保護設定"}
+                </Button>
               </CardContent>
             </Card>
 

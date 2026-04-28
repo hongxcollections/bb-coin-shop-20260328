@@ -145,6 +145,9 @@ function MerchantOrdersTab() {
   const utils = trpc.useUtils();
   const [statusFilter, setStatusFilter] = useState("pending");
   const { data: orders = [], isLoading, error: ordersError } = trpc.productOrders.myMerchantOrders.useQuery({ status: statusFilter });
+  const { data: siteSettings = {} } = trpc.siteSettings.getAll.useQuery();
+  const largeOrderThreshold = parseFloat((siteSettings as any).largeOrderCancelThreshold ?? "5000");
+  const overdueDays = parseInt((siteSettings as any).largeOrderPendingDays ?? "7", 10);
   const [actionDialog, setActionDialog] = useState<{ order: any; type: "confirm" | "cancel" } | null>(null);
 
   const confirm = trpc.productOrders.confirm.useMutation({
@@ -186,8 +189,24 @@ function MerchantOrdersTab() {
             const commission = parseFloat(String(o.commissionAmount));
             const finalPrice = o.finalPrice != null ? parseFloat(String(o.finalPrice)) : null;
             const d = new Date(o.createdAt);
+            const orderTotal = price * parseInt(String(o.quantity));
+            const isLargeOrder = orderTotal >= largeOrderThreshold;
+            const pendingDays = parseInt(String(o.pendingDays ?? 0), 10);
+            const isOverdue = o.status === "pending" && pendingDays >= overdueDays;
             return (
-              <div key={o.id} className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2.5">
+              <div key={o.id} className={`bg-white rounded-2xl border p-4 space-y-2.5 ${isLargeOrder && o.status === "pending" ? "border-orange-300 ring-1 ring-orange-200" : "border-gray-100"}`}>
+                {isLargeOrder && o.status === "pending" && (
+                  <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 text-xs text-orange-700 font-medium">
+                    <span>🔒</span>
+                    <span>大額訂單（HKD ${orderTotal.toLocaleString()} ≥ ${largeOrderThreshold.toLocaleString()}）— 如需取消請聯絡管理員</span>
+                  </div>
+                )}
+                {isOverdue && (
+                  <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-xs text-red-700 font-medium">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>訂單待確認已超過 {pendingDays} 天，請盡快處理</span>
+                  </div>
+                )}
                 <div className="flex items-start gap-3">
                   {(() => {
                     const imgs: string[] = (() => { try { return o.productImages ? JSON.parse(o.productImages) : []; } catch { return []; } })();
@@ -261,13 +280,19 @@ function MerchantOrdersTab() {
                     >
                       <CheckCircle2 className="w-4 h-4" />確認成交
                     </button>
-                    <button
-                      onClick={() => setActionDialog({ order: o, type: "cancel" })}
-                      disabled={confirm.isPending || cancel.isPending}
-                      className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 text-gray-500 text-sm font-medium py-2 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-60"
-                    >
-                      <XCircle className="w-4 h-4" />取消訂單
-                    </button>
+                    {isLargeOrder ? (
+                      <div className="flex-1 flex items-center justify-center gap-1.5 border border-orange-200 text-orange-400 text-xs font-medium py-2 rounded-xl bg-orange-50 cursor-not-allowed" title="大額訂單需聯絡管理員取消">
+                        <span>🔒</span>需管理員取消
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setActionDialog({ order: o, type: "cancel" })}
+                        disabled={confirm.isPending || cancel.isPending}
+                        className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 text-gray-500 text-sm font-medium py-2 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-60"
+                      >
+                        <XCircle className="w-4 h-4" />取消訂單
+                      </button>
+                    )}
                   </div>
                 )}
                 {o.status === "confirmed" && o.confirmedAt && (

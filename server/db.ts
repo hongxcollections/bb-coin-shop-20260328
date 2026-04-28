@@ -3972,7 +3972,8 @@ export async function getProductOrdersByMerchant(merchantId: number, status?: st
   if (status && status !== 'all') {
     rows = await db.execute(sql`
       SELECT o.*, u.name as buyerDisplayName, u.phone as buyerPhoneFromUser,
-             mp.images as productImages
+             mp.images as productImages,
+             TIMESTAMPDIFF(DAY, o.createdAt, NOW()) AS pendingDays
       FROM productOrders o
       LEFT JOIN users u ON u.id = o.buyerId
       LEFT JOIN merchantProducts mp ON mp.id = o.productId
@@ -3982,7 +3983,8 @@ export async function getProductOrdersByMerchant(merchantId: number, status?: st
   } else {
     rows = await db.execute(sql`
       SELECT o.*, u.name as buyerDisplayName, u.phone as buyerPhoneFromUser,
-             mp.images as productImages
+             mp.images as productImages,
+             TIMESTAMPDIFF(DAY, o.createdAt, NOW()) AS pendingDays
       FROM productOrders o
       LEFT JOIN users u ON u.id = o.buyerId
       LEFT JOIN merchantProducts mp ON mp.id = o.productId
@@ -4013,7 +4015,8 @@ export async function getAllProductOrders(): Promise<any[]> {
   if (!db) throw new Error('DB unavailable');
   const rows = await db.execute(sql`
     SELECT o.*, u.name as buyerDisplayName,
-           ma.merchantName
+           ma.merchantName,
+           TIMESTAMPDIFF(DAY, o.createdAt, NOW()) AS pendingDays
     FROM productOrders o
     LEFT JOIN users u ON u.id = o.buyerId
     LEFT JOIN merchantApplications ma ON ma.userId = o.merchantId AND ma.status = 'approved'
@@ -4076,6 +4079,16 @@ export async function cancelProductOrder(orderId: number, byUserId: number, isAd
   if (!order) return { ok: false, error: '找不到此訂單' };
   if (!isAdmin && order.buyerId !== byUserId && order.merchantId !== byUserId) return { ok: false, error: '無權操作' };
   if (order.status !== 'pending') return { ok: false, error: '只有待確認的訂單可以取消' };
+
+  // 大額訂單保護：商戶不能自行取消，只有管理員和買家可以取消
+  if (!isAdmin && order.merchantId === byUserId) {
+    const settings = await getAllSiteSettings();
+    const threshold = parseFloat(settings.largeOrderCancelThreshold ?? '5000');
+    const orderTotal = parseFloat(String(order.price)) * parseInt(String(order.quantity));
+    if (orderTotal >= threshold) {
+      return { ok: false, error: `訂單金額 HKD $${orderTotal.toLocaleString()} 超過大額門檻（HKD $${threshold.toLocaleString()}），請聯絡管理員處理取消事宜。` };
+    }
+  }
 
   await db.execute(sql`
     UPDATE productOrders SET status = 'cancelled', cancelledAt = NOW(), cancelReason = ${reason ?? null}
