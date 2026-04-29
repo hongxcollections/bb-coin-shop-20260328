@@ -644,7 +644,7 @@ export default function AdminSiteSettings() {
                   <Sparkles className="w-5 h-5 text-purple-500" />
                   <CardTitle className="text-lg">登入歡迎訊息</CardTitle>
                 </div>
-                <CardDescription>用戶登入 / 註冊成功後，底部彈出 toast 的主副標題</CardDescription>
+                <CardDescription>用戶登入 / 註冊成功後，底部彈出 toast 的主副標題。可用 <code className="bg-muted px-1 rounded text-xs font-mono">{"{username}"}</code> 代入會員名稱（優先顯示姓名，其次手機號碼）</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
                 <div className="grid gap-4 sm:grid-cols-3">

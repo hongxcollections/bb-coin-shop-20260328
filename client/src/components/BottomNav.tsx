@@ -18,6 +18,10 @@ export default function BottomNav() {
   const loginWelcomeTitleEmail = _ss.loginWelcomeTitleEmail || "電郵登入成功！";
   const loginWelcomeTitleRegister = _ss.loginWelcomeTitleRegister || "手機號碼註冊成功！";
   const loginWelcomeDesc = _ss.loginWelcomeDesc || "歡迎繼續瀏覽網站！";
+
+  const _u = user as { name?: string; phone?: string; email?: string } | null;
+  const _resolvedName = _u?.name || _u?.phone || _u?.email || "會員";
+  const fillUsername = (tpl: string) => tpl.replace(/\{username\}/g, _resolvedName);
   const isMerchant = isMerchantData === true;
   const [location] = useLocation();
   const [showMore, setShowMore] = useState(false);
@@ -45,12 +49,12 @@ export default function BottomNav() {
       localStorage.removeItem("showWelcomeToast");
       showToast({
         icon: "✅",
-        title: loginWelcomeTitleRegister,
-        desc: loginWelcomeDesc,
+        title: fillUsername(loginWelcomeTitleRegister),
+        desc: fillUsername(loginWelcomeDesc),
         durationMs: 4000,
       });
     }
-  }, [showToast, loginWelcomeTitleRegister, loginWelcomeDesc, _settingsLoaded]);
+  }, [showToast, loginWelcomeTitleRegister, loginWelcomeDesc, _settingsLoaded, _resolvedName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show login success toast — wait for siteSettings to load first so loginWelcomeDesc is up-to-date
   useEffect(() => {
@@ -60,12 +64,12 @@ export default function BottomNav() {
       localStorage.removeItem("showLoginToast");
       showToast({
         icon: "✅",
-        title: method === "phone" ? loginWelcomeTitlePhone : loginWelcomeTitleEmail,
-        desc: loginWelcomeDesc,
+        title: fillUsername(method === "phone" ? loginWelcomeTitlePhone : loginWelcomeTitleEmail),
+        desc: fillUsername(loginWelcomeDesc),
         durationMs: 4000,
       });
     }
-  }, [showToast, loginWelcomeTitlePhone, loginWelcomeTitleEmail, loginWelcomeDesc, _settingsLoaded]);
+  }, [showToast, loginWelcomeTitlePhone, loginWelcomeTitleEmail, loginWelcomeDesc, _settingsLoaded, _resolvedName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showComingSoon = useCallback((featureName: string) => {
     showToast({
