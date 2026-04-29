@@ -256,6 +256,90 @@ function WhyBBSection() {
   );
 }
 
+// ── SEO：動態 title + JSON-LD HowTo 結構化資料 ──────────────────────────────
+function MerchantApplySeo() {
+  useEffect(() => {
+    const prev = document.title;
+    document.title = "成為商戶｜hongxcollections 香港錢幣拍賣平台";
+
+    // 注入 JSON-LD HowTo（申請商戶步驟），讓 Google 識別為 Rich Result
+    const script = document.createElement("script");
+    script.type = "application/ld+json";
+    script.id = "merchant-apply-jsonld";
+    script.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "HowTo",
+      "name": "如何在 hongxcollections 成為錢幣賣家商戶",
+      "description": "在 hongxcollections 香港錢幣拍賣平台登記成為商戶，輕鬆開設線上錢幣拍賣及出售店舖。只需四個步驟即可完成申請。",
+      "image": {
+        "@type": "ImageObject",
+        "url": "https://hongxcollections.com/merchant-apply-steps.png",
+        "caption": "成為商戶的申請步驟流程圖"
+      },
+      "totalTime": "PT5M",
+      "estimatedCost": {
+        "@type": "MonetaryAmount",
+        "currency": "HKD",
+        "value": "0"
+      },
+      "step": [
+        {
+          "@type": "HowToStep",
+          "position": 1,
+          "name": "登記帳號",
+          "text": "在 hongxcollections.com 免費註冊會員帳號（電話或電郵均可）。",
+          "url": "https://hongxcollections.com/login?mode=register"
+        },
+        {
+          "@type": "HowToStep",
+          "position": 2,
+          "name": "提交商戶申請",
+          "text": "登入後進入「商戶申請」頁面，填寫商戶名稱、自我介紹及 WhatsApp 聯絡方式，提交申請。",
+          "url": "https://hongxcollections.com/merchant-apply"
+        },
+        {
+          "@type": "HowToStep",
+          "position": 3,
+          "name": "等候審核",
+          "text": "管理員將在 1–3 個工作天內審核你的申請，批准後會即時通知。"
+        },
+        {
+          "@type": "HowToStep",
+          "position": 4,
+          "name": "繳交保證金並開始上架",
+          "text": "申請批准後繳交指定保證金，即可開始在平台上架拍賣品及出售商品。",
+          "url": "https://hongxcollections.com/merchant-dashboard"
+        }
+      ],
+      "supply": [],
+      "tool": [],
+      "url": "https://hongxcollections.com/merchant-apply",
+      "inLanguage": "zh-HK",
+      "publisher": {
+        "@type": "Organization",
+        "name": "hongxcollections",
+        "url": "https://hongxcollections.com",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://hongxcollections.com/logo.png"
+        }
+      }
+    });
+
+    // 防止重複注入
+    const existing = document.getElementById("merchant-apply-jsonld");
+    if (existing) existing.remove();
+    document.head.appendChild(script);
+
+    return () => {
+      document.title = prev;
+      document.getElementById("merchant-apply-jsonld")?.remove();
+    };
+  }, []);
+
+  return null;
+}
+
 export default function MerchantApply() {
   const { user, isAuthenticated, loading } = useAuth();
 
@@ -336,6 +420,7 @@ export default function MerchantApply() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <MerchantApplySeo />
         <Store className="w-12 h-12 text-amber-400" />
         <h1 className="text-xl font-bold">請先登入</h1>
         <p className="text-muted-foreground text-sm">申請商戶需要先登入帳號</p>
@@ -348,6 +433,7 @@ export default function MerchantApply() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50">
+      <MerchantApplySeo />
       <Header />
       <div className="container max-w-2xl pt-6 pb-28 px-4">
 
