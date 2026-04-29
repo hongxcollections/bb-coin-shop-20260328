@@ -4653,7 +4653,7 @@ export const appRouter = router({
             return { url: base, key: ENV.forgeApiKey, model: "gemini-2.5-flash" };
           }
           if (ENV.openRouterApiKey) {
-            return { url: "https://openrouter.ai/api/v1/chat/completions", key: ENV.openRouterApiKey, model: "google/gemini-2.0-flash-exp:free" };
+            return { url: "https://openrouter.ai/api/v1/chat/completions", key: ENV.openRouterApiKey, model: "meta-llama/llama-4-maverick:free" };
           }
           if (ENV.geminiApiKey) {
             return { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: ENV.geminiApiKey, model: "gemini-2.0-flash" };
@@ -4715,16 +4715,34 @@ Return a JSON object with these fields (use "Unknown" if uncertain, do not fabri
             },
           ],
         };
-        const visionResp = await fetch(visionApi.url, {
-          method: "POST",
-          headers: { "content-type": "application/json", authorization: `Bearer ${visionApi.key}` },
-          body: JSON.stringify(visionPayload),
-        });
-        if (!visionResp.ok) {
-          const errText = await visionResp.text().catch(() => "");
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `AI 分析失敗：${visionResp.status} ${errText.slice(0, 200)}` });
+        // 備用模型列表（OpenRouter 免費視覺模型）
+        const fallbackModels = ENV.openRouterApiKey
+          ? ["meta-llama/llama-4-maverick:free", "meta-llama/llama-4-scout:free", "google/gemini-2.5-pro-exp-03-25:free"]
+          : [];
+
+        let visionResult: { choices: Array<{ message: { content: string | Array<{type:string;text?:string}> } }> } | null = null;
+        let lastError = "";
+
+        const modelsToTry = fallbackModels.length > 0
+          ? fallbackModels.map(m => ({ ...visionApi, model: m }))
+          : [visionApi];
+
+        for (const api of modelsToTry) {
+          const payload = { ...visionPayload, model: api.model };
+          const resp = await fetch(api.url, {
+            method: "POST",
+            headers: { "content-type": "application/json", authorization: `Bearer ${api.key}` },
+            body: JSON.stringify(payload),
+          });
+          if (resp.ok) {
+            visionResult = await resp.json();
+            break;
+          }
+          lastError = await resp.text().catch(() => `${resp.status}`);
         }
-        const visionResult = await visionResp.json() as { choices: Array<{ message: { content: string | Array<{type:string;text?:string}> } }> };
+        if (!visionResult) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `AI 分析失敗：${lastError.slice(0, 200)}` });
+        }
         const raw = visionResult.choices[0]?.message?.content ?? "";
         const text = typeof raw === "string" ? raw : (raw as Array<{type:string;text?:string}>).find(p => p.type === "text")?.text ?? "";
 
