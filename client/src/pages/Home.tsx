@@ -619,9 +619,12 @@ function FeaturedProductSideCard({ products, onBuy, currentUserId }: { products:
 
         {/* 底部資訊 */}
         <div className="absolute bottom-0 left-0 right-0 p-2.5">
-          <h3 className="text-white font-bold text-[11px] leading-snug line-clamp-1 drop-shadow mb-1">
+          <h3 className="text-white font-bold text-[11px] leading-snug line-clamp-1 drop-shadow mb-0.5">
             {product.title}
           </h3>
+          <p className="text-amber-300 font-bold text-[12px] leading-none mb-1 drop-shadow">
+            {curr}${price.toLocaleString()}
+          </p>
           <div className="flex items-center justify-end gap-1">
             {isOwn ? (
               <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white/50 bg-white/20 cursor-not-allowed select-none">
