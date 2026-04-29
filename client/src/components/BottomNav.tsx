@@ -36,17 +36,18 @@ export default function BottomNav() {
 
   // Show welcome toast after phone registration (localStorage flag set by Login.tsx)
   useEffect(() => {
+    if (!_settingsLoaded) return;
     const flag = localStorage.getItem("showWelcomeToast");
     if (flag === "phone") {
       localStorage.removeItem("showWelcomeToast");
       showToast({
         icon: "✅",
         title: "手機號碼註冊成功！",
-        desc: "歡迎繼續瀏覽網站！",
+        desc: loginWelcomeDesc,
         durationMs: 4000,
       });
     }
-  }, [showToast]);
+  }, [showToast, loginWelcomeDesc, _settingsLoaded]);
 
   // Show login success toast — wait for siteSettings to load first so loginWelcomeDesc is up-to-date
   useEffect(() => {
