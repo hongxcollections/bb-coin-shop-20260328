@@ -54,6 +54,9 @@ export default function AdminSiteSettings() {
   const [notLoggedInBidText, setNotLoggedInBidText] = useState("登入後出價");
 
   // 登入歡迎訊息
+  const [loginWelcomeTitlePhone, setLoginWelcomeTitlePhone] = useState("手機登入成功！");
+  const [loginWelcomeTitleEmail, setLoginWelcomeTitleEmail] = useState("電郵登入成功！");
+  const [loginWelcomeTitleRegister, setLoginWelcomeTitleRegister] = useState("手機號碼註冊成功！");
   const [loginWelcomeDesc, setLoginWelcomeDesc] = useState("歡迎繼續瀏覽網站！");
 
   // 保證金警告信息
@@ -141,6 +144,9 @@ export default function AdminSiteSettings() {
     if (s.bidSuccessMessage) setBidSuccessMessage(s.bidSuccessMessage);
     if (s.bidSuccessExtendedMessage) setBidSuccessExtendedMessage(s.bidSuccessExtendedMessage);
     if (s.notLoggedInBidText) setNotLoggedInBidText(s.notLoggedInBidText);
+    if (s.loginWelcomeTitlePhone) setLoginWelcomeTitlePhone(s.loginWelcomeTitlePhone);
+    if (s.loginWelcomeTitleEmail) setLoginWelcomeTitleEmail(s.loginWelcomeTitleEmail);
+    if (s.loginWelcomeTitleRegister) setLoginWelcomeTitleRegister(s.loginWelcomeTitleRegister);
     if (s.loginWelcomeDesc) setLoginWelcomeDesc(s.loginWelcomeDesc);
     if (s.depositWarningMessage) setDepositWarningMessage(s.depositWarningMessage);
     if (s.merchantContactMessage) setMerchantContactMessage(s.merchantContactMessage);
@@ -638,18 +644,52 @@ export default function AdminSiteSettings() {
                   <Sparkles className="w-5 h-5 text-purple-500" />
                   <CardTitle className="text-lg">登入歡迎訊息</CardTitle>
                 </div>
-                <CardDescription>用戶登入成功後，底部彈出 toast 訊息的說明文字</CardDescription>
+                <CardDescription>用戶登入 / 註冊成功後，底部彈出 toast 的主副標題</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-5">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div>
+                    <Label className="flex items-center gap-2 mb-2"><Sparkles className="w-4 h-4 text-purple-500" />手機登入主標題</Label>
+                    <Input
+                      value={loginWelcomeTitlePhone}
+                      onChange={(e) => setLoginWelcomeTitlePhone(e.target.value)}
+                      placeholder="手機登入成功！"
+                    />
+                    <div className="mt-2 flex justify-end">
+                      <SaveBtn onClick={() => save('loginWelcomeTitlePhone', loginWelcomeTitlePhone, () => !loginWelcomeTitlePhone.trim() ? "不可為空" : null)} />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-2 mb-2"><Sparkles className="w-4 h-4 text-purple-500" />電郵登入主標題</Label>
+                    <Input
+                      value={loginWelcomeTitleEmail}
+                      onChange={(e) => setLoginWelcomeTitleEmail(e.target.value)}
+                      placeholder="電郵登入成功！"
+                    />
+                    <div className="mt-2 flex justify-end">
+                      <SaveBtn onClick={() => save('loginWelcomeTitleEmail', loginWelcomeTitleEmail, () => !loginWelcomeTitleEmail.trim() ? "不可為空" : null)} />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-2 mb-2"><Sparkles className="w-4 h-4 text-purple-500" />手機註冊主標題</Label>
+                    <Input
+                      value={loginWelcomeTitleRegister}
+                      onChange={(e) => setLoginWelcomeTitleRegister(e.target.value)}
+                      placeholder="手機號碼註冊成功！"
+                    />
+                    <div className="mt-2 flex justify-end">
+                      <SaveBtn onClick={() => save('loginWelcomeTitleRegister', loginWelcomeTitleRegister, () => !loginWelcomeTitleRegister.trim() ? "不可為空" : null)} />
+                    </div>
+                  </div>
+                </div>
                 <div>
-                  <Label className="flex items-center gap-2 mb-2"><Sparkles className="w-4 h-4 text-purple-500" />說明文字（副標題）</Label>
+                  <Label className="flex items-center gap-2 mb-2"><Sparkles className="w-4 h-4 text-purple-500" />副標題（三種情況共用）</Label>
                   <Input
                     value={loginWelcomeDesc}
                     onChange={(e) => setLoginWelcomeDesc(e.target.value)}
                     placeholder="歡迎繼續瀏覽網站！"
                     className="max-w-sm"
                   />
-                  <p className="text-xs text-muted-foreground mt-1.5">標題「手機登入成功！」或「電郵登入成功！」由系統自動生成</p>
                 </div>
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   {popupPreview(loginWelcomeDesc)}

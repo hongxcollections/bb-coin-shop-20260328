@@ -14,6 +14,9 @@ export default function BottomNav() {
   });
   const { data: _siteSettings, isSuccess: _settingsLoaded } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const _ss = (_siteSettings as Record<string, string> | undefined) ?? {};
+  const loginWelcomeTitlePhone = _ss.loginWelcomeTitlePhone || "手機登入成功！";
+  const loginWelcomeTitleEmail = _ss.loginWelcomeTitleEmail || "電郵登入成功！";
+  const loginWelcomeTitleRegister = _ss.loginWelcomeTitleRegister || "手機號碼註冊成功！";
   const loginWelcomeDesc = _ss.loginWelcomeDesc || "歡迎繼續瀏覽網站！";
   const isMerchant = isMerchantData === true;
   const [location] = useLocation();
@@ -42,12 +45,12 @@ export default function BottomNav() {
       localStorage.removeItem("showWelcomeToast");
       showToast({
         icon: "✅",
-        title: "手機號碼註冊成功！",
+        title: loginWelcomeTitleRegister,
         desc: loginWelcomeDesc,
         durationMs: 4000,
       });
     }
-  }, [showToast, loginWelcomeDesc, _settingsLoaded]);
+  }, [showToast, loginWelcomeTitleRegister, loginWelcomeDesc, _settingsLoaded]);
 
   // Show login success toast — wait for siteSettings to load first so loginWelcomeDesc is up-to-date
   useEffect(() => {
@@ -57,12 +60,12 @@ export default function BottomNav() {
       localStorage.removeItem("showLoginToast");
       showToast({
         icon: "✅",
-        title: method === "phone" ? "手機登入成功！" : "電郵登入成功！",
+        title: method === "phone" ? loginWelcomeTitlePhone : loginWelcomeTitleEmail,
         desc: loginWelcomeDesc,
         durationMs: 4000,
       });
     }
-  }, [showToast, loginWelcomeDesc, _settingsLoaded]);
+  }, [showToast, loginWelcomeTitlePhone, loginWelcomeTitleEmail, loginWelcomeDesc, _settingsLoaded]);
 
   const showComingSoon = useCallback((featureName: string) => {
     showToast({
