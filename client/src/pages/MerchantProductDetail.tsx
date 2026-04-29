@@ -486,7 +486,7 @@ export default function MerchantProductDetail() {
 
                 {/* 分類 tag（獨立一行，多個逗號分隔各自一個） */}
                 {product.category && (
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1.5 justify-end">
                     {product.category.split(",").map((tag: string) => tag.trim()).filter(Boolean).map((tag: string) => (
                       <span key={tag} className="flex items-center gap-0.5 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
                         <Tag className="w-3 h-3 shrink-0" />{tag}
