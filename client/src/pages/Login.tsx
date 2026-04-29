@@ -126,6 +126,7 @@ export default function Login() {
   const [countdown, setCountdown] = useState(0);
   const [otpSending, setOtpSending] = useState(false);
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [showMerchantFlow, setShowMerchantFlow] = useState(false);
   const countryDropdownRef = useRef<HTMLDivElement>(null);
 
   const [loading, setLoading] = useState(false);
@@ -1236,17 +1237,57 @@ export default function Login() {
 
         {/* Switch mode link */}
         {mode !== "forgot" && !(isPhoneRegister && step === "otp") && (
-          <div className="text-center mt-5">
-            <span className="text-sm" style={{ color: "#666" }}>
-              {mode === "login" ? "還沒有帳號？" : "已有帳號？"}
-            </span>{" "}
-            <button
-              onClick={() => switchMode(mode === "login" ? "register" : "login")}
-              className="text-sm font-semibold bg-transparent border-0 cursor-pointer p-0"
-              style={{ color: "#E07B00" }}
+          <div className="text-center mt-5 space-y-2">
+            <div>
+              <span className="text-sm" style={{ color: "#666" }}>
+                {mode === "login" ? "還沒有帳號？" : "已有帳號？"}
+              </span>{" "}
+              <button
+                onClick={() => switchMode(mode === "login" ? "register" : "login")}
+                className="text-sm font-semibold bg-transparent border-0 cursor-pointer p-0"
+                style={{ color: "#E07B00" }}
+              >
+                {mode === "login" ? "立即註冊" : "立即登入"}
+              </button>
+            </div>
+            {mode === "register" && (
+              <div>
+                <button
+                  onClick={() => setShowMerchantFlow(true)}
+                  className="text-sm bg-transparent border-0 cursor-pointer p-0 underline underline-offset-2"
+                  style={{ color: "#888" }}
+                >
+                  商戶申請流程
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 商戶申請流程燈箱 */}
+        {showMerchantFlow && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            style={{ backgroundColor: "rgba(0,0,0,0.75)" }}
+            onClick={() => setShowMerchantFlow(false)}
+          >
+            <div
+              className="relative max-w-[95vw] max-h-[90vh] overflow-auto rounded-lg"
+              onClick={(e) => e.stopPropagation()}
             >
-              {mode === "login" ? "立即註冊" : "立即登入"}
-            </button>
+              <button
+                onClick={() => setShowMerchantFlow(false)}
+                className="absolute top-2 right-2 z-10 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center"
+              >
+                <X size={16} />
+              </button>
+              <img
+                src="/merchant-apply-steps.png"
+                alt="商戶申請流程"
+                className="block rounded-lg"
+                style={{ maxWidth: "90vw", maxHeight: "85vh", objectFit: "contain" }}
+              />
+            </div>
           </div>
         )}
       </div>
