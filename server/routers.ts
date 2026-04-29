@@ -4715,13 +4715,18 @@ Return a JSON object with these fields (use "Unknown" if uncertain, do not fabri
             },
           ],
         };
-        // 備用模型列表（OpenRouter 免費視覺模型）
+        // 備用模型列表（OpenRouter 免費視覺模型，已確認支援圖片輸入）
         const fallbackModels = ENV.openRouterApiKey
-          ? ["meta-llama/llama-4-maverick:free", "meta-llama/llama-4-scout:free", "google/gemini-2.5-pro-exp-03-25:free"]
+          ? [
+              "google/gemma-4-31b-it:free",        // Gemma 4 multimodal
+              "google/gemma-4-26b-a4b-it:free",     // Gemma 4 MoE multimodal
+              "google/gemma-3-27b-it:free",         // Gemma 3 multimodal
+              "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", // NVIDIA vision+reasoning
+            ]
           : [];
 
         let visionResult: { choices: Array<{ message: { content: string | Array<{type:string;text?:string}> } }> } | null = null;
-        let lastError = "";
+        const errors: string[] = [];
 
         const modelsToTry = fallbackModels.length > 0
           ? fallbackModels.map(m => ({ ...visionApi, model: m }))
@@ -4738,10 +4743,11 @@ Return a JSON object with these fields (use "Unknown" if uncertain, do not fabri
             visionResult = await resp.json();
             break;
           }
-          lastError = await resp.text().catch(() => `${resp.status}`);
+          const errText = await resp.text().catch(() => `${resp.status}`);
+          errors.push(`${api.model}: ${resp.status}`);
         }
         if (!visionResult) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `AI 分析失敗：${lastError.slice(0, 200)}` });
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `AI 分析失敗（已試 ${errors.length} 個模型）：${errors.join(" | ")}` });
         }
         const raw = visionResult.choices[0]?.message?.content ?? "";
         const text = typeof raw === "string" ? raw : (raw as Array<{type:string;text?:string}>).find(p => p.type === "text")?.text ?? "";
