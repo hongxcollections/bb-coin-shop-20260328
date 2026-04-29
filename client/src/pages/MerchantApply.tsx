@@ -368,6 +368,16 @@ export default function MerchantApply() {
         {/* Why BB Infographic */}
         <WhyBBSection />
 
+        {/* 申請流程圖 */}
+        <div className="mb-6">
+          <img
+            src="/merchant-apply-steps.png"
+            alt="成為商戶的申請步驟"
+            className="w-full rounded-2xl shadow-sm"
+            style={{ imageRendering: "auto" }}
+          />
+        </div>
+
         {/* Existing application status */}
         {myApp && (
           <div className="mb-6">
