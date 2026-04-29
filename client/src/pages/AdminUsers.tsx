@@ -987,6 +987,7 @@ export default function AdminUsers() {
   const [pwDialog, setPwDialog] = useState<{ userId: number; name: string } | null>(null);
   const [adminPwInput, setAdminPwInput] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+  const [expandedCardId, setExpandedCardId] = useState<number | null>(null);
   const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
   const [expandedMerchantOrdersId, setExpandedMerchantOrdersId] = useState<number | null>(null);
   const [expandedStatsId, setExpandedStatsId] = useState<number | null>(null);
@@ -1180,188 +1181,207 @@ export default function AdminUsers() {
     }
     return (
       <div className="divide-y divide-amber-50">
-        {list.map((u) => (
-          <div key={u.id} className="px-4 py-3 hover:bg-amber-50/40 transition-colors">
-            <div className="flex items-start gap-3 min-w-0">
-                <div className="w-10 h-10 gold-gradient rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0 mt-0.5">
-                  {u.depositId
-                    ? <Store className="w-4 h-4" />
-                    : u.role === "admin"
-                    ? <ShieldAlert className="w-4 h-4" />
-                    : <UserRound className="w-4 h-4" />}
+        {list.map((u) => {
+          const isOpen = expandedCardId === u.id;
+          return (
+          <div key={u.id} className="border-b border-amber-50 last:border-0">
+            {/* ── 標題列：點擊展開 / 收起 ── */}
+            <button
+              type="button"
+              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-amber-50/50 transition-colors text-left"
+              onClick={() => setExpandedCardId(isOpen ? null : u.id)}
+            >
+              <div className="w-10 h-10 gold-gradient rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                {u.depositId
+                  ? <Store className="w-4 h-4" />
+                  : u.role === "admin"
+                  ? <ShieldAlert className="w-4 h-4" />
+                  : <UserRound className="w-4 h-4" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-medium text-sm">{u.name ?? "未知用戶"}</span>
+                  <MemberBadge level={u.memberLevel} variant="badge" size="sm" />
+                  {u.role === "admin" && (
+                    <Badge className="bg-amber-600 text-white text-[0.6rem] px-1.5 py-0">管理員</Badge>
+                  )}
+                  {u.depositId && (
+                    <Badge className={`text-[0.6rem] px-1.5 py-0 ${u.depositIsActive ? "bg-emerald-600 text-white" : "bg-gray-400 text-white"}`}>
+                      {u.depositIsActive ? "商戶活躍" : "商戶停權"}
+                    </Badge>
+                  )}
+                  {u.mustChangePassword === 1 && (
+                    <Badge className="text-[0.6rem] px-1.5 py-0 bg-orange-500 text-white">🔑 須更改密碼</Badge>
+                  )}
+                  {u.isBanned === 1 && (
+                    <Badge className="text-[0.6rem] px-1.5 py-0 bg-red-600 text-white">🚫 停權</Badge>
+                  )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
-                    <span className="font-medium text-sm">{u.name ?? "未知用戶"}</span>
-                    <MemberBadge level={u.memberLevel} variant="badge" size="sm" />
-                    {u.role === "admin" && (
-                      <Badge className="bg-amber-600 text-white text-[0.6rem] px-1.5 py-0">管理員</Badge>
-                    )}
-                    {u.depositId && (
-                      <Badge className={`text-[0.6rem] px-1.5 py-0 ${u.depositIsActive ? "bg-emerald-600 text-white" : "bg-gray-400 text-white"}`}>
-                        {u.depositIsActive ? "商戶活躍" : "商戶停權"}
-                      </Badge>
-                    )}
-                    {u.mustChangePassword === 1 && (
-                      <Badge className="text-[0.6rem] px-1.5 py-0 bg-orange-500 text-white">🔑 須更改密碼</Badge>
-                    )}
-                    {u.isBanned === 1 && (
-                      <Badge className="text-[0.6rem] px-1.5 py-0 bg-red-600 text-white">🚫 停權</Badge>
-                    )}
-                  </div>
-                  <div className="text-xs text-muted-foreground space-y-0.5 min-w-0">
-                    {u.email && (
-                      <div className="flex items-center gap-1 min-w-0">
-                        <span className="flex-shrink-0">📧</span>
-                        <span className="truncate">{u.email}</span>
-                      </div>
-                    )}
-                    {u.phone && (
-                      <div className="whitespace-nowrap">📱 {u.phone}</div>
-                    )}
-                    {u.depositId && (
-                      <div className="text-amber-700 whitespace-nowrap">
-                        💰 HK${parseFloat(u.depositBalance ?? "0").toFixed(0)} ／ 門檻 HK${parseFloat(u.requiredDeposit ?? "500").toFixed(0)} ／ 佣金 {(parseFloat(u.commissionRate ?? "0.05") * 100).toFixed(1)}%
-                      </div>
-                    )}
-                    <div className="text-gray-400 whitespace-nowrap">登入方式：{u.loginMethod ?? "—"}</div>
-                    <div className="text-gray-400 whitespace-nowrap">加入：{formatDate(u.createdAt)}</div>
+                {!isOpen && u.phone && (
+                  <div className="text-xs text-gray-400 mt-0.5 truncate">📱 {u.phone}</div>
+                )}
+              </div>
+              <ChevronDown
+                size={16}
+                className="flex-shrink-0 text-gray-400 transition-transform duration-200"
+                style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+              />
+            </button>
 
-                    {/* Won auctions toggle */}
-                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => setExpandedUserId(expandedUserId === u.id ? null : u.id)}
-                        className="flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium transition-colors"
-                        style={{
-                          background: expandedUserId === u.id ? "#FFF3E0" : "#F5F5F5",
-                          color: expandedUserId === u.id ? "#C8860A" : "#666",
-                        }}
-                      >
-                        <Gavel size={10} />
-                        中標 {Number(u.wonCount)} 件
-                        <ChevronDown
-                          size={11}
-                          style={{ transform: expandedUserId === u.id ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
-                        />
-                      </button>
-                      {Number(u.activeAuctionCount) > 0 && (
-                        <span className="flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700">
-                          🔨 拍賣中 {Number(u.activeAuctionCount)}
-                        </span>
-                      )}
-                      {Number(u.activeProductCount) > 0 && (
-                        <span className="flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700">
-                          📦 商品 {Number(u.activeProductCount)}
-                        </span>
-                      )}
+            {/* ── 展開內容 ── */}
+            {isOpen && (
+              <div className="px-4 pb-4 space-y-1 border-t border-amber-50">
+                <div className="text-xs text-muted-foreground space-y-0.5 pt-2">
+                  {u.email && (
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className="flex-shrink-0">📧</span>
+                      <span className="truncate">{u.email}</span>
                     </div>
+                  )}
+                  {u.phone && (
+                    <div className="whitespace-nowrap">📱 {u.phone}</div>
+                  )}
+                  {u.depositId && (
+                    <div className="text-amber-700 whitespace-nowrap">
+                      💰 HK${parseFloat(u.depositBalance ?? "0").toFixed(0)} ／ 門檻 HK${parseFloat(u.requiredDeposit ?? "500").toFixed(0)} ／ 佣金 {(parseFloat(u.commissionRate ?? "0.05") * 100).toFixed(1)}%
+                    </div>
+                  )}
+                  <div className="text-gray-400 whitespace-nowrap">登入方式：{u.loginMethod ?? "—"}</div>
+                  <div className="text-gray-400 whitespace-nowrap">加入：{formatDate(u.createdAt)}</div>
 
-                    {/* Won auctions expandable list */}
-                    {expandedUserId === u.id && <WonAuctionsList userId={u.id} />}
-
-                    {/* Merchant sold orders toggle — only for merchants */}
-                    {u.depositId && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setExpandedMerchantOrdersId(expandedMerchantOrdersId === u.id ? null : u.id)}
-                          className="flex items-center gap-1 mt-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium transition-colors"
-                          style={{
-                            background: expandedMerchantOrdersId === u.id ? "#F0FDF4" : "#F5F5F5",
-                            color: expandedMerchantOrdersId === u.id ? "#16A34A" : "#666",
-                          }}
-                        >
-                          <Store size={10} />
-                          商戶訂單
-                          <ChevronDown
-                            size={11}
-                            style={{ transform: expandedMerchantOrdersId === u.id ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
-                          />
-                        </button>
-                        {expandedMerchantOrdersId === u.id && <MerchantOrdersList merchantUserId={u.id} />}
-                      </>
-                    )}
-
-                    {/* 統計總結 toggle */}
+                  {/* Won auctions toggle */}
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                     <button
                       type="button"
-                      onClick={() => setExpandedStatsId(expandedStatsId === u.id ? null : u.id)}
-                      className="flex items-center gap-1 mt-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium transition-colors"
+                      onClick={() => setExpandedUserId(expandedUserId === u.id ? null : u.id)}
+                      className="flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium transition-colors"
                       style={{
-                        background: expandedStatsId === u.id ? "#EFF6FF" : "#F5F5F5",
-                        color: expandedStatsId === u.id ? "#1D4ED8" : "#666",
+                        background: expandedUserId === u.id ? "#FFF3E0" : "#F5F5F5",
+                        color: expandedUserId === u.id ? "#C8860A" : "#666",
                       }}
                     >
-                      <Package size={10} />
-                      統計總結
+                      <Gavel size={10} />
+                      中標 {Number(u.wonCount)} 件
                       <ChevronDown
                         size={11}
-                        style={{ transform: expandedStatsId === u.id ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
+                        style={{ transform: expandedUserId === u.id ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
                       />
                     </button>
-                    {expandedStatsId === u.id && <UserStatsPanel userId={u.id} isMerchant={!!u.depositId} />}
-
-                    {/* Action buttons — inside info column so they never crowd the name */}
-                    {u.role !== "admin" && (
-                      <div className="flex gap-1.5 mt-2 flex-wrap">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 px-2.5 border-amber-200 text-amber-700 hover:bg-amber-50"
-                          onClick={() => openEdit(u)}
-                        >
-                          <Pencil className="w-3.5 h-3.5 mr-1" />
-                          修改
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 px-2.5 border-blue-200 text-blue-700 hover:bg-blue-50"
-                          onClick={() => { setPwDialog({ userId: u.id, name: u.name ?? "此用戶" }); setAdminPwInput(""); }}
-                        >
-                          <KeyRound className="w-3.5 h-3.5 mr-1" />
-                          修改密碼
-                        </Button>
-                        {u.depositId && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 px-2.5 border-orange-200 text-orange-600 hover:bg-orange-50"
-                            onClick={() => setRevokeTarget({ id: u.id, name: u.name ?? "此商戶" })}
-                          >
-                            <Store className="w-3.5 h-3.5 mr-1" />
-                            撤銷商戶
-                          </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 px-2.5 border-red-200 text-red-600 hover:bg-red-50"
-                          onClick={() => setDeleteTarget({ id: u.id, name: u.name ?? "此用戶" })}
-                        >
-                          <Trash2 className="w-3.5 h-3.5 mr-1" />
-                          拆除
-                        </Button>
-                      </div>
+                    {Number(u.activeAuctionCount) > 0 && (
+                      <span className="flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700">
+                        🔨 拍賣中 {Number(u.activeAuctionCount)}
+                      </span>
+                    )}
+                    {Number(u.activeProductCount) > 0 && (
+                      <span className="flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700">
+                        📦 商品 {Number(u.activeProductCount)}
+                      </span>
                     )}
                   </div>
+
+                  {/* Won auctions expandable list */}
+                  {expandedUserId === u.id && <WonAuctionsList userId={u.id} />}
+
+                  {/* Merchant sold orders toggle — only for merchants */}
+                  {u.depositId && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedMerchantOrdersId(expandedMerchantOrdersId === u.id ? null : u.id)}
+                        className="flex items-center gap-1 mt-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium transition-colors"
+                        style={{
+                          background: expandedMerchantOrdersId === u.id ? "#F0FDF4" : "#F5F5F5",
+                          color: expandedMerchantOrdersId === u.id ? "#16A34A" : "#666",
+                        }}
+                      >
+                        <Store size={10} />
+                        商戶訂單
+                        <ChevronDown
+                          size={11}
+                          style={{ transform: expandedMerchantOrdersId === u.id ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
+                        />
+                      </button>
+                      {expandedMerchantOrdersId === u.id && <MerchantOrdersList merchantUserId={u.id} />}
+                    </>
+                  )}
+
+                  {/* 統計總結 toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setExpandedStatsId(expandedStatsId === u.id ? null : u.id)}
+                    className="flex items-center gap-1 mt-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium transition-colors"
+                    style={{
+                      background: expandedStatsId === u.id ? "#EFF6FF" : "#F5F5F5",
+                      color: expandedStatsId === u.id ? "#1D4ED8" : "#666",
+                    }}
+                  >
+                    <Package size={10} />
+                    統計總結
+                    <ChevronDown
+                      size={11}
+                      style={{ transform: expandedStatsId === u.id ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
+                    />
+                  </button>
+                  {expandedStatsId === u.id && <UserStatsPanel userId={u.id} isMerchant={!!u.depositId} />}
+
+                  {/* Action buttons */}
+                  {u.role !== "admin" && (
+                    <div className="flex gap-1.5 mt-2 flex-wrap">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2.5 border-amber-200 text-amber-700 hover:bg-amber-50"
+                        onClick={() => openEdit(u)}
+                      >
+                        <Pencil className="w-3.5 h-3.5 mr-1" />
+                        修改
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2.5 border-blue-200 text-blue-700 hover:bg-blue-50"
+                        onClick={() => { setPwDialog({ userId: u.id, name: u.name ?? "此用戶" }); setAdminPwInput(""); }}
+                      >
+                        <KeyRound className="w-3.5 h-3.5 mr-1" />
+                        修改密碼
+                      </Button>
+                      {u.depositId && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-2.5 border-orange-200 text-orange-600 hover:bg-orange-50"
+                          onClick={() => setRevokeTarget({ id: u.id, name: u.name ?? "此商戶" })}
+                        >
+                          <Store className="w-3.5 h-3.5 mr-1" />
+                          撤銷商戶
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2.5 border-red-200 text-red-600 hover:bg-red-50"
+                        onClick={() => setDeleteTarget({ id: u.id, name: u.name ?? "此用戶" })}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-1" />
+                        拆除
+                      </Button>
+                    </div>
+                  )}
                 </div>
-            </div>
-            {/* Deposit modify — merchants only */}
-            {u.depositId && <DepositModifyPanel userId={u.id} currentBalance={u.depositBalance ?? "0"} onDone={refetch} />}
-            {/* Generate test listings / won auction / products — merchants only */}
-            {u.depositId && <GenerateListingsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
-            {u.depositId && <GenerateProductsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
-            {u.depositId && <GenerateWonAuctionPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
-            {/* Clear all merchant marketplace products */}
-            {u.depositId && <ClearProductsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
-            {/* Danger zone: purge all auction data for this merchant */}
-            {u.depositId && <PurgeMerchantDataPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} onDone={refetch} />}
-            {/* Admin self-clear: shown only for admin role accounts */}
-            {u.role === "admin" && <AdminSelfClearPanel userName={u.name ?? `管理員 #${u.id}`} />}
+
+                {/* Merchant-only panels */}
+                {u.depositId && <DepositModifyPanel userId={u.id} currentBalance={u.depositBalance ?? "0"} onDone={refetch} />}
+                {u.depositId && <GenerateListingsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
+                {u.depositId && <GenerateProductsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
+                {u.depositId && <GenerateWonAuctionPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
+                {u.depositId && <ClearProductsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
+                {u.depositId && <PurgeMerchantDataPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} onDone={refetch} />}
+                {u.role === "admin" && <AdminSelfClearPanel userName={u.name ?? `管理員 #${u.id}`} />}
+              </div>
+            )}
           </div>
-        ))}
+          );
+        })}
       </div>
     );
   }
