@@ -484,3 +484,14 @@ export const adBanners = mysqlTable("ad_banners", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type AdBanner = typeof adBanners.$inferSelect;
+
+export const coinAnalysisHistory = mysqlTable("coinAnalysisHistory", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  coinName: varchar("coinName", { length: 255 }),
+  coinType: varchar("coinType", { length: 64 }),
+  coinCountry: varchar("coinCountry", { length: 128 }),
+  analysisData: text("analysisData").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CoinAnalysisHistory = typeof coinAnalysisHistory.$inferSelect;

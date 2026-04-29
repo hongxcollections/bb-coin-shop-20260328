@@ -4,7 +4,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner } from "./db";
+import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner, saveCoinAnalysisHistory, getUserCoinAnalysisHistory, deleteCoinAnalysisHistory, searchRelatedAuctions } from "./db";
 import type { AdTargetType } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids } from "../drizzle/schema";
@@ -4755,12 +4755,22 @@ Return a JSON object with these fields (use "Unknown" if uncertain, do not fabri
         // 提取 JSON
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (!jsonMatch) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI 未能分析此圖片，請嘗試更清晰的圖片" });
+        let data: Record<string, string>;
         try {
-          const data = JSON.parse(jsonMatch[0]);
-          return { success: true, data };
+          data = JSON.parse(jsonMatch[0]);
         } catch {
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "分析結果格式錯誤，請重試" });
         }
+        // 自動儲存鑑定歷史（不阻塞）
+        if (ctx.user?.id) {
+          saveCoinAnalysisHistory(ctx.user.id, {
+            coinName: data.name ?? data.Name,
+            coinType: data.type ?? data.Type,
+            coinCountry: data.country ?? data.Country,
+            analysisData: JSON.stringify(data),
+          }).catch(() => {});
+        }
+        return { success: true, data };
       }),
 
     // 生成藝術插畫
@@ -4784,6 +4794,36 @@ Return a JSON object with these fields (use "Unknown" if uncertain, do not fabri
         });
         return { success: true, imageUrl: result.url };
       }),
+
+    // 搜尋相關拍賣
+    searchRelated: protectedProcedure
+      .input(z.object({
+        keywords: z.array(z.string()).max(5),
+      }))
+      .query(async ({ input }) => {
+        const results = await searchRelatedAuctions(input.keywords, 6);
+        return results;
+      }),
+
+    // 鑑定歷史記錄
+    history: router({
+      list: protectedProcedure
+        .input(z.object({ limit: z.number().default(20) }))
+        .query(async ({ input, ctx }) => {
+          const rows = await getUserCoinAnalysisHistory(ctx.user.id, input.limit);
+          return rows.map(r => ({
+            ...r,
+            analysisData: (() => { try { return JSON.parse(r.analysisData); } catch { return {}; } })(),
+          }));
+        }),
+
+      delete: protectedProcedure
+        .input(z.object({ id: z.number() }))
+        .mutation(async ({ input, ctx }) => {
+          const ok = await deleteCoinAnalysisHistory(input.id, ctx.user.id);
+          return { success: ok };
+        }),
+    }),
   }),
 });
 export type AppRouter = typeof appRouter;

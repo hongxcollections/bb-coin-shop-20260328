@@ -4539,3 +4539,112 @@ export async function upsertAdBanner(targetType: AdTargetType, slot: number, tit
     return false;
   }
 }
+
+// ─── Coin Analysis History ─────────────────────────────────────────────────────
+async function ensureCoinAnalysisHistoryTable(): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS coinAnalysisHistory (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        userId INT NOT NULL,
+        coinName VARCHAR(255),
+        coinType VARCHAR(64),
+        coinCountry VARCHAR(128),
+        analysisData TEXT NOT NULL,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        INDEX idx_userId (userId)
+      )
+    `);
+  } catch { /* already exists */ }
+}
+
+export async function saveCoinAnalysisHistory(
+  userId: number,
+  data: { coinName?: string; coinType?: string; coinCountry?: string; analysisData: string }
+): Promise<number | null> {
+  await ensureCoinAnalysisHistoryTable();
+  const db = await getDb();
+  if (!db) return null;
+  try {
+    const result = await db.execute(sql`
+      INSERT INTO coinAnalysisHistory (userId, coinName, coinType, coinCountry, analysisData)
+      VALUES (${userId}, ${data.coinName ?? null}, ${data.coinType ?? null}, ${data.coinCountry ?? null}, ${data.analysisData})
+    `);
+    return (result[0] as any).insertId ?? null;
+  } catch (e) {
+    console.error('[coinAnalysis] save history error:', e);
+    return null;
+  }
+}
+
+export async function getUserCoinAnalysisHistory(userId: number, limit = 20): Promise<any[]> {
+  await ensureCoinAnalysisHistoryTable();
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const rows = await db.execute(sql`
+      SELECT id, userId, coinName, coinType, coinCountry, analysisData, createdAt
+      FROM coinAnalysisHistory
+      WHERE userId = ${userId}
+      ORDER BY createdAt DESC
+      LIMIT ${limit}
+    `);
+    return (rows[0] as any[]).map((r: any) => ({
+      id: r.id,
+      coinName: r.coinName,
+      coinType: r.coinType,
+      coinCountry: r.coinCountry,
+      analysisData: r.analysisData,
+      createdAt: r.createdAt,
+    }));
+  } catch { return []; }
+}
+
+export async function deleteCoinAnalysisHistory(id: number, userId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  try {
+    await db.execute(sql`DELETE FROM coinAnalysisHistory WHERE id = ${id} AND userId = ${userId}`);
+    return true;
+  } catch { return false; }
+}
+
+export async function searchRelatedAuctions(keywords: string[], limit = 6): Promise<any[]> {
+  const db = await getDb();
+  if (!db || keywords.length === 0) return [];
+  try {
+    const kw = keywords.filter(Boolean).slice(0, 3).join(' ');
+    if (!kw.trim()) return [];
+    const parts = kw.split(/\s+/).filter(p => p.length >= 2).slice(0, 3);
+    if (parts.length === 0) return [];
+    const conditions = parts.map(() => `(a.title LIKE ? OR a.description LIKE ?)`).join(' OR ');
+    const params: string[] = [];
+    parts.forEach(p => { params.push(`%${p}%`); params.push(`%${p}%`); });
+    const pool = await getRawPool();
+    if (!pool) return [];
+    const [rows]: any = await pool.execute(
+      `SELECT a.id, a.title, a.currentPrice, a.startingPrice, a.currency, a.endTime, a.status, a.category,
+              (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder LIMIT 1) as thumbUrl
+       FROM auctions a
+       WHERE a.status = 'active' AND (${conditions})
+       ORDER BY a.createdAt DESC
+       LIMIT ?`,
+      [...params, limit]
+    );
+    return rows.map((r: any) => ({
+      id: r.id,
+      title: r.title,
+      currentPrice: r.currentPrice,
+      startingPrice: r.startingPrice,
+      currency: r.currency ?? 'HKD',
+      endTime: r.endTime,
+      category: r.category,
+      thumbUrl: r.thumbUrl ?? null,
+    }));
+  } catch (e) {
+    console.error('[coinAnalysis] searchRelated error:', e);
+    return [];
+  }
+}
