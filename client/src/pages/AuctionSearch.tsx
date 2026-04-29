@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
-import { Search, X, ExternalLink, ChevronLeft, ChevronRight, Database, SlidersHorizontal } from "lucide-react";
+import { Search, X, ExternalLink, Database, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
+import ImageLightbox from "@/components/ImageLightbox";
 
 type SaleStatus = "all" | "sold" | "unsold";
 
@@ -146,8 +147,6 @@ export default function AuctionSearch() {
     setLightboxIdx(startIdx);
   }, []);
   const closeLightbox = useCallback(() => setLightboxImages([]), []);
-  const prevImage = useCallback(() => setLightboxIdx(i => Math.max(0, i - 1)), []);
-  const nextImage = useCallback((total: number) => setLightboxIdx(i => Math.min(total - 1, i + 1)), []);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Debounce keyword
@@ -342,73 +341,11 @@ export default function AuctionSearch() {
 
       {/* Gallery Lightbox */}
       {lightboxImages.length > 0 && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center"
-          onClick={closeLightbox}
-        >
-          {/* Close */}
-          <button
-            onClick={closeLightbox}
-            className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 z-10"
-          >
-            <X className="h-5 w-5" />
-          </button>
-
-          {/* Counter */}
-          {lightboxImages.length > 1 && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white text-sm font-medium bg-black/50 px-3 py-1 rounded-full z-10">
-              {lightboxIdx + 1} / {lightboxImages.length}
-            </div>
-          )}
-
-          {/* Main image */}
-          <img
-            src={lightboxImages[lightboxIdx]}
-            alt={`圖片 ${lightboxIdx + 1}`}
-            className="max-w-full max-h-[75vh] object-contain rounded shadow-2xl"
-            onClick={e => e.stopPropagation()}
-          />
-
-          {/* Prev / Next arrows */}
-          {lightboxImages.length > 1 && (
-            <>
-              <button
-                onClick={e => { e.stopPropagation(); prevImage(); }}
-                disabled={lightboxIdx === 0}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-white bg-black/50 rounded-full p-3 disabled:opacity-20 hover:bg-black/70 transition-colors z-10"
-              >
-                <ChevronLeft className="h-6 w-6" />
-              </button>
-              <button
-                onClick={e => { e.stopPropagation(); nextImage(lightboxImages.length); }}
-                disabled={lightboxIdx === lightboxImages.length - 1}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-white bg-black/50 rounded-full p-3 disabled:opacity-20 hover:bg-black/70 transition-colors z-10"
-              >
-                <ChevronRight className="h-6 w-6" />
-              </button>
-            </>
-          )}
-
-          {/* Thumbnail strip (多圖時顯示) */}
-          {lightboxImages.length > 1 && (
-            <div
-              className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 px-4"
-              onClick={e => e.stopPropagation()}
-            >
-              {lightboxImages.map((url, i) => (
-                <img
-                  key={i}
-                  src={url}
-                  alt={`縮圖 ${i + 1}`}
-                  onClick={() => setLightboxIdx(i)}
-                  className={`w-12 h-12 object-cover rounded cursor-pointer border-2 transition-all ${
-                    i === lightboxIdx ? "border-white scale-110" : "border-transparent opacity-60 hover:opacity-100"
-                  }`}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        <ImageLightbox
+          images={lightboxImages}
+          initialIndex={lightboxIdx}
+          onClose={closeLightbox}
+        />
       )}
     </div>
   );

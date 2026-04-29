@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Clock, ChevronLeft, ChevronRight, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X, EyeOff, AlertCircle, Heart, Share2 } from "lucide-react";
+import { Clock, ChevronLeft, ChevronRight, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X, EyeOff, AlertCircle, Heart, Share2, ZoomIn } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -17,6 +17,7 @@ import Header from "@/components/Header";
 import { MembershipBenefitsDialog, useMembershipBenefitsDialog } from "@/components/MembershipBenefitsDialog";
 import { useSeoMeta } from "@/lib/useSeoMeta";
 import { ShareMenu } from "@/components/ShareMenu";
+import ImageLightbox from "@/components/ImageLightbox";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -153,6 +154,7 @@ export default function AuctionDetail() {
     prevPriceRef.current = latestPrice;
   }, [auction?.currentPrice]);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   // ── 手動滑動：滑入滑出動畫 ──────────────────────────────────────
   const [outgoingImage, setOutgoingImage] = useState<number | null>(null);
   const [slideDir, setSlideDir] = useState<'left' | 'right'>('left');
@@ -476,6 +478,15 @@ export default function AuctionDetail() {
                       </button>
                     </>
                   )}
+                  {/* 放大按鈕 */}
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); setLightboxOpen(true); }}
+                    className="absolute top-2 left-2 flex items-center justify-center w-7 h-7 rounded-full bg-black/35 hover:bg-black/55 transition-colors backdrop-blur-sm z-10"
+                    title="放大圖片"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5 text-white" />
+                  </button>
                   {/* 底部漸層遮罩 */}
                   <div
                     className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"
@@ -1160,6 +1171,15 @@ export default function AuctionDetail() {
         onOpenChange={memberBenefits.setOpen}
         highlightLevel={memberBenefits.highlightLevel}
       />
+
+      {lightboxOpen && images.length > 0 && (
+        <ImageLightbox
+          images={images.map(img => img.imageUrl)}
+          initialIndex={selectedImage}
+          alt={auction.title}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
     </div>
   );
 }
