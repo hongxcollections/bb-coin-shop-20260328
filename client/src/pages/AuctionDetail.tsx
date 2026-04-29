@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Clock, ChevronLeft, ChevronRight, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X, EyeOff, AlertCircle, Heart, Share2, ZoomIn } from "lucide-react";
+import { Clock, ChevronLeft, ChevronRight, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X, EyeOff, AlertCircle, Heart, Share2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -484,12 +484,14 @@ export default function AuctionDetail() {
                   {images.length > 1 && (
                     <>
                       <button
+                        onTouchEnd={(e) => e.stopPropagation()}
                         onClick={(e) => { e.stopPropagation(); goToImage((selectedImage - 1 + images.length) % images.length, 'right'); }}
                         className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors z-10"
                       >
                         <ChevronLeft className="w-5 h-5 text-white" />
                       </button>
                       <button
+                        onTouchEnd={(e) => e.stopPropagation()}
                         onClick={(e) => { e.stopPropagation(); goToImage((selectedImage + 1) % images.length, 'left'); }}
                         className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors z-10"
                       >
@@ -517,35 +519,26 @@ export default function AuctionDetail() {
                       </span>
                     </div>
                   )}
-                  {/* 右下：放大鏡（上）+ 分享（下），相隔10px */}
-                  <div className="absolute bottom-2 right-2 flex flex-col items-center" style={{ gap: '10px' }}>
-                    <button
-                      type="button"
-                      onClick={e => { e.stopPropagation(); setLightboxOpen(true); }}
-                      className="flex items-center justify-center w-7 h-7 rounded-full bg-black/35 hover:bg-black/55 transition-colors backdrop-blur-sm z-10"
-                      title="放大圖片"
-                    >
-                      <ZoomIn className="w-3.5 h-3.5 text-white" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        const url = window.location.href;
-                        const shareText = `${auction.title}\n目前出價 ${getCurrencySymbol((auction as { currency?: string })?.currency ?? "HKD")}${Number(auction.currentPrice).toLocaleString()}\n結標：${new Date(auction.endTime).toLocaleString("zh-HK", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}\n\n${url}`;
-                        if (navigator.share) {
-                          try { await navigator.share({ title: auction.title, text: shareText, url }); } catch {}
-                        } else {
-                          await navigator.clipboard.writeText(url);
-                          toast.success("連結已複製");
-                        }
-                      }}
-                      className="flex items-center justify-center w-7 h-7 rounded-full bg-black/35 hover:bg-black/55 transition-colors backdrop-blur-sm"
-                      title="分享"
-                    >
-                      <Share2 className="w-3.5 h-3.5 text-white" />
-                    </button>
-                  </div>
+                  {/* 右下：分享按鈕 */}
+                  <button
+                    type="button"
+                    onTouchEnd={(e) => e.stopPropagation()}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const url = window.location.href;
+                      const shareText = `${auction.title}\n目前出價 ${getCurrencySymbol((auction as { currency?: string })?.currency ?? "HKD")}${Number(auction.currentPrice).toLocaleString()}\n結標：${new Date(auction.endTime).toLocaleString("zh-HK", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}\n\n${url}`;
+                      if (navigator.share) {
+                        try { await navigator.share({ title: auction.title, text: shareText, url }); } catch {}
+                      } else {
+                        await navigator.clipboard.writeText(url);
+                        toast.success("連結已複製");
+                      }
+                    }}
+                    className="absolute bottom-2 right-2 flex items-center justify-center w-7 h-7 rounded-full bg-black/35 hover:bg-black/55 transition-colors backdrop-blur-sm z-10"
+                    title="分享"
+                  >
+                    <Share2 className="w-3.5 h-3.5 text-white" />
+                  </button>
                 </>
               ) : (
                 <div className="w-full h-full coin-placeholder flex items-center justify-center">
