@@ -129,164 +129,174 @@ function wrapText(c: CanvasRenderingContext2D, text: string, x: number, y: numbe
 
 // ─── Canvas card generator ────────────────────────────────────────────────────
 async function generateShareCard(data: AnalysisData, imagePreview: string | null): Promise<void> {
-  const W = 600, PAD = 36;
-
-  // Collect all displayable fields
-  const fieldDefs: [string, string, string][] = [
-    ["類型", "type", "Type"],
-    ["發行地區", "country", "Country"],
-    ["年份", "year", "Year"],
-    ["面額", "denomination", "Denomination"],
-    ["材質", "material", "Material"],
-    ["尺寸", "dimensions", "Dimensions"],
-    ["重量", "weight", "Weight"],
-    ["品相", "condition", "Condition"],
-    ["稀有程度", "rarity", "Rarity"],
-    ["估計市值", "estimatedValue", "Estimated Market Value"],
-  ];
-  const activeFields = fieldDefs
-    .map(([label, zh, en]) => ({ label, val: getField(data, zh, en) }))
-    .filter(f => f.val && f.val !== "不詳" && f.val !== "Unknown");
-  const hist = getField(data, "historicalBackground", "Historical Background");
-
-  // Calculate dynamic height
-  const IMG_R = 90; // image circle radius
-  const ROW_H = 28;
-  const COL_ROWS = Math.ceil(activeFields.length / 2);
-  const histLines = hist ? Math.ceil(hist.length / 28) + 1 : 0;
-  const H = 8 + 8 + (IMG_R * 2 + 24) + 48 + 16 + 8 + (COL_ROWS * ROW_H) + (hist ? 16 + histLines * 22 + 8 : 0) + 36 + 8;
+  // ── Dimensions ──
+  const W = 860, H = 460;
+  const IMG_PANEL = 260;   // left image panel width
+  const R_PAD = 28;        // right section horizontal padding
+  const RX = IMG_PANEL + R_PAD;  // right content start x
+  const RW = W - RX - R_PAD;     // right content width
 
   const canvas = document.createElement("canvas");
-  canvas.width = W; canvas.height = Math.max(H, 400);
-  const ctx = canvas.getContext("2d")!;
+  canvas.width = W; canvas.height = H;
+  const c = canvas.getContext("2d")!;
 
-  // ── Background ──
-  ctx.fillStyle = "#fffdf7";
-  ctx.fillRect(0, 0, W, canvas.height);
+  // ── Gold gradient helper ──
+  const gold = (x0: number, x1: number) => {
+    const g = c.createLinearGradient(x0, 0, x1, 0);
+    g.addColorStop(0, "#b45309"); g.addColorStop(0.4, "#f59e0b");
+    g.addColorStop(0.6, "#fbbf24"); g.addColorStop(1, "#d97706");
+    return g;
+  };
 
-  // Subtle warm texture lines
-  ctx.strokeStyle = "rgba(180,150,60,0.06)";
-  ctx.lineWidth = 1;
-  for (let ty = 0; ty < canvas.height; ty += 24) {
-    ctx.beginPath(); ctx.moveTo(0, ty); ctx.lineTo(W, ty); ctx.stroke();
-  }
+  // ── Full background: site dark brown ──
+  c.fillStyle = "#1c1917";
+  c.fillRect(0, 0, W, H);
 
-  // ── Gold top bar ──
-  const goldH = ctx.createLinearGradient(0, 0, W, 0);
-  goldH.addColorStop(0, "#c8972a"); goldH.addColorStop(0.5, "#f0c040"); goldH.addColorStop(1, "#c8972a");
-  ctx.fillStyle = goldH;
-  ctx.fillRect(0, 0, W, 6);
+  // Subtle dot texture
+  c.fillStyle = "rgba(180,83,9,0.07)";
+  for (let tx = 0; tx < W; tx += 20)
+    for (let ty = 0; ty < H; ty += 20)
+      c.fillRect(tx, ty, 1.2, 1.2);
 
-  let y = 24;
+  // ── Left image panel ──
+  const panelGrad = c.createLinearGradient(0, 0, IMG_PANEL, 0);
+  panelGrad.addColorStop(0, "#292118"); panelGrad.addColorStop(1, "#1c1917");
+  c.fillStyle = panelGrad;
+  c.fillRect(0, 0, IMG_PANEL, H);
 
-  // ── Coin image (centered) ──
-  const cx = W / 2;
+  // Amber glow behind image
+  const glow = c.createRadialGradient(IMG_PANEL / 2, H / 2, 20, IMG_PANEL / 2, H / 2, 130);
+  glow.addColorStop(0, "rgba(245,158,11,0.18)"); glow.addColorStop(1, "transparent");
+  c.fillStyle = glow;
+  c.fillRect(0, 0, IMG_PANEL, H);
+
+  // Vertical gold separator line
+  const sepGrad = c.createLinearGradient(0, 0, 0, H);
+  sepGrad.addColorStop(0, "transparent"); sepGrad.addColorStop(0.3, "#f59e0b");
+  sepGrad.addColorStop(0.7, "#f59e0b"); sepGrad.addColorStop(1, "transparent");
+  c.strokeStyle = sepGrad; c.lineWidth = 1.5;
+  c.beginPath(); c.moveTo(IMG_PANEL, 0); c.lineTo(IMG_PANEL, H); c.stroke();
+
+  // ── Coin image ──
+  const IMG_R = 100;
+  const ICX = IMG_PANEL / 2, ICY = H / 2 + 10;
   if (imagePreview) {
     try {
       const img = await new Promise<HTMLImageElement>((res, rej) => {
         const el = new Image(); el.onload = () => res(el); el.onerror = rej; el.src = imagePreview;
       });
-      // Shadow
-      ctx.shadowColor = "rgba(0,0,0,0.18)"; ctx.shadowBlur = 16;
-      ctx.save();
-      ctx.beginPath(); ctx.arc(cx, y + IMG_R, IMG_R, 0, Math.PI * 2); ctx.clip();
-      ctx.drawImage(img, cx - IMG_R, y, IMG_R * 2, IMG_R * 2);
-      ctx.restore();
-      ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
-      // Ring
-      ctx.strokeStyle = "#c8972a"; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(cx, y + IMG_R, IMG_R + 1, 0, Math.PI * 2); ctx.stroke();
-      // Outer thin ring
-      ctx.strokeStyle = "rgba(200,150,42,0.3)"; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(cx, y + IMG_R, IMG_R + 8, 0, Math.PI * 2); ctx.stroke();
+      c.shadowColor = "rgba(245,158,11,0.4)"; c.shadowBlur = 24;
+      c.save();
+      c.beginPath(); c.arc(ICX, ICY, IMG_R, 0, Math.PI * 2); c.clip();
+      c.drawImage(img, ICX - IMG_R, ICY - IMG_R, IMG_R * 2, IMG_R * 2);
+      c.restore();
+      c.shadowColor = "transparent"; c.shadowBlur = 0;
+      // Gold ring
+      c.strokeStyle = gold(ICX - IMG_R, ICX + IMG_R); c.lineWidth = 3;
+      c.beginPath(); c.arc(ICX, ICY, IMG_R + 1, 0, Math.PI * 2); c.stroke();
+      // Outer halo ring
+      c.strokeStyle = "rgba(245,158,11,0.25)"; c.lineWidth = 1;
+      c.beginPath(); c.arc(ICX, ICY, IMG_R + 9, 0, Math.PI * 2); c.stroke();
     } catch { /* skip */ }
-    y += IMG_R * 2 + 20;
+  } else {
+    // placeholder circle
+    c.strokeStyle = "rgba(245,158,11,0.3)"; c.lineWidth = 2;
+    c.beginPath(); c.arc(ICX, ICY, IMG_R, 0, Math.PI * 2); c.stroke();
   }
 
-  // ── AI badge (small, centered) ──
-  ctx.font = "12px sans-serif";
-  const badgeText = "✦ AI 鑑定結果";
-  const bw = ctx.measureText(badgeText).width + 24;
-  ctx.fillStyle = "rgba(200,150,42,0.12)";
-  ctx.strokeStyle = "rgba(200,150,42,0.4)"; ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.rect(cx - bw / 2, y, bw, 22);
-  ctx.fill(); ctx.stroke();
-  ctx.fillStyle = "#a07820"; ctx.textAlign = "center";
-  ctx.fillText(badgeText, cx, y + 15);
-  y += 30;
+  // ── Top gold bar ──
+  c.fillStyle = gold(0, W);
+  c.fillRect(0, 0, W, 5);
 
-  // ── Coin name ──
+  // ── Right content ──
+  let y = 32;
+
+  // AI badge
+  c.font = "11px sans-serif";
+  const badge = "✦ AI 鑑定結果";
+  const bw = c.measureText(badge).width + 20;
+  c.fillStyle = "rgba(245,158,11,0.15)";
+  c.strokeStyle = "rgba(245,158,11,0.5)"; c.lineWidth = 1;
+  c.beginPath(); c.rect(RX, y - 12, bw, 20); c.fill(); c.stroke();
+  c.fillStyle = "#fbbf24"; c.textAlign = "left";
+  c.fillText(badge, RX + 10, y);
+  y += 26;
+
+  // Coin name
   const coinName = getField(data, "name", "Name") || "未知";
-  ctx.font = "bold 26px sans-serif";
-  ctx.fillStyle = "#2c2010";
-  ctx.textAlign = "center";
-  ctx.fillText(coinName, cx, y + 26);
-  y += 44;
+  c.font = "bold 28px sans-serif";
+  c.fillStyle = "#fef3c7";
+  const dispName = coinName.length > 22 ? coinName.slice(0, 21) + "…" : coinName;
+  c.fillText(dispName, RX, y);
+  y += 10;
 
-  // ── Divider ──
-  const divGrad = ctx.createLinearGradient(PAD, 0, W - PAD, 0);
-  divGrad.addColorStop(0, "transparent"); divGrad.addColorStop(0.2, "#c8972a"); divGrad.addColorStop(0.8, "#c8972a"); divGrad.addColorStop(1, "transparent");
-  ctx.fillStyle = divGrad; ctx.fillRect(PAD, y, W - PAD * 2, 1);
-  y += 12;
+  // Divider
+  const divG = c.createLinearGradient(RX, 0, RX + RW, 0);
+  divG.addColorStop(0, "#f59e0b"); divG.addColorStop(1, "transparent");
+  c.fillStyle = divG; c.fillRect(RX, y, RW, 1);
+  y += 16;
 
-  // ── 2-column fields ──
-  ctx.textAlign = "left";
-  const colW = (W - PAD * 2) / 2 - 8;
-  const col2X = PAD + colW + 16;
-  ctx.font = "13px sans-serif";
+  // ── Fields (2-column grid) ──
+  const fieldDefs: [string, string, string][] = [
+    ["類型", "type", "Type"], ["發行地區", "country", "Country"],
+    ["年份", "year", "Year"], ["面額", "denomination", "Denomination"],
+    ["材質", "material", "Material"], ["尺寸", "dimensions", "Dimensions"],
+    ["重量", "weight", "Weight"], ["品相", "condition", "Condition"],
+    ["稀有程度", "rarity", "Rarity"], ["估計市值", "estimatedValue", "Estimated Market Value"],
+  ];
+  const activeFields = fieldDefs
+    .map(([label, zh, en]) => ({ label, val: getField(data, zh, en) }))
+    .filter(f => f.val && f.val !== "不詳" && f.val !== "Unknown");
+
+  const ROW_H = 26;
+  const colHalf = Math.floor(RW / 2);
+  const col2X = RX + colHalf + 8;
+  const LABEL_W = 52;
 
   for (let i = 0; i < activeFields.length; i += 2) {
-    const row = Math.floor(i / 2);
-    const rowY = y + row * ROW_H;
-
-    // Row background alternating
-    if (row % 2 === 0) {
-      ctx.fillStyle = "rgba(200,150,42,0.05)";
-      ctx.fillRect(PAD - 4, rowY - 14, W - PAD * 2 + 8, ROW_H);
+    const rowY = y + Math.floor(i / 2) * ROW_H;
+    // Alternating row bg
+    if (Math.floor(i / 2) % 2 === 0) {
+      c.fillStyle = "rgba(245,158,11,0.04)";
+      c.fillRect(RX - 4, rowY - 16, RW + 8, ROW_H);
     }
-
-    // Left column
-    ctx.fillStyle = "#9a7b30"; ctx.font = "12px sans-serif";
-    ctx.fillText(activeFields[i].label, PAD, rowY);
-    ctx.fillStyle = "#2c2010"; ctx.font = "bold 13px sans-serif";
-    const v1 = activeFields[i].val.length > 18 ? activeFields[i].val.slice(0, 17) + "…" : activeFields[i].val;
-    ctx.fillText(v1, PAD + 56, rowY);
-
-    // Right column
+    // Left
+    c.fillStyle = "rgba(251,191,36,0.7)"; c.font = "11px sans-serif";
+    c.fillText(activeFields[i].label, RX, rowY);
+    c.fillStyle = "#fef3c7"; c.font = "bold 12px sans-serif";
+    const v1 = activeFields[i].val.length > 14 ? activeFields[i].val.slice(0, 13) + "…" : activeFields[i].val;
+    c.fillText(v1, RX + LABEL_W, rowY);
+    // Right
     if (i + 1 < activeFields.length) {
-      ctx.fillStyle = "#9a7b30"; ctx.font = "12px sans-serif";
-      ctx.fillText(activeFields[i + 1].label, col2X, rowY);
-      ctx.fillStyle = "#2c2010"; ctx.font = "bold 13px sans-serif";
-      const v2 = activeFields[i + 1].val.length > 18 ? activeFields[i + 1].val.slice(0, 17) + "…" : activeFields[i + 1].val;
-      ctx.fillText(v2, col2X + 56, rowY);
+      c.fillStyle = "rgba(251,191,36,0.7)"; c.font = "11px sans-serif";
+      c.fillText(activeFields[i + 1].label, col2X, rowY);
+      c.fillStyle = "#fef3c7"; c.font = "bold 12px sans-serif";
+      const v2 = activeFields[i + 1].val.length > 14 ? activeFields[i + 1].val.slice(0, 13) + "…" : activeFields[i + 1].val;
+      c.fillText(v2, col2X + LABEL_W, rowY);
     }
   }
-  y += COL_ROWS * ROW_H + 8;
+  y += Math.ceil(activeFields.length / 2) * ROW_H + 8;
 
   // ── Historical background ──
-  if (hist) {
-    ctx.fillStyle = "rgba(200,150,42,0.08)";
-    ctx.fillRect(PAD - 4, y, W - PAD * 2 + 8, histLines * 22 + 20);
-    y += 14;
-    ctx.fillStyle = "#9a7b30"; ctx.font = "12px sans-serif"; ctx.textAlign = "left";
-    ctx.fillText("歷史背景", PAD, y);
-    y += 18;
-    ctx.fillStyle = "#4a3a1a"; ctx.font = "13px sans-serif";
-    y = wrapText(ctx, hist, PAD, y, W - PAD * 2, 22);
-    y += 4;
+  const hist = getField(data, "historicalBackground", "Historical Background");
+  if (hist && y < H - 40) {
+    // Thin separator
+    c.fillStyle = "rgba(245,158,11,0.15)"; c.fillRect(RX, y, RW, 1);
+    y += 12;
+    c.fillStyle = "rgba(251,191,36,0.6)"; c.font = "11px sans-serif";
+    c.fillText("歷史背景", RX, y); y += 16;
+    c.fillStyle = "#d6d3d1"; c.font = "12px sans-serif";
+    y = wrapText(c, hist, RX, y, RW, 20);
   }
 
-  // ── Bottom gold bar ──
-  ctx.fillStyle = goldH;
-  ctx.fillRect(0, canvas.height - 6, W, 6);
+  // ── Bottom bar ──
+  c.fillStyle = gold(0, W); c.fillRect(0, H - 5, W, 5);
 
-  // ── Tiny disclaimer ──
-  ctx.fillStyle = "rgba(160,130,50,0.5)";
-  ctx.font = "10px sans-serif"; ctx.textAlign = "center";
-  ctx.fillText("AI 自動生成，僅供參考", cx, canvas.height - 10);
+  // Disclaimer
+  c.fillStyle = "rgba(214,211,209,0.3)"; c.font = "10px sans-serif"; c.textAlign = "right";
+  c.fillText("AI 自動生成，僅供參考", W - R_PAD, H - 10);
 
-  // Download
+  // ── Download ──
   const link = document.createElement("a");
   link.download = `coin-analysis-${Date.now()}.png`;
   link.href = canvas.toDataURL("image/png");
