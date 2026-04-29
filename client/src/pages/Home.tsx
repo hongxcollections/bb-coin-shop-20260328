@@ -255,7 +255,7 @@ function ProductHeroSlide({ product, onBuy, currentUserId }: { product: any; onB
         <Link href={`/merchant-products/${product.id}`}>
           <h2 className="text-white font-bold text-base leading-snug line-clamp-2 drop-shadow mb-2">{product.title}</h2>
         </Link>
-        <div className="flex items-end justify-end gap-3">
+        <div className="flex items-end justify-end gap-2">
           {isOwn ? (
             <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white/60 bg-white/20 cursor-not-allowed select-none">
               🚫 自己商品
@@ -269,6 +269,12 @@ function ProductHeroSlide({ product, onBuy, currentUserId }: { product: any; onB
               <ShoppingCart className="w-3.5 h-3.5" />立即落單
             </button>
           )}
+          <Link
+            href={`/merchant-products/${product.id}`}
+            className="flex items-center gap-1 px-3 py-2 rounded-full text-sm font-bold text-white/90 bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-sm"
+          >
+            詳細
+          </Link>
         </div>
       </div>
     </div>
@@ -616,7 +622,7 @@ function FeaturedProductSideCard({ products, onBuy, currentUserId }: { products:
           <h3 className="text-white font-bold text-[11px] leading-snug line-clamp-1 drop-shadow mb-1">
             {product.title}
           </h3>
-          <div className="flex items-center justify-end gap-1.5">
+          <div className="flex items-center justify-end gap-1">
             {isOwn ? (
               <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white/50 bg-white/20 cursor-not-allowed select-none">
                 🚫 自己
@@ -630,6 +636,13 @@ function FeaturedProductSideCard({ products, onBuy, currentUserId }: { products:
                 <ShoppingCart className="w-2.5 h-2.5" />落單
               </button>
             )}
+            <Link
+              href={`/merchant-products/${product.id}`}
+              onClick={e => e.stopPropagation()}
+              className="flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold text-white/90 bg-white/20 hover:bg-white/30 transition-colors"
+            >
+              詳細
+            </Link>
           </div>
         </div>
       </div>
