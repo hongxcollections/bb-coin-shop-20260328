@@ -2339,6 +2339,8 @@ export async function getAllUsersExtended() {
         wonCount: sql<number>`(SELECT COUNT(*) FROM auctions WHERE highestBidderId = ${users.id} AND status = 'ended')`,
         activeAuctionCount: sql<number>`(SELECT COUNT(*) FROM auctions WHERE createdBy = ${users.id} AND status = 'active')`,
         activeProductCount: sql<number>`(SELECT COUNT(*) FROM merchantProducts WHERE merchantId = ${users.id} AND status = 'active')`,
+        subscriptionEndDate: sql<string | null>`(SELECT endDate FROM user_subscriptions WHERE userId = ${users.id} AND status = 'active' ORDER BY endDate DESC LIMIT 1)`,
+        subscriptionQuota: sql<number | null>`(SELECT remainingQuota FROM user_subscriptions WHERE userId = ${users.id} AND status = 'active' ORDER BY endDate DESC LIMIT 1)`,
       })
       .from(users)
       .leftJoin(sellerDeposits, eq(sellerDeposits.userId, users.id))

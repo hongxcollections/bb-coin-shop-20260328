@@ -51,6 +51,8 @@ type UserRow = {
   wonCount: number;
   activeAuctionCount: number;
   activeProductCount: number;
+  subscriptionEndDate: string | null;
+  subscriptionQuota: number | null;
 };
 
 /** Expandable list of won auctions for a user — fetches on demand */
@@ -1217,8 +1219,21 @@ export default function AdminUsers() {
                     <Badge className="text-[0.6rem] px-1.5 py-0 bg-red-600 text-white">🚫 停權</Badge>
                   )}
                 </div>
-                {!isOpen && u.phone && (
-                  <div className="text-xs text-gray-400 mt-0.5 truncate">📱 {u.phone}</div>
+                {!isOpen && (
+                  <div className="text-xs text-gray-400 mt-0.5 space-y-0.5">
+                    {u.phone && <div className="truncate">📱 {u.phone}</div>}
+                    {u.depositId && (
+                      <div className="text-amber-600 whitespace-nowrap overflow-x-auto">
+                        💰 HK${parseFloat(u.depositBalance ?? "0").toFixed(0)} ／ 門檻 HK${parseFloat(u.requiredDeposit ?? "500").toFixed(0)} ／ 佣金 {(parseFloat(u.commissionRate ?? "0.05") * 100).toFixed(1)}%
+                        {u.subscriptionEndDate && (
+                          <span className="ml-2 text-gray-400">｜ 訂閱到 {new Date(u.subscriptionEndDate).toLocaleDateString("zh-HK", { year: "numeric", month: "2-digit", day: "2-digit" })}</span>
+                        )}
+                        {u.subscriptionQuota != null && (
+                          <span className="ml-1 text-gray-400">｜ 點數 {u.subscriptionQuota}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
               <ChevronDown
