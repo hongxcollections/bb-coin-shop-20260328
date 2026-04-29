@@ -71,6 +71,7 @@ export default function AuctionDetail() {
   // 追蹤上一次已知的最高出價，用於偵測其他用戶的新出價
   const prevPriceRef = useRef<number | null>(null);
   const touchStartXRef = useRef<number>(0);
+  const swipedRef = useRef(false);
   const [priceUpdated, setPriceUpdated] = useState(false);
 
   // 取得用戶預設匿名設定
@@ -419,18 +420,18 @@ export default function AuctionDetail() {
           {/* Left: Images */}
           <div>
             <div
-              className="aspect-square rounded-2xl overflow-hidden bg-amber-50 border border-amber-100 mb-3 relative select-none"
-              onTouchStart={(e) => { touchStartXRef.current = e.touches[0].clientX; }}
+              className="aspect-square rounded-2xl overflow-hidden bg-amber-50 border border-amber-100 mb-3 relative select-none cursor-zoom-in"
+              onTouchStart={(e) => { touchStartXRef.current = e.touches[0].clientX; swipedRef.current = false; }}
               onTouchEnd={(e) => {
                 const diff = touchStartXRef.current - e.changedTouches[0].clientX;
-                if (Math.abs(diff) < 40 || images.length <= 1) return;
-                const total = images.length;
-                if (diff > 0) {
-                  goToImage((selectedImage + 1) % total, 'left');
-                } else {
-                  goToImage((selectedImage - 1 + total) % total, 'right');
+                if (Math.abs(diff) >= 40 && images.length > 1) {
+                  swipedRef.current = true;
+                  const total = images.length;
+                  if (diff > 0) goToImage((selectedImage + 1) % total, 'left');
+                  else goToImage((selectedImage - 1 + total) % total, 'right');
                 }
               }}
+              onClick={() => { if (!swipedRef.current && images.length > 0) setLightboxOpen(true); }}
             >
               {images.length > 0 ? (
                 <>
@@ -465,13 +466,13 @@ export default function AuctionDetail() {
                   {images.length > 1 && (
                     <>
                       <button
-                        onClick={() => goToImage((selectedImage - 1 + images.length) % images.length, 'right')}
+                        onClick={(e) => { e.stopPropagation(); goToImage((selectedImage - 1 + images.length) % images.length, 'right'); }}
                         className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors z-10"
                       >
                         <ChevronLeft className="w-5 h-5 text-white" />
                       </button>
                       <button
-                        onClick={() => goToImage((selectedImage + 1) % images.length, 'left')}
+                        onClick={(e) => { e.stopPropagation(); goToImage((selectedImage + 1) % images.length, 'left'); }}
                         className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors z-10"
                       >
                         <ChevronRight className="w-5 h-5 text-white" />
@@ -508,7 +509,8 @@ export default function AuctionDetail() {
                     )}
                     <button
                       type="button"
-                      onClick={async () => {
+                      onClick={async (e) => {
+                        e.stopPropagation();
                         const url = window.location.href;
                         const shareText = `${auction.title}\n目前出價 ${getCurrencySymbol((auction as { currency?: string })?.currency ?? "HKD")}${Number(auction.currentPrice).toLocaleString()}\n結標：${new Date(auction.endTime).toLocaleString("zh-HK", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}\n\n${url}`;
                         if (navigator.share) {
