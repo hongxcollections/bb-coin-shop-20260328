@@ -278,6 +278,7 @@ export default function MerchantApply() {
   const [iconUrl, setIconUrl] = useState<string>("");      // S3 URL
   const [iconPreview, setIconPreview] = useState<string>(""); // local preview
   const [uploading, setUploading] = useState(false);
+  const [stepsLightbox, setStepsLightbox] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleIconChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -373,9 +374,11 @@ export default function MerchantApply() {
           <img
             src="/merchant-apply-steps.png"
             alt="成為商戶的申請步驟"
-            className="w-full rounded-2xl shadow-sm"
+            className="w-full rounded-2xl shadow-sm cursor-zoom-in active:opacity-80 transition-opacity"
             style={{ imageRendering: "auto" }}
+            onClick={() => setStepsLightbox(true)}
           />
+          <p className="text-center text-xs text-gray-400 mt-1.5">點擊圖片可放大查看</p>
         </div>
 
         {/* Existing application status */}
@@ -524,6 +527,9 @@ export default function MerchantApply() {
           </form>
         )}
       </div>
+      {stepsLightbox && (
+        <ImageLightbox src="/merchant-apply-steps.png" alt="成為商戶的申請步驟" onClose={() => setStepsLightbox(false)} />
+      )}
     </div>
   );
 }
