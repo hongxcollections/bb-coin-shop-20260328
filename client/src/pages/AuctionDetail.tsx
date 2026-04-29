@@ -456,9 +456,11 @@ export default function AuctionDetail() {
                       key={`out-${outgoingImage}`}
                       src={images[outgoingImage]?.imageUrl}
                       alt=""
-                      className="absolute inset-0 w-full h-full object-contain"
+                      draggable={false}
+                      className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                       style={{
                         animation: `${slideDir === 'left' ? 'img-slide-out-left' : 'img-slide-out-right'} 0.38s ease-in-out forwards`,
+                        WebkitTouchCallout: 'none',
                       }}
                     />
                   )}
@@ -467,14 +469,15 @@ export default function AuctionDetail() {
                     key={`in-${selectedImage}-${slideDir}`}
                     src={images[selectedImage]?.imageUrl}
                     alt={auction.title}
-                    className="w-full h-full object-contain"
+                    draggable={false}
+                    className="w-full h-full object-contain pointer-events-none"
                     style={outgoingImage !== null ? {
-                      // 手動滑動：滑入效果
                       animation: `${slideDir === 'left' ? 'img-slide-in-from-right' : 'img-slide-in-from-left'} 0.38s ease-in-out forwards`,
+                      WebkitTouchCallout: 'none',
                     } : {
-                      // 自動輪播：淡入淡出
                       opacity: fadeVisible ? 1 : 0,
                       transition: 'opacity 0.38s ease-in-out',
+                      WebkitTouchCallout: 'none',
                     }}
                   />
                   {/* 左右箭咀 */}
@@ -494,15 +497,6 @@ export default function AuctionDetail() {
                       </button>
                     </>
                   )}
-                  {/* 放大按鈕 */}
-                  <button
-                    type="button"
-                    onClick={e => { e.stopPropagation(); setLightboxOpen(true); }}
-                    className="absolute top-2 left-2 flex items-center justify-center w-7 h-7 rounded-full bg-black/35 hover:bg-black/55 transition-colors backdrop-blur-sm z-10"
-                    title="放大圖片"
-                  >
-                    <ZoomIn className="w-3.5 h-3.5 text-white" />
-                  </button>
                   {/* 底部漸層遮罩 */}
                   <div
                     className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"
@@ -515,13 +509,24 @@ export default function AuctionDetail() {
                       <span className="text-white text-xs font-medium drop-shadow">{auction.sellerName}</span>
                     </div>
                   )}
-                  {/* 右下：圖片計數 + 快速分享 */}
-                  <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
-                    {images.length > 1 && (
-                      <span className="text-white/90 text-xs font-semibold tabular-nums drop-shadow pointer-events-none">
+                  {/* 底部中央：圖片計數 */}
+                  {images.length > 1 && (
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 pointer-events-none">
+                      <span className="text-white/90 text-xs font-semibold tabular-nums drop-shadow">
                         {selectedImage + 1}/{images.length}
                       </span>
-                    )}
+                    </div>
+                  )}
+                  {/* 右下：放大鏡（上）+ 分享（下），相隔10px */}
+                  <div className="absolute bottom-2 right-2 flex flex-col items-center" style={{ gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); setLightboxOpen(true); }}
+                      className="flex items-center justify-center w-7 h-7 rounded-full bg-black/35 hover:bg-black/55 transition-colors backdrop-blur-sm z-10"
+                      title="放大圖片"
+                    >
+                      <ZoomIn className="w-3.5 h-3.5 text-white" />
+                    </button>
                     <button
                       type="button"
                       onClick={async (e) => {
