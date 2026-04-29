@@ -71,7 +71,8 @@ export default function AuctionDetail() {
   // 追蹤上一次已知的最高出價，用於偵測其他用戶的新出價
   const prevPriceRef = useRef<number | null>(null);
   const touchStartXRef = useRef<number>(0);
-  const swipedRef = useRef(false);
+  const touchStartYRef = useRef<number>(0);
+  const touchOpenedLightboxRef = useRef(false);
   const [priceUpdated, setPriceUpdated] = useState(false);
 
   // 取得用戶預設匿名設定
@@ -421,17 +422,31 @@ export default function AuctionDetail() {
           <div>
             <div
               className="aspect-square rounded-2xl overflow-hidden bg-amber-50 border border-amber-100 mb-3 relative select-none cursor-zoom-in"
-              onTouchStart={(e) => { touchStartXRef.current = e.touches[0].clientX; swipedRef.current = false; }}
+              onTouchStart={(e) => {
+                touchStartXRef.current = e.touches[0].clientX;
+                touchStartYRef.current = e.touches[0].clientY;
+                touchOpenedLightboxRef.current = false;
+              }}
               onTouchEnd={(e) => {
-                const diff = touchStartXRef.current - e.changedTouches[0].clientX;
-                if (Math.abs(diff) >= 40 && images.length > 1) {
-                  swipedRef.current = true;
+                const dx = touchStartXRef.current - e.changedTouches[0].clientX;
+                const dy = touchStartYRef.current - e.changedTouches[0].clientY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (Math.abs(dx) >= 40 && images.length > 1) {
+                  // 水平滑動：切換圖片
                   const total = images.length;
-                  if (diff > 0) goToImage((selectedImage + 1) % total, 'left');
+                  if (dx > 0) goToImage((selectedImage + 1) % total, 'left');
                   else goToImage((selectedImage - 1 + total) % total, 'right');
+                } else if (dist < 10 && images.length > 0) {
+                  // 輕按（幾乎沒移動）：開燈箱
+                  touchOpenedLightboxRef.current = true;
+                  setLightboxOpen(true);
                 }
               }}
-              onClick={() => { if (!swipedRef.current && images.length > 0) setLightboxOpen(true); }}
+              onClick={() => {
+                // desktop 滑鼠點擊（touch 已在 onTouchEnd 處理，避免重複）
+                if (!touchOpenedLightboxRef.current && images.length > 0) setLightboxOpen(true);
+                touchOpenedLightboxRef.current = false;
+              }}
             >
               {images.length > 0 ? (
                 <>
