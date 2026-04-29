@@ -481,15 +481,19 @@ export default function MerchantProductDetail() {
 
                 <div className="h-px bg-gray-100" />
 
-                {/* 標題 + 類別 */}
-                <div className="flex items-start gap-2 justify-between">
-                  <h1 className="font-bold text-gray-900 text-base leading-snug flex-1">{product.title}</h1>
-                  {product.category && (
-                    <span className="flex items-center gap-0.5 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full shrink-0">
-                      <Tag className="w-3 h-3" />{product.category}
-                    </span>
-                  )}
-                </div>
+                {/* 標題 */}
+                <h1 className="font-bold text-gray-900 text-base leading-snug">{product.title}</h1>
+
+                {/* 分類 tag（獨立一行，多個逗號分隔各自一個） */}
+                {product.category && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {product.category.split(",").map((tag: string) => tag.trim()).filter(Boolean).map((tag: string) => (
+                      <span key={tag} className="flex items-center gap-0.5 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                        <Tag className="w-3 h-3 shrink-0" />{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {/* 描述 */}
                 {product.description && (
