@@ -963,7 +963,8 @@ const AUCTION_SECTION_TITLES = [
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
-  
+  const [, navigate] = useLocation();
+
   // Auctions Logic
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
@@ -974,6 +975,15 @@ export default function Home() {
   const [randomIdx] = useState(() => Math.floor(Math.random() * 10000));
   // 商品落單彈窗
   const [buyingProduct, setBuyingProduct] = useState<any | null>(null);
+
+  // 落單按鈕：未登入直接跳登入頁，登入後返回商品詳情頁
+  const handleBuy = (product: any) => {
+    if (!isAuthenticated) {
+      navigate(`/login?from=${encodeURIComponent(`/merchant-products/${product.id}`)}`);
+      return;
+    }
+    setBuyingProduct(product);
+  };
 
   const { data: auctions, isLoading } = trpc.auctions.list.useQuery(
     { limit: 100, offset: 0, category: category === "all" ? undefined : category },
@@ -1128,7 +1138,7 @@ export default function Home() {
 
       {/* ── 主打出售商品：右側浮動滑入卡 ── */}
       {featuredProducts.length > 0 && (
-        <FeaturedProductSideCard products={featuredProducts} onBuy={setBuyingProduct} currentUserId={user?.id} />
+        <FeaturedProductSideCard products={featuredProducts} onBuy={handleBuy} currentUserId={user?.id} />
       )}
 
       {/* ── 精選商品＋精選拍品 合併輪播（同位置淡入淡出切換）── */}
@@ -1136,7 +1146,7 @@ export default function Home() {
         <CombinedHeroCarousel
           products={heroProducts}
           auctions={heroAuctions}
-          onBuy={setBuyingProduct}
+          onBuy={handleBuy}
           currentUserId={user?.id}
         />
       )}
