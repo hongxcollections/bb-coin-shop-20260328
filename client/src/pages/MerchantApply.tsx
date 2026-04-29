@@ -187,7 +187,7 @@ function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClos
           alt={alt}
           onLoad={onImgLoad}
           className="block rounded-lg pointer-events-none"
-          style={{ imageRendering: "high-quality" }}
+          style={{ imageRendering: "high-quality", maxWidth: "none", maxHeight: "none" }}
           draggable={false}
         />
       </div>
