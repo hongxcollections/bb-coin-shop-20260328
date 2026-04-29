@@ -4771,6 +4771,9 @@ Return a JSON object with these fields (use "Unknown" if uncertain, do not fabri
         mimeType: z.string().default("image/jpeg"),
       }))
       .mutation(async ({ input }) => {
+        if (!ENV.forgeApiUrl || !ENV.forgeApiKey) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "AI 插畫功能目前暫未開放" });
+        }
         const { generateImage } = await import("./_core/imageGeneration");
         const fullPrompt = `${input.prompt}, vibrant colors, detailed, museum quality, dramatic lighting, golden ratio composition`;
         const result = await generateImage({

@@ -101,6 +101,7 @@ export default function CoinAnalysis() {
   const [artLightboxOpen, setArtLightboxOpen] = useState(false);
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
   const [artUrl, setArtUrl] = useState<string | null>(null);
+  const [artUnavailable, setArtUnavailable] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const analyzeMutation = trpc.coinAnalysis.analyze.useMutation();
@@ -139,6 +140,7 @@ export default function CoinAnalysis() {
     if (!imageBase64) return;
     setAnalysisData(null);
     setArtUrl(null);
+    setArtUnavailable(false);
     try {
       const res = await analyzeMutation.mutateAsync({ imageBase64, mimeType, lang });
       if (res.success) setAnalysisData(res.data as AnalysisData);
@@ -159,7 +161,11 @@ export default function CoinAnalysis() {
       if (res.success && res.imageUrl) setArtUrl(res.imageUrl);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "生成失敗，請重試";
-      toast.error(msg);
+      if (msg.includes("暫未開放")) {
+        setArtUnavailable(true);
+      } else {
+        toast.error(msg);
+      }
     }
   };
 
@@ -320,19 +326,21 @@ export default function CoinAnalysis() {
             )}
 
             {/* 生成藝術插畫按鈕 */}
-            <div className="px-4 pb-4">
-              <button
-                onClick={handleGenerateArt}
-                disabled={generateArtMutation.isPending}
-                className="w-full py-2.5 rounded-xl font-bold text-white transition-colors flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-60"
-              >
-                {generateArtMutation.isPending ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" />{t.generating}</>
-                ) : (
-                  <><Palette className="w-4 h-4" />{t.generateArt}</>
-                )}
-              </button>
-            </div>
+            {!artUnavailable && (
+              <div className="px-4 pb-4">
+                <button
+                  onClick={handleGenerateArt}
+                  disabled={generateArtMutation.isPending}
+                  className="w-full py-2.5 rounded-xl font-bold text-white transition-colors flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-60"
+                >
+                  {generateArtMutation.isPending ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" />{t.generating}</>
+                  ) : (
+                    <><Palette className="w-4 h-4" />{t.generateArt}</>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
