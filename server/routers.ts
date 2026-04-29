@@ -4640,7 +4640,7 @@ export const appRouter = router({
         mimeType: z.string().default("image/jpeg"),
         lang: z.enum(["zh", "en"]).default("zh"),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         // 視覺分析需要支援圖片的模型，直接呼叫以覆蓋預設文字模型
         const dataUrl = `data:${input.mimeType};base64,${input.imageBase64}`;
 
