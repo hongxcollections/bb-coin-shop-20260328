@@ -541,31 +541,29 @@ export default function AuctionDetail() {
           <div className="flex flex-col gap-5">
             {/* Title & Status */}
             <div>
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <h1 className="text-2xl font-bold leading-tight">{auction.title}</h1>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Badge className={isActive ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}>
-                    {isActive ? "競拍中" : "已結束"}
-                  </Badge>
-                  <ShareMenu
-                    auctionId={auctionId}
-                    title={auction.title}
-                    latestBid={Number(auction.currentPrice)}
-                    currency={(auction as { currency?: string })?.currency}
-                    endTime={auction.endTime}
-                  />
-                  {isAuthenticated && (
-                    <button
-                      onClick={() => toggleFavoriteMutation.mutate({ auctionId })}
-                      className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${
-                        isFavorited ? "bg-rose-100 hover:bg-rose-200" : "bg-gray-100 hover:bg-rose-50"
-                      }`}
-                      title={isFavorited ? "取消收藏" : "加入收藏"}
-                    >
-                      <Heart className={`w-4 h-4 transition-all ${isFavorited ? "text-rose-500 fill-rose-500" : "text-gray-400"}`} />
-                    </button>
-                  )}
-                </div>
+              <h1 className="text-2xl font-bold leading-tight mb-3">{auction.title}</h1>
+              <div className="flex items-center gap-2 mb-2">
+                <Badge className={isActive ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}>
+                  {isActive ? "競拍中" : "已結束"}
+                </Badge>
+                <ShareMenu
+                  auctionId={auctionId}
+                  title={auction.title}
+                  latestBid={Number(auction.currentPrice)}
+                  currency={(auction as { currency?: string })?.currency}
+                  endTime={auction.endTime}
+                />
+                {isAuthenticated && (
+                  <button
+                    onClick={() => toggleFavoriteMutation.mutate({ auctionId })}
+                    className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${
+                      isFavorited ? "bg-rose-100 hover:bg-rose-200" : "bg-gray-100 hover:bg-rose-50"
+                    }`}
+                    title={isFavorited ? "取消收藏" : "加入收藏"}
+                  >
+                    <Heart className={`w-4 h-4 transition-all ${isFavorited ? "text-rose-500 fill-rose-500" : "text-gray-400"}`} />
+                  </button>
+                )}
               </div>
               {auction.description && (
                 <p className="text-muted-foreground text-sm leading-relaxed">{auction.description}</p>
