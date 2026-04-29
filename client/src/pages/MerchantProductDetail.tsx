@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useParams, Link, useLocation } from "wouter";
+import ImageLightbox from "@/components/ImageLightbox";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { buildWhatsAppUrl } from "@/lib/utils";
@@ -161,7 +162,10 @@ export default function MerchantProductDetail() {
   const params = useParams<{ id: string }>();
   const productId = parseInt(params.id ?? "0", 10);
   const [imgIdx, setImgIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const imgTouchStartX = useRef(0);
+  const imgTouchStartY = useRef(0);
+  const touchOpenedLightbox = useRef(false);
   const [merchantOpen, setMerchantOpen] = useState(false);
   const [buyingProduct, setBuyingProduct] = useState<any | null>(null);
   const { user } = useAuth();
@@ -273,36 +277,56 @@ export default function MerchantProductDetail() {
               {imgs.length > 0 ? (
                 <div className="relative">
                   <div
-                    className="w-full aspect-square bg-amber-50 overflow-hidden"
-                    onTouchStart={e => { imgTouchStartX.current = e.touches[0].clientX; }}
+                    className="w-full aspect-square bg-amber-50 overflow-hidden cursor-zoom-in select-none"
+                    onTouchStart={e => {
+                      imgTouchStartX.current = e.touches[0].clientX;
+                      imgTouchStartY.current = e.touches[0].clientY;
+                      touchOpenedLightbox.current = false;
+                    }}
                     onTouchEnd={e => {
-                      const diff = imgTouchStartX.current - e.changedTouches[0].clientX;
-                      if (Math.abs(diff) < 40 || imgs.length <= 1) return;
-                      setImgIdx(i => diff > 0 ? (i + 1) % imgs.length : (i - 1 + imgs.length) % imgs.length);
+                      const dx = imgTouchStartX.current - e.changedTouches[0].clientX;
+                      const dy = imgTouchStartY.current - e.changedTouches[0].clientY;
+                      const dist = Math.sqrt(dx * dx + dy * dy);
+                      if (Math.abs(dx) >= 40 && imgs.length > 1) {
+                        setImgIdx(i => dx > 0 ? (i + 1) % imgs.length : (i - 1 + imgs.length) % imgs.length);
+                      } else if (dist < 10) {
+                        touchOpenedLightbox.current = true;
+                        setLightboxOpen(true);
+                      }
+                    }}
+                    onClick={() => {
+                      if (!touchOpenedLightbox.current) setLightboxOpen(true);
+                      touchOpenedLightbox.current = false;
                     }}
                   >
-                    <img src={imgs[imgIdx]} alt={product.title} className="w-full h-full object-cover" />
+                    <img src={imgs[imgIdx]} alt={product.title} draggable={false}
+                      className="w-full h-full object-cover pointer-events-none"
+                      style={{ WebkitTouchCallout: 'none' }} />
                   </div>
                   {imgs.length > 1 && (
                     <>
                       <button
+                        onTouchEnd={e => e.stopPropagation()}
                         onClick={() => setImgIdx(i => (i - 1 + imgs.length) % imgs.length)}
                         className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center shadow"
                       ><Prev className="w-4 h-4 text-gray-600" /></button>
                       <button
+                        onTouchEnd={e => e.stopPropagation()}
                         onClick={() => setImgIdx(i => (i + 1) % imgs.length)}
                         className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center shadow"
                       ><Next className="w-4 h-4 text-gray-600" /></button>
                       <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
                         {imgs.map((_, i) => (
-                          <button key={i} onClick={() => setImgIdx(i)}
+                          <button key={i}
+                            onTouchEnd={e => e.stopPropagation()}
+                            onClick={() => setImgIdx(i)}
                             className={`w-1.5 h-1.5 rounded-full transition-colors ${i === imgIdx ? "bg-amber-500" : "bg-white/60"}`} />
                         ))}
                       </div>
                     </>
                   )}
                   {imgs.length > 1 && (
-                    <div className="absolute top-2 right-2 bg-black/40 text-white text-xs px-1.5 py-0.5 rounded-full">
+                    <div className="absolute top-2 right-2 bg-black/40 text-white text-xs px-1.5 py-0.5 rounded-full pointer-events-none">
                       {imgIdx + 1}/{imgs.length}
                     </div>
                   )}
@@ -651,6 +675,16 @@ export default function MerchantProductDetail() {
 
       {/* 落單彈窗 */}
       {buyingProduct && <BuyDialog product={buyingProduct} onClose={() => setBuyingProduct(null)} />}
+
+      {/* 大圖燈箱 */}
+      {lightboxOpen && imgs.length > 0 && (
+        <ImageLightbox
+          images={imgs}
+          initialIndex={imgIdx}
+          alt={product?.title}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
     </div>
   );
 }
