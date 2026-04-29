@@ -84,11 +84,14 @@ function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClos
   const onImgLoad = useCallback(() => {
     const img = imgElRef.current;
     if (!img) return;
-    const vw = window.innerWidth * 0.98;
-    const vh = window.innerHeight * 0.96;
+    // Pin the img element to its natural pixel dimensions so transform scale works correctly
+    img.style.width = img.naturalWidth + "px";
+    img.style.height = img.naturalHeight + "px";
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
     const sw = vw / img.naturalWidth;
     const sh = vh / img.naturalHeight;
-    naturalScale.current = Math.min(sw, sh); // fit to screen, fill as large as possible
+    naturalScale.current = Math.min(sw, sh);
     applyTransform();
   }, [applyTransform]);
 
