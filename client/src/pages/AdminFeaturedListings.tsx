@@ -254,14 +254,14 @@ export default function AdminFeaturedListings() {
               <p className="text-sm font-bold text-red-700 flex items-center gap-1.5">
                 <Trash2 className="w-4 h-4" />一鍵清除所有主打
               </p>
-              <p className="text-xs text-red-400 mt-0.5">清除所有進行中及排隊中的記錄，費用不退還。用於資料混亂時重置。</p>
+              <p className="text-xs text-red-400 mt-0.5">清除資料庫內所有主打紀錄（不論狀態），費用不退還。用於資料混亂時重置。</p>
             </div>
             <button
               onClick={() => setShowPurgeConfirm(true)}
-              disabled={active.length + queued.length === 0}
+              disabled={listings.length === 0}
               className="shrink-0 px-3 py-2 bg-red-500 text-white text-xs font-bold rounded-xl hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition"
             >
-              清除（{active.length + queued.length}）
+              清除（{listings.length}）
             </button>
           </div>
         </div>
@@ -282,11 +282,12 @@ export default function AdminFeaturedListings() {
             <div className="bg-red-50 rounded-xl p-3 mb-4">
               <p className="text-xs text-red-400 font-medium mb-1">將被清除</p>
               <p className="text-sm font-semibold text-red-700">
-                進行中：{active.length} 條　排隊中：{queued.length} 條
+                全部紀錄：{listings.length} 條（不論狀態）
               </p>
+              <p className="text-xs text-red-400 mt-1">進行中 {active.length} ／ 排隊中 {queued.length} ／ 其他 {listings.length - active.length - queued.length}</p>
             </div>
             <p className="text-sm text-gray-500 mb-5 leading-relaxed">
-              此操作不可逆。所有進行中及排隊的主打將標為「已取消」，費用不退還。只在系統數據混亂時使用。
+              此操作不可逆。資料庫內所有主打紀錄將被永久刪除，費用不退還。只在系統數據混亂時使用。
             </p>
             <div className="flex gap-3">
               <button

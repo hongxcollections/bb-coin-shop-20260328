@@ -4465,11 +4465,11 @@ export async function purgeActiveFeaturedListings(): Promise<{ cleared: number }
   const db = await getDb();
   if (!db) return { cleared: 0 };
   try {
-    const res = await db.execute(sql`
-      UPDATE featuredListings SET status = 'cancelled'
-      WHERE status IN ('active', 'queued')
-    `);
-    const cleared = (res as any)?.[0]?.affectedRows ?? 0;
+    // Count total before delete
+    const countRes = await db.execute(sql`SELECT COUNT(*) AS cnt FROM featuredListings`);
+    const cleared = Number((countRes as any)?.[0]?.[0]?.cnt ?? (countRes as any)?.[0]?.cnt ?? 0);
+    // Delete ALL records unconditionally
+    await db.execute(sql`DELETE FROM featuredListings`);
     return { cleared };
   } catch (e) {
     console.error('[purgeActiveFeaturedListings] error:', e);
