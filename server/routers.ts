@@ -4641,8 +4641,29 @@ export const appRouter = router({
         lang: z.enum(["zh", "en"]).default("zh"),
       }))
       .mutation(async ({ input }) => {
-        const { invokeLLM } = await import("./_core/llm");
+        // 視覺分析需要支援圖片的模型，直接呼叫以覆蓋預設文字模型
         const dataUrl = `data:${input.mimeType};base64,${input.imageBase64}`;
+
+        // 選擇視覺模型 API
+        const resolveVisionApi = (): { url: string; key: string; model: string } => {
+          if (ENV.forgeApiKey) {
+            const base = ENV.forgeApiUrl && ENV.forgeApiUrl.trim()
+              ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
+              : "https://forge.manus.im/v1/chat/completions";
+            return { url: base, key: ENV.forgeApiKey, model: "gemini-2.5-flash" };
+          }
+          if (ENV.openRouterApiKey) {
+            return { url: "https://openrouter.ai/api/v1/chat/completions", key: ENV.openRouterApiKey, model: "google/gemini-2.0-flash-exp:free" };
+          }
+          if (ENV.geminiApiKey) {
+            return { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: ENV.geminiApiKey, model: "gemini-2.0-flash" };
+          }
+          if (ENV.openAiApiKey) {
+            return { url: "https://api.openai.com/v1/chat/completions", key: ENV.openAiApiKey, model: "gpt-4o" };
+          }
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "未設定 AI API，無法分析" });
+        };
+        const visionApi = resolveVisionApi();
 
         const systemPrompt = input.lang === "zh"
           ? `你是一位專業的錢幣與郵票鑑定專家。請仔細分析用戶上傳的圖片，以繁體中文回覆。
@@ -4680,7 +4701,9 @@ Return a JSON object with these fields (use "Unknown" if uncertain, do not fabri
   "imageGenerationPrompt": "An English prompt for generating a colorful historical art illustration of this item, oil painting vintage illustration style, include item features and historical context"
 }`;
 
-        const result = await invokeLLM({
+        const visionPayload = {
+          model: visionApi.model,
+          max_tokens: 4096,
           messages: [
             { role: "system", content: systemPrompt },
             {
@@ -4691,9 +4714,18 @@ Return a JSON object with these fields (use "Unknown" if uncertain, do not fabri
               ],
             },
           ],
+        };
+        const visionResp = await fetch(visionApi.url, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${visionApi.key}` },
+          body: JSON.stringify(visionPayload),
         });
-
-        const raw = result.choices[0]?.message?.content ?? "";
+        if (!visionResp.ok) {
+          const errText = await visionResp.text().catch(() => "");
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `AI 分析失敗：${visionResp.status} ${errText.slice(0, 200)}` });
+        }
+        const visionResult = await visionResp.json() as { choices: Array<{ message: { content: string | Array<{type:string;text?:string}> } }> };
+        const raw = visionResult.choices[0]?.message?.content ?? "";
         const text = typeof raw === "string" ? raw : (raw as Array<{type:string;text?:string}>).find(p => p.type === "text")?.text ?? "";
 
         // 提取 JSON
