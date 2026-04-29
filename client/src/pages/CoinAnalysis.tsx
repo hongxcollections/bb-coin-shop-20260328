@@ -113,128 +113,178 @@ function getField(d: AnalysisData, zh: string, en: string): string {
   return (d as Record<string, string>)[zh] || (d as Record<string, string>)[en] || "";
 }
 
-// ─── Canvas card generator ────────────────────────────────────────────────────
-async function generateShareCard(data: AnalysisData, imagePreview: string | null, lang: "zh" | "en"): Promise<void> {
-  const W = 800, H = 460;
-  const canvas = document.createElement("canvas");
-  canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext("2d")!;
-
-  // Background gradient
-  const grad = ctx.createLinearGradient(0, 0, W, H);
-  grad.addColorStop(0, "#1a1a2e");
-  grad.addColorStop(0.5, "#16213e");
-  grad.addColorStop(1, "#0f3460");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-
-  // Gold accent bar top
-  const goldGrad = ctx.createLinearGradient(0, 0, W, 0);
-  goldGrad.addColorStop(0, "#b8860b");
-  goldGrad.addColorStop(0.5, "#ffd700");
-  goldGrad.addColorStop(1, "#b8860b");
-  ctx.fillStyle = goldGrad;
-  ctx.fillRect(0, 0, W, 4);
-
-  // Subtle grid pattern
-  ctx.strokeStyle = "rgba(255,215,0,0.04)";
-  ctx.lineWidth = 1;
-  for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-  for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-
-  // Coin image (left side)
-  const IMG_SIZE = 200;
-  const imgX = 40, imgY = (H - IMG_SIZE) / 2;
-
-  if (imagePreview) {
-    try {
-      const img = await new Promise<HTMLImageElement>((res, rej) => {
-        const el = new Image();
-        el.onload = () => res(el);
-        el.onerror = rej;
-        el.src = imagePreview;
-      });
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(imgX + IMG_SIZE / 2, imgY + IMG_SIZE / 2, IMG_SIZE / 2, 0, Math.PI * 2);
-      ctx.clip();
-      ctx.drawImage(img, imgX, imgY, IMG_SIZE, IMG_SIZE);
-      ctx.restore();
-      // Circle border
-      ctx.strokeStyle = "#ffd700";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(imgX + IMG_SIZE / 2, imgY + IMG_SIZE / 2, IMG_SIZE / 2, 0, Math.PI * 2);
-      ctx.stroke();
-    } catch { /* skip image */ }
+// ─── Canvas helpers ───────────────────────────────────────────────────────────
+function wrapText(c: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, lh: number): number {
+  let line = "", curY = y;
+  for (const ch of text) {
+    const test = line + ch;
+    if (c.measureText(test).width > maxW && line.length > 0) {
+      c.fillText(line, x, curY);
+      line = ch; curY += lh;
+    } else { line = test; }
   }
+  if (line) { c.fillText(line, x, curY); curY += lh; }
+  return curY;
+}
 
-  // Content area (right side)
-  const cx = imagePreview ? imgX + IMG_SIZE + 32 : 40;
-  const cw = W - cx - 30;
+// ─── Canvas card generator ────────────────────────────────────────────────────
+async function generateShareCard(data: AnalysisData, imagePreview: string | null): Promise<void> {
+  const W = 600, PAD = 36;
 
-  // Site name
-  ctx.font = "bold 16px sans-serif";
-  ctx.fillStyle = "#ffd700";
-  ctx.fillText("大BB錢幣店 · hongxcollections.com", cx, 38);
-
-  // AI badge
-  ctx.fillStyle = "rgba(255,215,0,0.15)";
-  ctx.beginPath(); ctx.roundRect(cx, 48, 90, 22, 4); ctx.fill();
-  ctx.fillStyle = "#ffd700";
-  ctx.font = "bold 12px sans-serif";
-  ctx.fillText("✦ AI 鑑定結果", cx + 8, 63);
-
-  // Coin name (big)
-  const coinName = getField(data, "name", "Name") || "未知";
-  ctx.font = "bold 28px sans-serif";
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText(coinName.length > 18 ? coinName.slice(0, 17) + "…" : coinName, cx, 106);
-
-  // Divider
-  ctx.fillStyle = "rgba(255,215,0,0.3)";
-  ctx.fillRect(cx, 116, cw, 1);
-
-  // Fields
-  const fields: [string, string, string][] = [
+  // Collect all displayable fields
+  const fieldDefs: [string, string, string][] = [
     ["類型", "type", "Type"],
     ["發行地區", "country", "Country"],
     ["年份", "year", "Year"],
     ["面額", "denomination", "Denomination"],
     ["材質", "material", "Material"],
+    ["尺寸", "dimensions", "Dimensions"],
+    ["重量", "weight", "Weight"],
     ["品相", "condition", "Condition"],
+    ["稀有程度", "rarity", "Rarity"],
     ["估計市值", "estimatedValue", "Estimated Market Value"],
   ];
-
-  let fy = 140;
-  ctx.font = "14px sans-serif";
-  for (const [label, zh, en] of fields) {
-    const val = getField(data, zh, en);
-    if (!val || val === "不詳" || val === "Unknown") continue;
-    ctx.fillStyle = "rgba(255,215,0,0.7)";
-    ctx.fillText(label, cx, fy);
-    ctx.fillStyle = "#e8e8e8";
-    const dispVal = val.length > 28 ? val.slice(0, 27) + "…" : val;
-    ctx.fillText(dispVal, cx + 72, fy);
-    fy += 22;
-    if (fy > H - 60) break;
-  }
-
-  // Historical snippet
+  const activeFields = fieldDefs
+    .map(([label, zh, en]) => ({ label, val: getField(data, zh, en) }))
+    .filter(f => f.val && f.val !== "不詳" && f.val !== "Unknown");
   const hist = getField(data, "historicalBackground", "Historical Background");
-  if (hist && fy < H - 60) {
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
-    ctx.font = "italic 12px sans-serif";
-    const truncHist = hist.length > 80 ? hist.slice(0, 79) + "…" : hist;
-    ctx.fillText(truncHist, cx, fy + 4);
+
+  // Calculate dynamic height
+  const IMG_R = 90; // image circle radius
+  const ROW_H = 28;
+  const COL_ROWS = Math.ceil(activeFields.length / 2);
+  const histLines = hist ? Math.ceil(hist.length / 28) + 1 : 0;
+  const H = 8 + 8 + (IMG_R * 2 + 24) + 48 + 16 + 8 + (COL_ROWS * ROW_H) + (hist ? 16 + histLines * 22 + 8 : 0) + 36 + 8;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = Math.max(H, 400);
+  const ctx = canvas.getContext("2d")!;
+
+  // ── Background ──
+  ctx.fillStyle = "#fffdf7";
+  ctx.fillRect(0, 0, W, canvas.height);
+
+  // Subtle warm texture lines
+  ctx.strokeStyle = "rgba(180,150,60,0.06)";
+  ctx.lineWidth = 1;
+  for (let ty = 0; ty < canvas.height; ty += 24) {
+    ctx.beginPath(); ctx.moveTo(0, ty); ctx.lineTo(W, ty); ctx.stroke();
   }
 
-  // Bottom watermark
-  ctx.fillStyle = goldGrad;
-  ctx.fillRect(0, H - 4, W, 4);
-  ctx.fillStyle = "rgba(255,255,255,0.25)";
-  ctx.font = "11px sans-serif";
-  ctx.fillText("由 AI 自動生成，僅供參考，不構成投資建議", cx, H - 14);
+  // ── Gold top bar ──
+  const goldH = ctx.createLinearGradient(0, 0, W, 0);
+  goldH.addColorStop(0, "#c8972a"); goldH.addColorStop(0.5, "#f0c040"); goldH.addColorStop(1, "#c8972a");
+  ctx.fillStyle = goldH;
+  ctx.fillRect(0, 0, W, 6);
+
+  let y = 24;
+
+  // ── Coin image (centered) ──
+  const cx = W / 2;
+  if (imagePreview) {
+    try {
+      const img = await new Promise<HTMLImageElement>((res, rej) => {
+        const el = new Image(); el.onload = () => res(el); el.onerror = rej; el.src = imagePreview;
+      });
+      // Shadow
+      ctx.shadowColor = "rgba(0,0,0,0.18)"; ctx.shadowBlur = 16;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, y + IMG_R, IMG_R, 0, Math.PI * 2); ctx.clip();
+      ctx.drawImage(img, cx - IMG_R, y, IMG_R * 2, IMG_R * 2);
+      ctx.restore();
+      ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
+      // Ring
+      ctx.strokeStyle = "#c8972a"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, y + IMG_R, IMG_R + 1, 0, Math.PI * 2); ctx.stroke();
+      // Outer thin ring
+      ctx.strokeStyle = "rgba(200,150,42,0.3)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cx, y + IMG_R, IMG_R + 8, 0, Math.PI * 2); ctx.stroke();
+    } catch { /* skip */ }
+    y += IMG_R * 2 + 20;
+  }
+
+  // ── AI badge (small, centered) ──
+  ctx.font = "12px sans-serif";
+  const badgeText = "✦ AI 鑑定結果";
+  const bw = ctx.measureText(badgeText).width + 24;
+  ctx.fillStyle = "rgba(200,150,42,0.12)";
+  ctx.strokeStyle = "rgba(200,150,42,0.4)"; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.rect(cx - bw / 2, y, bw, 22);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#a07820"; ctx.textAlign = "center";
+  ctx.fillText(badgeText, cx, y + 15);
+  y += 30;
+
+  // ── Coin name ──
+  const coinName = getField(data, "name", "Name") || "未知";
+  ctx.font = "bold 26px sans-serif";
+  ctx.fillStyle = "#2c2010";
+  ctx.textAlign = "center";
+  ctx.fillText(coinName, cx, y + 26);
+  y += 44;
+
+  // ── Divider ──
+  const divGrad = ctx.createLinearGradient(PAD, 0, W - PAD, 0);
+  divGrad.addColorStop(0, "transparent"); divGrad.addColorStop(0.2, "#c8972a"); divGrad.addColorStop(0.8, "#c8972a"); divGrad.addColorStop(1, "transparent");
+  ctx.fillStyle = divGrad; ctx.fillRect(PAD, y, W - PAD * 2, 1);
+  y += 12;
+
+  // ── 2-column fields ──
+  ctx.textAlign = "left";
+  const colW = (W - PAD * 2) / 2 - 8;
+  const col2X = PAD + colW + 16;
+  ctx.font = "13px sans-serif";
+
+  for (let i = 0; i < activeFields.length; i += 2) {
+    const row = Math.floor(i / 2);
+    const rowY = y + row * ROW_H;
+
+    // Row background alternating
+    if (row % 2 === 0) {
+      ctx.fillStyle = "rgba(200,150,42,0.05)";
+      ctx.fillRect(PAD - 4, rowY - 14, W - PAD * 2 + 8, ROW_H);
+    }
+
+    // Left column
+    ctx.fillStyle = "#9a7b30"; ctx.font = "12px sans-serif";
+    ctx.fillText(activeFields[i].label, PAD, rowY);
+    ctx.fillStyle = "#2c2010"; ctx.font = "bold 13px sans-serif";
+    const v1 = activeFields[i].val.length > 18 ? activeFields[i].val.slice(0, 17) + "…" : activeFields[i].val;
+    ctx.fillText(v1, PAD + 56, rowY);
+
+    // Right column
+    if (i + 1 < activeFields.length) {
+      ctx.fillStyle = "#9a7b30"; ctx.font = "12px sans-serif";
+      ctx.fillText(activeFields[i + 1].label, col2X, rowY);
+      ctx.fillStyle = "#2c2010"; ctx.font = "bold 13px sans-serif";
+      const v2 = activeFields[i + 1].val.length > 18 ? activeFields[i + 1].val.slice(0, 17) + "…" : activeFields[i + 1].val;
+      ctx.fillText(v2, col2X + 56, rowY);
+    }
+  }
+  y += COL_ROWS * ROW_H + 8;
+
+  // ── Historical background ──
+  if (hist) {
+    ctx.fillStyle = "rgba(200,150,42,0.08)";
+    ctx.fillRect(PAD - 4, y, W - PAD * 2 + 8, histLines * 22 + 20);
+    y += 14;
+    ctx.fillStyle = "#9a7b30"; ctx.font = "12px sans-serif"; ctx.textAlign = "left";
+    ctx.fillText("歷史背景", PAD, y);
+    y += 18;
+    ctx.fillStyle = "#4a3a1a"; ctx.font = "13px sans-serif";
+    y = wrapText(ctx, hist, PAD, y, W - PAD * 2, 22);
+    y += 4;
+  }
+
+  // ── Bottom gold bar ──
+  ctx.fillStyle = goldH;
+  ctx.fillRect(0, canvas.height - 6, W, 6);
+
+  // ── Tiny disclaimer ──
+  ctx.fillStyle = "rgba(160,130,50,0.5)";
+  ctx.font = "10px sans-serif"; ctx.textAlign = "center";
+  ctx.fillText("AI 自動生成，僅供參考", cx, canvas.height - 10);
 
   // Download
   const link = document.createElement("a");
@@ -346,7 +396,7 @@ function AnalysisResult({ data, t, lang, imagePreview, relatedAuctions, loadingR
   const handleShareCard = async () => {
     setGenerating(true);
     try {
-      await generateShareCard(data, imagePreview, lang);
+      await generateShareCard(data, imagePreview);
     } catch {
       toast.error("生成失敗，請重試");
     } finally {
