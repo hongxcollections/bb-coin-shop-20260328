@@ -4630,6 +4630,102 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+
+  // ─── Coin / Stamp AI Analysis ─────────────────────────────────────────────
+  coinAnalysis: router({
+    // 分析圖片：回傳歷史、成分、尺寸等資料
+    analyze: protectedProcedure
+      .input(z.object({
+        imageBase64: z.string(), // base64 encoded image
+        mimeType: z.string().default("image/jpeg"),
+        lang: z.enum(["zh", "en"]).default("zh"),
+      }))
+      .mutation(async ({ input }) => {
+        const { invokeLLM } = await import("./_core/llm");
+        const dataUrl = `data:${input.mimeType};base64,${input.imageBase64}`;
+
+        const systemPrompt = input.lang === "zh"
+          ? `你是一位專業的錢幣與郵票鑑定專家。請仔細分析用戶上傳的圖片，以繁體中文回覆。
+請以 JSON 格式回傳以下欄位（若無法確定請填「不詳」，不要捏造數據）：
+{
+  "type": "錢幣" | "郵票" | "紀念品" | "其他",
+  "name": "名稱",
+  "country": "發行國家/地區",
+  "year": "發行年份",
+  "denomination": "面額",
+  "material": "材質/成分",
+  "dimensions": "尺寸（直徑/長x闊，mm）",
+  "weight": "重量（如適用）",
+  "condition": "品相評估",
+  "historicalBackground": "歷史背景（2-4句）",
+  "rarity": "稀有程度",
+  "estimatedValue": "估計市值（港元，如適用）",
+  "imageGenerationPrompt": "用英文寫一個適合生成藝術插畫的 prompt，要富有色彩、歷史感，包含此物品的特徵和歷史背景，風格為oil painting vintage illustration"
+}`
+          : `You are a professional numismatist and philatelist. Analyze the uploaded image carefully and respond in English.
+Return a JSON object with these fields (use "Unknown" if uncertain, do not fabricate data):
+{
+  "type": "coin" | "stamp" | "souvenir" | "other",
+  "name": "Name",
+  "country": "Issuing country/region",
+  "year": "Year of issue",
+  "denomination": "Face value",
+  "material": "Material/composition",
+  "dimensions": "Dimensions (diameter or LxW in mm)",
+  "weight": "Weight if applicable",
+  "condition": "Condition assessment",
+  "historicalBackground": "Historical background (2-4 sentences)",
+  "rarity": "Rarity level",
+  "estimatedValue": "Estimated market value (HKD if applicable)",
+  "imageGenerationPrompt": "An English prompt for generating a colorful historical art illustration of this item, oil painting vintage illustration style, include item features and historical context"
+}`;
+
+        const result = await invokeLLM({
+          messages: [
+            { role: "system", content: systemPrompt },
+            {
+              role: "user",
+              content: [
+                { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
+                { type: "text", text: input.lang === "zh" ? "請分析這幅圖片" : "Please analyze this image" },
+              ],
+            },
+          ],
+        });
+
+        const raw = result.choices[0]?.message?.content ?? "";
+        const text = typeof raw === "string" ? raw : (raw as Array<{type:string;text?:string}>).find(p => p.type === "text")?.text ?? "";
+
+        // 提取 JSON
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI 未能分析此圖片，請嘗試更清晰的圖片" });
+        try {
+          const data = JSON.parse(jsonMatch[0]);
+          return { success: true, data };
+        } catch {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "分析結果格式錯誤，請重試" });
+        }
+      }),
+
+    // 生成藝術插畫
+    generateArt: protectedProcedure
+      .input(z.object({
+        prompt: z.string(),
+        imageBase64: z.string().optional(),
+        mimeType: z.string().default("image/jpeg"),
+      }))
+      .mutation(async ({ input }) => {
+        const { generateImage } = await import("./_core/imageGeneration");
+        const fullPrompt = `${input.prompt}, vibrant colors, detailed, museum quality, dramatic lighting, golden ratio composition`;
+        const result = await generateImage({
+          prompt: fullPrompt,
+          originalImages: input.imageBase64
+            ? [{ b64Json: input.imageBase64, mimeType: input.mimeType }]
+            : undefined,
+        });
+        return { success: true, imageUrl: result.url };
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
 

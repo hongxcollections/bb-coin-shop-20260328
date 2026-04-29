@@ -56,6 +56,7 @@ import Merchants from "./pages/Merchants";
 import MerchantProducts from "./pages/MerchantProducts";
 import MerchantStore from "./pages/MerchantStore";
 import MerchantProductDetail from "./pages/MerchantProductDetail";
+import CoinAnalysis from "./pages/CoinAnalysis";
 
 function MerchantPendingOrdersNotice() {
   const { user, isAuthenticated } = useAuth();
@@ -188,6 +189,7 @@ function Router() {
       <Route path={"/merchants/:userId"} component={MerchantStore} />
       <Route path={"/merchant-products/:id"} component={MerchantProductDetail} />
       <Route path={"/merchant-products"} component={MerchantProducts} />
+      <Route path={"/coin-analysis"} component={CoinAnalysis} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
