@@ -1396,17 +1396,15 @@ export default function Login() {
                 {mode === "login" ? "立即註冊" : "立即登入"}
               </button>
             </div>
-            {mode === "register" && (
-              <div>
-                <button
-                  onClick={() => setShowMerchantFlow(true)}
-                  className="text-sm bg-transparent border-0 cursor-pointer p-0 underline underline-offset-2"
-                  style={{ color: "#888" }}
-                >
-                  商戶申請流程
-                </button>
-              </div>
-            )}
+            <div>
+              <button
+                onClick={() => setShowMerchantFlow(true)}
+                className="text-sm bg-transparent border-0 cursor-pointer p-0 underline underline-offset-2"
+                style={{ color: "#888" }}
+              >
+                商戶申請流程
+              </button>
+            </div>
           </div>
         )}
 
