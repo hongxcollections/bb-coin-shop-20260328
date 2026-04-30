@@ -508,25 +508,48 @@ async function startServer() {
         OPENROUTER_API_KEY: e.openRouterApiKey ? `${e.openRouterApiKey.length}chars` : "MISSING",
       };
 
-      // 使用公開圖片 URL 測試（比 base64 更可靠）
-      const testImageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/200px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg";
+      // 抓一張真實小圖並轉成 base64（Gemini 只接受 base64 inline data URL）
+      let testB64 = "";
+      let testMime = "image/jpeg";
+      try {
+        const imgResp = await fetch("https://picsum.photos/id/10/80/60");
+        const buf = await imgResp.arrayBuffer();
+        testB64 = Buffer.from(buf).toString("base64");
+        testMime = imgResp.headers.get("content-type") || "image/jpeg";
+      } catch { testB64 = ""; }
+
+      const testDataUrl = testB64 ? `data:${testMime};base64,${testB64}` : null;
+      // OpenRouter 支援外部 URL（不需 base64）
+      const testPublicUrl = "https://picsum.photos/id/10/80/60";
 
       const results: Array<{ model: string; url: string; status: string; error?: string; snippet?: string }> = [];
 
       const GG = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
       const OR = "https://openrouter.ai/api/v1/chat/completions";
-      const toTry: Array<{ url: string; key: string; model: string }> = [];
+
+      type TestItem = { url: string; key: string; model: string; useUrl?: boolean };
+      const toTry: TestItem[] = [];
       if (e.geminiApiKey)  toTry.push({ url: GG, key: e.geminiApiKey,  model: "gemini-2.0-flash" });
       if (e.geminiApiKey2) toTry.push({ url: GG, key: e.geminiApiKey2, model: "gemini-2.0-flash" });
       if (e.geminiApiKey)  toTry.push({ url: GG, key: e.geminiApiKey,  model: "gemini-2.5-flash" });
       if (e.openRouterApiKey) toTry.push(
-        { url: OR, key: e.openRouterApiKey, model: "google/gemma-4-31b-it:free" },
-        { url: OR, key: e.openRouterApiKey, model: "google/gemma-3-27b-it:free" },
-        { url: OR, key: e.openRouterApiKey, model: "nvidia/nemotron-nano-12b-v2-vl:free" },
-        { url: OR, key: e.openRouterApiKey, model: "google/gemma-3-12b-it:free" },
+        { url: OR, key: e.openRouterApiKey, model: "google/gemma-4-31b-it:free",                        useUrl: true },
+        { url: OR, key: e.openRouterApiKey, model: "google/gemma-3-27b-it:free",                        useUrl: true },
+        { url: OR, key: e.openRouterApiKey, model: "nvidia/nemotron-nano-12b-v2-vl:free",               useUrl: false },
+        { url: OR, key: e.openRouterApiKey, model: "google/gemma-3-12b-it:free",                        useUrl: true },
+        { url: OR, key: e.openRouterApiKey, model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", useUrl: false },
       );
 
       for (const api of toTry) {
+        const imageContent = api.useUrl
+          ? { type: "image_url", image_url: { url: testPublicUrl } }
+          : testDataUrl
+            ? { type: "image_url", image_url: { url: testDataUrl } }
+            : null;
+        if (!imageContent) {
+          results.push({ model: api.model, url: api.url, status: "SKIP", error: "Failed to fetch test image" });
+          continue;
+        }
         try {
           const resp = await fetch(api.url, {
             method: "POST",
@@ -537,7 +560,7 @@ async function startServer() {
               messages: [{
                 role: "user",
                 content: [
-                  { type: "image_url", image_url: { url: testImageUrl } },
+                  imageContent,
                   { type: "text", text: "Reply with one word: OK" },
                 ],
               }],
