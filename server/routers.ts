@@ -4663,8 +4663,8 @@ export const appRouter = router({
             list.push(
               { url: OR, key: ENV.openRouterApiKey, model: "nvidia/nemotron-nano-12b-v2-vl:free" },               // NVIDIA VL（視覺模型，主力）
               { url: OR, key: ENV.openRouterApiKey, model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free" }, // NVIDIA Omni（多模態）
-              { url: OR, key: ENV.openRouterApiKey, model: "meta-llama/llama-4-scout:free" },                      // Meta Llama 4 Scout（視覺）
-              { url: OR, key: ENV.openRouterApiKey, model: "qwen/qwen2.5-vl-72b-instruct:free" },                  // Qwen VL 72B（視覺）
+              { url: OR, key: ENV.openRouterApiKey, model: "baidu/qianfan-ocr-fast:free" },                        // 百度 OCR（錢幣文字識別準確）
+              { url: OR, key: ENV.openRouterApiKey, model: "openrouter/free" },                                    // OpenRouter 自動選最佳免費模型
             );
           }
           // ③ Gemini 原生 API（配額有限，排後備用）
