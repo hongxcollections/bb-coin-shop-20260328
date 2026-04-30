@@ -4775,20 +4775,27 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
           content = content.replace(/<thinking>[\s\S]*?<\/thinking>/gi, "");
           // 去除 markdown ```json ... ``` 或 ``` ... ```
           content = content.replace(/```(?:json)?\s*/gi, "").replace(/```\s*/g, "");
-          // 平衡括弧算法：找第一個完整 JSON 物件
-          const start = content.indexOf("{");
-          if (start === -1) return null;
+          // 正確的 JSON 物件提取：跳過字串內的括弧，避免誤算深度
+          const startIdx = content.indexOf("{");
+          if (startIdx === -1) return null;
           let depth = 0;
-          let end = -1;
-          for (let i = start; i < content.length; i++) {
-            if (content[i] === "{") depth++;
-            else if (content[i] === "}") { depth--; if (depth === 0) { end = i; break; } }
+          let inStr = false;
+          let esc = false;
+          let endIdx = -1;
+          for (let i = startIdx; i < content.length; i++) {
+            const ch = content[i];
+            if (esc) { esc = false; continue; }
+            if (ch === "\\" && inStr) { esc = true; continue; }
+            if (ch === '"') { inStr = !inStr; continue; }
+            if (!inStr) {
+              if (ch === "{") depth++;
+              else if (ch === "}") { depth--; if (depth === 0) { endIdx = i; break; } }
+            }
           }
-          if (end === -1) return null;
+          if (endIdx === -1) return null;
           try {
-            const parsed = JSON.parse(content.substring(start, end + 1));
+            const parsed = JSON.parse(content.substring(startIdx, endIdx + 1));
             // 只要是含有 3 個或以上鍵的物件即視為有效分析結果
-            // （不強制要求特定欄位名稱，相容中英文欄位及不同模型輸出格式）
             if (typeof parsed !== "object" || Array.isArray(parsed)) return null;
             return Object.keys(parsed).length >= 3 ? parsed : null;
           } catch { return null; }
