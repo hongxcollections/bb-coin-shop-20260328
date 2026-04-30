@@ -4915,7 +4915,35 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
           }
         };
 
-        // 先嘗試 Gemini+Search（最準確）
+        // ── ① llama-4-maverick 最優先（付費、穩定、視覺強）──────────────────
+        if (!data && ENV.openRouterApiKey) {
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), Math.min(25_000, remainingBudget() - 2000));
+          try {
+            const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: { "content-type": "application/json", authorization: `Bearer ${ENV.openRouterApiKey}` },
+              body: JSON.stringify({ ...visionPayload, model: "meta-llama/llama-4-maverick" }),
+              signal: ctrl.signal,
+            });
+            clearTimeout(t);
+            if (r.ok) {
+              const res = await r.json() as { choices: Array<{ message: { content: unknown } }> };
+              const parsed = extractJson(res.choices?.[0]?.message?.content);
+              if (parsed) { data = parsed; modelUsed = "meta-llama/llama-4-maverick"; }
+              else errors.push(`llama-4-maverick: 無效回應`);
+            } else {
+              const errBody = await r.json().catch(() => ({})) as { error?: { message?: string } };
+              errors.push(`llama-4-maverick: ${r.status} ${errBody?.error?.message?.substring(0, 100) ?? ""}`);
+            }
+          } catch (e: unknown) {
+            clearTimeout(t);
+            const msg = e instanceof Error ? e.message : String(e);
+            errors.push(`llama-4-maverick: ${msg.includes("abort") ? "timeout" : msg}`);
+          }
+        }
+
+        // ── ② Gemini+Search（有 Google 搜尋加持，配額有限）──────────────────
         if (!data && ENV.geminiApiKey) {
           data = await tryGeminiWithSearch(ENV.geminiApiKey);
           if (data) modelUsed = "Gemini+Search";
