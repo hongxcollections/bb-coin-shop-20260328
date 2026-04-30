@@ -56,7 +56,7 @@ type HistoryItem = {
 
 const L = {
   zh: {
-    pageTitle: "AI 錢幣 / 郵票鑑定",
+    pageTitle: "AI 鑑定",
     pageDesc: "上傳圖片，AI 即時分析歷史、成分、尺寸等資料",
     uploadPrompt: "點擊或拖拉上傳圖片",
     uploadHint: "支援 JPG、PNG、WebP（最大 10MB）",
