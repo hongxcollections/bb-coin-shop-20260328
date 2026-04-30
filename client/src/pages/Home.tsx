@@ -32,6 +32,7 @@ import {
   Loader2,
   X,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -1119,6 +1120,17 @@ export default function Home() {
       )}
       {/* Navigation */}
       <Header />
+      {/* ── AI 鑑定快捷入口（三格上方右側）── */}
+      <div className="container pt-2 pb-0">
+        <div className="max-w-md mx-auto flex justify-end">
+          <Link href="/coin-analysis">
+            <span className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow transition-colors cursor-pointer select-none">
+              <Sparkles className="w-3.5 h-3.5" />
+              AI 錢幣鑑定
+            </span>
+          </Link>
+        </div>
+      </div>
       {/* ── Section 1: Stats (Top) ── */}
       <section className="pt-3 pb-2">
         <div className="container">

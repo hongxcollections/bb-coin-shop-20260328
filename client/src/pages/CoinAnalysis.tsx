@@ -574,44 +574,6 @@ export default function CoinAnalysis() {
     setTab("analyze");
   };
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="flex flex-col items-center justify-center py-32 gap-4 px-6 text-center">
-          <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mb-2">
-            <Sparkles className="w-8 h-8 text-amber-500" />
-          </div>
-          <h2 className="text-lg font-bold text-gray-800">{t.pageTitle}</h2>
-          <p className="text-gray-500 text-sm max-w-xs">{t.loginRequired}</p>
-          <Link href="/login" className="mt-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors">
-            {t.loginBtn}
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (user.role !== "admin") {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="flex flex-col items-center justify-center py-32 gap-4 px-6 text-center">
-          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-2">
-            <Sparkles className="w-8 h-8 text-gray-400" />
-          </div>
-          <h2 className="text-lg font-bold text-gray-800">
-            {lang === "en" ? "Admin Only" : "管理員專用功能"}
-          </h2>
-          <p className="text-gray-500 text-sm max-w-xs">
-            {lang === "en"
-              ? "This AI analysis feature is currently restricted to administrators only."
-              : "AI 鑑定功能目前僅限管理員使用。"}
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -738,7 +700,14 @@ export default function CoinAnalysis() {
         )}
 
         {/* ── 歷史記錄 Tab ── */}
-        {tab === "history" && (
+        {tab === "history" && !user && (
+          <div className="text-center py-14">
+            <History className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+            <p className="text-sm text-gray-400 mb-3">{lang === "zh" ? "登入後可查看鑑定歷史記錄" : "Login to view your analysis history"}</p>
+            <Link href="/login" className="text-amber-600 text-sm font-semibold hover:underline">{lang === "zh" ? "立即登入" : "Login"}</Link>
+          </div>
+        )}
+        {tab === "history" && !!user && (
           <div className="space-y-2">
             {historyQuery.isLoading ? (
               <div className="flex items-center justify-center py-10">

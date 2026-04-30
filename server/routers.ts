@@ -4634,7 +4634,7 @@ export const appRouter = router({
   // ─── Coin / Stamp AI Analysis ─────────────────────────────────────────────
   coinAnalysis: router({
     // 分析圖片：回傳歷史、成分、尺寸等資料
-    analyze: adminProcedure
+    analyze: publicProcedure
       .input(z.object({
         imageBase64: z.string(), // base64 encoded image
         mimeType: z.string().default("image/jpeg"),
@@ -4909,7 +4909,7 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
       }),
 
     // 搜尋相關拍賣
-    searchRelated: adminProcedure
+    searchRelated: publicProcedure
       .input(z.object({
         keywords: z.array(z.string()).max(5),
       }))
@@ -4918,9 +4918,9 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         return results;
       }),
 
-    // 鑑定歷史記錄
+    // 鑑定歷史記錄（需登入）
     history: router({
-      list: adminProcedure
+      list: protectedProcedure
         .input(z.object({ limit: z.number().default(20) }))
         .query(async ({ input, ctx }) => {
           const rows = await getUserCoinAnalysisHistory(ctx.user.id, input.limit);
@@ -4930,7 +4930,7 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
           }));
         }),
 
-      delete: adminProcedure
+      delete: protectedProcedure
         .input(z.object({ id: z.number() }))
         .mutation(async ({ input, ctx }) => {
           const ok = await deleteCoinAnalysisHistory(input.id, ctx.user.id);
