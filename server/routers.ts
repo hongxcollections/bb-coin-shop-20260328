@@ -4658,7 +4658,18 @@ export const appRouter = router({
               : "https://forge.manus.im/v1/chat/completions";
             list.push({ url: base, key: ENV.forgeApiKey, model: "gemini-2.5-flash" });
           }
-          // ② Gemini 原生 API（兩個 key 輪用，配額互補）
+          // ② OpenRouter Nemotron（已確認可用，排在 Gemini 前）
+          if (ENV.openRouterApiKey) {
+            list.push(
+              { url: OR, key: ENV.openRouterApiKey, model: "nvidia/nemotron-nano-12b-v2-vl:free" },               // NVIDIA VL（已確認可用）
+              { url: OR, key: ENV.openRouterApiKey, model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free" }, // NVIDIA 推理（已確認可用）
+              { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-4-31b-it:free" },                        // Gemma 4 31B
+              { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-4-26b-a4b-it:free" },                    // Gemma 4 26B MoE
+              { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-3-27b-it:free" },                        // Gemma 3 27B
+              { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-3-12b-it:free" },                        // Gemma 3 12B
+            );
+          }
+          // ③ Gemini 原生 API（配額有限，排後備用）
           if (ENV.geminiApiKey) {
             list.push({ url: GG, key: ENV.geminiApiKey, model: "gemini-2.0-flash" });
           }
@@ -4671,20 +4682,9 @@ export const appRouter = router({
           if (ENV.geminiApiKey2) {
             list.push({ url: GG, key: ENV.geminiApiKey2, model: "gemini-2.5-flash" });
           }
-          // ③ OpenAI
+          // ④ OpenAI
           if (ENV.openAiApiKey) {
             list.push({ url: "https://api.openai.com/v1/chat/completions", key: ENV.openAiApiKey, model: "gpt-4o" });
-          }
-          // ④ OpenRouter 免費備用視覺模型（已在 2026-04 確認有效）
-          if (ENV.openRouterApiKey) {
-            list.push(
-              { url: OR, key: ENV.openRouterApiKey, model: "nvidia/nemotron-nano-12b-v2-vl:free" },               // NVIDIA VL（已確認可用）
-              { url: OR, key: ENV.openRouterApiKey, model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free" }, // NVIDIA 推理（已確認可用）
-              { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-4-31b-it:free" },                        // Gemma 4 31B（最新）
-              { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-4-26b-a4b-it:free" },                    // Gemma 4 26B MoE
-              { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-3-27b-it:free" },                        // Gemma 3 27B
-              { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-3-12b-it:free" },                        // Gemma 3 12B
-            );
           }
           if (list.length === 0) {
             throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "未設定 AI API，無法分析" });
