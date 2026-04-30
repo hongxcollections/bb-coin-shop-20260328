@@ -4750,8 +4750,8 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
                 {
                   type: "text",
                   text: input.lang === "zh"
-                    ? "請根據以上指引，詳細鑑定這枚錢幣/郵票，以 JSON 格式回覆。"
-                    : "Please analyze this coin/stamp in detail per the guidelines above, reply in JSON."
+                    ? "請根據以上指引詳細鑑定圖片。必須只輸出純 JSON 物件，不要有任何額外文字、markdown、解釋或代碼塊包裹。直接以 { 開始，以 } 結尾。"
+                    : "Analyze the image per the guidelines. Output ONLY a raw JSON object, no markdown, no code blocks, no explanation. Start with { and end with }."
                 },
               ],
             },
@@ -4759,9 +4759,28 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         };
 
         const modelsToTry = getModelsToTry();
-        let visionResult: { choices: Array<{ message: { content: string | Array<{type:string;text?:string}> } }> } | null = null;
         const errors: string[] = [];
-        const REQUEST_TIMEOUT_MS = 30_000; // 每個模型最多等 30 秒
+        const REQUEST_TIMEOUT_MS = 30_000;
+        let data: Record<string, string> | null = null;
+
+        // ── JSON 提取輔助（處理 markdown 代碼塊、純 JSON 等格式）
+        const extractJson = (raw: unknown): Record<string, string> | null => {
+          const content = typeof raw === "string"
+            ? raw
+            : Array.isArray(raw)
+              ? (raw as Array<{type:string;text?:string}>).find(p => p.type === "text")?.text ?? ""
+              : "";
+          // 去除 markdown ```json ... ``` 或 ``` ... ```
+          const stripped = content.replace(/```(?:json)?\s*/gi, "").replace(/```\s*/g, "");
+          const match = stripped.match(/\{[\s\S]*\}/);
+          if (!match) return null;
+          try {
+            const parsed = JSON.parse(match[0]);
+            // 必須含有錢幣分析欄位才算有效
+            const hasData = parsed.name || parsed.Name || parsed.type || parsed.Type || parsed.country || parsed.Country;
+            return hasData ? parsed : null;
+          } catch { return null; }
+        };
 
         for (const api of modelsToTry) {
           const controller = new AbortController();
@@ -4774,31 +4793,28 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
               signal: controller.signal,
             });
             clearTimeout(timer);
-            if (resp.ok) {
-              visionResult = await resp.json();
-              break;
+            if (!resp.ok) {
+              errors.push(`${api.model}: ${resp.status}`);
+              continue;
             }
-            errors.push(`${api.model}: ${resp.status}`);
+            const result = await resp.json() as { choices: Array<{ message: { content: unknown } }> };
+            const raw = result.choices?.[0]?.message?.content;
+            const parsed = extractJson(raw);
+            if (parsed) { data = parsed; break; }
+            errors.push(`${api.model}: 無效回應`);
           } catch (e: unknown) {
             clearTimeout(timer);
             const msg = e instanceof Error ? e.message : String(e);
             errors.push(`${api.model}: ${msg.includes("abort") ? "timeout" : msg}`);
           }
         }
-        if (!visionResult) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `AI 分析失敗（已試 ${errors.length} 個模型）：${errors.join(" | ")}` });
-        }
-        const raw = visionResult.choices[0]?.message?.content ?? "";
-        const text = typeof raw === "string" ? raw : (raw as Array<{type:string;text?:string}>).find(p => p.type === "text")?.text ?? "";
-
-        // 提取 JSON
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI 未能分析此圖片，請嘗試更清晰的圖片" });
-        let data: Record<string, string>;
-        try {
-          data = JSON.parse(jsonMatch[0]);
-        } catch {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "分析結果格式錯誤，請重試" });
+        if (!data) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: errors.length > 0
+              ? `AI 分析失敗（已試 ${errors.length} 個模型）：${errors.join(" | ")}`
+              : "AI 未能分析此圖片，請嘗試更清晰的圖片",
+          });
         }
         // 自動儲存鑑定歷史（不阻塞）
         if (ctx.user?.id) {
