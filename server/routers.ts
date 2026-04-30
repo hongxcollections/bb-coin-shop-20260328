@@ -4658,7 +4658,11 @@ export const appRouter = router({
               : "https://forge.manus.im/v1/chat/completions";
             list.push({ url: base, key: ENV.forgeApiKey, model: "gemini-2.5-flash" });
           }
-          // ② Gemini 2.5-flash（診斷確認可用，排最前）
+          // ② llama-4-maverick（付費，穩定，視覺最強，排第一後備）
+          if (ENV.openRouterApiKey) {
+            list.push({ url: OR, key: ENV.openRouterApiKey, model: "meta-llama/llama-4-maverick" });
+          }
+          // ③ Gemini 2.5-flash（診斷確認可用）
           if (ENV.geminiApiKey) {
             list.push({ url: GG, key: ENV.geminiApiKey, model: "gemini-2.5-flash" });
           }
@@ -4925,13 +4929,18 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
           if (data) break;
           // 總預算耗盡就直接放棄剩餘模型
           if (remainingBudget() < 3000) { errors.push("總時間預算耗盡"); break; }
-          // 判斷是否 Gemini 原生 API（用全版提示），其他模型用精簡提示避免 token 超限
+          // 高端模型用完整提示，小模型用精簡提示避免 token 超限
           const isGeminiModel = api.url.includes("generativelanguage.googleapis.com");
+          const isHighEndModel = isGeminiModel
+            || api.model.includes("llama-4")
+            || api.model.includes("claude")
+            || api.model.includes("gpt-4")
+            || api.model.includes("gemini");
           const isReasoningModel = api.model.includes("reasoning") || api.model.includes("nemotron") || api.model.includes("omni");
           const baseTimeout = isReasoningModel ? REASONING_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
           const requestTimeout = Math.min(baseTimeout, remainingBudget() - 2000);
-          // Gemini 用完整提示+1800 tokens；其他用精簡提示+1200 tokens（避免 null content）
-          const selectedPayload = isGeminiModel ? visionPayload : compactPayload;
+          // 高端模型用完整提示+1800 tokens；小模型用精簡提示+1200 tokens（避免 null content）
+          const selectedPayload = isHighEndModel ? visionPayload : compactPayload;
           const controller = new AbortController();
           const timer = setTimeout(() => controller.abort(), requestTimeout);
           try {
