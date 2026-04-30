@@ -4675,12 +4675,15 @@ export const appRouter = router({
           if (ENV.openAiApiKey) {
             list.push({ url: "https://api.openai.com/v1/chat/completions", key: ENV.openAiApiKey, model: "gpt-4o" });
           }
-          // ④ OpenRouter 免費備用（只選有視覺理解能力的模型）
+          // ④ OpenRouter 免費備用（只選有視覺理解能力的模型，配額獨立於 Gemini API）
           if (ENV.openRouterApiKey) {
             list.push(
+              { url: OR, key: ENV.openRouterApiKey, model: "google/gemini-2.0-flash-exp:free" },          // Gemini via OpenRouter 獨立配額
+              { url: OR, key: ENV.openRouterApiKey, model: "google/gemini-2.5-flash-preview:free" },      // Gemini 2.5 via OpenRouter
               { url: OR, key: ENV.openRouterApiKey, model: "meta-llama/llama-3.2-11b-vision-instruct:free" },
               { url: OR, key: ENV.openRouterApiKey, model: "meta-llama/llama-3.2-90b-vision-instruct:free" },
               { url: OR, key: ENV.openRouterApiKey, model: "qwen/qwen2.5-vl-7b-instruct:free" },
+              { url: OR, key: ENV.openRouterApiKey, model: "mistralai/pixtral-12b:free" },               // Mistral 視覺模型
             );
           }
           if (list.length === 0) {
