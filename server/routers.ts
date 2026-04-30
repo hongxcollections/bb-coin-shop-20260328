@@ -4675,15 +4675,13 @@ export const appRouter = router({
           if (ENV.openAiApiKey) {
             list.push({ url: "https://api.openai.com/v1/chat/completions", key: ENV.openAiApiKey, model: "gpt-4o" });
           }
-          // ④ OpenRouter 免費備用（只選有視覺理解能力的模型，配額獨立於 Gemini API）
+          // ④ OpenRouter 免費備用（已驗證支援視覺且名稱正確的模型）
           if (ENV.openRouterApiKey) {
             list.push(
-              { url: OR, key: ENV.openRouterApiKey, model: "google/gemini-2.0-flash-exp:free" },          // Gemini via OpenRouter 獨立配額
-              { url: OR, key: ENV.openRouterApiKey, model: "google/gemini-2.5-flash-preview:free" },      // Gemini 2.5 via OpenRouter
-              { url: OR, key: ENV.openRouterApiKey, model: "meta-llama/llama-3.2-11b-vision-instruct:free" },
-              { url: OR, key: ENV.openRouterApiKey, model: "meta-llama/llama-3.2-90b-vision-instruct:free" },
-              { url: OR, key: ENV.openRouterApiKey, model: "qwen/qwen2.5-vl-7b-instruct:free" },
-              { url: OR, key: ENV.openRouterApiKey, model: "mistralai/pixtral-12b:free" },               // Mistral 視覺模型
+              { url: OR, key: ENV.openRouterApiKey, model: "google/gemini-2.0-flash-thinking-exp:free" }, // Gemini 思考版 via OpenRouter
+              { url: OR, key: ENV.openRouterApiKey, model: "qwen/qwen2.5-vl-7b-instruct:free" },          // Qwen VL 視覺
+              { url: OR, key: ENV.openRouterApiKey, model: "qwen/qwen2.5-vl-72b-instruct:free" },         // Qwen VL 大版本
+              { url: OR, key: ENV.openRouterApiKey, model: "mistralai/pixtral-12b-2409:free" },            // Mistral Pixtral 正確版本號
             );
           }
           if (list.length === 0) {
@@ -4766,31 +4764,33 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         const REQUEST_TIMEOUT_MS = 30_000;
         let data: Record<string, string> | null = null;
 
-        // ── JSON 提取輔助（平衡括弧算法，處理 markdown 代碼塊）
+        // ── JSON 提取輔助（平衡括弧算法，處理 markdown / thinking 標籤）
         const extractJson = (raw: unknown): Record<string, string> | null => {
-          const content = typeof raw === "string"
+          let content = typeof raw === "string"
             ? raw
             : Array.isArray(raw)
               ? (raw as Array<{type:string;text?:string}>).find(p => p.type === "text")?.text ?? ""
               : "";
+          // 去除 Gemini 2.5 thinking 標籤 <thinking>...</thinking>
+          content = content.replace(/<thinking>[\s\S]*?<\/thinking>/gi, "");
           // 去除 markdown ```json ... ``` 或 ``` ... ```
-          const stripped = content.replace(/```(?:json)?\s*/gi, "").replace(/```\s*/g, "");
+          content = content.replace(/```(?:json)?\s*/gi, "").replace(/```\s*/g, "");
           // 平衡括弧算法：找第一個完整 JSON 物件
-          const start = stripped.indexOf("{");
+          const start = content.indexOf("{");
           if (start === -1) return null;
           let depth = 0;
           let end = -1;
-          for (let i = start; i < stripped.length; i++) {
-            if (stripped[i] === "{") depth++;
-            else if (stripped[i] === "}") { depth--; if (depth === 0) { end = i; break; } }
+          for (let i = start; i < content.length; i++) {
+            if (content[i] === "{") depth++;
+            else if (content[i] === "}") { depth--; if (depth === 0) { end = i; break; } }
           }
           if (end === -1) return null;
           try {
-            const parsed = JSON.parse(stripped.substring(start, end + 1));
-            // 必須含有錢幣/郵票分析欄位（至少 3 個已知欄位）才算有效
-            const knownFields = ["name","Name","type","Type","country","Country","year","Year","denomination","material","condition","rarity","estimatedValue"];
-            const matchCount = knownFields.filter(k => parsed[k] != null).length;
-            return matchCount >= 2 ? parsed : null;
+            const parsed = JSON.parse(content.substring(start, end + 1));
+            // 只要是含有 3 個或以上鍵的物件即視為有效分析結果
+            // （不強制要求特定欄位名稱，相容中英文欄位及不同模型輸出格式）
+            if (typeof parsed !== "object" || Array.isArray(parsed)) return null;
+            return Object.keys(parsed).length >= 3 ? parsed : null;
           } catch { return null; }
         };
 
