@@ -492,14 +492,14 @@ async function startServer() {
 
   // Healthcheck — Railway 用來確認服務已就緒
   app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', ts: new Date().toISOString() });
+    res.json({ status: 'ok', ts: new Date().toISOString(), nodeEnv: process.env.NODE_ENV });
   });
 
   // Dev/Sandbox mock login (non-production only)
   registerDevLoginRoutes(app);
 
-  // ── UAT AI 診斷端點（非 production 限定）──────────────────────────────────
-  if (process.env.NODE_ENV !== "production") {
+  // ── UAT AI 診斷端點（非 Production domain 限定）────────────────────────────
+  if (!process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_ENVIRONMENT !== "production") {
     app.get("/api/diag-ai", async (_req, res) => {
       const { ENV: e } = await import("./env");
       const envReport = {
