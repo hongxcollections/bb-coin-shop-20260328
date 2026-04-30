@@ -4644,107 +4644,134 @@ export const appRouter = router({
         // 視覺分析需要支援圖片的模型，直接呼叫以覆蓋預設文字模型
         const dataUrl = `data:${input.mimeType};base64,${input.imageBase64}`;
 
-        // 選擇視覺模型 API
-        const resolveVisionApi = (): { url: string; key: string; model: string } => {
+        // ── 視覺模型優先順序 ──────────────────────────────────────────────────
+        type VisionApi = { url: string; key: string; model: string };
+        const OR = "https://openrouter.ai/api/v1/chat/completions";
+        const GG = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+
+        const getModelsToTry = (): VisionApi[] => {
           if (ENV.forgeApiKey) {
-            const base = ENV.forgeApiUrl && ENV.forgeApiUrl.trim()
+            const base = ENV.forgeApiUrl?.trim()
               ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
               : "https://forge.manus.im/v1/chat/completions";
-            return { url: base, key: ENV.forgeApiKey, model: "gemini-2.5-flash" };
-          }
-          if (ENV.openRouterApiKey) {
-            return { url: "https://openrouter.ai/api/v1/chat/completions", key: ENV.openRouterApiKey, model: "meta-llama/llama-4-maverick:free" };
+            return [{ url: base, key: ENV.forgeApiKey, model: "gemini-2.5-flash" }];
           }
           if (ENV.geminiApiKey) {
-            return { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", key: ENV.geminiApiKey, model: "gemini-2.0-flash" };
+            // Gemini 2.5 Flash — 最快、視覺最準
+            return [
+              { url: GG, key: ENV.geminiApiKey, model: "gemini-2.5-flash-preview-04-17" },
+              { url: GG, key: ENV.geminiApiKey, model: "gemini-2.0-flash" },
+            ];
           }
           if (ENV.openAiApiKey) {
-            return { url: "https://api.openai.com/v1/chat/completions", key: ENV.openAiApiKey, model: "gpt-4o" };
+            return [{ url: "https://api.openai.com/v1/chat/completions", key: ENV.openAiApiKey, model: "gpt-4o" }];
+          }
+          if (ENV.openRouterApiKey) {
+            // 免費模型：能力從強到弱，限 3 個避免等待太久
+            return [
+              { url: OR, key: ENV.openRouterApiKey, model: "meta-llama/llama-4-maverick:free" },
+              { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-4-31b-it:free" },
+              { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-3-27b-it:free" },
+            ];
           }
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "未設定 AI API，無法分析" });
         };
-        const visionApi = resolveVisionApi();
 
+        // ── 強化版系統提示 ────────────────────────────────────────────────────
         const systemPrompt = input.lang === "zh"
-          ? `你是一位專業的錢幣與郵票鑑定專家。請仔細分析用戶上傳的圖片，以繁體中文回覆。
-請以 JSON 格式回傳以下欄位（若無法確定請填「不詳」，不要捏造數據）：
+          ? `你是世界頂尖的錢幣學家與郵票鑑定專家，擁有豐富的亞洲及全球收藏品鑑定經驗。
+
+請極仔細分析圖片，重點觀察：
+【錢幣】正背面圖案、人像、所有文字銘文（尤其國名、面額、年份）、鑄幣廠標記、邊緣設計、合金顏色
+【郵票】圖案主題、面值、齒孔規格、水印、印刷方式、發行機構、字體特徵
+【品相】磨損程度（流通/輕微流通/未流通）、氧化/包漿、光澤、瑕疵、龜裂
+
+以 JSON 格式回覆，所有欄位必須填寫，不可填「不詳」——若無法確定，請根據圖片特徵作出最合理的專業推斷並加上「（推估）」：
 {
-  "type": "錢幣" | "郵票" | "紀念品" | "其他",
-  "name": "名稱",
-  "country": "發行國家/地區",
-  "year": "發行年份",
-  "denomination": "面額",
-  "material": "材質/成分",
-  "dimensions": "尺寸（直徑/長x闊，mm）",
-  "weight": "重量（如適用）",
-  "condition": "品相評估",
-  "historicalBackground": "歷史背景（2-4句）",
-  "rarity": "稀有程度",
-  "estimatedValue": "估計市值（港元，如適用）",
-  "imageGenerationPrompt": "用英文寫一個適合生成藝術插畫的 prompt，要富有色彩、歷史感，包含此物品的特徵和歷史背景，風格為oil painting vintage illustration"
+  "type": "錢幣" 或 "郵票" 或 "紀念品" 或 "其他",
+  "name": "完整官方名稱（包含國家、系列、年份、面額）",
+  "country": "發行國家或地區",
+  "year": "發行年份（可填範圍，如 1960-1965）",
+  "denomination": "面額及貨幣單位",
+  "material": "材質及成分（如 .925 銀、黃銅合金、紙質等）",
+  "dimensions": "直徑或長×闊（mm）",
+  "weight": "重量（g），不適用則填「-」",
+  "condition": "品相（專業術語如 AU/EF/VF/F，加文字說明）",
+  "historicalBackground": "歷史背景（4-6句，涵蓋：發行背景、歷史意義、收藏市場地位）",
+  "rarity": "稀有程度（常見 / 普通 / 較罕見 / 罕見 / 極罕見）及原因",
+  "estimatedValue": "估計市值港元範圍（如 HKD 200-500），說明參考依據",
+  "imageGenerationPrompt": "A detailed English art prompt for this item: oil painting style, museum lighting, dramatic composition, include historical context"
 }`
-          : `You are a professional numismatist and philatelist. Analyze the uploaded image carefully and respond in English.
-Return a JSON object with these fields (use "Unknown" if uncertain, do not fabricate data):
+          : `You are a world-class numismatist and philatelist with decades of global coin and stamp expertise.
+
+Carefully examine the image, paying close attention to:
+[COINS] Obverse/reverse designs, portraits, ALL inscriptions (country, denomination, date), mint marks, edge design, alloy color
+[STAMPS] Subject/design, denomination, perforation gauge, watermark, printing method, issuer, typeface
+[CONDITION] Wear level (circulated/lightly circulated/uncirculated), toning/patina, luster, defects
+
+Reply in JSON. All fields are REQUIRED — if uncertain, provide your best expert inference based on visible evidence and add "(estimated)":
 {
-  "type": "coin" | "stamp" | "souvenir" | "other",
-  "name": "Name",
-  "country": "Issuing country/region",
-  "year": "Year of issue",
-  "denomination": "Face value",
-  "material": "Material/composition",
-  "dimensions": "Dimensions (diameter or LxW in mm)",
-  "weight": "Weight if applicable",
-  "condition": "Condition assessment",
-  "historicalBackground": "Historical background (2-4 sentences)",
-  "rarity": "Rarity level",
-  "estimatedValue": "Estimated market value (HKD if applicable)",
-  "imageGenerationPrompt": "An English prompt for generating a colorful historical art illustration of this item, oil painting vintage illustration style, include item features and historical context"
+  "type": "coin" | "stamp" | "commemorative" | "other",
+  "name": "Full official name (country, series, year, denomination)",
+  "country": "Issuing country or region",
+  "year": "Year(s) of issue (range if applicable)",
+  "denomination": "Face value with currency unit",
+  "material": "Material and composition (e.g. .925 silver, brass alloy, paper)",
+  "dimensions": "Diameter or L×W in mm",
+  "weight": "Weight in grams, or '-' if not applicable",
+  "condition": "Grade (AU/EF/VF/F etc.) with description",
+  "historicalBackground": "Historical background (4-6 sentences covering: issuance context, historical significance, collector market standing)",
+  "rarity": "Rarity level and reason",
+  "estimatedValue": "Estimated market value range in HKD with reference basis",
+  "imageGenerationPrompt": "A detailed English art prompt: oil painting style, museum lighting, dramatic composition, historical context"
 }`;
 
         const visionPayload = {
-          model: visionApi.model,
-          max_tokens: 4096,
+          max_tokens: 1800,
+          temperature: 0.1,   // 低溫度 = 更精確一致
           messages: [
             { role: "system", content: systemPrompt },
             {
               role: "user",
               content: [
                 { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
-                { type: "text", text: input.lang === "zh" ? "請分析這幅圖片" : "Please analyze this image" },
+                {
+                  type: "text",
+                  text: input.lang === "zh"
+                    ? "請根據以上指引，詳細鑑定這枚錢幣/郵票，以 JSON 格式回覆。"
+                    : "Please analyze this coin/stamp in detail per the guidelines above, reply in JSON."
+                },
               ],
             },
           ],
         };
-        // 備用模型列表（OpenRouter 免費視覺模型，已確認支援圖片輸入）
-        const fallbackModels = ENV.openRouterApiKey
-          ? [
-              "google/gemma-4-31b-it:free",        // Gemma 4 multimodal
-              "google/gemma-4-26b-a4b-it:free",     // Gemma 4 MoE multimodal
-              "google/gemma-3-27b-it:free",         // Gemma 3 multimodal
-              "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", // NVIDIA vision+reasoning
-            ]
-          : [];
 
+        const modelsToTry = getModelsToTry();
         let visionResult: { choices: Array<{ message: { content: string | Array<{type:string;text?:string}> } }> } | null = null;
         const errors: string[] = [];
-
-        const modelsToTry = fallbackModels.length > 0
-          ? fallbackModels.map(m => ({ ...visionApi, model: m }))
-          : [visionApi];
+        const REQUEST_TIMEOUT_MS = 30_000; // 每個模型最多等 30 秒
 
         for (const api of modelsToTry) {
-          const payload = { ...visionPayload, model: api.model };
-          const resp = await fetch(api.url, {
-            method: "POST",
-            headers: { "content-type": "application/json", authorization: `Bearer ${api.key}` },
-            body: JSON.stringify(payload),
-          });
-          if (resp.ok) {
-            visionResult = await resp.json();
-            break;
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+          try {
+            const resp = await fetch(api.url, {
+              method: "POST",
+              headers: { "content-type": "application/json", authorization: `Bearer ${api.key}` },
+              body: JSON.stringify({ ...visionPayload, model: api.model }),
+              signal: controller.signal,
+            });
+            clearTimeout(timer);
+            if (resp.ok) {
+              visionResult = await resp.json();
+              break;
+            }
+            errors.push(`${api.model}: ${resp.status}`);
+          } catch (e: unknown) {
+            clearTimeout(timer);
+            const msg = e instanceof Error ? e.message : String(e);
+            errors.push(`${api.model}: ${msg.includes("abort") ? "timeout" : msg}`);
           }
-          const errText = await resp.text().catch(() => `${resp.status}`);
-          errors.push(`${api.model}: ${resp.status}`);
         }
         if (!visionResult) {
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `AI 分析失敗（已試 ${errors.length} 個模型）：${errors.join(" | ")}` });
