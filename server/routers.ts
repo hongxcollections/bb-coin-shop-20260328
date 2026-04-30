@@ -4650,31 +4650,37 @@ export const appRouter = router({
         const GG = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
         const getModelsToTry = (): VisionApi[] => {
+          const list: VisionApi[] = [];
+          // ① Forge (最優先)
           if (ENV.forgeApiKey) {
             const base = ENV.forgeApiUrl?.trim()
               ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
               : "https://forge.manus.im/v1/chat/completions";
-            return [{ url: base, key: ENV.forgeApiKey, model: "gemini-2.5-flash" }];
+            list.push({ url: base, key: ENV.forgeApiKey, model: "gemini-2.5-flash" });
           }
+          // ② Gemini 原生 API
           if (ENV.geminiApiKey) {
-            // Gemini 2.5 Flash — 最快、視覺最準
-            return [
-              { url: GG, key: ENV.geminiApiKey, model: "gemini-2.5-flash-preview-04-17" },
+            list.push(
               { url: GG, key: ENV.geminiApiKey, model: "gemini-2.0-flash" },
-            ];
+              { url: GG, key: ENV.geminiApiKey, model: "gemini-2.5-flash" },
+            );
           }
+          // ③ OpenAI
           if (ENV.openAiApiKey) {
-            return [{ url: "https://api.openai.com/v1/chat/completions", key: ENV.openAiApiKey, model: "gpt-4o" }];
+            list.push({ url: "https://api.openai.com/v1/chat/completions", key: ENV.openAiApiKey, model: "gpt-4o" });
           }
+          // ④ OpenRouter 免費備用（Gemini quota 超限時自動接力）
           if (ENV.openRouterApiKey) {
-            // 免費模型：能力從強到弱，限 3 個避免等待太久
-            return [
+            list.push(
               { url: OR, key: ENV.openRouterApiKey, model: "meta-llama/llama-4-maverick:free" },
               { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-4-31b-it:free" },
               { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-3-27b-it:free" },
-            ];
+            );
           }
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "未設定 AI API，無法分析" });
+          if (list.length === 0) {
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "未設定 AI API，無法分析" });
+          }
+          return list;
         };
 
         // ── 強化版系統提示 ────────────────────────────────────────────────────
