@@ -570,8 +570,9 @@ async function startServer() {
           if (!resp.ok) {
             results.push({ model: api.model, url: api.url, status: `HTTP ${resp.status}`, error: JSON.stringify(json).slice(0, 300) });
           } else {
-            const text = json?.choices?.[0]?.message?.content ?? "(no content)";
-            results.push({ model: api.model, url: api.url, status: "OK", snippet: String(text).slice(0, 100) });
+            const text = json?.choices?.[0]?.message?.content ?? null;
+            const fullResp = JSON.stringify(json).slice(0, 500);
+            results.push({ model: api.model, url: api.url, status: "OK", snippet: text ? String(text).slice(0, 200) : `(null content) raw:${fullResp}` });
           }
         } catch (err: any) {
           results.push({ model: api.model, url: api.url, status: "EXCEPTION", error: String(err?.message).slice(0, 200) });
