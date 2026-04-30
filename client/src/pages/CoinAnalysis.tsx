@@ -531,7 +531,14 @@ export default function CoinAnalysis() {
     setAnalysisData(null);
     setRelatedAuctions([]);
     try {
-      const res = await analyzeMutation.mutateAsync({ imageBase64, mimeType, lang });
+      // 60 秒客戶端硬超時，避免無限 hage
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("__timeout__")), 60_000)
+      );
+      const res = await Promise.race([
+        analyzeMutation.mutateAsync({ imageBase64, mimeType, lang }),
+        timeoutPromise,
+      ]);
       if (res.success) {
         const data = res.data as AnalysisData;
         setAnalysisData(data);
@@ -549,8 +556,15 @@ export default function CoinAnalysis() {
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "未知錯誤";
-      const isAllFailed = msg.includes("所有模型") || msg.includes("all models");
-      toast.error(isAllFailed ? "AI 分析暫時不可用，請稍後再試" : "分析失敗，請重試", { duration: 5000 });
+      const isTimeout = msg === "__timeout__";
+      const isAllFailed = msg.includes("所有模型") || msg.includes("all models") || msg.includes("AI 分析失敗");
+      if (isTimeout) {
+        toast.error(lang === "zh" ? "分析超時，請稍後重試" : "Analysis timed out, please try again", { duration: 6000 });
+      } else if (isAllFailed) {
+        toast.error(lang === "zh" ? "AI 分析暫時不可用，請稍後再試" : "AI unavailable, please try again later", { duration: 5000 });
+      } else {
+        toast.error(lang === "zh" ? "分析失敗，請重試" : "Analysis failed, please retry", { duration: 4000 });
+      }
     }
   };
 

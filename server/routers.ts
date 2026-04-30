@@ -4781,8 +4781,11 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
 
         const modelsToTry = getModelsToTry();
         const errors: string[] = [];
-        const REQUEST_TIMEOUT_MS = 30_000;
-        const REASONING_TIMEOUT_MS = 90_000; // 推理模型需要更長時間
+        const REQUEST_TIMEOUT_MS = 18_000;  // 普通模型 18 秒
+        const REASONING_TIMEOUT_MS = 30_000; // 推理模型 30 秒
+        const TOTAL_BUDGET_MS = 50_000;      // 整體最多 50 秒
+        const budgetStart = Date.now();
+        const remainingBudget = () => TOTAL_BUDGET_MS - (Date.now() - budgetStart);
         let data: Record<string, string> | null = null;
 
         // ── JSON 提取輔助（平衡括弧算法，處理 markdown / thinking 標籤）
@@ -4865,7 +4868,9 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
             generationConfig: { temperature: 0.1 },
           };
           const ctrl = new AbortController();
-          const t = setTimeout(() => ctrl.abort(), 60_000);
+          const geminiTimeout = Math.min(25_000, remainingBudget() - 2000);
+          if (geminiTimeout < 3000) { errors.push("gemini+search: 預算不足"); return null; }
+          const t = setTimeout(() => ctrl.abort(), geminiTimeout);
           try {
             const resp = await fetch(nativeUrl, {
               method: "POST",
@@ -4903,9 +4908,12 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
 
         for (const api of modelsToTry) {
           if (data) break;
+          // 總預算耗盡就直接放棄剩餘模型
+          if (remainingBudget() < 3000) { errors.push("總時間預算耗盡"); break; }
           // 推理模型（Nemotron reasoning/omni）需要更多 tokens 和更長超時
           const isReasoningModel = api.model.includes("reasoning") || api.model.includes("nemotron") || api.model.includes("omni");
-          const requestTimeout = isReasoningModel ? REASONING_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
+          const baseTimeout = isReasoningModel ? REASONING_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
+          const requestTimeout = Math.min(baseTimeout, remainingBudget() - 2000);
           const maxTokens = isReasoningModel ? 8192 : 1800;
           const controller = new AbortController();
           const timer = setTimeout(() => controller.abort(), requestTimeout);
