@@ -4684,7 +4684,7 @@ export const appRouter = router({
               : "https://forge.manus.im/v1/chat/completions";
             list.push({ url: base, key: ENV.forgeApiKey, model: "gemini-2.5-flash" });
           }
-          // ② llama-4-maverick（付費，穩定，視覺最強，排第一後備）
+          // ③ llama-4-maverick（付費，穩定，視覺強，Gemini+Search 後備）
           if (ENV.openRouterApiKey) {
             list.push({ url: OR, key: ENV.openRouterApiKey, model: "meta-llama/llama-4-maverick" });
           }
@@ -4941,7 +4941,17 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
           }
         };
 
-        // ── ① llama-4-maverick 最優先（付費、穩定、視覺強）──────────────────
+        // ── ① Gemini+Search 最優先（Google 搜尋加持，精準度最高）──────────────
+        if (!data && ENV.geminiApiKey) {
+          data = await tryGeminiWithSearch(ENV.geminiApiKey);
+          if (data) modelUsed = "Gemini+Search";
+        }
+        if (!data && ENV.geminiApiKey2) {
+          data = await tryGeminiWithSearch(ENV.geminiApiKey2);
+          if (data) modelUsed = "Gemini+Search";
+        }
+
+        // ── ② llama-4-maverick（付費、穩定、視覺強，作後備）─────────────────
         if (!data && ENV.openRouterApiKey) {
           const ctrl = new AbortController();
           const t = setTimeout(() => ctrl.abort(), Math.min(25_000, remainingBudget() - 2000));
@@ -4967,16 +4977,6 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
             const msg = e instanceof Error ? e.message : String(e);
             errors.push(`llama-4-maverick: ${msg.includes("abort") ? "timeout" : msg}`);
           }
-        }
-
-        // ── ② Gemini+Search（有 Google 搜尋加持，配額有限）──────────────────
-        if (!data && ENV.geminiApiKey) {
-          data = await tryGeminiWithSearch(ENV.geminiApiKey);
-          if (data) modelUsed = "Gemini+Search";
-        }
-        if (!data && ENV.geminiApiKey2) {
-          data = await tryGeminiWithSearch(ENV.geminiApiKey2);
-          if (data) modelUsed = "Gemini+Search";
         }
 
         for (const api of modelsToTry) {
