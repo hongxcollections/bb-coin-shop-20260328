@@ -542,7 +542,18 @@ export default function CoinAnalysis() {
         }
       }
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "分析失敗，請重試");
+      const raw = e instanceof Error ? e.message : "";
+      // 將技術錯誤轉為用戶友善提示
+      const friendly = raw.includes("429")
+        ? "AI 服務今日配額暫時用盡，請下午 4 時後再試（每日港時 4 時重置）"
+        : raw.includes("timeout") || raw.includes("abort")
+          ? "分析超時，請重試或換更清晰的圖片"
+          : raw.includes("未能分析") || raw.includes("無效")
+            ? "AI 未能識別此圖片，請嘗試更清晰的正面照"
+            : raw.includes("未設定 AI API")
+              ? "AI 服務未設定，請聯絡管理員"
+              : "分析失敗，請稍後重試";
+      toast.error(friendly);
     }
   };
 
