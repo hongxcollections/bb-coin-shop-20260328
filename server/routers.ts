@@ -4675,14 +4675,15 @@ export const appRouter = router({
           if (ENV.openAiApiKey) {
             list.push({ url: "https://api.openai.com/v1/chat/completions", key: ENV.openAiApiKey, model: "gpt-4o" });
           }
-          // ④ OpenRouter 免費備用視覺模型（已在 2025-04 確認有效）
+          // ④ OpenRouter 免費備用視覺模型（已在 2026-04 確認有效）
           if (ENV.openRouterApiKey) {
             list.push(
+              { url: OR, key: ENV.openRouterApiKey, model: "nvidia/nemotron-nano-12b-v2-vl:free" },               // NVIDIA VL（已確認可用）
+              { url: OR, key: ENV.openRouterApiKey, model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free" }, // NVIDIA 推理（已確認可用）
               { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-4-31b-it:free" },                        // Gemma 4 31B（最新）
+              { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-4-26b-a4b-it:free" },                    // Gemma 4 26B MoE
               { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-3-27b-it:free" },                        // Gemma 3 27B
-              { url: OR, key: ENV.openRouterApiKey, model: "nvidia/nemotron-nano-12b-v2-vl:free" },               // NVIDIA 視覺語言
               { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-3-12b-it:free" },                        // Gemma 3 12B
-              { url: OR, key: ENV.openRouterApiKey, model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free" }, // NVIDIA 推理
             );
           }
           if (list.length === 0) {
@@ -4763,6 +4764,7 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         const modelsToTry = getModelsToTry();
         const errors: string[] = [];
         const REQUEST_TIMEOUT_MS = 30_000;
+        const REASONING_TIMEOUT_MS = 90_000; // 推理模型需要更長時間
         let data: Record<string, string> | null = null;
 
         // ── JSON 提取輔助（平衡括弧算法，處理 markdown / thinking 標籤）
@@ -4829,13 +4831,17 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         };
 
         for (const api of modelsToTry) {
+          // 推理模型（Nemotron reasoning/omni）需要更多 tokens 和更長超時
+          const isReasoningModel = api.model.includes("reasoning") || api.model.includes("nemotron") || api.model.includes("omni");
+          const requestTimeout = isReasoningModel ? REASONING_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
+          const maxTokens = isReasoningModel ? 8192 : 1800;
           const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+          const timer = setTimeout(() => controller.abort(), requestTimeout);
           try {
             const resp = await fetch(api.url, {
               method: "POST",
               headers: { "content-type": "application/json", authorization: `Bearer ${api.key}` },
-              body: JSON.stringify({ ...visionPayload, model: api.model }),
+              body: JSON.stringify({ ...visionPayload, model: api.model, max_tokens: maxTokens }),
               signal: controller.signal,
             });
             clearTimeout(timer);
@@ -4843,8 +4849,12 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
               errors.push(`${api.model}: ${resp.status}`);
               continue;
             }
-            const result = await resp.json() as { choices: Array<{ message: { content: unknown } }> };
-            const raw = result.choices?.[0]?.message?.content;
+            const result = await resp.json() as { choices: Array<{ message: { content: unknown; reasoning?: string } }> };
+            // 推理模型：content 可能為 null，嘗試從 reasoning 欄位提取 JSON
+            let raw: unknown = result.choices?.[0]?.message?.content;
+            if ((raw === null || raw === undefined) && result.choices?.[0]?.message?.reasoning) {
+              raw = result.choices[0].message.reasoning;
+            }
             const parsed = extractJson(raw);
             if (parsed) { data = parsed; break; }
             // 調試：顯示原始回應前 300 字
