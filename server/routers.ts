@@ -4787,6 +4787,7 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         const budgetStart = Date.now();
         const remainingBudget = () => TOTAL_BUDGET_MS - (Date.now() - budgetStart);
         let data: Record<string, string> | null = null;
+        let modelUsed = "";
 
         // ── JSON 提取輔助（平衡括弧算法，處理 markdown / thinking 標籤）
         const extractJson = (raw: unknown): Record<string, string> | null => {
@@ -4901,9 +4902,11 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         // 先嘗試 Gemini+Search（最準確）
         if (!data && ENV.geminiApiKey) {
           data = await tryGeminiWithSearch(ENV.geminiApiKey);
+          if (data) modelUsed = "Gemini+Search";
         }
         if (!data && ENV.geminiApiKey2) {
           data = await tryGeminiWithSearch(ENV.geminiApiKey2);
+          if (data) modelUsed = "Gemini+Search";
         }
 
         for (const api of modelsToTry) {
@@ -4936,7 +4939,7 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
               raw = result.choices[0].message.reasoning;
             }
             const parsed = extractJson(raw);
-            if (parsed) { data = parsed; break; }
+            if (parsed) { data = parsed; modelUsed = api.model; break; }
             // 調試：顯示原始回應前 300 字
             const rawText = typeof raw === "string" ? raw : JSON.stringify(raw) ?? "";
             errors.push(`${api.model}: 無效回應[${rawText.substring(0, 300).replace(/\n/g, "↵")}]`);
@@ -4963,7 +4966,7 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
             analysisData: JSON.stringify(data),
           }).catch(() => {});
         }
-        return { success: true, data };
+        return { success: true, data, modelUsed };
       }),
 
     // 生成藝術插畫

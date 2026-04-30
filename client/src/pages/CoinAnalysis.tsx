@@ -384,13 +384,14 @@ function HistoryCard({ item, onDelete, onExpand, t }: {
 }
 
 // ─── Analysis Result Panel ────────────────────────────────────────────────────
-function AnalysisResult({ data, t, lang, imagePreview, relatedAuctions, loadingRelated }: {
+function AnalysisResult({ data, t, lang, imagePreview, relatedAuctions, loadingRelated, modelUsed }: {
   data: AnalysisData;
   t: typeof L.zh;
   lang: "zh" | "en";
   imagePreview: string | null;
   relatedAuctions: RelatedAuction[];
   loadingRelated: boolean;
+  modelUsed?: string;
 }) {
   const [generating, setGenerating] = useState(false);
 
@@ -428,6 +429,15 @@ function AnalysisResult({ data, t, lang, imagePreview, relatedAuctions, loadingR
           <div className="flex items-center gap-2">
             <Info className="w-4 h-4 text-amber-600" />
             <span className="font-bold text-amber-800 text-sm">{t.resultTitle}</span>
+            {modelUsed && (
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                modelUsed === "Gemini+Search"
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-gray-100 text-gray-500"
+              }`}>
+                {modelUsed === "Gemini+Search" ? "🔍 Gemini+Search" : `🤖 ${modelUsed.split("/").pop()}`}
+              </span>
+            )}
           </div>
           <button
             onClick={handleShareCard}
@@ -496,6 +506,7 @@ export default function CoinAnalysis() {
   const [dragOver, setDragOver] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
+  const [modelUsed, setModelUsed] = useState("");
   const [relatedAuctions, setRelatedAuctions] = useState<RelatedAuction[]>([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -529,6 +540,7 @@ export default function CoinAnalysis() {
   const handleAnalyze = async () => {
     if (!imageBase64) return;
     setAnalysisData(null);
+    setModelUsed("");
     setRelatedAuctions([]);
     try {
       // 60 秒客戶端硬超時，避免無限 hage
@@ -542,6 +554,7 @@ export default function CoinAnalysis() {
       if (res.success) {
         const data = res.data as AnalysisData;
         setAnalysisData(data);
+        setModelUsed(res.modelUsed ?? "");
         // 搜尋相關拍賣
         const keywords = [
           getField(data, "name", "Name"),
@@ -700,6 +713,7 @@ export default function CoinAnalysis() {
                 imagePreview={imagePreview}
                 relatedAuctions={relatedAuctions}
                 loadingRelated={loadingRelated}
+                modelUsed={modelUsed}
               />
             )}
 
