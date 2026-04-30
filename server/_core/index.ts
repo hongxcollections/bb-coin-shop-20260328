@@ -195,6 +195,14 @@ async function bootstrapMissingColumns() {
     'Ensured users.memberLevelExpiresAt column'
   );
 
+  // 新增 users.photoUrl 欄位（Google 頭像或自訂上傳）
+  if (!(await check('users', 'photoUrl'))) {
+    await alter(
+      `ALTER TABLE \`users\` ADD COLUMN \`photoUrl\` varchar(1000) NULL`,
+      'Added photoUrl to users'
+    );
+  }
+
   // 新增 users.mustChangePassword 欄位（管理員重設密碼後，首次登入強制更改）
   if (!(await check('users', 'mustChangePassword'))) {
     await alter(

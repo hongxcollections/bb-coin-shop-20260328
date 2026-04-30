@@ -86,6 +86,7 @@ export function registerOAuthRoutes(app: Express) {
           email: userInfo.email ?? null,
           loginMethod: "google",
           lastSignedIn: new Date(),
+          photoUrl: userInfo.picture ?? null,
         });
 
         // 註：早鳥領取只對電話註冊（/api/auth/register with phone）生效，Google OAuth 唔會觸發。

@@ -64,7 +64,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     };
     const updateSet: Record<string, unknown> = {};
 
-    const textFields = ["name", "email", "loginMethod"] as const;
+    const textFields = ["name", "email", "loginMethod", "photoUrl"] as const;
     type TextField = (typeof textFields)[number];
 
     const assignNullable = (field: TextField) => {
@@ -862,6 +862,30 @@ export async function updateUserEmail(userId: number, email: string): Promise<bo
   }
 }
 
+export async function updateUserName(userId: number, name: string): Promise<boolean> {
+  try {
+    const db = await getDb();
+    if (!db) return false;
+    await db.update(users).set({ name }).where(eq(users.id, userId));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to update user name:", error);
+    return false;
+  }
+}
+
+export async function updateUserPhotoUrl(userId: number, photoUrl: string | null): Promise<boolean> {
+  try {
+    const db = await getDb();
+    if (!db) return false;
+    await db.update(users).set({ photoUrl }).where(eq(users.id, userId));
+    return true;
+  } catch (error) {
+    console.error("[Database] Failed to update user photoUrl:", error);
+    return false;
+  }
+}
+
 /**
  * Get all active auctions that are ending within the given number of minutes.
  * Used by the scheduler to trigger ending-soon notifications.
@@ -897,7 +921,7 @@ export async function getUserPublicStats(userId: number) {
   try {
     // Get user basic info
     const userRows = await db
-      .select({ id: users.id, name: users.name, createdAt: users.createdAt })
+      .select({ id: users.id, name: users.name, createdAt: users.createdAt, photoUrl: users.photoUrl })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
@@ -928,6 +952,7 @@ export async function getUserPublicStats(userId: number) {
       id: user.id,
       name: user.name,
       createdAt: user.createdAt,
+      photoUrl: user.photoUrl ?? null,
       auctionsParticipated,
       auctionsWon,
     };

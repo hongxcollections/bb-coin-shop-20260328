@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff, ChevronDown, ChevronUp, EyeOff, Heart, Trophy, Lock } from "lucide-react";
+import { User, TrendingUp, Clock, LogOut, Mail, CheckCircle2, Bell, BellOff, ChevronDown, ChevronUp, EyeOff, Heart, Trophy, Lock, Camera, Pencil, X, Check } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { ShareMenu } from "@/components/ShareMenu";
@@ -162,6 +162,16 @@ export default function Profile() {
   const [emailInput, setEmailInput] = useState("");
   const [emailSaved, setEmailSaved] = useState(false);
 
+  // 名稱更改
+  const [nameEditing, setNameEditing] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [nameInitialised, setNameInitialised] = useState(false);
+
+  // 頭像上傳
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
   const utils = trpc.useUtils();
 
   // Notification preferences
@@ -239,11 +249,69 @@ export default function Profile() {
     },
   });
 
+  // 名稱更改 mutation
+  const updateName = trpc.users.updateName.useMutation({
+    onSuccess: () => {
+      toast.success("顯示名稱已更新！");
+      utils.auth.me.invalidate();
+      setNameEditing(false);
+    },
+    onError: (err) => toast.error(`更新失敗：${err.message}`),
+  });
+
+  // 頭像上傳 mutation
+  const uploadAvatar = trpc.users.uploadAvatar.useMutation({
+    onSuccess: (data) => {
+      toast.success("頭像已更新！");
+      setAvatarPreview(data.photoUrl);
+      utils.auth.me.invalidate();
+      setAvatarUploading(false);
+    },
+    onError: (err) => {
+      toast.error(`上傳失敗：${err.message}`);
+      setAvatarUploading(false);
+    },
+  });
+
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      // Compress using canvas
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX = 512;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+          else { width = Math.round(width * MAX / height); height = MAX; }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+        const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+        setAvatarUploading(true);
+        uploadAvatar.mutate({ base64, mimeType: 'image/jpeg' });
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Initialise email input from user data (once)
   const [emailInitialised, setEmailInitialised] = useState(false);
   if (user?.email && !emailInitialised) {
     setEmailInput(user.email);
     setEmailInitialised(true);
+  }
+
+  // Initialise name input from user data (once)
+  if (user?.name && !nameInitialised) {
+    setNameInput(user.name);
+    setNameInitialised(true);
   }
 
   if (loading) {
@@ -316,18 +384,84 @@ export default function Profile() {
             name={user?.name}
           />
           <CardContent className="pt-0 pb-6 px-6">
+            {/* 隱藏 file input */}
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarFileChange}
+            />
             <div className="-mt-10 flex items-end justify-between mb-4">
-              <div className="w-20 h-20 gold-gradient rounded-2xl flex items-center justify-center text-white font-bold text-2xl border-4 border-white shadow-lg">
-                {initials}
+              {/* 頭像區域（可點擊上傳） */}
+              <div className="relative group cursor-pointer" onClick={() => !avatarUploading && avatarInputRef.current?.click()}>
+                <div className="w-20 h-20 rounded-2xl border-4 border-white shadow-lg overflow-hidden flex items-center justify-center bg-amber-100">
+                  {(avatarPreview || (user as { photoUrl?: string | null } | null)?.photoUrl) ? (
+                    <img
+                      src={avatarPreview ?? (user as { photoUrl?: string | null } | null)?.photoUrl ?? ''}
+                      alt="頭像"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full gold-gradient flex items-center justify-center text-white font-bold text-2xl">
+                      {initials}
+                    </div>
+                  )}
+                </div>
+                {/* 相機圖示 hover 覆蓋 */}
+                <div className={`absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center transition-opacity ${avatarUploading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                  {avatarUploading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Camera className="w-6 h-6 text-white" />
+                  )}
+                </div>
               </div>
               <Badge className={user?.role === "admin" ? "bg-amber-600 text-white" : "bg-emerald-500 text-white"}>
                 {user?.role === "admin" ? "🔑 管理員" : "👤 一般用戶"}
               </Badge>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-2xl font-bold">{user?.name}</h1>
-              <MemberBadge level={(user as { memberLevel?: string } | null)?.memberLevel} variant="badge" />
-            </div>
+            {/* 名稱顯示／編輯 */}
+            {nameEditing ? (
+              <div className="flex items-center gap-2 mb-2">
+                <Input
+                  value={nameInput}
+                  onChange={e => setNameInput(e.target.value)}
+                  maxLength={50}
+                  className="h-9 text-lg font-bold max-w-xs"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') updateName.mutate({ name: nameInput });
+                    if (e.key === 'Escape') setNameEditing(false);
+                  }}
+                  autoFocus
+                />
+                <button
+                  onClick={() => updateName.mutate({ name: nameInput })}
+                  disabled={updateName.isPending || !nameInput.trim()}
+                  className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-40"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => { setNameEditing(false); setNameInput(user?.name ?? ''); }}
+                  className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <h1 className="text-2xl font-bold">{user?.name}</h1>
+                <MemberBadge level={(user as { memberLevel?: string } | null)?.memberLevel} variant="badge" />
+                <button
+                  onClick={() => { setNameInput(user?.name ?? ''); setNameEditing(true); }}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                  title="更改名稱"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              </div>
+            )}
             {user?.email && <p className="text-muted-foreground text-sm mt-1">{user.email}</p>}
             <div className="mt-3">
               <MemberBadge level={(user as { memberLevel?: string } | null)?.memberLevel} variant="full" />

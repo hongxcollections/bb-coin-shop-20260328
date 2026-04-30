@@ -70,10 +70,18 @@ export default function UserProfile() {
           <CardContent className="pt-8 pb-6">
             <div className="flex flex-col items-center text-center">
               {/* Avatar */}
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center mb-4 shadow-lg">
-                <span className="text-3xl font-bold text-white">
-                  {profile.name?.charAt(0)?.toUpperCase() ?? "?"}
-                </span>
+              <div className="w-20 h-20 rounded-full mb-4 shadow-lg overflow-hidden flex items-center justify-center bg-gradient-to-br from-amber-400 to-amber-600">
+                {(profile as { photoUrl?: string | null }).photoUrl ? (
+                  <img
+                    src={(profile as { photoUrl?: string | null }).photoUrl ?? ''}
+                    alt={profile.name ?? ''}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-3xl font-bold text-white">
+                    {profile.name?.charAt(0)?.toUpperCase() ?? "?"}
+                  </span>
+                )}
               </div>
 
               {/* Name */}
