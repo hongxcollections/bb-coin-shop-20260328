@@ -592,6 +592,27 @@ export default function CoinAnalysis() {
     );
   }
 
+  if (user.role !== "admin") {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="flex flex-col items-center justify-center py-32 gap-4 px-6 text-center">
+          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-2">
+            <Sparkles className="w-8 h-8 text-gray-400" />
+          </div>
+          <h2 className="text-lg font-bold text-gray-800">
+            {lang === "en" ? "Admin Only" : "管理員專用功能"}
+          </h2>
+          <p className="text-gray-500 text-sm max-w-xs">
+            {lang === "en"
+              ? "This AI analysis feature is currently restricted to administrators only."
+              : "AI 鑑定功能目前僅限管理員使用。"}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background pb-28">
       <Header />

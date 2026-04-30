@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
+import { publicProcedure, router, protectedProcedure, adminProcedure } from "./_core/trpc";
 import { z } from "zod";
 import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner, saveCoinAnalysisHistory, getUserCoinAnalysisHistory, deleteCoinAnalysisHistory, searchRelatedAuctions } from "./db";
 import type { AdTargetType } from "./db";
@@ -4634,7 +4634,7 @@ export const appRouter = router({
   // ─── Coin / Stamp AI Analysis ─────────────────────────────────────────────
   coinAnalysis: router({
     // 分析圖片：回傳歷史、成分、尺寸等資料
-    analyze: protectedProcedure
+    analyze: adminProcedure
       .input(z.object({
         imageBase64: z.string(), // base64 encoded image
         mimeType: z.string().default("image/jpeg"),
@@ -4876,7 +4876,7 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
       }),
 
     // 生成藝術插畫
-    generateArt: protectedProcedure
+    generateArt: adminProcedure
       .input(z.object({
         prompt: z.string(),
         imageBase64: z.string().optional(),
@@ -4898,7 +4898,7 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
       }),
 
     // 搜尋相關拍賣
-    searchRelated: protectedProcedure
+    searchRelated: adminProcedure
       .input(z.object({
         keywords: z.array(z.string()).max(5),
       }))
@@ -4909,7 +4909,7 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
 
     // 鑑定歷史記錄
     history: router({
-      list: protectedProcedure
+      list: adminProcedure
         .input(z.object({ limit: z.number().default(20) }))
         .query(async ({ input, ctx }) => {
           const rows = await getUserCoinAnalysisHistory(ctx.user.id, input.limit);
@@ -4919,7 +4919,7 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
           }));
         }),
 
-      delete: protectedProcedure
+      delete: adminProcedure
         .input(z.object({ id: z.number() }))
         .mutation(async ({ input, ctx }) => {
           const ok = await deleteCoinAnalysisHistory(input.id, ctx.user.id);
