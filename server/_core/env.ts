@@ -1,6 +1,12 @@
 const _ownerOpenId = process.env.OWNER_OPEN_ID ?? "";
 console.log(`[ENV] OWNER_OPEN_ID loaded: "${_ownerOpenId}" (length: ${_ownerOpenId.length})`);
 
+// AI key 診斷（只記長度，不記實際值）
+const _geminiKey1 = process.env.GEMINI_API_KEY ?? "";
+const _geminiKey2 = process.env.GEMINI_API_KEY_2 ?? "";
+const _orKey = process.env.OPENROUTER_API_KEY ?? "";
+console.log(`[ENV] AI keys: GEMINI_API_KEY=${_geminiKey1.length}chars, GEMINI_API_KEY_2=${_geminiKey2.length}chars, OPENROUTER_API_KEY=${_orKey.length}chars`);
+
 // Support BB_DATABASE_URL as fallback (Replit reserves DATABASE_URL)
 const _databaseUrl = process.env.BB_DATABASE_URL || process.env.DATABASE_URL || "";
 
