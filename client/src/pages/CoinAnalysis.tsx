@@ -492,7 +492,6 @@ export default function CoinAnalysis() {
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
   const [relatedAuctions, setRelatedAuctions] = useState<RelatedAuction[]>([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
-  const [debugError, setDebugError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const analyzeMutation = trpc.coinAnalysis.analyze.useMutation();
@@ -511,7 +510,6 @@ export default function CoinAnalysis() {
     setImageFile(file);
     setAnalysisData(null);
     setRelatedAuctions([]);
-    setDebugError(null);
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target?.result as string;
@@ -526,7 +524,6 @@ export default function CoinAnalysis() {
     if (!imageBase64) return;
     setAnalysisData(null);
     setRelatedAuctions([]);
-    setDebugError(null);
     try {
       const res = await analyzeMutation.mutateAsync({ imageBase64, mimeType, lang });
       if (res.success) {
@@ -545,9 +542,9 @@ export default function CoinAnalysis() {
         }
       }
     } catch (e: unknown) {
-      const raw = e instanceof Error ? e.message : "未知錯誤";
-      setDebugError(raw);
-      toast.error("分析失敗，詳情見下方", { duration: 5000 });
+      const msg = e instanceof Error ? e.message : "未知錯誤";
+      const isAllFailed = msg.includes("所有模型") || msg.includes("all models");
+      toast.error(isAllFailed ? "AI 分析暫時不可用，請稍後再試" : "分析失敗，請重試", { duration: 5000 });
     }
   };
 
@@ -689,22 +686,6 @@ export default function CoinAnalysis() {
                   : <><Info className="w-4 h-4" />{analysisData ? t.reanalyze : t.analyze}</>
                 }
               </button>
-            )}
-
-            {/* 調試面板：顯示每個模型的詳細錯誤 */}
-            {debugError && (
-              <div style={{ background: "#1c1917", border: "1px solid #78350f", borderRadius: 12, padding: "12px 14px", marginTop: 8 }}>
-                <div style={{ color: "#fbbf24", fontWeight: 700, fontSize: 13, marginBottom: 6 }}>🔍 調試資訊（每個模型的錯誤）：</div>
-                <div style={{ color: "#fcd34d", fontSize: 11, lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
-                  {debugError.replace(/[|]/g, "\n")}
-                </div>
-                <button
-                  onClick={() => setDebugError(null)}
-                  style={{ marginTop: 8, fontSize: 11, color: "#9ca3af", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                >
-                  關閉
-                </button>
-              </div>
             )}
 
             {/* 結果 + 相關拍賣 */}

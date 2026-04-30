@@ -4793,12 +4793,38 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
             }
           }
           if (endIdx === -1) return null;
+          const slice = content.substring(startIdx, endIdx + 1);
+
+          // 修復 LLM 常見問題：字串內的未逸出換行符
+          const repairJson = (s: string): string => {
+            let result = "";
+            let inStr = false;
+            let esc = false;
+            for (let i = 0; i < s.length; i++) {
+              const ch = s[i];
+              if (esc) { result += ch; esc = false; continue; }
+              if (ch === "\\" && inStr) { result += ch; esc = true; continue; }
+              if (ch === '"') { inStr = !inStr; result += ch; continue; }
+              // 字串內的未逸出控制字符，轉換為合法逸出序列
+              if (inStr && (ch === "\n" || ch === "\r")) { result += ch === "\n" ? "\\n" : "\\r"; continue; }
+              if (inStr && ch === "\t") { result += "\\t"; continue; }
+              result += ch;
+            }
+            return result;
+          };
+
           try {
-            const parsed = JSON.parse(content.substring(startIdx, endIdx + 1));
-            // 只要是含有 3 個或以上鍵的物件即視為有效分析結果
+            const parsed = JSON.parse(slice);
             if (typeof parsed !== "object" || Array.isArray(parsed)) return null;
             return Object.keys(parsed).length >= 3 ? parsed : null;
-          } catch { return null; }
+          } catch {
+            // 嘗試修復後再解析
+            try {
+              const parsed = JSON.parse(repairJson(slice));
+              if (typeof parsed !== "object" || Array.isArray(parsed)) return null;
+              return Object.keys(parsed).length >= 3 ? parsed : null;
+            } catch { return null; }
+          }
         };
 
         for (const api of modelsToTry) {
