@@ -4658,12 +4658,18 @@ export const appRouter = router({
               : "https://forge.manus.im/v1/chat/completions";
             list.push({ url: base, key: ENV.forgeApiKey, model: "gemini-2.5-flash" });
           }
-          // ② Gemini 原生 API
+          // ② Gemini 原生 API（兩個 key 輪用，配額互補）
           if (ENV.geminiApiKey) {
-            list.push(
-              { url: GG, key: ENV.geminiApiKey, model: "gemini-2.0-flash" },
-              { url: GG, key: ENV.geminiApiKey, model: "gemini-2.5-flash" },
-            );
+            list.push({ url: GG, key: ENV.geminiApiKey, model: "gemini-2.0-flash" });
+          }
+          if (ENV.geminiApiKey2) {
+            list.push({ url: GG, key: ENV.geminiApiKey2, model: "gemini-2.0-flash" });
+          }
+          if (ENV.geminiApiKey) {
+            list.push({ url: GG, key: ENV.geminiApiKey, model: "gemini-2.5-flash" });
+          }
+          if (ENV.geminiApiKey2) {
+            list.push({ url: GG, key: ENV.geminiApiKey2, model: "gemini-2.5-flash" });
           }
           // ③ OpenAI
           if (ENV.openAiApiKey) {
