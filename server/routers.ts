@@ -4694,6 +4694,15 @@ export const appRouter = router({
         const systemPrompt = input.lang === "zh"
           ? `你是世界頂尖的錢幣學家與郵票鑑定專家，擁有豐富的亞洲及全球收藏品鑑定經驗。
 
+【第一步：優先讀取鑑定盒文字】
+若圖片中有 PCGS、NGC、PMG、PCGS-BN 等評級公司的鑑定盒（slab），必須先讀取盒上所有可見文字，包括：
+- 評級結果（如 MS64、VF30、Counterfeit、Genuine、Do Not Holder）
+- 錢幣年份、面額、發行地區
+- 型號（如 LM-858、KM-522、Y-329 等）
+- 直徑尺寸（如 39.5mm）
+- 鑑定流水號
+這些文字是最可靠的鑑定資料，必須反映在 certificationInfo 欄位和其他欄位中。
+
 請極仔細分析圖片，重點觀察：
 【錢幣】正背面圖案、人像、所有文字銘文（尤其國名、面額、年份）、鑄幣廠標記、邊緣設計、合金顏色
 【郵票】圖案主題、面值、齒孔規格、水印、印刷方式、發行機構、字體特徵
@@ -4706,16 +4715,26 @@ export const appRouter = router({
   "country": "發行國家或地區",
   "year": "發行年份（可填範圍，如 1960-1965）",
   "denomination": "面額及貨幣單位",
-  "material": "材質及成分（如 .925 銀、黃銅合金、紙質等）",
+  "material": "材質及成分（如 .925 銀、.890 銀、黃銅合金、紙質等；若為仿製品請說明仿製材質）",
   "dimensions": "直徑或長×闊（mm）",
   "weight": "重量（g），不適用則填「-」",
-  "condition": "品相（專業術語如 AU/EF/VF/F，加文字說明）",
+  "condition": "品相（若有PCGS/NGC評級則直接引用，如 PCGS MS64；否則用 AU/EF/VF/F，加文字說明）",
+  "certificationInfo": "鑑定機構資料（如 PCGS Counterfeit / Do Not Holder，型號 LM-858，39.5mm；無鑑定則填「-」）",
   "historicalBackground": "歷史背景（4-6句，涵蓋：發行背景、歷史意義、收藏市場地位）",
   "rarity": "稀有程度（常見 / 普通 / 較罕見 / 罕見 / 極罕見）及原因",
   "estimatedValue": "估計市值港元範圍（如 HKD 200-500），說明參考依據",
   "imageGenerationPrompt": "A detailed English art prompt for this item: oil painting style, museum lighting, dramatic composition, include historical context"
 }`
           : `You are a world-class numismatist and philatelist with decades of global coin and stamp expertise.
+
+[STEP 1: READ GRADING SLAB TEXT FIRST]
+If the image contains a PCGS, NGC, PMG, or other grading service slab, read ALL visible text on it first:
+- Grade (MS64, VF30, Counterfeit, Genuine, Do Not Holder, etc.)
+- Year, denomination, issuing region
+- Catalog number (LM-858, KM-522, Y-329, etc.)
+- Size (e.g. 39.5mm)
+- Certification serial number
+These details are the most reliable identification data and must be reflected in certificationInfo and other fields.
 
 Carefully examine the image, paying close attention to:
 [COINS] Obverse/reverse designs, portraits, ALL inscriptions (country, denomination, date), mint marks, edge design, alloy color
@@ -4729,10 +4748,11 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
   "country": "Issuing country or region",
   "year": "Year(s) of issue (range if applicable)",
   "denomination": "Face value with currency unit",
-  "material": "Material and composition (e.g. .925 silver, brass alloy, paper)",
+  "material": "Material and composition (e.g. .925 silver, .890 silver, brass alloy, paper; if counterfeit, state counterfeit material)",
   "dimensions": "Diameter or L×W in mm",
   "weight": "Weight in grams, or '-' if not applicable",
-  "condition": "Grade (AU/EF/VF/F etc.) with description",
+  "condition": "Grade — use PCGS/NGC grade if certified (e.g. PCGS MS64); otherwise AU/EF/VF/F with description",
+  "certificationInfo": "Grading service details (e.g. PCGS Counterfeit / Do Not Holder, LM-858, 39.5mm; or '-' if none)",
   "historicalBackground": "Historical background (4-6 sentences covering: issuance context, historical significance, collector market standing)",
   "rarity": "Rarity level and reason",
   "estimatedValue": "Estimated market value range in HKD with reference basis",
@@ -4828,7 +4848,61 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
           }
         };
 
+        // ── Gemini + Google Search Grounding（最高精準度，接近 Google Lens）────
+        // 使用 Gemini 原生 API + Google Search Tool，讓 AI 搜尋網絡補充資料
+        const tryGeminiWithSearch = async (apiKey: string): Promise<Record<string, string> | null> => {
+          const nativeUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+          const searchInstruction = input.lang === "zh"
+            ? "\n\n請用 Google 搜尋確認此錢幣的正式名稱、歷史背景和市場行情，然後只輸出純JSON物件（以{開頭、以}結尾）。"
+            : "\n\nUse Google Search to verify the coin's official name, history and market value. Output ONLY a raw JSON object (starting with { ending with }).";
+
+          const reqBody = {
+            contents: [{ parts: [
+              { inlineData: { mimeType: input.mimeType, data: input.imageBase64 } },
+              { text: systemPrompt + searchInstruction },
+            ]}],
+            tools: [{ googleSearch: {} }],
+            generationConfig: { temperature: 0.1 },
+          };
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), 60_000);
+          try {
+            const resp = await fetch(nativeUrl, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(reqBody),
+              signal: ctrl.signal,
+            });
+            clearTimeout(t);
+            if (!resp.ok) {
+              const errJson = await resp.json().catch(() => ({})) as { error?: { message?: string; status?: string } };
+              errors.push(`gemini+search: ${resp.status} ${errJson?.error?.message ?? ""}`);
+              return null;
+            }
+            const result = await resp.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+            const rawText = result.candidates?.[0]?.content?.parts?.find(p => p.text)?.text ?? "";
+            const parsed = extractJson(rawText);
+            if (parsed) return parsed;
+            errors.push(`gemini+search: 無效JSON[${rawText.substring(0, 200)}]`);
+            return null;
+          } catch (e: unknown) {
+            clearTimeout(t);
+            const msg = e instanceof Error ? e.message : String(e);
+            errors.push(`gemini+search: ${msg.includes("abort") ? "timeout" : msg}`);
+            return null;
+          }
+        };
+
+        // 先嘗試 Gemini+Search（最準確）
+        if (!data && ENV.geminiApiKey) {
+          data = await tryGeminiWithSearch(ENV.geminiApiKey);
+        }
+        if (!data && ENV.geminiApiKey2) {
+          data = await tryGeminiWithSearch(ENV.geminiApiKey2);
+        }
+
         for (const api of modelsToTry) {
+          if (data) break;
           // 推理模型（Nemotron reasoning/omni）需要更多 tokens 和更長超時
           const isReasoningModel = api.model.includes("reasoning") || api.model.includes("nemotron") || api.model.includes("omni");
           const requestTimeout = isReasoningModel ? REASONING_TIMEOUT_MS : REQUEST_TIMEOUT_MS;

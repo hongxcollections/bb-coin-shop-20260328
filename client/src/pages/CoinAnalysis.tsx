@@ -21,6 +21,7 @@ type AnalysisData = {
   dimensions?: string;
   weight?: string;
   condition?: string;
+  certificationInfo?: string;
   historicalBackground?: string;
   rarity?: string;
   estimatedValue?: string;
@@ -28,7 +29,8 @@ type AnalysisData = {
   // English keys fallback
   Type?: string; Name?: string; Country?: string; Year?: string;
   Denomination?: string; Material?: string; Dimensions?: string;
-  Weight?: string; Condition?: string; "Historical Background"?: string;
+  Weight?: string; Condition?: string; "Certification Info"?: string;
+  "Historical Background"?: string;
   Rarity?: string; "Estimated Market Value"?: string;
 };
 
@@ -75,6 +77,7 @@ const L = {
     labelType: "類型", labelName: "名稱", labelCountry: "發行地區",
     labelYear: "年份", labelDenomination: "面額", labelMaterial: "材質",
     labelDimensions: "尺寸", labelWeight: "重量", labelCondition: "品相",
+    labelCertification: "鑑定機構",
     labelHistory: "歷史背景", labelRarity: "稀有程度", labelValue: "估計市值",
     bidNow: "立即競投",
     startingAt: "起標",
@@ -102,6 +105,7 @@ const L = {
     labelType: "Type", labelName: "Name", labelCountry: "Country",
     labelYear: "Year", labelDenomination: "Denomination", labelMaterial: "Material",
     labelDimensions: "Dimensions", labelWeight: "Weight", labelCondition: "Condition",
+    labelCertification: "Certification",
     labelHistory: "Historical Background", labelRarity: "Rarity", labelValue: "Est. Value",
     bidNow: "Bid Now",
     startingAt: "Starting",
@@ -242,6 +246,7 @@ async function generateShareCard(data: AnalysisData, imagePreview: string | null
     ["年份", "year", "Year"], ["面額", "denomination", "Denomination"],
     ["材質", "material", "Material"], ["尺寸", "dimensions", "Dimensions"],
     ["重量", "weight", "Weight"], ["品相", "condition", "Condition"],
+    ["鑑定機構", "certificationInfo", "Certification Info"],
     ["稀有程度", "rarity", "Rarity"], ["估計市值", "estimatedValue", "Estimated Market Value"],
   ];
   const activeFields = fieldDefs
@@ -399,6 +404,7 @@ function AnalysisResult({ data, t, lang, imagePreview, relatedAuctions, loadingR
     [t.labelDimensions, "dimensions", "Dimensions"],
     [t.labelWeight, "weight", "Weight"],
     [t.labelCondition, "condition", "Condition"],
+    [t.labelCertification, "certificationInfo", "Certification Info"],
     [t.labelRarity, "rarity", "Rarity"],
     [t.labelValue, "estimatedValue", "Estimated Market Value"],
   ];
