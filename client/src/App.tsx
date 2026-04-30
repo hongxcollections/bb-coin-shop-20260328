@@ -16,6 +16,7 @@ import Home from "./pages/Home";
 import Auctions from "./pages/Auctions";
 import AuctionDetail from "./pages/AuctionDetail";
 import Profile from "./pages/Profile";
+import BidHistory from "./pages/BidHistory";
 import AdminAuctions from "./pages/AdminAuctions";
 import AdminDrafts from "./pages/AdminDrafts";
 import AdminArchive from "./pages/AdminArchive";
@@ -150,6 +151,7 @@ function Router() {
       <Route path={"/auctions"} component={Auctions} />
       <Route path={"/auctions/:id"} component={AuctionDetail} />
       <Route path={"/profile"} component={Profile} />
+      <Route path={"/bid-history"} component={BidHistory} />
       <Route path={"/admin"} component={AdminAuctions} />
       <Route path={"/admin/drafts"} component={AdminDrafts} />
       <Route path={"/admin/archive"} component={AdminArchive} />
