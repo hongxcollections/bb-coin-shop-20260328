@@ -4813,7 +4813,9 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
             const raw = result.choices?.[0]?.message?.content;
             const parsed = extractJson(raw);
             if (parsed) { data = parsed; break; }
-            errors.push(`${api.model}: 無效回應`);
+            // 調試：顯示原始回應前 300 字
+            const rawText = typeof raw === "string" ? raw : JSON.stringify(raw) ?? "";
+            errors.push(`${api.model}: 無效回應[${rawText.substring(0, 300).replace(/\n/g, "↵")}]`);
           } catch (e: unknown) {
             clearTimeout(timer);
             const msg = e instanceof Error ? e.message : String(e);
