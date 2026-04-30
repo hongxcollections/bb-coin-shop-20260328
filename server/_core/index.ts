@@ -508,14 +508,8 @@ async function startServer() {
         OPENROUTER_API_KEY: e.openRouterApiKey ? `${e.openRouterApiKey.length}chars` : "MISSING",
       };
 
-      // 最小合法 JPEG base64（1x1 灰色像素）
-      const testImageB64 =
-        "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8U" +
-        "HRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDB" +
-        "gNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjI" +
-        "yMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQ" +
-        "AQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAA" +
-        "AAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k=";
+      // 使用公開圖片 URL 測試（比 base64 更可靠）
+      const testImageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg/200px-Mona_Lisa%2C_by_Leonardo_da_Vinci%2C_from_C2RMF_retouched.jpg";
 
       const results: Array<{ model: string; url: string; status: string; error?: string; snippet?: string }> = [];
 
@@ -543,8 +537,8 @@ async function startServer() {
               messages: [{
                 role: "user",
                 content: [
-                  { type: "image_url", image_url: { url: `data:image/jpeg;base64,${testImageB64}` } },
-                  { type: "text", text: "Reply: OK" },
+                  { type: "image_url", image_url: { url: testImageUrl } },
+                  { type: "text", text: "Reply with one word: OK" },
                 ],
               }],
             }),
