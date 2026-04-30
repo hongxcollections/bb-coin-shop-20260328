@@ -5,7 +5,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, TrendingUp, Trophy, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock, TrendingUp, Trophy, ChevronDown, ChevronUp, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { ShareMenu } from "@/components/ShareMenu";
 import { MemberBadge } from "@/components/MemberBadge";
@@ -16,6 +16,85 @@ const PAYMENT_STATUS_CONFIG = {
   paid: { label: '已付款', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: '💳' },
   delivered: { label: '已交收', color: 'bg-green-100 text-green-800 border-green-200', icon: '✅' },
 } as const;
+
+const ORDER_STATUS_CONFIG = {
+  pending:   { label: '待確認', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: '⏳' },
+  confirmed: { label: '已確認', color: 'bg-green-100 text-green-800 border-green-200',  icon: '✅' },
+  cancelled: { label: '已取消', color: 'bg-gray-100 text-gray-500 border-gray-200',     icon: '✕'  },
+} as const;
+
+type ProductOrderItem = {
+  id: number;
+  productId: number;
+  merchantId: number;
+  title: string;
+  price: string;
+  currency: string;
+  quantity: number;
+  status: 'pending' | 'confirmed' | 'cancelled';
+  finalPrice?: string | null;
+  buyerNote?: string | null;
+  cancelReason?: string | null;
+  createdAt: string;
+  confirmedAt?: string | null;
+  cancelledAt?: string | null;
+  merchantName?: string | null;
+};
+
+function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCancel: () => void }) {
+  const utils = trpc.useUtils();
+  const cancel = trpc.productOrders.cancel.useMutation({
+    onSuccess: () => { utils.productOrders.myBuyerOrders.invalidate(); toast.success('訂單已取消'); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const statusCfg = ORDER_STATUS_CONFIG[order.status] ?? { label: order.status, color: 'bg-gray-100 text-gray-500 border-gray-200', icon: '?' };
+  const unitPrice = parseFloat(order.price);
+  const finalPrice = order.finalPrice ? parseFloat(order.finalPrice) : null;
+  const displayPrice = finalPrice ?? unitPrice * order.quantity;
+
+  return (
+    <div className="rounded-lg border border-amber-100 bg-amber-50/40 overflow-hidden">
+      <div className="p-3 flex items-start gap-3">
+        <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <ShoppingBag className="w-4 h-4 text-amber-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{order.title}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {order.merchantName ?? `商戶 #${order.merchantId}`}
+            {order.quantity > 1 && <span className="ml-1.5">× {order.quantity}</span>}
+            <span className="mx-1.5">·</span>
+            {new Date(order.createdAt).toLocaleDateString('zh-HK', { year: 'numeric', month: 'short', day: 'numeric' })}
+          </p>
+          {order.buyerNote && (
+            <p className="text-xs text-muted-foreground mt-1 italic">備註：{order.buyerNote}</p>
+          )}
+          {order.cancelReason && (
+            <p className="text-xs text-red-500 mt-1">取消原因：{order.cancelReason}</p>
+          )}
+        </div>
+        <div className="text-right flex-shrink-0">
+          <p className="text-sm font-bold text-amber-700">{order.currency}${displayPrice.toLocaleString()}</p>
+        </div>
+      </div>
+      <div className="px-3 pb-3 flex items-center gap-2 flex-wrap">
+        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${statusCfg.color}`}>
+          {statusCfg.icon} {statusCfg.label}
+        </span>
+        {order.status === 'pending' && (
+          <button
+            onClick={() => { if (confirm('確定取消此訂單？')) { cancel.mutate({ orderId: order.id }); onCancel(); } }}
+            disabled={cancel.isPending}
+            className="text-xs px-2 py-0.5 rounded-full border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50"
+          >
+            {cancel.isPending ? '取消中...' : '✕ 取消訂單'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 type WonAuctionItemType = { id: number; title: string; currency: string; winningAmount: string; endTime: number; category?: string | null; bidCount: number; paymentStatus?: string | null; sellerName?: string | null; sellerWhatsapp?: string | null };
 
@@ -146,6 +225,7 @@ export default function BidHistory() {
   const { isAuthenticated, loading } = useAuth();
   const { data: myBids, isLoading } = trpc.auctions.myBids.useQuery(undefined, { enabled: isAuthenticated });
   const { data: wonAuctions, isLoading: wonLoading } = trpc.wonAuctions.myWon.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: myOrders, isLoading: ordersLoading } = trpc.productOrders.myBuyerOrders.useQuery(undefined, { enabled: isAuthenticated });
   const [expandedBidId, setExpandedBidId] = useState<number | null>(null);
   const [bidFilter, setBidFilter] = useState<'all' | 'active' | 'won'>('all');
 
@@ -365,7 +445,7 @@ export default function BidHistory() {
         </Card>
 
         {/* 我的得標記錄 */}
-        <Card className="border-amber-100">
+        <Card className="border-amber-100 mb-6">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <Trophy className="w-4 h-4 text-amber-500" />
@@ -392,6 +472,43 @@ export default function BidHistory() {
               <div className="space-y-3">
                 {(wonAuctions as WonAuctionItemType[]).map((item) => (
                   <WonAuctionItem key={item.id} item={item} />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 我的訂單 */}
+        <Card className="border-amber-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ShoppingBag className="w-4 h-4 text-amber-600" />
+              我的訂單
+              {myOrders && myOrders.length > 0 && (
+                <span className="ml-auto text-xs font-normal text-muted-foreground">{myOrders.length} 件</span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {ordersLoading ? (
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-16 bg-amber-50 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : !myOrders || myOrders.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <ShoppingBag className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p className="font-medium">尚未購買任何商品</p>
+                <p className="text-sm mt-1">前往商戶商店選購</p>
+                <Link href="/merchants">
+                  <Button className="mt-4 gold-gradient text-white border-0">瀏覽商戶</Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {(myOrders as ProductOrderItem[]).map((order) => (
+                  <ProductOrderCard key={order.id} order={order} onCancel={() => {}} />
                 ))}
               </div>
             )}
