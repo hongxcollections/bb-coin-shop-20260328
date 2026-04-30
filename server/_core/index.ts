@@ -497,6 +497,69 @@ async function startServer() {
 
   // Dev/Sandbox mock login (non-production only)
   registerDevLoginRoutes(app);
+
+  // ── UAT AI 診斷端點（非 production 限定）──────────────────────────────────
+  if (process.env.NODE_ENV !== "production") {
+    app.get("/api/diag-ai", async (_req, res) => {
+      const { ENV: e } = await import("./env");
+      const envReport = {
+        GEMINI_API_KEY: e.geminiApiKey ? `${e.geminiApiKey.length}chars` : "MISSING",
+        GEMINI_API_KEY_2: e.geminiApiKey2 ? `${e.geminiApiKey2.length}chars` : "MISSING",
+        OPENROUTER_API_KEY: e.openRouterApiKey ? `${e.openRouterApiKey.length}chars` : "MISSING",
+      };
+
+      // 最小合法 JPEG base64（1x1 灰色像素）
+      const testImageB64 =
+        "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8U" +
+        "HRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDB" +
+        "gNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjI" +
+        "yMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQ" +
+        "AQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAA" +
+        "AAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k=";
+
+      const results: Array<{ model: string; url: string; status: string; error?: string; snippet?: string }> = [];
+
+      const GG = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+      const OR = "https://openrouter.ai/api/v1/chat/completions";
+      const toTry: Array<{ url: string; key: string; model: string }> = [];
+      if (e.geminiApiKey)  toTry.push({ url: GG, key: e.geminiApiKey,  model: "gemini-2.0-flash" });
+      if (e.geminiApiKey2) toTry.push({ url: GG, key: e.geminiApiKey2, model: "gemini-2.0-flash" });
+      if (e.geminiApiKey)  toTry.push({ url: GG, key: e.geminiApiKey,  model: "gemini-2.5-flash" });
+      if (e.openRouterApiKey) toTry.push({ url: OR, key: e.openRouterApiKey, model: "google/gemini-2.0-flash-thinking-exp:free" });
+
+      for (const api of toTry) {
+        try {
+          const resp = await fetch(api.url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${api.key}` },
+            body: JSON.stringify({
+              model: api.model,
+              max_tokens: 50,
+              messages: [{
+                role: "user",
+                content: [
+                  { type: "image_url", image_url: { url: `data:image/jpeg;base64,${testImageB64}` } },
+                  { type: "text", text: "Reply: OK" },
+                ],
+              }],
+            }),
+          });
+          const json: any = await resp.json();
+          if (!resp.ok) {
+            results.push({ model: api.model, url: api.url, status: `HTTP ${resp.status}`, error: JSON.stringify(json).slice(0, 300) });
+          } else {
+            const text = json?.choices?.[0]?.message?.content ?? "(no content)";
+            results.push({ model: api.model, url: api.url, status: "OK", snippet: String(text).slice(0, 100) });
+          }
+        } catch (err: any) {
+          results.push({ model: api.model, url: api.url, status: "EXCEPTION", error: String(err?.message).slice(0, 200) });
+        }
+      }
+
+      res.json({ env: envReport, results });
+    });
+  }
+
   // Facebook Groups Watcher webhook
   registerWebhookRoutes(app);
   // AI 截圖分析端點：POST /api/auction-records/extract-screenshot
