@@ -4675,13 +4675,14 @@ export const appRouter = router({
           if (ENV.openAiApiKey) {
             list.push({ url: "https://api.openai.com/v1/chat/completions", key: ENV.openAiApiKey, model: "gpt-4o" });
           }
-          // ④ OpenRouter 免費備用視覺模型
+          // ④ OpenRouter 免費備用視覺模型（已在 2025-04 確認有效）
           if (ENV.openRouterApiKey) {
             list.push(
-              { url: OR, key: ENV.openRouterApiKey, model: "google/gemini-2.0-flash-exp:free" },   // Gemini 2.0 Flash Exp via OpenRouter
-              { url: OR, key: ENV.openRouterApiKey, model: "qwen/qwen2.5-vl-7b-instruct:free" },   // Qwen VL 視覺 7B
-              { url: OR, key: ENV.openRouterApiKey, model: "qwen/qwen2.5-vl-72b-instruct:free" },  // Qwen VL 視覺 72B
-              { url: OR, key: ENV.openRouterApiKey, model: "mistralai/pixtral-12b:free" },          // Mistral Pixtral
+              { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-4-31b-it:free" },                        // Gemma 4 31B（最新）
+              { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-3-27b-it:free" },                        // Gemma 3 27B
+              { url: OR, key: ENV.openRouterApiKey, model: "nvidia/nemotron-nano-12b-v2-vl:free" },               // NVIDIA 視覺語言
+              { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-3-12b-it:free" },                        // Gemma 3 12B
+              { url: OR, key: ENV.openRouterApiKey, model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free" }, // NVIDIA 推理
             );
           }
           if (list.length === 0) {
