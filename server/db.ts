@@ -1273,32 +1273,37 @@ export async function getMyWonAuctions(userId: number) {
   const db = await getDb();
   if (!db) return [];
   try {
-    const result = await db
-      .select({
-        id: auctions.id,
-        title: auctions.title,
-        description: auctions.description,
-        currentPrice: auctions.currentPrice,
-        startingPrice: auctions.startingPrice,
-        currency: auctions.currency,
-        endTime: auctions.endTime,
-        status: auctions.status,
-        category: auctions.category,
-        bidCount: sql<number>`(SELECT COUNT(*) FROM bids WHERE bids.auctionId = ${auctions.id})`,
-        winningAmount: sql<string>`(SELECT bidAmount FROM bids WHERE bids.auctionId = ${auctions.id} ORDER BY bidAmount DESC, createdAt ASC LIMIT 1)`,
-        paymentStatus: auctions.paymentStatus,
-        sellerName: sql<string | null>`(SELECT name FROM users WHERE id = ${auctions.createdBy})`,
-        sellerWhatsapp: sql<string | null>`(SELECT whatsapp FROM merchantApplications WHERE userId = ${auctions.createdBy} AND status = 'approved' LIMIT 1)`,
-      })
-      .from(auctions)
-      .where(
-        and(
-          eq(auctions.status, 'ended'),
-          sql`(SELECT userId FROM bids WHERE bids.auctionId = ${auctions.id} ORDER BY bidAmount DESC, createdAt ASC LIMIT 1) = ${userId}`
-        )
-      )
-      .orderBy(desc(auctions.endTime));
-    return result;
+    const result = await db.execute(sql`
+      SELECT
+        a.id,
+        a.title,
+        a.currency,
+        a.currentPrice AS winningAmount,
+        a.endTime,
+        a.category,
+        a.paymentStatus,
+        (SELECT COUNT(*) FROM bids b WHERE b.auctionId = a.id) AS bidCount,
+        (SELECT u.name FROM users u WHERE u.id = a.createdBy LIMIT 1) AS sellerName,
+        (SELECT ma.whatsapp FROM merchantApplications ma WHERE ma.userId = a.createdBy AND ma.status = 'approved' LIMIT 1) AS sellerWhatsapp
+      FROM auctions a
+      WHERE a.status = 'ended'
+        AND (SELECT b.userId FROM bids b WHERE b.auctionId = a.id ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1) = ${userId}
+      ORDER BY a.endTime DESC
+    `);
+    const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
+    const rows = Array.isArray(rawRows[0]) ? rawRows[0] : (rawRows as unknown as Array<Record<string, unknown>>);
+    return rows.map(r => ({
+      id: Number(r.id),
+      title: String(r.title ?? ''),
+      currency: String(r.currency ?? 'HKD'),
+      winningAmount: r.winningAmount != null ? String(r.winningAmount) : '0',
+      endTime: r.endTime,
+      category: r.category != null ? String(r.category) : null,
+      paymentStatus: r.paymentStatus != null ? String(r.paymentStatus) : null,
+      bidCount: Number(r.bidCount ?? 0),
+      sellerName: r.sellerName != null ? String(r.sellerName) : null,
+      sellerWhatsapp: r.sellerWhatsapp != null ? String(r.sellerWhatsapp) : null,
+    }));
   } catch (error) {
     console.error('[Database] Failed to get won auctions:', error);
     return [];
