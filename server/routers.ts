@@ -4675,13 +4675,13 @@ export const appRouter = router({
           if (ENV.openAiApiKey) {
             list.push({ url: "https://api.openai.com/v1/chat/completions", key: ENV.openAiApiKey, model: "gpt-4o" });
           }
-          // ④ OpenRouter 免費備用（已驗證支援視覺且名稱正確的模型）
+          // ④ OpenRouter 免費備用視覺模型
           if (ENV.openRouterApiKey) {
             list.push(
-              { url: OR, key: ENV.openRouterApiKey, model: "google/gemini-2.0-flash-thinking-exp:free" }, // Gemini 思考版 via OpenRouter
-              { url: OR, key: ENV.openRouterApiKey, model: "qwen/qwen2.5-vl-7b-instruct:free" },          // Qwen VL 視覺
-              { url: OR, key: ENV.openRouterApiKey, model: "qwen/qwen2.5-vl-72b-instruct:free" },         // Qwen VL 大版本
-              { url: OR, key: ENV.openRouterApiKey, model: "mistralai/pixtral-12b-2409:free" },            // Mistral Pixtral 正確版本號
+              { url: OR, key: ENV.openRouterApiKey, model: "google/gemini-2.0-flash-exp:free" },   // Gemini 2.0 Flash Exp via OpenRouter
+              { url: OR, key: ENV.openRouterApiKey, model: "qwen/qwen2.5-vl-7b-instruct:free" },   // Qwen VL 視覺 7B
+              { url: OR, key: ENV.openRouterApiKey, model: "qwen/qwen2.5-vl-72b-instruct:free" },  // Qwen VL 視覺 72B
+              { url: OR, key: ENV.openRouterApiKey, model: "mistralai/pixtral-12b:free" },          // Mistral Pixtral
             );
           }
           if (list.length === 0) {

@@ -525,7 +525,12 @@ async function startServer() {
       if (e.geminiApiKey)  toTry.push({ url: GG, key: e.geminiApiKey,  model: "gemini-2.0-flash" });
       if (e.geminiApiKey2) toTry.push({ url: GG, key: e.geminiApiKey2, model: "gemini-2.0-flash" });
       if (e.geminiApiKey)  toTry.push({ url: GG, key: e.geminiApiKey,  model: "gemini-2.5-flash" });
-      if (e.openRouterApiKey) toTry.push({ url: OR, key: e.openRouterApiKey, model: "google/gemini-2.0-flash-thinking-exp:free" });
+      if (e.openRouterApiKey) toTry.push(
+        { url: OR, key: e.openRouterApiKey, model: "google/gemini-2.0-flash-exp:free" },
+        { url: OR, key: e.openRouterApiKey, model: "qwen/qwen2.5-vl-7b-instruct:free" },
+        { url: OR, key: e.openRouterApiKey, model: "qwen/qwen2.5-vl-72b-instruct:free" },
+        { url: OR, key: e.openRouterApiKey, model: "mistralai/pixtral-12b:free" },
+      );
 
       for (const api of toTry) {
         try {
