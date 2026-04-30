@@ -4760,11 +4760,18 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
   "imageGenerationPrompt": "A detailed English art prompt: oil painting style, museum lighting, dramatic composition, historical context"
 }`;
 
-        const visionPayload = {
-          max_tokens: 1800,
-          temperature: 0.1,   // 低溫度 = 更精確一致
+        // ── 精簡版提示（非Gemini模型，token有限，去掉歷史背景和藝術提示）──
+        const compactPrompt = input.lang === "zh"
+          ? `你是錢幣/郵票鑑定專家。若圖片有PCGS/NGC鑑定盒，必須先讀取盒上所有文字（評級如MS64/VF30/Counterfeit、年份、面額、型號如LM-858、流水號）。只輸出純JSON物件：
+{"type":"錢幣/郵票/其他","name":"完整名稱（國家+系列+年份+面額）","country":"發行國","year":"年份","denomination":"面額","material":"材質","dimensions":"尺寸mm","weight":"重量g","condition":"品相或PCGS/NGC評級","certificationInfo":"鑑定機構及評級資料，無則填-","rarity":"稀有程度","estimatedValue":"估計市值HKD範圍"}`
+          : `You are a coin/stamp grading expert. If the image has a PCGS/NGC slab, read ALL visible text first (grade like MS64/Counterfeit, year, denomination, catalog# like LM-858, serial). Output ONLY raw JSON:
+{"type":"coin/stamp/other","name":"Full name (country+series+year+denomination)","country":"Issuer","year":"Year","denomination":"Face value","material":"Material","dimensions":"Size mm","weight":"Weight g","condition":"Grade or PCGS/NGC grade","certificationInfo":"Grading service details or -","rarity":"Rarity level","estimatedValue":"Estimated HKD range"}`;
+
+        const makePayload = (prompt: string, maxTok: number) => ({
+          max_tokens: maxTok,
+          temperature: 0.1,
           messages: [
-            { role: "system", content: systemPrompt },
+            { role: "system", content: prompt },
             {
               role: "user",
               content: [
@@ -4772,13 +4779,16 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
                 {
                   type: "text",
                   text: input.lang === "zh"
-                    ? "請根據以上指引詳細鑑定圖片。必須只輸出純 JSON 物件，不要有任何額外文字、markdown、解釋或代碼塊包裹。直接以 { 開始，以 } 結尾。"
-                    : "Analyze the image per the guidelines. Output ONLY a raw JSON object, no markdown, no code blocks, no explanation. Start with { and end with }."
+                    ? "請鑑定圖片。只輸出純JSON（{開頭}結尾），不要markdown或解釋。"
+                    : "Analyze the image. Output ONLY raw JSON (starting { ending }), no markdown or explanation."
                 },
               ],
             },
           ],
-        };
+        });
+
+        const visionPayload = makePayload(systemPrompt, 1800);
+        const compactPayload = makePayload(compactPrompt, 1200);
 
         const modelsToTry = getModelsToTry();
         const errors: string[] = [];
@@ -4915,18 +4925,20 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
           if (data) break;
           // 總預算耗盡就直接放棄剩餘模型
           if (remainingBudget() < 3000) { errors.push("總時間預算耗盡"); break; }
-          // 推理模型（Nemotron reasoning/omni）需要更多 tokens 和更長超時
+          // 判斷是否 Gemini 原生 API（用全版提示），其他模型用精簡提示避免 token 超限
+          const isGeminiModel = api.url.includes("generativelanguage.googleapis.com");
           const isReasoningModel = api.model.includes("reasoning") || api.model.includes("nemotron") || api.model.includes("omni");
           const baseTimeout = isReasoningModel ? REASONING_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
           const requestTimeout = Math.min(baseTimeout, remainingBudget() - 2000);
-          const maxTokens = isReasoningModel ? 8192 : 1800;
+          // Gemini 用完整提示+1800 tokens；其他用精簡提示+1200 tokens（避免 null content）
+          const selectedPayload = isGeminiModel ? visionPayload : compactPayload;
           const controller = new AbortController();
           const timer = setTimeout(() => controller.abort(), requestTimeout);
           try {
             const resp = await fetch(api.url, {
               method: "POST",
               headers: { "content-type": "application/json", authorization: `Bearer ${api.key}` },
-              body: JSON.stringify({ ...visionPayload, model: api.model, max_tokens: maxTokens }),
+              body: JSON.stringify({ ...selectedPayload, model: api.model }),
               signal: controller.signal,
             });
             clearTimeout(timer);
