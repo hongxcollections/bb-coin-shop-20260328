@@ -1126,7 +1126,7 @@ export default function Home() {
           <Link href="/coin-analysis">
             <span className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow transition-colors cursor-pointer select-none">
               <Sparkles className="w-3.5 h-3.5" />
-              AI 錢幣鑑定
+              AI 鑑定
             </span>
           </Link>
         </div>
