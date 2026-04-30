@@ -4675,12 +4675,12 @@ export const appRouter = router({
           if (ENV.openAiApiKey) {
             list.push({ url: "https://api.openai.com/v1/chat/completions", key: ENV.openAiApiKey, model: "gpt-4o" });
           }
-          // ④ OpenRouter 免費備用（Gemini quota 超限時自動接力）
+          // ④ OpenRouter 免費備用（只選有視覺理解能力的模型）
           if (ENV.openRouterApiKey) {
             list.push(
-              { url: OR, key: ENV.openRouterApiKey, model: "meta-llama/llama-4-maverick:free" },
-              { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-4-31b-it:free" },
-              { url: OR, key: ENV.openRouterApiKey, model: "google/gemma-3-27b-it:free" },
+              { url: OR, key: ENV.openRouterApiKey, model: "meta-llama/llama-3.2-11b-vision-instruct:free" },
+              { url: OR, key: ENV.openRouterApiKey, model: "meta-llama/llama-3.2-90b-vision-instruct:free" },
+              { url: OR, key: ENV.openRouterApiKey, model: "qwen/qwen2.5-vl-7b-instruct:free" },
             );
           }
           if (list.length === 0) {
@@ -4763,7 +4763,7 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         const REQUEST_TIMEOUT_MS = 30_000;
         let data: Record<string, string> | null = null;
 
-        // ── JSON 提取輔助（處理 markdown 代碼塊、純 JSON 等格式）
+        // ── JSON 提取輔助（平衡括弧算法，處理 markdown 代碼塊）
         const extractJson = (raw: unknown): Record<string, string> | null => {
           const content = typeof raw === "string"
             ? raw
@@ -4772,13 +4772,22 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
               : "";
           // 去除 markdown ```json ... ``` 或 ``` ... ```
           const stripped = content.replace(/```(?:json)?\s*/gi, "").replace(/```\s*/g, "");
-          const match = stripped.match(/\{[\s\S]*\}/);
-          if (!match) return null;
+          // 平衡括弧算法：找第一個完整 JSON 物件
+          const start = stripped.indexOf("{");
+          if (start === -1) return null;
+          let depth = 0;
+          let end = -1;
+          for (let i = start; i < stripped.length; i++) {
+            if (stripped[i] === "{") depth++;
+            else if (stripped[i] === "}") { depth--; if (depth === 0) { end = i; break; } }
+          }
+          if (end === -1) return null;
           try {
-            const parsed = JSON.parse(match[0]);
-            // 必須含有錢幣分析欄位才算有效
-            const hasData = parsed.name || parsed.Name || parsed.type || parsed.Type || parsed.country || parsed.Country;
-            return hasData ? parsed : null;
+            const parsed = JSON.parse(stripped.substring(start, end + 1));
+            // 必須含有錢幣/郵票分析欄位（至少 3 個已知欄位）才算有效
+            const knownFields = ["name","Name","type","Type","country","Country","year","Year","denomination","material","condition","rarity","estimatedValue"];
+            const matchCount = knownFields.filter(k => parsed[k] != null).length;
+            return matchCount >= 2 ? parsed : null;
           } catch { return null; }
         };
 
