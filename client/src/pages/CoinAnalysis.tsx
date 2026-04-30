@@ -144,40 +144,36 @@ async function generateShareCard(data: AnalysisData, imagePreview: string | null
   canvas.width = W; canvas.height = H;
   const c = canvas.getContext("2d")!;
 
-  // ── Gold gradient helper ──
-  const gold = (x0: number, x1: number) => {
-    const g = c.createLinearGradient(x0, 0, x1, 0);
-    g.addColorStop(0, "#b45309"); g.addColorStop(0.4, "#f59e0b");
-    g.addColorStop(0.6, "#fbbf24"); g.addColorStop(1, "#d97706");
-    return g;
-  };
-
-  // ── Full background: site dark brown ──
-  c.fillStyle = "#1c1917";
+  // ── Background: rich orange gradient ──
+  const bgGrad = c.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, "#c2410c");   // dark orange
+  bgGrad.addColorStop(0.5, "#ea580c"); // mid orange
+  bgGrad.addColorStop(1, "#f97316");   // bright orange
+  c.fillStyle = bgGrad;
   c.fillRect(0, 0, W, H);
 
-  // Subtle dot texture
-  c.fillStyle = "rgba(180,83,9,0.07)";
+  // Subtle light dot texture
+  c.fillStyle = "rgba(255,255,255,0.04)";
   for (let tx = 0; tx < W; tx += 20)
     for (let ty = 0; ty < H; ty += 20)
       c.fillRect(tx, ty, 1.2, 1.2);
 
-  // ── Left image panel ──
+  // ── Left image panel (darker orange) ──
   const panelGrad = c.createLinearGradient(0, 0, IMG_PANEL, 0);
-  panelGrad.addColorStop(0, "#292118"); panelGrad.addColorStop(1, "#1c1917");
+  panelGrad.addColorStop(0, "#7c2d12"); panelGrad.addColorStop(1, "#9a3412");
   c.fillStyle = panelGrad;
   c.fillRect(0, 0, IMG_PANEL, H);
 
-  // Amber glow behind image
+  // White glow behind image
   const glow = c.createRadialGradient(IMG_PANEL / 2, H / 2, 20, IMG_PANEL / 2, H / 2, 130);
-  glow.addColorStop(0, "rgba(245,158,11,0.18)"); glow.addColorStop(1, "transparent");
+  glow.addColorStop(0, "rgba(255,255,255,0.12)"); glow.addColorStop(1, "transparent");
   c.fillStyle = glow;
   c.fillRect(0, 0, IMG_PANEL, H);
 
-  // Vertical gold separator line
+  // Vertical white separator line
   const sepGrad = c.createLinearGradient(0, 0, 0, H);
-  sepGrad.addColorStop(0, "transparent"); sepGrad.addColorStop(0.3, "#f59e0b");
-  sepGrad.addColorStop(0.7, "#f59e0b"); sepGrad.addColorStop(1, "transparent");
+  sepGrad.addColorStop(0, "transparent"); sepGrad.addColorStop(0.3, "rgba(255,255,255,0.5)");
+  sepGrad.addColorStop(0.7, "rgba(255,255,255,0.5)"); sepGrad.addColorStop(1, "transparent");
   c.strokeStyle = sepGrad; c.lineWidth = 1.5;
   c.beginPath(); c.moveTo(IMG_PANEL, 0); c.lineTo(IMG_PANEL, H); c.stroke();
 
@@ -189,28 +185,46 @@ async function generateShareCard(data: AnalysisData, imagePreview: string | null
       const img = await new Promise<HTMLImageElement>((res, rej) => {
         const el = new Image(); el.onload = () => res(el); el.onerror = rej; el.src = imagePreview;
       });
-      c.shadowColor = "rgba(245,158,11,0.4)"; c.shadowBlur = 24;
+      c.shadowColor = "rgba(0,0,0,0.4)"; c.shadowBlur = 24;
       c.save();
       c.beginPath(); c.arc(ICX, ICY, IMG_R, 0, Math.PI * 2); c.clip();
       c.drawImage(img, ICX - IMG_R, ICY - IMG_R, IMG_R * 2, IMG_R * 2);
       c.restore();
       c.shadowColor = "transparent"; c.shadowBlur = 0;
-      // Gold ring
-      c.strokeStyle = gold(ICX - IMG_R, ICX + IMG_R); c.lineWidth = 3;
+      // White ring
+      c.strokeStyle = "rgba(255,255,255,0.85)"; c.lineWidth = 3;
       c.beginPath(); c.arc(ICX, ICY, IMG_R + 1, 0, Math.PI * 2); c.stroke();
       // Outer halo ring
-      c.strokeStyle = "rgba(245,158,11,0.25)"; c.lineWidth = 1;
+      c.strokeStyle = "rgba(255,255,255,0.25)"; c.lineWidth = 1;
       c.beginPath(); c.arc(ICX, ICY, IMG_R + 9, 0, Math.PI * 2); c.stroke();
     } catch { /* skip */ }
   } else {
     // placeholder circle
-    c.strokeStyle = "rgba(245,158,11,0.3)"; c.lineWidth = 2;
+    c.strokeStyle = "rgba(255,255,255,0.3)"; c.lineWidth = 2;
     c.beginPath(); c.arc(ICX, ICY, IMG_R, 0, Math.PI * 2); c.stroke();
   }
 
-  // ── Top gold bar ──
-  c.fillStyle = gold(0, W);
-  c.fillRect(0, 0, W, 5);
+  // ── Dark border with shadow effect ──
+  // Inner shadow gradient overlay on all edges
+  const edgeTop = c.createLinearGradient(0, 0, 0, 18);
+  edgeTop.addColorStop(0, "rgba(20,5,0,0.55)"); edgeTop.addColorStop(1, "transparent");
+  c.fillStyle = edgeTop; c.fillRect(0, 0, W, 18);
+
+  const edgeBot = c.createLinearGradient(0, H - 18, 0, H);
+  edgeBot.addColorStop(0, "transparent"); edgeBot.addColorStop(1, "rgba(20,5,0,0.55)");
+  c.fillStyle = edgeBot; c.fillRect(0, H - 18, W, 18);
+
+  const edgeLeft = c.createLinearGradient(0, 0, 18, 0);
+  edgeLeft.addColorStop(0, "rgba(20,5,0,0.55)"); edgeLeft.addColorStop(1, "transparent");
+  c.fillStyle = edgeLeft; c.fillRect(0, 0, 18, H);
+
+  const edgeRight = c.createLinearGradient(W - 18, 0, W, 0);
+  edgeRight.addColorStop(0, "transparent"); edgeRight.addColorStop(1, "rgba(20,5,0,0.55)");
+  c.fillStyle = edgeRight; c.fillRect(W - 18, 0, 18, H);
+
+  // Dark stroke border
+  c.strokeStyle = "rgba(20,5,0,0.75)"; c.lineWidth = 6;
+  c.strokeRect(3, 3, W - 6, H - 6);
 
   // ── Right content ──
   let y = 32;
@@ -219,24 +233,24 @@ async function generateShareCard(data: AnalysisData, imagePreview: string | null
   c.font = "11px sans-serif";
   const badge = "✦ AI 鑑定結果";
   const bw = c.measureText(badge).width + 20;
-  c.fillStyle = "rgba(245,158,11,0.15)";
-  c.strokeStyle = "rgba(245,158,11,0.5)"; c.lineWidth = 1;
+  c.fillStyle = "rgba(0,0,0,0.25)";
+  c.strokeStyle = "rgba(255,255,255,0.5)"; c.lineWidth = 1;
   c.beginPath(); c.rect(RX, y - 12, bw, 20); c.fill(); c.stroke();
-  c.fillStyle = "#fbbf24"; c.textAlign = "left";
+  c.fillStyle = "#ffffff"; c.textAlign = "left";
   c.fillText(badge, RX + 10, y);
   y += 26;
 
   // Coin name
   const coinName = getField(data, "name", "Name") || "未知";
   c.font = "bold 28px sans-serif";
-  c.fillStyle = "#fef3c7";
+  c.fillStyle = "#ffffff";
   const dispName = coinName.length > 22 ? coinName.slice(0, 21) + "…" : coinName;
   c.fillText(dispName, RX, y);
   y += 10;
 
   // Divider
   const divG = c.createLinearGradient(RX, 0, RX + RW, 0);
-  divG.addColorStop(0, "#f59e0b"); divG.addColorStop(1, "transparent");
+  divG.addColorStop(0, "rgba(255,255,255,0.7)"); divG.addColorStop(1, "transparent");
   c.fillStyle = divG; c.fillRect(RX, y, RW, 1);
   y += 16;
 
@@ -262,20 +276,20 @@ async function generateShareCard(data: AnalysisData, imagePreview: string | null
     const rowY = y + Math.floor(i / 2) * ROW_H;
     // Alternating row bg
     if (Math.floor(i / 2) % 2 === 0) {
-      c.fillStyle = "rgba(245,158,11,0.04)";
+      c.fillStyle = "rgba(0,0,0,0.08)";
       c.fillRect(RX - 4, rowY - 16, RW + 8, ROW_H);
     }
     // Left
-    c.fillStyle = "rgba(251,191,36,0.7)"; c.font = "11px sans-serif";
+    c.fillStyle = "rgba(255,255,255,0.65)"; c.font = "11px sans-serif";
     c.fillText(activeFields[i].label, RX, rowY);
-    c.fillStyle = "#fef3c7"; c.font = "bold 12px sans-serif";
+    c.fillStyle = "#ffffff"; c.font = "bold 12px sans-serif";
     const v1 = activeFields[i].val.length > 14 ? activeFields[i].val.slice(0, 13) + "…" : activeFields[i].val;
     c.fillText(v1, RX + LABEL_W, rowY);
     // Right
     if (i + 1 < activeFields.length) {
-      c.fillStyle = "rgba(251,191,36,0.7)"; c.font = "11px sans-serif";
+      c.fillStyle = "rgba(255,255,255,0.65)"; c.font = "11px sans-serif";
       c.fillText(activeFields[i + 1].label, col2X, rowY);
-      c.fillStyle = "#fef3c7"; c.font = "bold 12px sans-serif";
+      c.fillStyle = "#ffffff"; c.font = "bold 12px sans-serif";
       const v2 = activeFields[i + 1].val.length > 14 ? activeFields[i + 1].val.slice(0, 13) + "…" : activeFields[i + 1].val;
       c.fillText(v2, col2X + LABEL_W, rowY);
     }
@@ -286,20 +300,20 @@ async function generateShareCard(data: AnalysisData, imagePreview: string | null
   const hist = getField(data, "historicalBackground", "Historical Background");
   if (hist && y < H - 40) {
     // Thin separator
-    c.fillStyle = "rgba(245,158,11,0.15)"; c.fillRect(RX, y, RW, 1);
+    c.fillStyle = "rgba(255,255,255,0.2)"; c.fillRect(RX, y, RW, 1);
     y += 12;
-    c.fillStyle = "rgba(251,191,36,0.6)"; c.font = "11px sans-serif";
+    c.fillStyle = "rgba(255,255,255,0.65)"; c.font = "11px sans-serif";
     c.fillText("歷史背景", RX, y); y += 16;
-    c.fillStyle = "#d6d3d1"; c.font = "12px sans-serif";
+    c.fillStyle = "rgba(255,255,255,0.88)"; c.font = "12px sans-serif";
     y = wrapText(c, hist, RX, y, RW, 20);
   }
 
-  // ── Bottom bar ──
-  c.fillStyle = gold(0, W); c.fillRect(0, H - 5, W, 5);
+  // ── Bottom dark bar ──
+  c.fillStyle = "rgba(20,5,0,0.35)"; c.fillRect(0, H - 22, W, 22);
 
   // Disclaimer
-  c.fillStyle = "rgba(214,211,209,0.3)"; c.font = "10px sans-serif"; c.textAlign = "right";
-  c.fillText("AI 自動生成，僅供參考", W - R_PAD, H - 10);
+  c.fillStyle = "rgba(255,255,255,0.5)"; c.font = "10px sans-serif"; c.textAlign = "right";
+  c.fillText("AI 自動生成，僅供參考", W - R_PAD, H - 7);
 
   // ── Download ──
   const link = document.createElement("a");
