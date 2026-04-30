@@ -4658,31 +4658,32 @@ export const appRouter = router({
               : "https://forge.manus.im/v1/chat/completions";
             list.push({ url: base, key: ENV.forgeApiKey, model: "gemini-2.5-flash" });
           }
-          // ② OpenRouter Nemotron（已確認可用，排在 Gemini 前）
-          if (ENV.openRouterApiKey) {
-            list.push(
-              { url: OR, key: ENV.openRouterApiKey, model: "nvidia/nemotron-nano-12b-v2-vl:free" },               // NVIDIA VL（視覺模型，主力）
-              { url: OR, key: ENV.openRouterApiKey, model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free" }, // NVIDIA Omni（多模態）
-              { url: OR, key: ENV.openRouterApiKey, model: "baidu/qianfan-ocr-fast:free" },                        // 百度 OCR（錢幣文字識別準確）
-              { url: OR, key: ENV.openRouterApiKey, model: "openrouter/free" },                                    // OpenRouter 自動選最佳免費模型
-            );
-          }
-          // ③ Gemini 原生 API（配額有限，排後備用）
-          if (ENV.geminiApiKey) {
-            list.push({ url: GG, key: ENV.geminiApiKey, model: "gemini-2.0-flash" });
-          }
-          if (ENV.geminiApiKey2) {
-            list.push({ url: GG, key: ENV.geminiApiKey2, model: "gemini-2.0-flash" });
-          }
+          // ② Gemini 2.5-flash（診斷確認可用，排最前）
           if (ENV.geminiApiKey) {
             list.push({ url: GG, key: ENV.geminiApiKey, model: "gemini-2.5-flash" });
           }
           if (ENV.geminiApiKey2) {
             list.push({ url: GG, key: ENV.geminiApiKey2, model: "gemini-2.5-flash" });
           }
+          // ③ Gemini 2.0-flash 後備
+          if (ENV.geminiApiKey) {
+            list.push({ url: GG, key: ENV.geminiApiKey, model: "gemini-2.0-flash" });
+          }
+          if (ENV.geminiApiKey2) {
+            list.push({ url: GG, key: ENV.geminiApiKey2, model: "gemini-2.0-flash" });
+          }
           // ④ OpenAI
           if (ENV.openAiApiKey) {
             list.push({ url: "https://api.openai.com/v1/chat/completions", key: ENV.openAiApiKey, model: "gpt-4o" });
+          }
+          // ⑤ OpenRouter（Nemotron 排最後，因為常返回 null content）
+          if (ENV.openRouterApiKey) {
+            list.push(
+              { url: OR, key: ENV.openRouterApiKey, model: "baidu/qianfan-ocr-fast:free" },
+              { url: OR, key: ENV.openRouterApiKey, model: "nvidia/nemotron-nano-12b-v2-vl:free" },
+              { url: OR, key: ENV.openRouterApiKey, model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free" },
+              { url: OR, key: ENV.openRouterApiKey, model: "openrouter/free" },
+            );
           }
           if (list.length === 0) {
             throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "未設定 AI API，無法分析" });
@@ -4855,7 +4856,8 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         // ── Gemini + Google Search Grounding（最高精準度，接近 Google Lens）────
         // 使用 Gemini 原生 API + Google Search Tool，讓 AI 搜尋網絡補充資料
         const tryGeminiWithSearch = async (apiKey: string): Promise<Record<string, string> | null> => {
-          const nativeUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+          // 2.5-flash 支援 googleSearch + 視覺，2.0-flash 容易 429
+          const nativeUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
           const searchInstruction = input.lang === "zh"
             ? "\n\n請用 Google 搜尋確認此錢幣的正式名稱、歷史背景和市場行情，然後只輸出純JSON物件（以{開頭、以}結尾）。"
             : "\n\nUse Google Search to verify the coin's official name, history and market value. Output ONLY a raw JSON object (starting with { ending with }).";

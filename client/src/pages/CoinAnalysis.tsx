@@ -523,15 +523,36 @@ export default function CoinAnalysis() {
 
   const loadFile = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) { toast.error("請上傳圖片檔案"); return; }
-    if (file.size > 10 * 1024 * 1024) { toast.error("圖片不可超過 10MB"); return; }
+    if (file.size > 20 * 1024 * 1024) { toast.error("圖片不可超過 20MB"); return; }
     setImageFile(file);
     setAnalysisData(null);
     setRelatedAuctions([]);
+    // 壓縮：最大 1280px，JPEG 品質 0.82，大幅減少 payload 及加快 AI 處理速度
+    const compressAndLoad = (dataUrl: string, mime: string) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1280;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+          else { width = Math.round(width * MAX / height); height = MAX; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL("image/jpeg", 0.82);
+        setImagePreview(compressed);
+        setImageBase64(compressed.split(",")[1]);
+        setMimeType("image/jpeg");
+      };
+      img.src = dataUrl;
+    };
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target?.result as string;
+      compressAndLoad(dataUrl, file.type);
+      // 立即顯示原圖預覽（壓縮後會更新）
       setImagePreview(dataUrl);
-      setImageBase64(dataUrl.split(",")[1]);
       setMimeType(file.type);
     };
     reader.readAsDataURL(file);
