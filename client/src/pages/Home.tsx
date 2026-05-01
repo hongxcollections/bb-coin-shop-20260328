@@ -976,6 +976,8 @@ export default function Home() {
   const [randomIdx] = useState(() => Math.floor(Math.random() * 10000));
   // 商品落單彈窗
   const [buyingProduct, setBuyingProduct] = useState<any | null>(null);
+  // 商戶申請流程彈窗
+  const [showMerchantFlow, setShowMerchantFlow] = useState(false);
 
   // 落單按鈕：未登入直接跳登入頁，登入後返回商品詳情頁
   const handleBuy = (product: any) => {
@@ -1120,9 +1122,36 @@ export default function Home() {
       )}
       {/* Navigation */}
       <Header />
+      {/* 商戶申請流程彈窗 */}
+      {showMerchantFlow && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowMerchantFlow(false)}
+        >
+          <div className="relative max-w-[92vw] max-h-[88vh]" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setShowMerchantFlow(false)}
+              className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-white/90 text-gray-700 flex items-center justify-center shadow hover:bg-white transition text-sm font-bold z-10"
+              aria-label="關閉"
+            >✕</button>
+            <img
+              src="/merchant-apply-steps.png"
+              alt="商戶申請流程"
+              className="rounded-xl shadow-2xl max-w-full max-h-[88vh] object-contain"
+            />
+          </div>
+        </div>
+      )}
+
       {/* ── AI 鑑定快捷入口（三格上方右側）── */}
       <div className="container pt-2 pb-0">
-        <div className="max-w-md mx-auto flex justify-end">
+        <div className="max-w-md mx-auto flex justify-end gap-2">
+          <button
+            onClick={() => setShowMerchantFlow(true)}
+            className="inline-flex items-center gap-1.5 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow transition-colors cursor-pointer select-none"
+          >
+            📋 商戶申請流程
+          </button>
           <Link href="/coin-analysis">
             <span className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow transition-colors cursor-pointer select-none">
               <Sparkles className="w-3.5 h-3.5" />
@@ -1524,7 +1553,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-amber-950 text-amber-100/60 py-4 pb-24 border-t border-amber-900/50">
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
-          <p>© 2026 hongxcollections.com · 專業錢幣拍賣平台 · 誠信鑑定</p>
+          <p>© 2026 hongxcollections.com · 專業錢幣拍賣平台</p>
           <div className="flex gap-4 font-bold">
             <Link href="/" className="hover:text-amber-400 transition-colors">首頁</Link>
             <a href="#" className="hover:text-amber-400 transition-colors">服務條款</a>
