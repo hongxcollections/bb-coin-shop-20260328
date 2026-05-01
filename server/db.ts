@@ -522,6 +522,10 @@ export async function getAuctionsByCreator(userId: number) {
         createdAt: auctions.createdAt,
         updatedAt: auctions.updatedAt,
         relistSourceId: auctions.relistSourceId,
+        category: auctions.category,
+        antiSnipeEnabled: auctions.antiSnipeEnabled,
+        antiSnipeMinutes: auctions.antiSnipeMinutes,
+        extendMinutes: auctions.extendMinutes,
         bidCount: sql<number>`(SELECT COUNT(*) FROM bids WHERE bids.auctionId = ${auctions.id})`,
       })
       .from(auctions)
