@@ -1,9 +1,12 @@
 import { useParams, Link } from "wouter";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import Header from "@/components/Header";
-import { Store, MessageCircle, Package, Gavel, ChevronLeft, Clock, Tag, Share2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Store, MessageCircle, Package, Gavel, ChevronLeft, Tag, Share2 } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/utils";
+import { getCurrencySymbol } from "./AdminAuctions";
 
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
 
@@ -236,15 +239,31 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
 }
 
 function AuctionCountdown({ endTime }: { endTime: string | Date }) {
-  const end = new Date(endTime);
-  const now = new Date();
-  const diff = end.getTime() - now.getTime();
-  if (diff <= 0) return <span className="text-red-500 text-[10px]">已結束</span>;
-  const h = Math.floor(diff / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  if (h >= 24) return <span className="text-gray-500 text-[10px]">{Math.floor(h / 24)}天後</span>;
-  if (h >= 1) return <span className="text-amber-600 text-[10px]">{h}時{m}分</span>;
-  return <span className="text-red-500 text-[10px] font-semibold">{m}分鐘</span>;
+  const [timeLeft, setTimeLeft] = useState("");
+  const [status, setStatus] = useState<"active" | "ending" | "ended">("active");
+
+  useEffect(() => {
+    function update() {
+      const now = new Date();
+      const diff = new Date(endTime).getTime() - now.getTime();
+      if (diff <= 0) { setTimeLeft("已結束"); setStatus("ended"); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setStatus(h < 1 ? "ending" : "active");
+      setTimeLeft(h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
+    }
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [endTime]);
+
+  const cls = status === "ended"
+    ? "countdown-badge countdown-ended"
+    : status === "ending"
+    ? "countdown-badge countdown-ending"
+    : "countdown-badge countdown-active";
+  return <span className={cls}>{timeLeft}</span>;
 }
 
 export default function MerchantStore() {
@@ -425,37 +444,45 @@ export default function MerchantStore() {
             ) : (auctionItems as any[]).length === 0 ? (
               <p className="text-center text-gray-400 text-sm py-8">暫無拍賣中商品</p>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
-                {(auctionItems as any[]).map((a: any) => (
-                  <Link key={a.id} href={`/auctions/${a.id}`}>
-                    <div className="bg-white rounded-xl border border-purple-100 shadow-sm overflow-hidden flex flex-col hover:border-purple-400 hover:shadow-md transition-all cursor-pointer">
-                      {a.coverImage ? (
-                        <div className="aspect-square w-full overflow-hidden bg-purple-50">
-                          <img src={a.coverImage} alt={a.title} className="w-full h-full object-cover" />
+              <div className="space-y-2">
+                {(auctionItems as any[]).map((a: any) => {
+                  const isEnded = new Date(a.endTime).getTime() <= Date.now();
+                  const currency = a.currency ?? "HKD";
+                  return (
+                    <Link key={a.id} href={`/auctions/${a.id}`}>
+                      <div className="auction-list-item flex gap-3 p-3 bg-white border border-amber-100 rounded-lg hover:border-amber-300 hover:bg-amber-50/50 cursor-pointer transition-all">
+                        {/* 左：封面圖 */}
+                        <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
+                          {a.coverImage ? (
+                            <img src={a.coverImage} alt={a.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-3xl">🪙</span>
+                          )}
                         </div>
-                      ) : (
-                        <div className="aspect-square w-full bg-purple-50 flex items-center justify-center">
-                          <Gavel className="w-8 h-8 text-purple-200" />
-                        </div>
-                      )}
-                      <div className="p-2 flex flex-col gap-0.5 flex-1">
-                        <h3 className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">{a.title}</h3>
-                        {a.category && (
-                          <span className="text-[10px] text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-full self-start">{a.category}</span>
-                        )}
-                        <div className="mt-auto pt-1.5 flex items-center justify-between gap-1">
-                          <span className="text-[10px] font-semibold text-purple-700">
-                            HK${parseFloat(a.currentPrice ?? a.startingPrice ?? "0").toLocaleString()}
-                          </span>
-                          <span className="flex items-center gap-0.5 text-[10px] text-gray-400">
-                            <Clock className="w-2.5 h-2.5" />
-                            <AuctionCountdown endTime={a.endTime} />
-                          </span>
+                        {/* 右：內容 */}
+                        <div className="flex-1 flex flex-col justify-between min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="font-semibold text-sm line-clamp-1 text-amber-900">{a.title}</h3>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <Badge className={`text-[9px] px-1.5 py-0.5 ${!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
+                                {!isEnded ? "競拍中" : "已結束"}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="mt-1">
+                            <div className="text-xs text-muted-foreground">目前出價</div>
+                            <div className="text-sm font-bold text-amber-600">
+                              {getCurrencySymbol(currency)}{Number(a.currentPrice ?? a.startingPrice ?? 0).toLocaleString()}
+                            </div>
+                            <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                              {!isEnded && <AuctionCountdown endTime={a.endTime} />}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </div>
