@@ -1202,25 +1202,27 @@ export default function Home() {
                 >✕</button>
               </div>
             </div>
-            {/* 圖片捲動區域（支援 pinch-to-zoom） */}
+            {/* 圖片捲動區域（支援 pinch-to-zoom，兼容所有瀏覽器） */}
             <div
               ref={merchantFlowScrollRef}
               className="overflow-auto rounded-b-xl bg-black/30"
               style={{ maxHeight: "calc(92vh - 44px)", touchAction: "pan-x pan-y" }}
             >
-              <img
-                src="/merchant-apply-steps.png"
-                alt="商戶申請流程"
-                style={{
-                  display: "block",
-                  zoom: merchantFlowZoom,
-                  width: "100%",
-                  height: "auto",
-                  userSelect: "none",
-                  WebkitUserSelect: "none",
-                } as React.CSSProperties}
-                draggable={false}
-              />
+              {/* wrapper div 的 width 跟隨 zoom，讓 overflow 產生捲軸 */}
+              <div style={{ width: `${merchantFlowZoom * 100}%`, minWidth: "100%" }}>
+                <img
+                  src="/merchant-apply-steps.png"
+                  alt="商戶申請流程"
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    height: "auto",
+                    userSelect: "none",
+                    WebkitUserSelect: "none",
+                  }}
+                  draggable={false}
+                />
+              </div>
             </div>
           </div>
         </div>
