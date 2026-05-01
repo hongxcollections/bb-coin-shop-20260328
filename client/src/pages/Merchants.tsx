@@ -486,8 +486,10 @@ export default function Merchants() {
 
         {/* 標題 */}
         <div className="flex items-center gap-2 mb-4">
-          <Store className="w-5 h-5 text-amber-500" />
-          <h1 className="text-lg font-bold text-gray-800">商戶市集</h1>
+          <div className="flex items-center gap-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg">
+            <Store className="w-5 h-5 text-white" />
+            <h1 className="text-lg font-bold">商戶市集</h1>
+          </div>
           {selectedMerchant && (
             <button
               onClick={() => setSelectedMerchantId(null)}
