@@ -1555,6 +1555,10 @@ async function ensureDepositTables() {
     try { await db.execute(sql`ALTER TABLE proxyBids ADD UNIQUE KEY uniq_proxy_auction_user (auctionId, userId)`); } catch {}
     // auctions.category: 從 ENUM 改為 VARCHAR(500)，以支援可設定的商品分類
     try { await db.execute(sql`ALTER TABLE auctions MODIFY COLUMN category VARCHAR(500)`); } catch {}
+    // auctions.category: 清除舊 ENUM 值（古幣/紀念幣/外幣/銀幣/金幣/其他），改為 null，商戶重新選取
+    try {
+      await db.execute(sql`UPDATE auctions SET category = NULL WHERE category IN ('古幣','紀念幣','外幣','銀幣','金幣','其他')`);
+    } catch {}
     // Web Push 訂閱表
     try {
       await db.execute(sql`
