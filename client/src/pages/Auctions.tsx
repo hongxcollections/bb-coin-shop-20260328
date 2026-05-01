@@ -304,7 +304,7 @@ export default function Auctions() {
                 className={filter === f ? "gold-gradient text-white border-0" : "border-amber-200 text-amber-700 hover:bg-amber-50"}
                 onClick={() => { setFilter(f as typeof filter); setPage(0); }}
               >
-                {f === "active" ? "競拍中" : "我曾出價"}
+                {f === "active" ? "競拍中" : "我的出價"}
               </Button>
             ))}
           </div>
