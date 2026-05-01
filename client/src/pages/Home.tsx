@@ -978,6 +978,7 @@ export default function Home() {
   const [buyingProduct, setBuyingProduct] = useState<any | null>(null);
   // 商戶申請流程彈窗
   const [showMerchantFlow, setShowMerchantFlow] = useState(false);
+  const [merchantFlowZoom, setMerchantFlowZoom] = useState(1);
 
   // 落單按鈕：未登入直接跳登入頁，登入後返回商品詳情頁
   const handleBuy = (product: any) => {
@@ -1126,19 +1127,55 @@ export default function Home() {
       {showMerchantFlow && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={() => setShowMerchantFlow(false)}
+          onClick={() => { setShowMerchantFlow(false); setMerchantFlowZoom(1); }}
         >
-          <div className="relative max-w-[92vw] max-h-[88vh]" onClick={e => e.stopPropagation()}>
-            <button
-              onClick={() => setShowMerchantFlow(false)}
-              className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-white/90 text-gray-700 flex items-center justify-center shadow hover:bg-white transition text-sm font-bold z-10"
-              aria-label="關閉"
-            >✕</button>
-            <img
-              src="/merchant-apply-steps.png"
-              alt="商戶申請流程"
-              className="rounded-xl shadow-2xl max-w-full max-h-[88vh] object-contain"
-            />
+          <div className="relative flex flex-col" style={{ maxWidth: "96vw", maxHeight: "92vh" }} onClick={e => e.stopPropagation()}>
+            {/* 頂部工具列 */}
+            <div className="flex items-center justify-between bg-black/60 backdrop-blur-sm rounded-t-xl px-3 py-1.5 gap-3">
+              <span className="text-white text-xs font-semibold">商戶申請流程</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setMerchantFlowZoom(z => Math.max(z - 0.25, 0.5))}
+                  className="w-7 h-7 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/40 transition text-base leading-none font-bold"
+                  aria-label="縮小"
+                >−</button>
+                <span className="text-white text-xs min-w-[3rem] text-center">{Math.round(merchantFlowZoom * 100)}%</span>
+                <button
+                  onClick={() => setMerchantFlowZoom(z => Math.min(z + 0.25, 4))}
+                  className="w-7 h-7 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/40 transition text-base leading-none font-bold"
+                  aria-label="放大"
+                >+</button>
+                <button
+                  onClick={() => setMerchantFlowZoom(1)}
+                  className="text-white/70 text-xs hover:text-white transition px-1"
+                  aria-label="重置"
+                >重置</button>
+                <button
+                  onClick={() => { setShowMerchantFlow(false); setMerchantFlowZoom(1); }}
+                  className="w-7 h-7 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/40 transition text-sm font-bold ml-1"
+                  aria-label="關閉"
+                >✕</button>
+              </div>
+            </div>
+            {/* 圖片捲動區域 */}
+            <div
+              className="overflow-auto rounded-b-xl bg-black/30"
+              style={{ maxHeight: "calc(92vh - 44px)", touchAction: "pan-x pan-y pinch-zoom" }}
+            >
+              <img
+                src="/merchant-apply-steps.png"
+                alt="商戶申請流程"
+                style={{
+                  display: "block",
+                  width: `${merchantFlowZoom * 100}%`,
+                  minWidth: merchantFlowZoom <= 1 ? "auto" : "unset",
+                  maxWidth: merchantFlowZoom <= 1 ? "100%" : "unset",
+                  height: "auto",
+                  transition: "width 0.2s",
+                }}
+                draggable={false}
+              />
+            </div>
           </div>
         </div>
       )}
