@@ -4138,6 +4138,19 @@ export async function cancelProductOrder(orderId: number, byUserId: number, isAd
   return { ok: true };
 }
 
+export async function deleteBuyerOrder(orderId: number, buyerId: number): Promise<{ ok: boolean; error?: string }> {
+  await ensureProductOrdersTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const rows = await db.execute(sql`SELECT id, buyerId, status FROM productOrders WHERE id = ${orderId} LIMIT 1`);
+  const order = ((rows[0] as any[])[0]) as any;
+  if (!order) return { ok: false, error: '找不到此訂單' };
+  if (order.buyerId !== buyerId) return { ok: false, error: '無權操作' };
+  if (order.status === 'pending') return { ok: false, error: '待確認的訂單無法刪除，請先取消' };
+  await db.execute(sql`DELETE FROM productOrders WHERE id = ${orderId} AND buyerId = ${buyerId}`);
+  return { ok: true };
+}
+
 // ── 主打商品付費刊登 (featuredListings) ────────────────────────────────────
 
 // 各時段預設收費（HKD）— 程式碼預設值，可被 siteSettings 覆蓋

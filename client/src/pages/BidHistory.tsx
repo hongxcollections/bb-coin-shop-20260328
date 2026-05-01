@@ -47,6 +47,10 @@ function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCanc
     onSuccess: () => { utils.productOrders.myBuyerOrders.invalidate(); toast.success('訂單已取消'); },
     onError: (e) => toast.error(e.message),
   });
+  const deleteOrder = trpc.productOrders.deleteBuyerOrder.useMutation({
+    onSuccess: () => { utils.productOrders.myBuyerOrders.invalidate(); toast.success('訂單紀錄已永久刪除'); },
+    onError: (e) => toast.error(e.message),
+  });
 
   const statusCfg = ORDER_STATUS_CONFIG[order.status] ?? { label: order.status, color: 'bg-gray-100 text-gray-500 border-gray-200', icon: '?' };
   const unitPrice = parseFloat(order.price);
@@ -89,6 +93,19 @@ function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCanc
             className="text-xs px-2 py-0.5 rounded-full border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50"
           >
             {cancel.isPending ? '取消中...' : '✕ 取消訂單'}
+          </button>
+        )}
+        {(order.status === 'confirmed' || order.status === 'cancelled') && (
+          <button
+            onClick={() => {
+              if (confirm('確定永久刪除此訂單紀錄？此操作不可還原。')) {
+                deleteOrder.mutate({ orderId: order.id });
+              }
+            }}
+            disabled={deleteOrder.isPending}
+            className="text-xs px-2 py-0.5 rounded-full border border-gray-300 bg-gray-50 text-gray-500 hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-colors disabled:opacity-50 ml-auto"
+          >
+            {deleteOrder.isPending ? '刪除中...' : '🗑 刪除紀錄'}
           </button>
         )}
       </div>
