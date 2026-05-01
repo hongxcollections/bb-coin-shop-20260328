@@ -182,16 +182,16 @@ function ImageUploadZone({
       {totalImages > 0 && (
         <div className="grid grid-cols-4 gap-2">
           {uploadedImages.map((img, i) => (
-            <div key={`up-${i}`} className="relative aspect-square rounded-md overflow-hidden border bg-muted group">
+            <div key={`up-${i}`} className="relative aspect-square rounded-md overflow-hidden border bg-muted">
               <img src={img.url} alt="" className="w-full h-full object-cover" />
               <button onClick={() => onRemoveUploaded(i)}
-                className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5">
                 <X className="w-3 h-3 text-white" />
               </button>
             </div>
           ))}
           {pendingImages.map((p, i) => (
-            <div key={p.id} className="relative aspect-square rounded-md overflow-hidden border bg-muted group">
+            <div key={p.id} className="relative aspect-square rounded-md overflow-hidden border bg-muted">
               <img src={p.previewUrl} alt="" className="w-full h-full object-cover" />
               {(p.status === "compressing" || p.status === "uploading") && (
                 <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-1">
@@ -203,23 +203,17 @@ function ImageUploadZone({
                 <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-1">
                   <AlertCircle className="w-5 h-5 text-red-400" />
                   <span className="text-white text-[10px]">上載失敗</span>
-                  <button onClick={() => onRemovePending(i)}
-                    className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5">
-                    <X className="w-3 h-3 text-white" />
-                  </button>
                 </div>
               )}
               {p.status === "success" && (
-                <>
-                  <div className="absolute top-0.5 left-0.5 bg-green-500/80 rounded-full p-0.5">
-                    <CheckCircle2 className="w-3 h-3 text-white" />
-                  </div>
-                  <button onClick={() => onRemovePending(i)}
-                    className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <X className="w-3 h-3 text-white" />
-                  </button>
-                </>
+                <div className="absolute top-0.5 left-0.5 bg-green-500/80 rounded-full p-0.5">
+                  <CheckCircle2 className="w-3 h-3 text-white" />
+                </div>
               )}
+              <button onClick={() => onRemovePending(i)}
+                className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5">
+                <X className="w-3 h-3 text-white" />
+              </button>
             </div>
           ))}
         </div>
