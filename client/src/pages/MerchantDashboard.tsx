@@ -8,7 +8,7 @@ import {
   AlertCircle, ArrowUpRight, ArrowDownLeft, ShoppingBag, Settings,
   RotateCcw, Layers, CreditCard, PlusCircle, Send, ChevronDown, Loader2,
   Upload, X, ImageIcon, Printer, Search, HelpCircle, Package,
-  LayoutList, LayoutGrid, Grid3X3, Maximize2,
+  LayoutList, LayoutGrid, Grid3X3, Maximize2, Link2, Copy,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -383,6 +383,38 @@ export default function MerchantDashboard() {
             <p className="text-xs text-amber-500 mt-0.5">📱 {myApp.whatsapp}</p>
           </div>
         </div>
+
+        {/* 我的商店連結 */}
+        {myApp?.userId && (
+          <div className="rounded-2xl bg-white border border-blue-100 p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <Link2 className="w-4 h-4 text-blue-500" />
+              <span className="text-sm font-semibold text-gray-700">我的商店連結</span>
+            </div>
+            <p className="text-xs text-gray-400">分享此連結給客戶，讓他們直接進入你的商店瀏覽商品及拍賣。</p>
+            <div className="flex items-center gap-2 bg-blue-50 rounded-xl px-3 py-2 border border-blue-100">
+              <span className="text-xs text-blue-700 flex-1 truncate font-mono">
+                hongxcollections.com/merchants/{myApp.userId}
+              </span>
+              <button
+                onClick={() => {
+                  const url = `https://hongxcollections.com/merchants/${myApp.userId}`;
+                  if (navigator.clipboard?.writeText) {
+                    navigator.clipboard.writeText(url).then(() => toast.success("商店連結已複製！"));
+                  } else {
+                    const ta = document.createElement("textarea");
+                    ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0";
+                    document.body.appendChild(ta); ta.select(); document.execCommand("copy");
+                    document.body.removeChild(ta); toast.success("商店連結已複製！");
+                  }
+                }}
+                className="flex items-center gap-1 text-xs font-semibold text-blue-600 bg-white hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition-colors shrink-0"
+              >
+                <Copy className="w-3 h-3" />複製
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Stats row */}
         <div className="grid grid-cols-2 gap-3">

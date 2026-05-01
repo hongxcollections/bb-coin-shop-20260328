@@ -2,7 +2,7 @@ import { useParams, Link } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import Header from "@/components/Header";
-import { Store, MessageCircle, Package, Gavel, ChevronLeft, Clock, Tag } from "lucide-react";
+import { Store, MessageCircle, Package, Gavel, ChevronLeft, Clock, Tag, Share2 } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/utils";
 
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
@@ -299,10 +299,28 @@ export default function MerchantStore() {
       <Header />
 
       <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
-        {/* 返回 */}
-        <Link href="/merchants" className="flex items-center gap-1 text-sm text-gray-500 hover:text-amber-600 transition-colors">
-          <ChevronLeft className="w-4 h-4" />返回商戶市集
-        </Link>
+        {/* 返回 + 分享 */}
+        <div className="flex items-center justify-between">
+          <Link href="/merchants" className="flex items-center gap-1 text-sm text-gray-500 hover:text-amber-600 transition-colors">
+            <ChevronLeft className="w-4 h-4" />返回商戶市集
+          </Link>
+          <button
+            onClick={() => {
+              const url = `https://hongxcollections.com/merchants/${userId}`;
+              if (navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(url).then(() => toast.success("商店連結已複製！"));
+              } else {
+                const ta = document.createElement("textarea");
+                ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0";
+                document.body.appendChild(ta); ta.select(); document.execCommand("copy");
+                document.body.removeChild(ta); toast.success("商店連結已複製！");
+              }
+            }}
+            className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-full transition-colors"
+          >
+            <Share2 className="w-3.5 h-3.5" />分享此商店
+          </button>
+        </div>
 
         {/* 商戶資料卡 */}
         {loadingMerchant ? (
