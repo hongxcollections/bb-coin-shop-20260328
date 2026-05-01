@@ -5,7 +5,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, TrendingUp, Trophy, ChevronDown, ChevronUp, ShoppingBag } from "lucide-react";
+import { Clock, TrendingUp, Trophy, ChevronDown, ChevronUp, ShoppingBag, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ShareMenu } from "@/components/ShareMenu";
 import { MemberBadge } from "@/components/MemberBadge";
@@ -57,58 +57,68 @@ function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCanc
   const finalPrice = order.finalPrice ? parseFloat(order.finalPrice) : null;
   const displayPrice = finalPrice ?? unitPrice * order.quantity;
 
+  const canDelete = order.status === 'confirmed' || order.status === 'cancelled';
+
   return (
-    <div className="rounded-lg border border-amber-100 bg-amber-50/40 overflow-hidden">
+    <div className="rounded-lg border border-amber-100 bg-white overflow-hidden">
       <div className="p-3 flex items-start gap-3">
-        <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <ShoppingBag className="w-4 h-4 text-amber-600" />
+        <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <ShoppingBag className="w-3.5 h-3.5 text-amber-600" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{order.title}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {order.merchantName ?? `商戶 #${order.merchantId}`}
-            {order.quantity > 1 && <span className="ml-1.5">× {order.quantity}</span>}
-            <span className="mx-1.5">·</span>
-            {new Date(order.createdAt).toLocaleDateString('zh-HK', { year: 'numeric', month: 'short', day: 'numeric' })}
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-medium truncate leading-snug">{order.title}</p>
+            <p className="text-sm font-bold text-amber-700 flex-shrink-0">{order.currency}${displayPrice.toLocaleString()}</p>
+          </div>
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            <span className={`inline-flex items-center gap-0.5 text-[0.65rem] px-1.5 py-0.5 rounded-full border font-medium ${statusCfg.color}`}>
+              {statusCfg.icon} {statusCfg.label}
+            </span>
+            <span className="text-[0.65rem] text-muted-foreground">
+              {order.merchantName ?? `商戶 #${order.merchantId}`}
+              {order.quantity > 1 && ` × ${order.quantity}`}
+            </span>
+            <span className="text-[0.65rem] text-muted-foreground">
+              {new Date(order.createdAt).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric' })}
+            </span>
+          </div>
           {order.buyerNote && (
             <p className="text-xs text-muted-foreground mt-1 italic">備註：{order.buyerNote}</p>
           )}
           {order.cancelReason && (
-            <p className="text-xs text-red-500 mt-1">取消原因：{order.cancelReason}</p>
+            <p className="text-xs text-red-400 mt-1">取消原因：{order.cancelReason}</p>
           )}
         </div>
-        <div className="text-right flex-shrink-0">
-          <p className="text-sm font-bold text-amber-700">{order.currency}${displayPrice.toLocaleString()}</p>
+      </div>
+
+      {/* 底部操作列 */}
+      {(order.status === 'pending' || canDelete) && (
+        <div className="px-3 pb-2.5 flex items-center justify-end gap-2 border-t border-amber-50">
+          {order.status === 'pending' && (
+            <button
+              onClick={() => { if (confirm('確定取消此訂單？')) { cancel.mutate({ orderId: order.id }); onCancel(); } }}
+              disabled={cancel.isPending}
+              className="mt-2 text-xs px-3 py-1 rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50"
+            >
+              {cancel.isPending ? '取消中…' : '取消訂單'}
+            </button>
+          )}
+          {canDelete && (
+            <button
+              onClick={() => {
+                if (confirm('確定永久刪除此訂單紀錄？此操作不可還原。')) {
+                  deleteOrder.mutate({ orderId: order.id });
+                }
+              }}
+              disabled={deleteOrder.isPending}
+              className="mt-2 flex items-center gap-1 text-xs px-3 py-1 rounded-md border border-gray-200 bg-gray-50 text-gray-400 hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="w-3 h-3" />
+              {deleteOrder.isPending ? '刪除中…' : '刪除紀錄'}
+            </button>
+          )}
         </div>
-      </div>
-      <div className="px-3 pb-3 flex items-center gap-2 flex-wrap">
-        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${statusCfg.color}`}>
-          {statusCfg.icon} {statusCfg.label}
-        </span>
-        {order.status === 'pending' && (
-          <button
-            onClick={() => { if (confirm('確定取消此訂單？')) { cancel.mutate({ orderId: order.id }); onCancel(); } }}
-            disabled={cancel.isPending}
-            className="text-xs px-2 py-0.5 rounded-full border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50"
-          >
-            {cancel.isPending ? '取消中...' : '✕ 取消訂單'}
-          </button>
-        )}
-        {(order.status === 'confirmed' || order.status === 'cancelled') && (
-          <button
-            onClick={() => {
-              if (confirm('確定永久刪除此訂單紀錄？此操作不可還原。')) {
-                deleteOrder.mutate({ orderId: order.id });
-              }
-            }}
-            disabled={deleteOrder.isPending}
-            className="text-xs px-2 py-0.5 rounded-full border border-gray-300 bg-gray-50 text-gray-500 hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-colors disabled:opacity-50 ml-auto"
-          >
-            {deleteOrder.isPending ? '刪除中...' : '🗑 刪除紀錄'}
-          </button>
-        )}
-      </div>
+      )}
     </div>
   );
 }
