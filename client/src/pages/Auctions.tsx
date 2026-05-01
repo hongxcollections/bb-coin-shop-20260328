@@ -164,9 +164,11 @@ export default function Auctions() {
       <Header />
       <div className="container py-3">
         {/* Header */}
-        <div className="mb-2 flex items-baseline gap-2">
-          <h1 className="text-xl font-bold">所有拍賣</h1>
-          <p className="text-sm text-muted-foreground">(共 {filtered.length} 件拍品)</p>
+        <div className="mb-2 flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg">
+            <h1 className="text-xl font-bold">所有拍賣</h1>
+            <p className="text-sm opacity-90">(共 {filtered.length} 件拍品)</p>
+          </div>
         </div>
 
         {/* Category Selector - Using Dropdown Menu to save space */}
