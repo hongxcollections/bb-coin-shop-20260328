@@ -443,15 +443,6 @@ function AnalysisResult({ data, t, lang, imagePreview, relatedAuctions, loadingR
           <div className="flex items-center gap-2">
             <Info className="w-4 h-4 text-amber-600" />
             <span className="font-bold text-amber-800 text-sm">{t.resultTitle}</span>
-            {modelUsed && (
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                modelUsed === "Gemini+Search"
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-gray-100 text-gray-500"
-              }`}>
-                {modelUsed === "Gemini+Search" ? "🔍 Gemini+Search" : `🤖 ${modelUsed.split("/").pop()}`}
-              </span>
-            )}
           </div>
           <button
             onClick={handleShareCard}
@@ -713,6 +704,15 @@ export default function CoinAnalysis() {
                   <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/40 text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm pointer-events-none">
                     {imageFile?.name}
                   </div>
+                  {modelUsed && (
+                    <div className={`absolute bottom-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full pointer-events-none ${
+                      modelUsed === "Gemini+Search"
+                        ? "bg-blue-600/80 text-white backdrop-blur-sm"
+                        : "bg-black/50 text-white backdrop-blur-sm"
+                    }`}>
+                      {modelUsed === "Gemini+Search" ? "🔍 Gemini+Search" : `🤖 ${modelUsed.split("/").pop()}`}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 gap-3">
