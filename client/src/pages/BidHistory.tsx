@@ -229,6 +229,7 @@ export default function BidHistory() {
   const [expandedBidId, setExpandedBidId] = useState<number | null>(null);
   const [bidFilter, setBidFilter] = useState<'all' | 'active' | 'won'>('all');
   const [activeTab, setActiveTab] = useState<'bids' | 'won' | 'orders'>('bids');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<'pending' | 'confirmed' | 'cancelled'>('pending');
 
   if (loading) {
     return (
@@ -506,43 +507,84 @@ export default function BidHistory() {
         )}
 
         {/* 我的訂單 Tab */}
-        {activeTab === 'orders' && (
-          <Card className="border-amber-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <ShoppingBag className="w-4 h-4 text-amber-600" />
-                我的訂單
-                {myOrders && myOrders.length > 0 && (
-                  <span className="ml-auto text-xs font-normal text-muted-foreground">{myOrders.length} 件</span>
+        {activeTab === 'orders' && (() => {
+          const allOrders = (myOrders ?? []) as ProductOrderItem[];
+          const pendingCount   = allOrders.filter(o => o.status === 'pending').length;
+          const confirmedCount = allOrders.filter(o => o.status === 'confirmed').length;
+          const cancelledCount = allOrders.filter(o => o.status === 'cancelled').length;
+          const filteredOrders = allOrders.filter(o => o.status === orderStatusFilter).slice(0, 10);
+          const orderStatusTabs = [
+            { key: 'pending'   as const, label: '待確認', count: pendingCount,   color: 'bg-yellow-500' },
+            { key: 'confirmed' as const, label: '已確認', count: confirmedCount, color: 'bg-green-500'  },
+            { key: 'cancelled' as const, label: '已取消', count: cancelledCount, color: 'bg-gray-400'   },
+          ];
+          return (
+            <Card className="border-amber-100">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <ShoppingBag className="w-4 h-4 text-amber-600" />
+                  我的訂單
+                  {allOrders.length > 0 && (
+                    <span className="ml-auto text-xs font-normal text-muted-foreground">{allOrders.length} 件</span>
+                  )}
+                </CardTitle>
+                {allOrders.length > 0 && (
+                  <div className="flex gap-1.5 mt-2">
+                    {orderStatusTabs.map(t => (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => setOrderStatusFilter(t.key)}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                          orderStatusFilter === t.key
+                            ? `${t.color} text-white`
+                            : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
+                        }`}
+                      >
+                        {t.label}
+                        <span className={`text-[0.6rem] px-1 py-0.5 rounded-full font-bold ${
+                          orderStatusFilter === t.key ? 'bg-white/30 text-white' : 'bg-amber-100 text-amber-600'
+                        }`}>{t.count}</span>
+                      </button>
+                    ))}
+                  </div>
                 )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {ordersLoading ? (
-                <div className="space-y-3">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-16 bg-amber-50 rounded-lg animate-pulse" />
-                  ))}
-                </div>
-              ) : !myOrders || myOrders.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <ShoppingBag className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">尚未購買任何商品</p>
-                  <p className="text-sm mt-1">前往商戶商店選購</p>
-                  <Link href="/merchants">
-                    <Button className="mt-4 gold-gradient text-white border-0">瀏覽商戶</Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {(myOrders as ProductOrderItem[]).map((order) => (
-                    <ProductOrderCard key={order.id} order={order} onCancel={() => {}} />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+              </CardHeader>
+              <CardContent>
+                {ordersLoading ? (
+                  <div className="space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="h-16 bg-amber-50 rounded-lg animate-pulse" />
+                    ))}
+                  </div>
+                ) : allOrders.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <ShoppingBag className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                    <p className="font-medium">尚未購買任何商品</p>
+                    <p className="text-sm mt-1">前往商戶商店選購</p>
+                    <Link href="/merchants">
+                      <Button className="mt-4 gold-gradient text-white border-0">瀏覽商戶</Button>
+                    </Link>
+                  </div>
+                ) : filteredOrders.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <ShoppingBag className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">沒有{orderStatusTabs.find(t => t.key === orderStatusFilter)?.label}的訂單</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredOrders.map((order) => (
+                      <ProductOrderCard key={order.id} order={order} onCancel={() => {}} />
+                    ))}
+                    {allOrders.filter(o => o.status === orderStatusFilter).length > 10 && (
+                      <p className="text-center text-xs text-muted-foreground pt-1">只顯示最新 10 筆</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
       </div>
     </div>
   );
