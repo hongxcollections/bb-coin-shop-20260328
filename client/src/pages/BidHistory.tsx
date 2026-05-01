@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -10,6 +10,79 @@ import { toast } from "sonner";
 import { ShareMenu } from "@/components/ShareMenu";
 import { MemberBadge } from "@/components/MemberBadge";
 import Header from "@/components/Header";
+
+function ConfirmDeleteDialog({
+  open,
+  title,
+  onConfirm,
+  onCancel,
+  loading,
+}: {
+  open: boolean;
+  title: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  loading?: boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [open, onCancel]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center px-4 pb-6 sm:pb-0">
+      {/* 背景遮罩 */}
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+        onClick={onCancel}
+      />
+      {/* 對話框 */}
+      <div
+        ref={ref}
+        className="relative w-full max-w-sm rounded-2xl bg-white shadow-2xl p-5 animate-in slide-in-from-bottom-4 duration-200"
+      >
+        {/* 圖示 */}
+        <div className="flex items-center justify-center w-11 h-11 rounded-full bg-red-50 mx-auto mb-3">
+          <Trash2 className="w-5 h-5 text-red-500" />
+        </div>
+        <h3 className="text-center text-base font-semibold text-gray-800 mb-1">刪除訂單紀錄</h3>
+        <p className="text-center text-sm text-muted-foreground mb-1 leading-relaxed">
+          確定要永久刪除
+        </p>
+        <p className="text-center text-sm font-medium text-gray-700 mb-4 px-2 truncate">「{title}」</p>
+        <p className="text-center text-xs text-red-400 mb-5">此操作不可還原</p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
+          >
+            {loading ? (
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Trash2 className="w-3.5 h-3.5" />
+            )}
+            {loading ? '刪除中…' : '確認刪除'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const PAYMENT_STATUS_CONFIG = {
   pending_payment: { label: '待付款', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: '⏳' },
@@ -43,13 +116,14 @@ type ProductOrderItem = {
 
 function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCancel: () => void }) {
   const utils = trpc.useUtils();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const cancel = trpc.productOrders.cancel.useMutation({
     onSuccess: () => { utils.productOrders.myBuyerOrders.invalidate(); toast.success('訂單已取消'); },
     onError: (e) => toast.error(e.message),
   });
   const deleteOrder = trpc.productOrders.deleteBuyerOrder.useMutation({
-    onSuccess: () => { utils.productOrders.myBuyerOrders.invalidate(); toast.success('訂單紀錄已永久刪除'); },
-    onError: (e) => toast.error(e.message),
+    onSuccess: () => { utils.productOrders.myBuyerOrders.invalidate(); toast.success('訂單紀錄已永久刪除'); setShowDeleteConfirm(false); },
+    onError: (e) => { toast.error(e.message); setShowDeleteConfirm(false); },
   });
 
   const statusCfg = ORDER_STATUS_CONFIG[order.status] ?? { label: order.status, color: 'bg-gray-100 text-gray-500 border-gray-200', icon: '?' };
@@ -105,20 +179,24 @@ function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCanc
           )}
           {canDelete && (
             <button
-              onClick={() => {
-                if (confirm('確定永久刪除此訂單紀錄？此操作不可還原。')) {
-                  deleteOrder.mutate({ orderId: order.id });
-                }
-              }}
+              onClick={() => setShowDeleteConfirm(true)}
               disabled={deleteOrder.isPending}
               className="mt-2 flex items-center gap-1 text-xs px-3 py-1 rounded-md border border-gray-200 bg-gray-50 text-gray-400 hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-colors disabled:opacity-50"
             >
               <Trash2 className="w-3 h-3" />
-              {deleteOrder.isPending ? '刪除中…' : '刪除紀錄'}
+              刪除紀錄
             </button>
           )}
         </div>
       )}
+
+      <ConfirmDeleteDialog
+        open={showDeleteConfirm}
+        title={order.title}
+        loading={deleteOrder.isPending}
+        onConfirm={() => deleteOrder.mutate({ orderId: order.id })}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }
