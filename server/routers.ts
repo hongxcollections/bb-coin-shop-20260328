@@ -3120,7 +3120,7 @@ export const appRouter = router({
             category: auctions.category,
             bidIncrement: auctions.bidIncrement,
             createdBy: auctions.createdBy,
-            coverImage: drizzleSql<string | null>`(SELECT imageUrl FROM auctionImages WHERE auctionId = ${auctions.id} ORDER BY displayOrder LIMIT 1)`,
+            coverImage: drizzleSql<string | null>`(SELECT imageUrl FROM ${auctionImages} WHERE auctionId = ${auctions.id} ORDER BY displayOrder LIMIT 1)`,
           }).from(auctions)
             .where(drizzleAnd(
               eq(auctions.createdBy, input.userId),
