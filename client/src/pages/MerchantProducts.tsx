@@ -12,11 +12,15 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   ChevronLeft, Plus, Package, Pencil, Trash2, Eye, EyeOff,
   ImageIcon, X, Loader2, LayoutList, LayoutGrid, Grid3X3, Maximize2,
   ShoppingBag, CheckCircle2, XCircle, Clock, Flame, RotateCcw, Tag,
+  Facebook, Copy, Check,
 } from "lucide-react";
 import { parseCategories } from "@/lib/categories";
 
@@ -525,6 +529,9 @@ export default function MerchantProducts() {
     return (localStorage.getItem("mp_layout") as LayoutMode) ?? "list";
   });
   const [productTab, setProductTab] = useState<"all" | "active" | "hidden" | "sold">("all");
+  const [productBatchShareOpen, setProductBatchShareOpen] = useState(false);
+  const [productCopiedIds, setProductCopiedIds] = useState<Set<number>>(new Set());
+  const [productCopiedAll, setProductCopiedAll] = useState(false);
 
   const { data: products = [], isLoading } = trpc.merchants.myProducts.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -533,6 +540,7 @@ export default function MerchantProducts() {
   const displayProducts = productTab === "all"
     ? (products as any[])
     : (products as any[]).filter((p: any) => p.status === productTab);
+  const activeProducts = (products as any[]).filter((p: any) => p.status === "active");
 
   const { data: quotaInfo, isLoading: quotaLoading } = trpc.merchants.getQuotaInfo.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -929,6 +937,20 @@ export default function MerchantProducts() {
                 }`}>{count}</span>
               </button>
             ))}
+          </div>
+        )}
+
+        {/* 已上架批量分享按鈕 */}
+        {!isLoading && productTab === "active" && activeProducts.length > 0 && (
+          <div className="flex items-center gap-2 px-1 py-0.5">
+            <Button
+              size="sm"
+              className="h-7 px-2.5 text-xs gap-1.5 bg-[#1877F2] hover:bg-[#1560c8] text-white border-0"
+              onClick={() => setProductBatchShareOpen(true)}
+            >
+              <Facebook className="w-3 h-3" />
+              批量分享（{activeProducts.length}）
+            </Button>
           </div>
         )}
 
@@ -1485,6 +1507,106 @@ export default function MerchantProducts() {
           </div>
         </div>
       )}
+
+      {/* ── 批量分享 Facebook Dialog ── */}
+      <Dialog open={productBatchShareOpen} onOpenChange={(v) => { if (!v) { setProductBatchShareOpen(false); setProductCopiedIds(new Set()); setProductCopiedAll(false); } }}>
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[#1877F2]">
+              <Facebook className="w-5 h-5" />
+              批量分享商品
+            </DialogTitle>
+          </DialogHeader>
+          <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700 space-y-0.5 -mt-1">
+            <p>• <b>分享</b>：彈出系統分享選單，可選擇 Facebook 群組、WhatsApp 等</p>
+            <p>• <b>複製文字</b>：複製格式化文字＋連結，手動貼入任何平台</p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className={`h-7 text-xs gap-1.5 border-dashed ${productCopiedAll ? "border-green-400 text-green-600" : "border-amber-400 text-amber-700 hover:bg-amber-50"}`}
+            onClick={async () => {
+              const allText = activeProducts.map((p: any) => {
+                const price = parseFloat(p.price ?? "0");
+                const currency = p.currency ?? "HKD";
+                const productUrl = `${window.location.origin}/merchant-products/${p.id}`;
+                return `${p.title}\n出售價格：${currency} $${price.toLocaleString()}\n${productUrl}`;
+              }).join("\n\n---\n\n");
+              await navigator.clipboard.writeText(allText);
+              setProductCopiedAll(true);
+              toast.success("已複製全部商品文字！貼入 Facebook 群組即可");
+              setTimeout(() => setProductCopiedAll(false), 3000);
+            }}
+          >
+            {productCopiedAll ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+            {productCopiedAll ? "已複製全部！" : `一鍵複製全部（${activeProducts.length}）件商品文字`}
+          </Button>
+          <div className="overflow-y-auto flex-1 space-y-2 pr-1">
+            {activeProducts.map((p: any) => {
+              const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
+              const price = parseFloat(p.price ?? "0");
+              const currency = p.currency ?? "HKD";
+              const productUrl = `${window.location.origin}/merchant-products/${p.id}`;
+              const shareText = `${p.title}\n出售價格：${currency} $${price.toLocaleString()}`;
+              const isCopied = productCopiedIds.has(p.id);
+              return (
+                <div key={p.id} className="rounded-lg border border-amber-100 bg-amber-50/40 overflow-hidden">
+                  <div className="flex items-center gap-2.5 p-2.5">
+                    <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                      {imgs[0]
+                        ? <img src={imgs[0]} alt="" className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground/40" /></div>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{p.title}</p>
+                      <p className="text-xs text-muted-foreground">{currency} ${price.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5 px-2.5 pb-2.5">
+                    <Button
+                      size="sm"
+                      className="flex-1 h-7 text-xs gap-1 bg-[#1877F2] hover:bg-[#1560c8] text-white border-0"
+                      onClick={async () => {
+                        if (navigator.share) {
+                          try {
+                            await navigator.clipboard.writeText(shareText).catch(() => {});
+                            await navigator.share({ title: p.title, text: shareText, url: productUrl });
+                          } catch (err: unknown) {
+                            if (err instanceof Error && err.name !== "AbortError") {
+                              window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productUrl)}`, "_blank", "noopener,noreferrer");
+                            }
+                          }
+                        } else {
+                          window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productUrl)}`, "_blank", "noopener,noreferrer");
+                          try { await navigator.clipboard.writeText(shareText); } catch {}
+                          toast.success("商品文字已複製！在 Facebook 貼文框長按「貼上」即可", { duration: 5000 });
+                        }
+                      }}
+                    >
+                      <Facebook className="w-3 h-3" />
+                      分享
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className={`flex-1 h-7 text-xs gap-1 ${isCopied ? "border-green-400 text-green-600 bg-green-50" : "border-amber-300 text-amber-700 hover:bg-amber-50"}`}
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(`${shareText}\n${productUrl}`);
+                        setProductCopiedIds(prev => new Set([...prev, p.id]));
+                        toast.success("已複製！貼入群組帖子即可");
+                        setTimeout(() => setProductCopiedIds(prev => { const n = new Set(prev); n.delete(p.id); return n; }), 3000);
+                      }}
+                    >
+                      {isCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                      {isCopied ? "已複製！" : "複製文字"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
