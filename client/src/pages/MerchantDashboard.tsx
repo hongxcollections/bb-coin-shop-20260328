@@ -314,6 +314,10 @@ export default function MerchantDashboard() {
     onSuccess: () => { utils.merchants.getSettings.invalidate(); toast.success("市集版面已更新"); },
     onError: (e) => toast.error(e.message),
   });
+  const setPageSizes = trpc.merchants.setPageSizes.useMutation({
+    onSuccess: () => { utils.merchants.getSettings.invalidate(); utils.merchants.listApprovedMerchants.invalidate(); toast.success("每頁顯示數量已儲存"); },
+    onError: (e) => toast.error(e.message),
+  });
   const { data: mySubscription } = trpc.subscriptions.mySubscription.useQuery(undefined, {
     enabled: isAuthenticated && myApp?.status === "approved",
   });
@@ -586,6 +590,48 @@ export default function MerchantDashboard() {
                         </button>
                       );
                     })}
+                  </div>
+                  {/* 每頁顯示數量 */}
+                  <div className="border-t border-gray-100 pt-3 mt-1 space-y-2">
+                    <p className="text-[11px] text-gray-400">商戶商店每頁顯示條數</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {([
+                        { key: "auctionsPerPage", label: "拍賣每頁", color: "purple" },
+                        { key: "productsPerPage", label: "商品每頁", color: "amber" },
+                      ] as const).map(({ key, label, color }) => {
+                        const currentVal = (merchantSettings as any)?.[key] ?? 10;
+                        return (
+                          <div key={key} className="flex flex-col gap-1">
+                            <span className={`text-[11px] font-semibold text-${color}-700`}>{label}</span>
+                            <div className="flex items-center gap-1.5">
+                              {[5, 10, 15, 20].map(n => (
+                                <button
+                                  key={n}
+                                  onClick={() => {
+                                    const other = key === "auctionsPerPage"
+                                      ? ((merchantSettings as any)?.productsPerPage ?? 10)
+                                      : ((merchantSettings as any)?.auctionsPerPage ?? 10);
+                                    setPageSizes.mutate(key === "auctionsPerPage"
+                                      ? { auctionsPerPage: n, productsPerPage: other }
+                                      : { auctionsPerPage: other, productsPerPage: n });
+                                  }}
+                                  disabled={setPageSizes.isPending}
+                                  className={`flex-1 py-1.5 rounded-lg border text-xs font-bold transition-all ${
+                                    currentVal === n
+                                      ? color === "purple"
+                                        ? "border-purple-500 bg-purple-50 text-purple-700"
+                                        : "border-amber-500 bg-amber-50 text-amber-700"
+                                      : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                                  }`}
+                                >
+                                  {n}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               );

@@ -308,10 +308,23 @@ export default function MerchantStore() {
     : "";
 
   const { data: allMerchants = [] } = trpc.merchants.listApprovedMerchants.useQuery();
-  const merchantLayout = (allMerchants as any[]).find((m: any) => m.userId === userId)?.listingLayout as LayoutMode ?? "grid2";
+  const merchantInfo = (allMerchants as any[]).find((m: any) => m.userId === userId);
+  const merchantLayout = merchantInfo?.listingLayout as LayoutMode ?? "grid2";
+  const auctionsPerPage = merchantInfo?.auctionsPerPage ?? 10;
+  const productsPerPage = merchantInfo?.productsPerPage ?? 10;
+
+  const [auctionPage, setAuctionPage] = useState(0);
+  const [productPage, setProductPage] = useState(0);
 
   const activeProducts = (products as any[]).filter((p: any) => p.status === "active" && p.stock > 0);
   const soldProducts = (products as any[]).filter((p: any) => p.status === "sold");
+
+  const allAuctions = auctionItems as any[];
+  const totalAuctionPages = Math.ceil(allAuctions.length / auctionsPerPage);
+  const paginatedAuctions = allAuctions.slice(auctionPage * auctionsPerPage, (auctionPage + 1) * auctionsPerPage);
+
+  const totalProductPages = Math.ceil(activeProducts.length / productsPerPage);
+  const paginatedActiveProducts = activeProducts.slice(productPage * productsPerPage, (productPage + 1) * productsPerPage);
   const categories = merchant?.categories ? merchant.categories.split(",").map((c: string) => c.trim()).filter(Boolean) : [];
 
   if (!userId || error) {
@@ -455,11 +468,11 @@ export default function MerchantStore() {
           <div className="p-3">
             {loadingAuctions ? (
               <div className="text-center py-10 text-2xl animate-spin">🔨</div>
-            ) : (auctionItems as any[]).length === 0 ? (
+            ) : allAuctions.length === 0 ? (
               <p className="text-center text-gray-400 text-sm py-8">暫無拍賣中商品</p>
             ) : (
               <div className="space-y-2">
-                {(auctionItems as any[]).map((a: any) => {
+                {paginatedAuctions.map((a: any) => {
                   const isEnded = new Date(a.endTime).getTime() <= Date.now();
                   const currency = a.currency ?? "HKD";
                   return (
@@ -523,6 +536,26 @@ export default function MerchantStore() {
               </div>
             )}
           </div>
+          {/* 拍賣分頁控制 */}
+          {totalAuctionPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-2 border-t border-purple-100 bg-purple-50/60">
+              <button
+                onClick={() => setAuctionPage(p => Math.max(0, p - 1))}
+                disabled={auctionPage === 0}
+                className="flex items-center gap-1 text-xs font-semibold text-purple-700 disabled:opacity-30 hover:text-purple-900 transition-colors"
+              >
+                ‹ 上頁
+              </button>
+              <span className="text-xs text-purple-600">{auctionPage + 1} / {totalAuctionPages}</span>
+              <button
+                onClick={() => setAuctionPage(p => Math.min(totalAuctionPages - 1, p + 1))}
+                disabled={auctionPage >= totalAuctionPages - 1}
+                className="flex items-center gap-1 text-xs font-semibold text-purple-700 disabled:opacity-30 hover:text-purple-900 transition-colors"
+              >
+                下頁 ›
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ── 出售商品 ── */}
@@ -545,7 +578,7 @@ export default function MerchantStore() {
             ) : (
               <>
                 <ProductsList
-                  products={activeProducts}
+                  products={paginatedActiveProducts}
                   layout={merchantLayout}
                   whatsapp={merchant?.whatsapp ?? ""}
                   messengerLink={messengerLink}
@@ -568,6 +601,26 @@ export default function MerchantStore() {
               </>
             )}
           </div>
+          {/* 商品分頁控制 */}
+          {totalProductPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-2 border-t border-amber-100 bg-amber-50/60">
+              <button
+                onClick={() => setProductPage(p => Math.max(0, p - 1))}
+                disabled={productPage === 0}
+                className="flex items-center gap-1 text-xs font-semibold text-amber-700 disabled:opacity-30 hover:text-amber-900 transition-colors"
+              >
+                ‹ 上頁
+              </button>
+              <span className="text-xs text-amber-600">{productPage + 1} / {totalProductPages}</span>
+              <button
+                onClick={() => setProductPage(p => Math.min(totalProductPages - 1, p + 1))}
+                disabled={productPage >= totalProductPages - 1}
+                className="flex items-center gap-1 text-xs font-semibold text-amber-700 disabled:opacity-30 hover:text-amber-900 transition-colors"
+              >
+                下頁 ›
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -3013,6 +3013,23 @@ async function ensureMerchantSettingsTable() {
         await db.execute(sql.raw(`ALTER TABLE merchant_settings ADD COLUMN ${colName} ${colDef}`));
       }
     }
+    // Add auctionsPerPage / productsPerPage columns if missing
+    for (const [colName, colDef] of [
+      ['auctionsPerPage', 'INT NOT NULL DEFAULT 10'],
+      ['productsPerPage', 'INT NOT NULL DEFAULT 10'],
+    ] as [string, string][]) {
+      const chk = await db.execute(sql`
+        SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'merchant_settings'
+          AND COLUMN_NAME = ${colName}
+      `);
+      const chkRows = chk as unknown as [Array<Record<string, unknown>>, unknown];
+      const chkRow = Array.isArray(chkRows[0]) ? chkRows[0][0] : (chkRows as unknown as Array<Record<string, unknown>>)[0];
+      if (chkRow && Number(chkRow.cnt) === 0) {
+        await db.execute(sql.raw(`ALTER TABLE merchant_settings ADD COLUMN ${colName} ${colDef}`));
+      }
+    }
     // Add watermark columns if missing
     for (const [colName, colDef] of [
       ['watermarkEnabled', 'INT NOT NULL DEFAULT 1'],
@@ -3058,13 +3075,15 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   watermarkPosition: 'center-diagonal',
   watermarkSize: 12,
   fbShareTemplate: null as string | null,
+  auctionsPerPage: 10,
+  productsPerPage: 10,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, auctionsPerPage, productsPerPage FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -3091,6 +3110,8 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         watermarkPosition: String(row.watermarkPosition ?? 'center-diagonal'),
         watermarkSize: Number(row.watermarkSize ?? 12),
         fbShareTemplate: row.fbShareTemplate != null ? String(row.fbShareTemplate) : null,
+        auctionsPerPage: Number(row.auctionsPerPage ?? 10),
+        productsPerPage: Number(row.productsPerPage ?? 10),
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -3098,6 +3119,17 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
     console.error('[Database] getMerchantSettings error:', error);
     return { ...MERCHANT_SETTINGS_DEFAULTS };
   }
+}
+
+export async function setMerchantPageSizes(userId: number, auctionsPerPage: number, productsPerPage: number): Promise<void> {
+  await ensureMerchantSettingsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  await db.execute(sql`
+    INSERT INTO merchant_settings (userId, auctionsPerPage, productsPerPage)
+    VALUES (${userId}, ${auctionsPerPage}, ${productsPerPage})
+    ON DUPLICATE KEY UPDATE auctionsPerPage = ${auctionsPerPage}, productsPerPage = ${productsPerPage}, updatedAt = CURRENT_TIMESTAMP
+  `);
 }
 
 export async function upsertWatermarkSettings(userId: number, enabled: number, text: string | null, opacity: number, shadow: number, position: string, size: number): Promise<void> {
@@ -3770,19 +3802,23 @@ export async function listApprovedMerchants(): Promise<Array<{
   }).from(merchantApplications).where(eq(merchantApplications.status, 'approved'))
     .orderBy(asc(merchantApplications.merchantName));
 
-  // Step 2: try to fetch listingLayout per merchant separately (safe try/catch)
+  // Step 2: try to fetch listingLayout + pageSizes per merchant separately (safe try/catch)
   const layoutMap: Record<number, string> = {};
+  const auctionsPerPageMap: Record<number, number> = {};
+  const productsPerPageMap: Record<number, number> = {};
   try {
     await ensureMerchantSettingsTable();
-    const lResult = await db.execute(sql`SELECT userId, listingLayout FROM merchant_settings`);
+    const lResult = await db.execute(sql`SELECT userId, listingLayout, auctionsPerPage, productsPerPage FROM merchant_settings`);
     const lRaw = lResult as unknown as [Array<Record<string, unknown>>, unknown];
     const lRows: Array<Record<string, unknown>> = Array.isArray(lRaw[0])
       ? (lRaw[0] as Array<Record<string, unknown>>)
       : (lRaw as unknown as Array<Record<string, unknown>>);
     if (Array.isArray(lRows)) {
       for (const r of lRows) {
-        if (r.userId != null && r.listingLayout) {
-          layoutMap[Number(r.userId)] = String(r.listingLayout);
+        if (r.userId != null) {
+          if (r.listingLayout) layoutMap[Number(r.userId)] = String(r.listingLayout);
+          auctionsPerPageMap[Number(r.userId)] = Number(r.auctionsPerPage ?? 10);
+          productsPerPageMap[Number(r.userId)] = Number(r.productsPerPage ?? 10);
         }
       }
     }
@@ -3861,6 +3897,8 @@ export async function listApprovedMerchants(): Promise<Array<{
     facebook: r.facebook ? String(r.facebook) : null,
     categories: r.categories ? String(r.categories) : null,
     listingLayout: layoutMap[Number(r.userId)] ?? 'grid2',
+    auctionsPerPage: auctionsPerPageMap[Number(r.userId)] ?? 10,
+    productsPerPage: productsPerPageMap[Number(r.userId)] ?? 10,
   }));
 
   // Sort: 1) requiredDeposit DESC, 2) monthlyPrice DESC, 3) auctionCount DESC, 4) productCount DESC

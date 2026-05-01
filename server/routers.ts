@@ -4,7 +4,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure, adminProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner, saveCoinAnalysisHistory, getUserCoinAnalysisHistory, deleteCoinAnalysisHistory, searchRelatedAuctions } from "./db";
+import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner, saveCoinAnalysisHistory, getUserCoinAnalysisHistory, deleteCoinAnalysisHistory, searchRelatedAuctions, setMerchantPageSizes } from "./db";
 import type { AdTargetType } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids } from "../drizzle/schema";
@@ -2918,6 +2918,17 @@ export const appRouter = router({
       .input(z.object({ layout: z.enum(["list", "grid2", "grid3", "big"]) }))
       .mutation(async ({ input, ctx }) => {
         await setMerchantListingLayout(ctx.user.id, input.layout);
+        return { success: true };
+      }),
+
+    /** 設定商戶商店每頁顯示數量 */
+    setPageSizes: protectedProcedure
+      .input(z.object({
+        auctionsPerPage: z.number().int().min(1).max(50),
+        productsPerPage: z.number().int().min(1).max(50),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await setMerchantPageSizes(ctx.user.id, input.auctionsPerPage, input.productsPerPage);
         return { success: true };
       }),
 
