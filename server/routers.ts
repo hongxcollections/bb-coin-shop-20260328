@@ -3122,7 +3122,11 @@ export const appRouter = router({
             createdBy: auctions.createdBy,
             coverImage: drizzleSql<string | null>`(SELECT imageUrl FROM auction_images WHERE auctionId = ${auctions.id} ORDER BY displayOrder LIMIT 1)`,
           }).from(auctions)
-            .where(drizzleAnd(eq(auctions.createdBy, input.userId), eq(auctions.status, 'active'), eq(auctions.archived, 0)))
+            .where(drizzleAnd(
+              eq(auctions.createdBy, input.userId),
+              eq(auctions.status, 'active'),
+              drizzleSql`(${auctions.archived} = 0 OR ${auctions.archived} IS NULL)`,
+            ))
             .orderBy(auctions.endTime);
           return rows;
         } catch (err) {
