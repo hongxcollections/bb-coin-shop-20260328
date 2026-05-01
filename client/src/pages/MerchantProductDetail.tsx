@@ -535,21 +535,28 @@ export default function MerchantProductDetail() {
                   })()
                 )}
 
-                {/* 聯絡按鈕 */}
-                {product.status === 'active' && product.stock > 0 && (waLink || messengerLink) && (
-                  <div className={`flex gap-2 ${waLink && messengerLink ? "flex-row" : ""}`}>
-                    {waLink && (
-                      <a href={waLink} target="_blank" rel="noopener noreferrer"
-                        className={`flex items-center justify-center gap-2 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-colors ${messengerLink ? "flex-1" : "w-full"}`}>
-                        <MessageCircle className="w-4 h-4" />WhatsApp
-                      </a>
+                {/* 聯絡按鈕（無論售出與否都顯示） */}
+                {(waLink || messengerLink) && (
+                  <div className="space-y-2">
+                    {!(product.status === 'active' && product.stock > 0) && (
+                      <p className="text-xs text-center text-gray-500 bg-gray-50 rounded-lg py-2 px-3">
+                        此商品已售出，如有查詢可聯絡商戶
+                      </p>
                     )}
-                    {messengerLink && (
-                      <a href={messengerLink} onClick={handleMessengerClick} target="_blank" rel="noopener noreferrer"
-                        className={`flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors ${waLink ? "flex-1" : "w-full"}`}>
-                        <MessageCircle className="w-4 h-4" />Messenger
-                      </a>
-                    )}
+                    <div className={`flex gap-2 ${waLink && messengerLink ? "flex-row" : ""}`}>
+                      {waLink && (
+                        <a href={waLink} target="_blank" rel="noopener noreferrer"
+                          className={`flex items-center justify-center gap-2 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-colors ${messengerLink ? "flex-1" : "w-full"}`}>
+                          <MessageCircle className="w-4 h-4" />WhatsApp
+                        </a>
+                      )}
+                      {messengerLink && (
+                        <a href={messengerLink} onClick={handleMessengerClick} target="_blank" rel="noopener noreferrer"
+                          className={`flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors ${waLink ? "flex-1" : "w-full"}`}>
+                          <MessageCircle className="w-4 h-4" />Messenger
+                        </a>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
