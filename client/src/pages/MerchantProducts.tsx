@@ -32,6 +32,32 @@ const STATUS_COLORS: Record<string, string> = {
   hidden: "bg-yellow-100 text-yellow-700",
 };
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+const compressImage = (file: File, maxPx = 1600, quality = 0.82): Promise<File> =>
+  new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) { resolve(file); return; }
+    const img = new Image();
+    const objUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl);
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height, 1));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(file); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob((blob) => {
+        if (!blob) { resolve(file); return; }
+        resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = () => resolve(file);
+    img.src = objUrl;
+  });
+
 interface ProductForm {
   title: string;
   description: string;
@@ -649,17 +675,21 @@ export default function MerchantProducts() {
     const toUpload = files.filter(f => f.type.startsWith("image/")).slice(0, slots);
     if (toUpload.length === 0) return;
 
+    const oversized = toUpload.filter(f => f.size > MAX_FILE_SIZE);
+    if (oversized.length > 0) toast.info(`${oversized.length} 張圖片超過 5MB，將自動壓縮後上載`);
+
     setUploading(true);
     try {
       const results = await Promise.all(
         toUpload.map(async (file) => {
+          const processed = file.size > MAX_FILE_SIZE ? await compressImage(file) : file;
           const base64 = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve((reader.result as string).split(",")[1]);
             reader.onerror = () => reject(new Error("讀取圖片失敗"));
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(processed);
           });
-          const { url } = await uploadImage.mutateAsync({ imageData: base64, fileName: file.name, mimeType: file.type || "image/jpeg" });
+          const { url } = await uploadImage.mutateAsync({ imageData: base64, fileName: processed.name, mimeType: processed.type || "image/jpeg" });
           return url;
         })
       );

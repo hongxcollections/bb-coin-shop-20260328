@@ -147,9 +147,9 @@ function ImageUploadZone({
   const canAddMore = remaining > 0 && !isUploading;
 
   const processFiles = useCallback((rawFiles: File[]) => {
-    const valid = rawFiles.filter((f) => f.type.startsWith("image/") && f.size <= MAX_FILE_SIZE);
-    const oversized = rawFiles.filter((f) => f.type.startsWith("image/") && f.size > MAX_FILE_SIZE);
-    if (oversized.length > 0) toast.error(`${oversized.length} 張圖片超過 5MB，已略過`);
+    const valid = rawFiles.filter((f) => f.type.startsWith("image/"));
+    const oversized = valid.filter((f) => f.size > MAX_FILE_SIZE);
+    if (oversized.length > 0) toast.info(`${oversized.length} 張圖片超過 5MB，將自動壓縮後上載`);
     const toAdd = valid.slice(0, remaining);
     if (toAdd.length > 0) onAddFiles(toAdd);
   }, [remaining, onAddFiles]);
@@ -173,7 +173,7 @@ function ImageUploadZone({
           onDrop={onDrop}
         >
           <Upload className="w-6 h-6 mx-auto mb-1 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">拖放或點擊上傳圖片（最多 {MAX_IMAGES} 張，每張上限 5MB）</p>
+          <p className="text-sm text-muted-foreground">拖放或點擊上傳圖片（最多 {MAX_IMAGES} 張，超過 5MB 自動壓縮）</p>
           <p className="text-xs text-muted-foreground mt-0.5">還可加 {remaining} 張</p>
           <input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden"
             onChange={(e) => { if (e.target.files) processFiles(Array.from(e.target.files)); e.target.value = ""; }} />
@@ -1422,7 +1422,9 @@ export default function MerchantAuctions() {
                       toast.error(`最多只能上傳 ${MAX_IMAGES} 張圖片`);
                       return;
                     }
-                    handleAddActiveEditFiles(files.filter(f => f.size <= MAX_FILE_SIZE));
+                    const oversizedEdit = files.filter(f => f.size > MAX_FILE_SIZE);
+                    if (oversizedEdit.length > 0) toast.info(`${oversizedEdit.length} 張圖片超過 5MB，將自動壓縮後上載`);
+                    handleAddActiveEditFiles(files.filter(f => f.type.startsWith("image/")));
                   };
                   input.click();
                 }}
