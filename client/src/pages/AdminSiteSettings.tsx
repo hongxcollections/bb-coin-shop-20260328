@@ -15,7 +15,7 @@ import {
   Settings, Bell, Clock, ChevronLeft, Save, AlertCircle,
   MessageSquare, Megaphone, Home, CheckCircle, Tag, LogIn, Sparkles,
   Download, Upload, Package2, Plus, Trash2, Shuffle, Shield,
-  ChevronUp, ChevronDown, FolderOpen
+  ChevronUp, ChevronDown, FolderOpen, Pencil, Check, X as XIcon
 } from "lucide-react";
 import { DEFAULT_CATEGORIES } from "@/lib/categories";
 
@@ -83,6 +83,8 @@ export default function AdminSiteSettings() {
   // 商品分類
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [newCategoryInput, setNewCategoryInput] = useState("");
+  const [editingCatIdx, setEditingCatIdx] = useState<number | null>(null);
+  const [editingCatValue, setEditingCatValue] = useState("");
 
   // OTP 速率限制設定
   const [otpCooldownSecs, setOtpCooldownSecs] = useState("60");
@@ -388,38 +390,89 @@ export default function AdminSiteSettings() {
                 <div className="space-y-1.5">
                   {categories.map((cat, idx) => (
                     <div key={idx} className="flex items-center gap-2 p-2 bg-amber-50/60 border border-amber-100 rounded-lg">
-                      <span className="flex-1 text-sm text-amber-900 font-medium">{cat}</span>
-                      <button
-                        disabled={idx === 0}
-                        onClick={() => setCategories(prev => {
-                          const arr = [...prev];
-                          [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
-                          return arr;
-                        })}
-                        className="p-1 rounded hover:bg-amber-100 disabled:opacity-30 transition-colors"
-                        title="上移"
-                      >
-                        <ChevronUp className="w-3.5 h-3.5 text-amber-600" />
-                      </button>
-                      <button
-                        disabled={idx === categories.length - 1}
-                        onClick={() => setCategories(prev => {
-                          const arr = [...prev];
-                          [arr[idx + 1], arr[idx]] = [arr[idx], arr[idx + 1]];
-                          return arr;
-                        })}
-                        className="p-1 rounded hover:bg-amber-100 disabled:opacity-30 transition-colors"
-                        title="下移"
-                      >
-                        <ChevronDown className="w-3.5 h-3.5 text-amber-600" />
-                      </button>
-                      <button
-                        onClick={() => setCategories(prev => prev.filter((_, i) => i !== idx))}
-                        className="p-1 rounded hover:bg-red-100 transition-colors"
-                        title="刪除"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                      </button>
+                      {editingCatIdx === idx ? (
+                        <>
+                          <Input
+                            autoFocus
+                            value={editingCatValue}
+                            onChange={(e) => setEditingCatValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                const val = editingCatValue.trim();
+                                if (!val) { toast.error("分類名稱不能為空"); return; }
+                                if (val !== cat && categories.includes(val)) { toast.error("分類已存在"); return; }
+                                setCategories(prev => prev.map((c, i) => i === idx ? val : c));
+                                setEditingCatIdx(null);
+                              } else if (e.key === "Escape") {
+                                setEditingCatIdx(null);
+                              }
+                            }}
+                            className="flex-1 h-7 text-sm py-0 border-amber-300 focus-visible:ring-amber-400"
+                          />
+                          <button
+                            onClick={() => {
+                              const val = editingCatValue.trim();
+                              if (!val) { toast.error("分類名稱不能為空"); return; }
+                              if (val !== cat && categories.includes(val)) { toast.error("分類已存在"); return; }
+                              setCategories(prev => prev.map((c, i) => i === idx ? val : c));
+                              setEditingCatIdx(null);
+                            }}
+                            className="p-1 rounded hover:bg-green-100 transition-colors"
+                            title="確認"
+                          >
+                            <Check className="w-3.5 h-3.5 text-green-600" />
+                          </button>
+                          <button
+                            onClick={() => setEditingCatIdx(null)}
+                            className="p-1 rounded hover:bg-gray-100 transition-colors"
+                            title="取消"
+                          >
+                            <XIcon className="w-3.5 h-3.5 text-gray-400" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="flex-1 text-sm text-amber-900 font-medium">{cat}</span>
+                          <button
+                            onClick={() => { setEditingCatIdx(idx); setEditingCatValue(cat); }}
+                            className="p-1 rounded hover:bg-amber-100 transition-colors"
+                            title="改名"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-amber-500" />
+                          </button>
+                          <button
+                            disabled={idx === 0}
+                            onClick={() => setCategories(prev => {
+                              const arr = [...prev];
+                              [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+                              return arr;
+                            })}
+                            className="p-1 rounded hover:bg-amber-100 disabled:opacity-30 transition-colors"
+                            title="上移"
+                          >
+                            <ChevronUp className="w-3.5 h-3.5 text-amber-600" />
+                          </button>
+                          <button
+                            disabled={idx === categories.length - 1}
+                            onClick={() => setCategories(prev => {
+                              const arr = [...prev];
+                              [arr[idx + 1], arr[idx]] = [arr[idx], arr[idx + 1]];
+                              return arr;
+                            })}
+                            className="p-1 rounded hover:bg-amber-100 disabled:opacity-30 transition-colors"
+                            title="下移"
+                          >
+                            <ChevronDown className="w-3.5 h-3.5 text-amber-600" />
+                          </button>
+                          <button
+                            onClick={() => setCategories(prev => prev.filter((_, i) => i !== idx))}
+                            className="p-1 rounded hover:bg-red-100 transition-colors"
+                            title="刪除"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
