@@ -9,6 +9,7 @@ interface ShareMenuProps {
   currency?: string | null;
   endTime?: string | Date | null;
   shareTemplate?: string | null;
+  iconOnly?: boolean;
 }
 
 const DEFAULT_SHARE_TEMPLATE = "{title}\n目前出價 {price}\n結標時間：{endTime}\n快來競拍！";
@@ -90,7 +91,7 @@ const ThreadsIcon = () => (
 const MENU_WIDTH = 176;
 const MENU_HEIGHT = 260;
 
-export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shareTemplate }: ShareMenuProps) {
+export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shareTemplate, iconOnly }: ShareMenuProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
@@ -224,10 +225,13 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
         type="button"
         onClick={handleOpen}
         title="分享"
-        className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-1 transition-colors bg-amber-50 hover:bg-amber-100"
+        className={iconOnly
+          ? "flex items-center justify-center w-7 h-7 text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded-full transition-colors bg-amber-50 hover:bg-amber-100"
+          : "flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-1 transition-colors bg-amber-50 hover:bg-amber-100"
+        }
       >
         <Share2 className="w-3 h-3" />
-        分享
+        {!iconOnly && "分享"}
       </button>
 
       {open && menuPos && (

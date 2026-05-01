@@ -249,11 +249,22 @@ function AuctionCountdown({ endTime }: { endTime: string | Date }) {
       const now = new Date();
       const diff = new Date(endTime).getTime() - now.getTime();
       if (diff <= 0) { setTimeLeft("已結束"); setStatus("ended"); return; }
-      const h = Math.floor(diff / 3600000);
+      const totalHours = diff / 3600000;
+      const h = Math.floor(totalHours);
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
-      setStatus(h < 1 ? "ending" : "active");
-      setTimeLeft(h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
+      if (totalHours > 12) {
+        // 多過半日：顯示剩餘天數
+        const days = Math.ceil(diff / 86400000);
+        setStatus("active");
+        setTimeLeft(`${days} 天`);
+      } else if (h >= 1) {
+        setStatus("active");
+        setTimeLeft(`${h}h ${m}m ${s}s`);
+      } else {
+        setStatus("ending");
+        setTimeLeft(`${m}m ${s}s`);
+      }
     }
     update();
     const id = setInterval(update, 1000);
@@ -499,6 +510,7 @@ export default function MerchantStore() {
                                   currency={currency}
                                   endTime={a.endTime}
                                   shareTemplate={null}
+                                  iconOnly
                                 />
                               </div>
                             </div>
