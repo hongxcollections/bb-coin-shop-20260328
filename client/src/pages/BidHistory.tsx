@@ -11,72 +11,74 @@ import { ShareMenu } from "@/components/ShareMenu";
 import { MemberBadge } from "@/components/MemberBadge";
 import Header from "@/components/Header";
 
-function ConfirmDeleteDialog({
+function ConfirmActionDialog({
   open,
-  title,
+  iconBg,
+  icon,
+  heading,
+  itemName,
+  warning,
+  confirmLabel,
+  confirmingLabel,
+  confirmClass,
   onConfirm,
-  onCancel,
+  onClose,
   loading,
 }: {
   open: boolean;
-  title: string;
+  iconBg: string;
+  icon: React.ReactNode;
+  heading: string;
+  itemName: string;
+  warning: string;
+  confirmLabel: string;
+  confirmingLabel: string;
+  confirmClass: string;
   onConfirm: () => void;
-  onCancel: () => void;
+  onClose: () => void;
   loading?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [open, onCancel]);
+  }, [open, onClose]);
 
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      {/* 背景遮罩 */}
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-        onClick={onCancel}
-      />
-      {/* 對話框 */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
       <div
         ref={ref}
         className="relative w-full max-w-sm rounded-2xl bg-white shadow-2xl p-5 animate-in fade-in zoom-in-95 duration-150"
       >
-        {/* 圖示 */}
-        <div className="flex items-center justify-center w-11 h-11 rounded-full bg-red-50 mx-auto mb-3">
-          <Trash2 className="w-5 h-5 text-red-500" />
+        <div className={`flex items-center justify-center w-11 h-11 rounded-full mx-auto mb-3 ${iconBg}`}>
+          {icon}
         </div>
-        <h3 className="text-center text-base font-semibold text-gray-800 mb-1">刪除訂單紀錄</h3>
-        <p className="text-center text-sm text-muted-foreground mb-1 leading-relaxed">
-          確定要永久刪除
-        </p>
-        <p className="text-center text-sm font-medium text-gray-700 mb-4 px-2 truncate">「{title}」</p>
-        <p className="text-center text-xs text-red-400 mb-5">此操作不可還原</p>
+        <h3 className="text-center text-base font-semibold text-gray-800 mb-2">{heading}</h3>
+        <p className="text-center text-sm font-medium text-gray-700 mb-1 px-2 line-clamp-2">「{itemName}」</p>
+        <p className="text-center text-xs text-orange-400 mb-5">{warning}</p>
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={onCancel}
+            onClick={onClose}
             disabled={loading}
             className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
-            取消
+            返回
           </button>
           <button
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
+            className={`flex-1 py-2.5 rounded-xl text-white text-sm font-medium transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5 ${confirmClass}`}
           >
-            {loading ? (
-              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Trash2 className="w-3.5 h-3.5" />
-            )}
-            {loading ? '刪除中…' : '確認刪除'}
+            {loading
+              ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />{confirmingLabel}</>
+              : confirmLabel}
           </button>
         </div>
       </div>
@@ -117,9 +119,10 @@ type ProductOrderItem = {
 function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCancel: () => void }) {
   const utils = trpc.useUtils();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const cancel = trpc.productOrders.cancel.useMutation({
-    onSuccess: () => { utils.productOrders.myBuyerOrders.invalidate(); toast.success('訂單已取消'); },
-    onError: (e) => toast.error(e.message),
+    onSuccess: () => { utils.productOrders.myBuyerOrders.invalidate(); toast.success('訂單已取消'); setShowCancelConfirm(false); onCancel(); },
+    onError: (e) => { toast.error(e.message); setShowCancelConfirm(false); },
   });
   const deleteOrder = trpc.productOrders.deleteBuyerOrder.useMutation({
     onSuccess: () => { utils.productOrders.myBuyerOrders.invalidate(); toast.success('訂單紀錄已永久刪除'); setShowDeleteConfirm(false); },
@@ -170,11 +173,11 @@ function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCanc
         <div className="px-3 pb-2.5 flex items-center justify-end gap-2 border-t border-amber-50">
           {order.status === 'pending' && (
             <button
-              onClick={() => { if (confirm('確定取消此訂單？')) { cancel.mutate({ orderId: order.id }); onCancel(); } }}
+              onClick={() => setShowCancelConfirm(true)}
               disabled={cancel.isPending}
               className="mt-2 text-xs px-3 py-1 rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50"
             >
-              {cancel.isPending ? '取消中…' : '取消訂單'}
+              取消訂單
             </button>
           )}
           {canDelete && (
@@ -190,12 +193,36 @@ function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCanc
         </div>
       )}
 
-      <ConfirmDeleteDialog
+      {/* 取消訂單確認框 */}
+      <ConfirmActionDialog
+        open={showCancelConfirm}
+        iconBg="bg-orange-50"
+        icon={<ShoppingBag className="w-5 h-5 text-orange-500" />}
+        heading="取消訂單"
+        itemName={order.title}
+        warning="取消後無法恢復，如需重新購買請再次落單"
+        confirmLabel="確認取消"
+        confirmingLabel="取消中…"
+        confirmClass="bg-orange-500 hover:bg-orange-600"
+        loading={cancel.isPending}
+        onConfirm={() => cancel.mutate({ orderId: order.id })}
+        onClose={() => setShowCancelConfirm(false)}
+      />
+
+      {/* 刪除紀錄確認框 */}
+      <ConfirmActionDialog
         open={showDeleteConfirm}
-        title={order.title}
+        iconBg="bg-red-50"
+        icon={<Trash2 className="w-5 h-5 text-red-500" />}
+        heading="刪除訂單紀錄"
+        itemName={order.title}
+        warning="此操作不可還原，紀錄將永久消失"
+        confirmLabel="確認刪除"
+        confirmingLabel="刪除中…"
+        confirmClass="bg-red-500 hover:bg-red-600"
         loading={deleteOrder.isPending}
         onConfirm={() => deleteOrder.mutate({ orderId: order.id })}
-        onCancel={() => setShowDeleteConfirm(false)}
+        onClose={() => setShowDeleteConfirm(false)}
       />
     </div>
   );
