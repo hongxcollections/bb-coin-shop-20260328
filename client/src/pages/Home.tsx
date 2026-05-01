@@ -5,6 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
 import { Link, useLocation } from "wouter";
 import { useState, useEffect, useRef, useMemo } from "react";
+import ImageLightbox from "@/components/ImageLightbox";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -978,52 +979,6 @@ export default function Home() {
   const [buyingProduct, setBuyingProduct] = useState<any | null>(null);
   // 商戶申請流程彈窗
   const [showMerchantFlow, setShowMerchantFlow] = useState(false);
-  const [merchantFlowZoom, setMerchantFlowZoom] = useState(1);
-  const pinchStartDist = useRef<number | null>(null);
-  const pinchStartZoom = useRef(1);
-  const merchantFlowZoomRef = useRef(1);
-  const merchantFlowScrollRef = useRef<HTMLDivElement | null>(null);
-
-  // 同步 zoom 到 ref，讓原生事件處理器可讀到最新值
-  useEffect(() => { merchantFlowZoomRef.current = merchantFlowZoom; }, [merchantFlowZoom]);
-
-  // 用原生事件（passive:false）才能 preventDefault 阻止頁面縮放
-  useEffect(() => {
-    const el = merchantFlowScrollRef.current;
-    if (!el || !showMerchantFlow) return;
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        const dx = e.touches[1].clientX - e.touches[0].clientX;
-        const dy = e.touches[1].clientY - e.touches[0].clientY;
-        pinchStartDist.current = Math.hypot(dx, dy);
-        pinchStartZoom.current = merchantFlowZoomRef.current;
-      }
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2 && pinchStartDist.current !== null) {
-        e.preventDefault();
-        const dx = e.touches[1].clientX - e.touches[0].clientX;
-        const dy = e.touches[1].clientY - e.touches[0].clientY;
-        const dist = Math.hypot(dx, dy);
-        const ratio = dist / pinchStartDist.current;
-        const newZoom = Math.min(4, Math.max(0.5, pinchStartZoom.current * ratio));
-        setMerchantFlowZoom(Math.round(newZoom * 100) / 100);
-      }
-    };
-
-    const onTouchEnd = () => { pinchStartDist.current = null; };
-
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd, { passive: true });
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-    };
-  }, [showMerchantFlow]);
 
   // 落單按鈕：未登入直接跳登入頁，登入後返回商品詳情頁
   const handleBuy = (product: any) => {
@@ -1170,62 +1125,11 @@ export default function Home() {
       <Header />
       {/* 商戶申請流程彈窗 */}
       {showMerchantFlow && (
-        <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={() => { setShowMerchantFlow(false); setMerchantFlowZoom(1); }}
-        >
-          <div className="relative flex flex-col" style={{ maxWidth: "96vw", maxHeight: "92vh" }} onClick={e => e.stopPropagation()}>
-            {/* 頂部工具列 */}
-            <div className="flex items-center justify-between bg-black/60 backdrop-blur-sm rounded-t-xl px-3 py-1.5 gap-3">
-              <span className="text-white text-xs font-semibold">商戶申請流程</span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setMerchantFlowZoom(z => Math.max(z - 0.25, 0.5))}
-                  className="w-7 h-7 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/40 transition text-base leading-none font-bold"
-                  aria-label="縮小"
-                >−</button>
-                <span className="text-white text-xs min-w-[3rem] text-center">{Math.round(merchantFlowZoom * 100)}%</span>
-                <button
-                  onClick={() => setMerchantFlowZoom(z => Math.min(z + 0.25, 4))}
-                  className="w-7 h-7 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/40 transition text-base leading-none font-bold"
-                  aria-label="放大"
-                >+</button>
-                <button
-                  onClick={() => setMerchantFlowZoom(1)}
-                  className="text-white/70 text-xs hover:text-white transition px-1"
-                  aria-label="重置"
-                >重置</button>
-                <button
-                  onClick={() => { setShowMerchantFlow(false); setMerchantFlowZoom(1); }}
-                  className="w-7 h-7 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-white/40 transition text-sm font-bold ml-1"
-                  aria-label="關閉"
-                >✕</button>
-              </div>
-            </div>
-            {/* 圖片捲動區域（支援 pinch-to-zoom，兼容所有瀏覽器） */}
-            <div
-              ref={merchantFlowScrollRef}
-              className="overflow-auto rounded-b-xl bg-black/30"
-              style={{ maxHeight: "calc(92vh - 44px)", touchAction: "pan-x pan-y" }}
-            >
-              {/* wrapper div 的 width 跟隨 zoom，讓 overflow 產生捲軸 */}
-              <div style={{ width: `${merchantFlowZoom * 100}%`, minWidth: "100%" }}>
-                <img
-                  src="/merchant-apply-steps.png"
-                  alt="商戶申請流程"
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    height: "auto",
-                    userSelect: "none",
-                    WebkitUserSelect: "none",
-                  }}
-                  draggable={false}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        <ImageLightbox
+          images={["/merchant-apply-steps.png"]}
+          alt="商戶申請流程"
+          onClose={() => setShowMerchantFlow(false)}
+        />
       )}
 
       {/* ── AI 鑑定快捷入口（三格上方右側）── */}
