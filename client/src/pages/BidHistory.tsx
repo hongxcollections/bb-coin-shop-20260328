@@ -230,6 +230,8 @@ export default function BidHistory() {
   const [bidFilter, setBidFilter] = useState<'all' | 'active' | 'won'>('all');
   const [activeTab, setActiveTab] = useState<'bids' | 'won' | 'orders'>('bids');
   const [orderStatusFilter, setOrderStatusFilter] = useState<'pending' | 'confirmed' | 'cancelled'>('pending');
+  const [orderPage, setOrderPage] = useState(1);
+  const ORDER_PAGE_SIZE = 10;
 
   if (loading) {
     return (
@@ -512,7 +514,10 @@ export default function BidHistory() {
           const pendingCount   = allOrders.filter(o => o.status === 'pending').length;
           const confirmedCount = allOrders.filter(o => o.status === 'confirmed').length;
           const cancelledCount = allOrders.filter(o => o.status === 'cancelled').length;
-          const filteredOrders = allOrders.filter(o => o.status === orderStatusFilter).slice(0, 10);
+          const statusOrders = allOrders.filter(o => o.status === orderStatusFilter);
+          const totalPages = Math.max(1, Math.ceil(statusOrders.length / ORDER_PAGE_SIZE));
+          const safePage = Math.min(orderPage, totalPages);
+          const filteredOrders = statusOrders.slice((safePage - 1) * ORDER_PAGE_SIZE, safePage * ORDER_PAGE_SIZE);
           const orderStatusTabs = [
             { key: 'pending'   as const, label: '待確認', count: pendingCount,   color: 'bg-yellow-500' },
             { key: 'confirmed' as const, label: '已確認', count: confirmedCount, color: 'bg-green-500'  },
@@ -534,7 +539,7 @@ export default function BidHistory() {
                       <button
                         key={t.key}
                         type="button"
-                        onClick={() => setOrderStatusFilter(t.key)}
+                        onClick={() => { setOrderStatusFilter(t.key); setOrderPage(1); }}
                         className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                           orderStatusFilter === t.key
                             ? `${t.color} text-white`
@@ -576,8 +581,28 @@ export default function BidHistory() {
                     {filteredOrders.map((order) => (
                       <ProductOrderCard key={order.id} order={order} onCancel={() => {}} />
                     ))}
-                    {allOrders.filter(o => o.status === orderStatusFilter).length > 10 && (
-                      <p className="text-center text-xs text-muted-foreground pt-1">只顯示最新 10 筆</p>
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between pt-2 border-t border-amber-100">
+                        <button
+                          type="button"
+                          disabled={safePage <= 1}
+                          onClick={() => setOrderPage(p => Math.max(1, p - 1))}
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          ‹ 上頁
+                        </button>
+                        <span className="text-xs text-muted-foreground">
+                          第 {safePage} / {totalPages} 頁（共 {statusOrders.length} 筆）
+                        </span>
+                        <button
+                          type="button"
+                          disabled={safePage >= totalPages}
+                          onClick={() => setOrderPage(p => Math.min(totalPages, p + 1))}
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          下頁 ›
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}
