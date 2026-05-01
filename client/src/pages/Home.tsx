@@ -1393,12 +1393,6 @@ export default function Home() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-sm line-clamp-1 text-amber-900">{auction.title}</h3>
-                          {(() => {
-                            const desc = (auction as { description?: string }).description;
-                            return desc ? (
-                              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{desc.substring(0, 60)}</p>
-                            ) : null;
-                          })()}
                         </div>
                         <div className="flex flex-col items-end gap-1 shrink-0">
                           {(() => {
