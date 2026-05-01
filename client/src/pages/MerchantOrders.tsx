@@ -64,7 +64,8 @@ function OrderRow({ order, onUpdate, merchantName }: { order: MerchantOrder; onU
   const dateStr = endDate.toLocaleDateString("zh-HK", { month: "numeric", day: "numeric" });
   const timeStr = endDate.toLocaleTimeString("zh-HK", { hour: "2-digit", minute: "2-digit" });
   const amount = order.winningAmount ? Number(order.winningAmount).toLocaleString() : "—";
-  const waMsg = `您好，我是 ${merchantName}，您在 hongxcollections 競投的「${order.title}」已成功得標，成交價為 ${order.currency}$${order.winningAmount ? Number(order.winningAmount).toLocaleString() : ''}，請問方便安排付款及交收嗎？謝謝！`;
+  const auctionUrl = `https://hongxcollections.com/auctions/${order.id}`;
+  const waMsg = `您好，我是 ${merchantName}，您在 hongxcollections 競投的「${order.title}」已成功得標，成交價為 ${order.currency}$${order.winningAmount ? Number(order.winningAmount).toLocaleString() : ''}，請問方便安排付款及交收嗎？謝謝！\n\n拍賣連結：${auctionUrl}`;
 
   return (
     <div className="px-3 py-2.5 rounded-lg border bg-card hover:bg-accent/5 transition-colors">
