@@ -10,6 +10,11 @@ import {
   Trash2, Clock,
 } from "lucide-react";
 import ImageLightbox from "@/components/ImageLightbox";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type AnalysisData = {
   type?: string;
@@ -356,6 +361,7 @@ function HistoryCard({ item, onDelete, onExpand, t }: {
   onExpand: (data: AnalysisData) => void;
   t: typeof L.zh;
 }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const d = item.analysisData;
   const name = item.coinName || getField(d, "name", "Name") || "未知";
   const country = item.coinCountry || getField(d, "country", "Country") || "";
@@ -364,36 +370,61 @@ function HistoryCard({ item, onDelete, onExpand, t }: {
   const date = new Date(item.createdAt).toLocaleDateString("zh-HK", { month: "short", day: "numeric", year: "numeric" });
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="flex items-center gap-3 px-3 py-2.5">
-        <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-          <Sparkles className="w-4 h-4 text-amber-500" />
+    <>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="flex items-center gap-3 px-3 py-2.5">
+          <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+            <Sparkles className="w-4 h-4 text-amber-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-800 truncate">{name}</p>
+            <p className="text-xs text-gray-400">{[country, year].filter(Boolean).join(" · ")}{value ? ` · ${value}` : ""}</p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-xs text-gray-400 hidden sm:block">{date}</span>
+            <button
+              onClick={() => onExpand(d)}
+              className="w-7 h-7 rounded-full bg-amber-50 flex items-center justify-center hover:bg-amber-100 transition-colors"
+            >
+              <ZoomIn className="w-3.5 h-3.5 text-amber-600" />
+            </button>
+            <button
+              onClick={() => setConfirmOpen(true)}
+              className="w-7 h-7 rounded-full bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-400" />
+            </button>
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-800 truncate">{name}</p>
-          <p className="text-xs text-gray-400">{[country, year].filter(Boolean).join(" · ")}{value ? ` · ${value}` : ""}</p>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-xs text-gray-400 hidden sm:block">{date}</span>
-          <button
-            onClick={() => onExpand(d)}
-            className="w-7 h-7 rounded-full bg-amber-50 flex items-center justify-center hover:bg-amber-100 transition-colors"
-          >
-            <ZoomIn className="w-3.5 h-3.5 text-amber-600" />
-          </button>
-          <button
-            onClick={() => { if (confirm(t.deleteConfirm)) onDelete(item.id); }}
-            className="w-7 h-7 rounded-full bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5 text-red-400" />
-          </button>
+        <div className="px-3 pb-1.5 flex items-center gap-1.5">
+          <Clock className="w-3 h-3 text-gray-300" />
+          <span className="text-xs text-gray-300">{date}</span>
         </div>
       </div>
-      <div className="px-3 pb-1.5 flex items-center gap-1.5">
-        <Clock className="w-3 h-3 text-gray-300" />
-        <span className="text-xs text-gray-300">{date}</span>
-      </div>
-    </div>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent className="max-w-xs rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-base">
+              <Trash2 className="w-4 h-4 text-red-500" />
+              刪除記錄
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-gray-600">
+              確定刪除「<span className="font-semibold text-gray-800">{name}</span>」的鑑定記錄？此操作無法還原。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="flex-1 rounded-xl">取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => onDelete(item.id)}
+              className="flex-1 rounded-xl bg-red-500 hover:bg-red-600 text-white"
+            >
+              確定刪除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
