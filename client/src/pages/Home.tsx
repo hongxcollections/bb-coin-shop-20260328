@@ -1213,12 +1213,12 @@ export default function Home() {
                 alt="商戶申請流程"
                 style={{
                   display: "block",
-                  width: merchantFlowZoom <= 1 ? "100%" : `${merchantFlowZoom * 100}%`,
+                  zoom: merchantFlowZoom,
+                  width: "100%",
                   height: "auto",
-                  transition: "width 0.1s",
                   userSelect: "none",
                   WebkitUserSelect: "none",
-                }}
+                } as React.CSSProperties}
                 draggable={false}
               />
             </div>
