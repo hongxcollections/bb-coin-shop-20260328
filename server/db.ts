@@ -1553,6 +1553,8 @@ async function ensureDepositTables() {
     try { await db.execute(sql`ALTER TABLE merchantApplications ADD COLUMN facebook VARCHAR(500)`); } catch {}
     // proxyBids: 加 unique constraint 防止 setProxyBid 重複插入（onDuplicateKeyUpdate 需要 unique key 才能 upsert）
     try { await db.execute(sql`ALTER TABLE proxyBids ADD UNIQUE KEY uniq_proxy_auction_user (auctionId, userId)`); } catch {}
+    // auctions.category: 從 ENUM 改為 VARCHAR(500)，以支援可設定的商品分類
+    try { await db.execute(sql`ALTER TABLE auctions MODIFY COLUMN category VARCHAR(500)`); } catch {}
     // Web Push 訂閱表
     try {
       await db.execute(sql`
