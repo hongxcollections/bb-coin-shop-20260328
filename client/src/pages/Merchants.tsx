@@ -190,7 +190,7 @@ function BuyDialog({ product, onClose }: { product: any; onClose: () => void }) 
         </div>
 
         <p className="text-xs text-gray-400 bg-gray-50 rounded-lg p-2.5">
-          落單後商戶會聯絡你確認成交，傭金於商戶確認後才自動扣除。
+          落單後商戶會聯絡你確認成交。
         </p>
 
         <div className="flex gap-2 pt-1">

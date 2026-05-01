@@ -114,7 +114,7 @@ function BuyDialog({ product, onClose }: { product: any; onClose: () => void }) 
             rows={2} maxLength={200} placeholder="如有特別要求請在此說明…"
             value={note} onChange={e => setNote(e.target.value)} />
         </div>
-        <p className="text-xs text-gray-400 bg-gray-50 rounded-lg p-2.5">落單後商戶會聯絡你確認成交，傭金於商戶確認後才自動扣除。</p>
+        <p className="text-xs text-gray-400 bg-gray-50 rounded-lg p-2.5">落單後商戶會聯絡你確認成交。</p>
         <div className="flex gap-2 pt-1">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50">取消</button>
           <button disabled={submitting}
