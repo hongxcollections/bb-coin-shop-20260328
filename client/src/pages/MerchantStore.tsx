@@ -2,8 +2,10 @@ import { useParams, Link } from "wouter";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
+import { ShareMenu } from "@/components/ShareMenu";
 import { Store, MessageCircle, Package, Gavel, ChevronLeft, Tag, Share2 } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/utils";
 import { getCurrencySymbol } from "./AdminAuctions";
@@ -267,6 +269,7 @@ function AuctionCountdown({ endTime }: { endTime: string | Date }) {
 }
 
 export default function MerchantStore() {
+  const { user } = useAuth();
   const params = useParams<{ userId: string }>();
   const userId = parseInt(params.userId ?? "0", 10);
 
@@ -470,12 +473,34 @@ export default function MerchantStore() {
                             </div>
                           </div>
                           <div className="mt-1">
-                            <div className="text-xs text-muted-foreground">目前出價</div>
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              目前出價
+                              {(() => {
+                                if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
+                                  return <span className="text-[9px] text-emerald-600 font-bold">(我本人✓)</span>;
+                                } else if (a.highestBidderName) {
+                                  return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;
+                                } else if (!a.highestBidderId) {
+                                  return <span className="text-[9px] text-gray-500 font-normal">(未有出價)</span>;
+                                }
+                                return null;
+                              })()}
+                            </div>
                             <div className="text-sm font-bold text-amber-600">
                               {getCurrencySymbol(currency)}{Number(a.currentPrice ?? a.startingPrice ?? 0).toLocaleString()}
                             </div>
                             <div className="flex items-center justify-end gap-1.5 mt-0.5">
                               {!isEnded && <AuctionCountdown endTime={a.endTime} />}
+                              <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                                <ShareMenu
+                                  auctionId={a.id}
+                                  title={a.title}
+                                  latestBid={Number(a.currentPrice ?? a.startingPrice ?? 0)}
+                                  currency={currency}
+                                  endTime={a.endTime}
+                                  shareTemplate={null}
+                                />
+                              </div>
                             </div>
                           </div>
                         </div>

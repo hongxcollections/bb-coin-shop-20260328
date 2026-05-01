@@ -3107,6 +3107,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) return [];
         const { sql: drizzleSql, and: drizzleAnd } = await import('drizzle-orm');
+        const { users: usersTable } = await import('../drizzle/schema');
         try {
           const rows = await db.select({
             id: auctions.id,
@@ -3119,7 +3120,11 @@ export const appRouter = router({
             category: auctions.category,
             bidIncrement: auctions.bidIncrement,
             createdBy: auctions.createdBy,
+            highestBidderId: auctions.highestBidderId,
+            highestBidderName: usersTable.name,
+            highestBidderIsAnonymous: drizzleSql<number>`COALESCE((SELECT isAnonymous FROM bids WHERE auctionId = ${auctions.id} AND userId = ${auctions.highestBidderId} ORDER BY id DESC LIMIT 1), 0)`,
           }).from(auctions)
+            .leftJoin(usersTable, eq(auctions.highestBidderId, usersTable.id))
             .where(drizzleAnd(
               eq(auctions.createdBy, input.userId),
               eq(auctions.status, 'active'),
@@ -3127,11 +3132,14 @@ export const appRouter = router({
             ))
             .orderBy(auctions.endTime);
 
-          // 用與主拍賣列表相同的方法取得封面圖片
+          // 用與主拍賣列表相同的方法取得封面圖片，並處理匿名出價
           return await Promise.all(
             rows.map(async (row) => {
               const imgs = await getAuctionImages(row.id);
-              return { ...row, coverImage: imgs[0]?.imageUrl ?? null };
+              const highestBidderName = row.highestBidderIsAnonymous === 1
+                ? '🕵️ 匿名買家'
+                : (row.highestBidderName ?? null);
+              return { ...row, coverImage: imgs[0]?.imageUrl ?? null, highestBidderName };
             })
           );
         } catch (err) {
