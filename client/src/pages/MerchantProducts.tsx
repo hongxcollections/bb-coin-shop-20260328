@@ -714,7 +714,7 @@ export default function MerchantProducts() {
   }
 
   async function markSold(p: any) {
-    await updateStatus.mutateAsync({ id: p.id, status: "sold" });
+    await updateStatus.mutateAsync({ id: p.id, status: "sold", stock: 0 });
     toast.success("已標記為已售出");
   }
 

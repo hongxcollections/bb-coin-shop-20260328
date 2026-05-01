@@ -506,18 +506,18 @@ export default function MerchantProductDetail() {
                     <p className="text-xs text-gray-400 mb-0.5">出售價錢</p>
                     <span className="text-2xl font-bold text-amber-600">{product.currency} ${price.toLocaleString()}</span>
                     <div className="text-xs text-gray-400 mt-0.5">
-                      {product.stock > 0 ? `庫存 ${product.stock} 件` : "已售出"}
+                      {product.status === 'active' && product.stock > 0 ? `庫存 ${product.stock} 件` : "已售出"}
                     </div>
                   </div>
                   <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                    product.stock > 0 ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                    product.status === 'active' && product.stock > 0 ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
                   }`}>
-                    {product.stock > 0 ? "有貨" : "售罄"}
+                    {product.status === 'active' && product.stock > 0 ? "有貨" : "售罄"}
                   </span>
                 </div>
 
                 {/* 落單按鈕 */}
-                {product.stock > 0 && (
+                {product.status === 'active' && product.stock > 0 && (
                   (() => {
                     const isOwn = user != null && product.merchantId === user.id;
                     return isOwn ? (
@@ -536,7 +536,7 @@ export default function MerchantProductDetail() {
                 )}
 
                 {/* 聯絡按鈕 */}
-                {product.stock > 0 && (waLink || messengerLink) && (
+                {product.status === 'active' && product.stock > 0 && (waLink || messengerLink) && (
                   <div className={`flex gap-2 ${waLink && messengerLink ? "flex-row" : ""}`}>
                     {waLink && (
                       <a href={waLink} target="_blank" rel="noopener noreferrer"
