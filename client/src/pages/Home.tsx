@@ -979,6 +979,51 @@ export default function Home() {
   // 商戶申請流程彈窗
   const [showMerchantFlow, setShowMerchantFlow] = useState(false);
   const [merchantFlowZoom, setMerchantFlowZoom] = useState(1);
+  const pinchStartDist = useRef<number | null>(null);
+  const pinchStartZoom = useRef(1);
+  const merchantFlowZoomRef = useRef(1);
+  const merchantFlowScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // 同步 zoom 到 ref，讓原生事件處理器可讀到最新值
+  useEffect(() => { merchantFlowZoomRef.current = merchantFlowZoom; }, [merchantFlowZoom]);
+
+  // 用原生事件（passive:false）才能 preventDefault 阻止頁面縮放
+  useEffect(() => {
+    const el = merchantFlowScrollRef.current;
+    if (!el || !showMerchantFlow) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[1].clientX - e.touches[0].clientX;
+        const dy = e.touches[1].clientY - e.touches[0].clientY;
+        pinchStartDist.current = Math.hypot(dx, dy);
+        pinchStartZoom.current = merchantFlowZoomRef.current;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinchStartDist.current !== null) {
+        e.preventDefault();
+        const dx = e.touches[1].clientX - e.touches[0].clientX;
+        const dy = e.touches[1].clientY - e.touches[0].clientY;
+        const dist = Math.hypot(dx, dy);
+        const ratio = dist / pinchStartDist.current;
+        const newZoom = Math.min(4, Math.max(0.5, pinchStartZoom.current * ratio));
+        setMerchantFlowZoom(Math.round(newZoom * 100) / 100);
+      }
+    };
+
+    const onTouchEnd = () => { pinchStartDist.current = null; };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [showMerchantFlow]);
 
   // 落單按鈕：未登入直接跳登入頁，登入後返回商品詳情頁
   const handleBuy = (product: any) => {
@@ -1157,21 +1202,22 @@ export default function Home() {
                 >✕</button>
               </div>
             </div>
-            {/* 圖片捲動區域 */}
+            {/* 圖片捲動區域（支援 pinch-to-zoom） */}
             <div
+              ref={merchantFlowScrollRef}
               className="overflow-auto rounded-b-xl bg-black/30"
-              style={{ maxHeight: "calc(92vh - 44px)", touchAction: "pan-x pan-y pinch-zoom" }}
+              style={{ maxHeight: "calc(92vh - 44px)", touchAction: "pan-x pan-y" }}
             >
               <img
                 src="/merchant-apply-steps.png"
                 alt="商戶申請流程"
                 style={{
                   display: "block",
-                  width: `${merchantFlowZoom * 100}%`,
-                  minWidth: merchantFlowZoom <= 1 ? "auto" : "unset",
-                  maxWidth: merchantFlowZoom <= 1 ? "100%" : "unset",
+                  width: merchantFlowZoom <= 1 ? "100%" : `${merchantFlowZoom * 100}%`,
                   height: "auto",
-                  transition: "width 0.2s",
+                  transition: "width 0.1s",
+                  userSelect: "none",
+                  WebkitUserSelect: "none",
                 }}
                 draggable={false}
               />
