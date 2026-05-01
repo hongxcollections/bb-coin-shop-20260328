@@ -35,7 +35,7 @@ function ConfirmDeleteDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center px-4 pb-6 sm:pb-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       {/* 背景遮罩 */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
@@ -44,7 +44,7 @@ function ConfirmDeleteDialog({
       {/* 對話框 */}
       <div
         ref={ref}
-        className="relative w-full max-w-sm rounded-2xl bg-white shadow-2xl p-5 animate-in slide-in-from-bottom-4 duration-200"
+        className="relative w-full max-w-sm rounded-2xl bg-white shadow-2xl p-5 animate-in fade-in zoom-in-95 duration-150"
       >
         {/* 圖示 */}
         <div className="flex items-center justify-center w-11 h-11 rounded-full bg-red-50 mx-auto mb-3">
