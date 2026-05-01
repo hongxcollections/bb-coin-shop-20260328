@@ -3106,8 +3106,7 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const db = await getDb();
         if (!db) return [];
-        const { sql: drizzleSql, desc: drizzleDesc, and: drizzleAnd } = await import('drizzle-orm');
-        const { auctionImages } = await import('../drizzle/schema');
+        const { sql: drizzleSql, and: drizzleAnd } = await import('drizzle-orm');
         try {
           const rows = await db.select({
             id: auctions.id,
@@ -3120,7 +3119,6 @@ export const appRouter = router({
             category: auctions.category,
             bidIncrement: auctions.bidIncrement,
             createdBy: auctions.createdBy,
-            coverImage: drizzleSql<string | null>`(SELECT imageUrl FROM ${auctionImages} WHERE auctionId = ${auctions.id} ORDER BY displayOrder LIMIT 1)`,
           }).from(auctions)
             .where(drizzleAnd(
               eq(auctions.createdBy, input.userId),
@@ -3128,7 +3126,14 @@ export const appRouter = router({
               drizzleSql`(${auctions.archived} = 0 OR ${auctions.archived} IS NULL)`,
             ))
             .orderBy(auctions.endTime);
-          return rows;
+
+          // 用與主拍賣列表相同的方法取得封面圖片
+          return await Promise.all(
+            rows.map(async (row) => {
+              const imgs = await getAuctionImages(row.id);
+              return { ...row, coverImage: imgs[0]?.imageUrl ?? null };
+            })
+          );
         } catch (err) {
           console.error('[getMerchantAuctions] error:', err);
           return [];
