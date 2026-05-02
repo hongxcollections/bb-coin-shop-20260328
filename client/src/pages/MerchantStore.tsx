@@ -545,14 +545,14 @@ export default function MerchantStore() {
           </div>
         ) : null}
 
-        {/* ── 拍賣中商品（優先展示） ── */}
+        {/* ── 拍賣商品（優先展示） ── */}
         <div className="rounded-2xl bg-gradient-to-b from-purple-50 to-white border border-purple-100 shadow-sm overflow-hidden">
           {/* 區域標題列 */}
           <div className="flex items-center gap-2 px-4 py-3 border-b border-purple-100 bg-purple-50/80">
             <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-purple-100">
               <Gavel className="w-4 h-4 text-purple-600" />
             </div>
-            <h2 className="font-bold text-sm text-purple-900">拍賣中商品</h2>
+            <h2 className="font-bold text-sm text-purple-900">拍賣商品</h2>
             {!loadingAuctions && (
               <span className="ml-auto text-xs font-semibold text-purple-600 bg-purple-100 px-2.5 py-0.5 rounded-full">
                 {(auctionItems as any[]).length} 件
@@ -563,7 +563,7 @@ export default function MerchantStore() {
             {loadingAuctions ? (
               <div className="text-center py-10 text-2xl animate-spin">💰</div>
             ) : allAuctions.length === 0 ? (
-              <p className="text-center text-gray-400 text-sm py-8">暫無拍賣中商品</p>
+              <p className="text-center text-gray-400 text-sm py-8">暫無拍賣商品</p>
             ) : (
               <div className="space-y-2">
                 {paginatedAuctions.map((a: any) => {

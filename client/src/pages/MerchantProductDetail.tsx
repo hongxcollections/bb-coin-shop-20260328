@@ -794,12 +794,12 @@ export default function MerchantProductDetail() {
               );
             })()}
 
-            {/* ── 同商戶拍賣中商品（一律 grid1 單列）── */}
+            {/* ── 同商戶拍賣商品（一律 grid1 單列）── */}
             {(auctionItems as any[]).length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <Gavel className="w-4 h-4 text-purple-500" />
-                  <h2 className="font-semibold text-sm text-gray-800">拍賣中商品</h2>
+                  <h2 className="font-semibold text-sm text-gray-800">拍賣商品</h2>
                   <span className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full ml-auto">{(auctionItems as any[]).length} 件</span>
                 </div>
                 <div className="flex flex-col gap-2">
