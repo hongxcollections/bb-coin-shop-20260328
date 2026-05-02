@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
-import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag, ShieldCheck, Store, Camera, X, Droplets } from "lucide-react";
+import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag, ShieldCheck, Store, Camera, X, Droplets, LayoutList } from "lucide-react";
 
 const BID_INCREMENT_OPTIONS = [30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
 
@@ -32,6 +32,10 @@ export default function MerchantSettings() {
       toast.success("設定已儲存！");
       utils.merchants.getSettings.invalidate();
     },
+    onError: (err) => toast.error(err.message || "儲存失敗"),
+  });
+  const setPageSizes = trpc.merchants.setPageSizes.useMutation({
+    onSuccess: () => { utils.merchants.getSettings.invalidate(); utils.merchants.listApprovedMerchants.invalidate(); toast.success("每頁顯示數量已儲存"); },
     onError: (err) => toast.error(err.message || "儲存失敗"),
   });
 
@@ -880,6 +884,78 @@ export default function MerchantSettings() {
                       : <Save className="w-4 h-4" />}
                     儲存水印設定
                   </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+        {/* 每頁顯示數量卡片 */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <LayoutList className="w-4 h-4 text-amber-500" />
+              每頁顯示數量
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground py-4">
+                <Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">載入中…</span>
+              </div>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">設定你商戶商店每頁顯示多少條拍賣及商品</p>
+                {/* 拍賣每頁 */}
+                <div className="space-y-2">
+                  <Label className="text-purple-700">拍賣每頁</Label>
+                  <div className="flex gap-2">
+                    {[5, 10, 15, 20].map(n => {
+                      const active = (settings as any)?.auctionsPerPage === n || (!(settings as any)?.auctionsPerPage && n === 10);
+                      return (
+                        <button
+                          key={n}
+                          onClick={() => setPageSizes.mutate({
+                            auctionsPerPage: n,
+                            productsPerPage: (settings as any)?.productsPerPage ?? 10,
+                          })}
+                          disabled={setPageSizes.isPending}
+                          className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
+                            active
+                              ? "border-purple-500 bg-purple-50 text-purple-700"
+                              : "border-gray-200 bg-white text-gray-400 hover:border-purple-200 hover:text-purple-500"
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {/* 商品每頁 */}
+                <div className="space-y-2">
+                  <Label className="text-amber-700">商品每頁</Label>
+                  <div className="flex gap-2">
+                    {[5, 10, 15, 20].map(n => {
+                      const active = (settings as any)?.productsPerPage === n || (!(settings as any)?.productsPerPage && n === 10);
+                      return (
+                        <button
+                          key={n}
+                          onClick={() => setPageSizes.mutate({
+                            auctionsPerPage: (settings as any)?.auctionsPerPage ?? 10,
+                            productsPerPage: n,
+                          })}
+                          disabled={setPageSizes.isPending}
+                          className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
+                            active
+                              ? "border-amber-500 bg-amber-50 text-amber-700"
+                              : "border-gray-200 bg-white text-gray-400 hover:border-amber-200 hover:text-amber-500"
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </>
             )}
