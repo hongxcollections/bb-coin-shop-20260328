@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import Header from "@/components/Header";
-import { Store, ChevronRight, Gavel, Package, Search, X, MessageCircle } from "lucide-react";
+import { Store, ChevronRight, Gavel, Package, Search, X, MessageCircle, ClipboardList } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 type Thumb = { url: string; type: string; id: number };
@@ -89,6 +89,15 @@ export default function Merchants() {
                 {(merchants as any[]).length} 間商戶
               </span>
             )}
+            {/* 商戶申請按鈕 */}
+            <Link href="/merchant-apply">
+              <a className="flex items-center gap-1 text-[11px] font-bold text-white px-2.5 py-1.5 rounded-full shadow-sm shrink-0 transition-opacity hover:opacity-90 active:opacity-75"
+                style={{ background: "linear-gradient(135deg,#f59e0b 0%,#d97706 50%,#b45309 100%)" }}>
+                <ClipboardList className="w-3 h-3 shrink-0" />
+                商戶申請
+              </a>
+            </Link>
+
             {/* 搜尋框 */}
             <div className="flex-1 relative ml-auto max-w-[180px]">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
