@@ -3899,25 +3899,16 @@ export async function listApprovedMerchants(): Promise<Array<{
     }
   } catch (err) { console.error('[Database] listApprovedMerchants: product count sort failed:', err); }
 
-  // 縮圖：先拍賣圖，不夠再補出售商品圖，每商戶最多5張（含 type 標記）
-  const thumbnailMap: Record<number, Array<{ url: string; type: 'auction' | 'product' }>> = {};
-  try {
-    const tRes = await db.execute(sql`SELECT a.createdBy as userId, (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder LIMIT 1) as thumbUrl FROM auctions a WHERE a.status = 'active' AND a.endTime > NOW() ORDER BY a.createdAt DESC`);
-    const tRaw = tRes as unknown as [Array<Record<string, unknown>>, unknown];
-    const tRows = Array.isArray(tRaw[0]) ? tRaw[0] : (tRaw as unknown as Array<Record<string, unknown>>);
-    if (Array.isArray(tRows)) {
-      for (const r of tRows) {
-        const uid = Number(r.userId);
-        const url = r.thumbUrl ? String(r.thumbUrl) : null;
-        if (url) {
-          if (!thumbnailMap[uid]) thumbnailMap[uid] = [];
-          if (thumbnailMap[uid].length < 5) thumbnailMap[uid].push({ url, type: 'auction' });
-        }
-      }
-    }
-  } catch (err) { console.error('[Database] listApprovedMerchants: auction thumbnail fetch failed:', err); }
+  // 縮圖：精確追蹤拍賣 vs 出售商品，每商戶最多5張
+  // 策略：先建立出售商品 URL 集合 → 再抓拍賣圖時交叉比對
+  // 若同一 URL 同時存在於出售商品 → 標「product」；純拍賣圖才標「auction」
+  // 且保留空位給出售商品（最多3拍賣 + 填滿出售），確保兩類都能顯示
 
-  // 補足出售商品縮圖（如拍賣圖不足5張）
+  const thumbnailMap: Record<number, Array<{ url: string; type: 'auction' | 'product' }>> = {};
+
+  // Step A：先收集所有出售商品縮圖 URL（含 userId）
+  const productThumbsByMerchant: Record<number, Array<string>> = {};
+  const productUrlSet: Record<number, Set<string>> = {};
   try {
     const pImgRes = await db.execute(sql`SELECT merchantId as userId, images FROM merchantProducts WHERE status = 'active' ORDER BY createdAt DESC`);
     const pImgRaw = pImgRes as unknown as [Array<Record<string, unknown>>, unknown];
@@ -3925,17 +3916,56 @@ export async function listApprovedMerchants(): Promise<Array<{
     if (Array.isArray(pImgRows)) {
       for (const r of pImgRows) {
         const uid = Number(r.userId);
-        if (!thumbnailMap[uid]) thumbnailMap[uid] = [];
-        if (thumbnailMap[uid].length < 5 && r.images) {
+        if (!productThumbsByMerchant[uid]) { productThumbsByMerchant[uid] = []; productUrlSet[uid] = new Set(); }
+        if (r.images) {
           try {
             const imgs = JSON.parse(String(r.images));
             const url = Array.isArray(imgs) && imgs[0]?.imageUrl ? String(imgs[0].imageUrl) : null;
-            if (url) thumbnailMap[uid].push({ url, type: 'product' });
+            if (url) { productThumbsByMerchant[uid].push(url); productUrlSet[uid].add(url); }
           } catch {}
         }
       }
     }
   } catch (err) { console.error('[Database] listApprovedMerchants: product thumbnail fetch failed:', err); }
+
+  // Step B：抓拍賣縮圖（只取有圖的拍賣），交叉比對出售商品 URL → 正確標 type
+  // 每商戶拍賣縮圖上限 3 張，確保留位給出售商品
+  const auctionThumbCountByMerchant: Record<number, number> = {};
+  try {
+    const tRes = await db.execute(sql`SELECT a.createdBy as userId, (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder ASC, id ASC LIMIT 1) as thumbUrl FROM auctions a WHERE a.status = 'active' AND a.endTime > NOW() AND EXISTS (SELECT 1 FROM auctionImages WHERE auctionId = a.id) ORDER BY a.createdAt DESC`);
+    const tRaw = tRes as unknown as [Array<Record<string, unknown>>, unknown];
+    const tRows = Array.isArray(tRaw[0]) ? tRaw[0] : (tRaw as unknown as Array<Record<string, unknown>>);
+    if (Array.isArray(tRows)) {
+      for (const r of tRows) {
+        const uid = Number(r.userId);
+        const url = r.thumbUrl ? String(r.thumbUrl) : null;
+        if (!url) continue;
+        if (!thumbnailMap[uid]) thumbnailMap[uid] = [];
+        if (thumbnailMap[uid].length >= 5) continue;
+        if (!auctionThumbCountByMerchant[uid]) auctionThumbCountByMerchant[uid] = 0;
+        if (auctionThumbCountByMerchant[uid] >= 3) continue; // 最多保留3位給拍賣
+        // 若此 URL 同時存在於出售商品 → 標 product，否則 auction
+        const type: 'auction' | 'product' = productUrlSet[uid]?.has(url) ? 'product' : 'auction';
+        thumbnailMap[uid].push({ url, type });
+        if (type === 'auction') auctionThumbCountByMerchant[uid]++;
+      }
+    }
+  } catch (err) { console.error('[Database] listApprovedMerchants: auction thumbnail fetch failed:', err); }
+
+  // Step C：用出售商品縮圖補足剩餘位（跳過已顯示的 URL）
+  try {
+    for (const [uidStr, productUrls] of Object.entries(productThumbsByMerchant)) {
+      const uid = Number(uidStr);
+      if (!thumbnailMap[uid]) thumbnailMap[uid] = [];
+      const shownUrls = new Set(thumbnailMap[uid].map(t => t.url));
+      for (const url of productUrls) {
+        if (thumbnailMap[uid].length >= 5) break;
+        if (shownUrls.has(url)) continue;
+        thumbnailMap[uid].push({ url, type: 'product' });
+        shownUrls.add(url);
+      }
+    }
+  } catch (err) { console.error('[Database] listApprovedMerchants: product thumbnail fill failed:', err); }
 
   const base = (merchants as any[]).map(r => ({
     userId: Number(r.userId),
