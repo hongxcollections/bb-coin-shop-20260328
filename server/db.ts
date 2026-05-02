@@ -3935,7 +3935,10 @@ export async function listApprovedMerchants(): Promise<Array<{
         if (!r.images) continue;
         try {
           const imgs = JSON.parse(String(r.images));
-          const url = Array.isArray(imgs) && imgs[0]?.imageUrl ? String(imgs[0].imageUrl) : null;
+          if (!Array.isArray(imgs) || imgs.length === 0) continue;
+          // 兼容兩種格式：字串陣列 ["url"] 或物件陣列 [{"imageUrl":"url"}]
+          const first = imgs[0];
+          const url = typeof first === 'string' ? first : (first?.imageUrl ? String(first.imageUrl) : null);
           if (!url) continue;
           // 跳過已加入的 URL（避免同圖重複）
           if (thumbnailMap[uid].some(t => t.url === url)) continue;
