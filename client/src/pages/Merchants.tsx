@@ -122,7 +122,7 @@ export default function Merchants() {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 pt-4 pb-28 space-y-[5px]">
+      <div className="max-w-2xl mx-auto px-4 pt-4 pb-28 flex flex-col" style={{ gap: "5px" }}>
         {isLoading ? (
           <div className="text-center py-20 text-4xl animate-spin">🏪</div>
         ) : filtered.length === 0 ? (
