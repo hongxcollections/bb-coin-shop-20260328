@@ -6,7 +6,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { ShareMenu, ProductShareMenu } from "@/components/ShareMenu";
-import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag } from "lucide-react";
+import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag, Share2 } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/utils";
 import { getCurrencySymbol } from "./AdminAuctions";
 
