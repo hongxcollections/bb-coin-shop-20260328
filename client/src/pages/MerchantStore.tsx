@@ -58,35 +58,13 @@ function ContactBtns({ whatsapp, messengerLink, title, price, id, size = "md" }:
   if (!waLink && !messengerLink) return null;
   const stop = (e: React.MouseEvent) => e.stopPropagation();
 
-  if (size === "xs") {
-    return (
-      <div className="flex gap-1 shrink-0" onClick={stop}>
-        {waLink && (
-          <a href={waLink} target="_blank" rel="noopener noreferrer"
-            aria-label="WhatsApp 聯絡"
-            className="w-6 h-6 flex items-center justify-center rounded-full text-[#25D366] bg-[#25D366]/10 hover:bg-[#25D366]/20 transition-colors">
-            <WhatsAppIcon className="w-3.5 h-3.5" />
-          </a>
-        )}
-        {messengerLink && (
-          <a href={messengerLink} target="_blank" rel="noopener noreferrer"
-            aria-label="Messenger 聯絡"
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyAndOpenMessenger(messengerLink, msg); }}
-            className="w-6 h-6 flex items-center justify-center rounded-full text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
-            <MessengerIcon className="w-3.5 h-3.5" />
-          </a>
-        )}
-      </div>
-    );
-  }
-
-  const isSmall = size === "sm";
+  const isSmall = size === "sm" || size === "xs";
   const pillBase = isSmall
     ? "flex items-center gap-0.5 text-[9px] font-semibold px-1 py-0.5 rounded-full transition-colors shrink-0"
     : "flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors shrink-0";
   const iconSz = isSmall ? "w-2.5 h-2.5" : "w-3.5 h-3.5";
   return (
-    <div className={`flex gap-1.5 shrink-0 ${isSmall ? "mt-auto justify-end" : ""}`} onClick={stop}>
+    <div className={`flex flex-wrap gap-1 shrink-0 ${isSmall ? "mt-auto justify-end" : ""}`} onClick={stop}>
       {waLink && (
         <a href={waLink} target="_blank" rel="noopener noreferrer"
           aria-label="WhatsApp 聯絡"
