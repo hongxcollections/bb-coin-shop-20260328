@@ -58,23 +58,27 @@ function ContactBtns({ whatsapp, messengerLink, title, price, id, size = "md" }:
   if (!waLink && !messengerLink) return null;
   const stop = (e: React.MouseEvent) => e.stopPropagation();
   const isSmall = size === "sm";
-  const btn = isSmall ? "w-7 h-7" : "w-9 h-9";
-  const icon = isSmall ? "w-3.5 h-3.5" : "w-5 h-5";
+  const pillBase = isSmall
+    ? "flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full transition-colors shrink-0"
+    : "flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors shrink-0";
+  const iconSz = isSmall ? "w-3 h-3" : "w-3.5 h-3.5";
   return (
     <div className={`flex gap-1.5 shrink-0 ${isSmall ? "mt-auto justify-end" : ""}`} onClick={stop}>
       {waLink && (
         <a href={waLink} target="_blank" rel="noopener noreferrer"
           aria-label="WhatsApp 聯絡"
-          className={`${btn} flex items-center justify-center bg-green-500 hover:bg-green-600 text-white rounded-full transition-colors shadow-sm`}>
-          <WhatsAppIcon className={icon} />
+          className={`${pillBase} text-[#25D366] bg-[#25D366]/10 hover:bg-[#25D366]/20`}>
+          <WhatsAppIcon className={iconSz} />
+          聯絡
         </a>
       )}
       {messengerLink && (
         <a href={messengerLink} target="_blank" rel="noopener noreferrer"
           aria-label="Messenger 聯絡"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyAndOpenMessenger(messengerLink, msg); }}
-          className={`${btn} flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors shadow-sm`}>
-          <MessengerIcon className={icon} />
+          className={`${pillBase} text-blue-600 bg-blue-50 hover:bg-blue-100`}>
+          <MessengerIcon className={iconSz} />
+          聯絡
         </a>
       )}
     </div>
