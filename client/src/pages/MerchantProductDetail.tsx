@@ -623,11 +623,56 @@ export default function MerchantProductDetail() {
 
             {/* ── 同商戶其他出售商品 ── */}
             {otherProducts.length > 0 && (() => {
-              const layout = merchantInfo?.listingLayout ?? "grid2";
-              const gridClass =
-                layout === "grid3" ? "grid grid-cols-3 gap-2" :
-                layout === "list" || layout === "big" || layout === "grid1" ? "flex flex-col gap-3" :
-                "grid grid-cols-2 gap-3";
+              const layout = (merchantInfo?.listingLayout ?? "grid2") as string;
+
+              const WA_PATH = "M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.15-.174.2-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z";
+              const MSN_PATH = "M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.301 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.13 3.26L19.752 8l-6.561 6.963z";
+
+              const mkData = (p: any) => {
+                const pImgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
+                const pPrice = parseFloat(p.price ?? "0");
+                const _pWaDigits = (p.whatsapp ?? "").toString().replace(/[^0-9]/g, "");
+                const _mWaDigits = (whatsapp ?? "").toString().replace(/[^0-9]/g, "");
+                const pEffWa = _mWaDigits.length >= 7 ? whatsapp : (_pWaDigits.length >= 7 ? (p.whatsapp ?? "") : "");
+                const pProductUrl = `${window.location.origin}/merchant-products/${p.id}`;
+                const pMsg = `你好，我想查詢以下商品：\n商品：${p.title}\n價錢：HK$${pPrice.toLocaleString()}\n連結：${pProductUrl}`;
+                const pWaLink = pEffWa ? buildWhatsAppUrl(String(pEffWa), pMsg) : "";
+                const onMsn = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+                  e.preventDefault(); e.stopPropagation();
+                  try { if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(pMsg); toast.success("商品資訊已複製，請在 Messenger 對話內長按輸入欄貼上", { duration: 5000 }); } catch { toast.error("複製失敗，請手動輸入"); }
+                  window.open(messengerLink, "_blank", "noopener,noreferrer");
+                };
+                return { pImgs, pPrice, pWaLink, onMsn };
+              };
+
+              const renderBtns = (p: any, d: ReturnType<typeof mkData>, pill: string, icon: string) => (
+                <div className="flex flex-wrap gap-1 mt-1" onClick={e => e.stopPropagation()}>
+                  {p.merchantId === user?.id ? (
+                    <span className={`${pill} bg-gray-100 text-gray-400 cursor-not-allowed`}>🚫 自己</span>
+                  ) : (
+                    <button onClick={e => { e.preventDefault(); e.stopPropagation(); setBuyingProduct(p); }}
+                      className={`${pill} bg-amber-500 hover:bg-amber-600 text-white`}>
+                      <ShoppingCart className={icon} />落單
+                    </button>
+                  )}
+                  {d.pWaLink && (
+                    <a href={d.pWaLink} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp 聯絡"
+                      className={`${pill} text-[#25D366] bg-[#25D366]/10 hover:bg-[#25D366]/20`}>
+                      <svg viewBox="0 0 24 24" fill="currentColor" className={icon}><path d={WA_PATH} /></svg>聯絡
+                    </a>
+                  )}
+                  {messengerLink && (
+                    <a href={messengerLink} onClick={d.onMsn} target="_blank" rel="noopener noreferrer" aria-label="Messenger 聯絡"
+                      className={`${pill} text-blue-600 bg-blue-50 hover:bg-blue-100`}>
+                      <svg viewBox="0 0 24 24" fill="currentColor" className={icon}><path d={MSN_PATH} /></svg>聯絡
+                    </a>
+                  )}
+                </div>
+              );
+
+              const smPill = "flex items-center gap-0.5 text-[9px] font-semibold px-1 py-0.5 rounded-full transition-colors shrink-0";
+              const mdPill = "flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors shrink-0";
+
               return (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
@@ -635,84 +680,116 @@ export default function MerchantProductDetail() {
                   <h2 className="font-semibold text-sm text-gray-800">更多出售商品</h2>
                   <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full ml-auto">{otherProducts.length} 件</span>
                 </div>
-                <div className={gridClass}>
-                  {otherProducts.map((p: any) => {
-                    const pImgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
-                    const pPrice = parseFloat(p.price ?? "0");
-                    const _pWa = (p.whatsapp ?? "").toString();
-                    const _pWaDigits = _pWa.replace(/[^0-9]/g, "");
-                    const _mWaDigits = (whatsapp ?? "").toString().replace(/[^0-9]/g, "");
-                    const pEffWa = _mWaDigits.length >= 7 ? whatsapp : (_pWaDigits.length >= 7 ? _pWa : "");
-                    const pProductUrl = `${window.location.origin}/merchant-products/${p.id}`;
-                    const pMsg = `你好，我想查詢以下商品：\n商品：${p.title}\n價錢：HK$${pPrice.toLocaleString()}\n連結：${pProductUrl}`;
-                    const pWaLink = pEffWa ? buildWhatsAppUrl(pEffWa, pMsg) : "";
-                    const handlePMessenger = async (e: React.MouseEvent<HTMLAnchorElement>) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      try {
-                        if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(pMsg);
-                        toast.success("商品資訊已複製，請在 Messenger 對話內長按輸入欄貼上", { duration: 5000 });
-                      } catch { toast.error("複製失敗，請手動輸入"); }
-                      window.open(messengerLink, "_blank", "noopener,noreferrer");
-                    };
-                    return (
-                      <Link key={p.id} href={`/merchant-products/${p.id}`}>
-                        <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-amber-300 transition-colors">
-                          {pImgs[0] ? (
-                            <div className="aspect-square w-full overflow-hidden bg-amber-50">
-                              <img src={pImgs[0]} alt={p.title} className="w-full h-full object-cover" />
+
+                {/* list：橫排 */}
+                {layout === "list" && (
+                  <div className="space-y-2">
+                    {otherProducts.map((p: any) => {
+                      const d = mkData(p);
+                      return (
+                        <Link key={p.id} href={`/merchant-products/${p.id}`}>
+                          <div className="bg-white rounded-xl border border-amber-100 shadow-sm p-3 flex gap-3 items-start cursor-pointer hover:border-amber-300 transition-colors">
+                            {d.pImgs[0] ? (
+                              <img src={d.pImgs[0]} alt={p.title} className="w-16 h-16 rounded-lg object-cover shrink-0" />
+                            ) : (
+                              <div className="w-16 h-16 rounded-lg bg-amber-50 flex items-center justify-center shrink-0"><Package className="w-6 h-6 text-amber-200" /></div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-sm font-semibold text-gray-800 line-clamp-1">{p.title}</h3>
+                              {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{p.category}</span>}
+                              <p className="text-sm font-bold text-amber-600 mt-0.5">{p.currency ?? "HKD"} ${d.pPrice.toLocaleString()}</p>
+                              {renderBtns(p, d, mdPill, "w-3.5 h-3.5")}
                             </div>
-                          ) : (
-                            <div className="aspect-square w-full bg-amber-50 flex items-center justify-center">
-                              <Package className="w-8 h-8 text-amber-200" />
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* big：大圖 */}
+                {layout === "big" && (
+                  <div className="space-y-4">
+                    {otherProducts.map((p: any) => {
+                      const d = mkData(p);
+                      return (
+                        <Link key={p.id} href={`/merchant-products/${p.id}`}>
+                          <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden cursor-pointer hover:border-amber-300 transition-colors">
+                            {d.pImgs[0] ? (
+                              <img src={d.pImgs[0]} alt={p.title} className="w-full h-56 object-cover" />
+                            ) : (
+                              <div className="w-full h-56 bg-amber-50 flex items-center justify-center"><Package className="w-10 h-10 text-amber-200" /></div>
+                            )}
+                            <div className="p-3 space-y-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <h3 className="font-semibold text-sm text-gray-800 line-clamp-2 flex-1">{p.title}</h3>
+                                {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">{p.category}</span>}
+                              </div>
+                              {p.description && <p className="text-xs text-gray-500 line-clamp-2">{p.description}</p>}
+                              <div className="flex items-center justify-between pt-1">
+                                <span className="text-base font-bold text-amber-600">{p.currency ?? "HKD"} ${d.pPrice.toLocaleString()}</span>
+                                {renderBtns(p, d, mdPill, "w-3.5 h-3.5")}
+                              </div>
                             </div>
-                          )}
-                          {(() => {
-                            const isWide = layout === "list" || layout === "big" || layout === "grid1";
-                            const pillCls = isWide
-                              ? "flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors shrink-0"
-                              : "flex items-center gap-0.5 text-[9px] font-semibold px-1 py-0.5 rounded-full transition-colors shrink-0";
-                            const iconSz = isWide ? "w-3.5 h-3.5" : "w-2.5 h-2.5";
-                            const orderCls = isWide
-                              ? "flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors shadow-sm"
-                              : "flex items-center gap-0.5 text-[9px] font-semibold px-1 py-0.5 rounded-full transition-colors shadow-sm";
-                            return (
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* grid3：三欄 */}
+                {layout === "grid3" && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {otherProducts.map((p: any) => {
+                      const d = mkData(p);
+                      return (
+                        <Link key={p.id} href={`/merchant-products/${p.id}`}>
+                          <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-amber-300 transition-colors">
+                            {d.pImgs[0] ? (
+                              <img src={d.pImgs[0]} alt={p.title} className="w-full aspect-square object-cover" />
+                            ) : (
+                              <div className="w-full aspect-square bg-amber-50 flex items-center justify-center"><Package className="w-5 h-5 text-amber-200" /></div>
+                            )}
+                            <div className="p-1.5 flex flex-col gap-0.5 flex-1">
+                              <h3 className="text-[10px] font-semibold text-gray-800 line-clamp-2 leading-tight">{p.title}</h3>
+                              <span className="text-[10px] font-bold text-amber-600">{p.currency ?? "HKD"} ${d.pPrice.toLocaleString()}</span>
+                              {renderBtns(p, d, smPill, "w-2.5 h-2.5")}
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* grid2（預設，包含任何未知值）*/}
+                {layout !== "list" && layout !== "big" && layout !== "grid3" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {otherProducts.map((p: any) => {
+                      const d = mkData(p);
+                      return (
+                        <Link key={p.id} href={`/merchant-products/${p.id}`}>
+                          <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-amber-300 transition-colors">
+                            {d.pImgs[0] ? (
+                              <div className="aspect-square w-full overflow-hidden bg-amber-50">
+                                <img src={d.pImgs[0]} alt={p.title} className="w-full h-full object-cover" />
+                              </div>
+                            ) : (
+                              <div className="aspect-square w-full bg-amber-50 flex items-center justify-center"><Package className="w-8 h-8 text-amber-200" /></div>
+                            )}
                             <div className="p-2 flex flex-col gap-1 flex-1">
                               <h3 className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">{p.title}</h3>
                               {p.category && <span className="text-[10px] text-amber-600">{p.category}</span>}
-                              <span className="font-bold text-amber-600 text-xs">{p.currency ?? "HKD"} ${pPrice.toLocaleString()}</span>
-                              <div className="mt-auto pt-1 flex flex-wrap items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-                                {p.merchantId === user?.id ? (
-                                  <span className={`${pillCls} bg-gray-100 text-gray-400 cursor-not-allowed`}>🚫 自己</span>
-                                ) : (
-                                  <button onClick={e => { e.preventDefault(); e.stopPropagation(); setBuyingProduct(p); }}
-                                    className={`${orderCls} bg-amber-500 hover:bg-amber-600 text-white`}>
-                                    <ShoppingCart className={iconSz} />落單
-                                  </button>
-                                )}
-                                {pWaLink && (
-                                  <a href={pWaLink} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp 聯絡"
-                                    className={`${pillCls} text-[#25D366] bg-[#25D366]/10 hover:bg-[#25D366]/20`}>
-                                    <svg viewBox="0 0 24 24" fill="currentColor" className={iconSz}><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.15-.174.2-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
-                                    聯絡
-                                  </a>
-                                )}
-                                {messengerLink && (
-                                  <a href={messengerLink} onClick={handlePMessenger} target="_blank" rel="noopener noreferrer" aria-label="Messenger 聯絡"
-                                    className={`${pillCls} text-blue-600 bg-blue-50 hover:bg-blue-100`}>
-                                    <svg viewBox="0 0 24 24" fill="currentColor" className={iconSz}><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.301 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.13 3.26L19.752 8l-6.561 6.963z"/></svg>
-                                    聯絡
-                                  </a>
-                                )}
-                              </div>
+                              <span className="font-bold text-amber-600 text-xs">{p.currency ?? "HKD"} ${d.pPrice.toLocaleString()}</span>
+                              {renderBtns(p, d, smPill, "w-2.5 h-2.5")}
                             </div>
-                            );
-                          })()}
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               );
             })()}
