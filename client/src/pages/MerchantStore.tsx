@@ -653,7 +653,7 @@ export default function MerchantStore() {
                   whatsapp={merchant?.whatsapp ?? ""}
                   messengerLink={messengerLink}
                 />
-                {soldProducts.length > 0 && (
+                {soldProducts.length > 0 && (merchantInfo?.showSoldProducts ?? 1) !== 0 && (
                   <div>
                     <div className="flex items-center gap-2 my-3">
                       <div className="flex-1 h-px bg-amber-100" />

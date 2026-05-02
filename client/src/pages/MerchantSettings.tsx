@@ -917,6 +917,7 @@ export default function MerchantSettings() {
                           onClick={() => setPageSizes.mutate({
                             auctionsPerPage: n,
                             productsPerPage: (settings as any)?.productsPerPage ?? 10,
+                            showSoldProducts: (settings as any)?.showSoldProducts ?? 1,
                           })}
                           disabled={setPageSizes.isPending}
                           className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
@@ -943,6 +944,7 @@ export default function MerchantSettings() {
                           onClick={() => setPageSizes.mutate({
                             auctionsPerPage: (settings as any)?.auctionsPerPage ?? 10,
                             productsPerPage: n,
+                            showSoldProducts: (settings as any)?.showSoldProducts ?? 1,
                           })}
                           disabled={setPageSizes.isPending}
                           className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
@@ -956,6 +958,22 @@ export default function MerchantSettings() {
                       );
                     })}
                   </div>
+                </div>
+                {/* 展示已售出商品 */}
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">展示已售出商品</p>
+                    <p className="text-xs text-muted-foreground">關閉後訪客不會看到已售商品列表</p>
+                  </div>
+                  <Switch
+                    checked={(settings as any)?.showSoldProducts !== 0}
+                    onCheckedChange={(checked) => setPageSizes.mutate({
+                      auctionsPerPage: (settings as any)?.auctionsPerPage ?? 10,
+                      productsPerPage: (settings as any)?.productsPerPage ?? 10,
+                      showSoldProducts: checked ? 1 : 0,
+                    })}
+                    disabled={setPageSizes.isPending}
+                  />
                 </div>
               </>
             )}

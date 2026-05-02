@@ -2926,9 +2926,10 @@ export const appRouter = router({
       .input(z.object({
         auctionsPerPage: z.number().int().min(1).max(50),
         productsPerPage: z.number().int().min(1).max(50),
+        showSoldProducts: z.number().int().min(0).max(1).default(1),
       }))
       .mutation(async ({ input, ctx }) => {
-        await setMerchantPageSizes(ctx.user.id, input.auctionsPerPage, input.productsPerPage);
+        await setMerchantPageSizes(ctx.user.id, input.auctionsPerPage, input.productsPerPage, input.showSoldProducts);
         return { success: true };
       }),
 

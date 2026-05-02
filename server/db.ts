@@ -3013,10 +3013,11 @@ async function ensureMerchantSettingsTable() {
         await db.execute(sql.raw(`ALTER TABLE merchant_settings ADD COLUMN ${colName} ${colDef}`));
       }
     }
-    // Add auctionsPerPage / productsPerPage columns if missing
+    // Add auctionsPerPage / productsPerPage / showSoldProducts columns if missing
     for (const [colName, colDef] of [
       ['auctionsPerPage', 'INT NOT NULL DEFAULT 10'],
       ['productsPerPage', 'INT NOT NULL DEFAULT 10'],
+      ['showSoldProducts', 'TINYINT NOT NULL DEFAULT 1'],
     ] as [string, string][]) {
       const chk = await db.execute(sql`
         SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
@@ -3077,13 +3078,14 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   fbShareTemplate: null as string | null,
   auctionsPerPage: 10,
   productsPerPage: 10,
+  showSoldProducts: 1,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, auctionsPerPage, productsPerPage FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, auctionsPerPage, productsPerPage, showSoldProducts FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -3112,6 +3114,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         fbShareTemplate: row.fbShareTemplate != null ? String(row.fbShareTemplate) : null,
         auctionsPerPage: Number(row.auctionsPerPage ?? 10),
         productsPerPage: Number(row.productsPerPage ?? 10),
+        showSoldProducts: Number(row.showSoldProducts ?? 1),
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -3121,14 +3124,14 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
   }
 }
 
-export async function setMerchantPageSizes(userId: number, auctionsPerPage: number, productsPerPage: number): Promise<void> {
+export async function setMerchantPageSizes(userId: number, auctionsPerPage: number, productsPerPage: number, showSoldProducts: number): Promise<void> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
   await db.execute(sql`
-    INSERT INTO merchant_settings (userId, auctionsPerPage, productsPerPage)
-    VALUES (${userId}, ${auctionsPerPage}, ${productsPerPage})
-    ON DUPLICATE KEY UPDATE auctionsPerPage = ${auctionsPerPage}, productsPerPage = ${productsPerPage}, updatedAt = CURRENT_TIMESTAMP
+    INSERT INTO merchant_settings (userId, auctionsPerPage, productsPerPage, showSoldProducts)
+    VALUES (${userId}, ${auctionsPerPage}, ${productsPerPage}, ${showSoldProducts})
+    ON DUPLICATE KEY UPDATE auctionsPerPage = ${auctionsPerPage}, productsPerPage = ${productsPerPage}, showSoldProducts = ${showSoldProducts}, updatedAt = CURRENT_TIMESTAMP
   `);
 }
 
@@ -3812,9 +3815,10 @@ export async function listApprovedMerchants(): Promise<Array<{
   const layoutMap: Record<number, string> = {};
   const auctionsPerPageMap: Record<number, number> = {};
   const productsPerPageMap: Record<number, number> = {};
+  const showSoldProductsMap: Record<number, number> = {};
   try {
     await ensureMerchantSettingsTable();
-    const lResult = await db.execute(sql`SELECT userId, listingLayout, auctionsPerPage, productsPerPage FROM merchant_settings`);
+    const lResult = await db.execute(sql`SELECT userId, listingLayout, auctionsPerPage, productsPerPage, showSoldProducts FROM merchant_settings`);
     const lRaw = lResult as unknown as [Array<Record<string, unknown>>, unknown];
     const lRows: Array<Record<string, unknown>> = Array.isArray(lRaw[0])
       ? (lRaw[0] as Array<Record<string, unknown>>)
@@ -3825,6 +3829,7 @@ export async function listApprovedMerchants(): Promise<Array<{
           if (r.listingLayout) layoutMap[Number(r.userId)] = String(r.listingLayout);
           auctionsPerPageMap[Number(r.userId)] = Number(r.auctionsPerPage ?? 10);
           productsPerPageMap[Number(r.userId)] = Number(r.productsPerPage ?? 10);
+          showSoldProductsMap[Number(r.userId)] = Number(r.showSoldProducts ?? 1);
         }
       }
     }
@@ -3905,6 +3910,7 @@ export async function listApprovedMerchants(): Promise<Array<{
     listingLayout: layoutMap[Number(r.userId)] ?? 'grid2',
     auctionsPerPage: auctionsPerPageMap[Number(r.userId)] ?? 10,
     productsPerPage: productsPerPageMap[Number(r.userId)] ?? 10,
+    showSoldProducts: showSoldProductsMap[Number(r.userId)] ?? 1,
     auctionCount: auctionCountMap[Number(r.userId)] ?? 0,
     productCount: productCountMap[Number(r.userId)] ?? 0,
   }));
