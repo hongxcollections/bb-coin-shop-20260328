@@ -199,7 +199,7 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
         onClick={handleOpen}
         title="分享"
         className={iconOnly
-          ? "flex items-center justify-center w-7 h-7 text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded-full transition-colors bg-amber-50 hover:bg-amber-100"
+          ? "flex items-center justify-center w-6 h-6 text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded-full transition-colors bg-amber-50 hover:bg-amber-100"
           : "flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-1 transition-colors bg-amber-50 hover:bg-amber-100"
         }
       >
@@ -380,7 +380,7 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
         onClick={handleOpen}
         title="分享"
         className={iconOnly
-          ? "flex items-center justify-center w-7 h-7 text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded-full transition-colors bg-amber-50 hover:bg-amber-100"
+          ? "flex items-center justify-center w-6 h-6 text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded-full transition-colors bg-amber-50 hover:bg-amber-100"
           : "flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-1 transition-colors bg-amber-50 hover:bg-amber-100"
         }
       >

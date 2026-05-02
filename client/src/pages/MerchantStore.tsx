@@ -51,12 +51,35 @@ const MessengerIcon = ({ className }: { className?: string }) => (
 );
 
 function ContactBtns({ whatsapp, messengerLink, title, price, id, size = "md" }: {
-  whatsapp: string; messengerLink: string; title: string; price?: number; id?: number; size?: "md" | "sm";
+  whatsapp: string; messengerLink: string; title: string; price?: number; id?: number; size?: "md" | "sm" | "xs";
 }) {
   const msg = buildProductMsg(title, price, id);
   const waLink = whatsapp ? buildWhatsAppUrl(whatsapp, msg) : "";
   if (!waLink && !messengerLink) return null;
   const stop = (e: React.MouseEvent) => e.stopPropagation();
+
+  if (size === "xs") {
+    return (
+      <div className="flex gap-1 shrink-0" onClick={stop}>
+        {waLink && (
+          <a href={waLink} target="_blank" rel="noopener noreferrer"
+            aria-label="WhatsApp 聯絡"
+            className="w-6 h-6 flex items-center justify-center rounded-full text-[#25D366] bg-[#25D366]/10 hover:bg-[#25D366]/20 transition-colors">
+            <WhatsAppIcon className="w-3.5 h-3.5" />
+          </a>
+        )}
+        {messengerLink && (
+          <a href={messengerLink} target="_blank" rel="noopener noreferrer"
+            aria-label="Messenger 聯絡"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyAndOpenMessenger(messengerLink, msg); }}
+            className="w-6 h-6 flex items-center justify-center rounded-full text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
+            <MessengerIcon className="w-3.5 h-3.5" />
+          </a>
+        )}
+      </div>
+    );
+  }
+
   const isSmall = size === "sm";
   const pillBase = isSmall
     ? "flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full transition-colors shrink-0"
@@ -254,7 +277,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
               <span className={`text-sm font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
               {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
               <div className="mt-auto pt-1 flex items-center justify-end gap-1">
-                {!isSold ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
+                {!isSold ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="xs" /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
                 <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                   <ProductShareMenu productId={p.id} title={p.title} price={price} currency={p.currency} iconOnly />
                 </div>
