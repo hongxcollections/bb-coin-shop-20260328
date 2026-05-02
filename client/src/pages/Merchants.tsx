@@ -30,7 +30,7 @@ export default function Merchants() {
       if (m.categories) {
         (m.categories as string).split(",").forEach((c: string) => {
           const t = c.trim();
-          if (t) set.add(t);
+          if (t && /[\u4e00-\u9fa5a-zA-Z0-9]/.test(t)) set.add(t);
         });
       }
     });
