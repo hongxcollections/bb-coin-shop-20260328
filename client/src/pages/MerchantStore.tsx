@@ -561,7 +561,7 @@ export default function MerchantStore() {
           </div>
           <div className="p-3">
             {loadingAuctions ? (
-              <div className="text-center py-10 text-2xl animate-spin">🔨</div>
+              <div className="text-center py-10 text-2xl animate-spin">💰</div>
             ) : allAuctions.length === 0 ? (
               <p className="text-center text-gray-400 text-sm py-8">暫無拍賣中商品</p>
             ) : (
