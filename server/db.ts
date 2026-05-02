@@ -3905,6 +3905,8 @@ export async function listApprovedMerchants(): Promise<Array<{
     listingLayout: layoutMap[Number(r.userId)] ?? 'grid2',
     auctionsPerPage: auctionsPerPageMap[Number(r.userId)] ?? 10,
     productsPerPage: productsPerPageMap[Number(r.userId)] ?? 10,
+    auctionCount: auctionCountMap[Number(r.userId)] ?? 0,
+    productCount: productCountMap[Number(r.userId)] ?? 0,
   }));
 
   // Sort: 1) requiredDeposit DESC, 2) monthlyPrice DESC, 3) auctionCount DESC, 4) productCount DESC
