@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import Header from "@/components/Header";
-import { Store, ChevronRight, Gavel, Package, Search, X, MessageCircle, ClipboardList } from "lucide-react";
+import { Store, ChevronRight, Gavel, Package, Search, X, MessageCircle } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 type Thumb = { url: string; type: string; id: number };
@@ -74,6 +74,15 @@ export default function Merchants() {
     <div className="min-h-screen bg-background">
       <Header />
 
+      {/* 商戶申請流程 — 獨立頂部列，跟足主頁頂部同款 sky-600 */}
+      <div className="max-w-2xl mx-auto px-4 pt-2 pb-0 flex justify-end">
+        <Link href="/merchant-apply">
+          <a className="inline-flex items-center gap-1.5 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow transition-colors cursor-pointer select-none">
+            📋 商戶申請流程
+          </a>
+        </Link>
+      </div>
+
       {/* 頁首 */}
       <div className="sticky top-16 z-10 bg-background/95 backdrop-blur border-b border-amber-100">
         <div className="max-w-2xl mx-auto px-4 pt-3 pb-2 space-y-2">
@@ -89,14 +98,6 @@ export default function Merchants() {
                 {(merchants as any[]).length} 間商戶
               </span>
             )}
-            {/* 商戶申請按鈕 */}
-            <Link href="/merchant-apply">
-              <a className="flex items-center gap-1 text-[11px] font-bold text-white px-2.5 py-1.5 rounded-full shadow-sm shrink-0 transition-opacity hover:opacity-90 active:opacity-75"
-                style={{ background: "linear-gradient(135deg,#f59e0b 0%,#d97706 50%,#b45309 100%)" }}>
-                <ClipboardList className="w-3 h-3 shrink-0" />
-                商戶申請
-              </a>
-            </Link>
 
             {/* 搜尋框 */}
             <div className="flex-1 relative ml-auto max-w-[180px]">
