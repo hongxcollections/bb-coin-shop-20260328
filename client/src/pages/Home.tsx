@@ -22,7 +22,7 @@ import {
   Award, 
   Coins, 
   Search, 
-  Filter, 
+  
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -1315,7 +1315,7 @@ export default function Home() {
                   variant="outline" 
                   className="border-amber-200 text-amber-800 hover:bg-amber-50 flex items-center gap-1.5 rounded-full px-3 h-8 shadow-sm transition-all active:scale-95 text-xs"
                 >
-                  <Filter className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="text-sm leading-none">💰</span>
                   <span className="font-semibold">
                     {category === "all" ? "全部商品分類" : `分類：${CATEGORIES.find(c => c.value === category)?.label}`}
                   </span>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
-import { Search, X, ExternalLink, Database, SlidersHorizontal } from "lucide-react";
+import { Search, X, ExternalLink, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import ImageLightbox from "@/components/ImageLightbox";
@@ -213,7 +213,7 @@ export default function AuctionSearch() {
               onClick={() => setShowFilters(v => !v)}
               className={`shrink-0 p-2 rounded-full border ${showFilters || saleStatus !== "all" || houseFilter ? "border-orange-400 bg-orange-50 text-orange-600" : "border-gray-300 text-gray-500"}`}
             >
-              <SlidersHorizontal className="h-4 w-4" />
+              <span className="text-sm leading-none">💰</span>
             </button>
           </div>
 
