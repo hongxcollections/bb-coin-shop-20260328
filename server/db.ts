@@ -3902,19 +3902,16 @@ export async function listApprovedMerchants(): Promise<Array<{
   // 拍賣縮圖（每個商戶最多3張，只取進行中）
   const thumbnailMap: Record<number, string[]> = {};
   try {
-    const tRes = await db.execute(sql`SELECT createdBy as userId, images FROM auctions WHERE status = 'active' AND endTime > NOW() ORDER BY createdAt DESC`);
+    const tRes = await db.execute(sql`SELECT a.createdBy as userId, (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder LIMIT 1) as thumbUrl FROM auctions a WHERE a.status = 'active' AND a.endTime > NOW() ORDER BY a.createdAt DESC`);
     const tRaw = tRes as unknown as [Array<Record<string, unknown>>, unknown];
     const tRows = Array.isArray(tRaw[0]) ? tRaw[0] : (tRaw as unknown as Array<Record<string, unknown>>);
     if (Array.isArray(tRows)) {
       for (const r of tRows) {
         const uid = Number(r.userId);
-        if (!thumbnailMap[uid]) thumbnailMap[uid] = [];
-        if (thumbnailMap[uid].length < 3 && r.images) {
-          try {
-            const imgs = JSON.parse(String(r.images));
-            const url = Array.isArray(imgs) && imgs[0]?.imageUrl ? imgs[0].imageUrl : null;
-            if (url) thumbnailMap[uid].push(url);
-          } catch {}
+        const url = r.thumbUrl ? String(r.thumbUrl) : null;
+        if (url) {
+          if (!thumbnailMap[uid]) thumbnailMap[uid] = [];
+          if (thumbnailMap[uid].length < 3) thumbnailMap[uid].push(url);
         }
       }
     }
