@@ -6,7 +6,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { ShareMenu } from "@/components/ShareMenu";
-import { Store, MessageCircle, Package, Gavel, ChevronLeft, Tag, Share2 } from "lucide-react";
+import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Tag, Share2 } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/utils";
 import { getCurrencySymbol } from "./AdminAuctions";
 
@@ -385,6 +385,7 @@ export default function MerchantStore() {
 
   const [auctionPage, setAuctionPage] = useState(0);
   const [productPage, setProductPage] = useState(0);
+  const [soldOpen, setSoldOpen] = useState(false);
 
   const activeProducts = (products as any[]).filter((p: any) => p.status === "active" && p.stock > 0);
   const soldProducts = (products as any[]).filter((p: any) => p.status === "sold");
@@ -654,13 +655,25 @@ export default function MerchantStore() {
                   messengerLink={messengerLink}
                 />
                 {soldProducts.length > 0 && (merchantInfo?.showSoldProducts ?? 1) !== 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 my-3">
-                      <div className="flex-1 h-px bg-amber-100" />
-                      <span className="text-[11px] text-amber-400 px-2">已售出（{soldProducts.length}）</span>
-                      <div className="flex-1 h-px bg-amber-100" />
-                    </div>
-                    <SoldProductsList products={soldProducts} />
+                  <div className="mt-3">
+                    {/* 收起/展開按鈕 */}
+                    <button
+                      onClick={() => setSoldOpen(o => !o)}
+                      className="w-full flex items-center gap-2 py-2 px-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex-1 h-px bg-gray-200" />
+                      <span className="text-[11px] text-gray-400 whitespace-nowrap">已售出（{soldProducts.length}）</span>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${soldOpen ? "rotate-180" : ""}`}
+                      />
+                      <div className="flex-1 h-px bg-gray-200" />
+                    </button>
+                    {/* 抽屜內容 */}
+                    {soldOpen && (
+                      <div className="mt-2 border border-gray-100 rounded-xl bg-white px-2 py-1">
+                        <SoldProductsList products={soldProducts} />
+                      </div>
+                    )}
                   </div>
                 )}
               </>
