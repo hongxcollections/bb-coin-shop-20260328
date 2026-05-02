@@ -3876,8 +3876,8 @@ export async function listApprovedMerchants(): Promise<Array<{
   } catch (err) { console.error('[Database] listApprovedMerchants: subscription sort failed:', err); }
 
   try {
-    // 拍賣商品數量
-    const aRes = await db.execute(sql`SELECT createdBy as userId, COUNT(*) as cnt FROM auctions GROUP BY createdBy`);
+    // 拍賣商品數量（只計算進行中）
+    const aRes = await db.execute(sql`SELECT createdBy as userId, COUNT(*) as cnt FROM auctions WHERE status = 'active' AND endTime > NOW() GROUP BY createdBy`);
     const aRaw = aRes as unknown as [Array<Record<string, unknown>>, unknown];
     const aRows = Array.isArray(aRaw[0]) ? aRaw[0] : (aRaw as unknown as Array<Record<string, unknown>>);
     if (Array.isArray(aRows)) {
