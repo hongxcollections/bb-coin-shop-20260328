@@ -310,7 +310,7 @@ function SoldProductsList({ products }: { products: any[] }) {
   );
 }
 
-function AuctionTimerOverlay({ endTime }: { endTime: Date | string }) {
+function AuctionImageOverlay({ endTime }: { endTime: Date | string }) {
   const [txt, setTxt] = useState("");
   const [urgent, setUrgent] = useState(false);
   useEffect(() => {
@@ -338,8 +338,10 @@ function AuctionTimerOverlay({ endTime }: { endTime: Date | string }) {
   }, [endTime]);
   if (!txt) return null;
   return (
-    <div className={`absolute bottom-1 right-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none backdrop-blur-sm ${urgent ? "bg-red-500/90 text-white animate-pulse" : "bg-black/55 text-white/90"}`}>
-      <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
+    <div className="absolute bottom-0 left-0 right-0 bg-black/55 backdrop-blur-sm px-1.5 py-1">
+      <div className={`flex items-center gap-0.5 text-[10px] font-bold leading-none ${urgent ? "text-red-300 animate-pulse" : "text-white/90"}`}>
+        <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
+      </div>
     </div>
   );
 }
@@ -551,7 +553,7 @@ export default function MerchantStore() {
                           ) : (
                             <span className="text-3xl">🪙</span>
                           )}
-                          {!isEnded && <AuctionTimerOverlay endTime={a.endTime} />}
+                          {!isEnded && <AuctionImageOverlay endTime={a.endTime} />}
                         </div>
                         {/* 右：內容 */}
                         <div className="flex-1 flex flex-col justify-between min-w-0">

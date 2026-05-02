@@ -43,7 +43,7 @@ import { ShareMenu } from "@/components/ShareMenu";
 import Header from "@/components/Header";
 import EarlyBirdBanner from "@/components/EarlyBirdBanner";
 
-function AuctionTimerOverlay({ endTime }: { endTime: Date | string }) {
+function AuctionImageOverlay({ endTime, sellerName }: { endTime: Date | string; sellerName?: string | null }) {
   const [txt, setTxt] = useState("");
   const [urgent, setUrgent] = useState(false);
   useEffect(() => {
@@ -69,10 +69,15 @@ function AuctionTimerOverlay({ endTime }: { endTime: Date | string }) {
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
   }, [endTime]);
-  if (!txt) return null;
+  if (!txt && !sellerName) return null;
   return (
-    <div className={`absolute bottom-1 right-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none backdrop-blur-sm ${urgent ? "bg-red-500/90 text-white animate-pulse" : "bg-black/55 text-white/90"}`}>
-      <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
+    <div className="absolute bottom-0 left-0 right-0 bg-black/55 backdrop-blur-sm px-1.5 py-1 flex flex-col gap-0.5">
+      {sellerName && <div className="text-[10px] text-white/80 font-medium leading-none truncate">{sellerName}</div>}
+      {txt && (
+        <div className={`flex items-center gap-0.5 text-[10px] font-bold leading-none ${urgent ? "text-red-300 animate-pulse" : "text-white/90"}`}>
+          <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
+        </div>
+      )}
     </div>
   );
 }
@@ -1403,12 +1408,10 @@ export default function Home() {
                       ) : (
                         <span className="text-3xl">🪙</span>
                       )}
-                      {(auction as { sellerName?: string | null }).sellerName && (
-                        <div className="absolute bottom-[3px] left-[3px] bg-black/60 text-white text-[10px] font-medium leading-none px-2 py-1 rounded-full max-w-[calc(100%-6px)] truncate">
-                          {(auction as { sellerName?: string | null }).sellerName}
-                        </div>
-                      )}
-                      <AuctionTimerOverlay endTime={auction.endTime} />
+                      <AuctionImageOverlay
+                        endTime={auction.endTime}
+                        sellerName={(auction as { sellerName?: string | null }).sellerName}
+                      />
                     </div>
 
                     {/* Right: Content */}
