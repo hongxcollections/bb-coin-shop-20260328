@@ -208,29 +208,26 @@ export default function Merchants() {
                       )}
 
                       {/* 活動數據 + WhatsApp */}
-                      <div className="flex items-center gap-3 pt-0.5">
+                      <div className="flex items-center gap-2 pt-0.5 flex-wrap">
                         <div className={`flex items-center gap-1 text-[11px] font-semibold ${
                           hasAuctions ? "text-purple-600" : "text-gray-300"
                         }`}>
-                          <Gavel className="w-3 h-3" />
+                          <Gavel className="w-3 h-3 shrink-0" />
                           <span>{m.auctionCount ?? 0} 拍賣</span>
                         </div>
                         <div className={`flex items-center gap-1 text-[11px] font-semibold ${
                           hasProducts ? "text-amber-600" : "text-gray-300"
                         }`}>
-                          <Package className="w-3 h-3" />
+                          <Package className="w-3 h-3 shrink-0" />
                           <span>{m.productCount ?? 0} 商品</span>
                         </div>
-                        {!hasAuctions && !hasProducts && (
-                          <span className="text-[11px] text-gray-300">暫無上架</span>
-                        )}
                         {m.whatsapp && (
                           <a
                             href={`https://wa.me/${(m.whatsapp as string).replace(/\D/g, "")}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-[#25D366] bg-[#25D366]/10 hover:bg-[#25D366]/20 px-2 py-0.5 rounded-full transition-colors"
+                            className="flex items-center gap-1 text-[11px] font-semibold text-[#25D366] bg-[#25D366]/10 hover:bg-[#25D366]/20 px-2 py-0.5 rounded-full transition-colors shrink-0"
                           >
                             <WhatsAppIcon />
                             聯絡
