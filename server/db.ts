@@ -3899,7 +3899,7 @@ export async function listApprovedMerchants(): Promise<Array<{
     }
   } catch (err) { console.error('[Database] listApprovedMerchants: product count sort failed:', err); }
 
-  // 拍賣縮圖（每個商戶最多3張，只取進行中）
+  // 縮圖：先拍賣圖，不夠再補出售商品圖，每商戶最多5張
   const thumbnailMap: Record<number, string[]> = {};
   try {
     const tRes = await db.execute(sql`SELECT a.createdBy as userId, (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder LIMIT 1) as thumbUrl FROM auctions a WHERE a.status = 'active' AND a.endTime > NOW() ORDER BY a.createdAt DESC`);
@@ -3911,11 +3911,31 @@ export async function listApprovedMerchants(): Promise<Array<{
         const url = r.thumbUrl ? String(r.thumbUrl) : null;
         if (url) {
           if (!thumbnailMap[uid]) thumbnailMap[uid] = [];
-          if (thumbnailMap[uid].length < 3) thumbnailMap[uid].push(url);
+          if (thumbnailMap[uid].length < 5) thumbnailMap[uid].push(url);
         }
       }
     }
-  } catch (err) { console.error('[Database] listApprovedMerchants: thumbnail fetch failed:', err); }
+  } catch (err) { console.error('[Database] listApprovedMerchants: auction thumbnail fetch failed:', err); }
+
+  // 補足出售商品縮圖（如拍賣圖不足5張）
+  try {
+    const pImgRes = await db.execute(sql`SELECT merchantId as userId, images FROM merchantProducts WHERE status = 'active' ORDER BY createdAt DESC`);
+    const pImgRaw = pImgRes as unknown as [Array<Record<string, unknown>>, unknown];
+    const pImgRows = Array.isArray(pImgRaw[0]) ? pImgRaw[0] : (pImgRaw as unknown as Array<Record<string, unknown>>);
+    if (Array.isArray(pImgRows)) {
+      for (const r of pImgRows) {
+        const uid = Number(r.userId);
+        if (!thumbnailMap[uid]) thumbnailMap[uid] = [];
+        if (thumbnailMap[uid].length < 5 && r.images) {
+          try {
+            const imgs = JSON.parse(String(r.images));
+            const url = Array.isArray(imgs) && imgs[0]?.imageUrl ? String(imgs[0].imageUrl) : null;
+            if (url) thumbnailMap[uid].push(url);
+          } catch {}
+        }
+      }
+    }
+  } catch (err) { console.error('[Database] listApprovedMerchants: product thumbnail fetch failed:', err); }
 
   const base = (merchants as any[]).map(r => ({
     userId: Number(r.userId),

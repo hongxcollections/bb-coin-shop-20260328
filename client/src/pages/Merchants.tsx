@@ -237,19 +237,24 @@ export default function Merchants() {
                     </div>
                   </div>
 
-                  {/* 拍賣縮圖列 */}
+                  {/* 縮圖列（拍賣優先，不足補商品，最多5張） */}
                   {(m.auctionThumbnails as string[])?.length > 0 && (
                     <div className="flex gap-1.5 px-3 pb-3">
                       {(m.auctionThumbnails as string[]).map((url: string, i: number) => (
-                        <div key={i} className="w-16 h-16 rounded-lg overflow-hidden bg-amber-50 shrink-0 border border-amber-100">
+                        <div key={i} className="flex-1 min-w-0 aspect-square rounded-lg overflow-hidden bg-amber-50 border border-amber-100" style={{ maxWidth: 64 }}>
                           <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
                         </div>
                       ))}
-                      {(m.auctionCount ?? 0) > (m.auctionThumbnails as string[]).length && (
-                        <div className="w-16 h-16 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0">
-                          <span className="text-[10px] font-bold text-amber-400">+{(m.auctionCount ?? 0) - (m.auctionThumbnails as string[]).length}</span>
-                        </div>
-                      )}
+                      {(() => {
+                        const total = (m.auctionCount ?? 0) + (m.productCount ?? 0);
+                        const shown = (m.auctionThumbnails as string[]).length;
+                        const remaining = total - shown;
+                        return remaining > 0 ? (
+                          <div className="flex-1 min-w-0 aspect-square rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center" style={{ maxWidth: 64 }}>
+                            <span className="text-[10px] font-bold text-amber-400">+{remaining}</span>
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
                   )}
                 </div>
