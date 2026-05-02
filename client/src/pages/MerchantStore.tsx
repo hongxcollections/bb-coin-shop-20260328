@@ -90,6 +90,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
         {products.map((p: any) => {
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
+          const sym = getCurrencySymbol(p.currency ?? "HKD");
           const isSold = p.status === "sold" || p.stock <= 0;
           return (
             <Link key={p.id} href={`/merchant-products/${p.id}`}>
@@ -107,8 +108,8 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
               <div className="flex-1 min-w-0">
                 <h3 className={`text-sm font-semibold line-clamp-1 ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
                 {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{p.category}</span>}
-                {p.description && <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{p.description}</p>}
-                <div className="flex items-center justify-end mt-1.5">
+                <p className={`text-sm font-bold mt-0.5 ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</p>
+                <div className="flex items-center justify-end mt-1">
                   {!isSold ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
                 </div>
               </div>
@@ -126,6 +127,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
         {products.map((p: any) => {
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
+          const sym = getCurrencySymbol(p.currency ?? "HKD");
           const isSold = p.status === "sold" || p.stock <= 0;
           return (
             <Link key={p.id} href={`/merchant-products/${p.id}`}>
@@ -153,7 +155,8 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
                   {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">{p.category}</span>}
                 </div>
                 {p.description && <p className="text-xs text-gray-500 line-clamp-3">{p.description}</p>}
-                <div className="flex items-center justify-end pt-1">
+                <div className="flex items-center justify-between pt-1">
+                  <span className={`text-base font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
                   {!isSold ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
                 </div>
               </div>
@@ -171,6 +174,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
         {products.map((p: any) => {
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
+          const sym = getCurrencySymbol(p.currency ?? "HKD");
           const isSold = p.status === "sold" || p.stock <= 0;
           return (
             <Link key={p.id} href={`/merchant-products/${p.id}`}>
@@ -187,6 +191,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
               </div>
               <div className="p-1.5 flex flex-col gap-0.5 flex-1">
                 <h3 className={`text-[10px] font-semibold line-clamp-2 leading-tight ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
+                <span className={`text-[10px] font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
                 {!isSold ? (
                   <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="sm" />
                 ) : (
@@ -201,11 +206,13 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
     );
   }
 
+  // grid2 (default)
   return (
     <div className="grid grid-cols-2 gap-3">
       {products.map((p: any) => {
         const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
         const price = parseFloat(p.price ?? "0");
+        const sym = getCurrencySymbol(p.currency ?? "HKD");
         const isSold = p.status === "sold" || p.stock <= 0;
         return (
           <Link key={p.id} href={`/merchant-products/${p.id}`}>
@@ -227,8 +234,9 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
                 <h3 className={`text-xs font-semibold leading-snug line-clamp-2 flex-1 ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
                 {p.category && <span className="text-[10px] bg-amber-100 text-amber-700 px-1 py-0.5 rounded-full shrink-0">{p.category}</span>}
               </div>
+              <span className={`text-sm font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
               {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
-              <div className="mt-auto pt-1.5 flex items-center justify-end gap-1">
+              <div className="mt-auto pt-1 flex items-center justify-end gap-1">
                 {!isSold ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
               </div>
             </div>
@@ -236,6 +244,68 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
           </Link>
         );
       })}
+    </div>
+  );
+}
+
+const SOLD_PER_PAGE = 10;
+
+function SoldProductsList({ products }: { products: any[] }) {
+  const [page, setPage] = useState(0);
+  const total = Math.ceil(products.length / SOLD_PER_PAGE);
+  const items = products.slice(page * SOLD_PER_PAGE, (page + 1) * SOLD_PER_PAGE);
+  if (products.length === 0) return null;
+  return (
+    <div>
+      <div className="divide-y divide-gray-100">
+        {items.map((p: any) => {
+          const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
+          const price = parseFloat(p.price ?? "0");
+          const sym = getCurrencySymbol(p.currency ?? "HKD");
+          return (
+            <Link key={p.id} href={`/merchant-products/${p.id}`}>
+              <div className="flex items-center gap-2.5 py-2 px-1 hover:bg-gray-50/80 rounded-lg cursor-pointer transition-colors">
+                {/* 縮圖 */}
+                <div className="relative shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-gray-100">
+                  {imgs[0] ? (
+                    <img src={imgs[0]} alt={p.title} className="w-full h-full object-cover opacity-60" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Package className="w-4 h-4 text-gray-300" />
+                    </div>
+                  )}
+                </div>
+                {/* 名稱 + 價格 */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-500 line-clamp-1 leading-tight">{p.title}</p>
+                  <p className="text-xs text-gray-400 line-through">{sym}{price.toLocaleString()}</p>
+                </div>
+                {/* 已售標籤 */}
+                <span className="shrink-0 text-[10px] bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full font-medium">已售</span>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+      {total > 1 && (
+        <div className="flex items-center justify-between pt-2 mt-1 border-t border-gray-100">
+          <button
+            onClick={(e) => { e.stopPropagation(); setPage(p => Math.max(0, p - 1)); }}
+            disabled={page === 0}
+            className="text-[11px] font-semibold text-gray-500 disabled:opacity-30 hover:text-gray-700 transition-colors px-2 py-1"
+          >
+            ‹ 上頁
+          </button>
+          <span className="text-[11px] text-gray-400">{page + 1} / {total}</span>
+          <button
+            onClick={(e) => { e.stopPropagation(); setPage(p => Math.min(total - 1, p + 1)); }}
+            disabled={page >= total - 1}
+            className="text-[11px] font-semibold text-gray-500 disabled:opacity-30 hover:text-gray-700 transition-colors px-2 py-1"
+          >
+            下頁 ›
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -590,12 +660,7 @@ export default function MerchantStore() {
                       <span className="text-[11px] text-amber-400 px-2">已售出（{soldProducts.length}）</span>
                       <div className="flex-1 h-px bg-amber-100" />
                     </div>
-                    <ProductsList
-                      products={soldProducts}
-                      layout={merchantLayout}
-                      whatsapp={merchant?.whatsapp ?? ""}
-                      messengerLink={messengerLink}
-                    />
+                    <SoldProductsList products={soldProducts} />
                   </div>
                 )}
               </>
