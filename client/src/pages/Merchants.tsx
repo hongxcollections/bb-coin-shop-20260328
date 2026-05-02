@@ -2,7 +2,9 @@ import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import Header from "@/components/Header";
 import { Store, ChevronRight, Gavel, Package, Search, X, MessageCircle } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+
+type Thumb = { url: string; type: string; id: number };
 
 function buildWaNumber(raw: string): string {
   const digits = raw.replace(/\D/g, "");
@@ -35,6 +37,7 @@ export default function Merchants() {
   const { data: merchants = [], isLoading } = trpc.merchants.listApprovedMerchants.useQuery();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [, navigate] = useLocation();
 
   const allCategories = useMemo(() => {
     const set = new Set<string>();
@@ -152,10 +155,11 @@ export default function Merchants() {
             const isTop = idx < 3;
 
             return (
-              <Link key={m.userId} href={`/merchants/${m.userId}`}>
-                <div className={`group relative bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden ${
-                  isTop ? "border-amber-200" : "border-gray-100"
-                }`}>
+              <div
+                key={m.userId}
+                className={`group relative bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden ${isTop ? "border-amber-200" : "border-gray-100"}`}
+                onClick={() => { navigate(`/merchants/${m.userId}`); window.scrollTo(0, 0); }}
+              >
                   {/* 左側漸層色條 */}
                   <div className={`absolute left-0 top-0 bottom-0 w-1 ${
                     hasAuctions
@@ -243,20 +247,26 @@ export default function Merchants() {
                     </div>
                   </div>
 
-                  {/* 縮圖列（拍賣優先，不足補商品，最多5張，含類型標籤） */}
-                  {(m.auctionThumbnails as Array<{ url: string; type: string }>)?.length > 0 && (
+                  {/* 縮圖列（拍賣優先，不足補商品，最多5張，可點擊跳到商品頁） */}
+                  {(m.auctionThumbnails as Thumb[])?.length > 0 && (
                     <div className="flex gap-1.5 px-3 pb-3">
-                      {(m.auctionThumbnails as Array<{ url: string; type: string }>).map((t, i: number) => (
-                        <div key={i} className="relative flex-1 min-w-0 aspect-square rounded-lg overflow-hidden bg-amber-50 border border-amber-100" style={{ maxWidth: 64 }}>
+                      {(m.auctionThumbnails as Thumb[]).map((t, i: number) => (
+                        <a
+                          key={i}
+                          href={t.type === 'auction' ? `/auctions/${t.id}` : `/merchant-products/${t.id}`}
+                          onClick={(e) => { e.stopPropagation(); window.scrollTo(0, 0); }}
+                          className="relative flex-1 min-w-0 aspect-square rounded-lg overflow-hidden bg-amber-50 border border-amber-100 block"
+                          style={{ maxWidth: 64 }}
+                        >
                           <img src={t.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                           <span className={`absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold leading-tight py-0.5 ${t.type === 'auction' ? 'bg-purple-600/80 text-white' : 'bg-amber-500/80 text-white'}`}>
                             {t.type === 'auction' ? '拍賣' : '出售'}
                           </span>
-                        </div>
+                        </a>
                       ))}
                       {(() => {
                         const total = (m.auctionCount ?? 0) + (m.productCount ?? 0);
-                        const shown = (m.auctionThumbnails as Array<{ url: string; type: string }>).length;
+                        const shown = (m.auctionThumbnails as Thumb[]).length;
                         const remaining = total - shown;
                         return remaining > 0 ? (
                           <div className="flex-1 min-w-0 aspect-square rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center" style={{ maxWidth: 64 }}>
@@ -266,8 +276,7 @@ export default function Merchants() {
                       })()}
                     </div>
                   )}
-                </div>
-              </Link>
+              </div>
             );
           })
         )}

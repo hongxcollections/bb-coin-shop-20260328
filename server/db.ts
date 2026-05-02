@@ -3904,9 +3904,9 @@ export async function listApprovedMerchants(): Promise<Array<{
   // 記錄每商戶已加入的拍賣縮圖數
   const auctionCountPerMerchant: Record<number, number> = {};
 
-  // Pass 1：拍賣縮圖（只抓有圖的拍賣，每商戶最多3張）
+  // Pass 1：拍賣縮圖（只抓有圖的拍賣，每商戶最多3張，含拍賣 id）
   try {
-    const tRes = await db.execute(sql`SELECT a.createdBy as userId, (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder ASC, id ASC LIMIT 1) as thumbUrl FROM auctions a WHERE a.status = 'active' AND a.endTime > NOW() AND EXISTS (SELECT 1 FROM auctionImages WHERE auctionId = a.id) ORDER BY a.createdAt DESC`);
+    const tRes = await db.execute(sql`SELECT a.id as auctionId, a.createdBy as userId, (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder ASC, id ASC LIMIT 1) as thumbUrl FROM auctions a WHERE a.status = 'active' AND a.endTime > NOW() AND EXISTS (SELECT 1 FROM auctionImages WHERE auctionId = a.id) ORDER BY a.createdAt DESC`);
     const tRaw = tRes as unknown as [Array<Record<string, unknown>>, unknown];
     const tRows = Array.isArray(tRaw[0]) ? tRaw[0] : (tRaw as unknown as Array<Record<string, unknown>>);
     if (Array.isArray(tRows)) {
@@ -3916,15 +3916,15 @@ export async function listApprovedMerchants(): Promise<Array<{
         if (!url) continue;
         if (!thumbnailMap[uid]) { thumbnailMap[uid] = []; auctionCountPerMerchant[uid] = 0; }
         if (auctionCountPerMerchant[uid] >= 3) continue; // 拍賣最多3張
-        thumbnailMap[uid].push({ url, type: 'auction' });
+        thumbnailMap[uid].push({ url, type: 'auction', id: Number(r.auctionId) });
         auctionCountPerMerchant[uid]++;
       }
     }
   } catch (err) { console.error('[Database] listApprovedMerchants: auction thumbnail fetch failed:', err); }
 
-  // Pass 2：出售商品縮圖補足（每商戶最多填到5張，跳過已出現的 URL）
+  // Pass 2：出售商品縮圖補足（每商戶最多填到5張，含商品 id，跳過已出現的 URL）
   try {
-    const pImgRes = await db.execute(sql`SELECT merchantId as userId, images FROM merchantProducts WHERE status = 'active' ORDER BY createdAt DESC`);
+    const pImgRes = await db.execute(sql`SELECT id as productId, merchantId as userId, images FROM merchantProducts WHERE status = 'active' ORDER BY createdAt DESC`);
     const pImgRaw = pImgRes as unknown as [Array<Record<string, unknown>>, unknown];
     const pImgRows = Array.isArray(pImgRaw[0]) ? pImgRaw[0] : (pImgRaw as unknown as Array<Record<string, unknown>>);
     if (Array.isArray(pImgRows)) {
@@ -3942,7 +3942,7 @@ export async function listApprovedMerchants(): Promise<Array<{
           if (!url) continue;
           // 跳過已加入的 URL（避免同圖重複）
           if (thumbnailMap[uid].some(t => t.url === url)) continue;
-          thumbnailMap[uid].push({ url, type: 'product' });
+          thumbnailMap[uid].push({ url, type: 'product', id: Number(r.productId) });
         } catch {}
       }
     }
