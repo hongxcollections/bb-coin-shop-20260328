@@ -50,12 +50,16 @@ function AuctionImageOverlay({ endTime, sellerName }: { endTime: Date | string; 
   }, [endTime]);
   if (!txt && !sellerName) return null;
   return (
-    <div className="absolute bottom-0 left-0 right-0 bg-black/55 backdrop-blur-sm px-1.5 py-1 flex flex-col gap-0.5">
-      {sellerName && <div className="text-[10px] text-white/80 font-medium leading-none truncate">{sellerName}</div>}
+    <div className="absolute bottom-0 left-0 right-0 bg-black/30 backdrop-blur-sm px-1.5 py-1 flex flex-col gap-0.5">
+      {sellerName && <div className="text-[10px] text-white/85 font-medium leading-none truncate">{sellerName}</div>}
       {txt && (
-        <div className={`flex items-center gap-0.5 text-[10px] font-bold leading-none ${urgent ? "text-red-300 animate-pulse" : "text-white/90"}`}>
-          <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
-        </div>
+        urgent
+          ? <div className="flex items-center gap-0.5 text-[10px] font-black leading-none animate-pulse bg-red-600 text-white px-1 py-0.5 rounded self-start">
+              <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
+            </div>
+          : <div className="flex items-center gap-0.5 text-[10px] font-bold leading-none text-white/90">
+              <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
+            </div>
       )}
     </div>
   );
