@@ -622,14 +622,20 @@ export default function MerchantProductDetail() {
             </div>
 
             {/* ── 同商戶其他出售商品 ── */}
-            {otherProducts.length > 0 && (
+            {otherProducts.length > 0 && (() => {
+              const layout = merchantInfo?.listingLayout ?? "grid2";
+              const gridClass =
+                layout === "grid3" ? "grid grid-cols-3 gap-2" :
+                layout === "list" || layout === "big" ? "flex flex-col gap-3" :
+                "grid grid-cols-2 gap-3";
+              return (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <ShoppingBag className="w-4 h-4 text-amber-500" />
                   <h2 className="font-semibold text-sm text-gray-800">更多出售商品</h2>
                   <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full ml-auto">{otherProducts.length} 件</span>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className={gridClass}>
                   {otherProducts.map((p: any) => {
                     const pImgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
                     const pPrice = parseFloat(p.price ?? "0");
@@ -696,9 +702,10 @@ export default function MerchantProductDetail() {
                   })}
                 </div>
               </div>
-            )}
+              );
+            })()}
 
-            {/* ── 同商戶拍賣中商品 ── */}
+            {/* ── 同商戶拍賣中商品（一律 grid1 單列）── */}
             {(auctionItems as any[]).length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
@@ -706,28 +713,28 @@ export default function MerchantProductDetail() {
                   <h2 className="font-semibold text-sm text-gray-800">拍賣中商品</h2>
                   <span className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full ml-auto">{(auctionItems as any[]).length} 件</span>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-2">
                   {(auctionItems as any[]).map((a: any) => {
                     const aPrice = parseFloat(a.currentPrice ?? a.startingPrice ?? "0");
                     return (
                       <Link key={a.id} href={`/auctions/${a.id}`}>
-                        <div className="bg-white rounded-xl border border-purple-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-purple-300 transition-colors">
+                        <div className="bg-white rounded-xl border border-purple-100 shadow-sm flex gap-3 items-start p-3 cursor-pointer hover:border-purple-300 transition-colors">
                           {a.coverImage ? (
-                            <div className="aspect-square w-full overflow-hidden bg-purple-50">
+                            <div className="w-16 h-16 rounded-lg overflow-hidden bg-purple-50 shrink-0">
                               <img src={a.coverImage} alt={a.title} className="w-full h-full object-cover" />
                             </div>
                           ) : (
-                            <div className="aspect-square w-full bg-purple-50 flex items-center justify-center">
-                              <Gavel className="w-8 h-8 text-purple-200" />
+                            <div className="w-16 h-16 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
+                              <Gavel className="w-6 h-6 text-purple-200" />
                             </div>
                           )}
-                          <div className="p-2 flex flex-col gap-0.5 flex-1">
-                            <h3 className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">{a.title}</h3>
+                          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                            <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 leading-snug">{a.title}</h3>
                             {a.category && <span className="text-[10px] text-purple-500">{a.category}</span>}
-                            <div className="flex items-center justify-between mt-auto pt-0.5">
-                              <span className="font-bold text-amber-600 text-xs">{a.currency ?? "HKD"} ${aPrice.toLocaleString()}</span>
-                              <span className="flex items-center gap-0.5 text-[10px] text-gray-400">
-                                <Clock className="w-2.5 h-2.5" />
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="font-bold text-amber-600 text-sm">{a.currency ?? "HKD"} ${aPrice.toLocaleString()}</span>
+                              <span className="flex items-center gap-0.5 text-[11px] text-gray-400">
+                                <Clock className="w-3 h-3" />
                                 <AuctionCountdown endTime={a.endTime} />
                               </span>
                             </div>
