@@ -22,28 +22,38 @@ import { parseCategories } from "@/lib/categories";
 import { ShareMenu } from "@/components/ShareMenu";
 import Header from "@/components/Header";
 
-function CountdownTimer({ endTime }: { endTime: Date }) {
-  const [timeLeft, setTimeLeft] = useState("");
-  const [status, setStatus] = useState<"active" | "ending" | "ended">("active");
-
+function AuctionTimerOverlay({ endTime }: { endTime: Date | string }) {
+  const [txt, setTxt] = useState("");
+  const [urgent, setUrgent] = useState(false);
   useEffect(() => {
     function update() {
-      const now = new Date();
-      const diff = new Date(endTime).getTime() - now.getTime();
-      if (diff <= 0) { setTimeLeft("已結束"); setStatus("ended"); return; }
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setStatus(h < 1 ? "ending" : "active");
-      setTimeLeft(h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`);
+      const diff = new Date(endTime).getTime() - Date.now();
+      if (diff <= 0) { setTxt(""); return; }
+      const totalHours = diff / 3600000;
+      if (totalHours > 12) {
+        const days = Math.floor(diff / 86400000);
+        const remH = Math.floor((diff % 86400000) / 3600000);
+        setTxt(days >= 1 ? (remH > 0 ? `${days}天${remH}h後` : `${days}天後`) : `${Math.floor(totalHours)}h後`);
+        setUrgent(false);
+      } else {
+        const h = Math.floor(totalHours);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        const pad = (n: number) => String(n).padStart(2, "0");
+        setTxt(h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`);
+        setUrgent(diff < 3600000);
+      }
     }
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
   }, [endTime]);
-
-  const cls = status === "ended" ? "countdown-badge countdown-ended" : status === "ending" ? "countdown-badge countdown-ending" : "countdown-badge countdown-active";
-  return <span className={cls}><Clock className="w-3 h-3" />{timeLeft}</span>;
+  if (!txt) return null;
+  return (
+    <div className={`absolute bottom-1 right-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none backdrop-blur-sm ${urgent ? "bg-red-500/90 text-white animate-pulse" : "bg-black/55 text-white/90"}`}>
+      <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
+    </div>
+  );
 }
 
 const PAGE_SIZE = 20;
@@ -387,6 +397,9 @@ export default function Auctions() {
                         {(auction as { sellerName?: string | null }).sellerName}
                       </div>
                     )}
+                    {new Date(auction.endTime).getTime() > Date.now() && (
+                      <AuctionTimerOverlay endTime={auction.endTime} />
+                    )}
                   </div>
 
                   {/* Right: Content */}
@@ -438,9 +451,6 @@ export default function Auctions() {
                         {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
                       </div>
                       <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                        {new Date(auction.endTime).getTime() > Date.now() && (
-                          <CountdownTimer endTime={new Date(auction.endTime)} />
-                        )}
                         <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                           <ShareMenu
                             auctionId={auction.id}

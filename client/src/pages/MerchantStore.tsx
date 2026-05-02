@@ -6,7 +6,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { ShareMenu } from "@/components/ShareMenu";
-import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Tag, Share2 } from "lucide-react";
+import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag, Share2 } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/utils";
 import { getCurrencySymbol } from "./AdminAuctions";
 
@@ -310,43 +310,38 @@ function SoldProductsList({ products }: { products: any[] }) {
   );
 }
 
-function AuctionCountdown({ endTime }: { endTime: string | Date }) {
-  const [timeLeft, setTimeLeft] = useState("");
-  const [status, setStatus] = useState<"active" | "ending" | "ended">("active");
-
+function AuctionTimerOverlay({ endTime }: { endTime: Date | string }) {
+  const [txt, setTxt] = useState("");
+  const [urgent, setUrgent] = useState(false);
   useEffect(() => {
     function update() {
-      const now = new Date();
-      const diff = new Date(endTime).getTime() - now.getTime();
-      if (diff <= 0) { setTimeLeft("已結束"); setStatus("ended"); return; }
+      const diff = new Date(endTime).getTime() - Date.now();
+      if (diff <= 0) { setTxt(""); return; }
       const totalHours = diff / 3600000;
-      const h = Math.floor(totalHours);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
       if (totalHours > 12) {
-        // 多過半日：顯示剩餘天數
-        const days = Math.ceil(diff / 86400000);
-        setStatus("active");
-        setTimeLeft(`${days} 天`);
-      } else if (h >= 1) {
-        setStatus("active");
-        setTimeLeft(`${h}h ${m}m ${s}s`);
+        const days = Math.floor(diff / 86400000);
+        const remH = Math.floor((diff % 86400000) / 3600000);
+        setTxt(days >= 1 ? (remH > 0 ? `${days}天${remH}h後` : `${days}天後`) : `${Math.floor(totalHours)}h後`);
+        setUrgent(false);
       } else {
-        setStatus("ending");
-        setTimeLeft(`${m}m ${s}s`);
+        const h = Math.floor(totalHours);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        const pad = (n: number) => String(n).padStart(2, "0");
+        setTxt(h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`);
+        setUrgent(diff < 3600000);
       }
     }
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
   }, [endTime]);
-
-  const cls = status === "ended"
-    ? "countdown-badge countdown-ended"
-    : status === "ending"
-    ? "countdown-badge countdown-ending"
-    : "countdown-badge countdown-active";
-  return <span className={cls}>{timeLeft}</span>;
+  if (!txt) return null;
+  return (
+    <div className={`absolute bottom-1 right-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none backdrop-blur-sm ${urgent ? "bg-red-500/90 text-white animate-pulse" : "bg-black/55 text-white/90"}`}>
+      <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
+    </div>
+  );
 }
 
 export default function MerchantStore() {
@@ -556,6 +551,7 @@ export default function MerchantStore() {
                           ) : (
                             <span className="text-3xl">🪙</span>
                           )}
+                          {!isEnded && <AuctionTimerOverlay endTime={a.endTime} />}
                         </div>
                         {/* 右：內容 */}
                         <div className="flex-1 flex flex-col justify-between min-w-0">
@@ -585,7 +581,6 @@ export default function MerchantStore() {
                               {getCurrencySymbol(currency)}{Number(a.currentPrice ?? a.startingPrice ?? 0).toLocaleString()}
                             </div>
                             <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                              {!isEnded && <AuctionCountdown endTime={a.endTime} />}
                               <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                                 <ShareMenu
                                   auctionId={a.id}

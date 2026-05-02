@@ -17,13 +17,25 @@ function CountdownBadge({ endTime, status }: { endTime: Date; status: string }) 
   if (status === "ended" || diff <= 0) {
     return <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-500">已結束</Badge>;
   }
-  const h = Math.floor(diff / 3600000);
+  const totalHours = diff / 3600000;
+  if (totalHours > 12) {
+    const days = Math.floor(diff / 86400000);
+    const remH = Math.floor((diff % 86400000) / 3600000);
+    const txt = days >= 1 ? (remH > 0 ? `${days}天${remH}h後` : `${days}天後`) : `${Math.floor(totalHours)}h後`;
+    return (
+      <Badge variant="secondary" className="text-xs flex items-center gap-1 bg-gray-100 text-gray-600">
+        <Clock className="w-3 h-3" />{txt}
+      </Badge>
+    );
+  }
+  const h = Math.floor(totalHours);
   const m = Math.floor((diff % 3600000) / 60000);
-  const isEnding = h < 1;
+  const s = Math.floor((diff % 60000) / 1000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const txt = h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
   return (
-    <Badge variant="secondary" className={`text-xs flex items-center gap-1 ${isEnding ? "bg-red-100 text-red-600" : "bg-green-100 text-green-700"}`}>
-      <Clock className="w-3 h-3" />
-      {h > 0 ? `${h}h ${m}m` : `${m}m`}
+    <Badge variant="secondary" className={`text-xs flex items-center gap-1 ${h < 1 ? "bg-red-100 text-red-600" : "bg-green-100 text-green-700"}`}>
+      <Clock className="w-3 h-3" />{txt}
     </Badge>
   );
 }
