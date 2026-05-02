@@ -591,52 +591,78 @@ export default function MerchantDashboard() {
                       );
                     })}
                   </div>
-                  {/* 每頁顯示數量 */}
-                  <div className="border-t border-gray-100 pt-3 mt-1 space-y-2">
-                    <p className="text-[11px] text-gray-400">商戶商店每頁顯示條數</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {([
-                        { key: "auctionsPerPage", label: "拍賣每頁", color: "purple" },
-                        { key: "productsPerPage", label: "商品每頁", color: "amber" },
-                      ] as const).map(({ key, label, color }) => {
-                        const currentVal = (merchantSettings as any)?.[key] ?? 10;
-                        return (
-                          <div key={key} className="flex flex-col gap-1">
-                            <span className={`text-[11px] font-semibold text-${color}-700`}>{label}</span>
-                            <div className="flex items-center gap-1.5">
-                              {[5, 10, 15, 20].map(n => (
-                                <button
-                                  key={n}
-                                  onClick={() => {
-                                    const other = key === "auctionsPerPage"
-                                      ? ((merchantSettings as any)?.productsPerPage ?? 10)
-                                      : ((merchantSettings as any)?.auctionsPerPage ?? 10);
-                                    setPageSizes.mutate(key === "auctionsPerPage"
-                                      ? { auctionsPerPage: n, productsPerPage: other }
-                                      : { auctionsPerPage: other, productsPerPage: n });
-                                  }}
-                                  disabled={setPageSizes.isPending}
-                                  className={`flex-1 py-1.5 rounded-lg border text-xs font-bold transition-all ${
-                                    currentVal === n
-                                      ? color === "purple"
-                                        ? "border-purple-500 bg-purple-50 text-purple-700"
-                                        : "border-amber-500 bg-amber-50 text-amber-700"
-                                      : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
-                                  }`}
-                                >
-                                  {n}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
                 </div>
               );
             })()}
           </div>
+
+          {/* ── 每頁顯示數量（獨立卡片，永遠可見） ── */}
+          <div className="col-span-2 rounded-2xl bg-white border border-gray-100 overflow-hidden">
+            <div className="flex items-center gap-3 px-4 pt-4 pb-2">
+              <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <LayoutList className="w-5 h-5 text-gray-500" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-gray-800">每頁顯示數量</p>
+                <p className="text-xs text-gray-400 mt-0.5">商戶商店拍賣／商品每頁顯示條數</p>
+              </div>
+            </div>
+            <div className="px-4 pb-4 pt-1 space-y-3">
+              {/* 拍賣每頁 */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[11px] font-semibold text-purple-700">拍賣每頁</span>
+                <div className="flex items-center gap-2">
+                  {[5, 10, 15, 20].map(n => {
+                    const active = ((merchantSettings as any)?.auctionsPerPage ?? 10) === n;
+                    return (
+                      <button
+                        key={n}
+                        onClick={() => setPageSizes.mutate({
+                          auctionsPerPage: n,
+                          productsPerPage: (merchantSettings as any)?.productsPerPage ?? 10,
+                        })}
+                        disabled={setPageSizes.isPending}
+                        className={`flex-1 py-2 rounded-xl border-2 text-sm font-bold transition-all ${
+                          active
+                            ? "border-purple-500 bg-purple-50 text-purple-700"
+                            : "border-gray-200 bg-white text-gray-400 hover:border-purple-200 hover:text-purple-500"
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* 商品每頁 */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[11px] font-semibold text-amber-700">商品每頁</span>
+                <div className="flex items-center gap-2">
+                  {[5, 10, 15, 20].map(n => {
+                    const active = ((merchantSettings as any)?.productsPerPage ?? 10) === n;
+                    return (
+                      <button
+                        key={n}
+                        onClick={() => setPageSizes.mutate({
+                          auctionsPerPage: (merchantSettings as any)?.auctionsPerPage ?? 10,
+                          productsPerPage: n,
+                        })}
+                        disabled={setPageSizes.isPending}
+                        className={`flex-1 py-2 rounded-xl border-2 text-sm font-bold transition-all ${
+                          active
+                            ? "border-amber-500 bg-amber-50 text-amber-700"
+                            : "border-gray-200 bg-white text-gray-400 hover:border-amber-200 hover:text-amber-500"
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <Link href="/subscriptions">
             <div className="rounded-2xl bg-white border border-purple-100 p-4 flex items-center gap-3 hover:border-purple-300 hover:bg-purple-50/50 transition-colors cursor-pointer">
               <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0">
