@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import Header from "@/components/Header";
+import ImageLightbox from "@/components/ImageLightbox";
 import { Store, ChevronRight, Gavel, Package, Search, X, MessageCircle } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
@@ -38,6 +39,7 @@ export default function Merchants() {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [, navigate] = useLocation();
+  const [showMerchantFlow, setShowMerchantFlow] = useState(false);
 
   const allCategories = useMemo(() => {
     const set = new Set<string>();
@@ -76,12 +78,22 @@ export default function Merchants() {
 
       {/* 商戶申請流程 — 獨立頂部列，跟足主頁頂部同款 sky-600 */}
       <div className="max-w-2xl mx-auto px-4 pt-2 pb-0 flex justify-end">
-        <Link href="/merchant-apply">
-          <a className="inline-flex items-center gap-1.5 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow transition-colors cursor-pointer select-none">
-            📋 商戶申請流程
-          </a>
-        </Link>
+        <button
+          onClick={() => setShowMerchantFlow(true)}
+          className="inline-flex items-center gap-1.5 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow transition-colors cursor-pointer select-none"
+        >
+          📋 商戶申請流程
+        </button>
       </div>
+
+      {/* 商戶申請流程圖片燈箱 */}
+      {showMerchantFlow && (
+        <ImageLightbox
+          images={["/merchant-apply-steps.png"]}
+          alt="商戶申請流程"
+          onClose={() => setShowMerchantFlow(false)}
+        />
+      )}
 
       {/* 頁首 */}
       <div className="sticky top-16 z-10 bg-background/95 backdrop-blur border-b border-amber-100">
