@@ -243,17 +243,20 @@ export default function Merchants() {
                     </div>
                   </div>
 
-                  {/* 縮圖列（拍賣優先，不足補商品，最多5張） */}
-                  {(m.auctionThumbnails as string[])?.length > 0 && (
+                  {/* 縮圖列（拍賣優先，不足補商品，最多5張，含類型標籤） */}
+                  {(m.auctionThumbnails as Array<{ url: string; type: string }>)?.length > 0 && (
                     <div className="flex gap-1.5 px-3 pb-3">
-                      {(m.auctionThumbnails as string[]).map((url: string, i: number) => (
-                        <div key={i} className="flex-1 min-w-0 aspect-square rounded-lg overflow-hidden bg-amber-50 border border-amber-100" style={{ maxWidth: 64 }}>
-                          <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                      {(m.auctionThumbnails as Array<{ url: string; type: string }>).map((t, i: number) => (
+                        <div key={i} className="relative flex-1 min-w-0 aspect-square rounded-lg overflow-hidden bg-amber-50 border border-amber-100" style={{ maxWidth: 64 }}>
+                          <img src={t.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                          <span className={`absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold leading-tight py-0.5 ${t.type === 'auction' ? 'bg-purple-600/80 text-white' : 'bg-amber-500/80 text-white'}`}>
+                            {t.type === 'auction' ? '拍賣' : '出售'}
+                          </span>
                         </div>
                       ))}
                       {(() => {
                         const total = (m.auctionCount ?? 0) + (m.productCount ?? 0);
-                        const shown = (m.auctionThumbnails as string[]).length;
+                        const shown = (m.auctionThumbnails as Array<{ url: string; type: string }>).length;
                         const remaining = total - shown;
                         return remaining > 0 ? (
                           <div className="flex-1 min-w-0 aspect-square rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center" style={{ maxWidth: 64 }}>

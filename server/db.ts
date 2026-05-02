@@ -3899,8 +3899,8 @@ export async function listApprovedMerchants(): Promise<Array<{
     }
   } catch (err) { console.error('[Database] listApprovedMerchants: product count sort failed:', err); }
 
-  // 縮圖：先拍賣圖，不夠再補出售商品圖，每商戶最多5張
-  const thumbnailMap: Record<number, string[]> = {};
+  // 縮圖：先拍賣圖，不夠再補出售商品圖，每商戶最多5張（含 type 標記）
+  const thumbnailMap: Record<number, Array<{ url: string; type: 'auction' | 'product' }>> = {};
   try {
     const tRes = await db.execute(sql`SELECT a.createdBy as userId, (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder LIMIT 1) as thumbUrl FROM auctions a WHERE a.status = 'active' AND a.endTime > NOW() ORDER BY a.createdAt DESC`);
     const tRaw = tRes as unknown as [Array<Record<string, unknown>>, unknown];
@@ -3911,7 +3911,7 @@ export async function listApprovedMerchants(): Promise<Array<{
         const url = r.thumbUrl ? String(r.thumbUrl) : null;
         if (url) {
           if (!thumbnailMap[uid]) thumbnailMap[uid] = [];
-          if (thumbnailMap[uid].length < 5) thumbnailMap[uid].push(url);
+          if (thumbnailMap[uid].length < 5) thumbnailMap[uid].push({ url, type: 'auction' });
         }
       }
     }
@@ -3930,7 +3930,7 @@ export async function listApprovedMerchants(): Promise<Array<{
           try {
             const imgs = JSON.parse(String(r.images));
             const url = Array.isArray(imgs) && imgs[0]?.imageUrl ? String(imgs[0].imageUrl) : null;
-            if (url) thumbnailMap[uid].push(url);
+            if (url) thumbnailMap[uid].push({ url, type: 'product' });
           } catch {}
         }
       }
