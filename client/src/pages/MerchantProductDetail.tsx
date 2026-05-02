@@ -626,7 +626,7 @@ export default function MerchantProductDetail() {
               const layout = merchantInfo?.listingLayout ?? "grid2";
               const gridClass =
                 layout === "grid3" ? "grid grid-cols-3 gap-2" :
-                layout === "list" || layout === "big" ? "flex flex-col gap-3" :
+                layout === "list" || layout === "big" || layout === "grid1" ? "flex flex-col gap-3" :
                 "grid grid-cols-2 gap-3";
               return (
               <div className="space-y-3">
@@ -668,7 +668,7 @@ export default function MerchantProductDetail() {
                             </div>
                           )}
                           {(() => {
-                            const isWide = layout === "list" || layout === "big";
+                            const isWide = layout === "list" || layout === "big" || layout === "grid1";
                             const pillCls = isWide
                               ? "flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors shrink-0"
                               : "flex items-center gap-0.5 text-[9px] font-semibold px-1 py-0.5 rounded-full transition-colors shrink-0";
