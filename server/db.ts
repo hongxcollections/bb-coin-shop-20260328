@@ -3774,12 +3774,18 @@ export async function updateMerchantProduct(id: number, merchantId: number, data
   if (data.status !== undefined) payload.status = data.status;
   await db.update(merchantProducts).set(payload)
     .where(and(eq(merchantProducts.id, id), eq(merchantProducts.merchantId, merchantId)));
+  // 商品售出或下架時，自動處理主打刊登（queued 退費，active 過期+提升排隊）
+  if (data.status === 'sold' || data.status === 'hidden') {
+    await autoExpireFeaturedForProduct(id);
+  }
 }
 
 export async function deleteMerchantProduct(id: number, merchantId: number): Promise<void> {
   await ensureMerchantProductsTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
+  // 刪除前先處理主打刊登（queued 退費，active 過期+提升排隊）
+  await autoExpireFeaturedForProduct(id);
   await db.delete(merchantProducts)
     .where(and(eq(merchantProducts.id, id), eq(merchantProducts.merchantId, merchantId)));
 }
@@ -4148,6 +4154,12 @@ export async function confirmProductOrder(orderId: number, merchantId: number, f
   await db.execute(sql`
     UPDATE merchantProducts SET status = 'sold' WHERE id = ${order.productId} AND stock = 0
   `);
+  // 若商品售罄（股數歸零），自動處理主打刊登
+  const stockCheck = await db.execute(sql`SELECT stock FROM merchantProducts WHERE id = ${order.productId} LIMIT 1`);
+  const stockRow = (Array.isArray((stockCheck as any)[0]) ? (stockCheck as any)[0][0] : (stockCheck as any)[0]) as any;
+  if (stockRow && Number(stockRow.stock) === 0) {
+    await autoExpireFeaturedForProduct(order.productId);
+  }
 
   try {
     await deductCommission(merchantId, commissionAmount, 0, `商品訂單 #${orderId}：${order.title}（實際成交 ${order.currency ?? 'HKD'} $${actualUnitPrice.toFixed(2)} × ${qty}）`);
@@ -4495,6 +4507,43 @@ export async function getAllFeaturedListings(limit = 100): Promise<any[]> {
     `);
     return (rows[0] as any[]) ?? [];
   } catch { return []; }
+}
+
+/** 商品售出／下架／刪除時，自動處理主打刊登：
+ *  - active → expired（不退費，商品已售出）並提升排隊
+ *  - queued → cancelled 並退全費（從未刊登，不應扣費）
+ */
+export async function autoExpireFeaturedForProduct(productId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await ensureFeaturedListingsTable();
+    const rows = await db.execute(sql`
+      SELECT id, status, amount, merchantId, tier, productTitle
+      FROM featuredListings
+      WHERE productId = ${productId} AND status IN ('active','queued')
+    `);
+    const listings: any[] = Array.isArray((rows as any)[0]) ? (rows as any)[0] : (rows as any);
+    if (!listings || listings.length === 0) return;
+    for (const l of listings) {
+      if (l.status === 'queued') {
+        await db.execute(sql`UPDATE featuredListings SET status = 'cancelled' WHERE id = ${l.id}`);
+        const amount = parseFloat(l.amount ?? '0');
+        if (amount > 0) {
+          try {
+            await refundCommission(l.merchantId, amount, 0, `主打退款（商品售出/下架）：${l.productTitle}`, 0);
+          } catch (e) { console.error('[autoExpireFeaturedForProduct] refund queued failed', e); }
+        }
+      } else {
+        // active → expired（不退費）
+        await db.execute(sql`UPDATE featuredListings SET status = 'expired' WHERE id = ${l.id}`);
+      }
+    }
+    // 如有 active 被過期，嘗試升級排隊
+    await promoteFeaturedQueue(db);
+  } catch (e) {
+    console.error('[autoExpireFeaturedForProduct] error', e);
+  }
 }
 
 /** 管理員/商戶：取消主打 */
