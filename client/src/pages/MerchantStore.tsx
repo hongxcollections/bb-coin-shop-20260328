@@ -82,9 +82,9 @@ function ContactBtns({ whatsapp, messengerLink, title, price, id, size = "md" }:
 
   const isSmall = size === "sm";
   const pillBase = isSmall
-    ? "flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full transition-colors shrink-0"
+    ? "flex items-center gap-0.5 text-[9px] font-semibold px-1 py-0.5 rounded-full transition-colors shrink-0"
     : "flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors shrink-0";
-  const iconSz = isSmall ? "w-3 h-3" : "w-3.5 h-3.5";
+  const iconSz = isSmall ? "w-2.5 h-2.5" : "w-3.5 h-3.5";
   return (
     <div className={`flex gap-1.5 shrink-0 ${isSmall ? "mt-auto justify-end" : ""}`} onClick={stop}>
       {waLink && (
@@ -277,7 +277,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
               <span className={`text-sm font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
               {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
               <div className="mt-auto pt-1 flex items-center justify-end gap-1">
-                {!isSold ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="xs" /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
+                {!isSold ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="sm" /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
                 <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                   <ProductShareMenu productId={p.id} title={p.title} price={price} currency={p.currency} iconOnly />
                 </div>
