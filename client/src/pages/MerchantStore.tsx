@@ -5,39 +5,12 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
-import { ShareMenu } from "@/components/ShareMenu";
-import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag, Share2, Check } from "lucide-react";
+import { ShareMenu, ProductShareMenu } from "@/components/ShareMenu";
+import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/utils";
 import { getCurrencySymbol } from "./AdminAuctions";
 
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
-
-function ProductShareBtn({ id, title, price, currency }: { id: number; title: string; price: number; currency?: string }) {
-  const [copied, setCopied] = useState(false);
-  const sym = getCurrencySymbol(currency ?? "HKD");
-  const url = `${window.location.origin}/merchant-products/${id}`;
-  const text = `${title}\n價錢：${sym}${price.toLocaleString()}\n${url}`;
-  function handleShare(e: React.MouseEvent) {
-    e.preventDefault(); e.stopPropagation();
-    if (navigator.share) {
-      navigator.share({ title, text, url }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(url).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      });
-    }
-  }
-  return (
-    <button
-      onClick={handleShare}
-      className="flex items-center gap-1 text-gray-400 hover:text-amber-500 transition-colors p-1 rounded-full hover:bg-amber-50"
-      title="分享"
-    >
-      {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Share2 className="w-3.5 h-3.5" />}
-    </button>
-  );
-}
 
 function buildProductMsg(title: string, price?: number, id?: number) {
   const productUrl = id ? `${window.location.origin}/merchant-products/${id}` : "";
@@ -139,7 +112,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
                 <div className="flex items-center justify-end gap-1 mt-1">
                   {!isSold ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
                   <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                    <ProductShareBtn id={p.id} title={p.title} price={price} currency={p.currency} />
+                    <ProductShareMenu productId={p.id} title={p.title} price={price} currency={p.currency} iconOnly />
                   </div>
                 </div>
               </div>
@@ -190,7 +163,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
                   <div className="flex items-center gap-1">
                     {!isSold ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
                     <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                      <ProductShareBtn id={p.id} title={p.title} price={price} currency={p.currency} />
+                      <ProductShareMenu productId={p.id} title={p.title} price={price} currency={p.currency} iconOnly />
                     </div>
                   </div>
                 </div>
@@ -234,7 +207,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
                     <span className="mt-auto text-[9px] py-0.5 bg-gray-100 text-gray-400 rounded text-center">已售出</span>
                   )}
                   <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                    <ProductShareBtn id={p.id} title={p.title} price={price} currency={p.currency} />
+                    <ProductShareMenu productId={p.id} title={p.title} price={price} currency={p.currency} iconOnly />
                   </div>
                 </div>
               </div>
@@ -279,7 +252,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
               <div className="mt-auto pt-1 flex items-center justify-end gap-1">
                 {!isSold ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
                 <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                  <ProductShareBtn id={p.id} title={p.title} price={price} currency={p.currency} />
+                  <ProductShareMenu productId={p.id} title={p.title} price={price} currency={p.currency} iconOnly />
                 </div>
               </div>
             </div>
