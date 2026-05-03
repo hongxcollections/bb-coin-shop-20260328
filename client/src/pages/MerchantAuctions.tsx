@@ -1427,45 +1427,6 @@ export default function MerchantAuctions() {
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
-              <Label className="text-sm font-medium">標題 <span className="text-red-500">*</span></Label>
-              <Input
-                className="mt-1"
-                value={activeEditForm.title}
-                onChange={e => setActiveEditForm(f => ({ ...f, title: e.target.value }))}
-                maxLength={255}
-                placeholder="商品標題"
-              />
-            </div>
-            <div>
-              <Label className="text-sm font-medium">商品詳情</Label>
-              <Textarea
-                className="mt-1 min-h-[100px] text-sm"
-                value={activeEditForm.description}
-                onChange={e => setActiveEditForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="商品描述、狀況說明等..."
-              />
-            </div>
-            <div>
-              <Label className="text-sm font-medium">分類</Label>
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                {CATEGORIES.map(cat => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setActiveEditForm(f => ({
-                      ...f,
-                      categories: f.categories.includes(cat)
-                        ? f.categories.filter(c => c !== cat)
-                        : [...f.categories, cat],
-                    }))}
-                    className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${activeEditForm.categories.includes(cat) ? "bg-amber-500 text-white border-amber-500" : "border-border text-muted-foreground hover:border-amber-300"}`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
               <Label className="text-sm font-medium">拍賣影片（選填，MP4/WebM/MOV，≤30MB）</Label>
               {activeEditForm.videoUrl ? (
                 <div className="relative mt-1.5">
@@ -1551,6 +1512,45 @@ export default function MerchantAuctions() {
                   ))}
                 </div>
               )}
+            </div>
+            <div>
+              <Label className="text-sm font-medium">標題 <span className="text-red-500">*</span></Label>
+              <Input
+                className="mt-1"
+                value={activeEditForm.title}
+                onChange={e => setActiveEditForm(f => ({ ...f, title: e.target.value }))}
+                maxLength={255}
+                placeholder="商品標題"
+              />
+            </div>
+            <div>
+              <Label className="text-sm font-medium">商品詳情</Label>
+              <Textarea
+                className="mt-1 min-h-[100px] text-sm"
+                value={activeEditForm.description}
+                onChange={e => setActiveEditForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="商品描述、狀況說明等..."
+              />
+            </div>
+            <div>
+              <Label className="text-sm font-medium">分類</Label>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {CATEGORIES.map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setActiveEditForm(f => ({
+                      ...f,
+                      categories: f.categories.includes(cat)
+                        ? f.categories.filter(c => c !== cat)
+                        : [...f.categories, cat],
+                    }))}
+                    className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${activeEditForm.categories.includes(cat) ? "bg-amber-500 text-white border-amber-500" : "border-border text-muted-foreground hover:border-amber-300"}`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="flex gap-2 justify-end pt-1">
               <Button variant="outline" onClick={() => {
