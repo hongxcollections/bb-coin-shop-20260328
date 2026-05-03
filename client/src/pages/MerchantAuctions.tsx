@@ -1427,24 +1427,6 @@ export default function MerchantAuctions() {
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
-              <Label className="text-sm font-medium">拍賣影片（選填，MP4/WebM/MOV，≤30MB）</Label>
-              {activeEditForm.videoUrl ? (
-                <div className="relative mt-1.5">
-                  <video src={activeEditForm.videoUrl} controls playsInline className="w-full max-h-48 rounded-lg border bg-black" />
-                  <button type="button" onClick={() => setActiveEditForm(f => ({ ...f, videoUrl: "" }))}
-                    className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 rounded-full p-1">
-                    <X className="w-3.5 h-3.5 text-white" />
-                  </button>
-                </div>
-              ) : (
-                <div onClick={() => !activeEditUploadingVideo && activeEditVideoFileRef.current?.click()}
-                  className={`mt-1.5 border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-colors ${activeEditUploadingVideo ? "opacity-60 cursor-wait" : "border-muted-foreground/30 hover:border-amber-400"}`}>
-                  <p className="text-xs text-muted-foreground">{activeEditUploadingVideo ? "影片上傳中…" : "點擊上傳拍賣影片"}</p>
-                </div>
-              )}
-              <input ref={activeEditVideoFileRef} type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={handleActiveEditVideoChange} />
-            </div>
-            <div>
               <Label className="text-sm font-medium">新增圖片（現有圖片不可刪除）</Label>
               {/* 現有圖片（只顯示，不可刪） */}
               {activeEditUploaded.length > 0 && (
@@ -1512,6 +1494,24 @@ export default function MerchantAuctions() {
                   ))}
                 </div>
               )}
+            </div>
+            <div>
+              <Label className="text-sm font-medium">拍賣影片（選填，MP4/WebM/MOV，≤30MB）</Label>
+              {activeEditForm.videoUrl ? (
+                <div className="relative mt-1.5">
+                  <video src={activeEditForm.videoUrl} controls playsInline className="w-full max-h-48 rounded-lg border bg-black" />
+                  <button type="button" onClick={() => setActiveEditForm(f => ({ ...f, videoUrl: "" }))}
+                    className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 rounded-full p-1">
+                    <X className="w-3.5 h-3.5 text-white" />
+                  </button>
+                </div>
+              ) : (
+                <div onClick={() => !activeEditUploadingVideo && activeEditVideoFileRef.current?.click()}
+                  className={`mt-1.5 border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-colors ${activeEditUploadingVideo ? "opacity-60 cursor-wait" : "border-muted-foreground/30 hover:border-amber-400"}`}>
+                  <p className="text-xs text-muted-foreground">{activeEditUploadingVideo ? "影片上傳中…" : "點擊上傳拍賣影片"}</p>
+                </div>
+              )}
+              <input ref={activeEditVideoFileRef} type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={handleActiveEditVideoChange} />
             </div>
             <div>
               <Label className="text-sm font-medium">標題 <span className="text-red-500">*</span></Label>
