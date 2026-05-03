@@ -1,18 +1,62 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useToast } from "@/contexts/ToastContext";
-import { LogOut, Menu } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { LogOut, Menu, Bell, CreditCard, Wallet } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+
+const PENDING_DIALOG_SESSION_KEY = "adminPendingDialogShown";
 
 export default function AdminHeader() {
   const { user, logout } = useAuth();
   const { showToast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [pendingDialogOpen, setPendingDialogOpen] = useState(false);
+
+  const isAdmin = user?.role === "admin";
+
+  // 查詢待處理嘅訂閱申請（pending status）
+  const { data: pendingSubscriptions } = trpc.subscriptions.adminListSubscriptions.useQuery(
+    { status: "pending" },
+    { enabled: isAdmin, staleTime: 30 * 1000 }
+  );
+
+  // 查詢待處理嘅保證金充值申請（pending status）
+  const { data: allTopUpRequests } = trpc.sellerDeposits.allTopUpRequests.useQuery(
+    undefined,
+    { enabled: isAdmin, staleTime: 30 * 1000 }
+  );
+
+  const pendingTopUps = useMemo(
+    () => (allTopUpRequests ?? []).filter((r: any) => r.status === "pending"),
+    [allTopUpRequests]
+  );
+
+  const subCount = pendingSubscriptions?.length ?? 0;
+  const topUpCount = pendingTopUps.length;
+  const totalPending = subCount + topUpCount;
+
+  // 管理員登入後，每個 session 只彈一次
+  useEffect(() => {
+    if (!isAdmin) return;
+    if (pendingSubscriptions === undefined || allTopUpRequests === undefined) return;
+    if (totalPending === 0) return;
+    try {
+      if (sessionStorage.getItem(PENDING_DIALOG_SESSION_KEY) === "1") return;
+      sessionStorage.setItem(PENDING_DIALOG_SESSION_KEY, "1");
+      setPendingDialogOpen(true);
+    } catch {
+      setPendingDialogOpen(true);
+    }
+  }, [isAdmin, pendingSubscriptions, allTopUpRequests, totalPending]);
 
   const handleLogout = () => {
     const name = user?.name ?? "你";
     setMobileMenuOpen(false);
     showToast({ icon: "👋", title: `再見，${name}！`, desc: "歡迎下次再回來", durationMs: 3500 });
+    try { sessionStorage.removeItem(PENDING_DIALOG_SESSION_KEY); } catch {}
     logout();
   };
 
@@ -116,6 +160,60 @@ export default function AdminHeader() {
       </nav>
       {/* Spacer */}
       <div className="h-16" />
+
+      {/* ── 管理員待處理事項提示 Dialog ── */}
+      <Dialog open={pendingDialogOpen} onOpenChange={setPendingDialogOpen}>
+        <DialogContent className="max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700">
+              <Bell className="w-5 h-5" />
+              有 {totalPending} 項待處理事項
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <p className="text-sm text-gray-700">
+              以下商戶申請仍未處理，請盡快前往對應頁面審批：
+            </p>
+            <div className="space-y-2">
+              {subCount > 0 && (
+                <Link href="/admin/subscriptions" onClick={() => setPendingDialogOpen(false)}>
+                  <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-violet-200 bg-violet-50 hover:bg-violet-100 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-2 text-violet-800">
+                      <CreditCard className="w-4 h-4" />
+                      <span className="text-sm font-medium">月費訂閱申請</span>
+                    </div>
+                    <span className="text-sm font-bold text-violet-700">
+                      {subCount} 筆待審
+                    </span>
+                  </div>
+                </Link>
+              )}
+              {topUpCount > 0 && (
+                <Link href="/admin/deposits" onClick={() => setPendingDialogOpen(false)}>
+                  <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-teal-200 bg-teal-50 hover:bg-teal-100 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-2 text-teal-800">
+                      <Wallet className="w-4 h-4" />
+                      <span className="text-sm font-medium">保證金充值申請</span>
+                    </div>
+                    <span className="text-sm font-bold text-teal-700">
+                      {topUpCount} 筆待審
+                    </span>
+                  </div>
+                </Link>
+              )}
+            </div>
+            <div className="flex justify-end pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setPendingDialogOpen(false)}
+                className="bg-white"
+              >
+                關閉
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
