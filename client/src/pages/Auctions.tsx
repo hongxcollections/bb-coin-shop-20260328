@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -183,6 +183,12 @@ export default function Auctions() {
 
   const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
   const paginated = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  // 隨機決定 LIVE banner 插入於第幾行之後（3..8），data 變動或翻頁時重新隨機
+  const bannerAfterRow = useMemo(
+    () => Math.floor(Math.random() * 6) + 3,
+    [page, auctions?.length],
+  );
 
   // 找出所有活躍拍賣中出價最高的項目 ID
   const topBidAuctionId = (auctions ?? [])
@@ -399,53 +405,6 @@ export default function Auctions() {
           </div>
         </div>
 
-        {/* ── Marquee Ticker ── Strictly show only active auctions with future end time */}
-        {!isLoading && (auctions ?? []).filter(a => a.status === 'active' && new Date(a.endTime).getTime() > Date.now()).length > 0 && (
-          <div className="marquee-wrapper mb-4 border border-amber-200 rounded-xl py-2 overflow-hidden" style={{ background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fef3c7 100%)" }}>
-            {(() => {
-              const activeAuctions = (auctions ?? []).filter(a =>
-                a.status === 'active' && new Date(a.endTime).getTime() > Date.now()
-              );
-              const duration = `${Math.max(10, activeAuctions.length * 5)}s`;
-              return (
-            <div className="marquee-track flex" style={{ animationDuration: duration }}>
-              {[...activeAuctions, ...activeAuctions].map((auction, idx) => (
-                  <Link
-                    key={`${auction.id}-${idx}`}
-                    href={`/auctions/${auction.id}`}
-                    className="flex items-center gap-3 px-4 py-1.5 mx-1.5 rounded-xl hover:bg-white/80 hover:shadow-sm transition-all shrink-0 cursor-pointer border border-transparent hover:border-amber-100"
-                  >
-                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-inner">
-                      {auction.images && (auction.images as Array<{ imageUrl: string }>).length > 0 ? (
-                        <img
-                          src={(auction.images as Array<{ imageUrl: string }>)[0].imageUrl}
-                          alt={auction.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-xl">🪙</span>
-                      )}
-                    </div>
-                    <div className="flex flex-col justify-center">
-                      <span className="text-xs font-bold text-amber-900 max-w-[10rem] truncate">{auction.title}</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-amber-600 font-extrabold">
-                          {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
-                        </span>
-                        <div className="flex items-center gap-1 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-100">
-                          <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                          <span className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider">Live</span>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-            </div>
-              );
-            })()}
-          </div>
-        )}
-
         {/* Auction List - Compact Left Image Right Content */}
         {isLoading ? (
           <div className="space-y-2">
@@ -455,7 +414,7 @@ export default function Auctions() {
           </div>
         ) : paginated.length > 0 ? (
           <div className="space-y-3">
-            {paginated.map((auction) => {
+            {paginated.map((auction, rowIdx) => {
               const now = Date.now();
               const endMs = new Date(auction.endTime).getTime();
               const isEnded = endMs <= now;
@@ -470,8 +429,47 @@ export default function Auctions() {
                 ? Math.min(Math.max(elapsed / totalDuration, 0), 1)
                 : null;
 
+              const showBannerHere = rowIdx === bannerAfterRow - 1;
+              const activeAuctions = (auctions ?? []).filter(x =>
+                x.status === 'active' && new Date(x.endTime).getTime() > Date.now()
+              );
+              const bannerEl = showBannerHere && activeAuctions.length > 0 ? (
+                <div key="live-banner" className="marquee-wrapper border border-amber-200 rounded-xl py-2 overflow-hidden" style={{ background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fef3c7 100%)" }}>
+                  <div className="marquee-track flex" style={{ animationDuration: `${Math.max(10, activeAuctions.length * 5)}s` }}>
+                    {[...activeAuctions, ...activeAuctions].map((au, idx) => (
+                      <Link
+                        key={`${au.id}-${idx}`}
+                        href={`/auctions/${au.id}`}
+                        className="flex items-center gap-3 px-4 py-1.5 mx-1.5 rounded-xl hover:bg-white/80 hover:shadow-sm transition-all shrink-0 cursor-pointer border border-transparent hover:border-amber-100"
+                      >
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-inner">
+                          {au.images && (au.images as Array<{ imageUrl: string }>).length > 0 ? (
+                            <img src={(au.images as Array<{ imageUrl: string }>)[0].imageUrl} alt={au.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-xl">🪙</span>
+                          )}
+                        </div>
+                        <div className="flex flex-col justify-center">
+                          <span className="text-xs font-bold text-amber-900 max-w-[10rem] truncate">{au.title}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-amber-600 font-extrabold">
+                              {getCurrencySymbol((au as { currency?: string }).currency ?? 'HKD')}{Number(au.currentPrice).toLocaleString()}
+                            </span>
+                            <div className="flex items-center gap-1 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-100">
+                              <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                              <span className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider">Live</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null;
+
               return (
-                <Link key={auction.id} href={`/auctions/${auction.id}`} onClick={saveScrollPosition}>
+                <React.Fragment key={auction.id}>
+                <Link href={`/auctions/${auction.id}`} onClick={saveScrollPosition}>
                   <div className={`auction-list-item flex gap-3 p-3 rounded-xl cursor-pointer transition-all border ${isEndingSoon ? "border-orange-200 bg-orange-50/40 hover:border-orange-300" : "border-amber-100 hover:border-amber-300 hover:bg-amber-50/50"}`}>
                     {/* Left: Image */}
                     <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
@@ -575,6 +573,8 @@ export default function Auctions() {
                     </div>
                   </div>
                 </Link>
+                {bannerEl}
+                </React.Fragment>
               );
             })}
           </div>
