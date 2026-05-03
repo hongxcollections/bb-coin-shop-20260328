@@ -227,6 +227,14 @@ async function bootstrapMissingColumns() {
     );
   }
 
+  // 新增 users.maxVideoSeconds 欄位（單條影片最長秒數上限，預設 60）
+  if (!(await check('users', 'maxVideoSeconds'))) {
+    await alter(
+      `ALTER TABLE \`users\` ADD COLUMN \`maxVideoSeconds\` int NOT NULL DEFAULT 60`,
+      'Added maxVideoSeconds to users'
+    );
+  }
+
   // dailyEarlyBird table (每日早鳥會員名額)
   await alter(`CREATE TABLE IF NOT EXISTS \`dailyEarlyBird\` (
     \`id\` int AUTO_INCREMENT NOT NULL,

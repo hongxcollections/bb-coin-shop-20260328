@@ -49,6 +49,7 @@ type UserRow = {
   mustChangePassword: number | null;
   isBanned: number;
   monthlyVideoQuota: number | null;
+  maxVideoSeconds: number | null;
   wonCount: number;
   activeAuctionCount: number;
   activeProductCount: number;
@@ -990,6 +991,7 @@ type EditState = {
   depositIsActive: number;
   isBanned: number;
   monthlyVideoQuota: number;
+  maxVideoSeconds: number;
   subscriptionEndDate: string; // YYYY-MM-DD（空字串 = 用戶冇訂閱記錄）
   hasSubscription: boolean;
 };
@@ -1162,6 +1164,7 @@ export default function AdminUsers() {
       depositIsActive: u.depositIsActive ?? 1,
       isBanned: u.isBanned ?? 0,
       monthlyVideoQuota: u.monthlyVideoQuota ?? 5,
+      maxVideoSeconds: u.maxVideoSeconds ?? 60,
       subscriptionEndDate: u.subscriptionEndDate
         ? new Date(u.subscriptionEndDate).toISOString().slice(0, 10)
         : "",
@@ -1179,6 +1182,7 @@ export default function AdminUsers() {
       memberLevel: editState.memberLevel,
       isBanned: editState.isBanned,
       monthlyVideoQuota: editState.monthlyVideoQuota,
+      maxVideoSeconds: editState.maxVideoSeconds,
     });
     if (editState.isMerchant) {
       adminUpdateDeposit.mutate({
@@ -1823,20 +1827,34 @@ export default function AdminUsers() {
               </div>
 
               {/* 影片配額（所有會員，但實際只商戶用） */}
-              <div className="space-y-1.5">
-                <Label>每月影片上傳配額（條）</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="1000"
-                  step="1"
-                  value={editState.monthlyVideoQuota}
-                  onChange={(e) => setEditState({ ...editState, monthlyVideoQuota: Math.max(0, parseInt(e.target.value || "0", 10)) })}
-                  className="border-amber-200"
-                />
-                <p className="text-xs text-muted-foreground">
-                  控制此會員每曆月可上傳嘅拍賣／商品影片總數（每件最多 1 條，每條 ≤30MB／≤60 秒）。預設 5 條。
-                </p>
+              <div className="border border-amber-100 rounded-lg p-3 space-y-3 bg-amber-50/40">
+                <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">影片上傳設定</p>
+                <div className="space-y-1.5">
+                  <Label>每月影片上傳配額（條）</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="1000"
+                    step="1"
+                    value={editState.monthlyVideoQuota}
+                    onChange={(e) => setEditState({ ...editState, monthlyVideoQuota: Math.max(0, parseInt(e.target.value || "0", 10)) })}
+                    className="border-amber-200"
+                  />
+                  <p className="text-xs text-muted-foreground">每曆月可上傳嘅拍賣／商品影片總數。預設 5 條，0 = 完全禁止。</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>單條影片最長秒數</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="3600"
+                    step="1"
+                    value={editState.maxVideoSeconds}
+                    onChange={(e) => setEditState({ ...editState, maxVideoSeconds: Math.max(1, parseInt(e.target.value || "60", 10)) })}
+                    className="border-amber-200"
+                  />
+                  <p className="text-xs text-muted-foreground">單條影片時長上限。預設 60 秒，每條檔案大小 ≤30MB，每件拍賣／商品最多 1 條。</p>
+                </div>
               </div>
 
               {editState.isMerchant && (

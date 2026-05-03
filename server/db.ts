@@ -2483,6 +2483,7 @@ export async function getAllUsersExtended() {
         mustChangePassword: users.mustChangePassword,
         isBanned: users.isBanned,
         monthlyVideoQuota: users.monthlyVideoQuota,
+        maxVideoSeconds: users.maxVideoSeconds,
         wonCount: sql<number>`(SELECT COUNT(*) FROM auctions WHERE highestBidderId = ${users.id} AND status = 'ended')`,
         activeAuctionCount: sql<number>`(SELECT COUNT(*) FROM auctions WHERE createdBy = ${users.id} AND status = 'active')`,
         activeProductCount: sql<number>`(SELECT COUNT(*) FROM merchantProducts WHERE merchantId = ${users.id} AND status = 'active')`,
@@ -2647,7 +2648,7 @@ export async function getWonAuctionsByUser(userId: number) {
  */
 export async function adminUpdateUser(
   userId: number,
-  data: { name?: string; email?: string; phone?: string; isBanned?: number; monthlyVideoQuota?: number }
+  data: { name?: string; email?: string; phone?: string; isBanned?: number; monthlyVideoQuota?: number; maxVideoSeconds?: number }
 ): Promise<boolean> {
   const db = await getDb();
   if (!db) return false;
@@ -2658,6 +2659,7 @@ export async function adminUpdateUser(
     if (data.phone !== undefined) updateData.phone = data.phone;
     if (data.isBanned !== undefined) updateData.isBanned = data.isBanned;
     if (data.monthlyVideoQuota !== undefined) updateData.monthlyVideoQuota = data.monthlyVideoQuota;
+    if (data.maxVideoSeconds !== undefined) updateData.maxVideoSeconds = data.maxVideoSeconds;
     if (Object.keys(updateData).length === 0) return true;
     await db.update(users).set(updateData).where(eq(users.id, userId));
     return true;
@@ -2702,6 +2704,21 @@ export async function getUserMonthlyVideoQuota(userId: number): Promise<number> 
   } catch (error) {
     console.error('[Database] Failed to get monthlyVideoQuota:', error);
     return 5;
+  }
+}
+
+/**
+ * 取得指定用戶嘅 maxVideoSeconds（單條影片最長秒數）
+ */
+export async function getUserMaxVideoSeconds(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 60;
+  try {
+    const rows = await db.select({ s: users.maxVideoSeconds }).from(users).where(eq(users.id, userId)).limit(1);
+    return Number(rows[0]?.s ?? 60);
+  } catch (error) {
+    console.error('[Database] Failed to get maxVideoSeconds:', error);
+    return 60;
   }
 }
 

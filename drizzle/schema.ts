@@ -23,6 +23,7 @@ export const users = mysqlTable("users", {
   mustChangePassword: int("mustChangePassword").default(0).notNull(), // 1 = 管理員設定密碼後，會員首次登入須強制更改
   isBanned: int("isBanned").default(0).notNull(), // 1 = 停權，禁止一切出價/上拍/出售功能
   monthlyVideoQuota: int("monthlyVideoQuota").default(5).notNull(), // 每月可上傳影片條數（商戶 soft 限制；管理員可改）
+  maxVideoSeconds: int("maxVideoSeconds").default(60).notNull(), // 單條影片最長秒數上限（管理員可改）
   photoUrl: varchar("photoUrl", { length: 1000 }), // 頭像 URL（Google 頭像或自訂上傳）
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
