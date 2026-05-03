@@ -987,6 +987,7 @@ export default function Home() {
   const [page, setPage] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [auctionListOpen, setAuctionListOpen] = useState(false);
+  const [categoryPanelOpen, setCategoryPanelOpen] = useState(false);
   // 隨機索引在 mount 時固定，避免重新 render 時跳字
   const [randomIdx] = useState(() => Math.floor(Math.random() * 10000));
   // 商品落單彈窗
@@ -1004,12 +1005,25 @@ export default function Home() {
   };
 
   const { data: auctions, isLoading } = trpc.auctions.list.useQuery(
-    { limit: 100, offset: 0, category: category === "all" ? undefined : category },
+    { limit: 100, offset: 0 },
     {
       refetchInterval: 5000, // 每 5 秒自動輪詢，確保價格和最高出價者即時更新
       staleTime: 3000, // 3 秒內視為新鮮資料
     }
   );
+
+  // 計算每個分類的活躍拍賣數量（與「所有拍賣」頁一致）
+  const categoryCounts: Record<string, number> = (() => {
+    const counts: Record<string, number> = { all: 0 };
+    for (const a of auctions ?? []) {
+      const isActive = a.status === 'active' && new Date(a.endTime).getTime() > Date.now();
+      if (!isActive) continue;
+      counts.all++;
+      const cat = (a as { category?: string | null }).category;
+      if (cat) counts[cat] = (counts[cat] ?? 0) + 1;
+    }
+    return counts;
+  })();
 
   const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, {
     staleTime: 5 * 60 * 1000,
@@ -1094,7 +1108,8 @@ export default function Home() {
   const filtered = (auctions ?? []).filter((a) => {
     const isEnded = new Date(a.endTime).getTime() <= Date.now() || a.status === 'ended';
     const matchSearch = !search || a.title.toLowerCase().includes(search.toLowerCase());
-    return matchSearch && !isEnded;
+    const matchCategory = category === "all" || (a as { category?: string | null }).category === category;
+    return matchSearch && matchCategory && !isEnded;
   });
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -1307,49 +1322,62 @@ export default function Home() {
             }}
           >
 
-          {/* Category Selector */}
-          <div className="flex items-center gap-2 mb-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  className="border-amber-200 text-amber-800 hover:bg-amber-50 flex items-center gap-1.5 rounded-full px-3 h-8 shadow-sm transition-all active:scale-95 text-xs"
-                >
-                  <span className="text-sm leading-none">💰</span>
-                  <span className="font-semibold">
-                    {category === "all" ? "全部商品分類" : `分類：${CATEGORIES.find(c => c.value === category)?.label}`}
-                  </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-amber-400" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-white border-amber-100 rounded-xl shadow-xl z-[100]">
-                <DropdownMenuLabel className="text-amber-900 font-bold px-3 py-2">選擇商品分類</DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-amber-50" />
-                {CATEGORIES.map((c) => (
-                  <DropdownMenuItem
-                    key={c.value}
-                    onClick={() => { setCategory(c.value); setPage(0); }}
-                    className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${
-                      category === c.value ? "bg-amber-50 text-amber-900 font-bold" : "text-amber-800 hover:bg-amber-50/50"
-                    }`}
-                  >
-                    <span className="text-xl">{c.emoji}</span>
-                    <span className="text-sm">{c.label}</span>
-                    {category === c.value && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]" />}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            
-            {category !== "all" && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => { setCategory("all"); setPage(0); }}
-                className="text-amber-600 hover:text-amber-800 hover:bg-amber-50 text-xs font-medium rounded-full"
+          {/* Category Selector - Collapsible Panel with Counts (與「所有拍賣」頁一致) */}
+          <div className="mb-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setCategoryPanelOpen(o => !o)}
+                className="border border-amber-200 bg-white text-amber-800 hover:bg-amber-50 flex items-center gap-1.5 rounded-full px-3 h-8 shadow-sm transition-all active:scale-95 text-xs"
               >
-                清除篩選
-              </Button>
+                <span className="text-sm leading-none">💰</span>
+                <span className="font-semibold">
+                  {category === "all"
+                    ? `全部商品分類 (${categoryCounts.all ?? 0})`
+                    : `分類：${CATEGORIES.find(c => c.value === category)?.label} (${categoryCounts[category] ?? 0})`}
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 text-amber-400 transition-transform ${categoryPanelOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {category !== "all" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setCategory("all"); setPage(0); }}
+                  className="text-amber-500 hover:text-amber-700 hover:bg-amber-50 font-medium rounded-full px-2 h-7"
+                  style={{ fontSize: "0.5rem" }}
+                >
+                  清除篩選
+                </Button>
+              )}
+            </div>
+
+            {/* Expanded Category Panel - flex-wrap with counts */}
+            {categoryPanelOpen && (
+              <div className="mt-2 p-3 bg-white border border-amber-100 rounded-xl shadow-sm">
+                <div className="flex flex-wrap gap-1.5">
+                  {CATEGORIES.map((c) => {
+                    const count = categoryCounts[c.value] ?? 0;
+                    const isSelected = category === c.value;
+                    return (
+                      <button
+                        key={c.value}
+                        type="button"
+                        onClick={() => { setCategory(c.value); setPage(0); setCategoryPanelOpen(false); }}
+                        className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all ${
+                          isSelected
+                            ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                            : "bg-white text-amber-800 border-amber-200 hover:border-amber-400 hover:bg-amber-50"
+                        }`}
+                      >
+                        <span>{c.emoji}</span>
+                        <span>{c.label}</span>
+                        <span className={`text-[10px] font-bold ${isSelected ? "text-white/90" : "text-amber-500"}`}>({count})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </div>
 
