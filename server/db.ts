@@ -163,6 +163,7 @@ export async function getAuctions(limit = 20, offset = 0, category?: string) {
         createdBy: auctions.createdBy,
         createdAt: auctions.createdAt,
         updatedAt: auctions.updatedAt,
+        videoUrl: auctions.videoUrl,
         fbShareTemplate: sql<string | null>`(SELECT fbShareTemplate FROM merchant_settings WHERE userId = ${auctions.createdBy} LIMIT 1)`,
       })
       .from(auctions)
@@ -220,6 +221,7 @@ export async function getAuctionById(id: number) {
         extendMinutes: auctions.extendMinutes,
         antiSnipeMemberLevels: auctions.antiSnipeMemberLevels,
         archived: auctions.archived,
+        videoUrl: auctions.videoUrl,
       })
       .from(auctions)
       .where(eq(auctions.id, id))
@@ -526,6 +528,7 @@ export async function getAuctionsByCreator(userId: number) {
         antiSnipeEnabled: auctions.antiSnipeEnabled,
         antiSnipeMinutes: auctions.antiSnipeMinutes,
         extendMinutes: auctions.extendMinutes,
+        videoUrl: auctions.videoUrl,
         bidCount: sql<number>`(SELECT COUNT(*) FROM bids WHERE bids.auctionId = ${auctions.id})`,
       })
       .from(auctions)
@@ -564,6 +567,7 @@ const ARCHIVED_SELECT = {
   archivedAt: auctions.archivedAt,
   relistSourceId: auctions.relistSourceId,
   archived: auctions.archived,
+  videoUrl: auctions.videoUrl,
 } as const;
 
 export async function getArchivedAuctions() {
