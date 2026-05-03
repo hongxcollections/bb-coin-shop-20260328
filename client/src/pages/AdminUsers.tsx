@@ -983,6 +983,8 @@ type EditState = {
   commissionRate: string;
   depositIsActive: number;
   isBanned: number;
+  subscriptionEndDate: string; // YYYY-MM-DD（空字串 = 用戶冇訂閱記錄）
+  hasSubscription: boolean;
 };
 
 export default function AdminUsers() {
@@ -1020,6 +1022,14 @@ export default function AdminUsers() {
   const adminUpdateDeposit = trpc.users.adminUpdateDeposit.useMutation({
     onSuccess: () => {
       toast.success("保證金設定已更新");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const adminUpdateSubEndDate = trpc.users.adminUpdateSubscriptionEndDate.useMutation({
+    onSuccess: (res) => {
+      toast.success(res.status === 'expired' ? "已更新到期日（已標記為過期）" : "已更新訂閱到期日");
+      refetch();
     },
     onError: (err) => toast.error(err.message),
   });
@@ -1144,6 +1154,10 @@ export default function AdminUsers() {
       commissionRate: u.commissionRate ? (parseFloat(u.commissionRate) * 100).toFixed(1) : "5.0",
       depositIsActive: u.depositIsActive ?? 1,
       isBanned: u.isBanned ?? 0,
+      subscriptionEndDate: u.subscriptionEndDate
+        ? new Date(u.subscriptionEndDate).toISOString().slice(0, 10)
+        : "",
+      hasSubscription: !!u.subscriptionEndDate,
     });
   }
 
@@ -1164,6 +1178,13 @@ export default function AdminUsers() {
         commissionRate: parseFloat(editState.commissionRate) / 100,
         isActive: editState.depositIsActive,
       });
+      // 只有當用戶有訂閱記錄、且管理員填咗有效日期，先更新到期日
+      if (editState.hasSubscription && editState.subscriptionEndDate) {
+        adminUpdateSubEndDate.mutate({
+          userId: editState.userId,
+          endDate: editState.subscriptionEndDate,
+        });
+      }
     }
   }
 
@@ -1821,6 +1842,26 @@ export default function AdminUsers() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* 訂閱費到期日 */}
+                  <div className="space-y-1.5 border-t border-amber-200 pt-3">
+                    <Label>訂閱費到期日</Label>
+                    {editState.hasSubscription ? (
+                      <>
+                        <Input
+                          type="date"
+                          value={editState.subscriptionEndDate}
+                          onChange={(e) => setEditState({ ...editState, subscriptionEndDate: e.target.value })}
+                          className="border-amber-200"
+                        />
+                        <p className="text-xs text-amber-700">
+                          修改後若日期已過，系統會自動將訂閱標記為「已過期」，商戶將無法繼續發佈拍賣。
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">此商戶尚未有任何訂閱記錄，無法設定到期日。</p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -1830,7 +1871,7 @@ export default function AdminUsers() {
             <Button
               className="bg-amber-600 hover:bg-amber-700 text-white"
               onClick={handleSaveEdit}
-              disabled={adminUpdate.isPending || adminUpdateDeposit.isPending}
+              disabled={adminUpdate.isPending || adminUpdateDeposit.isPending || adminUpdateSubEndDate.isPending}
             >
               {adminUpdate.isPending ? "儲存中…" : "儲存變更"}
             </Button>

@@ -3471,6 +3471,49 @@ export async function deductListingQuotaBulk(userId: number, count: number): Pro
   return { success: true, remaining: newRemaining };
 }
 
+/**
+ * Admin: 直接修改某用戶當前 active 訂閱嘅到期日 (endDate)。
+ * - 若新 endDate 喺未來：保持/設回 status='active'
+ * - 若新 endDate <= NOW()：自動標記為 'expired'
+ * - 若用戶冇 active 訂閱（包括最近 expired 嘅），會搵最新一張嚟改；冇任何訂閱記錄則回傳 success:false
+ */
+export async function adminUpdateSubscriptionEndDate(
+  userId: number,
+  endDate: Date
+): Promise<{ success: boolean; subscriptionId?: number; status?: string; reason?: string }> {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) return { success: false, reason: '資料庫不可用' };
+  try {
+    // 優先搵 active，如果冇就搵最近一張（避免管理員想延長已過期嘅訂閱無從入手）
+    const [active] = await db.select({ id: userSubscriptions.id })
+      .from(userSubscriptions)
+      .where(and(eq(userSubscriptions.userId, userId), eq(userSubscriptions.status, 'active')))
+      .orderBy(desc(userSubscriptions.createdAt))
+      .limit(1);
+    let targetId = active?.id;
+    if (!targetId) {
+      const [latest] = await db.select({ id: userSubscriptions.id })
+        .from(userSubscriptions)
+        .where(eq(userSubscriptions.userId, userId))
+        .orderBy(desc(userSubscriptions.createdAt))
+        .limit(1);
+      targetId = latest?.id;
+    }
+    if (!targetId) return { success: false, reason: '此用戶無任何訂閱記錄' };
+
+    const now = new Date();
+    const newStatus: 'active' | 'expired' = endDate.getTime() > now.getTime() ? 'active' : 'expired';
+    await db.update(userSubscriptions)
+      .set({ endDate, status: newStatus })
+      .where(eq(userSubscriptions.id, targetId));
+    return { success: true, subscriptionId: targetId, status: newStatus };
+  } catch (error) {
+    console.error('[Database] Failed to admin update subscription endDate:', error);
+    return { success: false, reason: '更新到期日失敗' };
+  }
+}
+
 export async function adminSetSubscriptionQuota(subscriptionId: number, remainingQuota: number): Promise<{ success: boolean }> {
   const db = await getDb();
   if (!db) throw new Error('Database not available');
