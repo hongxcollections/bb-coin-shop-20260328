@@ -20,7 +20,7 @@ import {
   ChevronLeft, Plus, Package, Pencil, Trash2, Eye, EyeOff,
   ImageIcon, X, Loader2, LayoutList, LayoutGrid, Grid3X3, Maximize2,
   ShoppingBag, CheckCircle2, XCircle, Clock, Flame, RotateCcw, Tag,
-  Facebook, Copy, Check,
+  Facebook, Copy, Check, CreditCard,
 } from "lucide-react";
 import { parseCategories } from "@/lib/categories";
 
@@ -546,6 +546,7 @@ export default function MerchantProducts() {
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [noSubDialogOpen, setNoSubDialogOpen] = useState(false);
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -791,7 +792,14 @@ export default function MerchantProducts() {
             <Button
               size="sm"
               className="bg-green-600 hover:bg-green-700 text-white gap-1"
-              onClick={() => { setEditingId(null); setForm(EMPTY_FORM); setShowForm(true); setTimeout(() => document.getElementById("product-form")?.scrollIntoView({ behavior: "smooth" }), 100); }}
+              onClick={() => {
+                if (!quotaLoading && !quotaInfo) {
+                  setNoSubDialogOpen(true);
+                  return;
+                }
+                setEditingId(null); setForm(EMPTY_FORM); setShowForm(true);
+                setTimeout(() => document.getElementById("product-form")?.scrollIntoView({ behavior: "smooth" }), 100);
+              }}
             >
               <Plus className="w-4 h-4" />
               上架商品
@@ -1487,6 +1495,38 @@ export default function MerchantProducts() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── 未訂閱提示 Dialog ── */}
+      <Dialog open={noSubDialogOpen} onOpenChange={setNoSubDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <CreditCard className="w-5 h-5" />
+              需要訂閱月費計劃
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-1">
+            <p className="text-sm text-foreground leading-relaxed">
+              上架商品需要有效的月費訂閱計劃。請先訂閱合適的計劃，審批通過後即可開始上架。
+            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 space-y-1">
+              <p className="font-medium">如何訂閱？</p>
+              <p>1. 前往「訂閱計劃」頁面選擇計劃</p>
+              <p>2. 上傳付款憑證提交申請</p>
+              <p>3. 等待管理員審批（通常 1 個工作天）</p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setNoSubDialogOpen(false)}>關閉</Button>
+              <Link href="/subscriptions">
+                <Button className="bg-amber-500 hover:bg-amber-600 text-white border-0 gap-1.5" onClick={() => setNoSubDialogOpen(false)}>
+                  <CreditCard className="w-4 h-4" />
+                  前往訂閱
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* 主打申請 Dialog */}
       {featuredDialog && (
