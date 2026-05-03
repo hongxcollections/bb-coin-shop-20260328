@@ -2130,6 +2130,7 @@ export async function createUserSubscription(data: {
 
 export async function getUserActiveSubscription(userId: number) {
   await ensureSubscriptionTables();
+  await expireOverdueSubscriptions();
   const db = await getDb();
   if (!db) return null;
   try {
@@ -2192,6 +2193,7 @@ export async function getUserSubscriptions(userId: number) {
 
 export async function getAllUserSubscriptions(statusFilter?: string) {
   await ensureSubscriptionTables();
+  await expireOverdueSubscriptions();
   const db = await getDb();
   if (!db) return [];
   try {
@@ -2330,8 +2332,77 @@ export async function cancelSubscription(subscriptionId: number, adminId: number
   }
 }
 
+/**
+ * Auto-expire any active subscription whose endDate has passed.
+ * Called at the start of subscription queries so over-due rows
+ * are flipped from 'active' → 'expired' without needing a cron job.
+ */
+export async function expireOverdueSubscriptions(): Promise<number> {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) return 0;
+  try {
+    const result: any = await db.execute(sql`
+      UPDATE user_subscriptions
+      SET status = 'expired'
+      WHERE status = 'active'
+        AND endDate IS NOT NULL
+        AND endDate <= NOW()
+    `);
+    const affected = Number(result?.[0]?.affectedRows ?? result?.affectedRows ?? 0);
+    return affected;
+  } catch (error) {
+    console.error('[Database] Failed to expire overdue subscriptions:', error);
+    return 0;
+  }
+}
+
+/**
+ * Return active subscriptions whose endDate falls within the next `daysAhead` days.
+ * Used by the admin dashboard to surface upcoming expirations.
+ */
+export async function getExpiringSoonSubscriptions(daysAhead: number = 7) {
+  await ensureSubscriptionTables();
+  // Run auto-expire first so anything already past endDate is excluded.
+  await expireOverdueSubscriptions();
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const days = Math.max(1, Math.floor(daysAhead));
+    const rows: any = await db.execute(sql`
+      SELECT
+        us.id, us.userId, us.planId, us.billingCycle, us.status,
+        us.startDate, us.endDate, us.remainingQuota,
+        u.name AS userName, u.email AS userEmail,
+        sp.name AS planName, sp.memberLevel, sp.maxListings,
+        DATEDIFF(us.endDate, NOW()) AS daysLeft
+      FROM user_subscriptions us
+      LEFT JOIN users u ON u.id = us.userId
+      LEFT JOIN subscription_plans sp ON sp.id = us.planId
+      WHERE us.status = 'active'
+        AND us.endDate IS NOT NULL
+        AND us.endDate > NOW()
+        AND us.endDate <= DATE_ADD(NOW(), INTERVAL ${days} DAY)
+      ORDER BY us.endDate ASC
+    `);
+    const list = Array.isArray(rows) ? (Array.isArray(rows[0]) ? rows[0] : rows) : [];
+    return list as Array<{
+      id: number; userId: number; userName: string | null; userEmail: string | null;
+      planId: number; planName: string | null; memberLevel: string | null;
+      maxListings: number | null; remainingQuota: number | null;
+      billingCycle: string; status: string;
+      startDate: Date | null; endDate: Date | null;
+      daysLeft: number;
+    }>;
+  } catch (error) {
+    console.error('[Database] Failed to get expiring subscriptions:', error);
+    return [];
+  }
+}
+
 export async function getSubscriptionStats() {
   await ensureSubscriptionTables();
+  await expireOverdueSubscriptions();
   const db = await getDb();
   if (!db) return { total: 0, pending: 0, active: 0, expired: 0 };
   try {
@@ -3322,6 +3393,8 @@ export async function getListingQuotaInfo(userId: number): Promise<{
 } | null> {
   const db = await getDb();
   if (!db) return null;
+  // Auto-flip overdue subscriptions to 'expired' before reading.
+  await expireOverdueSubscriptions();
   try {
     const [row] = await db.select({
       id: userSubscriptions.id,
@@ -3362,7 +3435,7 @@ export async function deductListingQuota(userId: number): Promise<{ success: boo
   const db = await getDb();
   if (!db) return { success: false, reason: '資料庫不可用' };
   const info = await getListingQuotaInfo(userId);
-  if (!info) return { success: false, reason: '您尚未訂閱月費計劃，請先訂閱後才可發佈拍賣' };
+  if (!info) return { success: false, reason: '您的月費計劃已過期或尚未訂閱，請先續訂後才可發佈拍賣' };
   if (info.unlimited) return { success: true, unlimited: true }; // maxListings = 0 = unlimited
 
   if (info.remainingQuota <= 0) {
@@ -3384,7 +3457,7 @@ export async function deductListingQuotaBulk(userId: number, count: number): Pro
   const db = await getDb();
   if (!db) return { success: false, reason: '資料庫不可用' };
   const info = await getListingQuotaInfo(userId);
-  if (!info) return { success: false, reason: '您尚未訂閱月費計劃' };
+  if (!info) return { success: false, reason: '您的月費計劃已過期或尚未訂閱，請先續訂' };
   if (info.unlimited) return { success: true, unlimited: true };
   if (info.remainingQuota < count) {
     return { success: false, reason: `發佈次數不足（剩餘 ${info.remainingQuota}，需要 ${count}）` };

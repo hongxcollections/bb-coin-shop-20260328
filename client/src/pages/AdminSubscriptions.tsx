@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, Crown, Plus, Pencil, Trash2, CheckCircle2, XCircle, Clock,
-  Users, CreditCard, Eye, Ban, DollarSign, Star, Shield, Zap,
+  Users, CreditCard, Eye, Ban, DollarSign, Star, Shield, Zap, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -141,6 +141,11 @@ export default function AdminSubscriptions() {
 
   const { data: stats } = trpc.subscriptions.adminStats.useQuery(
     undefined,
+    { enabled: isAuthenticated && user?.role === "admin" }
+  );
+
+  const { data: expiringSoon } = trpc.subscriptions.adminExpiringSoon.useQuery(
+    { days: 7 },
     { enabled: isAuthenticated && user?.role === "admin" }
   );
 
@@ -347,6 +352,73 @@ export default function AdminSubscriptions() {
               </Card>
             ))}
           </div>
+        )}
+
+        {/* Expiring Soon (next 7 days) */}
+        {expiringSoon && expiringSoon.length > 0 && (
+          <Card className="border-orange-200 bg-orange-50/40 mb-6">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base text-orange-700">
+                <AlertTriangle className="w-4 h-4" />
+                即將到期訂閱（未來 7 日內）
+                <Badge className="bg-orange-500 text-white text-xs ml-1 h-5 min-w-5 px-1.5">
+                  {expiringSoon.length}
+                </Badge>
+              </CardTitle>
+              <CardDescription>
+                以下商戶嘅月費計劃即將到期，過期後將自動標記為「已過期」並無法繼續發佈拍賣，請及早跟進續費。
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {expiringSoon.map((s: any) => {
+                  const days = Number(s.daysLeft ?? 0);
+                  const dateStr = s.endDate ? new Date(s.endDate).toLocaleDateString("zh-HK") : "—";
+                  const urgent = days <= 2;
+                  return (
+                    <div
+                      key={s.id}
+                      className={`flex flex-wrap items-center justify-between gap-2 p-3 rounded-md border ${
+                        urgent ? "border-red-300 bg-red-50" : "border-orange-200 bg-white"
+                      }`}
+                    >
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm truncate">
+                            {s.userName || "（未設名）"}
+                          </span>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {s.userEmail || ""}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
+                          <Badge variant="outline" className="text-xs h-5 px-1.5">
+                            {s.planName || "—"}
+                          </Badge>
+                          <span>到期：{dateStr}</span>
+                          <span>
+                            剩餘額度：
+                            {s.maxListings === 0
+                              ? "無限"
+                              : `${s.remainingQuota ?? 0} / ${s.maxListings ?? 0}`}
+                          </span>
+                        </div>
+                      </div>
+                      <Badge
+                        className={
+                          urgent
+                            ? "bg-red-500 text-white"
+                            : "bg-orange-500 text-white"
+                        }
+                      >
+                        {days <= 0 ? "今日到期" : `${days} 日後到期`}
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Tabs */}
