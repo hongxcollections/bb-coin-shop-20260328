@@ -1579,6 +1579,47 @@ export default function Home() {
         </div>
       </section>
 
+      {/* SEO 內容區：自然帶入錢幣相關關鍵字，提升搜尋引擎收錄 */}
+      <section className="bg-amber-50/40 border-t border-amber-100 py-10">
+        <div className="container max-w-5xl">
+          <h2 className="text-base sm:text-lg font-bold text-amber-900 mb-4 text-center">
+            香港專業錢幣收藏與拍賣平台
+          </h2>
+          <div className="text-[11px] sm:text-xs leading-relaxed text-amber-900/70 space-y-3">
+            <p>
+              <strong className="text-amber-900">hongxcollections（大BB錢幣店）</strong>係香港具規模嘅
+              <strong>錢幣拍賣</strong>同<strong>硬幣收藏</strong>平台，專營
+              <strong>金幣</strong>、<strong>銀幣</strong>、<strong>銀圓</strong>、<strong>銅幣</strong>、
+              <strong>紀念幣</strong>同<strong>紀念鈔</strong>嘅網上競投。無論你係收藏新手定資深玩家，
+              都可以喺呢度搵到心水嘅<strong>香港舊錢幣</strong>、<strong>香港舊鈔</strong>、
+              <strong>古董</strong>同<strong>古玩收藏</strong>品。
+            </p>
+            <p>
+              我哋嘅拍賣品涵蓋全球各地：<strong>民國錢幣</strong>（<strong>孫中山</strong>、
+              <strong>袁大頭</strong>、<strong>民國銀元</strong>）、<strong>中國龍銀元</strong>、
+              <strong>日本龍銀</strong>、<strong>外國銀元</strong>、<strong>貿易銀元</strong>、
+              <strong>龍銀</strong>、<strong>英國幣</strong>、<strong>英國銀幣</strong>
+              （Great Britain Coin、United Kingdom Coin、Half Crown Coins）、
+              <strong>歐洲銀幣</strong>、<strong>法國幣</strong>、<strong>外國錢鈔</strong>同
+              <strong>外國幣</strong>，齊全嘅<strong>世界錢幣（World Coins）</strong>選擇。
+            </p>
+            <p>
+              所有<strong>評級幣</strong>均經<strong>PCGS</strong>或<strong>NGC</strong>專業
+              <strong>錢幣評級</strong>，買得放心。同時提供<strong>開箱記錄</strong>
+              影片、<strong>金銀幣</strong>真偽鑑定及估價服務。
+            </p>
+            <p>
+              <strong>高價收金幣、高價收銀幣</strong>：本店長期以市場最佳價格
+              <strong>回收金銀</strong>、<strong>回收銀幣</strong>、舊金幣、舊銀幣，誠信交易，即場估價。
+              歡迎商戶上架商品（Buy Coins、Sell Coins、Collect Coins、Old Coins，Money 收藏家樂園）。
+            </p>
+            <p className="text-[10px] text-amber-800/50">
+              简体关键字：<span lang="zh-CN">银币、硬币、钱币收藏、金银币、法国币、外国币</span>。
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="bg-amber-950 text-amber-100/60 py-4 pb-24 border-t border-amber-900/50">
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
