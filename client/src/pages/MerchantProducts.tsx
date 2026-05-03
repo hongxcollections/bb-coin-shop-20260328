@@ -66,11 +66,15 @@ interface ProductForm {
   categories: string[];
   stock: string;
   images: string[];
+  videoUrl: string;
 }
 
 const EMPTY_FORM: ProductForm = {
-  title: "", description: "", price: "", currency: "HKD", categories: [], stock: "1", images: [],
+  title: "", description: "", price: "", currency: "HKD", categories: [], stock: "1", images: [], videoUrl: "",
 };
+
+const MAX_VIDEO_SIZE = 30 * 1024 * 1024;
+const VIDEO_MIME_ALLOW = ['video/mp4', 'video/webm', 'video/quicktime'];
 
 const CURRENCY_OPTIONS = [
   { value: "HKD", label: "🇭🇰 港幣 HKD" },
@@ -609,6 +613,9 @@ export default function MerchantProducts() {
   });
 
   const uploadImage = trpc.merchants.uploadProductImage.useMutation();
+  const uploadVideo = trpc.merchants.uploadVideo.useMutation();
+  const videoFileRef = useRef<HTMLInputElement>(null);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
 
   // 主打刊登
   const [featuredDialog, setFeaturedDialog] = useState<{ id: number; title: string; price: number; currency: string } | null>(null);
@@ -662,6 +669,7 @@ export default function MerchantProducts() {
       })(),
       stock: String(p.stock ?? 1),
       images: imgs,
+      videoUrl: p.videoUrl ?? "",
     });
     setEditingId(p.id);
     setShowForm(true);
@@ -709,6 +717,36 @@ export default function MerchantProducts() {
     if (files.length > 0) handleImageUpload(files);
   }
 
+  async function handleVideoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (videoFileRef.current) videoFileRef.current.value = "";
+    if (!file) return;
+    if (!VIDEO_MIME_ALLOW.includes(file.type)) {
+      toast.error("只支援 MP4、WebM、MOV 格式");
+      return;
+    }
+    if (file.size > MAX_VIDEO_SIZE) {
+      toast.error("影片不可超過 30MB");
+      return;
+    }
+    setUploadingVideo(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = () => reject(new Error("讀取影片失敗"));
+        reader.readAsDataURL(file);
+      });
+      const { url } = await uploadVideo.mutateAsync({ videoData: base64, fileName: file.name, mimeType: file.type });
+      setForm(f => ({ ...f, videoUrl: url }));
+      toast.success("影片已上傳");
+    } catch (err: any) {
+      toast.error(err.message ?? "影片上傳失敗");
+    } finally {
+      setUploadingVideo(false);
+    }
+  }
+
   function handleSubmit() {
     if (!form.title.trim()) return toast.error("請輸入商品名稱");
     const price = parseFloat(form.price);
@@ -731,6 +769,7 @@ export default function MerchantProducts() {
       currency: form.currency,
       category: form.categories.length > 0 ? form.categories.join("|") : undefined,
       images: form.images.length > 0 ? JSON.stringify(form.images) : undefined,
+      videoUrl: form.videoUrl ? form.videoUrl : null,
       stock,
     };
     setSaving(true);
@@ -875,6 +914,30 @@ export default function MerchantProducts() {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* ── 商品影片（選填，最多 1 條，≤30MB） ── */}
+            <div className="space-y-2">
+              <label className="text-xs text-gray-500 font-medium">商品影片（選填，MP4/WebM/MOV，≤30MB）</label>
+              {form.videoUrl ? (
+                <div className="relative">
+                  <video src={form.videoUrl} controls playsInline className="w-full max-h-64 rounded-lg border border-amber-100 bg-black" />
+                  <button type="button" onClick={() => setForm(f => ({ ...f, videoUrl: "" }))}
+                    className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 rounded-full p-1">
+                    <X className="w-3.5 h-3.5 text-white" />
+                  </button>
+                </div>
+              ) : (
+                <div onClick={() => !uploadingVideo && videoFileRef.current?.click()}
+                  className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${uploadingVideo ? "opacity-60 cursor-wait" : "border-muted-foreground/30 hover:border-amber-400"}`}>
+                  {uploadingVideo ? (
+                    <p className="text-sm text-muted-foreground">影片上傳中…</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">點擊上傳商品影片</p>
+                  )}
+                </div>
+              )}
+              <input ref={videoFileRef} type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={handleVideoFileChange} />
             </div>
 
             {/* ── 商品資料 ── */}

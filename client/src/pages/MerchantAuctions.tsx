@@ -96,7 +96,11 @@ interface AuctionFormData {
   antiSnipeMinutes: number;
   extendMinutes: number;
   categories: string[];
+  videoUrl: string;
 }
+
+const MAX_VIDEO_SIZE = 30 * 1024 * 1024;
+const VIDEO_MIME_ALLOW = ['video/mp4', 'video/webm', 'video/quicktime'];
 
 const defaultForm: AuctionFormData = {
   title: "",
@@ -108,6 +112,7 @@ const defaultForm: AuctionFormData = {
   antiSnipeMinutes: 3,
   extendMinutes: 3,
   categories: [],
+  videoUrl: "",
 };
 
 type AuctionItem = {
@@ -428,6 +433,33 @@ export default function MerchantAuctions() {
   const { data: myArchived, isLoading: loadingArchived, refetch: refetchArchived } = trpc.merchants.myArchived.useQuery();
 
   const uploadMutation = trpc.merchants.uploadAuctionImage.useMutation();
+  const uploadVideoMutation = trpc.merchants.uploadVideo.useMutation();
+  const videoFileRef = useRef<HTMLInputElement>(null);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+
+  const handleVideoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (videoFileRef.current) videoFileRef.current.value = "";
+    if (!file) return;
+    if (!VIDEO_MIME_ALLOW.includes(file.type)) { toast.error("只支援 MP4、WebM、MOV 格式"); return; }
+    if (file.size > MAX_VIDEO_SIZE) { toast.error("影片不可超過 30MB"); return; }
+    setUploadingVideo(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve((r.result as string).split(",")[1]);
+        r.onerror = () => reject(new Error("讀取影片失敗"));
+        r.readAsDataURL(file);
+      });
+      const { url } = await uploadVideoMutation.mutateAsync({ videoData: base64, fileName: file.name, mimeType: file.type });
+      setForm(f => ({ ...f, videoUrl: url }));
+      toast.success("影片已上傳");
+    } catch (err: any) {
+      toast.error(err?.message ?? "影片上傳失敗");
+    } finally {
+      setUploadingVideo(false);
+    }
+  };
   const deleteImageMutation = trpc.merchants.deleteAuctionImage.useMutation();
   const preSaveImageMutation = trpc.merchants.preSaveImage.useMutation();
   const registerImagesMutation = trpc.merchants.registerPreSavedImages.useMutation();
@@ -631,6 +663,7 @@ export default function MerchantAuctions() {
         if (a.category.includes("|")) return a.category.split("|").map(s => s.trim()).filter(Boolean);
         return a.category.trim() ? [a.category.trim()] : [];
       })(),
+      videoUrl: (a as { videoUrl?: string | null }).videoUrl ?? "",
     });
     setUploadedImages((a.images ?? []).map((img) => ({ url: img.imageUrl, displayOrder: img.displayOrder, imageId: img.id })));
     setPendingImages([]);
@@ -707,9 +740,9 @@ export default function MerchantAuctions() {
     const extendMinutes = isNaN(form.extendMinutes) || form.extendMinutes < 1 ? 1 : form.extendMinutes;
     const category = form.categories.join("|");
     if (editId) {
-      updateMutation.mutate({ id: editId, title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, category });
+      updateMutation.mutate({ id: editId, title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, category, videoUrl: form.videoUrl || null });
     } else {
-      createMutation.mutate({ title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, category });
+      createMutation.mutate({ title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, category, videoUrl: form.videoUrl || null });
     }
   };
 
@@ -994,6 +1027,24 @@ export default function MerchantAuctions() {
                 pendingImages={pendingImages} uploadedImages={uploadedImages}
                 onAddFiles={handleAddFiles} onRemovePending={handleRemovePending}
                 onRemoveUploaded={handleRemoveUploaded} isUploading={isUploading} />
+            </div>
+            <div className="space-y-2">
+              <Label>拍賣影片（選填，MP4/WebM/MOV，≤30MB）</Label>
+              {form.videoUrl ? (
+                <div className="relative">
+                  <video src={form.videoUrl} controls playsInline className="w-full max-h-64 rounded-lg border bg-black" />
+                  <button type="button" onClick={() => setForm(f => ({ ...f, videoUrl: "" }))}
+                    className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 rounded-full p-1">
+                    <X className="w-3.5 h-3.5 text-white" />
+                  </button>
+                </div>
+              ) : (
+                <div onClick={() => !uploadingVideo && videoFileRef.current?.click()}
+                  className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${uploadingVideo ? "opacity-60 cursor-wait" : "border-muted-foreground/30 hover:border-amber-400"}`}>
+                  <p className="text-sm text-muted-foreground">{uploadingVideo ? "影片上傳中…" : "點擊上傳拍賣影片"}</p>
+                </div>
+              )}
+              <input ref={videoFileRef} type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={handleVideoFileChange} />
             </div>
             <div>
               <Label>標題 *</Label>

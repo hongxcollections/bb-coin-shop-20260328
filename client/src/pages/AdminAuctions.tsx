@@ -52,7 +52,11 @@ interface AuctionFormData {
   antiSnipeMinutes: number;
   extendMinutes: number;
   antiSnipeMemberLevels: string[];
+  videoUrl: string;
 }
+
+const MAX_VIDEO_SIZE = 30 * 1024 * 1024;
+const VIDEO_MIME_ALLOW = ['video/mp4', 'video/webm', 'video/quicktime'];
 
 interface UploadedImage {
   url: string;
@@ -81,6 +85,7 @@ const defaultForm: AuctionFormData = {
   antiSnipeMinutes: 3,
   extendMinutes: 3,
   antiSnipeMemberLevels: [],
+  videoUrl: "",
 };
 
 // ─── Image Upload Zone Component ────────────────────────────────────────────
@@ -290,6 +295,33 @@ export default function AdminAuctions() {
   const { data: auctions, isLoading, refetch } = trpc.auctions.myAuctions.useQuery();
 
   const uploadImageMutation = trpc.auctions.uploadImage.useMutation();
+  const uploadVideoMutation = trpc.auctions.uploadVideo.useMutation();
+  const videoFileRef = useRef<HTMLInputElement>(null);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+
+  const handleVideoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (videoFileRef.current) videoFileRef.current.value = "";
+    if (!file) return;
+    if (!VIDEO_MIME_ALLOW.includes(file.type)) { toast.error("只支援 MP4、WebM、MOV 格式"); return; }
+    if (file.size > MAX_VIDEO_SIZE) { toast.error("影片不可超過 30MB"); return; }
+    setUploadingVideo(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve((r.result as string).split(",")[1]);
+        r.onerror = () => reject(new Error("讀取影片失敗"));
+        r.readAsDataURL(file);
+      });
+      const { url } = await uploadVideoMutation.mutateAsync({ videoData: base64, fileName: file.name, mimeType: file.type });
+      setForm(f => ({ ...f, videoUrl: url }));
+      toast.success("影片已上傳");
+    } catch (err: any) {
+      toast.error(err?.message ?? "影片上傳失敗");
+    } finally {
+      setUploadingVideo(false);
+    }
+  };
   const deleteImageMutation = trpc.auctions.deleteImage.useMutation();
 
   // ── Batch upload all pending images (parallel) ──
@@ -479,6 +511,7 @@ export default function AdminAuctions() {
         antiSnipeMinutes: form.antiSnipeMinutes,
         extendMinutes: form.extendMinutes,
         antiSnipeMemberLevels: form.antiSnipeMemberLevels as unknown as ('bronze' | 'silver' | 'gold' | 'vip')[] | 'all',
+        videoUrl: form.videoUrl || null,
       });
     } else {
       createAuction.mutate({
@@ -492,6 +525,7 @@ export default function AdminAuctions() {
         antiSnipeMinutes: form.antiSnipeMinutes,
         extendMinutes: form.extendMinutes,
         antiSnipeMemberLevels: form.antiSnipeMemberLevels as unknown as ('bronze' | 'silver' | 'gold' | 'vip')[] | 'all',
+        videoUrl: form.videoUrl || null,
       });
     }
   };
@@ -524,6 +558,7 @@ export default function AdminAuctions() {
         if (!raw || raw === 'all') return [];
         try { return JSON.parse(raw) as string[]; } catch { return []; }
       })(),
+      videoUrl: (auction as { videoUrl?: string | null }).videoUrl ?? "",
     });
     setUploadedImages(
       (images ?? []).map((img) => ({
@@ -765,6 +800,26 @@ export default function AdminAuctions() {
                   onRemoveUploaded={handleRemoveUploaded}
                   isUploading={isUploading}
                 />
+
+                {/* Video Upload */}
+                <div className="space-y-2">
+                  <Label>拍賣影片（選填，MP4/WebM/MOV，≤30MB）</Label>
+                  {form.videoUrl ? (
+                    <div className="relative">
+                      <video src={form.videoUrl} controls playsInline className="w-full max-h-64 rounded-lg border bg-black" />
+                      <button type="button" onClick={() => setForm(f => ({ ...f, videoUrl: "" }))}
+                        className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 rounded-full p-1">
+                        <X className="w-3.5 h-3.5 text-white" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div onClick={() => !uploadingVideo && videoFileRef.current?.click()}
+                      className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${uploadingVideo ? "opacity-60 cursor-wait" : "border-muted-foreground/30 hover:border-amber-400"}`}>
+                      <p className="text-sm text-muted-foreground">{uploadingVideo ? "影片上傳中…" : "點擊上傳拍賣影片"}</p>
+                    </div>
+                  )}
+                  <input ref={videoFileRef} type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={handleVideoFileChange} />
+                </div>
 
                 {/* Submit Button */}
                 <Button

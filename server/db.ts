@@ -1559,6 +1559,7 @@ async function ensureDepositTables() {
     try { await db.execute(sql`ALTER TABLE proxyBids ADD UNIQUE KEY uniq_proxy_auction_user (auctionId, userId)`); } catch {}
     // auctions.category: 從 ENUM 改為 VARCHAR(500)，以支援可設定的商品分類
     try { await db.execute(sql`ALTER TABLE auctions MODIFY COLUMN category VARCHAR(500)`); } catch {}
+    try { await db.execute(sql`ALTER TABLE auctions ADD COLUMN videoUrl VARCHAR(500)`); } catch {}
     // auctions.category: 清除舊 ENUM 值（古幣/紀念幣/外幣/銀幣/金幣/其他），改為 null，商戶重新選取
     try {
       await db.execute(sql`UPDATE auctions SET category = NULL WHERE category IN ('古幣','紀念幣','外幣','銀幣','金幣','其他')`);
@@ -3855,6 +3856,9 @@ async function ensureMerchantProductsTable() {
   try {
     await db.execute(sql`ALTER TABLE merchantProducts MODIFY COLUMN category VARCHAR(500)`);
   } catch {}
+  try {
+    await db.execute(sql`ALTER TABLE merchantProducts ADD COLUMN videoUrl VARCHAR(500)`);
+  } catch {}
   _merchantProductsTableChecked = true;
 }
 
@@ -3889,7 +3893,7 @@ export async function getMerchantProduct(id: number): Promise<MerchantProduct | 
 export async function createMerchantProduct(data: {
   merchantId: number; merchantName: string; merchantIcon?: string; whatsapp?: string;
   title: string; description?: string; price: number; currency?: string;
-  category?: string; images?: string; stock?: number;
+  category?: string; images?: string; videoUrl?: string | null; stock?: number;
 }): Promise<number> {
   await ensureMerchantProductsTable();
   const db = await getDb();
@@ -3905,6 +3909,7 @@ export async function createMerchantProduct(data: {
     currency: data.currency ?? 'HKD',
     category: data.category ?? null,
     images: data.images ?? null,
+    videoUrl: data.videoUrl ?? null,
     stock: data.stock ?? 1,
     status: 'active',
   });
@@ -3913,7 +3918,7 @@ export async function createMerchantProduct(data: {
 
 export async function updateMerchantProduct(id: number, merchantId: number, data: Partial<{
   title: string; description: string; price: number; currency: string;
-  category: string; images: string; stock: number; status: string;
+  category: string; images: string; videoUrl: string | null; stock: number; status: string;
 }>): Promise<void> {
   await ensureMerchantProductsTable();
   const db = await getDb();
@@ -3925,6 +3930,7 @@ export async function updateMerchantProduct(id: number, merchantId: number, data
   if (data.currency !== undefined) payload.currency = data.currency;
   if (data.category !== undefined) payload.category = data.category;
   if (data.images !== undefined) payload.images = data.images;
+  if (data.videoUrl !== undefined) payload.videoUrl = data.videoUrl;
   if (data.stock !== undefined) payload.stock = data.stock;
   if (data.status !== undefined) payload.status = data.status;
   await db.update(merchantProducts).set(payload)

@@ -274,6 +274,11 @@ export default function MerchantProductDetail() {
           <>
             {/* ── 商品主卡 ── */}
             <div className="bg-white rounded-2xl border border-amber-100 shadow-sm overflow-hidden">
+              {/* 商品影片（如有） */}
+              {product.videoUrl && (
+                <video src={product.videoUrl} controls playsInline preload="metadata"
+                  className="w-full bg-black aspect-square object-contain" />
+              )}
               {/* 圖片 gallery */}
               {imgs.length > 0 ? (
                 <div className="relative">

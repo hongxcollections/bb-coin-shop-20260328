@@ -56,6 +56,7 @@ export const auctions = mysqlTable("auctions", {
   extendMinutes: int("extendMinutes").default(3).notNull(),
   antiSnipeMemberLevels: text("antiSnipeMemberLevels"),
   paymentStatus: mysqlEnum("paymentStatus", ["pending_payment", "paid", "delivered"]),
+  videoUrl: varchar("videoUrl", { length: 500 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -405,6 +406,7 @@ export const merchantProducts = mysqlTable("merchantProducts", {
   currency: varchar("currency", { length: 10 }).default("HKD").notNull(),
   category: varchar("category", { length: 500 }),
   images: text("images"),
+  videoUrl: varchar("videoUrl", { length: 500 }),
   stock: int("stock").default(1).notNull(),
   status: mysqlEnum("status", ["active", "sold", "hidden"]).default("active").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

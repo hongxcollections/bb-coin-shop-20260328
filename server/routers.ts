@@ -137,6 +137,7 @@ export const appRouter = router({
         antiSnipeMinutes: z.number().int().min(0).max(60).default(3),
         extendMinutes: z.number().int().min(1).max(60).default(3),
         antiSnipeMemberLevels: z.union([z.literal('all'), z.array(z.enum(['bronze','silver','gold','vip'])).transform(arr => arr.length === 0 ? 'all' : JSON.stringify(arr))]).optional(),
+        videoUrl: z.string().max(500).nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') {
@@ -157,6 +158,7 @@ export const appRouter = router({
           antiSnipeMinutes: input.antiSnipeMinutes,
           extendMinutes: input.extendMinutes,
           antiSnipeMemberLevels: input.antiSnipeMemberLevels ?? 'all',
+          videoUrl: input.videoUrl ?? null,
         });
 
         return result;
@@ -201,6 +203,32 @@ export const appRouter = router({
           console.error('[Router] Failed to upload image:', error);
           throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to upload image' });
         }
+      }),
+
+    /** 上傳拍賣短片（admin only），返回 URL，需與 create/update 一齊保存 */
+    uploadVideo: protectedProcedure
+      .input(z.object({
+        videoData: z.string(),
+        fileName: z.string(),
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can upload videos' });
+        }
+        const allowedMimes = ['video/mp4', 'video/webm', 'video/quicktime'];
+        const mime = (input.mimeType || '').toLowerCase();
+        if (!allowedMimes.includes(mime)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只支援 MP4、WebM、MOV 格式' });
+        }
+        const buffer = Buffer.from(input.videoData, 'base64');
+        if (buffer.length > 30 * 1024 * 1024) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '影片不可超過 30MB' });
+        }
+        const ext = mime === 'video/mp4' ? 'mp4' : mime === 'video/webm' ? 'webm' : 'mov';
+        const key = `auction-videos/${ctx.user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { url } = await storagePut(key, buffer, mime);
+        return { url };
       }),
 
     placeBid: protectedProcedure
@@ -270,6 +298,7 @@ export const appRouter = router({
         antiSnipeMinutes: z.number().int().min(0).max(60).optional(),
         extendMinutes: z.number().int().min(1).max(60).optional(),
         antiSnipeMemberLevels: z.union([z.literal('all'), z.array(z.enum(['bronze','silver','gold','vip'])).transform(arr => arr.length === 0 ? 'all' : JSON.stringify(arr))]).optional(),
+        videoUrl: z.string().max(500).nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') {
@@ -303,6 +332,7 @@ export const appRouter = router({
         if (input.antiSnipeMinutes !== undefined) updateData.antiSnipeMinutes = input.antiSnipeMinutes;
         if (input.extendMinutes !== undefined) updateData.extendMinutes = input.extendMinutes;
         if (input.antiSnipeMemberLevels !== undefined) updateData.antiSnipeMemberLevels = input.antiSnipeMemberLevels;
+        if (input.videoUrl !== undefined) updateData.videoUrl = input.videoUrl;
 
         try {
           await updateAuction(input.id, updateData);
@@ -2345,6 +2375,7 @@ export const appRouter = router({
         antiSnipeMinutes: z.number().int().min(0).max(60).default(3),
         extendMinutes: z.number().int().min(1).max(60).default(3),
         category: z.string().optional(),
+        videoUrl: z.string().max(500).nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         // 停權檢查
@@ -2369,6 +2400,7 @@ export const appRouter = router({
           antiSnipeMinutes: input.antiSnipeMinutes,
           extendMinutes: input.extendMinutes,
           category: input.category,
+          videoUrl: input.videoUrl ?? null,
         });
         return result;
       }),
@@ -2485,6 +2517,7 @@ export const appRouter = router({
         antiSnipeMinutes: z.number().int().min(0).max(60).optional(),
         extendMinutes: z.number().int().min(1).max(60).optional(),
         category: z.string().optional(),
+        videoUrl: z.string().max(500).nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const auction = await getAuctionById(input.id);
@@ -2508,6 +2541,7 @@ export const appRouter = router({
         if (input.antiSnipeMinutes !== undefined) updateData.antiSnipeMinutes = input.antiSnipeMinutes;
         if (input.extendMinutes !== undefined) updateData.extendMinutes = input.extendMinutes;
         if (input.category !== undefined) updateData.category = input.category;
+        if (input.videoUrl !== undefined) updateData.videoUrl = input.videoUrl;
         await updateAuction(input.id, updateData);
         return { success: true };
       }),
@@ -3225,6 +3259,7 @@ export const appRouter = router({
         currency: z.string().default('HKD'),
         category: z.string().max(500).optional(),
         images: z.string().optional(),
+        videoUrl: z.string().max(500).nullable().optional(),
         stock: z.number().int().min(1).default(1),
       }))
       .mutation(async ({ input, ctx }) => {
@@ -3271,6 +3306,7 @@ export const appRouter = router({
           currency: input.currency,
           category: input.category,
           images: input.images,
+          videoUrl: input.videoUrl ?? null,
           stock: input.stock,
         });
 
@@ -3292,6 +3328,7 @@ export const appRouter = router({
         currency: z.string().optional(),
         category: z.string().max(500).optional(),
         images: z.string().optional(),
+        videoUrl: z.string().max(500).nullable().optional(),
         stock: z.number().int().min(0).optional(),
         status: z.enum(['active', 'sold', 'hidden']).optional(),
       }))
@@ -3352,6 +3389,33 @@ export const appRouter = router({
         }
         const fileKey = `merchant-products/${ctx.user.id}/${Date.now()}-${input.fileName}`;
         const { url } = await storagePut(fileKey, buffer, mimeToUse);
+        return { url };
+      }),
+
+    /** 商戶：上傳短片（用於商品或自己的拍賣），返回 URL，需與 create/update 一齊保存 */
+    uploadVideo: protectedProcedure
+      .input(z.object({
+        videoData: z.string(),
+        fileName: z.string(),
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        const allowedMimes = ['video/mp4', 'video/webm', 'video/quicktime'];
+        const mime = (input.mimeType || '').toLowerCase();
+        if (!allowedMimes.includes(mime)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只支援 MP4、WebM、MOV 格式' });
+        }
+        const buffer = Buffer.from(input.videoData, 'base64');
+        if (buffer.length > 30 * 1024 * 1024) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '影片不可超過 30MB' });
+        }
+        const ext = mime === 'video/mp4' ? 'mp4' : mime === 'video/webm' ? 'webm' : 'mov';
+        const key = `merchant-videos/${ctx.user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { url } = await storagePut(key, buffer, mime);
         return { url };
       }),
   }),

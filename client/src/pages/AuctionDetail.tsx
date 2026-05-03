@@ -420,6 +420,10 @@ export default function AuctionDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left: Images */}
           <div>
+            {auction?.videoUrl && (
+              <video src={auction.videoUrl} controls playsInline preload="metadata"
+                className="w-full bg-black aspect-square object-contain rounded-2xl border border-amber-100 mb-3" />
+            )}
             <div
               className="aspect-square rounded-2xl overflow-hidden bg-amber-50 border border-amber-100 mb-3 relative select-none cursor-zoom-in"
               onTouchStart={(e) => {
