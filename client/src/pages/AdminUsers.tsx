@@ -53,7 +53,11 @@ type UserRow = {
   activeProductCount: number;
   subscriptionEndDate: string | null;
   subscriptionQuota: number | null;
+  merchantAppStatus: string | null;
 };
+
+/** 判斷某用戶是否真正商戶：以「已批准嘅商戶申請」為唯一準則，避免 sellerDeposits row 自動建立造成誤判 */
+const isMerchantUser = (u: UserRow) => u.merchantAppStatus === "approved";
 
 /** Expandable list of won auctions for a user — fetches on demand */
 function WonAuctionsList({ userId }: { userId: number }) {
@@ -1124,8 +1128,8 @@ export default function AdminUsers() {
   }
 
   const allUsers: UserRow[] = (users ?? []) as UserRow[];
-  const buyers = allUsers.filter((u) => !u.depositId && u.role !== "admin");
-  const merchants = allUsers.filter((u) => !!u.depositId);
+  const buyers = allUsers.filter((u) => !isMerchantUser(u) && u.role !== "admin");
+  const merchants = allUsers.filter((u) => isMerchantUser(u));
   const admins = allUsers.filter((u) => u.role === "admin");
 
   function openEdit(u: UserRow) {
@@ -1135,7 +1139,7 @@ export default function AdminUsers() {
       email: u.email ?? "",
       phone: u.phone ?? "",
       memberLevel: (u.memberLevel ?? "bronze") as MemberLevel,
-      isMerchant: !!u.depositId,
+      isMerchant: isMerchantUser(u),
       requiredDeposit: u.requiredDeposit ?? "500.00",
       commissionRate: u.commissionRate ? (parseFloat(u.commissionRate) * 100).toFixed(1) : "5.0",
       depositIsActive: u.depositIsActive ?? 1,
@@ -1194,7 +1198,7 @@ export default function AdminUsers() {
               onClick={() => setExpandedCardId(isOpen ? null : u.id)}
             >
               <div className="w-10 h-10 gold-gradient rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                {u.depositId
+                {isMerchantUser(u)
                   ? <Store className="w-4 h-4" />
                   : u.role === "admin"
                   ? <ShieldAlert className="w-4 h-4" />
@@ -1207,7 +1211,7 @@ export default function AdminUsers() {
                   {u.role === "admin" && (
                     <Badge className="bg-amber-600 text-white text-[0.6rem] px-1.5 py-0">管理員</Badge>
                   )}
-                  {u.depositId && (
+                  {isMerchantUser(u) && (
                     <Badge className={`text-[0.6rem] px-1.5 py-0 ${u.depositIsActive ? "bg-emerald-600 text-white" : "bg-gray-400 text-white"}`}>
                       {u.depositIsActive ? "商戶活躍" : "商戶停權"}
                     </Badge>
@@ -1222,7 +1226,7 @@ export default function AdminUsers() {
                 {!isOpen && (
                   <div className="text-xs text-gray-400 mt-0.5 space-y-0.5">
                     {u.phone && <div className="truncate">📱 {u.phone}</div>}
-                    {u.depositId && (
+                    {isMerchantUser(u) && (
                       <div className="text-amber-600 whitespace-nowrap overflow-x-auto">
                         💰 HK${parseFloat(u.depositBalance ?? "0").toFixed(0)} ／ 門檻 HK${parseFloat(u.requiredDeposit ?? "500").toFixed(0)} ／ 佣金 {(parseFloat(u.commissionRate ?? "0.05") * 100).toFixed(1)}%
                         {u.subscriptionEndDate && (
@@ -1256,7 +1260,7 @@ export default function AdminUsers() {
                   {u.phone && (
                     <div className="whitespace-nowrap">📱 {u.phone}</div>
                   )}
-                  {u.depositId && (
+                  {isMerchantUser(u) && (
                     <div className="text-amber-700 whitespace-nowrap">
                       💰 HK${parseFloat(u.depositBalance ?? "0").toFixed(0)} ／ 門檻 HK${parseFloat(u.requiredDeposit ?? "500").toFixed(0)} ／ 佣金 {(parseFloat(u.commissionRate ?? "0.05") * 100).toFixed(1)}%
                     </div>
@@ -1298,7 +1302,7 @@ export default function AdminUsers() {
                   {expandedUserId === u.id && <WonAuctionsList userId={u.id} />}
 
                   {/* Merchant sold orders toggle — only for merchants */}
-                  {u.depositId && (
+                  {isMerchantUser(u) && (
                     <>
                       <button
                         type="button"
@@ -1337,7 +1341,7 @@ export default function AdminUsers() {
                       style={{ transform: expandedStatsId === u.id ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
                     />
                   </button>
-                  {expandedStatsId === u.id && <UserStatsPanel userId={u.id} isMerchant={!!u.depositId} />}
+                  {expandedStatsId === u.id && <UserStatsPanel userId={u.id} isMerchant={isMerchantUser(u)} />}
 
                   {/* Action buttons */}
                   {u.role !== "admin" && (
@@ -1360,7 +1364,7 @@ export default function AdminUsers() {
                         <KeyRound className="w-3.5 h-3.5 mr-1" />
                         修改密碼
                       </Button>
-                      {u.depositId && (
+                      {isMerchantUser(u) && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -1385,12 +1389,12 @@ export default function AdminUsers() {
                 </div>
 
                 {/* Merchant-only panels */}
-                {u.depositId && <DepositModifyPanel userId={u.id} currentBalance={u.depositBalance ?? "0"} onDone={refetch} />}
-                {u.depositId && <GenerateListingsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
-                {u.depositId && <GenerateProductsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
-                {u.depositId && <GenerateWonAuctionPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
-                {u.depositId && <ClearProductsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
-                {u.depositId && <PurgeMerchantDataPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} onDone={refetch} />}
+                {isMerchantUser(u) && <DepositModifyPanel userId={u.id} currentBalance={u.depositBalance ?? "0"} onDone={refetch} />}
+                {isMerchantUser(u) && <GenerateListingsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
+                {isMerchantUser(u) && <GenerateProductsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
+                {isMerchantUser(u) && <GenerateWonAuctionPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
+                {isMerchantUser(u) && <ClearProductsPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} />}
+                {isMerchantUser(u) && <PurgeMerchantDataPanel userId={u.id} userName={u.name ?? `用戶 #${u.id}`} onDone={refetch} />}
                 {u.role === "admin" && <AdminSelfClearPanel userName={u.name ?? `管理員 #${u.id}`} />}
               </div>
             )}

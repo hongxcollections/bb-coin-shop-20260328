@@ -2381,6 +2381,8 @@ export async function getAllUsersExtended() {
         activeProductCount: sql<number>`(SELECT COUNT(*) FROM merchantProducts WHERE merchantId = ${users.id} AND status = 'active')`,
         subscriptionEndDate: sql<string | null>`(SELECT endDate FROM user_subscriptions WHERE userId = ${users.id} AND status = 'active' ORDER BY endDate DESC LIMIT 1)`,
         subscriptionQuota: sql<number | null>`(SELECT remainingQuota FROM user_subscriptions WHERE userId = ${users.id} AND status = 'active' ORDER BY endDate DESC LIMIT 1)`,
+        // 最新一次商戶申請的狀態（pending/approved/rejected/null）— 判斷是否真商戶用此欄
+        merchantAppStatus: sql<string | null>`(SELECT status FROM merchantApplications WHERE userId = ${users.id} ORDER BY createdAt DESC LIMIT 1)`,
       })
       .from(users)
       .leftJoin(sellerDeposits, eq(sellerDeposits.userId, users.id))
