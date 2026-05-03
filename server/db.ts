@@ -1,4 +1,4 @@
-import { eq, desc, asc, and, or, gte, lte, gt, sql, inArray, isNull } from "drizzle-orm";
+import { eq, ne, desc, asc, and, or, gte, lte, gt, sql, inArray, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
 import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, merchantProducts, MerchantProduct, featuredListings, FeaturedListing } from "../drizzle/schema";
@@ -2259,7 +2259,36 @@ export async function approveSubscription(subscriptionId: number, adminId: numbe
       endDate.setMonth(endDate.getMonth() + 1);
     }
 
-    // Update subscription — also initialise remainingQuota from plan.maxListings
+    // 累積上一張（或更早幾張）未用完嘅公佈額度 ─ 只有當新計劃為「有限額」時先累積
+    // 新計劃 unlimited (maxListings === 0) → 直接設 0，無需累積
+    let carryOver = 0;
+    if (plan.maxListings > 0) {
+      const prevSubs = await db.select({
+        id: userSubscriptions.id,
+        remainingQuota: userSubscriptions.remainingQuota,
+      })
+        .from(userSubscriptions)
+        .where(and(
+          eq(userSubscriptions.userId, sub.userId),
+          ne(userSubscriptions.id, subscriptionId),
+        ));
+      for (const p of prevSubs) {
+        const r = Number(p.remainingQuota ?? 0);
+        if (r > 0) {
+          carryOver += r;
+          // 將舊嘅 remainingQuota 歸零，避免下次重複累積
+          await db.update(userSubscriptions)
+            .set({ remainingQuota: 0 })
+            .where(eq(userSubscriptions.id, p.id));
+        }
+      }
+    }
+
+    const newRemainingQuota = plan.maxListings === 0
+      ? 0  // unlimited
+      : plan.maxListings + carryOver;
+
+    // Update subscription — also initialise remainingQuota from plan.maxListings (+ carryOver)
     await db.update(userSubscriptions).set({
       status: 'active',
       startDate: now,
@@ -2267,7 +2296,7 @@ export async function approveSubscription(subscriptionId: number, adminId: numbe
       approvedBy: adminId,
       approvedAt: now,
       adminNote: adminNote ?? null,
-      remainingQuota: plan.maxListings,  // 0 = unlimited; >0 = limited
+      remainingQuota: newRemainingQuota,
     }).where(eq(userSubscriptions.id, subscriptionId));
 
     // Update user's member level (subscription plan level)
