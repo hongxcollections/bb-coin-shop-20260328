@@ -52,6 +52,7 @@ import AdminSystemTest from "./pages/AdminSystemTest";
 import AdminFeaturedListings from "./pages/AdminFeaturedListings";
 import AdminAds from "./pages/AdminAds";
 import AdBanner from "./components/AdBanner";
+import AdminPendingNotice from "./components/AdminPendingNotice";
 import AuctionSearch from "./pages/AuctionSearch";
 import Merchants from "./pages/Merchants";
 import MerchantProducts from "./pages/MerchantProducts";
@@ -216,6 +217,7 @@ function App() {
             <AnnouncementBanner />
             <AdBanner />
             <MerchantPendingOrdersNotice />
+            <AdminPendingNotice />
             <AutoPushSubscribe />
             <PushForegroundHandler />
             <Router />
