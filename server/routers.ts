@@ -3438,6 +3438,17 @@ export const appRouter = router({
         return { url };
       }),
 
+    /** 商戶／會員：取得本月影片配額狀態（用於上傳前顯示剩餘條數及秒數上限） */
+    getMyVideoQuota: protectedProcedure
+      .query(async ({ ctx }) => {
+        const [quota, used, maxSeconds] = await Promise.all([
+          getUserMonthlyVideoQuota(ctx.user.id),
+          countMerchantVideosThisMonth(ctx.user.id),
+          getUserMaxVideoSeconds(ctx.user.id),
+        ]);
+        return { quota, used, remaining: Math.max(0, quota - used), maxSeconds };
+      }),
+
     /** 商戶：上傳短片（用於商品或自己的拍賣），返回 URL，需與 create/update 一齊保存 */
     uploadVideo: protectedProcedure
       .input(z.object({

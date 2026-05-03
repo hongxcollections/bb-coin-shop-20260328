@@ -459,6 +459,7 @@ export default function MerchantAuctions() {
 
   const uploadMutation = trpc.merchants.uploadAuctionImage.useMutation();
   const uploadVideoMutation = trpc.merchants.uploadVideo.useMutation();
+  const { data: videoQuotaInfo } = trpc.merchants.getMyVideoQuota.useQuery();
   const videoFileRef = useRef<HTMLInputElement>(null);
   const [uploadingVideo, setUploadingVideo] = useState(false);
 
@@ -1058,6 +1059,11 @@ export default function MerchantAuctions() {
             </div>
             <div className="space-y-2">
               <Label>拍賣影片（選填，MP4/WebM/MOV，≤30MB）</Label>
+              {videoQuotaInfo && (
+                <p className="text-xs text-muted-foreground">
+                  本月剩餘 <span className="font-semibold text-amber-700">{videoQuotaInfo.remaining}</span> / {videoQuotaInfo.quota} 條 · 每條最長 <span className="font-semibold text-amber-700">{videoQuotaInfo.maxSeconds}</span> 秒
+                </p>
+              )}
               {form.videoUrl ? (
                 <div className="relative">
                   <video src={form.videoUrl} controls playsInline className="w-full max-h-64 rounded-lg border bg-black" />
@@ -1497,6 +1503,11 @@ export default function MerchantAuctions() {
             </div>
             <div>
               <Label className="text-sm font-medium">拍賣影片（選填，MP4/WebM/MOV，≤30MB）</Label>
+              {videoQuotaInfo && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  本月剩餘 <span className="font-semibold text-amber-700">{videoQuotaInfo.remaining}</span> / {videoQuotaInfo.quota} 條 · 每條最長 <span className="font-semibold text-amber-700">{videoQuotaInfo.maxSeconds}</span> 秒
+                </p>
+              )}
               {activeEditForm.videoUrl ? (
                 <div className="relative mt-1.5">
                   <video src={activeEditForm.videoUrl} controls playsInline className="w-full max-h-48 rounded-lg border bg-black" />
