@@ -219,6 +219,14 @@ async function bootstrapMissingColumns() {
     );
   }
 
+  // 新增 users.monthlyVideoQuota 欄位（商戶每月可上傳影片條數）
+  if (!(await check('users', 'monthlyVideoQuota'))) {
+    await alter(
+      `ALTER TABLE \`users\` ADD COLUMN \`monthlyVideoQuota\` int NOT NULL DEFAULT 5`,
+      'Added monthlyVideoQuota to users'
+    );
+  }
+
   // dailyEarlyBird table (每日早鳥會員名額)
   await alter(`CREATE TABLE IF NOT EXISTS \`dailyEarlyBird\` (
     \`id\` int AUTO_INCREMENT NOT NULL,

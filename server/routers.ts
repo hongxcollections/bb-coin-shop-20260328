@@ -10,7 +10,7 @@ import type { Auction } from "../drizzle/schema";
 import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids } from "../drizzle/schema";
 import { eq, sql } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetUserPassword, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, deleteBuyerOrder, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, deleteBuyerOrder, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS } from "./db";
 import { storagePut } from "./storage";
 import { applyWatermark } from "./watermark";
 import { getRawPool } from "./db";
@@ -42,6 +42,41 @@ function getEmailOrigin(req?: IncomingMessage): string {
 // 出價防抖 Map：鍵為 "userId:auctionId"，値為最後出價時間戳
 // 防止同一用戶對同一拍賣在 3 秒內重複出價，減少平台 API 請求量
 export const bidDebounceMap = new Map<string, number>();
+
+/**
+ * 解析影片時長（秒）。支援 MP4/MOV（解析 mvhd box）。
+ * WebM 暫不支援，返回 null 表示「無法解析」（呼叫方應放行，靠 client-side 兜底）。
+ * 解析失敗一律返回 null，避免誤殺合法上傳。
+ */
+function extractVideoDurationSeconds(buf: Buffer, mime: string): number | null {
+  try {
+    if (mime === 'video/mp4' || mime === 'video/quicktime') {
+      const limit = Math.min(buf.length - 32, 5 * 1024 * 1024); // 只掃前 5MB（mvhd 通常喺頭部 moov）
+      for (let i = 0; i < limit; i++) {
+        if (buf[i] === 0x6d && buf[i + 1] === 0x76 && buf[i + 2] === 0x68 && buf[i + 3] === 0x64) {
+          // 找到 'mvhd'，payload 由 i+4 開始
+          const p = i + 4;
+          const version = buf[p];
+          if (version === 0) {
+            const timescale = buf.readUInt32BE(p + 12);
+            const duration = buf.readUInt32BE(p + 16);
+            if (timescale > 0 && duration > 0) return duration / timescale;
+          } else if (version === 1) {
+            const timescale = buf.readUInt32BE(p + 20);
+            const durHigh = buf.readUInt32BE(p + 24);
+            const durLow = buf.readUInt32BE(p + 28);
+            const duration = durHigh * 4294967296 + durLow;
+            if (timescale > 0 && duration > 0) return duration / timescale;
+          }
+          return null;
+        }
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -224,6 +259,10 @@ export const appRouter = router({
         const buffer = Buffer.from(input.videoData, 'base64');
         if (buffer.length > 30 * 1024 * 1024) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '影片不可超過 30MB' });
+        }
+        const dur = extractVideoDurationSeconds(buffer, mime);
+        if (dur !== null && dur > 60) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `影片不可超過 60 秒（目前 ${Math.round(dur)} 秒）` });
         }
         const ext = mime === 'video/mp4' ? 'mp4' : mime === 'video/webm' ? 'webm' : 'mov';
         const key = `auction-videos/${ctx.user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
@@ -1207,7 +1246,7 @@ export const appRouter = router({
         return getWonOrdersByCreator(input.merchantUserId);
       }),
 
-    // Admin: update any user's profile (name, email, phone, memberLevel, isBanned)
+    // Admin: update any user's profile (name, email, phone, memberLevel, isBanned, monthlyVideoQuota)
     adminUpdate: protectedProcedure
       .input(z.object({
         userId: z.number().int().positive(),
@@ -1216,12 +1255,14 @@ export const appRouter = router({
         phone: z.string().max(20).optional(),
         memberLevel: z.enum(['bronze', 'silver', 'gold', 'vip']).optional(),
         isBanned: z.number().int().min(0).max(1).optional(),
+        monthlyVideoQuota: z.number().int().min(0).max(1000).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
-        const { userId, memberLevel, isBanned, ...profileData } = input;
-        const userUpdate: { name?: string; email?: string; phone?: string; isBanned?: number } = { ...profileData };
+        const { userId, memberLevel, isBanned, monthlyVideoQuota, ...profileData } = input;
+        const userUpdate: { name?: string; email?: string; phone?: string; isBanned?: number; monthlyVideoQuota?: number } = { ...profileData };
         if (isBanned !== undefined) userUpdate.isBanned = isBanned;
+        if (monthlyVideoQuota !== undefined) userUpdate.monthlyVideoQuota = monthlyVideoQuota;
         if (Object.keys(userUpdate).length > 0) {
           const ok = await adminUpdateUser(userId, userUpdate);
           if (!ok) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '更新用戶資料失敗' });
@@ -3403,7 +3444,8 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const app = await getMerchantApplicationByUser(ctx.user.id);
-        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+        const isAdmin = ctx.user.role === 'admin';
+        if (app?.status !== 'approved' && !isAdmin) {
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
         }
         const allowedMimes = ['video/mp4', 'video/webm', 'video/quicktime'];
@@ -3414,6 +3456,21 @@ export const appRouter = router({
         const buffer = Buffer.from(input.videoData, 'base64');
         if (buffer.length > 30 * 1024 * 1024) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '影片不可超過 30MB' });
+        }
+        const dur = extractVideoDurationSeconds(buffer, mime);
+        if (dur !== null && dur > 60) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `影片不可超過 60 秒（目前 ${Math.round(dur)} 秒）` });
+        }
+        // 月配額：admin 不受限
+        if (!isAdmin) {
+          const quota = await getUserMonthlyVideoQuota(ctx.user.id);
+          const used = await countMerchantVideosThisMonth(ctx.user.id);
+          if (used >= quota) {
+            throw new TRPCError({
+              code: 'FORBIDDEN',
+              message: `本月影片上傳已達上限（${used}/${quota} 條）。如需提高配額請聯絡管理員。`,
+            });
+          }
         }
         const ext = mime === 'video/mp4' ? 'mp4' : mime === 'video/webm' ? 'webm' : 'mov';
         const key = `merchant-videos/${ctx.user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;

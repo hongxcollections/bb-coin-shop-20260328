@@ -2482,6 +2482,7 @@ export async function getAllUsersExtended() {
         depositIsActive: sellerDeposits.isActive,
         mustChangePassword: users.mustChangePassword,
         isBanned: users.isBanned,
+        monthlyVideoQuota: users.monthlyVideoQuota,
         wonCount: sql<number>`(SELECT COUNT(*) FROM auctions WHERE highestBidderId = ${users.id} AND status = 'ended')`,
         activeAuctionCount: sql<number>`(SELECT COUNT(*) FROM auctions WHERE createdBy = ${users.id} AND status = 'active')`,
         activeProductCount: sql<number>`(SELECT COUNT(*) FROM merchantProducts WHERE merchantId = ${users.id} AND status = 'active')`,
@@ -2646,7 +2647,7 @@ export async function getWonAuctionsByUser(userId: number) {
  */
 export async function adminUpdateUser(
   userId: number,
-  data: { name?: string; email?: string; phone?: string; isBanned?: number }
+  data: { name?: string; email?: string; phone?: string; isBanned?: number; monthlyVideoQuota?: number }
 ): Promise<boolean> {
   const db = await getDb();
   if (!db) return false;
@@ -2656,12 +2657,51 @@ export async function adminUpdateUser(
     if (data.email !== undefined) updateData.email = data.email;
     if (data.phone !== undefined) updateData.phone = data.phone;
     if (data.isBanned !== undefined) updateData.isBanned = data.isBanned;
+    if (data.monthlyVideoQuota !== undefined) updateData.monthlyVideoQuota = data.monthlyVideoQuota;
     if (Object.keys(updateData).length === 0) return true;
     await db.update(users).set(updateData).where(eq(users.id, userId));
     return true;
   } catch (error) {
     console.error('[Database] Failed to admin update user:', error);
     return false;
+  }
+}
+
+/**
+ * 統計指定用戶本月（曆月）已上傳的影片條數，用於 monthlyVideoQuota soft 限制
+ * 同時計算 auctions + merchantProducts 中 videoUrl 不為空且 createdAt 在本月的記錄
+ */
+export async function countMerchantVideosThisMonth(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  try {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const result: any = await db.execute(sql`
+      SELECT
+        (SELECT COUNT(*) FROM auctions WHERE createdBy = ${userId} AND videoUrl IS NOT NULL AND videoUrl <> '' AND createdAt >= ${monthStart}) +
+        (SELECT COUNT(*) FROM merchantProducts WHERE merchantId = ${userId} AND videoUrl IS NOT NULL AND videoUrl <> '' AND createdAt >= ${monthStart}) AS total
+    `);
+    const rows = Array.isArray(result) && Array.isArray(result[0]) ? result[0] : (Array.isArray(result) ? result : []);
+    return Number(rows?.[0]?.total ?? 0);
+  } catch (error) {
+    console.error('[Database] Failed to count merchant videos this month:', error);
+    return 0;
+  }
+}
+
+/**
+ * 取得指定用戶嘅 monthlyVideoQuota
+ */
+export async function getUserMonthlyVideoQuota(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 5;
+  try {
+    const rows = await db.select({ q: users.monthlyVideoQuota }).from(users).where(eq(users.id, userId)).limit(1);
+    return Number(rows[0]?.q ?? 5);
+  } catch (error) {
+    console.error('[Database] Failed to get monthlyVideoQuota:', error);
+    return 5;
   }
 }
 

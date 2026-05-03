@@ -48,6 +48,7 @@ type UserRow = {
   depositIsActive: number | null;
   mustChangePassword: number | null;
   isBanned: number;
+  monthlyVideoQuota: number | null;
   wonCount: number;
   activeAuctionCount: number;
   activeProductCount: number;
@@ -988,6 +989,7 @@ type EditState = {
   commissionRate: string;
   depositIsActive: number;
   isBanned: number;
+  monthlyVideoQuota: number;
   subscriptionEndDate: string; // YYYY-MM-DD（空字串 = 用戶冇訂閱記錄）
   hasSubscription: boolean;
 };
@@ -1159,6 +1161,7 @@ export default function AdminUsers() {
       commissionRate: u.commissionRate ? (parseFloat(u.commissionRate) * 100).toFixed(1) : "5.0",
       depositIsActive: u.depositIsActive ?? 1,
       isBanned: u.isBanned ?? 0,
+      monthlyVideoQuota: u.monthlyVideoQuota ?? 5,
       subscriptionEndDate: u.subscriptionEndDate
         ? new Date(u.subscriptionEndDate).toISOString().slice(0, 10)
         : "",
@@ -1175,6 +1178,7 @@ export default function AdminUsers() {
       phone: editState.phone || undefined,
       memberLevel: editState.memberLevel,
       isBanned: editState.isBanned,
+      monthlyVideoQuota: editState.monthlyVideoQuota,
     });
     if (editState.isMerchant) {
       adminUpdateDeposit.mutate({
@@ -1816,6 +1820,23 @@ export default function AdminUsers() {
                 {editState.isBanned === 1 && (
                   <p className="text-xs text-red-600">停權後，此會員將無法出價、刊登拍賣或上架商品。</p>
                 )}
+              </div>
+
+              {/* 影片配額（所有會員，但實際只商戶用） */}
+              <div className="space-y-1.5">
+                <Label>每月影片上傳配額（條）</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="1000"
+                  step="1"
+                  value={editState.monthlyVideoQuota}
+                  onChange={(e) => setEditState({ ...editState, monthlyVideoQuota: Math.max(0, parseInt(e.target.value || "0", 10)) })}
+                  className="border-amber-200"
+                />
+                <p className="text-xs text-muted-foreground">
+                  控制此會員每曆月可上傳嘅拍賣／商品影片總數（每件最多 1 條，每條 ≤30MB／≤60 秒）。預設 5 條。
+                </p>
               </div>
 
               {editState.isMerchant && (
