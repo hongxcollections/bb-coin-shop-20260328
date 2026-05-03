@@ -941,6 +941,39 @@ Output ONLY the JSON, nothing else.`;
   });
 
 
+  // ── OG 圖片代理（出售商品）：同上但對應 merchantProducts ──
+  app.get('/api/og-image-product/:productId', async (req, res) => {
+    try {
+      const productId = parseInt(req.params.productId, 10);
+      if (isNaN(productId) || productId <= 0) { res.status(400).send('Invalid product ID'); return; }
+      const { getMerchantProduct } = await import('../db');
+      const product = await getMerchantProduct(productId);
+      let firstImage = '';
+      try {
+        const imgs = (product as { images?: string | null } | null)?.images;
+        if (imgs) {
+          const arr = JSON.parse(imgs);
+          if (Array.isArray(arr) && arr.length > 0 && typeof arr[0] === 'string') firstImage = arr[0];
+        }
+      } catch {}
+      if (!firstImage) { res.status(404).send('No image'); return; }
+      const s3Res = await fetch(firstImage, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HongxCollections/1.0)' },
+      });
+      if (!s3Res.ok) { res.status(s3Res.status).send('Image fetch failed'); return; }
+      const buf = Buffer.from(await s3Res.arrayBuffer());
+      const contentType = s3Res.headers.get('content-type') || 'image/jpeg';
+      res.set({
+        'Content-Type': contentType,
+        'Content-Length': buf.length.toString(),
+        'Cache-Control': 'public, max-age=3600',
+      }).end(buf);
+    } catch (err) {
+      console.error('[OG Image Product Proxy] Error:', err);
+      res.status(500).send('Error');
+    }
+  });
+
   // ── OG 圖片代理：讓 Facebook 爬蟲透過我們的伺服器拿圖片，繞過 S3 的 IP 限制 ──
   app.get('/api/og-image/:auctionId', async (req, res) => {
     try {

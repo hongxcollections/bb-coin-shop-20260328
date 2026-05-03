@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
-import { getAuctionById, getAuctionImages } from "../db";
+import { getAuctionById, getAuctionImages, getMerchantProduct } from "../db";
 import { getCurrencySymbol } from "./currency";
 
 /**
@@ -195,6 +195,103 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
   }
 }
 
+/**
+ * Inject Open Graph meta tags into HTML for merchant product detail pages.
+ * Mirrors injectOgMeta() above but for /merchant-products/:id URLs.
+ * Independent function so existing auction OG / robots / bot code remains untouched.
+ */
+async function injectProductOgMeta(html: string, reqPath: string, protocol: string, host: string): Promise<string | null> {
+  const productMatch = reqPath.match(/^\/merchant-products\/(\d+)$/);
+  if (!productMatch) return null;
+
+  try {
+    const productId = parseInt(productMatch[1], 10);
+    const product = await getMerchantProduct(productId);
+    if (!product) return null;
+
+    let firstImage = "";
+    try {
+      const imgs = (product as { images?: string | null }).images;
+      if (imgs) {
+        const arr = JSON.parse(imgs);
+        if (Array.isArray(arr) && arr.length > 0 && typeof arr[0] === "string") firstImage = arr[0];
+      }
+    } catch {}
+
+    const ogImageUrl = firstImage
+      ? `${protocol}://${host}/api/og-image-product/${productId}`
+      : "";
+    const imgMime = "image/jpeg";
+
+    const currency = (product as { currency?: string }).currency ?? "HKD";
+    const currSymbol = getCurrencySymbol(currency);
+    const price = Number((product as { price: string | number }).price).toLocaleString();
+    const merchantName = (product as { merchantName?: string }).merchantName ?? "";
+
+    const ogTitle = `${product.title} ｜ 出售價 ${currSymbol}${price}${merchantName ? ` ｜ ${merchantName}` : ""}`;
+    const rawDesc = (product as { description?: string | null }).description?.toString().replace(/\s+/g, " ").trim() ?? "";
+    const shortDesc = rawDesc.length > 100 ? rawDesc.slice(0, 100) + "…" : rawDesc;
+    const ogDesc = `【大BB錢幣店】${product.title} ｜ 出售價：${currSymbol}${price}${shortDesc ? ` ｜ ${shortDesc}` : " ｜ 歡迎查詢！"}`;
+    const fullUrl = `${protocol}://${host}${reqPath}`;
+
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    const jsonLd = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": product.title,
+      "description": ogDesc,
+      "url": fullUrl,
+      ...(ogImageUrl ? { "image": ogImageUrl } : {}),
+      "offers": {
+        "@type": "Offer",
+        "priceCurrency": currency,
+        "price": Number((product as { price: string | number }).price).toFixed(2),
+        "availability": (product as { status?: string }).status === "active"
+          ? "https://schema.org/InStock"
+          : "https://schema.org/SoldOut",
+        "url": fullUrl,
+        "seller": {
+          "@type": "Organization",
+          "name": merchantName || "hongxcollections 大BB錢幣店"
+        }
+      }
+    });
+
+    const ogMeta = [
+      `<meta property="og:type" content="website" />`,
+      `<meta property="og:site_name" content="大BB錢幣店" />`,
+      `<meta property="og:title" content="${esc(ogTitle)}" />`,
+      `<meta property="og:description" content="${esc(ogDesc)}" />`,
+      `<meta property="og:url" content="${esc(fullUrl)}" />`,
+      `<meta property="og:locale" content="zh_HK" />`,
+      ogImageUrl ? `<meta property="og:image" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:secure_url" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:type" content="${imgMime}" />` : "",
+      `<meta name="twitter:card" content="${ogImageUrl ? "summary_large_image" : "summary"}" />`,
+      `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
+      `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
+      ogImageUrl ? `<meta name="twitter:image" content="${esc(ogImageUrl)}" />` : "",
+      `<link rel="canonical" href="${esc(fullUrl)}" />`,
+      `<title>${esc(ogTitle)}</title>`,
+      `<script type="application/ld+json">${jsonLd}</script>`,
+    ].filter(Boolean).join("\n    ");
+
+    let result = html
+      .replace(/<title>[^<]*<\/title>/gi, "")
+      .replace(/<meta\s+(?:property|name)="(?:og:|twitter:)[^"]*"[^>]*\/?>/gi, "")
+      .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "")
+      .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "")
+      .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
+    result = result.replace("</head>", `    ${ogMeta}\n  </head>`);
+    console.log(`[OG Meta] Injected for product ${productId}: title="${ogTitle}" imageUrl="${ogImageUrl}"`);
+    return result;
+  } catch (err) {
+    console.error("[OG Meta] Error generating product OG tags:", err);
+    return null;
+  }
+}
+
 export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
@@ -237,6 +334,7 @@ export async function setupVite(app: Express, server: Server) {
       // Try auction-specific OG injection first, then static page meta
       const _cleanPath = req.path.split("?")[0].replace(/\/+$/, "") || "/";
       const ogHtml = await injectOgMeta(template, _cleanPath, protocol, host)
+        ?? await injectProductOgMeta(template, _cleanPath, protocol, host)
         ?? injectStaticPageMeta(template, _cleanPath, base);
       if (ogHtml) {
         // For bots: serve injected HTML directly (skip Vite transform to preserve tags)
@@ -389,6 +487,7 @@ export function serveStatic(app: Express) {
     const cleanPath = req.path.split("?")[0].replace(/\/+$/, "") || "/";
     let html = await fs.promises.readFile(indexPath, "utf-8");
     const ogHtml = await injectOgMeta(html, cleanPath, protocol, host)
+      ?? await injectProductOgMeta(html, cleanPath, protocol, host)
       ?? injectStaticPageMeta(html, cleanPath, base);
     if (ogHtml) {
       res.status(200).set({ "Content-Type": "text/html", ...noCacheHeaders }).end(ogHtml);
