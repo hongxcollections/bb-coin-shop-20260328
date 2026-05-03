@@ -2599,14 +2599,18 @@ export const appRouter = router({
             canSellerList(ctx.user.id),
             getListingQuotaInfo(ctx.user.id),
           ]);
-          const hasQuota = !quotaInfo || quotaInfo.unlimited || quotaInfo.remainingQuota >= 1;
+          const hasQuota = !!quotaInfo && (quotaInfo.unlimited || quotaInfo.remainingQuota >= 1);
           const failReasons: string[] = [];
           if (!hasQuota) {
-            const quotaTmpl = await getSiteSetting('publishQuotaErrorMsg') ?? '發佈點數不足（剩餘 {remaining} 次，需要 {required} 次）';
-            const quotaErrMsg = quotaTmpl
-              .replace('{remaining}', String(quotaInfo?.remainingQuota ?? 0))
-              .replace('{required}', '1');
-            failReasons.push(`條件一：${quotaErrMsg}`);
+            if (!quotaInfo) {
+              failReasons.push('條件一：您的月費計劃已過期或尚未訂閱，請先續訂後才可發佈拍賣');
+            } else {
+              const quotaTmpl = await getSiteSetting('publishQuotaErrorMsg') ?? '發佈點數不足（剩餘 {remaining} 次，需要 {required} 次）';
+              const quotaErrMsg = quotaTmpl
+                .replace('{remaining}', String(quotaInfo.remainingQuota))
+                .replace('{required}', '1');
+              failReasons.push(`條件一：${quotaErrMsg}`);
+            }
           }
           if (!depositCheck.canList) {
             let depositErrMsg: string;
@@ -2667,14 +2671,18 @@ export const appRouter = router({
             canSellerList(ctx.user.id),
             getListingQuotaInfo(ctx.user.id),
           ]);
-          const hasQuota = !quotaInfo || quotaInfo.unlimited || quotaInfo.remainingQuota >= toPublishCount;
+          const hasQuota = !!quotaInfo && (quotaInfo.unlimited || quotaInfo.remainingQuota >= toPublishCount);
           const failReasons: string[] = [];
           if (!hasQuota) {
-            const quotaTmpl = await getSiteSetting('publishQuotaErrorMsg') ?? '發佈點數不足（剩餘 {remaining} 次，需要 {required} 次）';
-            const quotaErrMsg = quotaTmpl
-              .replace('{remaining}', String(quotaInfo?.remainingQuota ?? 0))
-              .replace('{required}', String(toPublishCount));
-            failReasons.push(`條件一：${quotaErrMsg}`);
+            if (!quotaInfo) {
+              failReasons.push('條件一：您的月費計劃已過期或尚未訂閱，請先續訂後才可發佈拍賣');
+            } else {
+              const quotaTmpl = await getSiteSetting('publishQuotaErrorMsg') ?? '發佈點數不足（剩餘 {remaining} 次，需要 {required} 次）';
+              const quotaErrMsg = quotaTmpl
+                .replace('{remaining}', String(quotaInfo.remainingQuota))
+                .replace('{required}', String(toPublishCount));
+              failReasons.push(`條件一：${quotaErrMsg}`);
+            }
           }
           if (!depositCheck.canList) {
             let depositErrMsg: string;
@@ -3237,10 +3245,18 @@ export const appRouter = router({
 
         // ── 公佈額度檢查 ─────────────────────────────────────────────────────
         const quotaInfo = await getListingQuotaInfo(ctx.user.id);
-        const hasQuota = !quotaInfo || quotaInfo.unlimited || quotaInfo.remainingQuota >= 1;
+        if (!quotaInfo) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: '您的月費計劃已過期或尚未訂閱，請先續訂後才可上架商品',
+          });
+        }
+        const hasQuota = quotaInfo.unlimited || quotaInfo.remainingQuota >= 1;
         if (!hasQuota) {
-          const remaining = quotaInfo?.remainingQuota ?? 0;
-          throw new TRPCError({ code: 'FORBIDDEN', message: `公佈額度不足（剩餘 ${remaining} 次），請先購買月費計劃` });
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: `公佈額度不足（剩餘 ${quotaInfo.remainingQuota} 次），請先購買月費計劃`,
+          });
         }
 
         // ── 建立商品 ─────────────────────────────────────────────────────────
