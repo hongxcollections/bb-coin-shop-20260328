@@ -2207,6 +2207,7 @@ export async function getAllUserSubscriptions(statusFilter?: string) {
         userId: userSubscriptions.userId,
         userName: users.name,
         userEmail: users.email,
+        merchantName: sql<string | null>`(SELECT merchantName FROM merchantApplications WHERE userId = ${userSubscriptions.userId} AND status = 'approved' ORDER BY createdAt DESC LIMIT 1)`,
         planId: userSubscriptions.planId,
         planName: subscriptionPlans.name,
         memberLevel: subscriptionPlans.memberLevel,
@@ -3676,6 +3677,7 @@ export async function getAllDepositTopUpRequests() {
       createdAt: depositTopUpRequests.createdAt,
       userName: users.name,
       userPhone: users.phone,
+      merchantName: sql<string | null>`(SELECT merchantName FROM merchantApplications WHERE userId = ${depositTopUpRequests.userId} AND status = 'approved' ORDER BY createdAt DESC LIMIT 1)`,
     })
     .from(depositTopUpRequests)
     .leftJoin(users, eq(depositTopUpRequests.userId, users.id))
