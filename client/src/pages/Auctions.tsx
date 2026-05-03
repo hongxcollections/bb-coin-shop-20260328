@@ -197,17 +197,8 @@ export default function Auctions() {
       {/* Navigation */}
       <Header />
       <div className="container py-3">
-        {/* Header with gold gradient bar */}
-        <div className="mb-2 flex items-center gap-2">
-          <div className="h-7 w-1 rounded-full bg-gradient-to-b from-amber-400 to-orange-500 shrink-0" />
-          <div className="flex items-center gap-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg">
-            <h1 className="text-xl font-bold">所有拍賣</h1>
-            <p className="text-sm opacity-90">(共 {filtered.length} 件拍品)</p>
-          </div>
-        </div>
-
         {/* ── 統計格 (icons + 漸層) ── */}
-        <div className="grid grid-cols-3 gap-2 mb-3 max-w-md">
+        <div className="grid grid-cols-3 gap-2 mb-2 max-w-md">
           {(() => {
             const activeCount = (auctions ?? []).filter(a => a.status === 'active' && new Date(a.endTime).getTime() > Date.now()).length;
             const endedCount = (auctions ?? []).filter(a => a.status === 'ended' || new Date(a.endTime).getTime() <= Date.now()).length;
@@ -226,6 +217,15 @@ export default function Auctions() {
               </div>
             ));
           })()}
+        </div>
+
+        {/* Header with gold gradient bar — 放在統計格下方 */}
+        <div className="mb-3 flex items-center gap-2">
+          <div className="h-7 w-1 rounded-full bg-gradient-to-b from-amber-400 to-orange-500 shrink-0" />
+          <div className="flex items-center gap-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg">
+            <h1 className="text-xl font-bold">所有拍賣</h1>
+            <p className="text-sm opacity-90">(共 {filtered.length} 件拍品)</p>
+          </div>
         </div>
 
         {/* ── 未登入用戶引導橫幅 ── */}
