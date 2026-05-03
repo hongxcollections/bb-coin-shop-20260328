@@ -108,6 +108,7 @@ export default function MerchantSettings() {
   const [paymentInstructions, setPaymentInstructions] = useState<string>("");
   const [deliveryInfo, setDeliveryInfo] = useState<string>("");
   const [fbShareTemplate, setFbShareTemplate] = useState<string>("");
+  const [fbShareTemplateProduct, setFbShareTemplateProduct] = useState<string>("");
   const [initialized, setInitialized] = useState(false);
 
   // ── 水印設定 ──
@@ -165,6 +166,7 @@ export default function MerchantSettings() {
       setPaymentInstructions(settings.paymentInstructions ?? "");
       setDeliveryInfo(settings.deliveryInfo ?? "");
       setFbShareTemplate(settings.fbShareTemplate ?? "");
+      setFbShareTemplateProduct((settings as { fbShareTemplateProduct?: string | null }).fbShareTemplateProduct ?? "");
       setInitialized(true);
     }
   }, [settings, initialized]);
@@ -211,7 +213,7 @@ export default function MerchantSettings() {
     const exm = parseInt(extendMinutes, 10);
     if (isNaN(asm) || asm < 0 || asm > 60) { toast.error("反狙擊觸發時間請填 0–60 分鐘"); return; }
     if (isNaN(exm) || exm < 1 || exm > 60) { toast.error("延長時間請填 1–60 分鐘"); return; }
-    updateMutation.mutate({ defaultEndDayOffset: offset, defaultEndTime: endTime, defaultStartingPrice: sp, defaultBidIncrement: bi, defaultAntiSnipeEnabled: antiSnipeEnabled ? 1 : 0, defaultAntiSnipeMinutes: asm, defaultExtendMinutes: exm, paymentInstructions: paymentInstructions.trim() || null, deliveryInfo: deliveryInfo.trim() || null, fbShareTemplate: fbShareTemplate.trim() || null });
+    updateMutation.mutate({ defaultEndDayOffset: offset, defaultEndTime: endTime, defaultStartingPrice: sp, defaultBidIncrement: bi, defaultAntiSnipeEnabled: antiSnipeEnabled ? 1 : 0, defaultAntiSnipeMinutes: asm, defaultExtendMinutes: exm, paymentInstructions: paymentInstructions.trim() || null, deliveryInfo: deliveryInfo.trim() || null, fbShareTemplate: fbShareTemplate.trim() || null, fbShareTemplateProduct: fbShareTemplateProduct.trim() || null });
   };
 
   if (!isAuthenticated) {
@@ -538,11 +540,13 @@ export default function MerchantSettings() {
             ) : (
               <>
                 <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-xs text-blue-700 leading-relaxed">
-                  按「分享」時會自動複製此訊息供貼上 Facebook。<br />
-                  可用佔位符：<code className="bg-white px-1 rounded">&#123;title&#125;</code>（商品名稱）、<code className="bg-white px-1 rounded">&#123;price&#125;</code>（目前出價）、<code className="bg-white px-1 rounded">&#123;endTime&#125;</code>（結標時間）。留空則使用預設格式。
+                  按「分享」時會自動複製此訊息供貼上 Facebook。留空則使用預設格式。
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="fbShareTemplate">分享訊息模板</Label>
+                  <Label htmlFor="fbShareTemplate">拍賣商品 — 分享訊息模板</Label>
+                  <p className="text-xs text-muted-foreground">
+                    可用佔位符：<code className="bg-white px-1 rounded">&#123;title&#125;</code>（商品名稱）、<code className="bg-white px-1 rounded">&#123;price&#125;</code>（目前出價）、<code className="bg-white px-1 rounded">&#123;endTime&#125;</code>（結標時間）
+                  </p>
                   <Textarea
                     id="fbShareTemplate"
                     rows={5}
@@ -558,6 +562,28 @@ export default function MerchantSettings() {
                         .replace(/\{title\}/g, "〔商品名稱〕")
                         .replace(/\{price\}/g, "HK$180")
                         .replace(/\{endTime\}/g, "5月4日(一) 下午3:00")}
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2 pt-2 border-t border-blue-100">
+                  <Label htmlFor="fbShareTemplateProduct">出售商品 — 分享訊息模板</Label>
+                  <p className="text-xs text-muted-foreground">
+                    可用佔位符：<code className="bg-white px-1 rounded">&#123;title&#125;</code>（商品名稱）、<code className="bg-white px-1 rounded">&#123;price&#125;</code>（出售價格）
+                  </p>
+                  <Textarea
+                    id="fbShareTemplateProduct"
+                    rows={5}
+                    placeholder={"{title}\n出售價格：{price}\n歡迎查詢！\n\n（此為預設格式，可自由修改）"}
+                    value={fbShareTemplateProduct}
+                    onChange={(e) => setFbShareTemplateProduct(e.target.value)}
+                    className="text-sm font-mono resize-none"
+                  />
+                  {fbShareTemplateProduct.trim() && (
+                    <div className="text-xs text-muted-foreground bg-blue-50 border border-blue-100 rounded p-2.5 whitespace-pre-wrap leading-relaxed">
+                      <span className="font-semibold text-blue-700 block mb-1">預覽效果：</span>
+                      {fbShareTemplateProduct
+                        .replace(/\{title\}/g, "〔商品名稱〕")
+                        .replace(/\{price\}/g, "HK$180")}
                     </div>
                   )}
                 </div>

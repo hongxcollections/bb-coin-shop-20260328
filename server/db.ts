@@ -3165,9 +3165,10 @@ async function ensureMerchantSettingsTable() {
         await db.execute(sql.raw(`ALTER TABLE merchant_settings ADD COLUMN ${colName} ${colDef}`));
       }
     }
-    // Add fbShareTemplate column if missing
+    // Add fbShareTemplate / fbShareTemplateProduct columns if missing
     for (const [colName, colDef] of [
       ['fbShareTemplate', 'TEXT NULL'],
+      ['fbShareTemplateProduct', 'TEXT NULL'],
     ] as [string, string][]) {
       const chk = await db.execute(sql`
         SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
@@ -3244,6 +3245,7 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   watermarkPosition: 'center-diagonal',
   watermarkSize: 12,
   fbShareTemplate: null as string | null,
+  fbShareTemplateProduct: null as string | null,
   auctionsPerPage: 10,
   productsPerPage: 10,
   showSoldProducts: 1,
@@ -3253,7 +3255,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, auctionsPerPage, productsPerPage, showSoldProducts FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, auctionsPerPage, productsPerPage, showSoldProducts FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -3280,6 +3282,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         watermarkPosition: String(row.watermarkPosition ?? 'center-diagonal'),
         watermarkSize: Number(row.watermarkSize ?? 12),
         fbShareTemplate: row.fbShareTemplate != null ? String(row.fbShareTemplate) : null,
+        fbShareTemplateProduct: row.fbShareTemplateProduct != null ? String(row.fbShareTemplateProduct) : null,
         auctionsPerPage: Number(row.auctionsPerPage ?? 10),
         productsPerPage: Number(row.productsPerPage ?? 10),
         showSoldProducts: Number(row.showSoldProducts ?? 1),
@@ -3332,16 +3335,17 @@ export async function setMerchantListingLayout(userId: number, listingLayout: st
   `);
 }
 
-export async function upsertMerchantSettings(userId: number, defaultEndDayOffset: number, defaultEndTime: string, defaultStartingPrice: number, defaultBidIncrement: number, defaultAntiSnipeEnabled: number, defaultAntiSnipeMinutes: number, defaultExtendMinutes: number, paymentInstructions?: string | null, deliveryInfo?: string | null, fbShareTemplate?: string | null): Promise<void> {
+export async function upsertMerchantSettings(userId: number, defaultEndDayOffset: number, defaultEndTime: string, defaultStartingPrice: number, defaultBidIncrement: number, defaultAntiSnipeEnabled: number, defaultAntiSnipeMinutes: number, defaultExtendMinutes: number, paymentInstructions?: string | null, deliveryInfo?: string | null, fbShareTemplate?: string | null, fbShareTemplateProduct?: string | null): Promise<void> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
   const pi = paymentInstructions ?? null;
   const di = deliveryInfo ?? null;
   const fst = fbShareTemplate ?? null;
+  const fstp = fbShareTemplateProduct ?? null;
   await db.execute(sql`
-    INSERT INTO merchant_settings (userId, defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, paymentInstructions, deliveryInfo, fbShareTemplate)
-    VALUES (${userId}, ${defaultEndDayOffset}, ${defaultEndTime}, ${defaultStartingPrice}, ${defaultBidIncrement}, ${defaultAntiSnipeEnabled}, ${defaultAntiSnipeMinutes}, ${defaultExtendMinutes}, ${pi}, ${di}, ${fst})
+    INSERT INTO merchant_settings (userId, defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, paymentInstructions, deliveryInfo, fbShareTemplate, fbShareTemplateProduct)
+    VALUES (${userId}, ${defaultEndDayOffset}, ${defaultEndTime}, ${defaultStartingPrice}, ${defaultBidIncrement}, ${defaultAntiSnipeEnabled}, ${defaultAntiSnipeMinutes}, ${defaultExtendMinutes}, ${pi}, ${di}, ${fst}, ${fstp})
     ON DUPLICATE KEY UPDATE
       defaultEndDayOffset = ${defaultEndDayOffset},
       defaultEndTime = ${defaultEndTime},
@@ -3353,6 +3357,7 @@ export async function upsertMerchantSettings(userId: number, defaultEndDayOffset
       paymentInstructions = ${pi},
       deliveryInfo = ${di},
       fbShareTemplate = ${fst},
+      fbShareTemplateProduct = ${fstp},
       updatedAt = CURRENT_TIMESTAMP
   `);
 }

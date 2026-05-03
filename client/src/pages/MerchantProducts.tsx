@@ -615,6 +615,7 @@ export default function MerchantProducts() {
   const uploadImage = trpc.merchants.uploadProductImage.useMutation();
   const uploadVideo = trpc.merchants.uploadVideo.useMutation();
   const { data: videoQuotaInfo } = trpc.merchants.getMyVideoQuota.useQuery();
+  const { data: merchantSettings } = trpc.merchants.getSettings.useQuery();
   const videoFileRef = useRef<HTMLInputElement>(null);
   const [uploadingVideo, setUploadingVideo] = useState(false);
 
@@ -1689,7 +1690,12 @@ export default function MerchantProducts() {
               const price = parseFloat(p.price ?? "0");
               const currency = p.currency ?? "HKD";
               const productUrl = `${window.location.origin}/merchant-products/${p.id}`;
-              const shareText = `${p.title}\n出售價格：${currency} $${price.toLocaleString()}`;
+              const sym = currency === "USD" ? "US$" : currency === "CNY" ? "¥" : "HK$";
+              const fbTpl = (merchantSettings as { fbShareTemplateProduct?: string | null } | undefined)?.fbShareTemplateProduct;
+              const tpl = fbTpl?.trim() || "{title}\n出售價格：{price}";
+              const shareText = tpl
+                .replace(/\{title\}/g, p.title)
+                .replace(/\{price\}/g, `${sym}${price.toLocaleString()}`);
               const isCopied = productCopiedIds.has(p.id);
               return (
                 <div key={p.id} className="rounded-lg border border-amber-100 bg-amber-50/40 overflow-hidden">
