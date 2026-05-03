@@ -1579,13 +1579,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* SEO 內容區：自然帶入錢幣相關關鍵字，提升搜尋引擎收錄 */}
-      <section className="bg-amber-50/40 border-t border-amber-100 py-10">
-        <div className="container max-w-5xl">
-          <h2 className="text-base sm:text-lg font-bold text-amber-900 mb-4 text-center">
+      {/* SEO 內容區：對用戶隱藏（sr-only），但保留俾搜尋引擎與輔助技術讀取 */}
+      <section className="sr-only" aria-hidden="false">
+        <div>
+          <h2>
             香港專業錢幣收藏與拍賣平台
           </h2>
-          <div className="text-[11px] sm:text-xs leading-relaxed text-amber-900/70 space-y-3">
+          <div>
             <p>
               <strong className="text-amber-900">hongxcollections（大BB錢幣店）</strong>係香港具規模嘅
               <strong>錢幣拍賣</strong>同<strong>硬幣收藏</strong>平台，專營
