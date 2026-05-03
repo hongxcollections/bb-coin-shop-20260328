@@ -1744,12 +1744,12 @@ export default function AdminUsers() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editState} onOpenChange={(open) => !open && setEditState(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-2 shrink-0 border-b">
             <DialogTitle>修改用戶資料</DialogTitle>
           </DialogHeader>
           {editState && (
-            <div className="space-y-4 py-2">
+            <div className="space-y-4 py-3 px-6 overflow-y-auto flex-1 min-h-0">
               <div className="space-y-1.5">
                 <Label>姓名</Label>
                 <Input
@@ -1866,7 +1866,7 @@ export default function AdminUsers() {
               )}
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="px-6 py-3 shrink-0 border-t bg-background">
             <Button variant="outline" onClick={() => setEditState(null)}>取消</Button>
             <Button
               className="bg-amber-600 hover:bg-amber-700 text-white"
