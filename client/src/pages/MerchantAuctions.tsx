@@ -416,7 +416,32 @@ export default function MerchantAuctions() {
   // Active auction limited edit dialog
   const [activeEditOpen, setActiveEditOpen] = useState(false);
   const [activeEditTarget, setActiveEditTarget] = useState<AuctionItem | null>(null);
-  const [activeEditForm, setActiveEditForm] = useState({ title: "", description: "", categories: [] as string[] });
+  const [activeEditForm, setActiveEditForm] = useState({ title: "", description: "", categories: [] as string[], videoUrl: "" });
+  const activeEditVideoFileRef = useRef<HTMLInputElement>(null);
+  const [activeEditUploadingVideo, setActiveEditUploadingVideo] = useState(false);
+  const handleActiveEditVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (activeEditVideoFileRef.current) activeEditVideoFileRef.current.value = "";
+    if (!file) return;
+    if (!VIDEO_MIME_ALLOW.includes(file.type)) { toast.error("只支援 MP4、WebM、MOV 格式"); return; }
+    if (file.size > MAX_VIDEO_SIZE) { toast.error("影片不可超過 30MB"); return; }
+    setActiveEditUploadingVideo(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve((r.result as string).split(",")[1]);
+        r.onerror = () => reject(new Error("讀取影片失敗"));
+        r.readAsDataURL(file);
+      });
+      const { url } = await uploadVideoMutation.mutateAsync({ videoData: base64, fileName: file.name, mimeType: file.type });
+      setActiveEditForm(f => ({ ...f, videoUrl: url }));
+      toast.success("影片已上傳");
+    } catch (err: any) {
+      toast.error(err?.message ?? "影片上傳失敗");
+    } finally {
+      setActiveEditUploadingVideo(false);
+    }
+  };
   const [activeEditPending, setActiveEditPending] = useState<PendingImage[]>([]);
   const [activeEditUploaded, setActiveEditUploaded] = useState<UploadedImage[]>([]);
   const isActiveEditUploading = activeEditPending.some(p => p.status === "compressing" || p.status === "uploading");
@@ -672,6 +697,7 @@ export default function MerchantAuctions() {
 
   const openActiveEdit = (a: AuctionItem) => {
     setActiveEditTarget(a);
+    const aVideoUrl = (a as { videoUrl?: string | null }).videoUrl ?? "";
     setActiveEditForm({
       title: a.title,
       description: a.description ?? "",
@@ -680,6 +706,7 @@ export default function MerchantAuctions() {
         if (a.category.includes("|")) return a.category.split("|").map(s => s.trim()).filter(Boolean);
         return a.category.trim() ? [a.category.trim()] : [];
       })(),
+      videoUrl: aVideoUrl,
     });
     setActiveEditUploaded((a.images ?? []).map(img => ({ url: img.imageUrl, displayOrder: img.displayOrder, imageId: img.id })));
     setActiveEditPending([]);
@@ -725,6 +752,7 @@ export default function MerchantAuctions() {
       title: activeEditForm.title,
       description: activeEditForm.description,
       category: activeEditForm.categories.join("|"),
+      videoUrl: activeEditForm.videoUrl || null,
     });
   };
 
@@ -1436,6 +1464,24 @@ export default function MerchantAuctions() {
                   </button>
                 ))}
               </div>
+            </div>
+            <div>
+              <Label className="text-sm font-medium">拍賣影片（選填，MP4/WebM/MOV，≤30MB）</Label>
+              {activeEditForm.videoUrl ? (
+                <div className="relative mt-1.5">
+                  <video src={activeEditForm.videoUrl} controls playsInline className="w-full max-h-48 rounded-lg border bg-black" />
+                  <button type="button" onClick={() => setActiveEditForm(f => ({ ...f, videoUrl: "" }))}
+                    className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 rounded-full p-1">
+                    <X className="w-3.5 h-3.5 text-white" />
+                  </button>
+                </div>
+              ) : (
+                <div onClick={() => !activeEditUploadingVideo && activeEditVideoFileRef.current?.click()}
+                  className={`mt-1.5 border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-colors ${activeEditUploadingVideo ? "opacity-60 cursor-wait" : "border-muted-foreground/30 hover:border-amber-400"}`}>
+                  <p className="text-xs text-muted-foreground">{activeEditUploadingVideo ? "影片上傳中…" : "點擊上傳拍賣影片"}</p>
+                </div>
+              )}
+              <input ref={activeEditVideoFileRef} type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" onChange={handleActiveEditVideoChange} />
             </div>
             <div>
               <Label className="text-sm font-medium">新增圖片（現有圖片不可刪除）</Label>

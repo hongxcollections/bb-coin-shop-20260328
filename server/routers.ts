@@ -2553,6 +2553,7 @@ export const appRouter = router({
         title: z.string().min(1).max(255).optional(),
         description: z.string().optional(),
         category: z.string().optional(),
+        videoUrl: z.string().nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const auction = await getAuctionById(input.id);
@@ -2567,6 +2568,7 @@ export const appRouter = router({
         if (input.title !== undefined) updateData.title = input.title;
         if (input.description !== undefined) updateData.description = input.description;
         if (input.category !== undefined) updateData.category = input.category;
+        if (input.videoUrl !== undefined) updateData.videoUrl = input.videoUrl;
         await updateAuction(input.id, updateData);
         return { success: true };
       }),
