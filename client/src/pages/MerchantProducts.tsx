@@ -1441,12 +1441,15 @@ export default function MerchantProducts() {
                 {/* 公佈額度狀態 */}
                 {(() => {
                   const remaining = quotaInfo ? Math.max(0, Number(quotaInfo.remainingQuota)) : null;
-                  const quotaOk = !quotaInfo || quotaInfo.unlimited || (remaining !== null && remaining >= 1);
+                  const noSubscription = !quotaLoading && !quotaInfo;
+                  const quotaOk = !!quotaInfo && (quotaInfo.unlimited || (remaining !== null && remaining >= 1));
                   const isError = !depositCheck?.canList || !quotaOk;
                   let quotaLabel = "";
                   if (quotaLoading) {
                     quotaLabel = "查詢額度中…";
-                  } else if (!quotaInfo || quotaInfo.unlimited) {
+                  } else if (noSubscription) {
+                    quotaLabel = "您的月費計劃已過期或尚未訂閱，請先續訂後才可上架商品";
+                  } else if (quotaInfo!.unlimited) {
                     quotaLabel = "公佈額度正常（無限制）";
                   } else if (quotaOk) {
                     quotaLabel = `公佈額度正常（剩餘 ${remaining} 次）`;
@@ -1476,7 +1479,7 @@ export default function MerchantProducts() {
             <AlertDialogCancel disabled={saving}>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => { e.preventDefault(); doSubmit(); }}
-              disabled={saving || !depositCheck?.canList || (!!quotaInfo && !quotaInfo.unlimited && Number(quotaInfo.remainingQuota) < 1)}
+              disabled={saving || quotaLoading || !depositCheck?.canList || !quotaInfo || (!quotaInfo.unlimited && Number(quotaInfo.remainingQuota) < 1)}
               className="bg-green-600 hover:bg-green-700 text-white"
             >
               {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />上架中…</> : "確認上架"}
