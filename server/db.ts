@@ -2558,10 +2558,10 @@ export async function adminGetUserStats(userId: number) {
     const deposit = depositRows[0] ?? null;
 
     // --- Active subscription (use correct column names: monthlyPrice, billingCycle) ---
-    let subscription: { planName: string; status: string; endDate: string; monthlyPrice: number; billingCycle: string } | null = null;
+    let subscription: { planName: string; status: string; endDate: string; monthlyPrice: number; billingCycle: string; remainingQuota: number; unlimitedQuota: boolean } | null = null;
     try {
       const subRes = await db.execute(sql`
-        SELECT us.status, us.endDate, us.billingCycle, sp.name AS planName, sp.monthlyPrice, sp.yearlyPrice
+        SELECT us.status, us.endDate, us.billingCycle, us.remainingQuota, sp.name AS planName, sp.monthlyPrice, sp.yearlyPrice, sp.maxListings
         FROM user_subscriptions us
         JOIN subscription_plans sp ON sp.id = us.planId
         WHERE us.userId = ${userId} AND us.status = 'active'
@@ -2570,12 +2570,15 @@ export async function adminGetUserStats(userId: number) {
       const subRows = extractRows(subRes);
       const r = subRows[0];
       if (r) {
+        const maxListings = Number(r.maxListings ?? 0);
         subscription = {
           planName: String(r.planName ?? ''),
           status: String(r.status ?? ''),
           endDate: r.endDate ? String(r.endDate) : '',
           monthlyPrice: Number(r.monthlyPrice ?? 0),
           billingCycle: String(r.billingCycle ?? 'monthly'),
+          remainingQuota: Number(r.remainingQuota ?? 0),
+          unlimitedQuota: maxListings === 0,
         };
       }
     } catch { /* subscription tables might not exist */ }

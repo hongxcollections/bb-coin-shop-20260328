@@ -236,7 +236,12 @@ function UserStatsPanel({ userId, isMerchant }: { userId: number; isMerchant: bo
                 <span className="text-xs font-semibold text-emerald-700">✅ {data.subscription.planName}</span>
                 <span className="text-[0.6rem] text-gray-500">到期：{fmtDate(data.subscription.endDate)}</span>
               </div>
-              <span className="text-[0.6rem] text-gray-400">HK${data.subscription.monthlyPrice.toLocaleString()} / {data.subscription.billingCycle === 'yearly' ? '年' : '月'}</span>
+              <div className="flex items-center justify-between mt-0.5">
+                <span className="text-[0.6rem] text-gray-400">HK${data.subscription.monthlyPrice.toLocaleString()} / {data.subscription.billingCycle === 'yearly' ? '年' : '月'}</span>
+                <span className="text-[0.65rem] font-semibold text-emerald-700">
+                  公佈餘額：{(data.subscription as any).unlimitedQuota ? '無限' : `${(data.subscription as any).remainingQuota ?? 0} 次`}
+                </span>
+              </div>
             </div>
           ) : (
             <div className="mt-1.5 rounded-lg px-3 py-1.5" style={{ background: "#FFF7ED", border: "1px solid #FED7AA" }}>
