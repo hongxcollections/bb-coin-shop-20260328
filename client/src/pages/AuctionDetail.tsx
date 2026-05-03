@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Clock, ChevronLeft, ChevronRight, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X, EyeOff, AlertCircle, Heart, Share2 } from "lucide-react";
+import { Clock, ChevronLeft, ChevronRight, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X, EyeOff, AlertCircle, Heart, Share2, Play } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -179,19 +179,28 @@ export default function AuctionDetail() {
 
   useEffect(() => {
     const imgList = (auction?.images ?? []) as Array<{ id: number; imageUrl: string }>;
-    if (imgList.length <= 1) return;
+    const vUrl = (auction as { videoUrl?: string | null })?.videoUrl ?? "";
+    const total = (vUrl ? 1 : 0) + imgList.length;
+    if (total <= 1) return;
     const timer = setInterval(() => {
       if (isSlidingRef.current || isFadingRef.current) return;
+      // 影片播放中不自動切換
+      if (vUrl && selectedImageRef.current === 0) return;
       isFadingRef.current = true;
       setFadeVisible(false);
       setTimeout(() => {
-        setSelectedImage(prev => (prev + 1) % imgList.length);
+        setSelectedImage(prev => {
+          let next = (prev + 1) % total;
+          // 自動輪播跳過影片格
+          if (vUrl && next === 0) next = total > 1 ? 1 : 0;
+          return next;
+        });
         setFadeVisible(true);
         setTimeout(() => { isFadingRef.current = false; }, 420);
       }, 380);
     }, 4000);
     return () => clearInterval(timer);
-  }, [auction?.images]);
+  }, [auction?.images, (auction as { videoUrl?: string | null })?.videoUrl]);
   const utils = trpc.useUtils();
   const [editingPrice, setEditingPrice] = useState(false);
   const [newStartingPrice, setNewStartingPrice] = useState("");
@@ -380,6 +389,17 @@ export default function AuctionDetail() {
   }
 
   const images = auction.images as Array<{ id: number; imageUrl: string }>;
+  const auctionVideoUrl = (auction as { videoUrl?: string | null })?.videoUrl ?? "";
+  const hasVideo = !!auctionVideoUrl;
+  type MediaItem = { kind: 'video' | 'image'; url: string; key: string };
+  const mediaList: MediaItem[] = [
+    ...(hasVideo ? [{ kind: 'video' as const, url: auctionVideoUrl, key: 'video' }] : []),
+    ...images.map(img => ({ kind: 'image' as const, url: img.imageUrl, key: `img-${img.id}` })),
+  ];
+  const totalMedia = mediaList.length;
+  const currentMedia = mediaList[selectedImage];
+  const isVideoSelected = currentMedia?.kind === 'video';
+  const lightboxIndex = hasVideo ? Math.max(0, selectedImage - 1) : selectedImage;
   const bids = auction.bidHistory as Array<{ id: number; userId: number; bidAmount: string; createdAt: Date; username?: string | null; isAnonymous?: number | null; memberLevel?: string | null }>;
   // 輔助函數：根據 isAnonymous 欄位決定顯示名稱
   // 若是自己的匿名出價，顯示「🕵️ 匿名出價 - 你自己」，讓用戶知道自己是最高出價者
@@ -420,129 +440,143 @@ export default function AuctionDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left: Images */}
           <div>
-            {auction?.videoUrl && (
-              <video src={auction.videoUrl} controls playsInline preload="metadata"
-                className="w-full bg-black aspect-square object-contain rounded-2xl border border-amber-100 mb-3" />
-            )}
             <div
-              className="aspect-square rounded-2xl overflow-hidden bg-amber-50 border border-amber-100 mb-3 relative select-none cursor-zoom-in"
+              className={`aspect-square rounded-2xl overflow-hidden bg-amber-50 border border-amber-100 mb-3 relative select-none ${isVideoSelected ? '' : 'cursor-zoom-in'}`}
               onTouchStart={(e) => {
+                if (isVideoSelected) return;
                 touchStartXRef.current = e.touches[0].clientX;
                 touchStartYRef.current = e.touches[0].clientY;
                 touchOpenedLightboxRef.current = false;
               }}
               onTouchEnd={(e) => {
+                if (isVideoSelected) return;
                 const dx = touchStartXRef.current - e.changedTouches[0].clientX;
                 const dy = touchStartYRef.current - e.changedTouches[0].clientY;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                if (Math.abs(dx) >= 40 && images.length > 1) {
-                  // 水平滑動：切換圖片
-                  const total = images.length;
-                  if (dx > 0) goToImage((selectedImage + 1) % total, 'left');
-                  else goToImage((selectedImage - 1 + total) % total, 'right');
+                if (Math.abs(dx) >= 40 && totalMedia > 1) {
+                  // 水平滑動：切換
+                  if (dx > 0) goToImage((selectedImage + 1) % totalMedia, 'left');
+                  else goToImage((selectedImage - 1 + totalMedia) % totalMedia, 'right');
                 } else if (dist < 10 && images.length > 0) {
-                  // 輕按（幾乎沒移動）：開燈箱
+                  // 輕按：開燈箱
                   touchOpenedLightboxRef.current = true;
                   setLightboxOpen(true);
                 }
               }}
               onClick={() => {
-                // desktop 滑鼠點擊（touch 已在 onTouchEnd 處理，避免重複）
+                if (isVideoSelected) return;
                 if (!touchOpenedLightboxRef.current && images.length > 0) setLightboxOpen(true);
                 touchOpenedLightboxRef.current = false;
               }}
             >
-              {images.length > 0 ? (
+              {totalMedia > 0 ? (
                 <>
-                  {/* 移出的舊圖片 */}
-                  {outgoingImage !== null && (
-                    <img
-                      key={`out-${outgoingImage}`}
-                      src={images[outgoingImage]?.imageUrl}
-                      alt=""
-                      draggable={false}
-                      className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-                      style={{
-                        animation: `${slideDir === 'left' ? 'img-slide-out-left' : 'img-slide-out-right'} 0.38s ease-in-out forwards`,
-                        WebkitTouchCallout: 'none',
-                      }}
+                  {isVideoSelected ? (
+                    <video
+                      key={`vid-${currentMedia.url}`}
+                      src={currentMedia.url}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="absolute inset-0 w-full h-full bg-black object-contain"
                     />
+                  ) : (
+                    <>
+                      {/* 移出的舊圖片 */}
+                      {outgoingImage !== null && mediaList[outgoingImage]?.kind === 'image' && (
+                        <img
+                          key={`out-${outgoingImage}`}
+                          src={mediaList[outgoingImage]?.url}
+                          alt=""
+                          draggable={false}
+                          className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                          style={{
+                            animation: `${slideDir === 'left' ? 'img-slide-out-left' : 'img-slide-out-right'} 0.38s ease-in-out forwards`,
+                            WebkitTouchCallout: 'none',
+                          }}
+                        />
+                      )}
+                      {/* 移入的新圖片 / 靜止圖片 */}
+                      <img
+                        key={`in-${selectedImage}-${slideDir}`}
+                        src={currentMedia?.url}
+                        alt={auction.title}
+                        draggable={false}
+                        className="w-full h-full object-contain pointer-events-none"
+                        style={outgoingImage !== null && mediaList[outgoingImage]?.kind === 'image' ? {
+                          animation: `${slideDir === 'left' ? 'img-slide-in-from-right' : 'img-slide-in-from-left'} 0.38s ease-in-out forwards`,
+                          WebkitTouchCallout: 'none',
+                        } : {
+                          opacity: fadeVisible ? 1 : 0,
+                          transition: 'opacity 0.38s ease-in-out',
+                          WebkitTouchCallout: 'none',
+                        }}
+                      />
+                    </>
                   )}
-                  {/* 移入的新圖片 / 靜止圖片 */}
-                  <img
-                    key={`in-${selectedImage}-${slideDir}`}
-                    src={images[selectedImage]?.imageUrl}
-                    alt={auction.title}
-                    draggable={false}
-                    className="w-full h-full object-contain pointer-events-none"
-                    style={outgoingImage !== null ? {
-                      animation: `${slideDir === 'left' ? 'img-slide-in-from-right' : 'img-slide-in-from-left'} 0.38s ease-in-out forwards`,
-                      WebkitTouchCallout: 'none',
-                    } : {
-                      opacity: fadeVisible ? 1 : 0,
-                      transition: 'opacity 0.38s ease-in-out',
-                      WebkitTouchCallout: 'none',
-                    }}
-                  />
                   {/* 左右箭咀 */}
-                  {images.length > 1 && (
+                  {totalMedia > 1 && (
                     <>
                       <button
                         onTouchEnd={(e) => e.stopPropagation()}
-                        onClick={(e) => { e.stopPropagation(); goToImage((selectedImage - 1 + images.length) % images.length, 'right'); }}
+                        onClick={(e) => { e.stopPropagation(); goToImage((selectedImage - 1 + totalMedia) % totalMedia, 'right'); }}
                         className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors z-10"
                       >
                         <ChevronLeft className="w-5 h-5 text-white" />
                       </button>
                       <button
                         onTouchEnd={(e) => e.stopPropagation()}
-                        onClick={(e) => { e.stopPropagation(); goToImage((selectedImage + 1) % images.length, 'left'); }}
+                        onClick={(e) => { e.stopPropagation(); goToImage((selectedImage + 1) % totalMedia, 'left'); }}
                         className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors z-10"
                       >
                         <ChevronRight className="w-5 h-5 text-white" />
                       </button>
                     </>
                   )}
-                  {/* 底部漸層遮罩 */}
-                  <div
-                    className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"
-                    style={{ background: "linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
-                  />
+                  {/* 底部漸層遮罩（影片播放時隱藏，避免擋控制條） */}
+                  {!isVideoSelected && (
+                    <div
+                      className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"
+                      style={{ background: "linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
+                    />
+                  )}
                   {/* 左下：商戶名稱 */}
-                  {auction.sellerName && (
+                  {!isVideoSelected && auction.sellerName && (
                     <div className="absolute bottom-2.5 left-3 flex items-center gap-1.5 pointer-events-none">
                       <User className="w-3 h-3 text-white/80" />
                       <span className="text-white text-xs font-medium drop-shadow">{auction.sellerName}</span>
                     </div>
                   )}
-                  {/* 底部中央：圖片計數 */}
-                  {images.length > 1 && (
+                  {/* 底部中央：計數 */}
+                  {!isVideoSelected && totalMedia > 1 && (
                     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 pointer-events-none">
                       <span className="text-white/90 text-xs font-semibold tabular-nums drop-shadow">
-                        {selectedImage + 1}/{images.length}
+                        {selectedImage + 1}/{totalMedia}
                       </span>
                     </div>
                   )}
                   {/* 右下：分享按鈕 */}
-                  <button
-                    type="button"
-                    onTouchEnd={(e) => e.stopPropagation()}
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      const url = window.location.href;
-                      const shareText = `${auction.title}\n目前出價 ${getCurrencySymbol((auction as { currency?: string })?.currency ?? "HKD")}${Number(auction.currentPrice).toLocaleString()}\n結標：${new Date(auction.endTime).toLocaleString("zh-HK", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}\n\n${url}`;
-                      if (navigator.share) {
-                        try { await navigator.share({ title: auction.title, text: shareText, url }); } catch {}
-                      } else {
-                        await navigator.clipboard.writeText(url);
-                        toast.success("連結已複製");
-                      }
-                    }}
-                    className="absolute bottom-2 right-2 flex items-center justify-center w-7 h-7 rounded-full bg-black/35 hover:bg-black/55 transition-colors backdrop-blur-sm z-10"
-                    title="分享"
-                  >
-                    <Share2 className="w-3.5 h-3.5 text-white" />
-                  </button>
+                  {!isVideoSelected && (
+                    <button
+                      type="button"
+                      onTouchEnd={(e) => e.stopPropagation()}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const url = window.location.href;
+                        const shareText = `${auction.title}\n目前出價 ${getCurrencySymbol((auction as { currency?: string })?.currency ?? "HKD")}${Number(auction.currentPrice).toLocaleString()}\n結標：${new Date(auction.endTime).toLocaleString("zh-HK", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}\n\n${url}`;
+                        if (navigator.share) {
+                          try { await navigator.share({ title: auction.title, text: shareText, url }); } catch {}
+                        } else {
+                          await navigator.clipboard.writeText(url);
+                          toast.success("連結已複製");
+                        }
+                      }}
+                      className="absolute bottom-2 right-2 flex items-center justify-center w-7 h-7 rounded-full bg-black/35 hover:bg-black/55 transition-colors backdrop-blur-sm z-10"
+                      title="分享"
+                    >
+                      <Share2 className="w-3.5 h-3.5 text-white" />
+                    </button>
+                  )}
                 </>
               ) : (
                 <div className="w-full h-full coin-placeholder flex items-center justify-center">
@@ -552,15 +586,24 @@ export default function AuctionDetail() {
             </div>
 
             {/* 縮圖列 */}
-            {images.length > 1 && (
+            {totalMedia > 1 && (
               <div className="flex gap-1.5 px-0.5 pt-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-                {images.map((img, i) => (
+                {mediaList.map((m, i) => (
                   <button
-                    key={img.id}
+                    key={m.key}
                     onClick={() => goToImage(i, i > selectedImage ? 'left' : 'right')}
-                    className={`flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 transition-all ${i === selectedImage ? "border-amber-400 scale-105 shadow-md" : "border-transparent opacity-70 hover:opacity-100"}`}
+                    className={`relative flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 transition-all ${i === selectedImage ? "border-amber-400 scale-105 shadow-md" : "border-transparent opacity-70 hover:opacity-100"}`}
                   >
-                    <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                    {m.kind === 'video' ? (
+                      <>
+                        <video src={m.url} preload="metadata" muted playsInline className="w-full h-full object-cover bg-black pointer-events-none" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/35 pointer-events-none">
+                          <Play className="w-5 h-5 text-white drop-shadow" fill="currentColor" />
+                        </div>
+                      </>
+                    ) : (
+                      <img src={m.url} alt="" className="w-full h-full object-cover" />
+                    )}
                   </button>
                 ))}
               </div>
@@ -1194,7 +1237,7 @@ export default function AuctionDetail() {
       {lightboxOpen && images.length > 0 && (
         <ImageLightbox
           images={images.map(img => img.imageUrl)}
-          initialIndex={selectedImage}
+          initialIndex={lightboxIndex}
           alt={auction.title}
           onClose={() => setLightboxOpen(false)}
         />

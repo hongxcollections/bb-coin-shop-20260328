@@ -10,7 +10,7 @@ import {
   Store, MessageCircle, Package, Gavel, ChevronLeft,
   Clock, Tag, ShoppingBag, ChevronLeft as Prev, ChevronRight as Next,
   ChevronDown, ChevronUp, Star, Phone, ShoppingCart, Loader2, X, CheckCircle2,
-  Facebook,
+  Facebook, Play,
 } from "lucide-react";
 
 // ── 落單確認彈窗 ──
@@ -200,6 +200,17 @@ export default function MerchantProductDetail() {
   const imgs: string[] = (() => {
     try { return product?.images ? JSON.parse(product.images) : []; } catch { return []; }
   })();
+  const productVideoUrl: string = (product as { videoUrl?: string | null } | undefined)?.videoUrl ?? "";
+  const hasVideo = !!productVideoUrl;
+  type MediaItem = { kind: 'video' | 'image'; url: string };
+  const mediaList: MediaItem[] = [
+    ...(hasVideo ? [{ kind: 'video' as const, url: productVideoUrl }] : []),
+    ...imgs.map((u) => ({ kind: 'image' as const, url: u })),
+  ];
+  const totalMedia = mediaList.length;
+  const currentMedia = mediaList[imgIdx];
+  const isVideoSelected = currentMedia?.kind === 'video';
+  const lightboxIndex = hasVideo ? Math.max(0, imgIdx - 1) : imgIdx;
 
   const otherProducts = (allProducts as any[]).filter(
     (p: any) => p.id !== productId && p.status === "active" && p.stock > 0
@@ -274,66 +285,71 @@ export default function MerchantProductDetail() {
           <>
             {/* ── 商品主卡 ── */}
             <div className="bg-white rounded-2xl border border-amber-100 shadow-sm overflow-hidden">
-              {/* 商品影片（如有） */}
-              {product.videoUrl && (
-                <video src={product.videoUrl} controls playsInline preload="metadata"
-                  className="w-full bg-black aspect-square object-contain" />
-              )}
-              {/* 圖片 gallery */}
-              {imgs.length > 0 ? (
+              {/* 媒體 gallery（影片 + 圖片） */}
+              {totalMedia > 0 ? (
                 <div className="relative">
                   <div
-                    className="w-full aspect-square bg-amber-50 overflow-hidden cursor-zoom-in select-none"
+                    className={`w-full aspect-square bg-amber-50 overflow-hidden select-none ${isVideoSelected ? '' : 'cursor-zoom-in'}`}
                     onTouchStart={e => {
+                      if (isVideoSelected) return;
                       imgTouchStartX.current = e.touches[0].clientX;
                       imgTouchStartY.current = e.touches[0].clientY;
                       touchOpenedLightbox.current = false;
                     }}
                     onTouchEnd={e => {
+                      if (isVideoSelected) return;
                       const dx = imgTouchStartX.current - e.changedTouches[0].clientX;
                       const dy = imgTouchStartY.current - e.changedTouches[0].clientY;
                       const dist = Math.sqrt(dx * dx + dy * dy);
-                      if (Math.abs(dx) >= 40 && imgs.length > 1) {
-                        setImgIdx(i => dx > 0 ? (i + 1) % imgs.length : (i - 1 + imgs.length) % imgs.length);
-                      } else if (dist < 10) {
+                      if (Math.abs(dx) >= 40 && totalMedia > 1) {
+                        setImgIdx(i => dx > 0 ? (i + 1) % totalMedia : (i - 1 + totalMedia) % totalMedia);
+                      } else if (dist < 10 && imgs.length > 0) {
                         touchOpenedLightbox.current = true;
                         setLightboxOpen(true);
                       }
                     }}
                     onClick={() => {
-                      if (!touchOpenedLightbox.current) setLightboxOpen(true);
+                      if (isVideoSelected) return;
+                      if (!touchOpenedLightbox.current && imgs.length > 0) setLightboxOpen(true);
                       touchOpenedLightbox.current = false;
                     }}
                   >
-                    <img src={imgs[imgIdx]} alt={product.title} draggable={false}
-                      className="w-full h-full object-cover pointer-events-none"
-                      style={{ WebkitTouchCallout: 'none' }} />
+                    {isVideoSelected ? (
+                      <video key={`vid-${currentMedia.url}`} src={currentMedia.url} controls playsInline preload="metadata"
+                        className="w-full h-full bg-black object-contain" />
+                    ) : (
+                      <img src={currentMedia?.url} alt={product.title} draggable={false}
+                        className="w-full h-full object-cover pointer-events-none"
+                        style={{ WebkitTouchCallout: 'none' }} />
+                    )}
                   </div>
-                  {imgs.length > 1 && (
+                  {totalMedia > 1 && (
                     <>
                       <button
                         onTouchEnd={e => e.stopPropagation()}
-                        onClick={() => setImgIdx(i => (i - 1 + imgs.length) % imgs.length)}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center shadow"
+                        onClick={() => setImgIdx(i => (i - 1 + totalMedia) % totalMedia)}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center shadow z-10"
                       ><Prev className="w-4 h-4 text-gray-600" /></button>
                       <button
                         onTouchEnd={e => e.stopPropagation()}
-                        onClick={() => setImgIdx(i => (i + 1) % imgs.length)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center shadow"
+                        onClick={() => setImgIdx(i => (i + 1) % totalMedia)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center shadow z-10"
                       ><Next className="w-4 h-4 text-gray-600" /></button>
-                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                        {imgs.map((_, i) => (
-                          <button key={i}
-                            onTouchEnd={e => e.stopPropagation()}
-                            onClick={() => setImgIdx(i)}
-                            className={`w-1.5 h-1.5 rounded-full transition-colors ${i === imgIdx ? "bg-amber-500" : "bg-white/60"}`} />
-                        ))}
-                      </div>
+                      {!isVideoSelected && (
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                          {mediaList.map((_, i) => (
+                            <button key={i}
+                              onTouchEnd={e => e.stopPropagation()}
+                              onClick={() => setImgIdx(i)}
+                              className={`w-1.5 h-1.5 rounded-full transition-colors ${i === imgIdx ? "bg-amber-500" : "bg-white/60"}`} />
+                          ))}
+                        </div>
+                      )}
                     </>
                   )}
-                  {imgs.length > 1 && (
+                  {totalMedia > 1 && !isVideoSelected && (
                     <div className="absolute top-2 right-2 bg-black/40 text-white text-xs px-1.5 py-0.5 rounded-full pointer-events-none">
-                      {imgIdx + 1}/{imgs.length}
+                      {imgIdx + 1}/{totalMedia}
                     </div>
                   )}
                   {/* Facebook 分享按鈕（圖片右下角） */}
@@ -374,12 +390,21 @@ export default function MerchantProductDetail() {
               )}
 
               {/* 縮圖列 */}
-              {imgs.length > 1 && (
+              {totalMedia > 1 && (
                 <div className="flex gap-1.5 px-3 pt-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-                  {imgs.map((u, i) => (
+                  {mediaList.map((m, i) => (
                     <button key={i} onClick={() => setImgIdx(i)}
-                      className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-colors ${i === imgIdx ? "border-amber-400" : "border-transparent"}`}>
-                      <img src={u} alt="" className="w-full h-full object-cover" />
+                      className={`relative flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-colors ${i === imgIdx ? "border-amber-400" : "border-transparent"}`}>
+                      {m.kind === 'video' ? (
+                        <>
+                          <video src={m.url} preload="metadata" muted playsInline className="w-full h-full object-cover bg-black pointer-events-none" />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/35 pointer-events-none">
+                            <Play className="w-5 h-5 text-white drop-shadow" fill="currentColor" />
+                          </div>
+                        </>
+                      ) : (
+                        <img src={m.url} alt="" className="w-full h-full object-cover" />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -851,7 +876,7 @@ export default function MerchantProductDetail() {
       {lightboxOpen && imgs.length > 0 && (
         <ImageLightbox
           images={imgs}
-          initialIndex={imgIdx}
+          initialIndex={lightboxIndex}
           alt={product?.title}
           onClose={() => setLightboxOpen(false)}
         />
