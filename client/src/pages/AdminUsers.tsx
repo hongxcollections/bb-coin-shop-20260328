@@ -990,8 +990,8 @@ type EditState = {
   commissionRate: string;
   depositIsActive: number;
   isBanned: number;
-  monthlyVideoQuota: number;
-  maxVideoSeconds: number;
+  monthlyVideoQuota: string;
+  maxVideoSeconds: string;
   subscriptionEndDate: string; // YYYY-MM-DD（空字串 = 用戶冇訂閱記錄）
   hasSubscription: boolean;
 };
@@ -1163,8 +1163,8 @@ export default function AdminUsers() {
       commissionRate: u.commissionRate ? (parseFloat(u.commissionRate) * 100).toFixed(1) : "5.0",
       depositIsActive: u.depositIsActive ?? 1,
       isBanned: u.isBanned ?? 0,
-      monthlyVideoQuota: u.monthlyVideoQuota ?? 5,
-      maxVideoSeconds: u.maxVideoSeconds ?? 60,
+      monthlyVideoQuota: String(u.monthlyVideoQuota ?? 5),
+      maxVideoSeconds: String(u.maxVideoSeconds ?? 60),
       subscriptionEndDate: u.subscriptionEndDate
         ? new Date(u.subscriptionEndDate).toISOString().slice(0, 10)
         : "",
@@ -1181,8 +1181,8 @@ export default function AdminUsers() {
       phone: editState.phone || undefined,
       memberLevel: editState.memberLevel,
       isBanned: editState.isBanned,
-      monthlyVideoQuota: editState.monthlyVideoQuota,
-      maxVideoSeconds: editState.maxVideoSeconds,
+      monthlyVideoQuota: Math.max(0, Math.min(1000, parseInt(editState.monthlyVideoQuota || "0", 10) || 0)),
+      maxVideoSeconds: Math.max(1, Math.min(3600, parseInt(editState.maxVideoSeconds || "60", 10) || 60)),
     });
     if (editState.isMerchant) {
       adminUpdateDeposit.mutate({
@@ -1833,11 +1833,12 @@ export default function AdminUsers() {
                   <Label>每月影片上傳配額（條）</Label>
                   <Input
                     type="number"
+                    inputMode="numeric"
                     min="0"
                     max="1000"
                     step="1"
                     value={editState.monthlyVideoQuota}
-                    onChange={(e) => setEditState({ ...editState, monthlyVideoQuota: Math.max(0, parseInt(e.target.value || "0", 10)) })}
+                    onChange={(e) => setEditState({ ...editState, monthlyVideoQuota: e.target.value.replace(/[^0-9]/g, "") })}
                     className="border-amber-200"
                   />
                   <p className="text-xs text-muted-foreground">每曆月可上傳嘅拍賣／商品影片總數。預設 5 條，0 = 完全禁止。</p>
@@ -1846,11 +1847,12 @@ export default function AdminUsers() {
                   <Label>單條影片最長秒數</Label>
                   <Input
                     type="number"
+                    inputMode="numeric"
                     min="1"
                     max="3600"
                     step="1"
                     value={editState.maxVideoSeconds}
-                    onChange={(e) => setEditState({ ...editState, maxVideoSeconds: Math.max(1, parseInt(e.target.value || "60", 10)) })}
+                    onChange={(e) => setEditState({ ...editState, maxVideoSeconds: e.target.value.replace(/[^0-9]/g, "") })}
                     className="border-amber-200"
                   />
                   <p className="text-xs text-muted-foreground">單條影片時長上限。預設 60 秒，每條檔案大小 ≤30MB，每件拍賣／商品最多 1 條。</p>
