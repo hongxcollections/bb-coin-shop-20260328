@@ -439,6 +439,8 @@ async function runMigrations() {
 
 async function startServer() {
   const app = express();
+  // Railway/proxy: trust X-Forwarded-* so req.ip reflects real client IP for rate limiting
+  app.set('trust proxy', true);
   const server = createServer(app);
 
   // ── 健康檢查端點必須最優先登記 ──────────────────────────────────────────────

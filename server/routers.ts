@@ -5589,21 +5589,30 @@ function chatbotRateLimit(key: string, perDay: number): { ok: boolean; message?:
   return { ok: true };
 }
 
-// ─── Chatbot KB loader (cached) ───────────────────────────────────────────────
+// ─── Chatbot KB loader (cached, multi-path for dev/prod compatibility) ───────
 let _kbCache: string | null = null;
 function loadChatbotKb(): string {
   if (_kbCache) return _kbCache;
-  try {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const kbPath = join(__dirname, '_core', 'chatbot-kb.md');
-    _kbCache = readFileSync(kbPath, 'utf-8');
-    return _kbCache;
-  } catch (e) {
-    console.error('[Chatbot] Failed to load KB:', e);
-    _kbCache = '（知識庫載入失敗，請聯絡 WhatsApp 97927793）';
-    return _kbCache;
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const candidates = [
+    join(__dirname, '_core', 'chatbot-kb.md'),       // dev: server/ + _core/chatbot-kb.md
+    join(__dirname, 'chatbot-kb.md'),                 // dev: when running from server/_core/
+    join(__dirname, '..', 'server', '_core', 'chatbot-kb.md'),
+    join(process.cwd(), 'dist', '_core', 'chatbot-kb.md'),
+    join(process.cwd(), 'server', '_core', 'chatbot-kb.md'),
+    join(process.cwd(), '_core', 'chatbot-kb.md'),
+  ];
+  for (const p of candidates) {
+    try {
+      _kbCache = readFileSync(p, 'utf-8');
+      console.log(`[Chatbot] KB loaded from: ${p}`);
+      return _kbCache;
+    } catch { /* try next */ }
   }
+  console.error('[Chatbot] Failed to load KB. Tried:', candidates);
+  _kbCache = '（知識庫載入失敗，請聯絡 WhatsApp 97927793）';
+  return _kbCache;
 }
 
 // ─── Ads router helper ────────────────────────────────────────────────────────

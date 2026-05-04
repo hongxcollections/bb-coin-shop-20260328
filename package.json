@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "NODE_ENV=development tsx watch server/_core/index.ts",
-    "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist && node -e \"require('fs').cpSync('server/fonts','dist/fonts',{recursive:true})\"",
+    "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist && node -e \"require('fs').cpSync('server/fonts','dist/fonts',{recursive:true});require('fs').mkdirSync('dist/_core',{recursive:true});require('fs').copyFileSync('server/_core/chatbot-kb.md','dist/_core/chatbot-kb.md')\"",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
