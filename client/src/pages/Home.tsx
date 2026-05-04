@@ -269,8 +269,11 @@ function ProductHeroSlide({ product, onBuy, currentUserId }: { product: any; onB
       )}
       <div className="absolute bottom-0 left-0 right-0 p-4">
         <Link href={`/merchant-products/${product.id}`}>
-          <h2 className="text-white font-bold text-base leading-snug line-clamp-2 drop-shadow mb-2">{product.title}</h2>
+          <h2 className="text-white font-bold text-base leading-snug line-clamp-2 drop-shadow mb-1">{product.title}</h2>
         </Link>
+        <p className="text-amber-300 font-bold text-lg leading-none mb-2 drop-shadow">
+          {currSymbol}{price.toLocaleString()}
+        </p>
         <div className="flex items-end justify-end gap-2">
           {isOwn ? (
             <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white/60 bg-white/20 cursor-not-allowed select-none">
@@ -639,7 +642,7 @@ function FeaturedProductSideCard({ products, onBuy, currentUserId }: { products:
             {product.title}
           </h3>
           <p className="text-amber-300 font-bold text-[12px] leading-none mb-1 drop-shadow">
-            {curr}${price.toLocaleString()}
+            {curr}{price.toLocaleString()}
           </p>
           <div className="flex items-center justify-end gap-1">
             {isOwn ? (
