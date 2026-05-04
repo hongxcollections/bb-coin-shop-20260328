@@ -1409,7 +1409,13 @@ export default function MerchantAuctions() {
               const endStr = `${mo}月${dy}日(${wd}) ${period}${dh}:${mi}`;
               const fbTpl = merchantSettings?.fbShareTemplate;
               const tplText = (() => {
-                const tpl = fbTpl?.trim() || "{title}\n目前出價 {price}\n結標時間：{endTime}\n快來競拍！";
+                const defaultTpl = "{title}\n目前出價 {price}\n結標時間：{endTime}\n快來競拍！";
+                const userTpl = fbTpl?.trim() || "";
+                const hasPlaceholder = /\{title\}|\{price\}|\{endTime\}/.test(userTpl);
+                // If user template doesn't use placeholders, prepend default auction info header
+                const tpl = userTpl
+                  ? (hasPlaceholder ? userTpl : `${defaultTpl}\n\n${userTpl}`)
+                  : defaultTpl;
                 return tpl
                   .replace(/\{title\}/g, a.title)
                   .replace(/\{price\}/g, `${sym}${currentBid.toLocaleString()}`)
@@ -1580,7 +1586,12 @@ export default function MerchantAuctions() {
             const endStr = `${mo}月${dy}日(${wd}) ${period}${dh}:${mi}`;
             const fbTpl = (merchantSettings as { fbShareTemplate?: string | null } | undefined)?.fbShareTemplate;
             const tplText = (() => {
-              const tpl = fbTpl?.trim() || "{title}\n目前出價 {price}\n結標時間：{endTime}\n快來競拍！";
+              const defaultTpl = "{title}\n目前出價 {price}\n結標時間：{endTime}\n快來競拍！";
+              const userTpl = fbTpl?.trim() || "";
+              const hasPlaceholder = /\{title\}|\{price\}|\{endTime\}/.test(userTpl);
+              const tpl = userTpl
+                ? (hasPlaceholder ? userTpl : `${defaultTpl}\n\n${userTpl}`)
+                : defaultTpl;
               return tpl
                 .replace(/\{title\}/g, auction.title)
                 .replace(/\{price\}/g, `${sym}${currentBid.toLocaleString()}`)
