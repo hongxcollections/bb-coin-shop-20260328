@@ -37,8 +37,6 @@ export default function AdminSiteSettings() {
   const [aiVideoScriptEnabled, setAiVideoScriptEnabled] = useState(true);
   // FB 批量順序分享 開關（預設開啟）
   const [fbBatchShareEnabled, setFbBatchShareEnabled] = useState(true);
-  // FB 重新整理預覽掣 開關（預設關閉）
-  const [fbRefreshPreviewEnabled, setFbRefreshPreviewEnabled] = useState(false);
 
   // 全站公告
   const [announcementEnabled, setAnnouncementEnabled] = useState(false);
@@ -151,7 +149,6 @@ export default function AdminSiteSettings() {
     if (s.aiShareCopyEnabled !== undefined) setAiShareCopyEnabled(s.aiShareCopyEnabled !== "false");
     if (s.aiVideoScriptEnabled !== undefined) setAiVideoScriptEnabled(s.aiVideoScriptEnabled !== "false");
     if (s.fbBatchShareEnabled !== undefined) setFbBatchShareEnabled(s.fbBatchShareEnabled !== "false");
-    if (s.fbRefreshPreviewEnabled !== undefined) setFbRefreshPreviewEnabled(s.fbRefreshPreviewEnabled === "true");
     if (s.announcementEnabled) setAnnouncementEnabled(s.announcementEnabled === "true");
     if (s.announcementText) setAnnouncementText(s.announcementText);
     if (s.homeWelcomeEnabled) setHomeWelcomeEnabled(s.homeWelcomeEnabled === "true");
@@ -313,7 +310,7 @@ export default function AdminSiteSettings() {
                     </Label>
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-3 py-2 border-b">
+                <div className="flex items-center justify-between gap-3 py-2">
                   <div>
                     <p className="font-medium text-sm">📢 FB 批量順序分享到指定群組</p>
                     <p className="text-xs text-muted-foreground">商戶設定預設 FB 群組清單 + 拍賣管理批量分享 wizard</p>
@@ -328,26 +325,6 @@ export default function AdminSiteSettings() {
                     />
                     <Label className="cursor-pointer text-xs">
                       {fbBatchShareEnabled
-                        ? <span className="text-emerald-600 font-semibold">已開啟</span>
-                        : <span className="text-muted-foreground">已關閉</span>}
-                    </Label>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-3 py-2">
-                  <div>
-                    <p className="font-medium text-sm">🔄 FB 重新整理預覽掣</p>
-                    <p className="text-xs text-muted-foreground">拍賣管理「進行中」每件拍賣加掣，一鍵開 FB Sharing Debugger 強制 re-scrape OG meta（預設關閉）</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={fbRefreshPreviewEnabled}
-                      onCheckedChange={(v) => {
-                        setFbRefreshPreviewEnabled(v);
-                        setSetting.mutate({ key: 'fbRefreshPreviewEnabled', value: v ? "true" : "false" });
-                      }}
-                    />
-                    <Label className="cursor-pointer text-xs">
-                      {fbRefreshPreviewEnabled
                         ? <span className="text-emerald-600 font-semibold">已開啟</span>
                         : <span className="text-muted-foreground">已關閉</span>}
                     </Label>

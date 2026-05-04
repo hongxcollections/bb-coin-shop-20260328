@@ -2491,6 +2491,7 @@ export async function getAllUsersExtended() {
         subscriptionQuota: sql<number | null>`(SELECT remainingQuota FROM user_subscriptions WHERE userId = ${users.id} AND status = 'active' ORDER BY endDate DESC LIMIT 1)`,
         // 最新一次商戶申請的狀態（pending/approved/rejected/null）— 判斷是否真商戶用此欄
         merchantAppStatus: sql<string | null>`(SELECT status FROM merchantApplications WHERE userId = ${users.id} ORDER BY createdAt DESC LIMIT 1)`,
+        fbRefreshPreviewEnabled: sql<number>`COALESCE((SELECT fbRefreshPreviewEnabled FROM merchant_settings WHERE userId = ${users.id} LIMIT 1), 0)`,
       })
       .from(users)
       .leftJoin(sellerDeposits, eq(sellerDeposits.userId, users.id))
@@ -2646,6 +2647,29 @@ export async function getWonAuctionsByUser(userId: number) {
 /**
  * Admin update any user's profile (name, email, phone)
  */
+/**
+ * Admin: 設定指定商戶嘅「FB 重新整理預覽掣」開關（per-merchant toggle）
+ * 寫入 merchant_settings.fbRefreshPreviewEnabled (0/1)
+ * 若 row 唔存在會自動 INSERT 一行（保留其他 column 預設值）
+ */
+export async function adminSetMerchantFbRefreshPreview(userId: number, enabled: number): Promise<boolean> {
+  await ensureMerchantSettingsTable();
+  const db = await getDb();
+  if (!db) return false;
+  try {
+    const v = enabled ? 1 : 0;
+    await db.execute(sql`
+      INSERT INTO merchant_settings (userId, fbRefreshPreviewEnabled)
+      VALUES (${userId}, ${v})
+      ON DUPLICATE KEY UPDATE fbRefreshPreviewEnabled = ${v}
+    `);
+    return true;
+  } catch (error) {
+    console.error('[Database] adminSetMerchantFbRefreshPreview error:', error);
+    return false;
+  }
+}
+
 export async function adminUpdateUser(
   userId: number,
   data: { name?: string; email?: string; phone?: string; isBanned?: number; monthlyVideoQuota?: number; maxVideoSeconds?: number }
@@ -3201,6 +3225,22 @@ async function ensureMerchantSettingsTable() {
         await db.execute(sql.raw(`ALTER TABLE merchant_settings ADD COLUMN ${colName} ${colDef}`));
       }
     }
+    // Add fbRefreshPreviewEnabled column if missing (admin per-merchant toggle, default 0 = off)
+    for (const [colName, colDef] of [
+      ['fbRefreshPreviewEnabled', 'TINYINT NOT NULL DEFAULT 0'],
+    ] as [string, string][]) {
+      const chk = await db.execute(sql`
+        SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'merchant_settings'
+          AND COLUMN_NAME = ${colName}
+      `);
+      const chkRows = chk as unknown as [Array<Record<string, unknown>>, unknown];
+      const chkRow = Array.isArray(chkRows[0]) ? chkRows[0][0] : (chkRows as unknown as Array<Record<string, unknown>>)[0];
+      if (chkRow && Number(chkRow.cnt) === 0) {
+        await db.execute(sql.raw(`ALTER TABLE merchant_settings ADD COLUMN ${colName} ${colDef}`));
+      }
+    }
     // Add watermark columns if missing
     for (const [colName, colDef] of [
       ['watermarkEnabled', 'INT NOT NULL DEFAULT 1'],
@@ -3251,13 +3291,14 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   auctionsPerPage: 10,
   productsPerPage: 10,
   showSoldProducts: 1,
+  fbRefreshPreviewEnabled: 0,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -3289,6 +3330,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         auctionsPerPage: Number(row.auctionsPerPage ?? 10),
         productsPerPage: Number(row.productsPerPage ?? 10),
         showSoldProducts: Number(row.showSoldProducts ?? 1),
+        fbRefreshPreviewEnabled: Number(row.fbRefreshPreviewEnabled ?? 0),
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };

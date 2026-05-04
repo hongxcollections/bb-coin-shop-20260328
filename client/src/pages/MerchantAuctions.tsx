@@ -489,6 +489,7 @@ export default function MerchantAuctions() {
     } catch { return []; }
   })();
   const { data: siteSettingsData } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const { data: merchantSettingsData } = trpc.merchants.getSettings.useQuery(undefined, { staleTime: 60_000, enabled: isAuthenticated });
   const CATEGORIES = parseCategories(siteSettingsData as Record<string, string> | undefined);
   const { refetch: refetchMyDeposit } = trpc.sellerDeposits.myDeposit.useQuery(undefined, { enabled: isAuthenticated, staleTime: 0, refetchOnWindowFocus: true });
   const { refetch: refetchCanList } = trpc.sellerDeposits.canList.useQuery(undefined, { enabled: false, staleTime: 0 });
@@ -1072,7 +1073,7 @@ export default function MerchantAuctions() {
                 onRelist={(id) => relistMutation.mutate({ id })}
                 onActiveEdit={openActiveEdit}
                 onActiveDelete={(id, title) => setActiveDeleteConfirm({ id, title })}
-                fbRefreshEnabled={(siteSettingsData as Record<string, string> | undefined)?.fbRefreshPreviewEnabled === "true"}
+                fbRefreshEnabled={Number(merchantSettingsData?.fbRefreshPreviewEnabled ?? 0) === 1}
               />
             ))}
           </div>

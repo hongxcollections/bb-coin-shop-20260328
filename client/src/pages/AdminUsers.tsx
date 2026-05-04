@@ -5,6 +5,7 @@ import AdminHeader from "@/components/AdminHeader";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +57,7 @@ type UserRow = {
   subscriptionEndDate: string | null;
   subscriptionQuota: number | null;
   merchantAppStatus: string | null;
+  fbRefreshPreviewEnabled: number;
 };
 
 /** 判斷某用戶是否真正商戶：以「已批准嘅商戶申請」為唯一準則，避免 sellerDeposits row 自動建立造成誤判 */
@@ -994,6 +996,7 @@ type EditState = {
   maxVideoSeconds: string;
   subscriptionEndDate: string; // YYYY-MM-DD（空字串 = 用戶冇訂閱記錄）
   hasSubscription: boolean;
+  fbRefreshPreviewEnabled: number;
 };
 
 export default function AdminUsers() {
@@ -1169,6 +1172,7 @@ export default function AdminUsers() {
         ? new Date(u.subscriptionEndDate).toISOString().slice(0, 10)
         : "",
       hasSubscription: !!u.subscriptionEndDate,
+      fbRefreshPreviewEnabled: Number(u.fbRefreshPreviewEnabled ?? 0),
     });
   }
 
@@ -1183,6 +1187,7 @@ export default function AdminUsers() {
       isBanned: editState.isBanned,
       monthlyVideoQuota: Math.max(0, Math.min(1000, parseInt(editState.monthlyVideoQuota || "0", 10) || 0)),
       maxVideoSeconds: Math.max(1, Math.min(3600, parseInt(editState.maxVideoSeconds || "60", 10) || 60)),
+      fbRefreshPreviewEnabled: editState.isMerchant ? (editState.fbRefreshPreviewEnabled ? 1 : 0) : undefined,
     });
     if (editState.isMerchant) {
       adminUpdateDeposit.mutate({
@@ -1887,6 +1892,20 @@ export default function AdminUsers() {
                         <SelectItem value="0">🚫 停權（不可上架）</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  {/* FB 重新整理預覽掣（per-merchant） */}
+                  <div className="space-y-1.5 border-t border-amber-200 pt-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <Label>🔄 FB 重新整理預覽掣</Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">開咗之後，呢個商戶喺「拍賣管理 → 進行中」每件拍賣會多個藍色掣，一鍵開 FB Sharing Debugger 強制 re-scrape</p>
+                      </div>
+                      <Switch
+                        checked={editState.fbRefreshPreviewEnabled === 1}
+                        onCheckedChange={(v) => setEditState({ ...editState, fbRefreshPreviewEnabled: v ? 1 : 0 })}
+                      />
+                    </div>
                   </div>
 
                   {/* 訂閱費到期日 */}
