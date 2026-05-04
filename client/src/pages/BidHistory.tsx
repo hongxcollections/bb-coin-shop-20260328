@@ -290,7 +290,7 @@ function WonAuctionItem({ item }: { item: WonAuctionItemType }) {
         )}
         {item.sellerWhatsapp && (
           <a
-            href={toWhatsAppUrl(item.sellerWhatsapp, `您好，我在大BB錢幣店以 ${item.currency}$${Number(item.winningAmount).toLocaleString()} 得標「${item.title}」，想查詢付款及交收安排，謝謝！`)}
+            href={toWhatsAppUrl(item.sellerWhatsapp, `您好，我在大BB錢幣店以 ${item.currency}$${Number(item.winningAmount).toLocaleString()} 得標「${item.title}」，想查詢付款及交收安排，謝謝！\n商品連結：${typeof window !== 'undefined' ? window.location.origin : 'https://hongxcollections.com'}/auctions/${item.id}`)}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
@@ -301,7 +301,8 @@ function WonAuctionItem({ item }: { item: WonAuctionItemType }) {
         {item.sellerFacebook && (() => {
           const fbRaw = item.sellerFacebook.trim();
           const messengerLink = fbRaw.startsWith("http") ? fbRaw : `https://m.me/${fbRaw}`;
-          const msg = `您好，我在大BB錢幣店以 ${item.currency}$${Number(item.winningAmount).toLocaleString()} 得標「${item.title}」，想查詢付款及交收安排，謝謝！`;
+          const productUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://hongxcollections.com'}/auctions/${item.id}`;
+          const msg = `您好，我在大BB錢幣店以 ${item.currency}$${Number(item.winningAmount).toLocaleString()} 得標「${item.title}」，想查詢付款及交收安排，謝謝！\n商品連結：${productUrl}`;
           const handleClick = async (e: React.MouseEvent) => {
             e.preventDefault();
             try {
