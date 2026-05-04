@@ -12,7 +12,7 @@ const POS_KEY = "bb_chatbot_pos_v1";
 const HIDDEN_KEY = "bb_chatbot_hidden_v1";
 const WELCOME: Msg = {
   role: "assistant",
-  content: "你好！我係大BB錢幣店嘅AI客服助手 🪙\n網站使用上有咩問題隨時問我，例如點上架、點出價、商家申請、退款等等～",
+  content: "你好！我係 hongxcollections.com 網站嘅AI客服助手 🪙\n網站使用上有咩問題隨時問我，例如點上架、點出價、商家申請、退款等等～",
 };
 
 const BTN_SIZE = 56;
