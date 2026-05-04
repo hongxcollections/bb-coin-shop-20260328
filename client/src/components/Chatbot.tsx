@@ -1,19 +1,51 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { MessageCircle, X, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
 type Msg = { role: "user" | "assistant"; content: string };
+type Pos = { x: number; y: number };
 
 const STORAGE_KEY = "bb_chatbot_history_v1";
+const POS_KEY = "bb_chatbot_pos_v1";
+const HIDDEN_KEY = "bb_chatbot_hidden_v1";
 const WELCOME: Msg = {
   role: "assistant",
-  content: "你好！我係大BB錢幣店嘅客服助手 🪙\n網站使用上有咩問題隨時問我，例如點上架、點出價、商家申請、退款等等～",
+  content: "你好！我係大BB錢幣店嘅AI客服助手 🪙\n網站使用上有咩問題隨時問我，例如點上架、點出價、商家申請、退款等等～",
 };
+
+const BTN_SIZE = 56;
+const PANEL_W = 360;
+const PANEL_H = 600;
+
+function clampPos(p: Pos, w: number, h: number): Pos {
+  if (typeof window === "undefined") return p;
+  const maxX = Math.max(0, window.innerWidth - w);
+  const maxY = Math.max(0, window.innerHeight - h);
+  return {
+    x: Math.min(Math.max(0, p.x), maxX),
+    y: Math.min(Math.max(0, p.y), maxY),
+  };
+}
+
+function defaultPos(w: number, h: number): Pos {
+  if (typeof window === "undefined") return { x: 16, y: 16 };
+  return { x: window.innerWidth - w - 16, y: window.innerHeight - h - 80 };
+}
 
 export function Chatbot() {
   const [open, setOpen] = useState(false);
+  const [hidden, setHidden] = useState<boolean>(() => {
+    try { return sessionStorage.getItem(HIDDEN_KEY) === "1"; } catch { return false; }
+  });
+  const [pos, setPos] = useState<Pos>(() => {
+    try {
+      const raw = localStorage.getItem(POS_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return defaultPos(BTN_SIZE, BTN_SIZE);
+  });
   const [messages, setMessages] = useState<Msg[]>(() => {
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY);
@@ -25,10 +57,69 @@ export function Chatbot() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const ask = trpc.chatbot.ask.useMutation();
 
+  // drag state
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number; moved: boolean; w: number; h: number } | null>(null);
+
   useEffect(() => {
     try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages)); } catch {}
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, open]);
+
+  // keep widget in viewport on resize
+  useEffect(() => {
+    const onResize = () => {
+      const w = open ? PANEL_W : BTN_SIZE;
+      const h = open ? PANEL_H : BTN_SIZE;
+      setPos(p => clampPos(p, w, h));
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [open]);
+
+  // persist position
+  useEffect(() => {
+    try { localStorage.setItem(POS_KEY, JSON.stringify(pos)); } catch {}
+  }, [pos]);
+
+  const startDrag = useCallback((clientX: number, clientY: number) => {
+    const w = open ? PANEL_W : BTN_SIZE;
+    const h = open ? PANEL_H : BTN_SIZE;
+    dragRef.current = { startX: clientX, startY: clientY, origX: pos.x, origY: pos.y, moved: false, w, h };
+  }, [open, pos.x, pos.y]);
+
+  const onMove = useCallback((clientX: number, clientY: number) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const dx = clientX - d.startX;
+    const dy = clientY - d.startY;
+    if (!d.moved && Math.hypot(dx, dy) < 4) return;
+    d.moved = true;
+    setPos(clampPos({ x: d.origX + dx, y: d.origY + dy }, d.w, d.h));
+  }, []);
+
+  const endDrag = useCallback(() => {
+    const moved = dragRef.current?.moved ?? false;
+    dragRef.current = null;
+    return moved;
+  }, []);
+
+  // global listeners while dragging
+  useEffect(() => {
+    const mm = (e: MouseEvent) => onMove(e.clientX, e.clientY);
+    const mu = () => { dragRef.current = null; };
+    const tm = (e: TouchEvent) => { if (e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY); };
+    const tu = () => { dragRef.current = null; };
+    window.addEventListener("mousemove", mm);
+    window.addEventListener("mouseup", mu);
+    window.addEventListener("touchmove", tm, { passive: true });
+    window.addEventListener("touchend", tu);
+    return () => {
+      window.removeEventListener("mousemove", mm);
+      window.removeEventListener("mouseup", mu);
+      window.removeEventListener("touchmove", tm);
+      window.removeEventListener("touchend", tu);
+    };
+  }, [onMove]);
 
   const send = async () => {
     const text = input.trim();
@@ -38,7 +129,6 @@ export function Chatbot() {
     setMessages(next);
     try {
       const history = next.slice(-10).filter(m => m !== WELCOME).map(m => ({ role: m.role, content: m.content }));
-      // exclude the just-added user message from history (it's sent as `message`)
       const histForApi = history.slice(0, -1);
       const res = await ask.mutateAsync({ message: text, history: histForApi });
       setMessages(prev => [...prev, { role: "assistant", content: res.reply }]);
@@ -54,103 +144,157 @@ export function Chatbot() {
     try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
   };
 
+  const hideWidget = () => {
+    setOpen(false);
+    setHidden(true);
+    try { sessionStorage.setItem(HIDDEN_KEY, "1"); } catch {}
+    toast.info("AI客服已關閉，重新整理頁面可重新顯示");
+  };
+
+  if (hidden) return null;
+
   return (
     <>
-      {/* 浮動按鈕 */}
+      {/* 浮動按鈕 (可拖曳) */}
       {!open && (
-        <button
-          aria-label="開啟客服助手"
-          onClick={() => setOpen(true)}
-          className="fixed bottom-20 right-4 z-50 w-14 h-14 rounded-full bg-amber-500 hover:bg-amber-600 text-white shadow-lg flex items-center justify-center transition-all hover:scale-105 sm:bottom-6"
+        <div
+          className="fixed z-50 select-none"
+          style={{ left: pos.x, top: pos.y, width: BTN_SIZE, height: BTN_SIZE, touchAction: "none" }}
         >
-          <MessageCircle className="w-6 h-6" />
-        </button>
-      )}
-
-      {/* 對話視窗 */}
-      {open && (
-        <div className="fixed bottom-20 right-4 z-50 w-[calc(100vw-2rem)] max-w-sm h-[70vh] max-h-[600px] bg-white border border-amber-200 rounded-2xl shadow-2xl flex flex-col overflow-hidden sm:bottom-6">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white">
-            <div className="flex items-center gap-2">
-              <MessageCircle className="w-5 h-5" />
-              <div>
-                <p className="font-semibold text-sm">大BB客服助手</p>
-                <p className="text-[10px] opacity-90">只回答網站使用問題</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={reset}
-                className="text-[11px] px-2 py-1 rounded hover:bg-white/20"
-                title="清除對話"
-              >
-                清除
-              </button>
-              <button
-                onClick={() => setOpen(false)}
-                className="p-1 rounded hover:bg-white/20"
-                aria-label="關閉"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3 bg-amber-50/30">
-            {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${
-                    m.role === "user"
-                      ? "bg-amber-500 text-white rounded-br-sm"
-                      : "bg-white border border-amber-100 text-gray-800 rounded-bl-sm"
-                  }`}
-                >
-                  {m.content}
-                </div>
-              </div>
-            ))}
-            {ask.isPending && (
-              <div className="flex justify-start">
-                <div className="bg-white border border-amber-100 px-3 py-2 rounded-2xl rounded-bl-sm">
-                  <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Input */}
-          <div className="border-t border-amber-100 p-2 bg-white">
-            <div className="flex gap-2 items-end">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    send();
-                  }
-                }}
-                placeholder="輸入你嘅問題…"
-                rows={1}
-                maxLength={500}
-                disabled={ask.isPending}
-                className="flex-1 resize-none border border-amber-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400 max-h-24"
-              />
-              <Button
-                size="sm"
-                onClick={send}
-                disabled={!input.trim() || ask.isPending}
-                className="bg-amber-500 hover:bg-amber-600 text-white h-9 w-9 p-0 rounded-full flex-shrink-0"
-              >
-                {ask.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </Button>
-            </div>
-          </div>
+          <button
+            aria-label="開啟AI客服助手"
+            onMouseDown={(e) => { e.preventDefault(); startDrag(e.clientX, e.clientY); }}
+            onMouseUp={(e) => { e.preventDefault(); const moved = endDrag(); if (!moved) setOpen(true); }}
+            onTouchStart={(e) => { const t = e.touches[0]; if (t) startDrag(t.clientX, t.clientY); }}
+            onTouchEnd={(e) => { const moved = endDrag(); if (!moved) { e.preventDefault(); setOpen(true); } }}
+            className="w-full h-full rounded-full bg-amber-500 hover:bg-amber-600 text-white shadow-lg flex items-center justify-center transition-colors cursor-grab active:cursor-grabbing"
+          >
+            <MessageCircle className="w-6 h-6 pointer-events-none" />
+          </button>
+          <button
+            aria-label="關閉AI客服"
+            onClick={hideWidget}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gray-700 hover:bg-gray-900 text-white flex items-center justify-center shadow"
+            title="關閉AI客服"
+          >
+            <X className="w-3 h-3" />
+          </button>
         </div>
       )}
+
+      {/* 對話視窗 (可拖曳 header) */}
+      {open && (() => {
+        const w = Math.min(PANEL_W, typeof window !== "undefined" ? window.innerWidth - 16 : PANEL_W);
+        const h = Math.min(PANEL_H, typeof window !== "undefined" ? window.innerHeight - 16 : PANEL_H);
+        const clamped = clampPos(pos, w, h);
+        return (
+          <div
+            className="fixed z-50 bg-white border border-amber-200 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+            style={{ left: clamped.x, top: clamped.y, width: w, height: h }}
+          >
+            {/* Header (drag handle) */}
+            <div
+              className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white cursor-grab active:cursor-grabbing select-none"
+              style={{ touchAction: "none" }}
+              onMouseDown={(e) => { startDrag(e.clientX, e.clientY); }}
+              onTouchStart={(e) => { const t = e.touches[0]; if (t) startDrag(t.clientX, t.clientY); }}
+            >
+              <div className="flex items-center gap-2 pointer-events-none">
+                <MessageCircle className="w-5 h-5" />
+                <div>
+                  <p className="font-semibold text-sm">AI客服助手</p>
+                  <p className="text-[10px] opacity-90">只回答網站使用問題 · 可拖曳移動</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onClick={reset}
+                  className="text-[11px] px-2 py-1 rounded hover:bg-white/20"
+                  title="清除對話"
+                >
+                  清除
+                </button>
+                <button
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onClick={() => setOpen(false)}
+                  className="p-1 rounded hover:bg-white/20"
+                  aria-label="收起"
+                  title="收起"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <button
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onClick={hideWidget}
+                  className="text-[11px] px-2 py-1 rounded hover:bg-white/20"
+                  title="完全關閉（重新整理頁面可恢復）"
+                >
+                  關閉
+                </button>
+              </div>
+            </div>
+
+            {/* Messages */}
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3 bg-amber-50/30">
+              {messages.map((m, i) => (
+                <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${
+                      m.role === "user"
+                        ? "bg-amber-500 text-white rounded-br-sm"
+                        : "bg-white border border-amber-100 text-gray-800 rounded-bl-sm"
+                    }`}
+                  >
+                    {m.content}
+                  </div>
+                </div>
+              ))}
+              {ask.isPending && (
+                <div className="flex justify-start">
+                  <div className="bg-white border border-amber-100 px-3 py-2 rounded-2xl rounded-bl-sm">
+                    <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Input */}
+            <div className="border-t border-amber-100 p-2 bg-white">
+              <div className="flex gap-2 items-end">
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      send();
+                    }
+                  }}
+                  placeholder="輸入你嘅問題…"
+                  rows={1}
+                  maxLength={500}
+                  disabled={ask.isPending}
+                  className="flex-1 resize-none border border-amber-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400 max-h-24"
+                />
+                <Button
+                  size="sm"
+                  onClick={send}
+                  disabled={!input.trim() || ask.isPending}
+                  className="bg-amber-500 hover:bg-amber-600 text-white h-9 w-9 p-0 rounded-full flex-shrink-0"
+                >
+                  {ask.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </>
   );
 }
