@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/sonner";
+import { Chatbot } from "@/components/Chatbot";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch, Link } from "wouter";
@@ -222,6 +223,7 @@ function App() {
             <PushForegroundHandler />
             <Router />
             <BottomNav />
+            <Chatbot />
           </ToastProvider>
         </TooltipProvider>
       </ThemeProvider>

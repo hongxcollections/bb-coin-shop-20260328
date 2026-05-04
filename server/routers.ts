@@ -19,6 +19,11 @@ import { getVapidPublicKey, savePushSubscription, removePushSubscription, sendPu
 import { getLoyaltyConfig, updateLoyaltyConfig, getEarlyBirdTodayStatus, getMyLoyaltyStatus, recalculateUserLevel, runDailyLoyaltyMaintenance, getMyAutoBidStatus, enforceAutoBidLimit, enforceAnonymousBidPermission, type LoyaltyConfig } from "./loyalty";
 import { ENV } from "./_core/env";
 import type { IncomingMessage } from "http";
+import { invokeLLM } from "./_core/llm";
+import type { InvokeParams, InvokeResult } from "./_core/llm";
+import { readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
 /**
  * 取得電郵連結用的 origin（例：https://hongxcollections.com）
@@ -5311,8 +5316,295 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         }),
     }),
   }),
+
+  // ─── AI Assist：分享文案 + 影片旁白稿（粵語口語） ─────────────────────────
+  aiAssist: router({
+    generateShareCopy: protectedProcedure
+      .input(z.object({
+        kind: z.enum(['product', 'auction']),
+        id: z.number().int().positive(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const checkRate = aiRateLimit(ctx.user.id, 'share', 30);
+        if (!checkRate.ok) throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: checkRate.message });
+
+        let title = '', desc = '', priceStr = '', extra = '';
+        if (input.kind === 'product') {
+          const p = await getMerchantProduct(input.id);
+          if (!p || p.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND', message: '商品不存在或無權限' });
+          title = p.title;
+          desc = p.description ?? '';
+          const sym = p.currency === 'USD' ? 'US$' : p.currency === 'CNY' ? '¥' : 'HK$';
+          priceStr = `${sym}${parseFloat(String(p.price)).toLocaleString()}`;
+          extra = `分類：${p.category ?? '未分類'}｜出售價：${priceStr}`;
+        } else {
+          const a = await getAuctionById(input.id);
+          if (!a || a.createdBy !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND', message: '拍賣不存在或無權限' });
+          title = a.title;
+          desc = a.description ?? '';
+          const sym = a.currency === 'USD' ? 'US$' : a.currency === 'CNY' ? '¥' : 'HK$';
+          priceStr = `${sym}${parseFloat(String(a.currentPrice)).toLocaleString()}`;
+          const endDate = new Date(a.endTime);
+          extra = `分類：${a.category ?? '未分類'}｜目前出價：${priceStr}｜結標：${endDate.toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' })}`;
+        }
+
+        const systemPrompt = `你係香港錢幣／紙鈔／郵票拍賣店「大BB錢幣店」嘅文案高手。
+請用【香港粵語口語】寫一段 Facebook / WhatsApp 群組分享 post，吸引買家。
+
+要求：
+1. 100-200 字，唔好太長
+2. 用粵語口語：例如「快手」「執平嘢」「手快有手慢冇」「靚靚一張」「啱晒收藏」「靚仔／靚女」「快D入嚟睇」之類
+3. 開頭用 1-2 個 emoji 吸睛（💰🪙💎🔥👀✨等）
+4. 中間段落 plain text，唔好用太多 emoji
+5. 結尾加 1-2 個 hashtag（例如 #大BB錢幣店 #${input.kind === 'auction' ? '拍賣' : '出售'}）+ CTA
+6. 唔好寫 URL（系統會自動加）
+7. 唔好寫價錢以外嘅虛假資料；如果商品描述空白，純靠標題發揮，但唔好作料
+8. 直接輸出文案內容，唔好加任何前言／解釋／引號`;
+
+        const userPrompt = `商品標題：${title}\n${extra}\n商品描述：${desc || '（無）'}`;
+
+        try {
+          const result = await invokeLLMSafe({
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+            maxTokens: 600,
+          });
+          const content = result.choices?.[0]?.message?.content;
+          const text = typeof content === 'string' ? content : Array.isArray(content) ? content.map(c => (c as any).text || '').join('') : '';
+          if (!text.trim()) throw new Error('AI 回覆為空');
+          return { text: text.trim() };
+        } catch (e: any) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `AI 文案生成失敗：${e?.message ?? e}` });
+        }
+      }),
+
+    generateVideoScript: protectedProcedure
+      .input(z.object({
+        kind: z.enum(['product', 'auction']),
+        id: z.number().int().positive(),
+        durationSec: z.number().int().min(20).max(120).default(45),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const checkRate = aiRateLimit(ctx.user.id, 'script', 30);
+        if (!checkRate.ok) throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: checkRate.message });
+
+        let title = '', desc = '', priceStr = '', cat = '';
+        if (input.kind === 'product') {
+          const p = await getMerchantProduct(input.id);
+          if (!p || p.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND', message: '商品不存在或無權限' });
+          title = p.title; desc = p.description ?? ''; cat = p.category ?? '';
+          const sym = p.currency === 'USD' ? 'US$' : p.currency === 'CNY' ? '¥' : 'HK$';
+          priceStr = `${sym}${parseFloat(String(p.price)).toLocaleString()}`;
+        } else {
+          const a = await getAuctionById(input.id);
+          if (!a || a.createdBy !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND', message: '拍賣不存在或無權限' });
+          title = a.title; desc = a.description ?? ''; cat = a.category ?? '';
+          const sym = a.currency === 'USD' ? 'US$' : a.currency === 'CNY' ? '¥' : 'HK$';
+          priceStr = `${sym}${parseFloat(String(a.currentPrice)).toLocaleString()}`;
+        }
+
+        const systemPrompt = `你係「大BB錢幣店」嘅影片旁白編劇，專寫錢幣／紙鈔／郵票短片旁白稿。
+用【香港粵語口語】寫一段約 ${input.durationSec} 秒嘅旁白稿（${Math.round(input.durationSec * 3.5)}-${Math.round(input.durationSec * 4.5)} 字之間）。
+
+結構：
+【開場 hook】(約 5 秒) — 用粵語口語打招呼吸睛，例如「各位錢幣迷大家好！」「Wow～今次帶嚟一張靚嘢！」
+【賣點】(約 ${Math.round(input.durationSec * 0.5)} 秒) — 介紹今件商品最特別嘅地方
+【細節】(約 ${Math.round(input.durationSec * 0.3)} 秒) — 形容下相片可以見到嘅細節（例如品相、色澤、印刷、邊紋）
+【CTA】(約 5 秒) — 叫人 ${input.kind === 'auction' ? '快手出價' : 'DM 入手'}，例如「手快有手慢冇！」「快D WhatsApp 我啦！」
+
+要求：
+1. 全程粵語口語，唔好書面語（唔好寫「的」「了」「在」，要寫「嘅」「咗」「喺」）
+2. 用【】標示段落，方便商家睇住稿錄音
+3. 唔好作虛假資料；如果描述空白純靠標題＋分類發揮
+4. 直接輸出旁白稿，唔好加前言／解釋`;
+
+        const userPrompt = `商品標題：${title}\n分類：${cat || '未指定'}\n價錢：${priceStr}\n描述：${desc || '（無）'}`;
+
+        try {
+          const result = await invokeLLMSafe({
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+            maxTokens: 1500,
+          });
+          const content = result.choices?.[0]?.message?.content;
+          const text = typeof content === 'string' ? content : Array.isArray(content) ? content.map(c => (c as any).text || '').join('') : '';
+          if (!text.trim()) throw new Error('AI 回覆為空');
+          return { text: text.trim() };
+        } catch (e: any) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `AI 旁白生成失敗：${e?.message ?? e}` });
+        }
+      }),
+  }),
+
+  // ─── 客服 Chatbot：只回答網站使用問題 ─────────────────────────────────────
+  chatbot: router({
+    ask: publicProcedure
+      .input(z.object({
+        message: z.string().min(1).max(500),
+        history: z.array(z.object({
+          role: z.enum(['user', 'assistant']),
+          content: z.string().max(2000),
+        })).max(10).default([]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const userId = ctx.user?.id ?? 0;
+        const ipKey = userId ? `u:${userId}` : `ip:${(ctx.req as any)?.ip ?? 'unknown'}`;
+        const limit = userId ? 100 : 20;
+        const checkRate = chatbotRateLimit(ipKey, limit);
+        if (!checkRate.ok) throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: checkRate.message });
+
+        const kb = loadChatbotKb();
+        const systemPrompt = `你係「大BB錢幣店 hongxcollections」香港錢幣拍賣網站嘅客服助手。
+
+【嚴格規則】
+1. **只回答網站使用問題**（例如：點註冊、點上架、點出價、點付款、運費、退款、會員等級、商家申請、影片配額、Facebook 分享等）
+2. 如果用戶問錢幣鑑定、估價、市場行情、投資建議、其他話題（例如政治、新聞、天氣、其他購物網站），**禮貌拒絕**並建議：
+   - 鑑定／估價 → 引導去「Coin Analysis / AI 鑑定」頁面或瀏覽「拍賣」頁睇類似錢幣成交價
+   - 其他話題 → 「呢方面我幫唔到你，但網站使用上有問題隨時問我 🙏」
+3. 用【香港粵語口語】回答，例如「咁樣」「啱啱」「唔該」「點解」「咗」「嘅」「喺」
+4. 簡短：通常 2-5 句，必要時用 bullet point
+5. 唔知答案就老實講「呢個我未必清楚，建議直接 WhatsApp 大BB錢幣店：97927793」
+6. 唔好作料、唔好估，淨係根據以下知識庫內容回答
+
+【知識庫】
+${kb}`;
+
+        const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+          { role: 'system', content: systemPrompt },
+          ...input.history.map(h => ({ role: h.role, content: h.content })),
+          { role: 'user', content: input.message },
+        ];
+
+        try {
+          const result = await invokeLLMSafe({ messages, maxTokens: 600 });
+          const content = result.choices?.[0]?.message?.content;
+          const text = typeof content === 'string' ? content : Array.isArray(content) ? content.map(c => (c as any).text || '').join('') : '';
+          if (!text.trim()) throw new Error('AI 回覆為空');
+          return { reply: text.trim() };
+        } catch (e: any) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Chatbot 回覆失敗：${e?.message ?? e}` });
+        }
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
+
+// ─── invokeLLM with multi-key/multi-model fallback on 429/quota errors ────────
+// Tries Forge → OpenRouter → Gemini(2.5-flash key1/key2 → 2.0-flash key1/key2) → OpenAI
+async function invokeLLMSafe(params: InvokeParams): Promise<InvokeResult> {
+  type Cand = { url: string; key: string; model: string };
+  const GG = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+  const candidates: Cand[] = [];
+  if (ENV.forgeApiKey) {
+    const base = ENV.forgeApiUrl?.trim()
+      ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
+      : "https://forge.manus.im/v1/chat/completions";
+    candidates.push({ url: base, key: ENV.forgeApiKey, model: "gemini-2.5-flash" });
+  }
+  if (ENV.openRouterApiKey) {
+    candidates.push({ url: "https://openrouter.ai/api/v1/chat/completions", key: ENV.openRouterApiKey, model: "google/gemini-2.0-flash-exp:free" });
+  }
+  if (ENV.geminiApiKey)  candidates.push({ url: GG, key: ENV.geminiApiKey,  model: "gemini-2.5-flash" });
+  if (ENV.geminiApiKey2) candidates.push({ url: GG, key: ENV.geminiApiKey2, model: "gemini-2.5-flash" });
+  if (ENV.geminiApiKey)  candidates.push({ url: GG, key: ENV.geminiApiKey,  model: "gemini-2.0-flash" });
+  if (ENV.geminiApiKey2) candidates.push({ url: GG, key: ENV.geminiApiKey2, model: "gemini-2.0-flash" });
+  if (ENV.geminiApiKey)  candidates.push({ url: GG, key: ENV.geminiApiKey,  model: "gemini-1.5-flash" });
+  if (ENV.geminiApiKey2) candidates.push({ url: GG, key: ENV.geminiApiKey2, model: "gemini-1.5-flash" });
+  if (ENV.openAiApiKey)  candidates.push({ url: "https://api.openai.com/v1/chat/completions", key: ENV.openAiApiKey, model: "gpt-4o-mini" });
+
+  if (candidates.length === 0) throw new Error("AI 未設定 API key");
+
+  const messages = params.messages.map(m => {
+    const c = m.content;
+    if (typeof c === 'string') return { role: m.role, content: c };
+    if (Array.isArray(c)) {
+      const text = c.map(p => typeof p === 'string' ? p : (p as any).text || '').join('\n');
+      return { role: m.role, content: text };
+    }
+    return { role: m.role, content: String(c) };
+  });
+
+  let lastErr: any = null;
+  for (const cand of candidates) {
+    try {
+      const payload: Record<string, unknown> = {
+        model: cand.model,
+        messages,
+        max_tokens: params.maxTokens ?? params.max_tokens ?? 1024,
+      };
+      const resp = await fetch(cand.url, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${cand.key}` },
+        body: JSON.stringify(payload),
+      });
+      if (!resp.ok) {
+        const errText = await resp.text();
+        const isRetryable = resp.status === 429 || resp.status === 503 || resp.status === 500 || /quota|rate.*limit|exhausted/i.test(errText);
+        lastErr = new Error(`${cand.model}: ${resp.status} ${errText.slice(0, 200)}`);
+        if (isRetryable) continue;
+        throw lastErr;
+      }
+      return (await resp.json()) as InvokeResult;
+    } catch (e: any) {
+      lastErr = e;
+      continue;
+    }
+  }
+  throw lastErr ?? new Error("所有 AI 模型都失敗");
+}
+
+// ─── AI rate limit (in-memory) ────────────────────────────────────────────────
+const aiCounters = new Map<string, { count: number; resetAt: number }>();
+function aiRateLimit(userId: number, scope: string, perHour: number): { ok: boolean; message?: string } {
+  const key = `${scope}:${userId}`;
+  const now = Date.now();
+  const entry = aiCounters.get(key);
+  if (!entry || entry.resetAt < now) {
+    aiCounters.set(key, { count: 1, resetAt: now + 3600_000 });
+    return { ok: true };
+  }
+  if (entry.count >= perHour) {
+    const minLeft = Math.ceil((entry.resetAt - now) / 60000);
+    return { ok: false, message: `AI 功能用得太密，請 ${minLeft} 分鐘後再試 🙏` };
+  }
+  entry.count += 1;
+  return { ok: true };
+}
+const chatbotCounters = new Map<string, { count: number; resetAt: number }>();
+function chatbotRateLimit(key: string, perDay: number): { ok: boolean; message?: string } {
+  const now = Date.now();
+  const entry = chatbotCounters.get(key);
+  if (!entry || entry.resetAt < now) {
+    chatbotCounters.set(key, { count: 1, resetAt: now + 86400_000 });
+    return { ok: true };
+  }
+  if (entry.count >= perDay) {
+    return { ok: false, message: `今日 AI 客服查詢次數已用完（${perDay} 次/日），請聽日再試或 WhatsApp 97927793 🙏` };
+  }
+  entry.count += 1;
+  return { ok: true };
+}
+
+// ─── Chatbot KB loader (cached) ───────────────────────────────────────────────
+let _kbCache: string | null = null;
+function loadChatbotKb(): string {
+  if (_kbCache) return _kbCache;
+  try {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const kbPath = join(__dirname, '_core', 'chatbot-kb.md');
+    _kbCache = readFileSync(kbPath, 'utf-8');
+    return _kbCache;
+  } catch (e) {
+    console.error('[Chatbot] Failed to load KB:', e);
+    _kbCache = '（知識庫載入失敗，請聯絡 WhatsApp 97927793）';
+    return _kbCache;
+  }
+}
 
 // ─── Ads router helper ────────────────────────────────────────────────────────
 const AD_TYPES: AdTargetType[] = ['guest', 'member', 'merchant'];

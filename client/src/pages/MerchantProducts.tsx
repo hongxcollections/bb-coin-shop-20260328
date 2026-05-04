@@ -20,7 +20,7 @@ import {
   ChevronLeft, Plus, Package, Pencil, Trash2, Eye, EyeOff,
   ImageIcon, X, Loader2, LayoutList, LayoutGrid, Grid3X3, Maximize2,
   ShoppingBag, CheckCircle2, XCircle, Clock, Flame, RotateCcw, Tag,
-  Facebook, Copy, Check, CreditCard,
+  Facebook, Copy, Check, CreditCard, Sparkles, Mic,
 } from "lucide-react";
 import { parseCategories } from "@/lib/categories";
 
@@ -562,6 +562,12 @@ export default function MerchantProducts() {
   const [productTab, setProductTab] = useState<"all" | "active" | "hidden" | "sold">("all");
   const [productBatchShareOpen, setProductBatchShareOpen] = useState(false);
   const [productCopiedIds, setProductCopiedIds] = useState<Set<number>>(new Set());
+  const [aiCopyMap, setAiCopyMap] = useState<Record<number, string>>({});
+  const [aiCopyLoadingId, setAiCopyLoadingId] = useState<number | null>(null);
+  const [aiScriptDialog, setAiScriptDialog] = useState<{ id: number; title: string; text: string } | null>(null);
+  const [aiScriptLoadingId, setAiScriptLoadingId] = useState<number | null>(null);
+  const aiShareCopyMut = trpc.aiAssist.generateShareCopy.useMutation();
+  const aiVideoScriptMut = trpc.aiAssist.generateVideoScript.useMutation();
   const [productCopiedAll, setProductCopiedAll] = useState(false);
 
   const { data: products = [], isLoading } = trpc.merchants.myProducts.useQuery(undefined, {
@@ -1693,10 +1699,14 @@ export default function MerchantProducts() {
               const sym = currency === "USD" ? "US$" : currency === "CNY" ? "¥" : "HK$";
               const fbTpl = (merchantSettings as { fbShareTemplateProduct?: string | null } | undefined)?.fbShareTemplateProduct;
               const tpl = fbTpl?.trim() || "{title}\n出售價格：{price}";
-              const shareText = tpl
+              const tplText = tpl
                 .replace(/\{title\}/g, p.title)
                 .replace(/\{price\}/g, `${sym}${price.toLocaleString()}`);
+              const aiText = aiCopyMap[p.id];
+              const shareText = aiText || tplText;
               const isCopied = productCopiedIds.has(p.id);
+              const aiCopyLoading = aiCopyLoadingId === p.id;
+              const aiScriptLoading = aiScriptLoadingId === p.id;
               return (
                 <div key={p.id} className="rounded-lg border border-amber-100 bg-amber-50/40 overflow-hidden">
                   <div className="flex items-center gap-2.5 p-2.5">
@@ -1709,6 +1719,57 @@ export default function MerchantProducts() {
                       <p className="text-sm font-medium truncate">{p.title}</p>
                       <p className="text-xs text-muted-foreground">{currency} ${price.toLocaleString()}</p>
                     </div>
+                  </div>
+                  {aiText && (
+                    <div className="px-2.5 pb-1.5">
+                      <div className="text-[10px] text-purple-600 mb-0.5 flex items-center gap-1">
+                        <Sparkles className="w-2.5 h-2.5" /> AI 文案（已套用）
+                      </div>
+                      <div className="text-[11px] bg-purple-50 border border-purple-200 rounded p-1.5 whitespace-pre-wrap max-h-24 overflow-y-auto">{aiText}</div>
+                    </div>
+                  )}
+                  <div className="flex gap-1.5 px-2.5 pb-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={aiCopyLoading}
+                      className="flex-1 h-6 text-[10px] gap-1 border-purple-300 text-purple-700 hover:bg-purple-50"
+                      onClick={async () => {
+                        setAiCopyLoadingId(p.id);
+                        try {
+                          const res = await aiShareCopyMut.mutateAsync({ kind: "product", id: p.id });
+                          setAiCopyMap(prev => ({ ...prev, [p.id]: res.text }));
+                          toast.success("✨ AI 文案已生成！");
+                        } catch (e: any) {
+                          toast.error(e?.message ?? "AI 文案生成失敗");
+                        } finally {
+                          setAiCopyLoadingId(null);
+                        }
+                      }}
+                    >
+                      {aiCopyLoading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
+                      {aiText ? "重新生成" : "AI 文案"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={aiScriptLoading}
+                      className="flex-1 h-6 text-[10px] gap-1 border-pink-300 text-pink-700 hover:bg-pink-50"
+                      onClick={async () => {
+                        setAiScriptLoadingId(p.id);
+                        try {
+                          const res = await aiVideoScriptMut.mutateAsync({ kind: "product", id: p.id, durationSec: 45 });
+                          setAiScriptDialog({ id: p.id, title: p.title, text: res.text });
+                        } catch (e: any) {
+                          toast.error(e?.message ?? "AI 旁白生成失敗");
+                        } finally {
+                          setAiScriptLoadingId(null);
+                        }
+                      }}
+                    >
+                      {aiScriptLoading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Mic className="w-2.5 h-2.5" />}
+                      AI 旁白稿
+                    </Button>
                   </div>
                   <div className="flex gap-1.5 px-2.5 pb-2.5">
                     <Button
@@ -1753,6 +1814,41 @@ export default function MerchantProducts() {
               );
             })}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI 旁白稿 Dialog */}
+      <Dialog open={!!aiScriptDialog} onOpenChange={(v) => { if (!v) setAiScriptDialog(null); }}>
+        <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-pink-700">
+              <Mic className="w-5 h-5" /> AI 旁白稿
+            </DialogTitle>
+          </DialogHeader>
+          {aiScriptDialog && (
+            <>
+              <p className="text-xs text-muted-foreground -mt-1">{aiScriptDialog.title}</p>
+              <Textarea
+                value={aiScriptDialog.text}
+                onChange={(e) => setAiScriptDialog(prev => prev ? { ...prev, text: e.target.value } : null)}
+                rows={14}
+                className="text-sm font-mono"
+              />
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1 bg-pink-600 hover:bg-pink-700 text-white"
+                  onClick={async () => {
+                    if (!aiScriptDialog) return;
+                    await navigator.clipboard.writeText(aiScriptDialog.text);
+                    toast.success("旁白稿已複製！");
+                  }}
+                >
+                  <Copy className="w-4 h-4 mr-1" /> 複製旁白稿
+                </Button>
+                <Button variant="outline" onClick={() => setAiScriptDialog(null)}>關閉</Button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

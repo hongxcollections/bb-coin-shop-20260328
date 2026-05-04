@@ -16,7 +16,7 @@ import { parseCategories } from "@/lib/categories";
 import {
   Plus, Pencil, Trash2, Archive, RotateCcw, Upload, X,
   ImageIcon, CheckCircle2, AlertCircle, AlertTriangle, Loader2, ChevronLeft,
-  RefreshCw, Eye, Send, CheckSquare, Square, CreditCard, Facebook, Copy, Check,
+  RefreshCw, Eye, Send, CheckSquare, Square, CreditCard, Facebook, Copy, Check, Sparkles, Mic,
 } from "lucide-react";
 
 const MAX_IMAGES = 10;
@@ -412,6 +412,12 @@ export default function MerchantAuctions() {
   const [batchShareOpen, setBatchShareOpen] = useState(false);
   const [copiedIds, setCopiedIds] = useState<Set<number>>(new Set());
   const [copiedAll, setCopiedAll] = useState(false);
+  const [aiCopyMap, setAiCopyMap] = useState<Record<number, string>>({});
+  const [aiCopyLoadingId, setAiCopyLoadingId] = useState<number | null>(null);
+  const [aiScriptDialog, setAiScriptDialog] = useState<{ id: number; title: string; text: string } | null>(null);
+  const [aiScriptLoadingId, setAiScriptLoadingId] = useState<number | null>(null);
+  const aiShareCopyMut = trpc.aiAssist.generateShareCopy.useMutation();
+  const aiVideoScriptMut = trpc.aiAssist.generateVideoScript.useMutation();
 
   // Active auction limited edit dialog
   const [activeEditOpen, setActiveEditOpen] = useState(false);
@@ -1310,16 +1316,20 @@ export default function MerchantAuctions() {
               const dh = h < 12 ? h : h === 12 ? 12 : h - 12;
               const endStr = `${mo}月${dy}日(${wd}) ${period}${dh}:${mi}`;
               const fbTpl = merchantSettings?.fbShareTemplate;
-              const shareText = (() => {
+              const tplText = (() => {
                 const tpl = fbTpl?.trim() || "{title}\n目前出價 {price}\n結標時間：{endTime}\n快來競拍！";
                 return tpl
                   .replace(/\{title\}/g, a.title)
                   .replace(/\{price\}/g, `${sym}${currentBid.toLocaleString()}`)
                   .replace(/\{endTime\}/g, endStr);
               })();
+              const aiText = aiCopyMap[a.id];
+              const shareText = aiText || tplText;
               const auctionUrl = `${window.location.origin}/auctions/${a.id}`;
               const img = a.images?.[0]?.imageUrl;
               const isCopied = copiedIds.has(a.id);
+              const aiCopyLoading = aiCopyLoadingId === a.id;
+              const aiScriptLoading = aiScriptLoadingId === a.id;
               return (
                 <div key={a.id} className="rounded-lg border border-amber-100 bg-amber-50/40 overflow-hidden">
                   <div className="flex items-center gap-2.5 p-2.5">
@@ -1332,6 +1342,57 @@ export default function MerchantAuctions() {
                       <p className="text-sm font-medium truncate">{a.title}</p>
                       <p className="text-xs text-muted-foreground">{sym}{currentBid.toLocaleString()} · 結標 {endStr}</p>
                     </div>
+                  </div>
+                  {aiText && (
+                    <div className="px-2.5 pb-1.5">
+                      <div className="text-[10px] text-purple-600 mb-0.5 flex items-center gap-1">
+                        <Sparkles className="w-2.5 h-2.5" /> AI 文案（已套用）
+                      </div>
+                      <div className="text-[11px] bg-purple-50 border border-purple-200 rounded p-1.5 whitespace-pre-wrap max-h-24 overflow-y-auto">{aiText}</div>
+                    </div>
+                  )}
+                  <div className="flex gap-1.5 px-2.5 pb-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={aiCopyLoading}
+                      className="flex-1 h-6 text-[10px] gap-1 border-purple-300 text-purple-700 hover:bg-purple-50"
+                      onClick={async () => {
+                        setAiCopyLoadingId(a.id);
+                        try {
+                          const res = await aiShareCopyMut.mutateAsync({ kind: "auction", id: a.id });
+                          setAiCopyMap(prev => ({ ...prev, [a.id]: res.text }));
+                          toast.success("✨ AI 文案已生成！");
+                        } catch (e: any) {
+                          toast.error(e?.message ?? "AI 文案生成失敗");
+                        } finally {
+                          setAiCopyLoadingId(null);
+                        }
+                      }}
+                    >
+                      {aiCopyLoading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
+                      {aiText ? "重新生成" : "AI 文案"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={aiScriptLoading}
+                      className="flex-1 h-6 text-[10px] gap-1 border-pink-300 text-pink-700 hover:bg-pink-50"
+                      onClick={async () => {
+                        setAiScriptLoadingId(a.id);
+                        try {
+                          const res = await aiVideoScriptMut.mutateAsync({ kind: "auction", id: a.id, durationSec: 45 });
+                          setAiScriptDialog({ id: a.id, title: a.title, text: res.text });
+                        } catch (e: any) {
+                          toast.error(e?.message ?? "AI 旁白生成失敗");
+                        } finally {
+                          setAiScriptLoadingId(null);
+                        }
+                      }}
+                    >
+                      {aiScriptLoading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Mic className="w-2.5 h-2.5" />}
+                      AI 旁白稿
+                    </Button>
                   </div>
                   <div className="flex gap-1.5 px-2.5 pb-2.5">
                     <Button
@@ -1656,6 +1717,41 @@ export default function MerchantAuctions() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI 旁白稿 Dialog */}
+      <Dialog open={!!aiScriptDialog} onOpenChange={(v) => { if (!v) setAiScriptDialog(null); }}>
+        <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-pink-700">
+              <Mic className="w-5 h-5" /> AI 旁白稿
+            </DialogTitle>
+          </DialogHeader>
+          {aiScriptDialog && (
+            <>
+              <p className="text-xs text-muted-foreground -mt-1">{aiScriptDialog.title}</p>
+              <Textarea
+                value={aiScriptDialog.text}
+                onChange={(e) => setAiScriptDialog(prev => prev ? { ...prev, text: e.target.value } : null)}
+                rows={14}
+                className="text-sm font-mono"
+              />
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1 bg-pink-600 hover:bg-pink-700 text-white"
+                  onClick={async () => {
+                    if (!aiScriptDialog) return;
+                    await navigator.clipboard.writeText(aiScriptDialog.text);
+                    toast.success("旁白稿已複製！");
+                  }}
+                >
+                  <Copy className="w-4 h-4 mr-1" /> 複製旁白稿
+                </Button>
+                <Button variant="outline" onClick={() => setAiScriptDialog(null)}>關閉</Button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
