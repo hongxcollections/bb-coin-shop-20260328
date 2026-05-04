@@ -11,16 +11,34 @@ import { getCurrencySymbol } from "./currency";
 /**
  * Format auction end time for display in OG description.
  * Output example: "2026年4月16日 (三) 晚上11:00"
+ *
+ * IMPORTANT: 必須強制用 Asia/Hong_Kong 時區。Railway/Linux server 預設用 UTC，
+ * 直接用 d.getHours() 會將 23:00 HKT 顯示成 15:00 (下午3:00)。
  */
 function formatEndTime(endTime: Date): string {
   const d = new Date(endTime);
   const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
-  const year = d.getFullYear();
-  const month = d.getMonth() + 1;
-  const day = d.getDate();
-  const weekday = weekdays[d.getDay()];
-  const hours = d.getHours();
-  const minutes = d.getMinutes().toString().padStart(2, "0");
+  // 用 Intl.DateTimeFormat 攞返 HKT 嘅 parts
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Hong_Kong",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    weekday: "short",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const year = parseInt(get("year"), 10);
+  const month = parseInt(get("month"), 10);
+  const day = parseInt(get("day"), 10);
+  // 由 Intl 直接攞 HKT 嘅 weekday（en-US short：Sun/Mon/Tue/Wed/Thu/Fri/Sat）
+  const wkMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const weekday = weekdays[wkMap[get("weekday")] ?? 0];
+  let hours = parseInt(get("hour"), 10);
+  if (hours === 24) hours = 0; // Intl 有時返 "24" 代表午夜
+  const minutes = get("minute");
 
   let period: string;
   let displayHour: number;
