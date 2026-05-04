@@ -231,6 +231,7 @@ function ImageUploadZone({
 function AuctionCard({
   auction, tab, selected, onToggleSelect,
   onEdit, onDelete, onPublish, onArchive, onRestore, onRelist, onActiveEdit, onActiveDelete,
+  fbRefreshEnabled,
 }: {
   auction: AuctionItem;
   tab: string;
@@ -244,6 +245,7 @@ function AuctionCard({
   onRelist: (id: number) => void;
   onActiveEdit: (a: AuctionItem) => void;
   onActiveDelete?: (id: number, title: string) => void;
+  fbRefreshEnabled?: boolean;
 }) {
   const img = auction.images?.[0]?.imageUrl;
   const isDraft = tab === "草稿";
@@ -335,6 +337,20 @@ function AuctionCard({
                   <Eye className="w-2.5 h-2.5" />查看
                 </Button>
               </Link>
+              {fbRefreshEnabled && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 px-1.5 text-xs gap-0.5 border-blue-300 text-blue-700 hover:bg-blue-50"
+                  title="開 FB Sharing Debugger 強制重新抓取 OG meta（每次去 FB 群組分享前撳一下，最多撳 2-3 次直至顯示正確圖+標題）"
+                  onClick={() => {
+                    const url = `${window.location.origin}/auctions/${auction.id}`;
+                    window.open(`https://developers.facebook.com/tools/debug/?q=${encodeURIComponent(url)}`, "_blank", "noopener");
+                  }}
+                >
+                  <RotateCcw className="w-2.5 h-2.5" />FB 預覽
+                </Button>
+              )}
               {Number((auction as { bidCount?: number }).bidCount ?? 1) === 0 && onActiveDelete && (
                 <Button
                   size="sm"
@@ -1056,6 +1072,7 @@ export default function MerchantAuctions() {
                 onRelist={(id) => relistMutation.mutate({ id })}
                 onActiveEdit={openActiveEdit}
                 onActiveDelete={(id, title) => setActiveDeleteConfirm({ id, title })}
+                fbRefreshEnabled={(siteSettingsData as Record<string, string> | undefined)?.fbRefreshPreviewEnabled === "true"}
               />
             ))}
           </div>
