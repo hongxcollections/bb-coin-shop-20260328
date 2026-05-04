@@ -1292,7 +1292,8 @@ export async function getMyWonAuctions(userId: number) {
         a.paymentStatus,
         (SELECT COUNT(*) FROM bids b WHERE b.auctionId = a.id) AS bidCount,
         (SELECT u.name FROM users u WHERE u.id = a.createdBy LIMIT 1) AS sellerName,
-        (SELECT ma.whatsapp FROM merchantApplications ma WHERE ma.userId = a.createdBy AND ma.status = 'approved' LIMIT 1) AS sellerWhatsapp
+        (SELECT ma.whatsapp FROM merchantApplications ma WHERE ma.userId = a.createdBy AND ma.status = 'approved' LIMIT 1) AS sellerWhatsapp,
+        (SELECT ma.facebook FROM merchantApplications ma WHERE ma.userId = a.createdBy AND ma.status = 'approved' LIMIT 1) AS sellerFacebook
       FROM auctions a
       WHERE a.status = 'ended'
         AND (SELECT b.userId FROM bids b WHERE b.auctionId = a.id ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1) = ${userId}
@@ -1311,6 +1312,7 @@ export async function getMyWonAuctions(userId: number) {
       bidCount: Number(r.bidCount ?? 0),
       sellerName: r.sellerName != null ? String(r.sellerName) : null,
       sellerWhatsapp: r.sellerWhatsapp != null ? String(r.sellerWhatsapp) : null,
+      sellerFacebook: r.sellerFacebook != null ? String(r.sellerFacebook) : null,
     }));
   } catch (error) {
     console.error('[Database] Failed to get won auctions:', error);

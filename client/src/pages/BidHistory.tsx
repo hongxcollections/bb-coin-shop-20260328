@@ -228,7 +228,7 @@ function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCanc
   );
 }
 
-type WonAuctionItemType = { id: number; title: string; currency: string; winningAmount: string; endTime: number; category?: string | null; bidCount: number; paymentStatus?: string | null; sellerName?: string | null; sellerWhatsapp?: string | null };
+type WonAuctionItemType = { id: number; title: string; currency: string; winningAmount: string; endTime: number; category?: string | null; bidCount: number; paymentStatus?: string | null; sellerName?: string | null; sellerWhatsapp?: string | null; sellerFacebook?: string | null };
 
 function toWhatsAppUrl(phone: string, message: string): string {
   let digits = phone.replace(/\D/g, '');
@@ -295,9 +295,40 @@ function WonAuctionItem({ item }: { item: WonAuctionItemType }) {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
           >
-            💬 聯絡商戶
+            💬 WhatsApp
           </a>
         )}
+        {item.sellerFacebook && (() => {
+          const fbRaw = item.sellerFacebook.trim();
+          const messengerLink = fbRaw.startsWith("http") ? fbRaw : `https://m.me/${fbRaw}`;
+          const msg = `您好，我在大BB錢幣店以 ${item.currency}$${Number(item.winningAmount).toLocaleString()} 得標「${item.title}」，想查詢付款及交收安排，謝謝！`;
+          const handleClick = async (e: React.MouseEvent) => {
+            e.preventDefault();
+            try {
+              await navigator.clipboard.writeText(msg);
+              toast.success("訊息已複製，請喺 Messenger 貼上");
+            } catch {
+              const ta = document.createElement('textarea');
+              ta.value = msg;
+              document.body.appendChild(ta);
+              ta.select();
+              try { document.execCommand('copy'); toast.success("訊息已複製，請喺 Messenger 貼上"); } catch {}
+              document.body.removeChild(ta);
+            }
+            window.open(messengerLink, "_blank", "noopener,noreferrer");
+          };
+          return (
+            <a
+              href={messengerLink}
+              onClick={handleClick}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+            >
+              💬 Messenger
+            </a>
+          );
+        })()}
       </div>
     </div>
   );
@@ -360,7 +391,7 @@ export default function BidHistory() {
   const { data: myOrders, isLoading: ordersLoading } = trpc.productOrders.myBuyerOrders.useQuery(undefined, { enabled: isAuthenticated });
   const [expandedBidId, setExpandedBidId] = useState<number | null>(null);
   const [bidFilter, setBidFilter] = useState<'all' | 'active' | 'won'>('all');
-  const [activeTab, setActiveTab] = useState<'bids' | 'won' | 'orders'>('bids');
+  const [activeTab, setActiveTab] = useState<'bids' | 'won' | 'orders'>('won');
   const [orderStatusFilter, setOrderStatusFilter] = useState<'pending' | 'confirmed' | 'cancelled'>('pending');
   const [orderPage, setOrderPage] = useState(1);
   const ORDER_PAGE_SIZE = 10;
@@ -411,8 +442,8 @@ export default function BidHistory() {
   });
 
   const tabs = [
-    { key: 'bids' as const, label: '出價記錄', icon: <Clock className="w-3.5 h-3.5" />, count: (myBids ?? []).length },
     { key: 'won'  as const, label: '得標記錄', icon: <Trophy className="w-3.5 h-3.5" />, count: (wonAuctions ?? []).length },
+    { key: 'bids' as const, label: '出價記錄', icon: <Clock className="w-3.5 h-3.5" />, count: (myBids ?? []).length },
     { key: 'orders' as const, label: '我的訂單', icon: <ShoppingBag className="w-3.5 h-3.5" />, count: (myOrders ?? []).length },
   ];
 
