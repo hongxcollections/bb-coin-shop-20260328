@@ -5451,6 +5451,12 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         })).max(10).default([]),
       }))
       .mutation(async ({ input, ctx }) => {
+        // 管理後台開關：chatbotEnabled (預設 "true")
+        const enabledSetting = await getSiteSetting('chatbotEnabled');
+        if (enabledSetting === 'false') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'AI客服暫時關閉，請稍後再試或 WhatsApp 97927793' });
+        }
+
         const userId = ctx.user?.id ?? 0;
         const ipKey = userId ? `u:${userId}` : `ip:${(ctx.req as any)?.ip ?? 'unknown'}`;
         const limit = userId ? 100 : 20;

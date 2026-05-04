@@ -29,6 +29,9 @@ export default function AdminSiteSettings() {
 
   const s = (settings as Record<string, string> | undefined) ?? {};
 
+  // AI 客服 Chatbot 開關（預設開啟）
+  const [chatbotEnabled, setChatbotEnabled] = useState(true);
+
   // 全站公告
   const [announcementEnabled, setAnnouncementEnabled] = useState(false);
   const [announcementText, setAnnouncementText] = useState("");
@@ -136,6 +139,7 @@ export default function AdminSiteSettings() {
 
   useEffect(() => {
     if (!settings) return;
+    if (s.chatbotEnabled !== undefined) setChatbotEnabled(s.chatbotEnabled !== "false");
     if (s.announcementEnabled) setAnnouncementEnabled(s.announcementEnabled === "true");
     if (s.announcementText) setAnnouncementText(s.announcementText);
     if (s.homeWelcomeEnabled) setHomeWelcomeEnabled(s.homeWelcomeEnabled === "true");
@@ -226,6 +230,33 @@ export default function AdminSiteSettings() {
           <div className="text-center py-12 text-muted-foreground">載入設定中...</div>
         ) : (
           <div className="space-y-6">
+
+            {/* AI 客服助手 開關 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-amber-600" />
+                  <CardTitle className="text-lg">AI 客服助手</CardTitle>
+                </div>
+                <CardDescription>右下角浮動「AI客服助手」widget。關閉後前端唔會顯示，後端 API 亦會拒絕請求。</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={chatbotEnabled}
+                    onCheckedChange={(v) => {
+                      setChatbotEnabled(v);
+                      setSetting.mutate({ key: 'chatbotEnabled', value: v ? "true" : "false" });
+                    }}
+                  />
+                  <Label className="cursor-pointer">
+                    {chatbotEnabled
+                      ? <span className="text-emerald-600 font-semibold">已開啟</span>
+                      : <span className="text-muted-foreground">已關閉</span>}
+                  </Label>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* 全站公告橫幅 */}
             <Card>

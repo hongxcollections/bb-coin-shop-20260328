@@ -56,6 +56,8 @@ export function Chatbot() {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const ask = trpc.chatbot.ask.useMutation();
+  const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 60_000 });
+  const chatbotEnabled = ((siteSettings as Record<string, string> | undefined)?.chatbotEnabled ?? "true") !== "false";
 
   // drag state
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number; moved: boolean; w: number; h: number } | null>(null);
@@ -152,6 +154,7 @@ export function Chatbot() {
   };
 
   if (hidden) return null;
+  if (!chatbotEnabled) return null;
 
   return (
     <>
