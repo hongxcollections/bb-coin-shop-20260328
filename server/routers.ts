@@ -5325,6 +5325,9 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         id: z.number().int().positive(),
       }))
       .mutation(async ({ input, ctx }) => {
+        const enabled = await getSiteSetting('aiShareCopyEnabled');
+        if (enabled === 'false') throw new TRPCError({ code: 'FORBIDDEN', message: 'AI 文案功能暫時關閉' });
+
         const checkRate = aiRateLimit(ctx.user.id, 'share', 30);
         if (!checkRate.ok) throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: checkRate.message });
 
@@ -5387,6 +5390,9 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         durationSec: z.number().int().min(20).max(120).default(45),
       }))
       .mutation(async ({ input, ctx }) => {
+        const enabled = await getSiteSetting('aiVideoScriptEnabled');
+        if (enabled === 'false') throw new TRPCError({ code: 'FORBIDDEN', message: 'AI 旁白稿功能暫時關閉' });
+
         const checkRate = aiRateLimit(ctx.user.id, 'script', 30);
         if (!checkRate.ok) throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: checkRate.message });
 

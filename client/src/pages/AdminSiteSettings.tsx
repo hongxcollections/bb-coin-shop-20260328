@@ -31,6 +31,10 @@ export default function AdminSiteSettings() {
 
   // AI 客服 Chatbot 開關（預設開啟）
   const [chatbotEnabled, setChatbotEnabled] = useState(true);
+  // AI 分享文案 開關（預設開啟）
+  const [aiShareCopyEnabled, setAiShareCopyEnabled] = useState(true);
+  // AI 影片旁白稿 開關（預設開啟）
+  const [aiVideoScriptEnabled, setAiVideoScriptEnabled] = useState(true);
 
   // 全站公告
   const [announcementEnabled, setAnnouncementEnabled] = useState(false);
@@ -140,6 +144,8 @@ export default function AdminSiteSettings() {
   useEffect(() => {
     if (!settings) return;
     if (s.chatbotEnabled !== undefined) setChatbotEnabled(s.chatbotEnabled !== "false");
+    if (s.aiShareCopyEnabled !== undefined) setAiShareCopyEnabled(s.aiShareCopyEnabled !== "false");
+    if (s.aiVideoScriptEnabled !== undefined) setAiVideoScriptEnabled(s.aiVideoScriptEnabled !== "false");
     if (s.announcementEnabled) setAnnouncementEnabled(s.announcementEnabled === "true");
     if (s.announcementText) setAnnouncementText(s.announcementText);
     if (s.homeWelcomeEnabled) setHomeWelcomeEnabled(s.homeWelcomeEnabled === "true");
@@ -231,29 +237,75 @@ export default function AdminSiteSettings() {
         ) : (
           <div className="space-y-6">
 
-            {/* AI 客服助手 開關 */}
+            {/* AI 功能總開關 */}
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-amber-600" />
-                  <CardTitle className="text-lg">AI 客服助手</CardTitle>
+                  <Sparkles className="w-5 h-5 text-amber-600" />
+                  <CardTitle className="text-lg">AI 功能開關</CardTitle>
                 </div>
-                <CardDescription>右下角浮動「AI客服助手」widget。關閉後前端唔會顯示，後端 API 亦會拒絕請求。</CardDescription>
+                <CardDescription>分別控制 3 個 AI 功能。關閉後前端會隱藏對應按鈕，後端 API 亦會拒絕請求。</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-3">
-                  <Switch
-                    checked={chatbotEnabled}
-                    onCheckedChange={(v) => {
-                      setChatbotEnabled(v);
-                      setSetting.mutate({ key: 'chatbotEnabled', value: v ? "true" : "false" });
-                    }}
-                  />
-                  <Label className="cursor-pointer">
-                    {chatbotEnabled
-                      ? <span className="text-emerald-600 font-semibold">已開啟</span>
-                      : <span className="text-muted-foreground">已關閉</span>}
-                  </Label>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between gap-3 py-2 border-b">
+                  <div>
+                    <p className="font-medium text-sm">🤖 AI 客服助手</p>
+                    <p className="text-xs text-muted-foreground">右下角浮動 chatbot widget</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={chatbotEnabled}
+                      onCheckedChange={(v) => {
+                        setChatbotEnabled(v);
+                        setSetting.mutate({ key: 'chatbotEnabled', value: v ? "true" : "false" });
+                      }}
+                    />
+                    <Label className="cursor-pointer text-xs">
+                      {chatbotEnabled
+                        ? <span className="text-emerald-600 font-semibold">已開啟</span>
+                        : <span className="text-muted-foreground">已關閉</span>}
+                    </Label>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-3 py-2 border-b">
+                  <div>
+                    <p className="font-medium text-sm">✨ AI 分享文案</p>
+                    <p className="text-xs text-muted-foreground">商家分享商品時生成 FB / WhatsApp 文案</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={aiShareCopyEnabled}
+                      onCheckedChange={(v) => {
+                        setAiShareCopyEnabled(v);
+                        setSetting.mutate({ key: 'aiShareCopyEnabled', value: v ? "true" : "false" });
+                      }}
+                    />
+                    <Label className="cursor-pointer text-xs">
+                      {aiShareCopyEnabled
+                        ? <span className="text-emerald-600 font-semibold">已開啟</span>
+                        : <span className="text-muted-foreground">已關閉</span>}
+                    </Label>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-3 py-2">
+                  <div>
+                    <p className="font-medium text-sm">🎙️ AI 影片旁白稿</p>
+                    <p className="text-xs text-muted-foreground">商家拍片時生成粵語口語旁白</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={aiVideoScriptEnabled}
+                      onCheckedChange={(v) => {
+                        setAiVideoScriptEnabled(v);
+                        setSetting.mutate({ key: 'aiVideoScriptEnabled', value: v ? "true" : "false" });
+                      }}
+                    />
+                    <Label className="cursor-pointer text-xs">
+                      {aiVideoScriptEnabled
+                        ? <span className="text-emerald-600 font-semibold">已開啟</span>
+                        : <span className="text-muted-foreground">已關閉</span>}
+                    </Label>
+                  </div>
                 </div>
               </CardContent>
             </Card>

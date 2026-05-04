@@ -418,6 +418,10 @@ export default function MerchantAuctions() {
   const [aiScriptLoadingId, setAiScriptLoadingId] = useState<number | null>(null);
   const aiShareCopyMut = trpc.aiAssist.generateShareCopy.useMutation();
   const aiVideoScriptMut = trpc.aiAssist.generateVideoScript.useMutation();
+  const { data: _aiSiteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 60_000 });
+  const _aiSet = (_aiSiteSettings as Record<string, string> | undefined) ?? {};
+  const aiShareCopyEnabled = _aiSet.aiShareCopyEnabled !== "false";
+  const aiVideoScriptEnabled = _aiSet.aiVideoScriptEnabled !== "false";
 
   // Active auction limited edit dialog
   const [activeEditOpen, setActiveEditOpen] = useState(false);
@@ -1351,49 +1355,55 @@ export default function MerchantAuctions() {
                       <div className="text-[11px] bg-purple-50 border border-purple-200 rounded p-1.5 whitespace-pre-wrap max-h-24 overflow-y-auto">{aiText}</div>
                     </div>
                   )}
-                  <div className="flex gap-1.5 px-2.5 pb-1.5">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={aiCopyLoading}
-                      className="flex-1 h-6 text-[10px] gap-1 border-purple-300 text-purple-700 hover:bg-purple-50"
-                      onClick={async () => {
-                        setAiCopyLoadingId(a.id);
-                        try {
-                          const res = await aiShareCopyMut.mutateAsync({ kind: "auction", id: a.id });
-                          setAiCopyMap(prev => ({ ...prev, [a.id]: res.text }));
-                          toast.success("✨ AI 文案已生成！");
-                        } catch (e: any) {
-                          toast.error(e?.message ?? "AI 文案生成失敗");
-                        } finally {
-                          setAiCopyLoadingId(null);
-                        }
-                      }}
-                    >
-                      {aiCopyLoading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
-                      {aiText ? "重新生成" : "AI 文案"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={aiScriptLoading}
-                      className="flex-1 h-6 text-[10px] gap-1 border-pink-300 text-pink-700 hover:bg-pink-50"
-                      onClick={async () => {
-                        setAiScriptLoadingId(a.id);
-                        try {
-                          const res = await aiVideoScriptMut.mutateAsync({ kind: "auction", id: a.id, durationSec: 45 });
-                          setAiScriptDialog({ id: a.id, title: a.title, text: res.text });
-                        } catch (e: any) {
-                          toast.error(e?.message ?? "AI 旁白生成失敗");
-                        } finally {
-                          setAiScriptLoadingId(null);
-                        }
-                      }}
-                    >
-                      {aiScriptLoading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Mic className="w-2.5 h-2.5" />}
-                      AI 旁白稿
-                    </Button>
-                  </div>
+                  {(aiShareCopyEnabled || aiVideoScriptEnabled) && (
+                    <div className="flex gap-1.5 px-2.5 pb-1.5">
+                      {aiShareCopyEnabled && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={aiCopyLoading}
+                          className="flex-1 h-6 text-[10px] gap-1 border-purple-300 text-purple-700 hover:bg-purple-50"
+                          onClick={async () => {
+                            setAiCopyLoadingId(a.id);
+                            try {
+                              const res = await aiShareCopyMut.mutateAsync({ kind: "auction", id: a.id });
+                              setAiCopyMap(prev => ({ ...prev, [a.id]: res.text }));
+                              toast.success("✨ AI 文案已生成！");
+                            } catch (e: any) {
+                              toast.error(e?.message ?? "AI 文案生成失敗");
+                            } finally {
+                              setAiCopyLoadingId(null);
+                            }
+                          }}
+                        >
+                          {aiCopyLoading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
+                          {aiText ? "重新生成" : "AI 文案"}
+                        </Button>
+                      )}
+                      {aiVideoScriptEnabled && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={aiScriptLoading}
+                          className="flex-1 h-6 text-[10px] gap-1 border-pink-300 text-pink-700 hover:bg-pink-50"
+                          onClick={async () => {
+                            setAiScriptLoadingId(a.id);
+                            try {
+                              const res = await aiVideoScriptMut.mutateAsync({ kind: "auction", id: a.id, durationSec: 45 });
+                              setAiScriptDialog({ id: a.id, title: a.title, text: res.text });
+                            } catch (e: any) {
+                              toast.error(e?.message ?? "AI 旁白生成失敗");
+                            } finally {
+                              setAiScriptLoadingId(null);
+                            }
+                          }}
+                        >
+                          {aiScriptLoading ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Mic className="w-2.5 h-2.5" />}
+                          AI 旁白稿
+                        </Button>
+                      )}
+                    </div>
+                  )}
                   <div className="flex gap-1.5 px-2.5 pb-2.5">
                     <Button
                       size="sm"
