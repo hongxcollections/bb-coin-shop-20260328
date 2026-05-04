@@ -19,6 +19,8 @@ const BID_INCREMENT_OPTIONS = [30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 500
 export default function MerchantSettings() {
   const { isAuthenticated } = useAuth();
 
+  const { data: siteSettingsAll } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const fbBatchShareEnabled = (siteSettingsAll as Record<string, string> | undefined)?.fbBatchShareEnabled !== "false";
   const { data: settings, isLoading } = trpc.merchants.getSettings.useQuery(undefined, {
     enabled: isAuthenticated,
   });
@@ -632,7 +634,8 @@ export default function MerchantSettings() {
                   </Button>
                 </div>
 
-                {/* ── 預設 FB 群組清單（順序分享） ── */}
+                {/* ── 預設 FB 群組清單（順序分享） — admin 可關閉 ── */}
+                {fbBatchShareEnabled && (
                 <div className="pt-4 border-t border-blue-100 space-y-2">
                   <div className="flex items-center gap-2">
                     <Label className="text-sm font-semibold">預設 Facebook 群組清單</Label>
@@ -690,6 +693,7 @@ export default function MerchantSettings() {
                     </div>
                   )}
                 </div>
+                )}
               </>
             )}
           </CardContent>

@@ -35,6 +35,8 @@ export default function AdminSiteSettings() {
   const [aiShareCopyEnabled, setAiShareCopyEnabled] = useState(true);
   // AI 影片旁白稿 開關（預設開啟）
   const [aiVideoScriptEnabled, setAiVideoScriptEnabled] = useState(true);
+  // FB 批量順序分享 開關（預設開啟）
+  const [fbBatchShareEnabled, setFbBatchShareEnabled] = useState(true);
 
   // 全站公告
   const [announcementEnabled, setAnnouncementEnabled] = useState(false);
@@ -146,6 +148,7 @@ export default function AdminSiteSettings() {
     if (s.chatbotEnabled !== undefined) setChatbotEnabled(s.chatbotEnabled !== "false");
     if (s.aiShareCopyEnabled !== undefined) setAiShareCopyEnabled(s.aiShareCopyEnabled !== "false");
     if (s.aiVideoScriptEnabled !== undefined) setAiVideoScriptEnabled(s.aiVideoScriptEnabled !== "false");
+    if (s.fbBatchShareEnabled !== undefined) setFbBatchShareEnabled(s.fbBatchShareEnabled !== "false");
     if (s.announcementEnabled) setAnnouncementEnabled(s.announcementEnabled === "true");
     if (s.announcementText) setAnnouncementText(s.announcementText);
     if (s.homeWelcomeEnabled) setHomeWelcomeEnabled(s.homeWelcomeEnabled === "true");
@@ -287,7 +290,7 @@ export default function AdminSiteSettings() {
                     </Label>
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-3 py-2">
+                <div className="flex items-center justify-between gap-3 py-2 border-b">
                   <div>
                     <p className="font-medium text-sm">🎙️ AI 影片旁白稿</p>
                     <p className="text-xs text-muted-foreground">商家拍片時生成粵語口語旁白</p>
@@ -302,6 +305,26 @@ export default function AdminSiteSettings() {
                     />
                     <Label className="cursor-pointer text-xs">
                       {aiVideoScriptEnabled
+                        ? <span className="text-emerald-600 font-semibold">已開啟</span>
+                        : <span className="text-muted-foreground">已關閉</span>}
+                    </Label>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-3 py-2">
+                  <div>
+                    <p className="font-medium text-sm">📢 FB 批量順序分享到指定群組</p>
+                    <p className="text-xs text-muted-foreground">商戶設定預設 FB 群組清單 + 拍賣管理批量分享 wizard</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={fbBatchShareEnabled}
+                      onCheckedChange={(v) => {
+                        setFbBatchShareEnabled(v);
+                        setSetting.mutate({ key: 'fbBatchShareEnabled', value: v ? "true" : "false" });
+                      }}
+                    />
+                    <Label className="cursor-pointer text-xs">
+                      {fbBatchShareEnabled
                         ? <span className="text-emerald-600 font-semibold">已開啟</span>
                         : <span className="text-muted-foreground">已關閉</span>}
                     </Label>

@@ -1324,7 +1324,8 @@ export default function MerchantAuctions() {
             {copiedAll ? "已複製全部！" : `一鍵複製全部（${activeAuctions.length}）個拍賣文字`}
           </Button>
 
-          {/* ── 順序分享到預設群組 ── */}
+          {/* ── 順序分享到預設群組 — admin 可關閉 ── */}
+          {((siteSettingsData as Record<string, string> | undefined)?.fbBatchShareEnabled !== "false") && (
           <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-2.5 space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-blue-800">📢 順序分享到 FB 群組</p>
@@ -1396,6 +1397,7 @@ export default function MerchantAuctions() {
               </>
             )}
           </div>
+          )}
 
           <div className="overflow-y-auto flex-1 space-y-2 pr-1">
             {activeAuctions.map((a) => {
