@@ -3165,10 +3165,11 @@ async function ensureMerchantSettingsTable() {
         await db.execute(sql.raw(`ALTER TABLE merchant_settings ADD COLUMN ${colName} ${colDef}`));
       }
     }
-    // Add fbShareTemplate / fbShareTemplateProduct columns if missing
+    // Add fbShareTemplate / fbShareTemplateProduct / fbGroups columns if missing
     for (const [colName, colDef] of [
       ['fbShareTemplate', 'TEXT NULL'],
       ['fbShareTemplateProduct', 'TEXT NULL'],
+      ['fbGroups', 'TEXT NULL'],
     ] as [string, string][]) {
       const chk = await db.execute(sql`
         SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
@@ -3246,6 +3247,7 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   watermarkSize: 12,
   fbShareTemplate: null as string | null,
   fbShareTemplateProduct: null as string | null,
+  fbGroups: null as string | null,
   auctionsPerPage: 10,
   productsPerPage: 10,
   showSoldProducts: 1,
@@ -3255,7 +3257,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, auctionsPerPage, productsPerPage, showSoldProducts FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -3283,6 +3285,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         watermarkSize: Number(row.watermarkSize ?? 12),
         fbShareTemplate: row.fbShareTemplate != null ? String(row.fbShareTemplate) : null,
         fbShareTemplateProduct: row.fbShareTemplateProduct != null ? String(row.fbShareTemplateProduct) : null,
+        fbGroups: row.fbGroups != null ? String(row.fbGroups) : null,
         auctionsPerPage: Number(row.auctionsPerPage ?? 10),
         productsPerPage: Number(row.productsPerPage ?? 10),
         showSoldProducts: Number(row.showSoldProducts ?? 1),
@@ -3321,6 +3324,17 @@ export async function upsertWatermarkSettings(userId: number, enabled: number, t
       watermarkPosition = ${position},
       watermarkSize = ${size},
       updatedAt = CURRENT_TIMESTAMP
+  `);
+}
+
+export async function upsertMerchantFbGroups(userId: number, fbGroups: string | null): Promise<void> {
+  await ensureMerchantSettingsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  await db.execute(sql`
+    INSERT INTO merchant_settings (userId, fbGroups)
+    VALUES (${userId}, ${fbGroups})
+    ON DUPLICATE KEY UPDATE fbGroups = ${fbGroups}, updatedAt = CURRENT_TIMESTAMP
   `);
 }
 

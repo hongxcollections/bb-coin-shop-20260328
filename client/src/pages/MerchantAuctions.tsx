@@ -416,6 +416,12 @@ export default function MerchantAuctions() {
   const [aiCopyLoadingId, setAiCopyLoadingId] = useState<number | null>(null);
   const [aiScriptDialog, setAiScriptDialog] = useState<{ id: number; title: string; text: string } | null>(null);
   const [aiScriptLoadingId, setAiScriptLoadingId] = useState<number | null>(null);
+  // Sequential share state
+  const [selectedGroupIdxs, setSelectedGroupIdxs] = useState<Set<number>>(new Set());
+  const [seqShareOpen, setSeqShareOpen] = useState(false);
+  const [seqQueue, setSeqQueue] = useState<Array<{ auctionId: number; groupIdx: number }>>([]);
+  const [seqIndex, setSeqIndex] = useState(0);
+  const [seqStepCopied, setSeqStepCopied] = useState(false);
   const aiShareCopyMut = trpc.aiAssist.generateShareCopy.useMutation();
   const aiVideoScriptMut = trpc.aiAssist.generateVideoScript.useMutation();
   const { data: _aiSiteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 60_000 });
@@ -457,6 +463,14 @@ export default function MerchantAuctions() {
   const isActiveEditUploading = activeEditPending.some(p => p.status === "compressing" || p.status === "uploading");
 
   const { data: merchantSettings } = trpc.merchants.getSettings.useQuery(undefined, { enabled: isAuthenticated });
+  const parsedFbGroups: Array<{ name: string; url: string }> = (() => {
+    try {
+      const raw = (merchantSettings as { fbGroups?: string | null } | undefined)?.fbGroups;
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr.filter((g: any) => g && typeof g.name === "string" && typeof g.url === "string") : [];
+    } catch { return []; }
+  })();
   const { data: siteSettingsData } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const CATEGORIES = parseCategories(siteSettingsData as Record<string, string> | undefined);
   const { refetch: refetchMyDeposit } = trpc.sellerDeposits.myDeposit.useQuery(undefined, { enabled: isAuthenticated, staleTime: 0, refetchOnWindowFocus: true });
@@ -1308,6 +1322,80 @@ export default function MerchantAuctions() {
             {copiedAll ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
             {copiedAll ? "已複製全部！" : `一鍵複製全部（${activeAuctions.length}）個拍賣文字`}
           </Button>
+
+          {/* ── 順序分享到預設群組 ── */}
+          <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-2.5 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-blue-800">📢 順序分享到 FB 群組</p>
+              <Link href="/merchant-settings" className="text-[10px] text-blue-600 hover:underline">管理群組清單</Link>
+            </div>
+            {parsedFbGroups.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground">
+                尚未設定 FB 群組。請去「商戶設定 → 預設 Facebook 群組清單」新增群組。
+              </p>
+            ) : (
+              <>
+                <p className="text-[10px] text-muted-foreground">揀邊個群組要分享：</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {parsedFbGroups.map((g, idx) => {
+                    const checked = selectedGroupIdxs.has(idx);
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          const next = new Set(selectedGroupIdxs);
+                          if (checked) next.delete(idx); else next.add(idx);
+                          setSelectedGroupIdxs(next);
+                        }}
+                        className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
+                          checked
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "bg-white text-blue-700 border-blue-300 hover:bg-blue-100"
+                        }`}
+                      >
+                        {checked ? "✓ " : ""}{g.name}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedGroupIdxs.size === parsedFbGroups.length) setSelectedGroupIdxs(new Set());
+                      else setSelectedGroupIdxs(new Set(parsedFbGroups.map((_, i) => i)));
+                    }}
+                    className="text-[11px] px-2 py-1 rounded-full border border-dashed border-blue-400 text-blue-700 hover:bg-blue-100"
+                  >
+                    {selectedGroupIdxs.size === parsedFbGroups.length ? "全部取消" : "全選"}
+                  </button>
+                </div>
+                <Button
+                  size="sm"
+                  className="w-full h-8 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white border-0"
+                  disabled={selectedGroupIdxs.size === 0 || activeAuctions.length === 0}
+                  onClick={() => {
+                    const groups = Array.from(selectedGroupIdxs).sort((a, b) => a - b);
+                    const queue: Array<{ auctionId: number; groupIdx: number }> = [];
+                    for (const a of activeAuctions) {
+                      for (const gi of groups) {
+                        queue.push({ auctionId: a.id, groupIdx: gi });
+                      }
+                    }
+                    if (queue.length === 0) { toast.error("冇商品或冇選擇群組"); return; }
+                    setSeqQueue(queue);
+                    setSeqIndex(0);
+                    setSeqStepCopied(false);
+                    setBatchShareOpen(false);
+                    setSeqShareOpen(true);
+                  }}
+                >
+                  <Send className="w-3 h-3" />
+                  開始順序分享（{activeAuctions.length} 件 × {selectedGroupIdxs.size} 群組 = {activeAuctions.length * selectedGroupIdxs.size} 步）
+                </Button>
+              </>
+            )}
+          </div>
+
           <div className="overflow-y-auto flex-1 space-y-2 pr-1">
             {activeAuctions.map((a) => {
               const sym = getCurrencySymbol(a.currency ?? "HKD");
@@ -1454,6 +1542,162 @@ export default function MerchantAuctions() {
               關閉
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── 順序分享 Dialog（步驟式 wizard） ── */}
+      <Dialog open={seqShareOpen} onOpenChange={(v) => { if (!v) { setSeqShareOpen(false); setSeqStepCopied(false); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-blue-700">
+              <Send className="w-5 h-5" />
+              順序分享到 FB 群組
+            </DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const total = seqQueue.length;
+            const cur = seqQueue[seqIndex];
+            if (!cur) return null;
+            const auction = activeAuctions.find(a => a.id === cur.auctionId);
+            const group = parsedFbGroups[cur.groupIdx];
+            if (!auction || !group) {
+              return (
+                <div className="space-y-3 py-2">
+                  <p className="text-sm text-muted-foreground">資料已變更，請重新開始。</p>
+                  <Button onClick={() => { setSeqShareOpen(false); setSeqStepCopied(false); }} className="w-full">關閉</Button>
+                </div>
+              );
+            }
+            // Build share text (reuse logic from batch share dialog)
+            const sym = getCurrencySymbol(auction.currency ?? "HKD");
+            const currentBid = Number(auction.currentPrice);
+            const endDate = new Date(auction.endTime);
+            const weekdays = ["日","一","二","三","四","五","六"];
+            const mo = endDate.getMonth()+1, dy = endDate.getDate(), wd = weekdays[endDate.getDay()];
+            const h = endDate.getHours(), mi = String(endDate.getMinutes()).padStart(2,"0");
+            const period = h < 6 ? "凌晨" : h < 12 ? "上午" : h === 12 ? "中午" : h < 18 ? "下午" : "晚上";
+            const dh = h < 12 ? h : h === 12 ? 12 : h - 12;
+            const endStr = `${mo}月${dy}日(${wd}) ${period}${dh}:${mi}`;
+            const fbTpl = (merchantSettings as { fbShareTemplate?: string | null } | undefined)?.fbShareTemplate;
+            const tplText = (() => {
+              const tpl = fbTpl?.trim() || "{title}\n目前出價 {price}\n結標時間：{endTime}\n快來競拍！";
+              return tpl
+                .replace(/\{title\}/g, auction.title)
+                .replace(/\{price\}/g, `${sym}${currentBid.toLocaleString()}`)
+                .replace(/\{endTime\}/g, endStr);
+            })();
+            const aiText = aiCopyMap[auction.id];
+            const auctionUrl = `${window.location.origin}/auctions/${auction.id}`;
+            const shareText = `${aiText || tplText}\n${auctionUrl}`;
+            const img = auction.images?.[0]?.imageUrl;
+            const isLast = seqIndex >= total - 1;
+            return (
+              <div className="space-y-3">
+                {/* Progress */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-blue-700">進度 {seqIndex + 1} / {total}</span>
+                    <span className="text-muted-foreground">{Math.round(((seqIndex + 1) / total) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-blue-100 rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-blue-600 h-full transition-all" style={{ width: `${((seqIndex + 1) / total) * 100}%` }} />
+                  </div>
+                </div>
+                {/* Product info */}
+                <div className="flex items-center gap-2.5 p-2 rounded-lg bg-amber-50 border border-amber-100">
+                  <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                    {img
+                      ? <img src={img} alt="" className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground/40" /></div>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{auction.title}</p>
+                    <p className="text-xs text-muted-foreground">{sym}{currentBid.toLocaleString()} · 結標 {endStr}</p>
+                  </div>
+                </div>
+                {/* Group info */}
+                <div className="p-2 rounded-lg bg-blue-50 border border-blue-200">
+                  <p className="text-[10px] text-blue-700 mb-0.5">即將分享到群組：</p>
+                  <p className="text-sm font-semibold text-blue-900">{group.name}</p>
+                </div>
+                {/* Text preview */}
+                <div className="p-2 rounded-lg bg-gray-50 border border-gray-200 max-h-32 overflow-y-auto">
+                  <p className="text-[10px] text-muted-foreground mb-1">分享文字（已自動複製）：</p>
+                  <pre className="text-[11px] whitespace-pre-wrap font-sans leading-relaxed">{shareText}</pre>
+                </div>
+                {/* Action button — copy + open group */}
+                <Button
+                  className="w-full h-10 text-sm gap-2 bg-[#1877F2] hover:bg-[#1560c8] text-white border-0"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(shareText);
+                      setSeqStepCopied(true);
+                      toast.success("文字已複製！喺 FB 群組長按貼上即可", { duration: 2500 });
+                    } catch {
+                      toast.error("複製失敗，請手動複製");
+                    }
+                    window.open(group.url, "_blank", "noopener,noreferrer");
+                  }}
+                >
+                  {seqStepCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {seqStepCopied ? "已複製＋已開啟群組" : "複製文字＋開啟群組"}
+                </Button>
+                <p className="text-[10px] text-muted-foreground text-center -mt-1">
+                  喺 FB 群組撳「寫帖子」→ 長按「貼上」→ 發佈，然後返來撳「下一步」
+                </p>
+                {/* Nav buttons */}
+                <div className="flex gap-2 pt-1 border-t">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 h-8 text-xs"
+                    onClick={() => {
+                      if (seqIndex > 0) { setSeqIndex(seqIndex - 1); setSeqStepCopied(false); }
+                    }}
+                    disabled={seqIndex === 0}
+                  >
+                    上一步
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 h-8 text-xs text-orange-600 border-orange-200 hover:bg-orange-50"
+                    onClick={() => {
+                      if (isLast) { setSeqShareOpen(false); setSeqStepCopied(false); toast.success("✅ 已完成全部分享！"); }
+                      else { setSeqIndex(seqIndex + 1); setSeqStepCopied(false); }
+                    }}
+                  >
+                    跳過
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="flex-1 h-8 text-xs gap-1 bg-green-600 hover:bg-green-700 text-white border-0"
+                    onClick={() => {
+                      if (isLast) {
+                        setSeqShareOpen(false);
+                        setSeqStepCopied(false);
+                        toast.success("🎉 已完成全部分享！");
+                      } else {
+                        setSeqIndex(seqIndex + 1);
+                        setSeqStepCopied(false);
+                      }
+                    }}
+                  >
+                    {isLast ? "完成" : "下一步"}
+                    {!isLast && <span className="opacity-70">→</span>}
+                  </Button>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-7 text-[11px] text-muted-foreground"
+                  onClick={() => { setSeqShareOpen(false); setSeqStepCopied(false); }}
+                >
+                  暫停 / 關閉
+                </Button>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 

@@ -109,7 +109,36 @@ export default function MerchantSettings() {
   const [deliveryInfo, setDeliveryInfo] = useState<string>("");
   const [fbShareTemplate, setFbShareTemplate] = useState<string>("");
   const [fbShareTemplateProduct, setFbShareTemplateProduct] = useState<string>("");
+  const [fbGroups, setFbGroups] = useState<Array<{ name: string; url: string }>>([]);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupUrl, setNewGroupUrl] = useState("");
   const [initialized, setInitialized] = useState(false);
+
+  const updateFbGroupsMutation = trpc.merchants.updateFbGroups.useMutation({
+    onSuccess: () => { toast.success("FB 群組清單已儲存！"); utils.merchants.getSettings.invalidate(); },
+    onError: (err) => toast.error(err.message || "儲存失敗"),
+  });
+
+  const handleAddGroup = () => {
+    const name = newGroupName.trim();
+    const url = newGroupUrl.trim();
+    if (!name) { toast.error("請填寫群組名稱"); return; }
+    if (!/^https?:\/\/(www\.|m\.|web\.)?facebook\.com\//i.test(url)) {
+      toast.error("請填寫有效嘅 Facebook 群組網址"); return;
+    }
+    if (fbGroups.length >= 50) { toast.error("最多只可加 50 個群組"); return; }
+    const next = [...fbGroups, { name, url }];
+    setFbGroups(next);
+    setNewGroupName("");
+    setNewGroupUrl("");
+    updateFbGroupsMutation.mutate({ groups: next });
+  };
+
+  const handleRemoveGroup = (idx: number) => {
+    const next = fbGroups.filter((_, i) => i !== idx);
+    setFbGroups(next);
+    updateFbGroupsMutation.mutate({ groups: next });
+  };
 
   // ── 水印設定 ──
   const [wmEnabled, setWmEnabled] = useState(true);
@@ -167,6 +196,15 @@ export default function MerchantSettings() {
       setDeliveryInfo(settings.deliveryInfo ?? "");
       setFbShareTemplate(settings.fbShareTemplate ?? "");
       setFbShareTemplateProduct((settings as { fbShareTemplateProduct?: string | null }).fbShareTemplateProduct ?? "");
+      try {
+        const raw = (settings as { fbGroups?: string | null }).fbGroups;
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            setFbGroups(parsed.filter((g: any) => g && typeof g.name === "string" && typeof g.url === "string"));
+          }
+        }
+      } catch {}
       setInitialized(true);
     }
   }, [settings, initialized]);
@@ -592,6 +630,65 @@ export default function MerchantSettings() {
                     {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     儲存設定
                   </Button>
+                </div>
+
+                {/* ── 預設 FB 群組清單（順序分享） ── */}
+                <div className="pt-4 border-t border-blue-100 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-semibold">預設 Facebook 群組清單</Label>
+                    <span className="text-[10px] text-muted-foreground">（最多 50 個）</span>
+                  </div>
+                  <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700 leading-relaxed">
+                    儲存常用 FB 群組，喺「拍賣管理 → 批量分享」可以一鍵順序分享到全部群組。<br />
+                    <b>使用方法</b>：去 FB 群組頁面 → 複製網址（例：https://www.facebook.com/groups/123456）→ 貼落下面。
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Input
+                      placeholder="群組名稱（例：香港錢幣交易區）"
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      className="text-sm sm:flex-1"
+                      maxLength={80}
+                    />
+                    <Input
+                      placeholder="https://www.facebook.com/groups/..."
+                      value={newGroupUrl}
+                      onChange={(e) => setNewGroupUrl(e.target.value)}
+                      className="text-sm sm:flex-1"
+                      maxLength={500}
+                    />
+                    <Button
+                      onClick={handleAddGroup}
+                      disabled={updateFbGroupsMutation.isPending}
+                      className="bg-blue-600 hover:bg-blue-700 text-white border-0 gap-1.5 sm:w-auto"
+                    >
+                      {updateFbGroupsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>+</span>}
+                      新增
+                    </Button>
+                  </div>
+                  {fbGroups.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2 text-center bg-gray-50 rounded">尚未加入任何群組</p>
+                  ) : (
+                    <div className="space-y-1.5 mt-2">
+                      {fbGroups.map((g, idx) => (
+                        <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-md">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{g.name}</p>
+                            <a href={g.url} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-600 hover:underline truncate block">{g.url}</a>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRemoveGroup(idx)}
+                            disabled={updateFbGroupsMutation.isPending}
+                            className="h-7 px-2 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}
