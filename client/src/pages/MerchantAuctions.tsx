@@ -56,7 +56,7 @@ interface PendingImage {
 }
 
 // Compress image client-side before upload (max 1600px, JPEG 82%)
-const compressImage = (file: File, maxPx = 1600, quality = 0.82): Promise<File> =>
+const compressImage = (file: File, maxPx = 1280, quality = 0.78): Promise<File> =>
   new Promise((resolve) => {
     if (!file.type.startsWith('image/')) { resolve(file); return; }
     const img = new Image();
@@ -530,6 +530,39 @@ export default function MerchantAuctions() {
   };
   const deleteImageMutation = trpc.merchants.deleteAuctionImage.useMutation();
   const preSaveImageMutation = trpc.merchants.preSaveImage.useMutation();
+  const signUploadMutation = trpc.merchants.signImageUpload.useMutation();
+
+  // 共用：先試 presigned 直傳 S3（冇水印商戶），失敗就 fallback 到 preSaveImage
+  const uploadPreSaveImage = async (compressed: File): Promise<{ url: string }> => {
+    try {
+      const signed = await signUploadMutation.mutateAsync({
+        kind: 'auction-temp',
+        mimeType: compressed.type || 'image/jpeg',
+        fileName: compressed.name,
+      });
+      if (signed.mode === 'direct') {
+        const putRes = await fetch(signed.uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': compressed.type || 'image/jpeg' },
+          body: compressed,
+        });
+        if (!putRes.ok) throw new Error(`S3 直傳失敗 ${putRes.status}`);
+        return { url: signed.finalUrl };
+      }
+    } catch (e) {
+      console.warn('[upload] presigned direct upload failed, fallback to server', e);
+    }
+    const base64 = await new Promise<string>((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res((r.result as string).split(',')[1]);
+      r.onerror = rej;
+      r.readAsDataURL(compressed);
+    });
+    const result = await preSaveImageMutation.mutateAsync({
+      imageData: base64, mimeType: 'image/jpeg', fileName: compressed.name,
+    });
+    return { url: result.url };
+  };
   const registerImagesMutation = trpc.merchants.registerPreSavedImages.useMutation();
 
   const fileToBase64 = (file: File): Promise<string> =>
@@ -675,24 +708,14 @@ export default function MerchantAuctions() {
         try {
           const compressed = await compressImage(item.file);
           update({ status: 'uploading' });
-          const base64 = await new Promise<string>((res, rej) => {
-            const r = new FileReader();
-            r.onload = () => res((r.result as string).split(',')[1]);
-            r.onerror = rej;
-            r.readAsDataURL(compressed);
-          });
-          const result = await preSaveImageMutation.mutateAsync({
-            imageData: base64,
-            mimeType: 'image/jpeg',
-            fileName: compressed.name,
-          });
+          const result = await uploadPreSaveImage(compressed);
           update({ status: 'success', tempUrl: result.url });
         } catch {
           update({ status: 'error', errorMsg: '上載失敗，請移除後重試' });
         }
       })();
     }
-  }, [preSaveImageMutation]);
+  }, [preSaveImageMutation, signUploadMutation]);
 
   const handleRemovePending = (idx: number) => {
     setPendingImages((prev) => { URL.revokeObjectURL(prev[idx].previewUrl); return prev.filter((_, i) => i !== idx); });
@@ -771,20 +794,14 @@ export default function MerchantAuctions() {
         try {
           const compressed = await compressImage(item.file);
           update({ status: 'uploading' });
-          const base64 = await new Promise<string>((res, rej) => {
-            const r = new FileReader();
-            r.onload = () => res((r.result as string).split(',')[1]);
-            r.onerror = rej;
-            r.readAsDataURL(compressed);
-          });
-          const result = await preSaveImageMutation.mutateAsync({ imageData: base64, mimeType: 'image/jpeg', fileName: compressed.name });
+          const result = await uploadPreSaveImage(compressed);
           update({ status: 'success', tempUrl: result.url });
         } catch {
           update({ status: 'error', errorMsg: '上載失敗，請移除後重試' });
         }
       })();
     }
-  }, [preSaveImageMutation]);
+  }, [preSaveImageMutation, signUploadMutation]);
 
   const handleSubmitActiveEdit = () => {
     if (!activeEditTarget) return;

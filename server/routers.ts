@@ -11,7 +11,7 @@ import { merchantApplications as merchantAppsTable, merchantProducts as merchant
 import { eq, sql } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
 import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, deleteBuyerOrder, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS } from "./db";
-import { storagePut } from "./storage";
+import { storagePut, storageSignPut } from "./storage";
 import { applyWatermark } from "./watermark";
 import { getRawPool } from "./db";
 import { TRPCError } from "@trpc/server";
@@ -2282,6 +2282,45 @@ export const appRouter = router({
 
   // ─── 商戶申請 ─────────────────────────────────────────────────────────────
   merchants: router({
+    /**
+     * 簽發 S3 presigned PUT URL，畀 client 直接上載到 S3，跳過 server proxy 同 base64。
+     * 對冇水印商戶：返回 direct mode，client 直接 PUT 到 S3。
+     * 對有水印商戶：返回 server mode，client fallback 用舊 base64 endpoint。
+     */
+    signImageUpload: protectedProcedure
+      .input(z.object({
+        kind: z.enum(['product', 'auction-temp']),
+        mimeType: z.string().default('image/jpeg'),
+        fileName: z.string().default('image.jpg'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif', 'image/bmp'];
+        const mime = (input.mimeType || 'image/jpeg').toLowerCase();
+        if (!allowedMimes.includes(mime)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `不支援此圖片格式（${mime}）` });
+        }
+        if (input.kind === 'product') {
+          const app = await getMerchantApplicationByUser(ctx.user.id);
+          if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+            throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+          }
+        }
+        const wm = await getMerchantSettings(ctx.user.id);
+        if (wm.watermarkEnabled) {
+          return { mode: 'server' as const };
+        }
+        const ext = mime === 'image/png' ? 'png'
+          : mime === 'image/webp' ? 'webp'
+          : mime === 'image/gif' ? 'gif'
+          : 'jpg';
+        const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const key = input.kind === 'product'
+          ? `merchant-products/${ctx.user.id}/${uid}.${ext}`
+          : `temp/${ctx.user.id}/${uid}.${ext}`;
+        const signed = await storageSignPut(key, mime, 300);
+        return { mode: 'direct' as const, uploadUrl: signed.uploadUrl, finalUrl: signed.finalUrl, key: signed.key };
+      }),
+
     // 上傳樣本照片（任何已登入會員）
     uploadPhoto: protectedProcedure
       .input(z.object({

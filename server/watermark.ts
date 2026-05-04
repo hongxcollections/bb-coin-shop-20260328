@@ -1,6 +1,10 @@
 /**
  * Watermark Utility
  * 支援位置選擇、透明度、陰影 + 打包 NotoSansSC 字體
+ *
+ * 效能優化：水印文字 layer (rendered + scaled + rotated + shadow blurred)
+ * 會 cache 喺 LRU。同一商戶設定 + 相同 targetH bucket 重用同一份 buffer，
+ * 跳過 80% 嘅 sharp 工序，每張圖只剩 1 個 composite。
  */
 
 import path from "path";
@@ -35,6 +39,116 @@ const DEFAULT_OPTS: WatermarkOptions = {
   size: 12,
 };
 
+interface WatermarkLayer {
+  finalWhite: Buffer;
+  finalShadow: Buffer;
+  rw: number;
+  rh: number;
+}
+
+// ── LRU cache for prerendered watermark layers ─────────────────────────────
+// Key: text|opacity|shadow|position|size|targetHBucket
+// Value: rotated white text buffer + shadow buffer + dimensions
+const LAYER_CACHE = new Map<string, WatermarkLayer>();
+const LAYER_CACHE_MAX = 64;
+
+function cacheGet(key: string): WatermarkLayer | undefined {
+  const v = LAYER_CACHE.get(key);
+  if (v) {
+    // Touch (LRU): re-insert to mark as most recent
+    LAYER_CACHE.delete(key);
+    LAYER_CACHE.set(key, v);
+  }
+  return v;
+}
+
+function cacheSet(key: string, value: WatermarkLayer) {
+  if (LAYER_CACHE.size >= LAYER_CACHE_MAX) {
+    const oldest = LAYER_CACHE.keys().next().value;
+    if (oldest !== undefined) LAYER_CACHE.delete(oldest);
+  }
+  LAYER_CACHE.set(key, value);
+}
+
+/** 將 targetH 量化到 8px bucket，提升 cache 命中率 */
+function quantizeTargetH(targetH: number): number {
+  return Math.max(8, Math.round(targetH / 8) * 8);
+}
+
+async function buildWatermarkLayer(
+  sharp: typeof import("sharp"),
+  text: string,
+  options: WatermarkOptions,
+  targetH: number,
+  rotationAngle: number,
+): Promise<WatermarkLayer | null> {
+  // ── 渲染文字 ──
+  const rawTextBuf = await (sharp as any)({
+    text: { text, fontfile: FONT_PATH, rgba: true, dpi: 300 },
+  }).png().toBuffer();
+
+  const tm = await (sharp as any)(rawTextBuf).metadata();
+  const origW: number = tm.width ?? 200;
+  const origH: number = tm.height ?? 40;
+
+  const scale = targetH / origH;
+  const scaledW = Math.max(1, Math.round(origW * scale));
+  const scaledH = targetH;
+
+  const scaledTextBuf = await (sharp as any)(rawTextBuf)
+    .resize(scaledW, scaledH, { fit: "fill", kernel: "lanczos3" })
+    .png().toBuffer();
+
+  // ── 正規化 alpha + 製作白字 / 陰影 ──
+  const rawPx = await (sharp as any)(scaledTextBuf).raw().toBuffer();
+  const totalBytes = rawPx.length;
+
+  let maxAlpha = 0;
+  for (let i = 3; i < totalBytes; i += 4) {
+    if (rawPx[i] > maxAlpha) maxAlpha = rawPx[i];
+  }
+  if (maxAlpha === 0) return null;
+
+  const WHITE_ALPHA = Math.round(Math.min(100, Math.max(1, options.opacity)) * 255 / 100);
+  const SHADOW_ALPHA = Math.round(WHITE_ALPHA * 0.5);
+
+  const whitePx = Buffer.allocUnsafe(totalBytes);
+  const shadowPx = Buffer.allocUnsafe(totalBytes);
+  for (let i = 0; i < totalBytes; i += 4) {
+    const a = rawPx[i + 3];
+    const na = Math.min(255, Math.round((a / maxAlpha) * WHITE_ALPHA));
+    const sa = Math.min(255, Math.round((a / maxAlpha) * SHADOW_ALPHA));
+    whitePx[i] = 255; whitePx[i + 1] = 255; whitePx[i + 2] = 255;
+    whitePx[i + 3] = na;
+    shadowPx[i] = 0; shadowPx[i + 1] = 0; shadowPx[i + 2] = 0;
+    shadowPx[i + 3] = sa;
+  }
+
+  const whiteTextBuf = await (sharp as any)(whitePx, {
+    raw: { width: scaledW, height: scaledH, channels: 4 },
+  }).png().toBuffer();
+
+  const shadowTextRaw = (sharp as any)(shadowPx, {
+    raw: { width: scaledW, height: scaledH, channels: 4 },
+  });
+  const shadowTextBuf = options.shadow
+    ? await shadowTextRaw.blur(Math.max(2, Math.round(scaledH * 0.18))).png().toBuffer()
+    : await shadowTextRaw.png().toBuffer();
+
+  // ── 旋轉 ──
+  const rotateOpts = { background: { r: 0, g: 0, b: 0, alpha: 0 } };
+  const rotatedWhite = await (sharp as any)(whiteTextBuf).rotate(rotationAngle, rotateOpts).png().toBuffer();
+  const rotatedShadow = await (sharp as any)(shadowTextBuf).rotate(rotationAngle, rotateOpts).png().toBuffer();
+
+  const rm = await (sharp as any)(rotatedWhite).metadata();
+  return {
+    finalWhite: rotatedWhite,
+    finalShadow: rotatedShadow,
+    rw: rm.width ?? scaledW,
+    rh: rm.height ?? scaledH,
+  };
+}
+
 export async function applyWatermark(
   buffer: Buffer,
   text: string,
@@ -58,108 +172,52 @@ export async function applyWatermark(
   const minDim = Math.min(w, h);
 
   try {
-    // ── 目標文字高度 ──────────────────────────────────────────
-    // size(1-100) → 文字高度為較短邊的 size%
-    // 角落位置再縮小 60%，避免過大
     const isCorner = options.position !== "center-horizontal" && options.position !== "center-diagonal";
     const sizeRatio = Math.max(1, Math.min(100, options.size ?? 12)) / 100;
-    const targetH = Math.max(4, isCorner
+    const rawTargetH = Math.max(4, isCorner
       ? Math.round(minDim * sizeRatio * 0.6)
       : Math.round(minDim * sizeRatio));
-
+    const targetH = quantizeTargetH(rawTargetH);
     const rotationAngle = options.position === "center-diagonal" ? -30 : 0;
 
-    // ── 渲染文字（固定 DPI，之後再 resize 到精確 targetH）────
-    const rawTextBuf = await (sharp as any)({
-      text: {
-        text,
-        fontfile: FONT_PATH,
-        rgba: true,
-        dpi: 300,           // 固定高解析度渲染，然後縮放
-      },
-    }).png().toBuffer();
+    // ── Layer cache lookup ──
+    const cacheKey = [
+      text,
+      options.opacity,
+      options.shadow ? 1 : 0,
+      options.position,
+      options.size,
+      targetH,
+    ].join("|");
 
-    const tm = await (sharp as any)(rawTextBuf).metadata();
-    const origW: number = tm.width ?? 200;
-    const origH: number = tm.height ?? 40;
-
-    // 按比例縮放到 targetH
-    const scale = targetH / origH;
-    const scaledW = Math.max(1, Math.round(origW * scale));
-    const scaledH = targetH;
-
-    const scaledTextBuf = await (sharp as any)(rawTextBuf)
-      .resize(scaledW, scaledH, { fit: "fill", kernel: "lanczos3" })
-      .png()
-      .toBuffer();
-
-    const tw: number = scaledW;
-    const th: number = scaledH;
-
-    // ── 正規化 alpha + 製作白字 / 陰影 ───────────────────────
-    const rawPx = await (sharp as any)(scaledTextBuf).raw().toBuffer();
-    const totalBytes = rawPx.length;
-
-    let maxAlpha = 0;
-    for (let i = 3; i < totalBytes; i += 4) {
-      if (rawPx[i] > maxAlpha) maxAlpha = rawPx[i];
-    }
-    if (maxAlpha === 0) return buffer;
-
-    const WHITE_ALPHA = Math.round(Math.min(100, Math.max(1, options.opacity)) * 255 / 100);
-    const SHADOW_ALPHA = Math.round(WHITE_ALPHA * 0.5);
-
-    const whitePx = Buffer.allocUnsafe(totalBytes);
-    const shadowPx = Buffer.allocUnsafe(totalBytes);
-    for (let i = 0; i < totalBytes; i += 4) {
-      const a = rawPx[i + 3];
-      const na = Math.min(255, Math.round((a / maxAlpha) * WHITE_ALPHA));
-      const sa = Math.min(255, Math.round((a / maxAlpha) * SHADOW_ALPHA));
-      whitePx[i] = 255; whitePx[i + 1] = 255; whitePx[i + 2] = 255;
-      whitePx[i + 3] = na;
-      shadowPx[i] = 0; shadowPx[i + 1] = 0; shadowPx[i + 2] = 0;
-      shadowPx[i + 3] = sa;
+    let layer = cacheGet(cacheKey);
+    if (!layer) {
+      const built = await buildWatermarkLayer(sharp, text, options, targetH, rotationAngle);
+      if (!built) return buffer;
+      cacheSet(cacheKey, built);
+      layer = built;
     }
 
-    const whiteTextBuf = await (sharp as any)(whitePx, {
-      raw: { width: tw, height: th, channels: 4 },
-    }).png().toBuffer();
+    let { finalWhite, finalShadow, rw, rh } = layer;
 
-    const shadowTextRaw = await (sharp as any)(shadowPx, {
-      raw: { width: tw, height: th, channels: 4 },
-    });
-    const shadowTextBuf = options.shadow
-      ? await shadowTextRaw.blur(Math.max(2, Math.round(th * 0.18))).png().toBuffer()
-      : await shadowTextRaw.png().toBuffer();
-
-    // ── 旋轉 ─────────────────────────────────────────────────
-    const rotateOpts = { background: { r: 0, g: 0, b: 0, alpha: 0 } };
-    const rotatedWhite = await (sharp as any)(whiteTextBuf).rotate(rotationAngle, rotateOpts).png().toBuffer();
-    const rotatedShadow = await (sharp as any)(shadowTextBuf).rotate(rotationAngle, rotateOpts).png().toBuffer();
-
-    const rm = await (sharp as any)(rotatedWhite).metadata();
-    let rw: number = rm.width ?? tw;
-    let rh: number = rm.height ?? th;
-
-    // ── 若旋轉後文字超出圖片，等比縮小到 90% 邊界內 ──────────
-    let finalWhite: Buffer = rotatedWhite;
-    let finalShadow: Buffer = rotatedShadow;
+    // ── 若旋轉後文字超出圖片，等比縮小到 90% 邊界內（per-image，不入 cache） ──
     const maxW = Math.floor(w * 0.9);
     const maxH = Math.floor(h * 0.9);
     if (rw > maxW || rh > maxH) {
       const downScale = Math.min(maxW / rw, maxH / rh);
-      rw = Math.max(1, Math.round(rw * downScale));
-      rh = Math.max(1, Math.round(rh * downScale));
-      finalWhite = await (sharp as any)(rotatedWhite)
-        .resize(rw, rh, { fit: "fill", kernel: "lanczos3" })
+      const newRw = Math.max(1, Math.round(rw * downScale));
+      const newRh = Math.max(1, Math.round(rh * downScale));
+      finalWhite = await (sharp as any)(finalWhite)
+        .resize(newRw, newRh, { fit: "fill", kernel: "lanczos3" })
         .png().toBuffer();
-      finalShadow = await (sharp as any)(rotatedShadow)
-        .resize(rw, rh, { fit: "fill", kernel: "lanczos3" })
+      finalShadow = await (sharp as any)(finalShadow)
+        .resize(newRw, newRh, { fit: "fill", kernel: "lanczos3" })
         .png().toBuffer();
+      rw = newRw; rh = newRh;
     }
 
-    // ── 計算放置座標 ──────────────────────────────────────────
-    const PADDING = Math.round(minDim * 0.03); // 邊距 3%
+    // ── 計算放置座標 ──
+    const PADDING = Math.round(minDim * 0.03);
     const SHADOW_OFFSET = options.shadow ? 3 : 1;
 
     let left = 0;
@@ -172,24 +230,19 @@ export async function applyWatermark(
         top = Math.round((h - rh) / 2);
         break;
       case "top-left":
-        left = PADDING;
-        top = PADDING;
+        left = PADDING; top = PADDING;
         break;
       case "top-right":
-        left = w - rw - PADDING;
-        top = PADDING;
+        left = w - rw - PADDING; top = PADDING;
         break;
       case "bottom-left":
-        left = PADDING;
-        top = h - rh - PADDING;
+        left = PADDING; top = h - rh - PADDING;
         break;
       case "bottom-right":
-        left = w - rw - PADDING;
-        top = h - rh - PADDING;
+        left = w - rw - PADDING; top = h - rh - PADDING;
         break;
     }
 
-    // 確保不超出畫布（負座標 Sharp 會裁切）
     const safeLeft = Math.max(0, left);
     const safeTop = Math.max(0, top);
     const sl = Math.max(0, Math.min(left + SHADOW_OFFSET, w - 1));

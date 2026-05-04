@@ -34,7 +34,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-const compressImage = (file: File, maxPx = 1600, quality = 0.82): Promise<File> =>
+const compressImage = (file: File, maxPx = 1280, quality = 0.78): Promise<File> =>
   new Promise((resolve) => {
     if (!file.type.startsWith('image/')) { resolve(file); return; }
     const img = new Image();
@@ -623,6 +623,7 @@ export default function MerchantProducts() {
   });
 
   const uploadImage = trpc.merchants.uploadProductImage.useMutation();
+  const signUpload = trpc.merchants.signImageUpload.useMutation();
   const uploadVideo = trpc.merchants.uploadVideo.useMutation();
   const { data: videoQuotaInfo } = trpc.merchants.getMyVideoQuota.useQuery();
   const { data: merchantSettings } = trpc.merchants.getSettings.useQuery();
@@ -703,7 +704,28 @@ export default function MerchantProducts() {
     try {
       const results = await Promise.all(
         toUpload.map(async (file) => {
-          const processed = file.size > MAX_FILE_SIZE ? await compressImage(file) : file;
+          // 永遠壓縮（1280px / q=0.78），減少上載 payload
+          const processed = await compressImage(file);
+          // 嘗試 presigned 直傳 S3；冇水印商戶會用 direct mode 跳過 server proxy
+          try {
+            const signed = await signUpload.mutateAsync({
+              kind: 'product',
+              mimeType: processed.type || 'image/jpeg',
+              fileName: processed.name,
+            });
+            if (signed.mode === 'direct') {
+              const putRes = await fetch(signed.uploadUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': processed.type || 'image/jpeg' },
+                body: processed,
+              });
+              if (!putRes.ok) throw new Error(`S3 直傳失敗 ${putRes.status}`);
+              return signed.finalUrl;
+            }
+          } catch (e) {
+            console.warn('[upload] presigned direct upload failed, fallback to server', e);
+          }
+          // Fallback：水印商戶或 presigned 失敗 → 走舊 base64 pipeline
           const base64 = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve((reader.result as string).split(",")[1]);
@@ -722,7 +744,7 @@ export default function MerchantProducts() {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
     }
-  }, [form.images.length, uploadImage]);
+  }, [form.images.length, uploadImage, signUpload]);
 
   function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
