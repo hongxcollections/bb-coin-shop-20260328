@@ -1635,70 +1635,30 @@ export default function MerchantAuctions() {
                 </div>
                 {/* Text preview */}
                 <div className="p-2 rounded-lg bg-gray-50 border border-gray-200 max-h-32 overflow-y-auto">
-                  <p className="text-[10px] text-muted-foreground mb-1">分享文字 + 連結預覽：</p>
+                  <p className="text-[10px] text-muted-foreground mb-1">將會複製嘅文字（含連結）：</p>
                   <pre className="text-[11px] whitespace-pre-wrap font-sans leading-relaxed">{shareText}</pre>
                 </div>
 
-                {/* 兩步複製流程（讓 FB 顯示圖片預覽卡） */}
-                <div className="rounded-lg bg-amber-50 border border-amber-200 p-2 space-y-2">
-                  <p className="text-[11px] font-semibold text-amber-800">
-                    💡 想 FB 顯示商品圖片預覽卡？跟住兩步做：
-                  </p>
-
-                  {/* Step 1: 複製連結 + 開群組 */}
-                  <div className="flex items-start gap-2">
-                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center mt-0.5">1</span>
-                    <div className="flex-1 space-y-1">
-                      <Button
-                        size="sm"
-                        className={`w-full h-8 text-xs gap-1.5 border-0 ${seqLinkCopied ? "bg-green-600 hover:bg-green-700" : "bg-[#1877F2] hover:bg-[#1560c8]"} text-white`}
-                        onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(auctionUrl);
-                            setSeqLinkCopied(true);
-                            toast.success("連結已複製，貼入 FB 後等 2-3 秒見到圖片預覽", { duration: 2500 });
-                          } catch {
-                            toast.error("複製失敗");
-                          }
-                          window.open(group.url, "_blank", "noopener,noreferrer");
-                        }}
-                      >
-                        {seqLinkCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                        {seqLinkCopied ? "✓ 已複製連結 + 已開群組" : "複製連結 + 開啟群組"}
-                      </Button>
-                      <p className="text-[10px] text-amber-700 leading-tight">
-                        喺 FB「寫帖子」框內<b>貼上連結</b> → 等 2-3 秒見到商品<b>圖片預覽卡</b>出現
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Step 2: 複製文字 */}
-                  <div className="flex items-start gap-2">
-                    <span className={`flex-shrink-0 w-5 h-5 rounded-full text-[11px] font-bold flex items-center justify-center mt-0.5 ${seqLinkCopied ? "bg-blue-600 text-white" : "bg-gray-300 text-gray-500"}`}>2</span>
-                    <div className="flex-1 space-y-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className={`w-full h-8 text-xs gap-1.5 ${seqStepCopied ? "border-green-500 text-green-600" : "border-blue-300 text-blue-700 hover:bg-blue-50"}`}
-                        onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(shareTextOnly);
-                            setSeqStepCopied(true);
-                            toast.success("文字已複製！喺 FB 帖子內貼上即可", { duration: 2500 });
-                          } catch {
-                            toast.error("複製失敗");
-                          }
-                        }}
-                      >
-                        {seqStepCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                        {seqStepCopied ? "✓ 已複製文字" : "複製拍賣文字（標題/出價/結標）"}
-                      </Button>
-                      <p className="text-[10px] text-amber-700 leading-tight">
-                        喺圖片預覽卡<b>下面</b>貼上文字 → 撳「發佈」→ 返來撳「下一步」
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                {/* 一鍵：複製文字 + 開啟群組 */}
+                <Button
+                  className={`w-full h-11 text-sm gap-2 border-0 text-white ${seqStepCopied ? "bg-green-600 hover:bg-green-700" : "bg-[#1877F2] hover:bg-[#1560c8]"}`}
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(shareText);
+                      setSeqStepCopied(true);
+                      toast.success("文字已複製！喺 FB 群組「寫帖子」長按貼上即可", { duration: 2500 });
+                    } catch {
+                      toast.error("複製失敗，請手動複製");
+                    }
+                    window.open(group.url, "_blank", "noopener,noreferrer");
+                  }}
+                >
+                  {seqStepCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {seqStepCopied ? "✓ 已複製 + 已開啟群組" : "複製文字＋開啟 FB 群組"}
+                </Button>
+                <p className="text-[10px] text-muted-foreground text-center -mt-1 leading-relaxed">
+                  入到群組撳「寫帖子」→ 長按「貼上」→ FB 會自動讀取連結顯示商品預覽 → 撳「發佈」→ 返來撳「下一步」
+                </p>
                 {/* Nav buttons */}
                 <div className="flex gap-2 pt-1 border-t">
                   <Button
