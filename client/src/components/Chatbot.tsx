@@ -252,6 +252,47 @@ export function Chatbot() {
 
             {/* Messages */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3 bg-amber-50/30">
+              {/* 推廣訊息 (每次打開都顯示) */}
+              <div className="flex justify-start">
+                <div className="max-w-[92%] px-3 py-2.5 rounded-2xl rounded-bl-sm text-[12.5px] leading-relaxed whitespace-pre-wrap break-words bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-300 text-gray-800 shadow-sm">
+                  <a
+                    href="https://hongxcollections.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block mb-2 -mx-1 -mt-1"
+                  >
+                    <img
+                      src="/chatbot-promo.png"
+                      alt="HongX Collections 全港開放式錢幣拍賣平台"
+                      className="w-full rounded-lg border border-amber-200"
+                      loading="lazy"
+                    />
+                  </a>
+                  <p className="font-semibold text-amber-800 mb-1">仲喺 Facebook 辛苦拍賣緊？轉用 HongX Collections 啦！🚀</p>
+                  <p className="text-gray-700">
+                    仲要每幾分鐘「擦貼」先知最新出價？仲要對住個鐘幫買家做倒數？拍賣 10 幾件貨就忙到氣都咳？
+                    {"\n"}HongX Collections 幫你將拍賣全面自動化！
+                    {"\n\n"}✅ <span className="font-medium">公開平台</span>：無論係收藏家想搵心頭好，定係商戶想出售藏品，人人都可以註冊！
+                    {"\n"}✅ <span className="font-medium">商戶入駐超簡單</span>：唔洗繁瑣手續，揀好「月費 + 保證金」套餐，即刻可以喺網頁版上架開賣。
+                    {"\n"}✅ <span className="font-medium">全自動系統</span>：
+                    {"\n"}　• 自動更新出價，唔洗人手回覆「最高出價」
+                    {"\n"}　• 系統自動倒數成交，唔洗再盯住手機
+                    {"\n"}　• 一次過管理幾多件貨都係咁輕鬆！
+                    {"\n\n"}而家就嚟開舖，體驗真正嘅專業拍賣：
+                  </p>
+                  <a
+                    href="https://hongxcollections.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block mt-1 text-amber-700 underline font-medium break-all"
+                  >
+                    🔗 https://hongxcollections.com/
+                  </a>
+                  <p className="mt-2 text-[11px] text-amber-700/80">
+                    #錢幣收藏 #拍賣平台 #HongXCollections #自動拍賣 #告別FB拍賣 #商戶入駐
+                  </p>
+                </div>
+              </div>
               {messages.map((m, i) => (
                 <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div
