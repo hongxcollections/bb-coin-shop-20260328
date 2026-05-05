@@ -1,4 +1,3 @@
-import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useChatWebSocket } from "@/hooks/useChatWebSocket";
@@ -7,7 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
-import { useEffect } from "react";
+import ChatRoomDialog from "@/components/ChatRoomDialog";
+import { useEffect, useState } from "react";
 
 function formatTime(d: Date | string): string {
   const date = typeof d === "string" ? new Date(d) : d;
@@ -25,6 +25,7 @@ function formatTime(d: Date | string): string {
 export default function Messages() {
   const { isAuthenticated, loading: isLoading } = useAuth();
   const utils = trpc.useUtils();
+  const [openRoomId, setOpenRoomId] = useState<number | null>(null);
   const { data: rooms, isLoading: roomsLoading, refetch } = trpc.chat.listMyRooms.useQuery(undefined, {
     enabled: isAuthenticated,
     refetchOnWindowFocus: true,
@@ -92,7 +93,12 @@ export default function Messages() {
               const isBroadcast = r.lastMessagePreview?.startsWith("[廣播]");
               const isImage = r.lastMessagePreview === "[圖片]";
               return (
-                <Link key={r.id} href={`/messages/${r.id}`} className="block">
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => setOpenRoomId(r.id)}
+                  className="block w-full text-left"
+                >
                   <Card className="p-3 hover:bg-amber-50/50 transition-colors cursor-pointer">
                     <div className="flex gap-3">
                       {/* 拍賣縮圖 */}
@@ -133,13 +139,26 @@ export default function Messages() {
                       </div>
                     </div>
                   </Card>
-                </Link>
+                </button>
               );
             })}
           </div>
         )}
       </div>
       <BottomNav />
+      {openRoomId !== null && (
+        <ChatRoomDialog
+          roomId={openRoomId}
+          open={openRoomId !== null}
+          onOpenChange={(o) => {
+            if (!o) {
+              setOpenRoomId(null);
+              refetch();
+              utils.chat.unreadTotal.invalidate();
+            }
+          }}
+        />
+      )}
     </>
   );
 }
