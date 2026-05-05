@@ -5213,6 +5213,7 @@ export async function listMyChatRooms(userId: number): Promise<Array<{
        JOIN auctions a ON a.id = r.auctionId
        LEFT JOIN users u ON u.id = (CASE WHEN r.bidderId = ? THEN r.merchantId ELSE r.bidderId END)
        WHERE (r.bidderId = ? OR r.merchantId = ?)
+         AND EXISTS (SELECT 1 FROM auctionChatMessages m WHERE m.roomId = r.id)
        ORDER BY r.lastMessageAt DESC`,
       [userId, userId, userId, userId],
     );
