@@ -5,6 +5,7 @@ import { Home, Gavel, Store, User, MoreHorizontal, MessageCircle, Shield, LogOut
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/contexts/ToastContext";
 import { trpc } from "@/lib/trpc";
+import MessagesListDialog from "@/components/MessagesListDialog";
 
 export default function BottomNav() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -31,6 +32,7 @@ export default function BottomNav() {
   const isMerchant = isMerchantData === true;
   const [location] = useLocation();
   const [showMore, setShowMore] = useState(false);
+  const [showMessages, setShowMessages] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToast();
 
@@ -194,10 +196,14 @@ export default function BottomNav() {
                             <User className="w-4 h-4" />
                             <span>個人資料</span>
                           </Link>
-                          <Link
-                            href="/messages"
-                            onClick={() => setShowMore(false)}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowMore(false);
+                              setShowMessages(true);
+                            }}
                             className="bottom-nav-more-item"
+                            style={{ background: "none", border: "none", width: "100%", textAlign: "left" }}
                           >
                             <Mail className="w-4 h-4" />
                             <span>對話訊息</span>
@@ -206,7 +212,7 @@ export default function BottomNav() {
                                 {unreadChatCount > 99 ? "99+" : unreadChatCount}
                               </span>
                             )}
-                          </Link>
+                          </button>
                           {user?.role === "admin" && (
                             <Link
                               href="/admin"
@@ -294,6 +300,7 @@ export default function BottomNav() {
           })}
         </div>
       </nav>
+      <MessagesListDialog open={showMessages} onOpenChange={setShowMessages} />
     </>
   );
 }
