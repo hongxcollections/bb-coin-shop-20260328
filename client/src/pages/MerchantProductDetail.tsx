@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, Link, useLocation } from "wouter";
 import ImageLightbox from "@/components/ImageLightbox";
 import { toast } from "sonner";
@@ -162,6 +162,14 @@ function AuctionCountdown({ endTime }: { endTime: string | Date }) {
 export default function MerchantProductDetail() {
   const params = useParams<{ id: string }>();
   const productId = parseInt(params.id ?? "0", 10);
+
+  // 進入商品頁時自動 scroll 到頂部（包括由其他商品卡跳過嚟）
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, [productId]);
+
   const [imgIdx, setImgIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const imgTouchStartX = useRef(0);

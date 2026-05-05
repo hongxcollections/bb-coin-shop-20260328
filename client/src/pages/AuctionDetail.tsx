@@ -54,6 +54,13 @@ export default function AuctionDetail() {
   const [, params] = useRoute("/auctions/:id");
   const auctionId = parseInt(params?.id ?? "0");
   const { user, isAuthenticated } = useAuth();
+
+  // 進入商品頁時自動 scroll 到頂部（包括由其他商品卡跳過嚟）
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, [auctionId]);
   const [bidAmount, setBidAmount] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [bidMessage, setBidMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
