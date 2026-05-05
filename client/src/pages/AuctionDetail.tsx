@@ -824,11 +824,6 @@ export default function AuctionDetail() {
                   </div>
                 )}
 
-                {/* 私訊商戶按鈕 (商戶自己唔顯示) */}
-                {auction.createdBy !== user?.id && (
-                  <ChatButton auctionId={auctionId} merchantId={auction.createdBy} auctionEnded={!isActive} />
-                )}
-
                 {/* Bid Input */}
                 {isActive && (
                   isAuthenticated ? (
@@ -1048,6 +1043,20 @@ export default function AuctionDetail() {
                       </Button>
                     </a>
                   )
+                )}
+
+                {/* 私訊商戶 — 角落斜角懸浮（商戶自己唔顯示） */}
+                {auction.createdBy !== user?.id && (
+                  <div className="flex justify-end pt-1 -mb-1 pr-1">
+                    <div className="-rotate-[18deg] origin-bottom-right transition-transform hover:-rotate-[8deg] hover:scale-105">
+                      <ChatButton
+                        auctionId={auctionId}
+                        merchantId={auction.createdBy}
+                        auctionEnded={!isActive}
+                        compact
+                      />
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>

@@ -11,11 +11,13 @@ interface ChatButtonProps {
   merchantId: number;
   /** 拍賣已結束 → 唔可以開新對話 */
   auctionEnded?: boolean;
+  /** Compact icon-only floating mode（用喺出價區角落，配 tilt 旋轉） */
+  compact?: boolean;
   /** 用於檢查同自己嘅 auction 唔可以 chat */
   className?: string;
 }
 
-export default function ChatButton({ auctionId, merchantId, auctionEnded, className }: ChatButtonProps) {
+export default function ChatButton({ auctionId, merchantId, auctionEnded, compact, className }: ChatButtonProps) {
   const { user, isAuthenticated } = useAuth();
   const [opening, setOpening] = useState(false);
   const [openRoomId, setOpenRoomId] = useState<number | null>(null);
@@ -59,12 +61,26 @@ export default function ChatButton({ auctionId, merchantId, auctionEnded, classN
     openRoom.mutate({ auctionId });
   };
 
+  const titleText = auctionEnded
+    ? "拍賣已結束"
+    : isQualified
+      ? "私訊商戶"
+      : "需要銀牌或以上會員";
+
+  // Compact: 圓角小膠囊，單行 icon + 「問商戶」短文字，可加 tilt 樣式
+  const compactClass = `gap-1.5 px-3 py-1.5 h-auto rounded-full border-amber-300 bg-white text-amber-700 hover:bg-amber-50 shadow-md text-xs font-semibold ${
+    auctionEnded ? "opacity-60" : ""
+  }`;
+  const compactLabel = auctionEnded ? "🔒 已結拍" : "問商戶";
+
+  // Default: full-width 大按鈕（原本款式）
   const baseClass = "w-full gap-2 border-amber-300 text-amber-700 hover:bg-amber-50";
   const buttonLabel = auctionEnded
     ? "🔒 拍賣已結，無法新增對話"
     : isQualified
       ? "💬 問商戶"
       : "💬 問商戶（銀牌+）";
+
   return (
     <>
       <Button
@@ -72,11 +88,11 @@ export default function ChatButton({ auctionId, merchantId, auctionEnded, classN
         size="sm"
         onClick={handleClick}
         disabled={opening || openRoom.isPending || auctionEnded}
-        className={`${baseClass} ${className ?? ""}`}
-        title={auctionEnded ? "拍賣已結束" : isQualified ? "私訊商戶" : "需要銀牌或以上會員"}
+        className={compact ? `${compactClass} ${className ?? ""}` : `${baseClass} ${className ?? ""}`}
+        title={titleText}
       >
         <MessageCircle className="w-4 h-4" />
-        {buttonLabel}
+        {compact ? compactLabel : buttonLabel}
       </Button>
       {openRoomId !== null && (
         <ChatRoomDialog
