@@ -163,10 +163,19 @@ export default function ChatRoomDialog({ roomId, open, onOpenChange }: ChatRoomD
     }
   };
 
+  // 每 30 秒 tick 一次，令 auctionEnded 喺對話開緊嘅時候到時自動 flip
+  // (避免：用戶開咗對話後拍賣到時間結束，UI 唔知要 lock)
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (!open) return;
+    const id = setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, [open]);
+
   // 拍賣結束 → 對話封存（read-only）
   const auctionEnded = !!data?.auction && (
     data.auction.status === "ended" ||
-    (data.auction.endTime ? new Date(data.auction.endTime).getTime() < Date.now() : false)
+    (data.auction.endTime ? new Date(data.auction.endTime).getTime() < nowTick : false)
   );
 
   // group messages by date
