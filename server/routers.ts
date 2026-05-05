@@ -2199,7 +2199,11 @@ export const appRouter = router({
         // 商戶可獨立調整嘅 keys（其他全部 admin only）
         const MERCHANT_ALLOWED_KEYS = new Set(['noBidMessage', 'noBidEnabled']);
         const isAdmin = ctx.user.role === 'admin';
-        const isMerchantAllowed = ctx.user.role === 'merchant' && MERCHANT_ALLOWED_KEYS.has(input.key);
+        let isMerchantAllowed = false;
+        if (!isAdmin && MERCHANT_ALLOWED_KEYS.has(input.key)) {
+          const app = await getMerchantApplicationByUser(ctx.user.id);
+          isMerchantAllowed = app?.status === 'approved';
+        }
         if (!isAdmin && !isMerchantAllowed) {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can change this setting' });
         }
