@@ -46,7 +46,7 @@ export default function ChatButton({ auctionId, merchantId, auctionEnded, compac
 
   const handleClick = () => {
     if (!isAuthenticated) {
-      window.location.href = `/login?from=${encodeURIComponent(window.location.pathname)}`;
+      toast.info("請先登入會員先可以同商戶對話 🔐", { duration: 3500 });
       return;
     }
     if (auctionEnded) {
@@ -54,7 +54,7 @@ export default function ChatButton({ auctionId, merchantId, auctionEnded, compac
       return;
     }
     if (!isQualified) {
-      toast.error("只有銀牌或以上會員可以同商戶對話。請先升級會員等級 🥈", { duration: 4000 });
+      toast.info("只有 🥈 銀牌 / 🥇 金牌 / 👑 VIP 會員可以同商戶對話，請先升級會員等級", { duration: 4000 });
       return;
     }
     setOpening(true);
