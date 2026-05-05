@@ -237,7 +237,8 @@ export default function MerchantDashboard() {
   // Top-up request form state
   const [showTopUpForm, setShowTopUpForm] = useState(false);
   const [showTopUpHistory, setShowTopUpHistory] = useState(false);
-  const [showAllTx, setShowAllTx] = useState(false);
+  const [txPage, setTxPage] = useState(1);
+  const TX_PAGE_SIZE = 10;
 
   // Transaction filter state
   const [txFromInput, setTxFromInput] = useState("");
@@ -863,14 +864,14 @@ export default function MerchantDashboard() {
                 />
               </div>
               <button
-                onClick={() => { setTxFromDate(txFromInput || undefined); setTxToDate(txToInput || undefined); setShowAllTx(false); }}
+                onClick={() => { setTxFromDate(txFromInput || undefined); setTxToDate(txToInput || undefined); setTxPage(1); }}
                 className="h-8 px-3 rounded-lg text-xs font-medium bg-amber-500 text-white hover:bg-amber-600 flex items-center gap-1 transition-colors flex-shrink-0"
               >
                 <Search className="w-3 h-3" />查詢
               </button>
               {(txFromDate || txToDate) && (
                 <button
-                  onClick={() => { setTxFromInput(""); setTxToInput(""); setTxFromDate(undefined); setTxToDate(undefined); setShowAllTx(false); }}
+                  onClick={() => { setTxFromInput(""); setTxToInput(""); setTxFromDate(undefined); setTxToDate(undefined); setTxPage(1); }}
                   className="h-8 px-2.5 rounded-lg text-xs text-gray-500 hover:text-gray-700 border border-gray-200 flex items-center gap-1 transition-colors flex-shrink-0"
                 >
                   <X className="w-3 h-3" />清除
@@ -924,19 +925,43 @@ export default function MerchantDashboard() {
               </p>
             ) : (
               <div>
-                {(showAllTx ? transactions : transactions.slice(0, 5)).map((tx, i) => (
-                  <TxRow key={i} tx={tx} showBalance />
-                ))}
-                {transactions.length > 5 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllTx(v => !v)}
-                    className="w-full mt-2 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors"
-                  >
-                    <ChevronDown size={13} style={{ transform: showAllTx ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
-                    {showAllTx ? "收起" : `顯示全部 ${transactions.length} 筆記錄`}
-                  </button>
-                )}
+                {(() => {
+                  const totalPages = Math.max(1, Math.ceil(transactions.length / TX_PAGE_SIZE));
+                  const safePage = Math.min(Math.max(1, txPage), totalPages);
+                  const start = (safePage - 1) * TX_PAGE_SIZE;
+                  const pageRows = transactions.slice(start, start + TX_PAGE_SIZE);
+                  return (
+                    <>
+                      {pageRows.map((tx, i) => (
+                        <TxRow key={start + i} tx={tx} showBalance />
+                      ))}
+                      {transactions.length > TX_PAGE_SIZE && (
+                        <div className="flex items-center justify-between mt-3 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setTxPage(p => Math.max(1, p - 1))}
+                            disabled={safePage <= 1}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            ‹ 上一頁
+                          </button>
+                          <span className="text-xs text-gray-500">
+                            第 <span className="font-semibold text-amber-700">{safePage}</span> / {totalPages} 頁
+                            <span className="ml-1 text-gray-400">（共 {transactions.length} 筆）</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setTxPage(p => Math.min(totalPages, p + 1))}
+                            disabled={safePage >= totalPages}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            下一頁 ›
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
 
