@@ -44,7 +44,7 @@ export default function AdminSiteSettings() {
 
   // 首頁歡迎訊息
   const [homeWelcomeEnabled, setHomeWelcomeEnabled] = useState(false);
-  const [homeWelcomeMessage, setHomeWelcomeMessage] = useState("歡迎蒞臨 大BB錢幣店 🪙 每週更新精選藏品");
+  const [homeWelcomeMessage, setHomeWelcomeMessage] = useState("歡迎蒞臨 hongxcollections 🪙 每週更新精選藏品");
 
   // 倒數提醒閾值
   const [endingSoonMinutes, setEndingSoonMinutes] = useState("30");
@@ -400,7 +400,7 @@ export default function AdminSiteSettings() {
                     value={homeWelcomeMessage}
                     onChange={(e) => setHomeWelcomeMessage(e.target.value)}
                     rows={2}
-                    placeholder="歡迎蒞臨 大BB錢幣店 🪙 每週更新精選藏品"
+                    placeholder="歡迎蒞臨 hongxcollections 🪙 每週更新精選藏品"
                     className="resize-none"
                   />
                 </div>

@@ -9,7 +9,7 @@ export default function Terms() {
           <section>
             <h2 className="text-xl font-semibold mb-3">1. 服務說明</h2>
             <p>
-              「大BB錢幣店」（以下簡稱「本網站」）是一個線上錢幣拍賣平台，由 Hong X Collections 營運。本網站提供錢幣、紙幣及相關收藏品的線上競拍服務。
+              「hongxcollections」（以下簡稱「本網站」）是一個線上錢幣拍賣平台，由 Hong X Collections 營運。本網站提供錢幣、紙幣及相關收藏品的線上競拍服務。
             </p>
           </section>
 

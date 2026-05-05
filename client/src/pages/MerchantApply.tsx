@@ -409,7 +409,7 @@ export default function MerchantApply() {
               <div>
                 <label className="text-xs font-medium text-gray-600 mb-1 block">商戶名稱 *</label>
                 <Input
-                  placeholder="例如：大BB錢幣"
+                  placeholder="例如：您的店舖名稱"
                   value={form.merchantName}
                   onChange={e => setForm(f => ({ ...f, merchantName: e.target.value }))}
                   maxLength={50}

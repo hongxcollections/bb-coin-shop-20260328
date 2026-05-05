@@ -41,7 +41,7 @@ FPS 轉數快：請轉帳至 [電話號碼/電郵]，並備注拍賣編號。
   const DEFAULT_DELIVERY = `交收安排：
 1. 建議順豐到付（買家承擔運費）
 2. 歡迎來店自取（請提前聯絡預約）
-3. 如有查詢請聯絡大BB錢幣店`;
+3. 如有查詢請聯絡 hongxcollections`;
 
   useEffect(() => {
     if (settings && !initialised) {
@@ -171,7 +171,7 @@ FPS 轉數快：請轉帳至 [電話號碼/電郵]，並備注拍賣編號。
                 id="sender-name"
                 value={senderName}
                 onChange={(e) => setSenderName(e.target.value)}
-                placeholder="大BB錢幣店"
+                placeholder="hongxcollections"
                 className="border-amber-200 focus-visible:ring-amber-400"
               />
             </div>

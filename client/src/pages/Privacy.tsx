@@ -9,7 +9,7 @@ export default function Privacy() {
           <section>
             <h2 className="text-xl font-semibold mb-3">1. 簡介</h2>
             <p>
-              歡迎使用「大BB錢幣店」（以下簡稱「本網站」）。本網站由 Hong X Collections 營運，網址為 hongxcollections.com。我們非常重視您的隱私，本隱私權政策說明我們如何收集、使用和保護您的個人資料。
+              歡迎使用「hongxcollections」（以下簡稱「本網站」）。本網站由 Hong X Collections 營運，網址為 hongxcollections.com。我們非常重視您的隱私，本隱私權政策說明我們如何收集、使用和保護您的個人資料。
             </p>
           </section>
 

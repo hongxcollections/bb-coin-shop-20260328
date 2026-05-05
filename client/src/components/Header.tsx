@@ -25,7 +25,7 @@ export default function Header() {
                   marginTop: "0px",
                 }}
               >
-                Powered by 大BB錢幣店
+                Powered by hongxcollections
               </span>
             </div>
           </div>

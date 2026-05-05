@@ -671,7 +671,7 @@ export default function AdminSubscriptions() {
                     <Textarea
                       value={paymentMethodsText || currentPaymentMethods}
                       onChange={(e) => setPaymentMethodsText(e.target.value)}
-                      placeholder={"銀行轉帳：\n恒生銀行 024-xxx-xxxxxx-xxx\n戶名：大BB錢幣店\n\nPayMe：\nhttps://payme.hsbc/xxx\n\n轉數快 FPS：\nFPS ID: xxxxxxxx"}
+                      placeholder={"銀行轉帳：\n恒生銀行 024-xxx-xxxxxx-xxx\n戶名：hongxcollections\n\nPayMe：\nhttps://payme.hsbc/xxx\n\n轉數快 FPS：\nFPS ID: xxxxxxxx"}
                       rows={10}
                       className="border-amber-200 focus-visible:ring-amber-400 text-sm font-mono resize-y"
                     />

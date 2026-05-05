@@ -67,7 +67,7 @@ function formatEndTime(endTime: Date): string {
  * This enables rich previews when sharing auction links on social media.
  *
  * Key decisions:
- * - og:site_name = "大BB錢幣店" so the shop name always appears
+ * - og:site_name = "hongxcollections" so the site name always appears
  * - og:title = auction title + price (concise)
  * - og:description includes end time and call-to-action
  * - og:url is included (required by Facebook for proper link preview)
@@ -149,7 +149,7 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
     // Facebook large-image preview ONLY shows og:title (not description/site_name).
     // So we pack all key info into og:title for maximum visibility.
     const ogTitle = `${auction.title} ｜ 起拍 ${currSymbol}${startPrice}｜結標：${endTimeStr}`;
-    const ogDesc = `【大BB錢幣店】${auction.title} ｜ 起拍價：${currSymbol}${startPrice}｜目前出價：${currSymbol}${currPrice}｜結標：${endTimeStr}｜快來競拍！`;
+    const ogDesc = `【hongxcollections】${auction.title} ｜ 起拍價：${currSymbol}${startPrice}｜目前出價：${currSymbol}${currPrice}｜結標：${endTimeStr}｜快來競拍！`;
     const fullUrl = `${protocol}://${host}${reqPath}`;
 
     const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -172,14 +172,14 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
         "url": fullUrl,
         "seller": {
           "@type": "Organization",
-          "name": "hongxcollections 大BB錢幣店"
+          "name": "hongxcollections"
         }
       }
     });
 
     const ogMeta = [
       `<meta property="og:type" content="website" />`,
-      `<meta property="og:site_name" content="大BB錢幣店" />`,
+      `<meta property="og:site_name" content="hongxcollections" />`,
       `<meta property="og:title" content="${esc(ogTitle)}" />`,
       `<meta property="og:description" content="${esc(ogDesc)}" />`,
       `<meta property="og:url" content="${esc(fullUrl)}" />`,
@@ -249,7 +249,7 @@ async function injectProductOgMeta(html: string, reqPath: string, protocol: stri
     const ogTitle = `${product.title} ｜ 出售價 ${currSymbol}${price}${merchantName ? ` ｜ ${merchantName}` : ""}`;
     const rawDesc = (product as { description?: string | null }).description?.toString().replace(/\s+/g, " ").trim() ?? "";
     const shortDesc = rawDesc.length > 100 ? rawDesc.slice(0, 100) + "…" : rawDesc;
-    const ogDesc = `【大BB錢幣店】${product.title} ｜ 出售價：${currSymbol}${price}${shortDesc ? ` ｜ ${shortDesc}` : " ｜ 歡迎查詢！"}`;
+    const ogDesc = `【hongxcollections】${product.title} ｜ 出售價：${currSymbol}${price}${shortDesc ? ` ｜ ${shortDesc}` : " ｜ 歡迎查詢！"}`;
     const fullUrl = `${protocol}://${host}${reqPath}`;
 
     const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -271,14 +271,14 @@ async function injectProductOgMeta(html: string, reqPath: string, protocol: stri
         "url": fullUrl,
         "seller": {
           "@type": "Organization",
-          "name": merchantName || "hongxcollections 大BB錢幣店"
+          "name": merchantName || "hongxcollections"
         }
       }
     });
 
     const ogMeta = [
       `<meta property="og:type" content="website" />`,
-      `<meta property="og:site_name" content="大BB錢幣店" />`,
+      `<meta property="og:site_name" content="hongxcollections" />`,
       `<meta property="og:title" content="${esc(ogTitle)}" />`,
       `<meta property="og:description" content="${esc(ogDesc)}" />`,
       `<meta property="og:url" content="${esc(fullUrl)}" />`,

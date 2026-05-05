@@ -1,4 +1,4 @@
-// Web Push Service Worker — 大BB錢幣店
+// Web Push Service Worker — hongxcollections
 self.addEventListener("install", (e) => {
   self.skipWaiting();
 });
@@ -8,7 +8,7 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("push", (event) => {
-  let data = { title: "大BB錢幣店", body: "您有新通知" };
+  let data = { title: "hongxcollections", body: "您有新通知" };
   try {
     if (event.data) data = event.data.json();
   } catch {

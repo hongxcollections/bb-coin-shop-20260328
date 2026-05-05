@@ -338,7 +338,7 @@ export function Chatbot() {
                       },
                       {
                         q: "10. 忘記密碼點算？",
-                        a: "登入頁面撳「忘記密碼」，輸入註冊嗰個 email，系統會寄重設連結俾你。如果收唔到請 check spam folder，或 WhatsApp 大BB錢幣店 97927793。"
+                        a: "登入頁面撳「忘記密碼」，輸入註冊嗰個 email，系統會寄重設連結俾你。如果收唔到請 check spam folder，或 WhatsApp hongxcollections 97927793。"
                       },
                     ].map((item, i) => (
                       <details

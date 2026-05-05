@@ -1590,7 +1590,7 @@ export default function Home() {
           </h2>
           <div>
             <p>
-              <strong className="text-amber-900">hongxcollections（大BB錢幣店）</strong>係香港具規模嘅
+              <strong className="text-amber-900">hongxcollections</strong>係香港具規模嘅
               <strong>錢幣拍賣</strong>同<strong>硬幣收藏</strong>平台，專營
               <strong>金幣</strong>、<strong>銀幣</strong>、<strong>銀圓</strong>、<strong>銅幣</strong>、
               <strong>紀念幣</strong>同<strong>紀念鈔</strong>嘅網上競投。無論你係收藏新手定資深玩家，
