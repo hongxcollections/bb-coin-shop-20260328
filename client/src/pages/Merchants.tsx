@@ -236,7 +236,7 @@ export default function Merchants() {
 
                       {/* 簡介 */}
                       {m.selfIntro && (
-                        <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{m.selfIntro}</p>
+                        <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed whitespace-pre-line">{m.selfIntro}</p>
                       )}
 
                       {/* 活動數據 + WhatsApp */}

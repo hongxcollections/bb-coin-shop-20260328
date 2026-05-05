@@ -486,7 +486,7 @@ export default function MerchantStore() {
               <div className="flex-1 min-w-0">
                 <h1 className="font-bold text-gray-900 text-base leading-tight">{merchant.merchantName}</h1>
                 {merchant.selfIntro && (
-                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">{merchant.selfIntro}</p>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed whitespace-pre-line">{merchant.selfIntro}</p>
                 )}
                 {categories.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
