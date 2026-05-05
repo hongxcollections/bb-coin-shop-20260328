@@ -5584,6 +5584,12 @@ ${kb}`;
         const auction = await getAuctionById(input.auctionId);
         if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找唔到呢個拍賣' });
 
+        // 拍賣已結束就唔可以再開新對話 (read-only)
+        const ended = auction.status === 'ended' || (auction.endTime && new Date(auction.endTime).getTime() < Date.now());
+        if (ended) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '拍賣已結束，唔可以再開新對話' });
+        }
+
         // 商戶自己唔可以同自己 chat
         if (auction.createdBy === ctx.user.id) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '你係呢個拍賣嘅商戶，唔需要同自己對話' });
@@ -5648,10 +5654,17 @@ ${kb}`;
         if (!input.content && !input.imageUrl) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '訊息內容或圖片至少要有一樣' });
         }
-        const { getChatRoomById, insertChatMessage, getUserById, getUserMemberLevel } = await import('./db');
+        const { getChatRoomById, insertChatMessage, getUserById, getUserMemberLevel, getAuctionById } = await import('./db');
         const { notifyNewChatMessage } = await import('./_core/chatWebSocket');
         const room = await getChatRoomById(input.roomId);
         if (!room) throw new TRPCError({ code: 'NOT_FOUND', message: '對話不存在' });
+
+        // 拍賣結束後對話變 read-only，唔可以再發訊息（admin 都唔可以，避免擾亂買家）
+        const auction = await getAuctionById(room.auctionId);
+        const ended = auction && (auction.status === 'ended' || (auction.endTime && new Date(auction.endTime).getTime() < Date.now()));
+        if (ended) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '拍賣已結束，呢個對話已封存，只可瀏覽歷史訊息' });
+        }
 
         let senderRole: 'bidder' | 'merchant';
         let recipientId: number;
@@ -5717,10 +5730,16 @@ ${kb}`;
         if (!allowed.includes(input.mimeType)) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '不支援嘅圖片格式' });
         }
-        const { getChatRoomById } = await import('./db');
+        const { getChatRoomById, getAuctionById } = await import('./db');
         const room = await getChatRoomById(input.roomId);
         if (!room || (room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id)) {
           throw new TRPCError({ code: 'FORBIDDEN', message: '冇權上傳到呢個對話' });
+        }
+        // 拍賣結束後對話變 read-only，唔可以再上傳圖片
+        const auction = await getAuctionById(room.auctionId);
+        const ended = auction && (auction.status === 'ended' || (auction.endTime && new Date(auction.endTime).getTime() < Date.now()));
+        if (ended) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '拍賣已結束，呢個對話已封存，只可瀏覽歷史訊息' });
         }
         const buffer = Buffer.from(input.imageData, 'base64');
         if (buffer.length > 5 * 1024 * 1024) {
@@ -5745,6 +5764,11 @@ ${kb}`;
         if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找唔到呢個拍賣' });
         if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '只有呢個拍賣嘅商戶可以廣播' });
+        }
+        // 拍賣結束後唔可以再廣播
+        const bcEnded = auction.status === 'ended' || (auction.endTime && new Date(auction.endTime).getTime() < Date.now());
+        if (bcEnded) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '拍賣已結束，唔可以再廣播' });
         }
 
         // 1/小時 rate limit

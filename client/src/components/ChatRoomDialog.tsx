@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useChatWebSocket, type ChatWSMessage } from "@/hooks/useChatWebSocket";
-import { Send, Image as ImageIcon, Megaphone, Loader2 } from "lucide-react";
+import { Send, Image as ImageIcon, Megaphone, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -163,6 +163,12 @@ export default function ChatRoomDialog({ roomId, open, onOpenChange }: ChatRoomD
     }
   };
 
+  // 拍賣結束 → 對話封存（read-only）
+  const auctionEnded = !!data?.auction && (
+    data.auction.status === "ended" ||
+    (data.auction.endTime ? new Date(data.auction.endTime).getTime() < Date.now() : false)
+  );
+
   // group messages by date
   const grouped: Array<{ date: string; items: Message[] }> = [];
   let lastDate = "";
@@ -274,56 +280,65 @@ export default function ChatRoomDialog({ roomId, open, onOpenChange }: ChatRoomD
           <div ref={bottomRef} />
         </div>
 
-        {/* 底部輸入欄 */}
-        <div className="border-t border-gray-200 bg-white px-3 py-2 flex-shrink-0">
-          <div className="flex items-end gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleFilePick(f);
-              }}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="flex-shrink-0 h-10 w-10 border-amber-200 text-amber-600 hover:bg-amber-50"
-              disabled={uploading || !data}
-              onClick={() => fileInputRef.current?.click()}
-              title="傳送圖片"
-            >
-              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
-            </Button>
-            <Textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder="輸入訊息..."
-              rows={1}
-              className="resize-none min-h-[40px] max-h-[120px] text-sm"
-              maxLength={2000}
-              disabled={!data}
-            />
-            <Button
-              type="button"
-              size="icon"
-              className="flex-shrink-0 h-10 w-10 gold-gradient text-white border-0"
-              onClick={handleSend}
-              disabled={sendMessage.isPending || !text.trim() || !data}
-            >
-              <Send className="w-4 h-4" />
-            </Button>
+        {/* 底部輸入欄 — 拍賣已結就顯示封存提示，否則顯示輸入欄 */}
+        {auctionEnded ? (
+          <div className="border-t border-gray-200 bg-gray-100 px-4 py-3 flex-shrink-0">
+            <div className="flex items-center gap-2 text-gray-600 text-sm justify-center">
+              <Lock className="w-4 h-4 text-gray-500" />
+              <span>拍賣已結束，呢個對話已封存，只可瀏覽歷史訊息</span>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="border-t border-gray-200 bg-white px-3 py-2 flex-shrink-0">
+            <div className="flex items-end gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleFilePick(f);
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="flex-shrink-0 h-10 w-10 border-amber-200 text-amber-600 hover:bg-amber-50"
+                disabled={uploading || !data}
+                onClick={() => fileInputRef.current?.click()}
+                title="傳送圖片"
+              >
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+              </Button>
+              <Textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder="輸入訊息..."
+                rows={1}
+                className="resize-none min-h-[40px] max-h-[120px] text-sm"
+                maxLength={2000}
+                disabled={!data}
+              />
+              <Button
+                type="button"
+                size="icon"
+                className="flex-shrink-0 h-10 w-10 gold-gradient text-white border-0"
+                onClick={handleSend}
+                disabled={sendMessage.isPending || !text.trim() || !data}
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
 
         {lightboxImg && (
           <ImageLightbox images={[lightboxImg]} onClose={() => setLightboxImg(null)} />

@@ -9,11 +9,13 @@ import ChatRoomDialog from "@/components/ChatRoomDialog";
 interface ChatButtonProps {
   auctionId: number;
   merchantId: number;
+  /** 拍賣已結束 → 唔可以開新對話 */
+  auctionEnded?: boolean;
   /** 用於檢查同自己嘅 auction 唔可以 chat */
   className?: string;
 }
 
-export default function ChatButton({ auctionId, merchantId, className }: ChatButtonProps) {
+export default function ChatButton({ auctionId, merchantId, auctionEnded, className }: ChatButtonProps) {
   const { user, isAuthenticated } = useAuth();
   const [opening, setOpening] = useState(false);
   const [openRoomId, setOpenRoomId] = useState<number | null>(null);
@@ -45,6 +47,10 @@ export default function ChatButton({ auctionId, merchantId, className }: ChatBut
       window.location.href = `/login?from=${encodeURIComponent(window.location.pathname)}`;
       return;
     }
+    if (auctionEnded) {
+      toast.error("拍賣已結束，唔可以再開新對話", { duration: 3000 });
+      return;
+    }
     if (!isQualified) {
       toast.error("只有銀牌或以上會員可以同商戶對話。請先升級會員等級 🥈", { duration: 4000 });
       return;
@@ -54,18 +60,23 @@ export default function ChatButton({ auctionId, merchantId, className }: ChatBut
   };
 
   const baseClass = "w-full gap-2 border-amber-300 text-amber-700 hover:bg-amber-50";
+  const buttonLabel = auctionEnded
+    ? "🔒 拍賣已結，無法新增對話"
+    : isQualified
+      ? "💬 問商戶"
+      : "💬 問商戶（銀牌+）";
   return (
     <>
       <Button
         variant="outline"
         size="sm"
         onClick={handleClick}
-        disabled={opening || openRoom.isPending}
+        disabled={opening || openRoom.isPending || auctionEnded}
         className={`${baseClass} ${className ?? ""}`}
-        title={isQualified ? "私訊商戶" : "需要銀牌或以上會員"}
+        title={auctionEnded ? "拍賣已結束" : isQualified ? "私訊商戶" : "需要銀牌或以上會員"}
       >
         <MessageCircle className="w-4 h-4" />
-        {isQualified ? "💬 問商戶" : "💬 問商戶（銀牌+）"}
+        {buttonLabel}
       </Button>
       {openRoomId !== null && (
         <ChatRoomDialog

@@ -826,7 +826,7 @@ export default function AuctionDetail() {
 
                 {/* 私訊商戶按鈕 (商戶自己唔顯示) */}
                 {auction.createdBy !== user?.id && (
-                  <ChatButton auctionId={auctionId} merchantId={auction.createdBy} />
+                  <ChatButton auctionId={auctionId} merchantId={auction.createdBy} auctionEnded={!isActive} />
                 )}
 
                 {/* Bid Input */}
