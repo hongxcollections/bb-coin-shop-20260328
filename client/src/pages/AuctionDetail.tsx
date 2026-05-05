@@ -272,6 +272,7 @@ export default function AuctionDetail() {
   });
   const _ss = (siteSettings as Record<string, string> | undefined) ?? {};
   const noBidMessage = _ss.noBidMessage ?? "暫時未有出價 喜歡來一口的隨時就可以帶回家了 😁";
+  const noBidEnabled = _ss.noBidEnabled !== "false"; // 預設開啟
   const bidSuccessMessage = _ss.bidSuccessMessage ?? "✅ 出價成功！您目前是最高出價者";
   const bidSuccessExtendedMessage = _ss.bidSuccessExtendedMessage ?? "✅ 出價成功！🛡️ 拍賣已延長 {minutes} 分鐘";
   const notLoggedInBidText = _ss.notLoggedInBidText ?? "登入後出價";
@@ -423,8 +424,8 @@ export default function AuctionDetail() {
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
-      {/* No-bid floating popup — fixed top-center, only when active with zero bids */}
-      {isActive && bids.length === 0 && (
+      {/* No-bid floating popup — fixed top-center, only when active with zero bids 且商戶開咗開關 */}
+      {isActive && bids.length === 0 && noBidEnabled && (
         <div className="bottom-nav-toast" style={{ zIndex: 9999 }}>
           <div className="bottom-nav-toast-inner">
             <span className="bottom-nav-toast-icon">🪙</span>

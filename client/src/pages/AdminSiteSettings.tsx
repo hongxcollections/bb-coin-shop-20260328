@@ -52,9 +52,6 @@ export default function AdminSiteSettings() {
   // 即將結束標籤文字
   const [endingSoonText, setEndingSoonText] = useState("⏰ 即將結束");
 
-  // 未有出價提示
-  const [noBidMessage, setNoBidMessage] = useState("暫時未有出價 喜歡來一口的隨時就可以帶回家了 😁");
-
   // 出價成功訊息
   const [bidSuccessMessage, setBidSuccessMessage] = useState("✅ 出價成功！您目前是最高出價者");
   const [bidSuccessExtendedMessage, setBidSuccessExtendedMessage] = useState("✅ 出價成功！🛡️ 拍賣已延長 {minutes} 分鐘");
@@ -155,7 +152,6 @@ export default function AdminSiteSettings() {
     if (s.homeWelcomeMessage) setHomeWelcomeMessage(s.homeWelcomeMessage);
     if (s.endingSoonMinutes) setEndingSoonMinutes(s.endingSoonMinutes);
     if (s.endingSoonText) setEndingSoonText(s.endingSoonText);
-    if (s.noBidMessage) setNoBidMessage(s.noBidMessage);
     if (s.bidSuccessMessage) setBidSuccessMessage(s.bidSuccessMessage);
     if (s.bidSuccessExtendedMessage) setBidSuccessExtendedMessage(s.bidSuccessExtendedMessage);
     if (s.notLoggedInBidText) setNotLoggedInBidText(s.notLoggedInBidText);
@@ -698,33 +694,6 @@ export default function AdminSiteSettings() {
                     </Badge>
                   </div>
                   <SaveBtn onClick={() => save('endingSoonText', endingSoonText, () => !endingSoonText.trim() ? "標籤文字不可為空" : null)} />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 未有出價提示訊息 */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-amber-500" />
-                  <CardTitle className="text-lg">未有出價提示訊息</CardTitle>
-                </div>
-                <CardDescription>商品頁活躍拍賣暫未有出價時，頁面頂部顯示的浮動提示</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="flex items-center gap-2 mb-2"><MessageSquare className="w-4 h-4 text-amber-500" />提示訊息內容</Label>
-                  <Textarea
-                    value={noBidMessage}
-                    onChange={(e) => setNoBidMessage(e.target.value)}
-                    rows={3}
-                    placeholder="暫時未有出價 喜歡來一口的隨時就可以帶回家了 😁"
-                    className="resize-none"
-                  />
-                </div>
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  {popupPreview(noBidMessage)}
-                  <SaveBtn onClick={() => save('noBidMessage', noBidMessage, () => !noBidMessage.trim() ? "訊息不可為空" : null)} />
                 </div>
               </CardContent>
             </Card>

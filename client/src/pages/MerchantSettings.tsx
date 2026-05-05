@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
-import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag, ShieldCheck, Store, Camera, X, Droplets, LayoutList } from "lucide-react";
+import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag, ShieldCheck, Store, Camera, X, Droplets, LayoutList, MessageSquare } from "lucide-react";
 
 const BID_INCREMENT_OPTIONS = [30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
 
@@ -21,6 +21,7 @@ export default function MerchantSettings() {
 
   const { data: siteSettingsAll } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const fbBatchShareEnabled = (siteSettingsAll as Record<string, string> | undefined)?.fbBatchShareEnabled !== "false";
+
   const { data: settings, isLoading } = trpc.merchants.getSettings.useQuery(undefined, {
     enabled: isAuthenticated,
   });
@@ -40,6 +41,30 @@ export default function MerchantSettings() {
     onSuccess: () => { utils.merchants.getSettings.invalidate(); utils.merchants.listApprovedMerchants.invalidate(); toast.success("每頁顯示數量已儲存"); },
     onError: (err) => toast.error(err.message || "儲存失敗"),
   });
+
+  // ── 未有出價提示 (商戶可控) ──
+  const [noBidEnabled, setNoBidEnabled] = useState(true);
+  const [noBidMessage, setNoBidMessage] = useState("暫時未有出價 喜歡來一口的隨時就可以帶回家了 😁");
+  const [noBidInitialized, setNoBidInitialized] = useState(false);
+  useEffect(() => {
+    const ss = siteSettingsAll as Record<string, string> | undefined;
+    if (!ss || noBidInitialized) return;
+    setNoBidEnabled(ss.noBidEnabled !== "false");
+    if (ss.noBidMessage) setNoBidMessage(ss.noBidMessage);
+    setNoBidInitialized(true);
+  }, [siteSettingsAll, noBidInitialized]);
+  const setSiteSettingMutation = trpc.siteSettings.set.useMutation({
+    onSuccess: () => {
+      toast.success("設定已儲存！");
+      utils.siteSettings.getAll.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "儲存失敗"),
+  });
+  const handleSaveNoBid = () => {
+    if (!noBidMessage.trim()) { toast.error("提示訊息不可為空"); return; }
+    setSiteSettingMutation.mutate({ key: "noBidEnabled", value: noBidEnabled ? "true" : "false" });
+    setSiteSettingMutation.mutate({ key: "noBidMessage", value: noBidMessage.trim() });
+  };
 
   // ── 商戶資料 ──
   const [profileMerchantName, setProfileMerchantName] = useState("");
@@ -418,6 +443,69 @@ export default function MerchantSettings() {
                 </div>
               </>
             )}
+          </CardContent>
+        </Card>
+
+        {/* 未有出價提示訊息卡片 */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-amber-500" />
+              未有出價提示訊息
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              商品頁活躍拍賣暫未有出價時，頁面頂部會浮動顯示嘅提示。可以隨時關閉或者改文字。
+            </p>
+
+            {/* 開關 */}
+            <div className="flex items-center justify-between rounded-lg border border-amber-100 bg-amber-50/40 px-3 py-2.5">
+              <div>
+                <Label htmlFor="noBidEnabled" className="text-sm font-medium">啟用提示</Label>
+                <p className="text-[11px] text-muted-foreground mt-0.5">關閉後，未有出價嘅商品頁唔會再彈呢個提示</p>
+              </div>
+              <Switch
+                id="noBidEnabled"
+                checked={noBidEnabled}
+                onCheckedChange={setNoBidEnabled}
+              />
+            </div>
+
+            {/* 訊息內容 */}
+            <div className="space-y-2">
+              <Label htmlFor="noBidMessage">提示訊息內容</Label>
+              <Textarea
+                id="noBidMessage"
+                value={noBidMessage}
+                onChange={(e) => setNoBidMessage(e.target.value)}
+                rows={3}
+                placeholder="暫時未有出價 喜歡來一口的隨時就可以帶回家了 😁"
+                className="resize-none"
+                disabled={!noBidEnabled}
+              />
+            </div>
+
+            {/* 預覽 */}
+            {noBidEnabled && noBidMessage.trim() && (
+              <div className="rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-2.5 flex items-center gap-2">
+                <span className="text-lg">🪙</span>
+                <span className="text-sm text-amber-900 font-medium">{noBidMessage}</span>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-1">
+              <Button
+                onClick={handleSaveNoBid}
+                disabled={setSiteSettingMutation.isPending}
+                className="gold-gradient text-white border-0 gap-1.5"
+              >
+                {setSiteSettingMutation.isPending
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <Save className="w-4 h-4" />}
+                儲存設定
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

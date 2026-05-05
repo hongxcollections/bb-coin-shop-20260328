@@ -2196,7 +2196,13 @@ export const appRouter = router({
     set: protectedProcedure
       .input(z.object({ key: z.string(), value: z.string() }))
       .mutation(async ({ input, ctx }) => {
-        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can change settings' });
+        // 商戶可獨立調整嘅 keys（其他全部 admin only）
+        const MERCHANT_ALLOWED_KEYS = new Set(['noBidMessage', 'noBidEnabled']);
+        const isAdmin = ctx.user.role === 'admin';
+        const isMerchantAllowed = ctx.user.role === 'merchant' && MERCHANT_ALLOWED_KEYS.has(input.key);
+        if (!isAdmin && !isMerchantAllowed) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can change this setting' });
+        }
         const result = await setSiteSetting(input.key, input.value);
         // 即時套用 OTP 速率限制設定到記憶體 config
         if (['otpCooldownSecs', 'otpMaxPerHour', 'otpIpMaxPerWindow', 'otpIpWindowMins'].includes(input.key)) {
