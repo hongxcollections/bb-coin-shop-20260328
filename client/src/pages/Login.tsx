@@ -174,6 +174,19 @@ export default function Login() {
     return () => clearTimeout(t);
   }, [countdown]);
 
+  // 顯示由 OAuth callback 等回調回來嘅錯誤訊息（例如 Google 註冊被擋）
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const err = new URLSearchParams(window.location.search).get("error");
+    if (err) {
+      showError(err);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("error");
+      window.history.replaceState({}, "", url.toString());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   // Sync combined phone number
   useEffect(() => {

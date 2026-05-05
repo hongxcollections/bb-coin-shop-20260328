@@ -52,6 +52,12 @@ async function getGoogleUserInfo(accessToken: string): Promise<GoogleUserInfo> {
   return data;
 }
 
+// ─── 暫時停用：Google OAuth / 電郵類註冊 ───────────────────────────────────────
+// 現階段網站只接受手機號碼註冊。
+// - GOOGLE_OAUTH_NEW_USER_ENABLED = false：Google OAuth 唔可以開新帳號（已存在嘅 Google 用戶仍然可以登入）
+// - 若需重新啟用，將下方常數改為 true，並同步更新 client/src/const.ts 嘅 getLoginUrl()
+const GOOGLE_OAUTH_NEW_USER_ENABLED = false;
+
 export function registerOAuthRoutes(app: Express) {
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
@@ -78,7 +84,17 @@ export function registerOAuthRoutes(app: Express) {
         const userInfo = await getGoogleUserInfo(tokenResponse.access_token);
 
         const openId = `google_${userInfo.sub}`;
-        console.log(`[OAuth] User logged in - openId: ${openId}, email: ${userInfo.email}, name: ${userInfo.name}`);
+
+        // ─── 守衛：Google OAuth 唔可以開新帳號 ──────────────────────────────────
+        // 只允許「已存在嘅 Google 用戶」登入，新嘅 Google 帳號一律 reject
+        const existing = await db.getUserByOpenId(openId);
+        if (!existing && !GOOGLE_OAUTH_NEW_USER_ENABLED) {
+          console.warn(`[OAuth] Blocked new Google registration - openId: ${openId}, email: ${userInfo.email}`);
+          res.redirect(302, "/login?error=" + encodeURIComponent("Google 註冊功能暫時停用，請使用手機號碼註冊"));
+          return;
+        }
+
+        console.log(`[OAuth] Existing Google user logged in - openId: ${openId}, email: ${userInfo.email}, name: ${userInfo.name}`);
 
         await db.upsertUser({
           openId,
