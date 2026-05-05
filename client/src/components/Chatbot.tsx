@@ -293,6 +293,72 @@ export function Chatbot() {
                   </p>
                 </div>
               </div>
+
+              {/* 常見問題 (10 條，伸縮式) */}
+              <div className="flex justify-start">
+                <div className="max-w-[92%] w-full px-3 py-2.5 rounded-2xl rounded-bl-sm bg-white border border-amber-200 shadow-sm">
+                  <p className="text-[12px] font-semibold text-amber-800 mb-2">📋 常見問題（撳每條展開答案）</p>
+                  <div className="space-y-1.5">
+                    {[
+                      {
+                        q: "1. 點樣註冊會員？",
+                        a: "撳右上角「登入」，用 email 註冊就得（Google 登入暫時關閉）。確認電郵後就可以出價、收藏、購買。"
+                      },
+                      {
+                        q: "2. 點樣出價？直接出價同代理出價有咩分別？",
+                        a: "進入拍賣頁，有兩種方式：\n• 直接出價：自己手動出，每次要高過目前最高價 + 最小加幅。\n• 代理出價（自動跟標）：輸入「最高願意俾嘅金額」，系統幫你自動跟標，每次只比對手高一口加幅，直到上限。\n結標前 2 分鐘有人出價會自動延長 2 分鐘防狙擊。"
+                      },
+                      {
+                        q: "3. 代理出價有咩會員等級限制？",
+                        a: "🥉 銅牌：每月 3 次代理出價額度。\n🥈 銀牌：次數無限，但單次上限 HK$5,000，可匿名出價。\n🥇 金牌 / 💎 VIP：次數同金額無上限，匿名預設打開。\n升級條件可入「會員權益」頁面睇。"
+                      },
+                      {
+                        q: "4. 點樣成為商戶？(完整流程)",
+                        a: "要完成 5 步：\n1. 登入 → 右上角選單撳「申請成為商戶」填表。\n2. 等管理員 1-3 個工作天聯絡你討論貨品類型同訂閱計劃。\n3. ⭐ 訂閱月費 / 年費計劃（必須，未訂閱上唔到架）。\n4. ⭐ 繳交保證金（必須，金額由管理員設定）。\n5. 完成後入「商戶拍賣 / 商戶商品」撳「新增」上架。"
+                      },
+                      {
+                        q: "5. 商戶要交幾多月費同保證金？",
+                        a: "月費 / 年費：入「訂閱計劃 / Subscription Plans」頁揀適合你嘅 plan，不同計劃有不同上架配額同影片配額。\n保證金：金額由管理員根據你嘅貨品類型同價值設定，申請時會同你商討。"
+                      },
+                      {
+                        q: "6. 保證金嘅用途？",
+                        a: "每次成交，網站收取嘅平台佣金會直接由保證金扣返。如果發生退款 / 糾紛 / 違規亦會由保證金扣。\n保證金不足會被暫停上架，記得入「商戶後台 → 保證金」頁面充值。"
+                      },
+                      {
+                        q: "7. 點樣付款 / 收貨？",
+                        a: "得標 / 落單後：\n• 系統會通知買家同商戶。\n• 入「我的得標紀錄」可以一鍵 WhatsApp / Facebook Messenger 聯絡商戶（自動 copy 訊息 + 商品連結）。\n• 付款方式（FPS、銀行過數、面交等）同運費由商戶決定，請直接同商戶溝通。"
+                      },
+                      {
+                        q: "8. 點樣申請退款？",
+                        a: "入「我的訂單」揀返嗰張單，撳「申請退款」填寫原因。商戶會收到通知，雙方可以溝通；如有爭議管理員會仲裁。\n判定退款後，款項會由商戶保證金扣返畀買家。"
+                      },
+                      {
+                        q: "9. 會員等級點樣升級？有咩好處？",
+                        a: "系統根據出價數、得標數、90 日消費自動升降級：銅 → 銀 → 金 → VIP。\n好處：\n• 銀牌：代理出價無限次、可匿名出價、cashback 1%\n• 金牌：代理出價無上限、cashback 2%、48 小時提早預覽\n• VIP：cashback 3%\n長期唔活躍（90 日）會自動降級。詳情入「會員權益」頁。"
+                      },
+                      {
+                        q: "10. 忘記密碼點算？",
+                        a: "登入頁面撳「忘記密碼」，輸入註冊嗰個 email，系統會寄重設連結俾你。如果收唔到請 check spam folder，或 WhatsApp 大BB錢幣店 97927793。"
+                      },
+                    ].map((item, i) => (
+                      <details
+                        key={i}
+                        className="group border border-amber-100 rounded-lg overflow-hidden"
+                      >
+                        <summary className="cursor-pointer text-[12px] font-medium text-gray-800 px-2.5 py-1.5 bg-amber-50/60 hover:bg-amber-100/70 list-none flex items-start gap-1.5">
+                          <span className="text-amber-600 group-open:rotate-90 transition-transform inline-block leading-tight">▶</span>
+                          <span className="flex-1">{item.q}</span>
+                        </summary>
+                        <div className="px-2.5 py-2 text-[12px] text-gray-700 leading-relaxed whitespace-pre-line border-t border-amber-100 bg-white">
+                          {item.a}
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-2">搵唔到答案？喺下面輸入框直接問我啦 👇</p>
+                </div>
+              </div>
+
               {messages.map((m, i) => (
                 <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div
