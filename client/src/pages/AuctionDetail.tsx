@@ -18,6 +18,7 @@ import { MembershipBenefitsDialog, useMembershipBenefitsDialog } from "@/compone
 import { useSeoMeta } from "@/lib/useSeoMeta";
 import { ShareMenu } from "@/components/ShareMenu";
 import ImageLightbox from "@/components/ImageLightbox";
+import ChatButton from "@/components/ChatButton";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -821,6 +822,11 @@ export default function AuctionDetail() {
                       <p className="text-xs text-amber-600">目前起拍價：{currencySymbol}{Number(auction.startingPrice).toLocaleString()}（未有出價時可修改）</p>
                     )}
                   </div>
+                )}
+
+                {/* 私訊商戶按鈕 (商戶自己唔顯示) */}
+                {auction.createdBy !== user?.id && (
+                  <ChatButton auctionId={auctionId} merchantId={auction.createdBy} />
                 )}
 
                 {/* Bid Input */}

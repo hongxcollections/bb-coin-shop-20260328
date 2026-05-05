@@ -17,7 +17,9 @@ import {
   Plus, Pencil, Trash2, Archive, RotateCcw, Upload, X,
   ImageIcon, CheckCircle2, AlertCircle, AlertTriangle, Loader2, ChevronLeft,
   RefreshCw, Eye, Send, CheckSquare, Square, CreditCard, Facebook, Copy, Check, Sparkles, Mic,
+  Megaphone,
 } from "lucide-react";
+import MerchantBroadcastDialog from "@/components/MerchantBroadcastDialog";
 
 const MAX_IMAGES = 10;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -249,6 +251,7 @@ function AuctionCard({
 }) {
   const img = auction.images?.[0]?.imageUrl;
   const isDraft = tab === "草稿";
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
 
   return (
     <div className={`flex gap-2 p-2 rounded-lg border transition-colors ${isDraft && selected ? "border-amber-400 bg-amber-50/60" : "bg-card hover:bg-accent/5"}`}>
@@ -337,6 +340,15 @@ function AuctionCard({
                   <Eye className="w-2.5 h-2.5" />查看
                 </Button>
               </Link>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 px-1.5 text-xs gap-0.5 border-amber-300 text-amber-700 hover:bg-amber-50"
+                title="向所有曾出價買家發送訊息（每小時 1 次）"
+                onClick={() => setBroadcastOpen(true)}
+              >
+                <Megaphone className="w-2.5 h-2.5" />廣播
+              </Button>
               {fbRefreshEnabled && (
                 <Button
                   size="sm"
@@ -390,6 +402,14 @@ function AuctionCard({
           )}
         </div>
       </div>
+      {broadcastOpen && (
+        <MerchantBroadcastDialog
+          open={broadcastOpen}
+          onOpenChange={setBroadcastOpen}
+          auctionId={auction.id}
+          auctionTitle={auction.title}
+        />
+      )}
     </div>
   );
 }

@@ -5560,6 +5560,248 @@ ${kb}`;
         }
       }),
   }),
+
+  // ─── 拍賣私密聊天室 ──────────────────────────────────────────────────────
+  chat: router({
+    /** 列出我嘅所有聊天室 */
+    listMyRooms: protectedProcedure.query(async ({ ctx }) => {
+      const { listMyChatRooms } = await import('./db');
+      return listMyChatRooms(ctx.user.id);
+    }),
+
+    /** 我嘅總未讀訊息數 (頂部 badge) */
+    unreadTotal: protectedProcedure.query(async ({ ctx }) => {
+      const { getMyChatUnreadTotal } = await import('./db');
+      const total = await getMyChatUnreadTotal(ctx.user.id);
+      return { total };
+    }),
+
+    /** Bidder 開新對話 (或取得已存在嘅 room)。需要 silver+ 會員等級。 */
+    openRoom: protectedProcedure
+      .input(z.object({ auctionId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getOrCreateChatRoom, getUserMemberLevel, getAuctionById } = await import('./db');
+        const auction = await getAuctionById(input.auctionId);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找唔到呢個拍賣' });
+
+        // 商戶自己唔可以同自己 chat
+        if (auction.createdBy === ctx.user.id) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '你係呢個拍賣嘅商戶，唔需要同自己對話' });
+        }
+
+        // 銀牌+ gate (admin 例外)
+        if (ctx.user.role !== 'admin') {
+          const lvl = await getUserMemberLevel(ctx.user.id);
+          if (lvl !== 'silver' && lvl !== 'gold' && lvl !== 'vip') {
+            throw new TRPCError({
+              code: 'FORBIDDEN',
+              message: '只有銀牌或以上會員可以同商戶對話。請先升級會員等級 🥈',
+            });
+          }
+        }
+
+        const result = await getOrCreateChatRoom(input.auctionId, ctx.user.id, auction.createdBy);
+        if (!result) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '建立對話失敗' });
+        return { roomId: result.room.id, isNew: result.isNew };
+      }),
+
+    /** 取得 room 詳情 + 訊息列表 (僅參與者) */
+    getRoom: protectedProcedure
+      .input(z.object({ roomId: z.number(), limit: z.number().default(100) }))
+      .query(async ({ input, ctx }) => {
+        const { getChatRoomById, listChatMessages, getAuctionById, getUserById, markChatRoomRead } = await import('./db');
+        const room = await getChatRoomById(input.roomId);
+        if (!room) throw new TRPCError({ code: 'NOT_FOUND', message: '找唔到對話' });
+        if (room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '冇權查看呢個對話' });
+        }
+
+        const [auction, bidder, merchant, messages] = await Promise.all([
+          getAuctionById(room.auctionId),
+          getUserById(room.bidderId),
+          getUserById(room.merchantId),
+          listChatMessages(input.roomId, input.limit),
+        ]);
+
+        // 順手標記已讀
+        await markChatRoomRead(input.roomId, ctx.user.id);
+
+        const myRole: 'bidder' | 'merchant' = room.bidderId === ctx.user.id ? 'bidder' : 'merchant';
+        const other = myRole === 'bidder' ? merchant : bidder;
+        return {
+          room,
+          auction: auction ? { id: auction.id, title: auction.title, status: auction.status, currentPrice: auction.currentPrice, currency: auction.currency, endTime: auction.endTime } : null,
+          myRole,
+          other: other ? { id: other.id, name: other.name, photoUrl: other.photoUrl } : null,
+          messages,
+        };
+      }),
+
+    /** 發送訊息 (text 或 image) */
+    sendMessage: protectedProcedure
+      .input(z.object({
+        roomId: z.number(),
+        content: z.string().max(2000).optional(),
+        imageUrl: z.string().url().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (!input.content && !input.imageUrl) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '訊息內容或圖片至少要有一樣' });
+        }
+        const { getChatRoomById, insertChatMessage, getUserById, getUserMemberLevel } = await import('./db');
+        const { notifyNewChatMessage } = await import('./_core/chatWebSocket');
+        const room = await getChatRoomById(input.roomId);
+        if (!room) throw new TRPCError({ code: 'NOT_FOUND', message: '對話不存在' });
+
+        let senderRole: 'bidder' | 'merchant';
+        let recipientId: number;
+        if (room.bidderId === ctx.user.id) {
+          senderRole = 'bidder';
+          recipientId = room.merchantId;
+          // Bidder 必須維持 silver+ (admin 例外)
+          if (ctx.user.role !== 'admin') {
+            const lvl = await getUserMemberLevel(ctx.user.id);
+            if (lvl !== 'silver' && lvl !== 'gold' && lvl !== 'vip') {
+              throw new TRPCError({ code: 'FORBIDDEN', message: '只有銀牌或以上會員可以發送訊息' });
+            }
+          }
+        } else if (room.merchantId === ctx.user.id) {
+          senderRole = 'merchant';
+          recipientId = room.bidderId;
+        } else {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '你唔係呢個對話嘅參與者' });
+        }
+
+        const messageType: 'text' | 'image' = input.imageUrl ? 'image' : 'text';
+        const msg = await insertChatMessage({
+          roomId: input.roomId,
+          senderId: ctx.user.id,
+          senderRole,
+          messageType,
+          content: input.content ?? null,
+          imageUrl: input.imageUrl ?? null,
+        });
+        if (!msg) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '訊息發送失敗' });
+
+        const senderUser = await getUserById(ctx.user.id);
+        await notifyNewChatMessage({
+          roomId: input.roomId,
+          message: msg,
+          recipientUserId: recipientId,
+          senderName: senderUser?.name ?? '對方',
+        });
+        return { success: true, message: msg };
+      }),
+
+    /** 標記為已讀 */
+    markRead: protectedProcedure
+      .input(z.object({ roomId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const { markChatRoomRead } = await import('./db');
+        const ok = await markChatRoomRead(input.roomId, ctx.user.id);
+        return { success: ok };
+      }),
+
+    /** 上傳聊天圖片 (回 URL，唔自動建立 message — 由 sendMessage 帶入 imageUrl) */
+    uploadImage: protectedProcedure
+      .input(z.object({
+        roomId: z.number(),
+        // base64 of 5MB binary ≈ 6.67MB string. Allow up to 7.5MB to absorb headers/whitespace.
+        // 提早攔截 string size，避免攻擊者用超大 payload 觸發 base64 decode CPU/memory spike。
+        imageData: z.string().min(1).max(7_500_000),
+        fileName: z.string().min(1).max(200),
+        mimeType: z.string().default('image/jpeg'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        if (!allowed.includes(input.mimeType)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '不支援嘅圖片格式' });
+        }
+        const { getChatRoomById } = await import('./db');
+        const room = await getChatRoomById(input.roomId);
+        if (!room || (room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '冇權上傳到呢個對話' });
+        }
+        const buffer = Buffer.from(input.imageData, 'base64');
+        if (buffer.length > 5 * 1024 * 1024) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '圖片大小不可超過 5MB' });
+        }
+        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80);
+        const key = `chat/${input.roomId}/${Date.now()}-${ctx.user.id}-${safeName}`;
+        const { url } = await storagePut(key, buffer, input.mimeType);
+        return { url };
+      }),
+
+    /** 商戶廣播訊息畀某拍賣所有曾出價買家 (1/小時 rate limit) */
+    broadcast: protectedProcedure
+      .input(z.object({
+        auctionId: z.number(),
+        message: z.string().min(1).max(500),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getAuctionById, broadcastToBidders, getMerchantLastBroadcastAt, getUserById } = await import('./db');
+        const { notifyNewChatMessage } = await import('./_core/chatWebSocket');
+        const auction = await getAuctionById(input.auctionId);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找唔到呢個拍賣' });
+        if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有呢個拍賣嘅商戶可以廣播' });
+        }
+
+        // 1/小時 rate limit
+        const last = await getMerchantLastBroadcastAt(input.auctionId, ctx.user.id);
+        if (last) {
+          const elapsedMin = Math.floor((Date.now() - last.getTime()) / 60_000);
+          if (elapsedMin < 60) {
+            const wait = 60 - elapsedMin;
+            throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: `每小時只可廣播一次，請 ${wait} 分鐘後再試` });
+          }
+        }
+
+        const result = await broadcastToBidders(input.auctionId, ctx.user.id, input.message);
+        // 推送即時通知到每個 room
+        const senderUser = await getUserById(ctx.user.id);
+        const senderName = senderUser?.name ?? '商戶';
+        for (const roomId of result.rooms) {
+          const { getChatRoomById, listChatMessages } = await import('./db');
+          const room = await getChatRoomById(roomId);
+          if (!room) continue;
+          const msgs = await listChatMessages(roomId, 1);
+          const newest = msgs[msgs.length - 1];
+          if (newest) {
+            await notifyNewChatMessage({
+              roomId,
+              message: newest,
+              recipientUserId: room.bidderId,
+              senderName,
+            });
+          }
+        }
+        return { sent: result.sent };
+      }),
+
+    /** Admin: 取得 chat 設定 (公開讀取) */
+    getRetentionDays: publicProcedure.query(async () => {
+      const v = await getSiteSetting('chat.retentionDays');
+      return { days: v ? parseInt(v, 10) : 90 };
+    }),
+
+    /** Admin: 設定 chat 保留期 + 立即跑一次清理 */
+    setRetentionDays: adminProcedure
+      .input(z.object({ days: z.number().int().min(7).max(3650) }))
+      .mutation(async ({ input }) => {
+        await setSiteSetting('chat.retentionDays', String(input.days));
+        return { success: true, days: input.days };
+      }),
+
+    /** Admin: 立即跑一次清理 (測試用) */
+    purgeNow: adminProcedure.mutation(async () => {
+      const { purgeOldChatRooms } = await import('./db');
+      const v = await getSiteSetting('chat.retentionDays');
+      const days = v ? parseInt(v, 10) : 90;
+      const result = await purgeOldChatRooms(days);
+      return { ...result, days };
+    }),
+  }),
 });
 export type AppRouter = typeof appRouter;
 

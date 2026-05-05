@@ -1,7 +1,7 @@
 import { eq, ne, desc, asc, and, or, gte, lte, gt, sql, inArray, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, merchantProducts, MerchantProduct, featuredListings, FeaturedListing } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, merchantProducts, MerchantProduct, featuredListings, FeaturedListing, auctionChatRooms, auctionChatMessages, AuctionChatRoom, AuctionChatMessage } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -5126,5 +5126,344 @@ export async function searchRelatedAuctions(keywords: string[], limit = 6): Prom
   } catch (e) {
     console.error('[coinAnalysis] searchRelated error:', e);
     return [];
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 拍賣私密聊天室 (1:1 between bidder + merchant)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** 取得或建立聊天室。bidder 開新 chat 用。返回 room + isNew flag。 */
+export async function getOrCreateChatRoom(
+  auctionId: number,
+  bidderId: number,
+  merchantId: number,
+): Promise<{ room: AuctionChatRoom; isNew: boolean } | null> {
+  try {
+    const db = await getDb();
+    if (!db) return null;
+    const existing = await db
+      .select()
+      .from(auctionChatRooms)
+      .where(and(eq(auctionChatRooms.auctionId, auctionId), eq(auctionChatRooms.bidderId, bidderId)))
+      .limit(1);
+    if (existing.length > 0) {
+      return { room: existing[0], isNew: false };
+    }
+    await db.insert(auctionChatRooms).values({ auctionId, bidderId, merchantId });
+    const created = await db
+      .select()
+      .from(auctionChatRooms)
+      .where(and(eq(auctionChatRooms.auctionId, auctionId), eq(auctionChatRooms.bidderId, bidderId)))
+      .limit(1);
+    return { room: created[0], isNew: true };
+  } catch (e) {
+    console.error('[chat] getOrCreateChatRoom error:', e);
+    return null;
+  }
+}
+
+export async function getChatRoomById(roomId: number): Promise<AuctionChatRoom | null> {
+  try {
+    const db = await getDb();
+    if (!db) return null;
+    const rows = await db.select().from(auctionChatRooms).where(eq(auctionChatRooms.id, roomId)).limit(1);
+    return rows[0] ?? null;
+  } catch (e) {
+    console.error('[chat] getChatRoomById error:', e);
+    return null;
+  }
+}
+
+/** 列出我參與嘅所有聊天室 (作為 bidder 或 merchant)，附拍賣資料 + 對方資料。 */
+export async function listMyChatRooms(userId: number): Promise<Array<{
+  id: number;
+  auctionId: number;
+  auctionTitle: string;
+  auctionThumbUrl: string | null;
+  auctionStatus: string;
+  myRole: 'bidder' | 'merchant';
+  otherUserId: number;
+  otherUserName: string | null;
+  otherUserPhotoUrl: string | null;
+  unreadCount: number;
+  lastMessagePreview: string | null;
+  lastMessageAt: Date;
+  isArchived: number;
+}>> {
+  try {
+    const pool = await getRawPool();
+    if (!pool) return [];
+    const [rows]: any = await pool.execute(
+      `SELECT
+         r.id, r.auctionId, r.bidderId, r.merchantId, r.bidderUnreadCount, r.merchantUnreadCount,
+         r.lastMessagePreview, r.lastMessageAt, r.isArchived,
+         a.title as auctionTitle, a.status as auctionStatus,
+         (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder LIMIT 1) as auctionThumbUrl,
+         CASE WHEN r.bidderId = ? THEN r.merchantId ELSE r.bidderId END as otherUserId,
+         u.name as otherUserName, u.photoUrl as otherUserPhotoUrl
+       FROM auctionChatRooms r
+       JOIN auctions a ON a.id = r.auctionId
+       LEFT JOIN users u ON u.id = (CASE WHEN r.bidderId = ? THEN r.merchantId ELSE r.bidderId END)
+       WHERE (r.bidderId = ? OR r.merchantId = ?)
+       ORDER BY r.lastMessageAt DESC`,
+      [userId, userId, userId, userId],
+    );
+    return rows.map((r: any) => ({
+      id: r.id,
+      auctionId: r.auctionId,
+      auctionTitle: r.auctionTitle,
+      auctionThumbUrl: r.auctionThumbUrl,
+      auctionStatus: r.auctionStatus,
+      myRole: r.bidderId === userId ? 'bidder' : 'merchant',
+      otherUserId: r.otherUserId,
+      otherUserName: r.otherUserName,
+      otherUserPhotoUrl: r.otherUserPhotoUrl,
+      unreadCount: r.bidderId === userId ? r.bidderUnreadCount : r.merchantUnreadCount,
+      lastMessagePreview: r.lastMessagePreview,
+      lastMessageAt: r.lastMessageAt,
+      isArchived: r.isArchived,
+    }));
+  } catch (e) {
+    console.error('[chat] listMyChatRooms error:', e);
+    return [];
+  }
+}
+
+export async function listChatMessages(roomId: number, limit: number = 100): Promise<AuctionChatMessage[]> {
+  try {
+    const db = await getDb();
+    if (!db) return [];
+    const rows = await db
+      .select()
+      .from(auctionChatMessages)
+      .where(eq(auctionChatMessages.roomId, roomId))
+      .orderBy(desc(auctionChatMessages.createdAt))
+      .limit(limit);
+    return rows.reverse(); // 由舊到新顯示
+  } catch (e) {
+    console.error('[chat] listChatMessages error:', e);
+    return [];
+  }
+}
+
+export async function insertChatMessage(input: {
+  roomId: number;
+  senderId: number;
+  senderRole: 'bidder' | 'merchant' | 'system';
+  messageType?: 'text' | 'image' | 'broadcast';
+  content?: string | null;
+  imageUrl?: string | null;
+}): Promise<AuctionChatMessage | null> {
+  try {
+    const db = await getDb();
+    if (!db) return null;
+    const messageType = input.messageType ?? 'text';
+    await db.insert(auctionChatMessages).values({
+      roomId: input.roomId,
+      senderId: input.senderId,
+      senderRole: input.senderRole,
+      messageType,
+      content: input.content ?? null,
+      imageUrl: input.imageUrl ?? null,
+    });
+    // 取出剛建立嘅 message
+    const created = await db
+      .select()
+      .from(auctionChatMessages)
+      .where(eq(auctionChatMessages.roomId, input.roomId))
+      .orderBy(desc(auctionChatMessages.id))
+      .limit(1);
+    const msg = created[0];
+
+    // 更新 room 嘅 lastMessage + 對方 unread count
+    const preview = messageType === 'image'
+      ? '[圖片]'
+      : messageType === 'broadcast'
+        ? `[廣播] ${(input.content ?? '').slice(0, 100)}`
+        : (input.content ?? '').slice(0, 100);
+
+    if (input.senderRole === 'bidder') {
+      await db
+        .update(auctionChatRooms)
+        .set({
+          lastMessagePreview: preview,
+          lastMessageAt: new Date(),
+          merchantUnreadCount: sql`${auctionChatRooms.merchantUnreadCount} + 1`,
+        })
+        .where(eq(auctionChatRooms.id, input.roomId));
+    } else if (input.senderRole === 'merchant') {
+      await db
+        .update(auctionChatRooms)
+        .set({
+          lastMessagePreview: preview,
+          lastMessageAt: new Date(),
+          bidderUnreadCount: sql`${auctionChatRooms.bidderUnreadCount} + 1`,
+        })
+        .where(eq(auctionChatRooms.id, input.roomId));
+    } else {
+      // system message — 唔加未讀
+      await db
+        .update(auctionChatRooms)
+        .set({ lastMessagePreview: preview, lastMessageAt: new Date() })
+        .where(eq(auctionChatRooms.id, input.roomId));
+    }
+    return msg;
+  } catch (e) {
+    console.error('[chat] insertChatMessage error:', e);
+    return null;
+  }
+}
+
+/** 標記聊天室為已讀（對應角色嘅 unreadCount 歸零）。 */
+export async function markChatRoomRead(roomId: number, userId: number): Promise<boolean> {
+  try {
+    const db = await getDb();
+    if (!db) return false;
+    const room = await getChatRoomById(roomId);
+    if (!room) return false;
+    if (room.bidderId === userId) {
+      await db.update(auctionChatRooms).set({ bidderUnreadCount: 0 }).where(eq(auctionChatRooms.id, roomId));
+    } else if (room.merchantId === userId) {
+      await db.update(auctionChatRooms).set({ merchantUnreadCount: 0 }).where(eq(auctionChatRooms.id, roomId));
+    } else {
+      return false;
+    }
+    // 順帶將 messages.isRead 設為 1
+    await db
+      .update(auctionChatMessages)
+      .set({ isRead: 1 })
+      .where(and(eq(auctionChatMessages.roomId, roomId), ne(auctionChatMessages.senderId, userId)));
+    return true;
+  } catch (e) {
+    console.error('[chat] markChatRoomRead error:', e);
+    return false;
+  }
+}
+
+/** 我嘅總未讀訊息數（all rooms 加埋）。 */
+export async function getMyChatUnreadTotal(userId: number): Promise<number> {
+  try {
+    const pool = await getRawPool();
+    if (!pool) return 0;
+    const [rows]: any = await pool.execute(
+      `SELECT COALESCE(SUM(
+         CASE WHEN bidderId = ? THEN bidderUnreadCount
+              WHEN merchantId = ? THEN merchantUnreadCount
+              ELSE 0 END), 0) as total
+       FROM auctionChatRooms
+       WHERE (bidderId = ? OR merchantId = ?)`,
+      [userId, userId, userId, userId],
+    );
+    return Number(rows[0]?.total ?? 0);
+  } catch (e) {
+    console.error('[chat] getMyChatUnreadTotal error:', e);
+    return 0;
+  }
+}
+
+/** 商戶廣播：一鍵向某拍賣所有曾出價買家發送訊息（建立 room if 不存在）。 */
+export async function broadcastToBidders(
+  auctionId: number,
+  merchantId: number,
+  message: string,
+): Promise<{ sent: number; rooms: number[] }> {
+  try {
+    const bidders = await getBiddersForAuction(auctionId);
+    const rooms: number[] = [];
+    let sent = 0;
+    for (const b of bidders) {
+      if (b.userId === merchantId) continue; // 唔發畀自己
+      const result = await getOrCreateChatRoom(auctionId, b.userId, merchantId);
+      if (!result) continue;
+      const msg = await insertChatMessage({
+        roomId: result.room.id,
+        senderId: merchantId,
+        senderRole: 'merchant',
+        messageType: 'broadcast',
+        content: message,
+      });
+      if (msg) {
+        sent++;
+        rooms.push(result.room.id);
+      }
+    }
+    return { sent, rooms };
+  } catch (e) {
+    console.error('[chat] broadcastToBidders error:', e);
+    return { sent: 0, rooms: [] };
+  }
+}
+
+/**
+ * 清理已結拍超過 N 日嘅聊天室（admin cleanup task）。
+ *
+ * 原則：只清理 auction 已 ended 並且結拍時間 + 保留期已過嘅 chat rooms。
+ * 進行中嘅拍賣對話絕對唔會被誤刪，無論幾耐冇新訊息。
+ *
+ * 條件：
+ *   - JOIN auctions 表
+ *   - auction.status = 'ended' OR auction.endTime < NOW (時間到自動結拍)
+ *   - auction.endTime < NOW() - INTERVAL ? DAY (結拍超過 N 日)
+ */
+export async function purgeOldChatRooms(daysOld: number): Promise<{ rooms: number; messages: number }> {
+  try {
+    const pool = await getRawPool();
+    if (!pool) return { rooms: 0, messages: 0 };
+    const [oldRooms]: any = await pool.execute(
+      `SELECT r.id FROM auctionChatRooms r
+       INNER JOIN auctions a ON a.id = r.auctionId
+       WHERE (a.status = 'ended' OR a.endTime < NOW())
+         AND a.endTime IS NOT NULL
+         AND a.endTime < DATE_SUB(NOW(), INTERVAL ? DAY)`,
+      [daysOld],
+    );
+    if (oldRooms.length === 0) return { rooms: 0, messages: 0 };
+    const ids = oldRooms.map((r: any) => r.id);
+    const [msgRes]: any = await pool.query(
+      `DELETE FROM auctionChatMessages WHERE roomId IN (?)`,
+      [ids],
+    );
+    const [roomRes]: any = await pool.query(
+      `DELETE FROM auctionChatRooms WHERE id IN (?)`,
+      [ids],
+    );
+    return { rooms: roomRes.affectedRows ?? 0, messages: msgRes.affectedRows ?? 0 };
+  } catch (e) {
+    console.error('[chat] purgeOldChatRooms error:', e);
+    return { rooms: 0, messages: 0 };
+  }
+}
+
+/** 取得用戶當前 memberLevel（用於 silver+ gate check）。 */
+export async function getUserMemberLevel(userId: number): Promise<string | null> {
+  try {
+    const db = await getDb();
+    if (!db) return null;
+    const rows = await db.select({ memberLevel: users.memberLevel }).from(users).where(eq(users.id, userId)).limit(1);
+    return rows[0]?.memberLevel ?? null;
+  } catch (e) {
+    console.error('[chat] getUserMemberLevel error:', e);
+    return null;
+  }
+}
+
+/** 商戶上次廣播時間（用於 1/小時 rate limit check）。 */
+export async function getMerchantLastBroadcastAt(auctionId: number, merchantId: number): Promise<Date | null> {
+  try {
+    const pool = await getRawPool();
+    if (!pool) return null;
+    const [rows]: any = await pool.execute(
+      `SELECT MAX(m.createdAt) as lastAt
+       FROM auctionChatMessages m
+       JOIN auctionChatRooms r ON r.id = m.roomId
+       WHERE r.auctionId = ? AND r.merchantId = ? AND m.senderId = ? AND m.messageType = 'broadcast'`,
+      [auctionId, merchantId, merchantId],
+    );
+    const ts = rows[0]?.lastAt;
+    return ts ? new Date(ts) : null;
+  } catch (e) {
+    console.error('[chat] getMerchantLastBroadcastAt error:', e);
+    return null;
   }
 }

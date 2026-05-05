@@ -1138,6 +1138,9 @@ export default function AdminSiteSettings() {
               </CardContent>
             </Card>
 
+            {/* 對話訊息保留期 */}
+            <ChatRetentionCard />
+
             {/* 所有設定值 */}
             <Card>
               <CardHeader>
@@ -1164,5 +1167,97 @@ export default function AdminSiteSettings() {
         )}
       </div>
     </div>
+  );
+}
+
+// ─── Chat 對話保留期設定 ──────────────────────────────────────────────────────
+function ChatRetentionCard() {
+  const utils = trpc.useUtils();
+  const { data, isLoading } = trpc.chat.getRetentionDays.useQuery();
+  const [days, setDays] = useState<string>("");
+  useEffect(() => {
+    if (typeof data?.days === "number") setDays(String(data.days));
+  }, [data]);
+
+  const setMut = trpc.chat.setRetentionDays.useMutation({
+    onSuccess: () => {
+      toast.success("✅ 已更新對話保留期");
+      utils.chat.getRetentionDays.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "儲存失敗"),
+  });
+
+  const purgeMut = trpc.chat.purgeNow.useMutation({
+    onSuccess: ({ rooms, messages }) => {
+      toast.success(`✅ 已清理 ${rooms} 個對話 / ${messages} 條訊息`);
+    },
+    onError: (err) => toast.error(err.message || "清理失敗"),
+  });
+
+  const handleSave = () => {
+    const n = parseInt(days, 10);
+    if (!Number.isFinite(n) || n < 1 || n > 3650) {
+      toast.error("請輸入 1 至 3650 之間嘅日數");
+      return;
+    }
+    setMut.mutate({ days: n });
+  };
+
+  const handlePurge = () => {
+    if (!window.confirm("確定立即執行清理？已結拍超過保留期嘅對話會被永久刪除。")) return;
+    purgeMut.mutate();
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <MessageSquare className="w-4 h-4 text-amber-600" />
+          對話訊息保留期
+        </CardTitle>
+        <CardDescription>
+          拍賣結束後，1:1 私訊會保留若干日數方便買賣雙方跟進。逾期會自動清理（每日凌晨）。預設 90 日。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <Label htmlFor="chat-retention" className="text-xs">保留日數（拍賣結束後）</Label>
+            <Input
+              id="chat-retention"
+              type="number"
+              min={1}
+              max={3650}
+              value={days}
+              onChange={(e) => setDays(e.target.value)}
+              disabled={isLoading || setMut.isPending}
+              placeholder="90"
+            />
+          </div>
+          <Button
+            onClick={handleSave}
+            disabled={isLoading || setMut.isPending}
+            className="bg-amber-500 hover:bg-amber-600 text-white"
+          >
+            <Save className="w-4 h-4 mr-1" />儲存
+          </Button>
+        </div>
+        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+          <div className="text-xs text-gray-500">
+            如要立即清理逾期對話，可手動觸發。
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePurge}
+            disabled={purgeMut.isPending}
+            className="border-red-200 text-red-600 hover:bg-red-50"
+          >
+            <Trash2 className="w-3.5 h-3.5 mr-1" />
+            {purgeMut.isPending ? "清理中..." : "立即清理"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

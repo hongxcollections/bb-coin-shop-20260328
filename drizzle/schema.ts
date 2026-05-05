@@ -500,3 +500,32 @@ export const coinAnalysisHistory = mysqlTable("coinAnalysisHistory", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type CoinAnalysisHistory = typeof coinAnalysisHistory.$inferSelect;
+
+// ── 拍賣私密聊天室（1:1，僅出價會員 + 該拍賣商戶可見） ───────────────────────
+export const auctionChatRooms = mysqlTable("auctionChatRooms", {
+  id: int("id").autoincrement().primaryKey(),
+  auctionId: int("auctionId").notNull(),
+  bidderId: int("bidderId").notNull(),
+  merchantId: int("merchantId").notNull(),
+  bidderUnreadCount: int("bidderUnreadCount").default(0).notNull(),
+  merchantUnreadCount: int("merchantUnreadCount").default(0).notNull(),
+  lastMessagePreview: varchar("lastMessagePreview", { length: 200 }),
+  lastMessageAt: timestamp("lastMessageAt").defaultNow().notNull(),
+  isArchived: int("isArchived").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type AuctionChatRoom = typeof auctionChatRooms.$inferSelect;
+
+export const auctionChatMessages = mysqlTable("auctionChatMessages", {
+  id: int("id").autoincrement().primaryKey(),
+  roomId: int("roomId").notNull(),
+  senderId: int("senderId").notNull(),
+  senderRole: mysqlEnum("senderRole", ["bidder", "merchant", "system"]).notNull(),
+  messageType: mysqlEnum("messageType", ["text", "image", "broadcast"]).default("text").notNull(),
+  content: text("content"),
+  imageUrl: varchar("imageUrl", { length: 1000 }),
+  isRead: int("isRead").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AuctionChatMessage = typeof auctionChatMessages.$inferSelect;

@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Link, useLocation } from "wouter";
-import { Home, Gavel, Store, User, MoreHorizontal, MessageCircle, Shield, LogOut, ShoppingBag, LayoutDashboard, BookOpen, TrendingUp } from "lucide-react";
+import { Home, Gavel, Store, User, MoreHorizontal, MessageCircle, Shield, LogOut, ShoppingBag, LayoutDashboard, BookOpen, TrendingUp, Mail } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/contexts/ToastContext";
 import { trpc } from "@/lib/trpc";
@@ -12,6 +12,12 @@ export default function BottomNav() {
     enabled: isAuthenticated,
     staleTime: 0,
   });
+  const { data: chatUnread } = trpc.chat.unreadTotal.useQuery(undefined, {
+    enabled: isAuthenticated,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const unreadChatCount = (chatUnread as { total?: number } | undefined)?.total ?? 0;
   const { data: _siteSettings, isSuccess: _settingsLoaded } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const _ss = (_siteSettings as Record<string, string> | undefined) ?? {};
   const loginWelcomeTitlePhone = _ss.loginWelcomeTitlePhone || "手機登入成功！";
@@ -187,6 +193,19 @@ export default function BottomNav() {
                           >
                             <User className="w-4 h-4" />
                             <span>個人資料</span>
+                          </Link>
+                          <Link
+                            href="/messages"
+                            onClick={() => setShowMore(false)}
+                            className="bottom-nav-more-item"
+                          >
+                            <Mail className="w-4 h-4" />
+                            <span>對話訊息</span>
+                            {unreadChatCount > 0 && (
+                              <span style={{ marginLeft: "auto", background: "#dc2626", color: "white", fontSize: "10px", fontWeight: 700, padding: "1px 6px", borderRadius: "9px", minWidth: "18px", textAlign: "center" }}>
+                                {unreadChatCount > 99 ? "99+" : unreadChatCount}
+                              </span>
+                            )}
                           </Link>
                           {user?.role === "admin" && (
                             <Link

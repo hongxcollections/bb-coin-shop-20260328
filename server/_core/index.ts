@@ -189,6 +189,42 @@ async function bootstrapMissingColumns() {
     INDEX \`idx_pushsub_user\` (\`userId\`)
   )`, 'Ensured pushSubscriptions table');
 
+  // ── 拍賣私密聊天室 (1:1 between bidder + merchant) ─────────────────────────
+  await alter(`CREATE TABLE IF NOT EXISTS \`auctionChatRooms\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`auctionId\` int NOT NULL,
+    \`bidderId\` int NOT NULL,
+    \`merchantId\` int NOT NULL,
+    \`bidderUnreadCount\` int NOT NULL DEFAULT 0,
+    \`merchantUnreadCount\` int NOT NULL DEFAULT 0,
+    \`lastMessagePreview\` varchar(200) NULL,
+    \`lastMessageAt\` timestamp NOT NULL DEFAULT (now()),
+    \`isArchived\` int NOT NULL DEFAULT 0,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT \`auctionChatRooms_id\` PRIMARY KEY(\`id\`),
+    CONSTRAINT \`uq_chatroom_unique\` UNIQUE(\`auctionId\`, \`bidderId\`),
+    INDEX \`idx_chatroom_bidder\` (\`bidderId\`),
+    INDEX \`idx_chatroom_merchant\` (\`merchantId\`),
+    INDEX \`idx_chatroom_auction\` (\`auctionId\`),
+    INDEX \`idx_chatroom_lastmsg\` (\`lastMessageAt\`)
+  )`, 'Ensured auctionChatRooms table');
+
+  await alter(`CREATE TABLE IF NOT EXISTS \`auctionChatMessages\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`roomId\` int NOT NULL,
+    \`senderId\` int NOT NULL,
+    \`senderRole\` enum('bidder','merchant','system') NOT NULL,
+    \`messageType\` enum('text','image','broadcast') NOT NULL DEFAULT 'text',
+    \`content\` text NULL,
+    \`imageUrl\` varchar(1000) NULL,
+    \`isRead\` int NOT NULL DEFAULT 0,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    CONSTRAINT \`auctionChatMessages_id\` PRIMARY KEY(\`id\`),
+    INDEX \`idx_chatmsg_room\` (\`roomId\`, \`createdAt\`),
+    INDEX \`idx_chatmsg_sender\` (\`senderId\`)
+  )`, 'Ensured auctionChatMessages table');
+
   // 新增 users.memberLevelExpiresAt 欄位（Loyalty 試用到期）
   await alter(
     `ALTER TABLE \`users\` ADD COLUMN \`memberLevelExpiresAt\` timestamp NULL`,
@@ -442,6 +478,14 @@ async function startServer() {
   // Railway/proxy: trust X-Forwarded-* so req.ip reflects real client IP for rate limiting
   app.set('trust proxy', true);
   const server = createServer(app);
+
+  // ── 拍賣聊天 WebSocket ─────────────────────────────────────────────────────
+  try {
+    const { attachChatWebSocket } = await import('./chatWebSocket');
+    attachChatWebSocket(server);
+  } catch (e) {
+    console.error('[startServer] Failed to attach chat WebSocket:', e);
+  }
 
   // ── 健康檢查端點必須最優先登記 ──────────────────────────────────────────────
   // 原因：Railway 在容器啟動後馬上開始輪詢 /health，
