@@ -184,6 +184,13 @@ export function Chatbot() {
           >
             <X className="w-3 h-3" />
           </button>
+          {/* icon 下方細字標籤 */}
+          <span
+            aria-hidden="true"
+            className="absolute left-1/2 -translate-x-1/2 top-full mt-0.5 text-[9px] leading-none font-medium text-amber-700 bg-white/85 rounded px-1 py-0.5 whitespace-nowrap pointer-events-none shadow-sm"
+          >
+            AI客服助手
+          </span>
         </div>
       )}
 
