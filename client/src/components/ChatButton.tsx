@@ -35,7 +35,7 @@ export default function ChatButton({ auctionId, merchantId, auctionEnded, compac
       setOpening(false);
     },
     onError: (err) => {
-      toast.error(err.message);
+      toast.error(err.message, { className: "bb-toast-err" });
       setOpening(false);
     },
   });
@@ -46,15 +46,15 @@ export default function ChatButton({ auctionId, merchantId, auctionEnded, compac
 
   const handleClick = () => {
     if (!isAuthenticated) {
-      toast.info("請先登入會員先可以同商戶對話 🔐", { duration: 3500 });
+      toast.info("請先登入會員先可以同商戶對話 🔐", { duration: 3500, className: "bb-toast-err" });
       return;
     }
     if (auctionEnded) {
-      toast.error("拍賣已結束，唔可以再開新對話", { duration: 3000 });
+      toast.error("拍賣已結束，唔可以再開新對話", { duration: 3000, className: "bb-toast-err" });
       return;
     }
     if (!isQualified) {
-      toast.info("只有 🥈 銀牌 / 🥇 金牌 / 👑 VIP 會員可以同商戶對話，請先升級會員等級", { duration: 4000 });
+      toast.info("只有 🥈 銀牌 / 🥇 金牌 / 👑 VIP 會員可以同商戶對話，請先升級會員等級", { duration: 4000, className: "bb-toast-err" });
       return;
     }
     setOpening(true);
