@@ -5582,8 +5582,8 @@ async function invokeLLMSafe(params: InvokeParams): Promise<InvokeResult> {
   if (ENV.geminiApiKey2) candidates.push({ url: GG, key: ENV.geminiApiKey2, model: "gemini-2.5-flash" });
   if (ENV.geminiApiKey)  candidates.push({ url: GG, key: ENV.geminiApiKey,  model: "gemini-2.0-flash" });
   if (ENV.geminiApiKey2) candidates.push({ url: GG, key: ENV.geminiApiKey2, model: "gemini-2.0-flash" });
-  if (ENV.geminiApiKey)  candidates.push({ url: GG, key: ENV.geminiApiKey,  model: "gemini-1.5-flash" });
-  if (ENV.geminiApiKey2) candidates.push({ url: GG, key: ENV.geminiApiKey2, model: "gemini-1.5-flash" });
+  if (ENV.geminiApiKey)  candidates.push({ url: GG, key: ENV.geminiApiKey,  model: "gemini-flash-latest" });
+  if (ENV.geminiApiKey2) candidates.push({ url: GG, key: ENV.geminiApiKey2, model: "gemini-flash-latest" });
   if (ENV.openAiApiKey)  candidates.push({ url: "https://api.openai.com/v1/chat/completions", key: ENV.openAiApiKey, model: "gpt-4o-mini" });
 
   if (candidates.length === 0) throw new Error("AI 未設定 API key");
