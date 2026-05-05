@@ -5182,6 +5182,12 @@ export async function listMyChatRooms(userId: number): Promise<Array<{
   auctionTitle: string;
   auctionThumbUrl: string | null;
   auctionStatus: string;
+  auctionEndTime: Date | null;
+  /** 已結拍時嘅成交價（current_price），未結拍都會帶埋畀前端顯示 */
+  auctionCurrentPrice: string | number | null;
+  auctionCurrency: string | null;
+  /** 後端計嘅是否已結（status === 'ended' 或 endTime < now） */
+  auctionEnded: boolean;
   myRole: 'bidder' | 'merchant';
   otherUserId: number;
   otherUserName: string | null;
@@ -5199,6 +5205,7 @@ export async function listMyChatRooms(userId: number): Promise<Array<{
          r.id, r.auctionId, r.bidderId, r.merchantId, r.bidderUnreadCount, r.merchantUnreadCount,
          r.lastMessagePreview, r.lastMessageAt, r.isArchived,
          a.title as auctionTitle, a.status as auctionStatus,
+         a.endTime as auctionEndTime, a.currentPrice as auctionCurrentPrice, a.currency as auctionCurrency,
          (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder LIMIT 1) as auctionThumbUrl,
          CASE WHEN r.bidderId = ? THEN r.merchantId ELSE r.bidderId END as otherUserId,
          u.name as otherUserName, u.photoUrl as otherUserPhotoUrl
@@ -5209,21 +5216,30 @@ export async function listMyChatRooms(userId: number): Promise<Array<{
        ORDER BY r.lastMessageAt DESC`,
       [userId, userId, userId, userId],
     );
-    return rows.map((r: any) => ({
-      id: r.id,
-      auctionId: r.auctionId,
-      auctionTitle: r.auctionTitle,
-      auctionThumbUrl: r.auctionThumbUrl,
-      auctionStatus: r.auctionStatus,
-      myRole: r.bidderId === userId ? 'bidder' : 'merchant',
-      otherUserId: r.otherUserId,
-      otherUserName: r.otherUserName,
-      otherUserPhotoUrl: r.otherUserPhotoUrl,
-      unreadCount: r.bidderId === userId ? r.bidderUnreadCount : r.merchantUnreadCount,
-      lastMessagePreview: r.lastMessagePreview,
-      lastMessageAt: r.lastMessageAt,
-      isArchived: r.isArchived,
-    }));
+    const now = Date.now();
+    return rows.map((r: any) => {
+      const endMs = r.auctionEndTime ? new Date(r.auctionEndTime).getTime() : null;
+      const ended = r.auctionStatus === 'ended' || (endMs !== null && endMs < now);
+      return {
+        id: r.id,
+        auctionId: r.auctionId,
+        auctionTitle: r.auctionTitle,
+        auctionThumbUrl: r.auctionThumbUrl,
+        auctionStatus: r.auctionStatus,
+        auctionEndTime: r.auctionEndTime ?? null,
+        auctionCurrentPrice: r.auctionCurrentPrice ?? null,
+        auctionCurrency: r.auctionCurrency ?? null,
+        auctionEnded: ended,
+        myRole: r.bidderId === userId ? 'bidder' : 'merchant',
+        otherUserId: r.otherUserId,
+        otherUserName: r.otherUserName,
+        otherUserPhotoUrl: r.otherUserPhotoUrl,
+        unreadCount: r.bidderId === userId ? r.bidderUnreadCount : r.merchantUnreadCount,
+        lastMessagePreview: r.lastMessagePreview,
+        lastMessageAt: r.lastMessageAt,
+        isArchived: r.isArchived,
+      };
+    });
   } catch (e) {
     console.error('[chat] listMyChatRooms error:', e);
     return [];

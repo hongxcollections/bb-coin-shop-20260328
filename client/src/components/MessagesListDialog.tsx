@@ -144,8 +144,16 @@ export default function MessagesListDialog({ open, onOpenChange }: MessagesListD
                                 {r.lastMessagePreview ?? "（未有訊息）"}
                               </span>
                             </div>
-                            {r.auctionStatus === "ended" && (
-                              <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">已結拍</span>
+                            {r.auctionEnded && (
+                              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">已結拍</span>
+                                {r.auctionCurrentPrice !== null && r.auctionCurrentPrice !== undefined && (
+                                  <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-medium">
+                                    成交：{r.auctionCurrency === "USD" ? "US$" : r.auctionCurrency === "RMB" ? "¥" : "HK$"}
+                                    {Number(r.auctionCurrentPrice).toLocaleString()}
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>
