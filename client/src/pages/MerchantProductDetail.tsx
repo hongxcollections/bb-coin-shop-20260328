@@ -574,21 +574,23 @@ export default function MerchantProductDetail() {
                 <div className="flex items-end justify-between pt-1 relative">
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">出售價錢</p>
-                    <span className="text-2xl font-bold text-amber-600">{product.currency} ${price.toLocaleString()}</span>
+                    <div className="flex items-center">
+                      <span className="text-2xl font-bold text-amber-600">{product.currency} ${price.toLocaleString()}</span>
+                      {product.status === 'active' && product.stock > 0 && (
+                        <div style={{ marginLeft: 20 }}>
+                          <OfferButton product={product as any} />
+                        </div>
+                      )}
+                    </div>
                     <div className="text-xs text-gray-400 mt-0.5">
                       {product.status === 'active' && product.stock > 0 ? `庫存 ${product.stock} 件` : "已售出"}
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-2">
-                    {product.status === 'active' && product.stock > 0 && (
-                      <OfferButton product={product as any} />
-                    )}
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                      product.status === 'active' && product.stock > 0 ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                    }`}>
-                      {product.status === 'active' && product.stock > 0 ? "有貨" : "售罄"}
-                    </span>
-                  </div>
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                    product.status === 'active' && product.stock > 0 ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                  }`}>
+                    {product.status === 'active' && product.stock > 0 ? "有貨" : "售罄"}
+                  </span>
                 </div>
 
                 {/* 落單按鈕 */}
