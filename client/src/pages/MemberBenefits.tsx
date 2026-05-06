@@ -4,12 +4,72 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Check, X, ArrowLeft, Star, Zap, Shield, Crown, Info } from "lucide-react";
+import { Check, X, ArrowLeft, Star, Zap, Shield, Crown, Info, BarChart3 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { MemberHeroBanner } from "@/components/MemberHeroBanner";
 import { type MemberLevel } from "@/components/MemberBadge";
 import Header from "@/components/Header";
 import { PushNotificationOptIn } from "@/components/PushNotificationOptIn";
+import { LoyaltyChart, type ChartKind } from "@/components/LoyaltyChart";
+import { trpc } from "@/lib/trpc";
+
+// ── Upgrade charts public section ─────────────────────────────────────────────
+
+function UpgradeChartsSection() {
+  const { data: cfg } = trpc.loyalty.publicConfig.useQuery();
+  const [active, setActive] = useState<ChartKind | null>(null);
+
+  const buttons: { kind: ChartKind; label: string; emoji: string }[] = [
+    { kind: "silver", label: "銀牌升級門檻", emoji: "🥈" },
+    { kind: "gold", label: "金牌升級門檻", emoji: "🥇" },
+    { kind: "cashback", label: "Credit 回贈率", emoji: "💰" },
+    { kind: "preview", label: "提前預覽時數", emoji: "👀" },
+    { kind: "autobid", label: "代理出價限制", emoji: "🤖" },
+    { kind: "inactivity", label: "降級規則", emoji: "📉" },
+    { kind: "earlybird", label: "早鳥試用計劃", emoji: "🎁" },
+  ];
+
+  if (!cfg) return null;
+
+  return (
+    <Card className="border-amber-200 bg-amber-50/50">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="w-5 h-5 text-amber-600" />
+          <CardTitle className="text-lg text-amber-900">升級條件一覽</CardTitle>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          撳下面任何一個按鈕，即時睇到對應升級／好處嘅圖表（管理員後台改完門檻即時更新）
+        </p>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-2">
+          {buttons.map((b) => (
+            <Button
+              key={b.kind}
+              variant="outline"
+              size="sm"
+              onClick={() => setActive(b.kind)}
+              className="bg-white hover:bg-amber-100 border-amber-200 gap-1.5"
+            >
+              <span>{b.emoji}</span>
+              <span className="text-xs sm:text-sm">{b.label}</span>
+            </Button>
+          ))}
+        </div>
+
+        <Dialog open={active !== null} onOpenChange={(o) => { if (!o) setActive(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-base">升級條件圖表</DialogTitle>
+            </DialogHeader>
+            {active && <LoyaltyChart kind={active} config={cfg} />}
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
+  );
+}
 
 // ── Level config ──────────────────────────────────────────────────────────────
 
@@ -212,6 +272,9 @@ export default function MemberBenefits() {
             </span>
           </p>
         </div>
+
+        {/* 升級門檻圖表（公開）*/}
+        <UpgradeChartsSection />
 
         {/* Level cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

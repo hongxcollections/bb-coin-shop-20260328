@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Award, Gift, ChevronLeft, Save, AlertCircle, Sparkles, Clock, Medal, Crown, RefreshCw, Bot, EyeOff } from "lucide-react";
+import { Award, Gift, ChevronLeft, Save, AlertCircle, Sparkles, Clock, Medal, Crown, RefreshCw, Bot, EyeOff, BarChart3 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { LoyaltyChart, type ChartKind } from "@/components/LoyaltyChart";
 
 type Cfg = {
   earlyBirdEnabled: boolean;
@@ -47,6 +49,8 @@ export default function AdminLoyalty() {
 
   const [cfg, setCfg] = useState<Cfg | null>(null);
   useEffect(() => { if (data) setCfg(data as Cfg); }, [data]);
+
+  const [chartKind, setChartKind] = useState<ChartKind | null>(null);
 
   if (!isAuthenticated || user?.role !== "admin") {
     return (
@@ -136,7 +140,8 @@ export default function AdminLoyalty() {
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setChartKind("earlybird")} className="gap-2"><BarChart3 className="w-4 h-4" />生成圖表</Button>
                 <Button onClick={() => saveSection({
                   earlyBirdEnabled: cfg.earlyBirdEnabled,
                   earlyBirdDailyQuota: cfg.earlyBirdDailyQuota,
@@ -173,7 +178,8 @@ export default function AdminLoyalty() {
                   <NumInput value={cfg.silver90DaySpend} onChange={(n) => update("silver90DaySpend", n)} max={99999999} />
                 </div>
               </div>
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setChartKind("silver")} className="gap-2"><BarChart3 className="w-4 h-4" />生成圖表</Button>
                 <Button onClick={() => saveSection({ silverBidCount: cfg.silverBidCount, silverWinCount: cfg.silverWinCount, silver90DaySpend: cfg.silver90DaySpend })} className="bg-amber-600 hover:bg-amber-700 text-white gap-2" disabled={updateMut.isPending}>
                   <Save className="w-4 h-4" />儲存銀牌門檻
                 </Button>
@@ -201,7 +207,8 @@ export default function AdminLoyalty() {
                   <NumInput value={cfg.gold90DaySpend} onChange={(n) => update("gold90DaySpend", n)} max={99999999} />
                 </div>
               </div>
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setChartKind("gold")} className="gap-2"><BarChart3 className="w-4 h-4" />生成圖表</Button>
                 <Button onClick={() => saveSection({ goldWinCount: cfg.goldWinCount, gold90DaySpend: cfg.gold90DaySpend })} className="bg-amber-600 hover:bg-amber-700 text-white gap-2" disabled={updateMut.isPending}>
                   <Save className="w-4 h-4" />儲存金牌門檻
                 </Button>
@@ -223,7 +230,8 @@ export default function AdminLoyalty() {
                 <Label className="mb-2 block">無活動日數</Label>
                 <NumInput value={cfg.inactivityDaysForDowngrade} onChange={(n) => update("inactivityDaysForDowngrade", n)} min={0} max={3650} />
               </div>
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setChartKind("inactivity")} className="gap-2"><BarChart3 className="w-4 h-4" />生成圖表</Button>
                 <Button onClick={() => saveSection({ inactivityDaysForDowngrade: cfg.inactivityDaysForDowngrade })} className="bg-amber-600 hover:bg-amber-700 text-white gap-2" disabled={updateMut.isPending}>
                   <Save className="w-4 h-4" />儲存降級設定
                 </Button>
@@ -270,7 +278,9 @@ export default function AdminLoyalty() {
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button variant="outline" onClick={() => setChartKind("cashback")} className="gap-2"><BarChart3 className="w-4 h-4" />Credit 回贈圖表</Button>
+                <Button variant="outline" onClick={() => setChartKind("preview")} className="gap-2"><BarChart3 className="w-4 h-4" />提前預覽圖表</Button>
                 <Button onClick={() => saveSection({
                   silverCashbackRate: cfg.silverCashbackRate,
                   goldCashbackRate: cfg.goldCashbackRate,
@@ -306,7 +316,8 @@ export default function AdminLoyalty() {
                   <p className="text-xs text-muted-foreground mt-1">設 0 = 銀牌無上限</p>
                 </div>
               </div>
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setChartKind("autobid")} className="gap-2"><BarChart3 className="w-4 h-4" />生成圖表</Button>
                 <Button onClick={() => saveSection({ bronzeAutoBidQuota: cfg.bronzeAutoBidQuota, silverAutoBidMaxAmount: cfg.silverAutoBidMaxAmount })} className="bg-amber-600 hover:bg-amber-700 text-white gap-2" disabled={updateMut.isPending}>
                   <Save className="w-4 h-4" />儲存代理出價限制
                 </Button>
@@ -357,6 +368,17 @@ export default function AdminLoyalty() {
             </CardContent>
           </Card>
         </div>
+
+        {/* 圖表預覽 Dialog */}
+        <Dialog open={chartKind !== null} onOpenChange={(o) => { if (!o) setChartKind(null); }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>升級門檻圖表預覽</DialogTitle>
+              <DialogDescription>呢個圖表會公開喺「會員等級權益」頁，畀任何用戶查詢。改完設定即時 reflect。</DialogDescription>
+            </DialogHeader>
+            {chartKind && cfg && <LoyaltyChart kind={chartKind} config={cfg} />}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

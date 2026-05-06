@@ -2230,6 +2230,30 @@ export const appRouter = router({
     // 公開：今日早鳥名額（首頁 banner 用）
     earlyBirdStatus: publicProcedure.query(async () => getEarlyBirdTodayStatus()),
 
+    // 公開：升級門檻 + 好處參數（任何用戶可查，畀 LoyaltyChart 顯示）
+    publicConfig: publicProcedure.query(async () => {
+      const c = await getLoyaltyConfig();
+      return {
+        silverBidCount: c.silverBidCount,
+        silverWinCount: c.silverWinCount,
+        silver90DaySpend: c.silver90DaySpend,
+        goldWinCount: c.goldWinCount,
+        gold90DaySpend: c.gold90DaySpend,
+        inactivityDaysForDowngrade: c.inactivityDaysForDowngrade,
+        silverCashbackRate: c.silverCashbackRate,
+        goldCashbackRate: c.goldCashbackRate,
+        vipCashbackRate: c.vipCashbackRate,
+        silverPreviewHours: c.silverPreviewHours,
+        goldPreviewHours: c.goldPreviewHours,
+        bronzeAutoBidQuota: c.bronzeAutoBidQuota,
+        silverAutoBidMaxAmount: c.silverAutoBidMaxAmount,
+        earlyBirdEnabled: c.earlyBirdEnabled,
+        earlyBirdDailyQuota: c.earlyBirdDailyQuota,
+        earlyBirdTrialLevel: c.earlyBirdTrialLevel,
+        earlyBirdTrialDays: c.earlyBirdTrialDays,
+      };
+    }),
+
     // 用戶：查自己嘅等級 + 下一級進度
     myStatus: protectedProcedure.query(async ({ ctx }) => {
       return getMyLoyaltyStatus(ctx.user.id);
