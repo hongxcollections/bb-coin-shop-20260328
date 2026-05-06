@@ -294,12 +294,7 @@ function AuctionCard({
         )}
         {tab === "已結束" && (
           <p className="text-xs mt-0.5 leading-snug">
-            <span className="text-gray-400">中標：</span>
-            <span className="font-medium text-amber-700">
-              {auction.highestBidderName
-                ? `${auction.highestBidderName} (${getCurrencySymbol(auction.currency ?? "HKD")}${Number(auction.currentPrice).toLocaleString()})`
-                : "無人出價"}
-            </span>
+            <span className="font-medium text-gray-500">流拍 · 無人出價</span>
           </p>
         )}
         <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
@@ -977,16 +972,18 @@ export default function MerchantAuctions() {
   const activeAuctions = (myAuctions ?? []).filter((a: AuctionItem) =>
     a.status === "active" && new Date(a.endTime) > now
   ) as AuctionItem[];
-  const endedAuctions = (myAuctions ?? []).filter((a: AuctionItem) =>
-    a.status === "ended" || (a.status === "active" && new Date(a.endTime) <= now)
-  ) as AuctionItem[];
+  // 流拍：拍賣已結束（或時間已到）但冇人出價（成交嘅會去「拍賣訂單」tab）
+  const endedAuctions = (myAuctions ?? []).filter((a: AuctionItem) => {
+    const isEnded = a.status === "ended" || (a.status === "active" && new Date(a.endTime) <= now);
+    return isEnded && !(a as any).highestBidderId;
+  }) as AuctionItem[];
   const draftAuctions = (myDrafts ?? []) as AuctionItem[];
   const archivedAuctions = (myArchived ?? []) as AuctionItem[];
 
   const TABS = [
     { key: "進行中", label: "進行中", count: activeAuctions.length },
     { key: "草稿", label: "草稿", count: draftAuctions.length },
-    { key: "已結束", label: "已結束", count: endedAuctions.length },
+    { key: "已結束", label: "流拍", count: endedAuctions.length },
     { key: "封存", label: "封存", count: archivedAuctions.length },
   ] as const;
 
