@@ -1610,11 +1610,18 @@ export const appRouter = router({
                   paymentReference: null,
                   paymentProofUrl: null,
                 });
-                // 更新會員等級
-                const { users: uTable } = await import('../drizzle/schema');
-                const { eq: eqInner } = await import('drizzle-orm');
-                await dbInner.update(uTable).set({ memberLevel: plan.memberLevel }).where(eqInner(uTable.id, newUserId));
-                console.log(`[adminCreateUser] Applied subscription plan "${plan.name}" to user ${newUserId}`);
+                // 更新會員等級：只升級，唔降級（保留 admin 揀嘅等級為下限）
+                const LEVEL_ORDER: Record<string, number> = { bronze: 0, silver: 1, gold: 2, vip: 3 };
+                const adminLvlRank = LEVEL_ORDER[input.memberLevel] ?? 0;
+                const planLvlRank = LEVEL_ORDER[plan.memberLevel] ?? 0;
+                if (planLvlRank > adminLvlRank) {
+                  const { users: uTable } = await import('../drizzle/schema');
+                  const { eq: eqInner } = await import('drizzle-orm');
+                  await dbInner.update(uTable).set({ memberLevel: plan.memberLevel }).where(eqInner(uTable.id, newUserId));
+                  console.log(`[adminCreateUser] Applied subscription plan "${plan.name}" to user ${newUserId}, level upgraded ${input.memberLevel} → ${plan.memberLevel}`);
+                } else {
+                  console.log(`[adminCreateUser] Applied subscription plan "${plan.name}" to user ${newUserId}, kept admin-chosen level ${input.memberLevel} (plan level ${plan.memberLevel} not higher)`);
+                }
               }
             }
           } catch (err) {

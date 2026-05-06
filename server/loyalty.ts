@@ -314,13 +314,19 @@ export async function recalculateUserLevel(userId: number): Promise<MemberLevel>
   let newExpiresAt: Date | null = currentExpiresAt;
 
   if (LEVEL_RANK[natural] >= LEVEL_RANK[currentLevel]) {
+    // 自然等級達到/超過當前 → 永久升至自然等級，清除試用
     targetLevel = natural;
     newExpiresAt = null;
   } else if (hasActiveTrial) {
+    // 試用未到期 → 維持當前等級
     return currentLevel;
-  } else {
+  } else if (currentExpiresAt !== null && currentExpiresAt <= new Date()) {
+    // 試用已過期（曾經有 expiresAt 但已到期）→ 跌返自然等級
     targetLevel = natural;
     newExpiresAt = null;
+  } else {
+    // 永久授予（admin 直接 set 等級，從來冇 expiresAt）→ 維持，唔降級
+    return currentLevel;
   }
 
   if (targetLevel !== currentLevel || (newExpiresAt === null && currentExpiresAt !== null)) {
