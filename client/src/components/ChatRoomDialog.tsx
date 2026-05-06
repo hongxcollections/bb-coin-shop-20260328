@@ -468,21 +468,23 @@ export default function ChatRoomDialog({ roomId, open, onOpenChange }: ChatRoomD
                             <SmilePlus className="w-4 h-4" />
                           </button>
                         )}
-                        {pickerForMessageId === m.id && (
-                          <div className={`absolute z-20 ${mine ? "right-0" : "left-0"} -top-10 bg-white border border-gray-200 rounded-full shadow-lg px-2 py-1 flex items-center gap-0.5`}>
+                      </div>
+                      {pickerForMessageId === m.id && (
+                        <div className={`flex mt-1 ${mine ? "justify-end" : "justify-start"}`}>
+                          <div className="bg-white border border-gray-200 rounded-full shadow-md px-2 py-1 flex items-center gap-0.5 max-w-full overflow-x-auto">
                             {EMOJI_OPTIONS.map((emo) => (
                               <button
                                 key={emo}
                                 type="button"
                                 onClick={() => handleToggleReaction(m.id, emo)}
-                                className="text-lg hover:bg-amber-50 rounded-full w-7 h-7 flex items-center justify-center transition-colors"
+                                className="text-xl hover:bg-amber-50 active:bg-amber-100 rounded-full w-9 h-9 flex items-center justify-center transition-colors flex-shrink-0"
                               >
                                 {emo}
                               </button>
                             ))}
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                       {/* reactions cluster */}
                       {reactionGroups.size > 0 && (
                         <div className={`flex flex-wrap gap-1 mt-1 ${mine ? "justify-end" : "justify-start"}`}>
