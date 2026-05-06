@@ -12,6 +12,24 @@ export function cn(...inputs: ClassValue[]) {
  * - 使用 whatsapp:// 協議直接開啟 app（跳過 wa.me 網頁中轉）
  *   桌面瀏覽器不支援時會以 https://wa.me 作備用
  */
+/**
+ * 過濾用戶輸入文字入面嘅隱形／不可見／不支援字符（會喺瀏覽器顯示成方框 □）：
+ * - C0 控制字符（除咗 \n \r \t）
+ * - DEL / C1 控制字符
+ * - 零寬空格／零寬連字（U+200B-U+200D）
+ * - 方向標記／隱形排版控制（U+200E-U+200F, U+202A-U+202E, U+2066-U+2069）
+ * - BOM 同 noncharacter 字符（U+FEFF, U+2060-U+206F）
+ * - Private Use Area（U+E000-U+F8FF — 通常係 macOS / iOS  字體 icon，普通設備見唔到）
+ * 保留正常 emoji（U+1F000+ 由 surrogate pair 構成，唔會觸發呢個 regex）。
+ */
+export function sanitizeUserText(input: string | null | undefined): string {
+  if (!input) return "";
+  return input
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, "")
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, "")
+    .replace(/[\uE000-\uF8FF]/g, "");
+}
+
 export function buildWhatsAppUrl(rawPhone: string, text: string): string {
   const digits = (() => {
     const d = rawPhone.replace(/[^0-9]/g, "");

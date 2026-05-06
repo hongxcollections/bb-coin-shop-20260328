@@ -7,7 +7,7 @@ import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { ShareMenu, ProductShareMenu } from "@/components/ShareMenu";
 import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag, Share2 } from "lucide-react";
-import { buildWhatsAppUrl } from "@/lib/utils";
+import { buildWhatsAppUrl, sanitizeUserText } from "@/lib/utils";
 import { getCurrencySymbol } from "./AdminAuctions";
 
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
@@ -484,9 +484,9 @@ export default function MerchantStore() {
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h1 className="font-bold text-gray-900 text-base leading-tight">{merchant.merchantName}</h1>
+                <h1 className="font-bold text-gray-900 text-base leading-tight">{sanitizeUserText(merchant.merchantName)}</h1>
                 {merchant.selfIntro && (
-                  <p className="text-xs text-gray-500 mt-1 leading-relaxed whitespace-pre-line">{merchant.selfIntro}</p>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed whitespace-pre-line">{sanitizeUserText(merchant.selfIntro)}</p>
                 )}
                 {categories.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">

@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
+import { sanitizeUserText } from "@/lib/utils";
 import Header from "@/components/Header";
 import ImageLightbox from "@/components/ImageLightbox";
 import { Store, ChevronRight, Gavel, Package, Search, X, MessageCircle } from "lucide-react";
@@ -216,7 +217,7 @@ export default function Merchants() {
                     <div className="flex-1 min-w-0 space-y-1.5">
                       {/* 名稱 + 箭頭 */}
                       <div className="flex items-start gap-2">
-                        <h2 className="font-bold text-gray-900 text-sm leading-tight flex-1">{m.merchantName}</h2>
+                        <h2 className="font-bold text-gray-900 text-sm leading-tight flex-1">{sanitizeUserText(m.merchantName)}</h2>
                         <ChevronRight className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 group-hover:translate-x-0.5 transition-transform" />
                       </div>
 
@@ -236,7 +237,7 @@ export default function Merchants() {
 
                       {/* 簡介 */}
                       {m.selfIntro && (
-                        <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed whitespace-pre-line">{m.selfIntro}</p>
+                        <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed whitespace-pre-line">{sanitizeUserText(m.selfIntro)}</p>
                       )}
 
                       {/* 活動數據 + WhatsApp */}
