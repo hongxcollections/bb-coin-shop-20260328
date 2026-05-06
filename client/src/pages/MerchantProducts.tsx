@@ -197,10 +197,10 @@ export function MerchantOrdersTab() {
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
-        {["pending", "confirmed", "cancelled", "all"].map(s => (
+        {(["pending", "confirmed", "cancelled"] as const).map(s => (
           <button key={s} onClick={() => setStatusFilter(s)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${statusFilter === s ? "bg-amber-500 text-white" : "bg-white border border-amber-200 text-amber-700 hover:bg-amber-50"}`}>
-            {s === "pending" ? "待確認" : s === "confirmed" ? "已成交" : s === "cancelled" ? "已取消" : "全部"}
+            {s === "pending" ? "待確認" : s === "confirmed" ? "已成交" : "已取消"}
           </button>
         ))}
       </div>
@@ -562,7 +562,7 @@ export default function MerchantProducts() {
   const [layout, setLayout] = useState<LayoutMode>(() => {
     return (localStorage.getItem("mp_layout") as LayoutMode) ?? "list";
   });
-  const [productTab, setProductTab] = useState<"all" | "active" | "hidden" | "sold">("all");
+  const [productTab, setProductTab] = useState<"active" | "hidden" | "sold">("active");
   const [productBatchShareOpen, setProductBatchShareOpen] = useState(false);
   const [productCopiedIds, setProductCopiedIds] = useState<Set<number>>(new Set());
   const [aiCopyMap, setAiCopyMap] = useState<Record<number, string>>({});
@@ -581,9 +581,7 @@ export default function MerchantProducts() {
     enabled: isAuthenticated,
   });
 
-  const displayProducts = productTab === "all"
-    ? (products as any[])
-    : (products as any[]).filter((p: any) => p.status === productTab);
+  const displayProducts = (products as any[]).filter((p: any) => p.status === productTab);
   const activeProducts = (products as any[]).filter((p: any) => p.status === "active");
 
   const { data: quotaInfo, isLoading: quotaLoading } = trpc.merchants.getQuotaInfo.useQuery(undefined, {
@@ -1075,7 +1073,6 @@ export default function MerchantProducts() {
         {!isLoading && (products as any[]).length > 0 && (
           <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
             {([
-              { key: "all", label: "全部", count: (products as any[]).length },
               { key: "active", label: "已上架", count: (products as any[]).filter((p: any) => p.status === "active").length },
               { key: "hidden", label: "已下架", count: (products as any[]).filter((p: any) => p.status === "hidden").length },
               { key: "sold", label: "已售出", count: (products as any[]).filter((p: any) => p.status === "sold").length },

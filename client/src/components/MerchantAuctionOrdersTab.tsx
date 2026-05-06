@@ -85,7 +85,7 @@ function ConfirmDialog({ row, type, onClose, onConfirm, isPending }: {
 
 export function MerchantAuctionOrdersTab() {
   const utils = trpc.useUtils();
-  const [statusFilter, setStatusFilter] = useState("pending");
+  const [statusFilter, setStatusFilter] = useState<"pending" | "confirmed" | "cancelled">("pending");
   const { data: orders = [], isLoading, error } = trpc.auctionOrders.myMerchant.useQuery({ status: statusFilter });
   const [actionDialog, setActionDialog] = useState<{ row: any; type: "confirm" | "cancel" } | null>(null);
 
@@ -111,10 +111,10 @@ export function MerchantAuctionOrdersTab() {
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
-        {["pending", "confirmed", "cancelled", "all"].map(s => (
+        {(["pending", "confirmed", "cancelled"] as const).map(s => (
           <button key={s} onClick={() => setStatusFilter(s)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${statusFilter === s ? "bg-amber-500 text-white" : "bg-white border border-amber-200 text-amber-700 hover:bg-amber-50"}`}>
-            {s === "pending" ? "待確認" : s === "confirmed" ? "已確認" : s === "cancelled" ? "已取消" : "全部"}
+            {s === "pending" ? "待確認" : s === "confirmed" ? "已確認" : "已取消"}
           </button>
         ))}
       </div>
