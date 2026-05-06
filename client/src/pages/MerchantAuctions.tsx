@@ -278,7 +278,9 @@ function AuctionCard({
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm truncate leading-snug">{auction.title}</p>
+        <Link href={`/auctions/${auction.id}`}>
+          <a className="font-medium text-sm truncate leading-snug block text-amber-700 hover:underline">{auction.title}</a>
+        </Link>
         {tab === "進行中" && (
           <p className="text-xs mt-0.5 leading-snug">
             <span className="text-gray-400">最高：</span>
@@ -331,11 +333,6 @@ function AuctionCard({
               <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5" onClick={() => onActiveEdit(auction)}>
                 <Pencil className="w-2.5 h-2.5" />修改
               </Button>
-              <Link href={`/auctions/${auction.id}`}>
-                <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5">
-                  <Eye className="w-2.5 h-2.5" />查看
-                </Button>
-              </Link>
               <Button
                 size="sm"
                 variant="outline"
@@ -373,11 +370,6 @@ function AuctionCard({
           )}
           {tab === "已結束" && (
             <>
-              <Link href={`/auctions/${auction.id}`}>
-                <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5">
-                  <Eye className="w-2.5 h-2.5" />查看
-                </Button>
-              </Link>
               <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => onRelist(auction.id)}>
                 <RotateCcw className="w-2.5 h-2.5" />重新刊登
               </Button>
