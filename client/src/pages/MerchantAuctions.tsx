@@ -1013,18 +1013,13 @@ export default function MerchantAuctions() {
           <Gavel className="w-5 h-5 text-amber-600" />
           <h1 className="text-lg font-bold text-gray-800 flex-1">拍賣管理</h1>
           {mainTab === "auctions" && (
-            <>
-              <Button variant="outline" size="sm" onClick={() => { refetchActive(); refetchDrafts(); refetchArchived(); }} className="h-8 px-2 text-xs gap-1">
-                <RefreshCw className="w-3.5 h-3.5" />刷新
-              </Button>
-              <Button
-                size="sm"
-                className="gold-gradient text-white border-0 gap-1"
-                onClick={() => { setEditId(null); setForm({ ...defaultForm, startingPrice: String(merchantSettings?.defaultStartingPrice ?? 0), bidIncrement: merchantSettings?.defaultBidIncrement ?? 30, antiSnipeEnabled: (merchantSettings?.defaultAntiSnipeEnabled ?? 1) === 1, antiSnipeMinutes: merchantSettings?.defaultAntiSnipeMinutes ?? 3, extendMinutes: merchantSettings?.defaultExtendMinutes ?? 3 }); setPendingImages([]); setUploadedImages([]); setFormOpen(true); }}
-              >
-                <Plus className="w-4 h-4" />建立草稿
-              </Button>
-            </>
+            <Button
+              size="sm"
+              className="gold-gradient text-white border-0 gap-1"
+              onClick={() => { setEditId(null); setForm({ ...defaultForm, startingPrice: String(merchantSettings?.defaultStartingPrice ?? 0), bidIncrement: merchantSettings?.defaultBidIncrement ?? 30, antiSnipeEnabled: (merchantSettings?.defaultAntiSnipeEnabled ?? 1) === 1, antiSnipeMinutes: merchantSettings?.defaultAntiSnipeMinutes ?? 3, extendMinutes: merchantSettings?.defaultExtendMinutes ?? 3 }); setPendingImages([]); setUploadedImages([]); setFormOpen(true); }}
+            >
+              <Plus className="w-4 h-4" />建立草稿
+            </Button>
           )}
         </div>
 
