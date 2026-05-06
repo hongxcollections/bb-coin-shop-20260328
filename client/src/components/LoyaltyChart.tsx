@@ -196,10 +196,10 @@ export function LoyaltyChart({ kind, config }: { kind: ChartKind; config: Loyalt
           </p>
         )}
 
-        {/* Powered by footer — 截圖時會包埋 */}
-        <div className="mt-4 pt-3 border-t border-amber-100 flex items-center justify-center gap-1.5">
-          <span className="text-base">💰</span>
-          <span className="text-xs text-amber-700 font-semibold tracking-wide">
+        {/* Powered by footer — 截圖時會包埋（字體減半）*/}
+        <div className="mt-4 pt-3 border-t border-amber-100 flex items-center justify-center gap-1">
+          <span className="text-[8px]">💰</span>
+          <span className="text-[6px] text-amber-700 font-semibold tracking-wide">
             Powered by hongxcollections.com
           </span>
         </div>
