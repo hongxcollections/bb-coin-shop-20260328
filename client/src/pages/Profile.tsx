@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, TrendingUp, LogOut, Mail, CheckCircle2, Bell, BellOff, EyeOff, Heart, Lock, Camera, Pencil, X, Check } from "lucide-react";
+import { User, TrendingUp, LogOut, Mail, CheckCircle2, Bell, BellOff, EyeOff, Heart, Lock, Camera, Pencil, X, Check, Tag } from "lucide-react";
+import MyOffersDialog from "@/components/MyOffersDialog";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { PushVolumeSlider } from "@/components/PushVolumeSlider";
@@ -21,6 +22,10 @@ import { LoyaltyProgressCard } from "@/components/LoyaltyProgressCard";
 export default function Profile() {
   const { user, isAuthenticated, loading, logout } = useAuth();
   const { data: myBids } = trpc.auctions.myBids.useQuery(undefined, { enabled: isAuthenticated });
+  const [showOffersDialog, setShowOffersDialog] = useState(false);
+  const { data: myOffersAll } = trpc.offers.listMine.useQuery(undefined, { enabled: isAuthenticated, staleTime: 30_000 }) as any;
+  const myOffersCount = Array.isArray(myOffersAll) ? myOffersAll.length : 0;
+  const myPendingOffersCount = Array.isArray(myOffersAll) ? myOffersAll.filter((o: any) => o.status === "pending" || o.status === "accepted").length : 0;
   const [emailInput, setEmailInput] = useState("");
   const [emailSaved, setEmailSaved] = useState(false);
 
@@ -511,6 +516,29 @@ export default function Profile() {
             </Card>
           </Link>
         </div>
+        <button onClick={() => setShowOffersDialog(true)} className="block w-full text-left mb-3">
+          <Card className="border-orange-100 hover:border-orange-300 transition-colors cursor-pointer">
+            <CardContent className="py-3 px-4 flex items-center gap-3">
+              <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center shrink-0">
+                <Tag className="w-4 h-4 text-orange-500" />
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-amber-900">我的排價</div>
+                <div className="text-xs text-muted-foreground">
+                  {myOffersCount > 0
+                    ? `共 ${myOffersCount} 次排價（${myPendingOffersCount} 個進行中）`
+                    : "查看所有議價記錄（拒絕／接受／過期）"}
+                </div>
+              </div>
+              {myPendingOffersCount > 0 && (
+                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {myPendingOffersCount}
+                </span>
+              )}
+              <div className="text-xs text-orange-500">→</div>
+            </CardContent>
+          </Card>
+        </button>
         <Link href="/bid-history" className="block mb-6">
           <Card className="border-amber-100 hover:border-amber-300 transition-colors cursor-pointer">
             <CardContent className="py-3 px-4 flex items-center gap-3">
@@ -527,6 +555,7 @@ export default function Profile() {
         </Link>
 
       </div>
+      <MyOffersDialog open={showOffersDialog} onOpenChange={setShowOffersDialog} />
     </div>
   );
 }
