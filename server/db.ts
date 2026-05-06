@@ -4638,6 +4638,30 @@ export async function cancelMerchantAuctionOrder(auctionId: number, merchantId: 
   return { ok: true };
 }
 
+export async function countMerchantAuctionOrdersByStatus(merchantId: number): Promise<{ pending: number; confirmed: number; cancelled: number }> {
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT auctionOrderStatus AS s, COUNT(*) AS c FROM auctions
+     WHERE createdBy = ? AND status = 'ended' AND highestBidderId IS NOT NULL AND auctionOrderStatus IS NOT NULL
+     GROUP BY auctionOrderStatus`,
+    [merchantId]
+  );
+  const out = { pending: 0, confirmed: 0, cancelled: 0 } as any;
+  for (const r of (rows ?? [])) out[r.s] = Number(r.c) || 0;
+  return out;
+}
+
+export async function countMerchantProductOrdersByStatus(merchantId: number): Promise<{ pending: number; confirmed: number; cancelled: number }> {
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT status AS s, COUNT(*) AS c FROM productOrders WHERE merchantId = ? GROUP BY status`,
+    [merchantId]
+  );
+  const out = { pending: 0, confirmed: 0, cancelled: 0 } as any;
+  for (const r of (rows ?? [])) if (out[r.s] !== undefined) out[r.s] = Number(r.c) || 0;
+  return out;
+}
+
 export async function countPendingMerchantAuctionOrders(merchantId: number): Promise<number> {
   const pool = await getRawPool();
   const [rows]: any = await pool.execute(

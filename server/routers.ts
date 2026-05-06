@@ -11,7 +11,7 @@ import { merchantApplications as merchantAppsTable, merchantProducts as merchant
 import { sanitizeUserText } from "./_core/sanitize";
 import { eq, sql } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, deleteBuyerOrder, getMerchantAuctionOrders, confirmMerchantAuctionOrder, cancelMerchantAuctionOrder, countPendingMerchantAuctionOrders, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS, toggleMessageReaction, listReactionsForRoom, listReactionsForMessage, upsertChatAutoReply, getLastMerchantOrAutoReplyAt, searchChatMessagesInRoom, searchChatMessagesAcrossMyRooms, setMerchantOffersEnabled, createProductOffer, countRecentBuyerOffersForProduct, getProductOfferById, getActiveBuyerOfferForProduct, listOffersForBuyer, listOffersForMerchant, countPendingOffersForMerchant, respondProductOffer, markOfferPurchased, claimAcceptedOffer, releaseClaimedOffer, getUserMemberLevel } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, deleteBuyerOrder, getMerchantAuctionOrders, confirmMerchantAuctionOrder, cancelMerchantAuctionOrder, countPendingMerchantAuctionOrders, countMerchantAuctionOrdersByStatus, countMerchantProductOrdersByStatus, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS, toggleMessageReaction, listReactionsForRoom, listReactionsForMessage, upsertChatAutoReply, getLastMerchantOrAutoReplyAt, searchChatMessagesInRoom, searchChatMessagesAcrossMyRooms, setMerchantOffersEnabled, createProductOffer, countRecentBuyerOffersForProduct, getProductOfferById, getActiveBuyerOfferForProduct, listOffersForBuyer, listOffersForMerchant, countPendingOffersForMerchant, respondProductOffer, markOfferPurchased, claimAcceptedOffer, releaseClaimedOffer, getUserMemberLevel } from "./db";
 import { storagePut, storageSignPut } from "./storage";
 import { applyWatermark } from "./watermark";
 import { getRawPool } from "./db";
@@ -3717,6 +3717,14 @@ export const appRouter = router({
         return getProductOrdersByMerchant(ctx.user.id, input.status);
       }),
 
+    /** 商戶：訂單分類數量（badge 用） */
+    myMerchantStatusCounts: protectedProcedure
+      .query(async ({ ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') return { pending: 0, confirmed: 0, cancelled: 0 };
+        return countMerchantProductOrdersByStatus(ctx.user.id);
+      }),
+
     /** 買家：我的訂單 */
     myBuyerOrders: protectedProcedure
       .query(async ({ ctx }) => {
@@ -3768,6 +3776,14 @@ export const appRouter = router({
     myPendingCount: protectedProcedure
       .query(async ({ ctx }) => {
         return countPendingMerchantAuctionOrders(ctx.user.id);
+      }),
+
+    /** 商戶：拍賣訂單分類數量 */
+    myMerchantStatusCounts: protectedProcedure
+      .query(async ({ ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') return { pending: 0, confirmed: 0, cancelled: 0 };
+        return countMerchantAuctionOrdersByStatus(ctx.user.id);
       }),
 
     /** 商戶：確認交收 */

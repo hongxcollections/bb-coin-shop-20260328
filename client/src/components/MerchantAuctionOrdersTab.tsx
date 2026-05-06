@@ -87,6 +87,7 @@ export function MerchantAuctionOrdersTab() {
   const utils = trpc.useUtils();
   const [statusFilter, setStatusFilter] = useState<"pending" | "confirmed" | "cancelled">("pending");
   const { data: orders = [], isLoading, error } = trpc.auctionOrders.myMerchant.useQuery({ status: statusFilter });
+  const { data: counts = { pending: 0, confirmed: 0, cancelled: 0 } } = trpc.auctionOrders.myMerchantStatusCounts.useQuery(undefined, { staleTime: 15_000 }) as any;
   const [actionDialog, setActionDialog] = useState<{ row: any; type: "confirm" | "cancel" } | null>(null);
 
   const confirm = trpc.auctionOrders.confirm.useMutation({
@@ -94,6 +95,7 @@ export function MerchantAuctionOrdersTab() {
       toast.success("已確認交收");
       utils.auctionOrders.myMerchant.invalidate();
       utils.auctionOrders.myPendingCount.invalidate();
+      utils.auctionOrders.myMerchantStatusCounts.invalidate();
       setActionDialog(null);
     },
     onError: (e) => toast.error(e.message),
@@ -103,6 +105,7 @@ export function MerchantAuctionOrdersTab() {
       toast.success("拍賣訂單已取消");
       utils.auctionOrders.myMerchant.invalidate();
       utils.auctionOrders.myPendingCount.invalidate();
+      utils.auctionOrders.myMerchantStatusCounts.invalidate();
       setActionDialog(null);
     },
     onError: (e) => toast.error(e.message),
@@ -111,12 +114,17 @@ export function MerchantAuctionOrdersTab() {
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
-        {(["pending", "confirmed", "cancelled"] as const).map(s => (
-          <button key={s} onClick={() => setStatusFilter(s)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${statusFilter === s ? "bg-amber-500 text-white" : "bg-white border border-amber-200 text-amber-700 hover:bg-amber-50"}`}>
-            {s === "pending" ? "待確認" : s === "confirmed" ? "已確認" : "已取消"}
-          </button>
-        ))}
+        {(["pending", "confirmed", "cancelled"] as const).map(s => {
+          const label = s === "pending" ? "待確認" : s === "confirmed" ? "已確認" : "已取消";
+          const c = (counts as any)[s] ?? 0;
+          return (
+            <button key={s} onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${statusFilter === s ? "bg-amber-500 text-white" : "bg-white border border-amber-200 text-amber-700 hover:bg-amber-50"}`}>
+              {label}
+              <span className={`min-w-[18px] h-4 px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${statusFilter === s ? "bg-white/30 text-white" : "bg-amber-100 text-amber-700"}`}>{c}</span>
+            </button>
+          );
+        })}
       </div>
 
       {isLoading ? (
