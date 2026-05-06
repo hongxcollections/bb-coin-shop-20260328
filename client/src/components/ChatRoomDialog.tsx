@@ -428,19 +428,18 @@ export default function ChatRoomDialog({ roomId, open, onOpenChange }: ChatRoomD
                         </div>
                       )}
                       <div className="flex items-end gap-1 relative">
-                        {/* mine: picker button on left of bubble; other: picker button on right */}
-                        {mine && !auctionEnded && (
-                          <button
-                            type="button"
-                            onClick={() => setPickerForMessageId(pickerForMessageId === m.id ? null : m.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-gray-400 hover:text-amber-500"
-                            aria-label="加表情"
-                          >
-                            <SmilePlus className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        <div
-                          className={`rounded-2xl px-3 py-2 text-sm break-words shadow-sm transition-all ${
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (auctionEnded) return;
+                            // 圖片訊息：點擊泡泡 = 睇大圖；emoji picker 用旁邊嘅 SmilePlus button 觸發
+                            if (m.messageType === "image" && m.imageUrl) {
+                              setLightboxImg(m.imageUrl);
+                            } else {
+                              setPickerForMessageId(pickerForMessageId === m.id ? null : m.id);
+                            }
+                          }}
+                          className={`text-left rounded-2xl px-3 py-2 text-sm break-words shadow-sm transition-all ${
                             m.messageType === "image"
                               ? "p-1 bg-transparent shadow-none"
                               : isBroadcast
@@ -448,30 +447,25 @@ export default function ChatRoomDialog({ roomId, open, onOpenChange }: ChatRoomD
                                 : mine
                                   ? "bg-amber-500 text-white"
                                   : "bg-white text-gray-800 border border-gray-200"
-                          } ${isHighlighted ? "ring-2 ring-amber-400" : ""}`}
+                          } ${isHighlighted ? "ring-2 ring-amber-400" : ""} ${!auctionEnded ? "active:opacity-80" : ""}`}
                         >
                           {m.messageType === "image" && m.imageUrl ? (
-                            <button
-                              type="button"
-                              onClick={() => setLightboxImg(m.imageUrl)}
-                              className="block rounded-xl overflow-hidden hover:opacity-90 transition-opacity"
-                            >
-                              <img src={m.imageUrl} alt="" className="max-w-[220px] max-h-[280px] object-contain rounded-xl" />
-                            </button>
+                            <img src={m.imageUrl} alt="" className="max-w-[220px] max-h-[280px] object-contain rounded-xl block" />
                           ) : (
                             <span className="whitespace-pre-wrap">
                               {searchQuery.trim() ? highlight(m.content ?? "", searchQuery.trim()) : m.content}
                             </span>
                           )}
-                        </div>
-                        {!mine && !auctionEnded && (
+                        </button>
+                        {!auctionEnded && (
                           <button
                             type="button"
                             onClick={() => setPickerForMessageId(pickerForMessageId === m.id ? null : m.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-gray-400 hover:text-amber-500"
+                            className="p-1 text-gray-400 hover:text-amber-500 active:text-amber-600 flex-shrink-0"
                             aria-label="加表情"
+                            title="加表情"
                           >
-                            <SmilePlus className="w-3.5 h-3.5" />
+                            <SmilePlus className="w-4 h-4" />
                           </button>
                         )}
                         {pickerForMessageId === m.id && (

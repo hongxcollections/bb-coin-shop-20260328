@@ -36,6 +36,12 @@ export function isUserOnlineNow(userId: number): boolean {
   return isUserAnywhereOnline(userId);
 }
 
+/** 公開 helper：判斷用戶是否「正在查看某對話」（subscribed to room）。
+ * 用於商戶自動回覆：即使商戶在其他頁面，只要冇開呢個對話就當「不在現場」。 */
+export function isUserViewingRoomNow(userId: number, roomId: number): boolean {
+  return isUserOnlineForRoom(userId, roomId);
+}
+
 /** 公開介面：當訊息 reaction toggle 後，廣播畀 room 內所有 subscribers。 */
 export function notifyReactionChanged(roomId: number, payload: {
   messageId: number;

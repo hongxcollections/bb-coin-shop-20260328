@@ -5745,8 +5745,9 @@ ${kb}`;
         // 條件：發送者係 bidder + 收件商戶有設定 + 商戶現時冇 WS online + 30 分鐘 cooldown 內冇發過
         if (senderRole === 'bidder') {
           try {
-            const { isUserOnlineNow } = await import('./_core/chatWebSocket');
-            if (!isUserOnlineNow(recipientId)) {
+            const { isUserViewingRoomNow } = await import('./_core/chatWebSocket');
+            // 商戶必須「正在查看呢個對話」先當 online；只係開住網站其他 tab 都會觸發自動回覆
+            if (!isUserViewingRoomNow(recipientId, input.roomId)) {
               const settings = await getMerchantSettings(recipientId);
               if (settings.chatAutoReplyEnabled && settings.chatAutoReplyMessage && settings.chatAutoReplyMessage.trim()) {
                 const lastAt = await getLastMerchantOrAutoReplyAt(input.roomId, recipientId);
