@@ -29,7 +29,7 @@ function ConfirmDialog({ row, type, onClose, onConfirm, isPending }: {
         </div>
         <div className="p-5 space-y-3">
           <div className="bg-gray-50 rounded-xl p-3 text-xs space-y-1">
-            <div><span className="text-gray-400">買家：</span><span className="font-medium">{row.buyerIsAnonymous ? "匿名買家" : (row.buyerName ?? "—")}</span></div>
+            <div><span className="text-gray-400">買家：</span><span className="font-medium">{row.buyerName ?? "—"}</span></div>
             <div><span className="text-gray-400">得標價：</span><span className="font-bold text-amber-600">{row.currency} ${winningPrice.toLocaleString()}</span></div>
           </div>
           {type === "confirm" ? (
@@ -179,9 +179,7 @@ export function MerchantAuctionOrdersTab() {
                   </div>
                   <div>
                     <span className="text-gray-400">買家</span>
-                    <span className="ml-1 font-medium">
-                      {o.buyerIsAnonymous ? <span className="text-gray-500">🥷 匿名買家</span> : (o.buyerName ?? "—")}
-                    </span>
+                    <span className="ml-1 font-medium">{o.buyerName ?? "—"}</span>
                   </div>
                   {finalPrice != null && (
                     <div className="col-span-2 bg-green-50 rounded-lg px-2 py-1">
@@ -189,7 +187,7 @@ export function MerchantAuctionOrdersTab() {
                       <span className="ml-1 font-bold text-green-700">{o.currency} ${finalPrice.toLocaleString()}</span>
                     </div>
                   )}
-                  {!o.buyerIsAnonymous && o.buyerPhone && (
+                  {o.buyerPhone && (
                     <div className="col-span-2 flex items-center gap-1">
                       <span className="text-gray-400">電話</span>
                       <span className="ml-1 font-medium">{o.buyerPhone}</span>
