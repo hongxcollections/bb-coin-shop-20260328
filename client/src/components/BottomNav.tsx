@@ -19,6 +19,11 @@ export default function BottomNav() {
     staleTime: 30_000,
   });
   const unreadChatCount = (chatUnread as { total?: number } | undefined)?.total ?? 0;
+  // 對話訊息只開放畀銀牌或以上 + admin（同 ChatButton 一致）
+  const { data: _autoBidStatus } = trpc.loyalty.myAutoBidStatus.useQuery(undefined, { enabled: isAuthenticated });
+  const _memberLevel = (_autoBidStatus?.level as string | undefined) ?? "bronze";
+  const _isAdmin = user?.role === "admin";
+  const canUseChat = _isAdmin || ["silver", "gold", "vip"].includes(_memberLevel);
   const { data: _siteSettings, isSuccess: _settingsLoaded } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const _ss = (_siteSettings as Record<string, string> | undefined) ?? {};
   const loginWelcomeTitlePhone = _ss.loginWelcomeTitlePhone || "手機登入成功！";
@@ -196,23 +201,25 @@ export default function BottomNav() {
                             <User className="w-4 h-4" />
                             <span>個人資料</span>
                           </Link>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowMore(false);
-                              setShowMessages(true);
-                            }}
-                            className="bottom-nav-more-item"
-                            style={{ background: "none", border: "none", width: "100%", textAlign: "left" }}
-                          >
-                            <Mail className="w-4 h-4" />
-                            <span>對話訊息</span>
-                            {unreadChatCount > 0 && (
-                              <span style={{ marginLeft: "auto", background: "#dc2626", color: "white", fontSize: "10px", fontWeight: 700, padding: "1px 6px", borderRadius: "9px", minWidth: "18px", textAlign: "center" }}>
-                                {unreadChatCount > 99 ? "99+" : unreadChatCount}
-                              </span>
-                            )}
-                          </button>
+                          {canUseChat && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowMore(false);
+                                setShowMessages(true);
+                              }}
+                              className="bottom-nav-more-item"
+                              style={{ background: "none", border: "none", width: "100%", textAlign: "left" }}
+                            >
+                              <Mail className="w-4 h-4" />
+                              <span>對話訊息</span>
+                              {unreadChatCount > 0 && (
+                                <span style={{ marginLeft: "auto", background: "#dc2626", color: "white", fontSize: "10px", fontWeight: 700, padding: "1px 6px", borderRadius: "9px", minWidth: "18px", textAlign: "center" }}>
+                                  {unreadChatCount > 99 ? "99+" : unreadChatCount}
+                                </span>
+                              )}
+                            </button>
+                          )}
                           {user?.role === "admin" && (
                             <Link
                               href="/admin"
