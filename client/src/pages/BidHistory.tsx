@@ -5,7 +5,8 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, TrendingUp, Trophy, ChevronDown, ChevronUp, ShoppingBag, Trash2 } from "lucide-react";
+import { Clock, TrendingUp, Trophy, ChevronDown, ChevronUp, ShoppingBag, Trash2, Tag } from "lucide-react";
+import MyOffersDialog from "@/components/MyOffersDialog";
 import { toast } from "sonner";
 import { ShareMenu } from "@/components/ShareMenu";
 import { MemberBadge } from "@/components/MemberBadge";
@@ -396,6 +397,10 @@ export default function BidHistory() {
   const [orderStatusFilter, setOrderStatusFilter] = useState<'pending' | 'confirmed' | 'cancelled'>('pending');
   const [orderPage, setOrderPage] = useState(1);
   const ORDER_PAGE_SIZE = 10;
+  const [showOffersDialog, setShowOffersDialog] = useState(false);
+  const { data: myOffersAll } = trpc.offers.listMine.useQuery(undefined, { enabled: isAuthenticated, staleTime: 30_000 }) as any;
+  const myOffersCount = Array.isArray(myOffersAll) ? myOffersAll.length : 0;
+  const myPendingOffersCount = Array.isArray(myOffersAll) ? myOffersAll.filter((o: any) => o.status === "pending" || o.status === "accepted").length : 0;
 
   if (loading) {
     return (
@@ -774,7 +779,37 @@ export default function BidHistory() {
             </Card>
           );
         })()}
+
+        {/* 我的排價 入口（最下方） */}
+        <button
+          type="button"
+          onClick={() => setShowOffersDialog(true)}
+          className="block w-full text-left mt-6"
+        >
+          <Card className="border-orange-100 hover:border-orange-300 transition-colors cursor-pointer">
+            <CardContent className="py-3 px-4 flex items-center gap-3">
+              <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center shrink-0">
+                <Tag className="w-4 h-4 text-orange-500" />
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-amber-900">我的排價</div>
+                <div className="text-xs text-muted-foreground">
+                  {myOffersCount > 0
+                    ? `共 ${myOffersCount} 次排價（${myPendingOffersCount} 個進行中）`
+                    : "查看所有議價記錄（拒絕／接受／過期）"}
+                </div>
+              </div>
+              {myPendingOffersCount > 0 && (
+                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {myPendingOffersCount}
+                </span>
+              )}
+              <div className="text-xs text-orange-500">→</div>
+            </CardContent>
+          </Card>
+        </button>
       </div>
+      <MyOffersDialog open={showOffersDialog} onOpenChange={setShowOffersDialog} />
     </div>
   );
 }
