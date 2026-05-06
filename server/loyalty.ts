@@ -508,22 +508,24 @@ export async function runDailyLoyaltyMaintenance(): Promise<{ trialExpired: numb
     await recalculateUserLevel(u.id);
   }
 
-  // 2. 長期無活動
+  // 2. 長期無活動（只處理「有 trial 試用」嘅會員；admin 永久授予 memberLevelExpiresAt IS NULL，唔會被降）
   let downgraded = 0;
   if (config.inactivityDaysForDowngrade > 0) {
     const cutoff = new Date(now.getTime() - config.inactivityDaysForDowngrade * 24 * 3600 * 1000);
-    // 查銀/金會員嘅最後出價時間
+    // 查 silver/gold 而且有 trial expiry 嘅會員（admin 永久授予冇 expiresAt → 跳過）
     const nonBronze = await db.select().from(users)
-      .where(and(sql`${users.memberLevel} IN ('silver','gold')`));
+      .where(and(
+        sql`${users.memberLevel} IN ('silver','gold')`,
+        isNotNull(users.memberLevelExpiresAt),
+      ));
     for (const u of nonBronze) {
       const [r] = await db.select({ last: sql<Date>`MAX(${bids.createdAt})`.as('last') }).from(bids).where(eq(bids.userId, u.id));
       const last = r?.last ? new Date(r.last) : null;
       if (!last || last < cutoff) {
-        // 跌返銅牌（唔理自然等級，因為個 rule 係「長期無活動」）
-        await db.update(users)
-          .set({ memberLevel: 'bronze', memberLevelExpiresAt: null })
-          .where(eq(users.id, u.id));
-        downgraded++;
+        // 用 recalculateUserLevel 重新評估，會 respect「永久授予」嘅契約
+        const before = u.memberLevel;
+        const after = await recalculateUserLevel(u.id);
+        if (after !== before) downgraded++;
       }
     }
   }
