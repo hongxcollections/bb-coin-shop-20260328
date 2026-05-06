@@ -1,4 +1,8 @@
-import { Medal, Crown, Clock, Sparkles, Bot, Gift, TrendingDown, Eye } from "lucide-react";
+import { Medal, Crown, Sparkles, Bot, Gift, TrendingDown, Eye, Download } from "lucide-react";
+import { useRef, useState } from "react";
+import { toPng } from "html-to-image";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export type ChartKind =
   | "silver"
@@ -127,43 +131,93 @@ export function LoyaltyChart({ kind, config }: { kind: ChartKind; config: Loyalt
   const { title, subtitle, icon, rows, mode } = buildRows(kind, config);
   const maxVal = Math.max(...rows.map((r) => r.value), 1);
   const orJoin = mode === "any" && rows.length > 1;
+  const captureRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownload() {
+    if (!captureRef.current) return;
+    setDownloading(true);
+    try {
+      const dataUrl = await toPng(captureRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+      });
+      const link = document.createElement("a");
+      const safeTitle = title.replace(/[^\u4e00-\u9fa5\w]/g, "_");
+      link.download = `hongxcollections_${safeTitle}_${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+      toast.success("圖片已下載");
+    } catch (e) {
+      console.error("[LoyaltyChart] download failed", e);
+      toast.error("下載失敗，請再試");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
-    <div className="bg-white rounded-lg border border-amber-100 p-4 sm:p-5 shadow-sm">
-      <div className="flex items-center gap-2 mb-1">
-        {icon}
-        <h3 className="font-bold text-base sm:text-lg text-amber-900">{title}</h3>
-      </div>
-      <p className="text-xs sm:text-sm text-muted-foreground mb-4">{subtitle}</p>
+    <div className="space-y-3">
+      {/* 截圖區域：包括 Powered by footer */}
+      <div ref={captureRef} className="bg-white rounded-lg border border-amber-100 p-4 sm:p-5 shadow-sm">
+        <div className="flex items-center gap-2 mb-1">
+          {icon}
+          <h3 className="font-bold text-base sm:text-lg text-amber-900">{title}</h3>
+        </div>
+        <p className="text-xs sm:text-sm text-muted-foreground mb-4">{subtitle}</p>
 
-      <div className="space-y-3">
-        {rows.map((r, idx) => {
-          const widthPct = Math.min(100, Math.max(8, (r.value / maxVal) * 100));
-          return (
-            <div key={r.label}>
-              <div className="flex items-center justify-between text-sm mb-1">
-                <span className="font-medium text-gray-700">{r.label}</span>
-                <span className="font-bold text-amber-900">{r.display}</span>
+        <div className="space-y-3">
+          {rows.map((r, idx) => {
+            const widthPct = Math.min(100, Math.max(8, (r.value / maxVal) * 100));
+            return (
+              <div key={r.label}>
+                <div className="flex items-center justify-between text-sm mb-1">
+                  <span className="font-medium text-gray-700">{r.label}</span>
+                  <span className="font-bold text-amber-900">{r.display}</span>
+                </div>
+                <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${r.color} rounded-full transition-all`}
+                    style={{ width: `${widthPct}%` }}
+                  />
+                </div>
+                {orJoin && idx < rows.length - 1 && (
+                  <div className="text-center text-[10px] text-amber-500 font-bold mt-1.5 mb-0.5">或</div>
+                )}
               </div>
-              <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full ${r.color} rounded-full transition-all`}
-                  style={{ width: `${widthPct}%` }}
-                />
-              </div>
-              {orJoin && idx < rows.length - 1 && (
-                <div className="text-center text-[10px] text-amber-500 font-bold mt-1.5 mb-0.5">或</div>
-              )}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+
+        {mode === "any" && (
+          <p className="mt-4 text-xs text-emerald-700 bg-emerald-50 rounded px-3 py-2">
+            ✅ 達成任何<strong>一條</strong>即可升級，系統每次出價／成交後自動檢查
+          </p>
+        )}
+
+        {/* Powered by footer — 截圖時會包埋 */}
+        <div className="mt-4 pt-3 border-t border-amber-100 flex items-center justify-center gap-1.5">
+          <span className="text-base">💰</span>
+          <span className="text-xs text-amber-700 font-semibold tracking-wide">
+            Powered by hongxcollections.com
+          </span>
+        </div>
       </div>
 
-      {mode === "any" && (
-        <p className="mt-4 text-xs text-emerald-700 bg-emerald-50 rounded px-3 py-2">
-          ✅ 達成任何<strong>一條</strong>即可升級，系統每次出價／成交後自動檢查
-        </p>
-      )}
+      {/* 下載按鈕（唔會包入截圖） */}
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDownload}
+          disabled={downloading}
+          className="gap-1.5 border-amber-300 text-amber-800 hover:bg-amber-50"
+        >
+          <Download className="w-4 h-4" />
+          {downloading ? "生成中..." : "下載圖片"}
+        </Button>
+      </div>
     </div>
   );
 }
