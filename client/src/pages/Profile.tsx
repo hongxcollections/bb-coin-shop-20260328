@@ -516,7 +516,21 @@ export default function Profile() {
             </Card>
           </Link>
         </div>
-        <button onClick={() => setShowOffersDialog(true)} className="block w-full text-left mb-3">
+        <Link href="/bid-history" className="block mb-3">
+          <Card className="border-amber-100 hover:border-amber-300 transition-colors cursor-pointer">
+            <CardContent className="py-3 px-4 flex items-center gap-3">
+              <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center shrink-0">
+                <TrendingUp className="w-4 h-4 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-amber-900">出價紀錄</div>
+                <div className="text-xs text-muted-foreground">查看出價記錄及得標紀錄</div>
+              </div>
+              <div className="text-xs text-amber-500">→</div>
+            </CardContent>
+          </Card>
+        </Link>
+        <button onClick={() => setShowOffersDialog(true)} className="block w-full text-left mb-6">
           <Card className="border-orange-100 hover:border-orange-300 transition-colors cursor-pointer">
             <CardContent className="py-3 px-4 flex items-center gap-3">
               <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center shrink-0">
@@ -539,20 +553,6 @@ export default function Profile() {
             </CardContent>
           </Card>
         </button>
-        <Link href="/bid-history" className="block mb-6">
-          <Card className="border-amber-100 hover:border-amber-300 transition-colors cursor-pointer">
-            <CardContent className="py-3 px-4 flex items-center gap-3">
-              <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center shrink-0">
-                <TrendingUp className="w-4 h-4 text-amber-600" />
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-semibold text-amber-900">出價紀錄</div>
-                <div className="text-xs text-muted-foreground">查看出價記錄及得標紀錄</div>
-              </div>
-              <div className="text-xs text-amber-500">→</div>
-            </CardContent>
-          </Card>
-        </Link>
 
       </div>
       <MyOffersDialog open={showOffersDialog} onOpenChange={setShowOffersDialog} />
