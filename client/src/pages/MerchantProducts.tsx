@@ -255,7 +255,9 @@ export function MerchantOrdersTab() {
                   })()}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="font-semibold text-sm text-gray-800 line-clamp-2">{o.title}</p>
+                      <Link href={`/merchant-products/${o.productId}`}>
+                        <a className="font-semibold text-sm text-amber-700 hover:underline line-clamp-2">{o.title}</a>
+                      </Link>
                       <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${ORDER_STATUS_COLORS[o.status] ?? ""}`}>
                         {ORDER_STATUS_LABELS[o.status] ?? o.status}
                       </span>
