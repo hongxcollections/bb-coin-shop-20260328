@@ -31,6 +31,30 @@ function isUserAnywhereOnline(userId: number): boolean {
   return false;
 }
 
+/** 公開 helper：商戶離線自動回覆要用。 */
+export function isUserOnlineNow(userId: number): boolean {
+  return isUserAnywhereOnline(userId);
+}
+
+/** 公開介面：當訊息 reaction toggle 後，廣播畀 room 內所有 subscribers。 */
+export function notifyReactionChanged(roomId: number, payload: {
+  messageId: number;
+  emoji: string;
+  userId: number;
+  added: boolean;
+  reactions: Array<{ emoji: string; userId: number }>;
+}) {
+  broadcastMessageToRoom(roomId, {
+    type: 'reaction',
+    roomId,
+    messageId: payload.messageId,
+    emoji: payload.emoji,
+    userId: payload.userId,
+    added: payload.added,
+    reactions: payload.reactions,
+  });
+}
+
 function broadcastMessageToRoom(roomId: number, payload: object) {
   const data = JSON.stringify(payload);
   for (const c of clients) {

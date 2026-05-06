@@ -1,7 +1,7 @@
 import { eq, ne, desc, asc, and, or, gte, lte, gt, sql, inArray, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, merchantProducts, MerchantProduct, featuredListings, FeaturedListing, auctionChatRooms, auctionChatMessages, AuctionChatRoom, AuctionChatMessage } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, merchantProducts, MerchantProduct, featuredListings, FeaturedListing, auctionChatRooms, auctionChatMessages, AuctionChatRoom, AuctionChatMessage, auctionChatMessageReactions, AuctionChatMessageReaction } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -3243,7 +3243,7 @@ async function ensureMerchantSettingsTable() {
         await db.execute(sql.raw(`ALTER TABLE merchant_settings ADD COLUMN ${colName} ${colDef}`));
       }
     }
-    // Add watermark columns if missing
+    // Add watermark + chat auto-reply columns if missing
     for (const [colName, colDef] of [
       ['watermarkEnabled', 'INT NOT NULL DEFAULT 1'],
       ['watermarkText', 'VARCHAR(100) NULL'],
@@ -3251,6 +3251,8 @@ async function ensureMerchantSettingsTable() {
       ['watermarkShadow', 'INT NOT NULL DEFAULT 1'],
       ['watermarkPosition', "VARCHAR(30) NOT NULL DEFAULT 'center-diagonal'"],
       ['watermarkSize', 'INT NOT NULL DEFAULT 12'],
+      ['chatAutoReplyEnabled', 'INT NOT NULL DEFAULT 0'],
+      ['chatAutoReplyMessage', 'TEXT NULL'],
     ] as [string, string][]) {
       const chk = await db.execute(sql`
         SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
@@ -3294,13 +3296,15 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   productsPerPage: 10,
   showSoldProducts: 1,
   fbRefreshPreviewEnabled: 0,
+  chatAutoReplyEnabled: 0,
+  chatAutoReplyMessage: null as string | null,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -3333,6 +3337,8 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         productsPerPage: Number(row.productsPerPage ?? 10),
         showSoldProducts: Number(row.showSoldProducts ?? 1),
         fbRefreshPreviewEnabled: Number(row.fbRefreshPreviewEnabled ?? 0),
+        chatAutoReplyEnabled: Number(row.chatAutoReplyEnabled ?? 0),
+        chatAutoReplyMessage: row.chatAutoReplyMessage != null ? String(row.chatAutoReplyMessage) : null,
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -5481,6 +5487,206 @@ export async function getMerchantLastBroadcastAt(auctionId: number, merchantId: 
     return ts ? new Date(ts) : null;
   } catch (e) {
     console.error('[chat] getMerchantLastBroadcastAt error:', e);
+    return null;
+  }
+}
+
+// ─── 訊息表情 Reaction ────────────────────────────────────────────────────────
+
+/** Toggle reaction：已存在則移除，否則加入。回傳最新狀態 (added=true 表示加咗)。 */
+export async function toggleMessageReaction(messageId: number, userId: number, emoji: string): Promise<{ added: boolean; roomId: number | null }> {
+  const db = await getDb();
+  if (!db) return { added: false, roomId: null };
+  try {
+    // 取訊息所在 roomId（亦做存在性 check）
+    const msgRows = await db
+      .select({ roomId: auctionChatMessages.roomId })
+      .from(auctionChatMessages)
+      .where(eq(auctionChatMessages.id, messageId))
+      .limit(1);
+    const roomId = msgRows[0]?.roomId ?? null;
+    if (roomId == null) return { added: false, roomId: null };
+
+    const existing = await db
+      .select()
+      .from(auctionChatMessageReactions)
+      .where(and(
+        eq(auctionChatMessageReactions.messageId, messageId),
+        eq(auctionChatMessageReactions.userId, userId),
+        eq(auctionChatMessageReactions.emoji, emoji),
+      ))
+      .limit(1);
+
+    if (existing.length > 0) {
+      await db
+        .delete(auctionChatMessageReactions)
+        .where(eq(auctionChatMessageReactions.id, existing[0].id));
+      return { added: false, roomId };
+    }
+    await db.insert(auctionChatMessageReactions).values({
+      messageId,
+      roomId,
+      userId,
+      emoji,
+    });
+    return { added: true, roomId };
+  } catch (e) {
+    console.error('[chat] toggleMessageReaction error:', e);
+    return { added: false, roomId: null };
+  }
+}
+
+/** 取一個 room 內所有 reactions（畀 getRoom 用）。 */
+export async function listReactionsForRoom(roomId: number): Promise<AuctionChatMessageReaction[]> {
+  try {
+    const db = await getDb();
+    if (!db) return [];
+    const rows = await db
+      .select()
+      .from(auctionChatMessageReactions)
+      .where(eq(auctionChatMessageReactions.roomId, roomId));
+    return rows;
+  } catch (e) {
+    console.error('[chat] listReactionsForRoom error:', e);
+    return [];
+  }
+}
+
+/** 取一條 message 嘅最新 reactions（畀 toggle 後用 WS 廣播）。 */
+export async function listReactionsForMessage(messageId: number): Promise<AuctionChatMessageReaction[]> {
+  try {
+    const db = await getDb();
+    if (!db) return [];
+    const rows = await db
+      .select()
+      .from(auctionChatMessageReactions)
+      .where(eq(auctionChatMessageReactions.messageId, messageId));
+    return rows;
+  } catch (e) {
+    console.error('[chat] listReactionsForMessage error:', e);
+    return [];
+  }
+}
+
+// ─── 商戶聊天自動回覆設定 ─────────────────────────────────────────────────────
+
+export async function upsertChatAutoReply(userId: number, enabled: number, message: string | null): Promise<void> {
+  await ensureMerchantSettingsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  await db.execute(sql`
+    INSERT INTO merchant_settings (userId, chatAutoReplyEnabled, chatAutoReplyMessage)
+    VALUES (${userId}, ${enabled}, ${message})
+    ON DUPLICATE KEY UPDATE
+      chatAutoReplyEnabled = ${enabled},
+      chatAutoReplyMessage = ${message},
+      updatedAt = CURRENT_TIMESTAMP
+  `);
+}
+
+/** 取最近一條由商戶發出（或 system auto-reply）嘅訊息時間，用於 30 分鐘 cooldown。 */
+export async function getLastMerchantOrAutoReplyAt(roomId: number, merchantId: number): Promise<Date | null> {
+  try {
+    const pool = await getRawPool();
+    if (!pool) return null;
+    const [rows]: any = await pool.execute(
+      `SELECT MAX(createdAt) as lastAt FROM auctionChatMessages
+       WHERE roomId = ? AND (senderId = ? OR senderRole = 'system')`,
+      [roomId, merchantId],
+    );
+    const ts = rows[0]?.lastAt;
+    return ts ? new Date(ts) : null;
+  } catch (e) {
+    console.error('[chat] getLastMerchantOrAutoReplyAt error:', e);
+    return null;
+  }
+}
+
+// ─── 聊天搜尋 ─────────────────────────────────────────────────────────────────
+
+/** 喺指定 room 內搜尋訊息（roomId 由 caller 預先驗證權限）。 */
+export async function searchChatMessagesInRoom(roomId: number, query: string, limit: number = 50): Promise<AuctionChatMessage[]> {
+  try {
+    const db = await getDb();
+    if (!db) return [];
+    const q = `%${query}%`;
+    const rows = await db
+      .select()
+      .from(auctionChatMessages)
+      .where(and(
+        eq(auctionChatMessages.roomId, roomId),
+        sql`${auctionChatMessages.content} LIKE ${q}`,
+      ))
+      .orderBy(desc(auctionChatMessages.createdAt))
+      .limit(limit);
+    return rows;
+  } catch (e) {
+    console.error('[chat] searchChatMessagesInRoom error:', e);
+    return [];
+  }
+}
+
+/** 跨我所有 rooms 搜尋訊息，回 [{message, roomId, otherUserName, auctionTitle}] */
+export async function searchChatMessagesAcrossMyRooms(userId: number, query: string, limit: number = 50): Promise<Array<{
+  messageId: number;
+  roomId: number;
+  content: string | null;
+  messageType: string;
+  createdAt: Date;
+  otherUserName: string | null;
+  otherUserPhotoUrl: string | null;
+  auctionTitle: string | null;
+}>> {
+  try {
+    const pool = await getRawPool();
+    if (!pool) return [];
+    const q = `%${query}%`;
+    const [rows]: any = await pool.execute(
+      `SELECT m.id as messageId, m.roomId, m.content, m.messageType, m.createdAt,
+              CASE WHEN r.bidderId = ? THEN um.name ELSE ub.name END as otherUserName,
+              CASE WHEN r.bidderId = ? THEN um.photoUrl ELSE ub.photoUrl END as otherUserPhotoUrl,
+              a.title as auctionTitle
+       FROM auctionChatMessages m
+       JOIN auctionChatRooms r ON r.id = m.roomId
+       LEFT JOIN auctions a ON a.id = r.auctionId
+       LEFT JOIN users ub ON ub.id = r.bidderId
+       LEFT JOIN users um ON um.id = r.merchantId
+       WHERE (r.bidderId = ? OR r.merchantId = ?)
+         AND m.content IS NOT NULL
+         AND m.content LIKE ?
+       ORDER BY m.createdAt DESC
+       LIMIT ?`,
+      [userId, userId, userId, userId, q, limit],
+    );
+    return rows.map((r: any) => ({
+      messageId: Number(r.messageId),
+      roomId: Number(r.roomId),
+      content: r.content ?? null,
+      messageType: String(r.messageType ?? 'text'),
+      createdAt: new Date(r.createdAt),
+      otherUserName: r.otherUserName ?? null,
+      otherUserPhotoUrl: r.otherUserPhotoUrl ?? null,
+      auctionTitle: r.auctionTitle ?? null,
+    }));
+  } catch (e) {
+    console.error('[chat] searchChatMessagesAcrossMyRooms error:', e);
+    return [];
+  }
+}
+
+/** Helper: 攞 message 所屬 roomId。 */
+export async function getMessageRoomId(messageId: number): Promise<number | null> {
+  try {
+    const db = await getDb();
+    if (!db) return null;
+    const rows = await db
+      .select({ roomId: auctionChatMessages.roomId })
+      .from(auctionChatMessages)
+      .where(eq(auctionChatMessages.id, messageId))
+      .limit(1);
+    return rows[0]?.roomId ?? null;
+  } catch (e) {
+    console.error('[chat] getMessageRoomId error:', e);
     return null;
   }
 }

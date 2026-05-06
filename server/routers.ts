@@ -11,7 +11,7 @@ import { merchantApplications as merchantAppsTable, merchantProducts as merchant
 import { sanitizeUserText } from "./_core/sanitize";
 import { eq, sql } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, deleteBuyerOrder, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, deleteBuyerOrder, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS, toggleMessageReaction, listReactionsForRoom, listReactionsForMessage, upsertChatAutoReply, getLastMerchantOrAutoReplyAt, searchChatMessagesInRoom, searchChatMessagesAcrossMyRooms } from "./db";
 import { storagePut, storageSignPut } from "./storage";
 import { applyWatermark } from "./watermark";
 import { getRawPool } from "./db";
@@ -5657,11 +5657,12 @@ ${kb}`;
           throw new TRPCError({ code: 'FORBIDDEN', message: '冇權查看呢個對話' });
         }
 
-        const [auction, bidder, merchant, messages] = await Promise.all([
+        const [auction, bidder, merchant, messages, reactions] = await Promise.all([
           getAuctionById(room.auctionId),
           getUserById(room.bidderId),
           getUserById(room.merchantId),
           listChatMessages(input.roomId, input.limit),
+          listReactionsForRoom(input.roomId),
         ]);
 
         // 順手標記已讀
@@ -5675,6 +5676,7 @@ ${kb}`;
           myRole,
           other: other ? { id: other.id, name: other.name, photoUrl: other.photoUrl } : null,
           messages,
+          reactions: reactions.map(r => ({ messageId: r.messageId, emoji: r.emoji, userId: r.userId })),
         };
       }),
 
@@ -5738,7 +5740,105 @@ ${kb}`;
           recipientUserId: recipientId,
           senderName: senderUser?.name ?? '對方',
         });
+
+        // ── 商戶離線自動回覆 ─────────────────────────────────────────────────
+        // 條件：發送者係 bidder + 收件商戶有設定 + 商戶現時冇 WS online + 30 分鐘 cooldown 內冇發過
+        if (senderRole === 'bidder') {
+          try {
+            const { isUserOnlineNow } = await import('./_core/chatWebSocket');
+            if (!isUserOnlineNow(recipientId)) {
+              const settings = await getMerchantSettings(recipientId);
+              if (settings.chatAutoReplyEnabled && settings.chatAutoReplyMessage && settings.chatAutoReplyMessage.trim()) {
+                const lastAt = await getLastMerchantOrAutoReplyAt(input.roomId, recipientId);
+                const cooldownMs = 30 * 60 * 1000;
+                if (!lastAt || (Date.now() - lastAt.getTime()) > cooldownMs) {
+                  const { insertChatMessage } = await import('./db');
+                  const autoMsg = await insertChatMessage({
+                    roomId: input.roomId,
+                    senderId: recipientId,
+                    senderRole: 'system',
+                    messageType: 'text',
+                    content: `🤖 自動回覆：${settings.chatAutoReplyMessage.trim()}`,
+                  });
+                  if (autoMsg) {
+                    await notifyNewChatMessage({
+                      roomId: input.roomId,
+                      message: autoMsg,
+                      recipientUserId: ctx.user.id, // 通知 bidder
+                      senderName: '商戶（自動回覆）',
+                    });
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.error('[chat] auto-reply error:', e);
+          }
+        }
+
         return { success: true, message: msg };
+      }),
+
+    /** Toggle reaction (emoji) on a message。Silver+ gate 同 sendMessage 一致。 */
+    toggleReaction: protectedProcedure
+      .input(z.object({
+        messageId: z.number(),
+        emoji: z.string().min(1).max(16),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const ALLOWED = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '👏'];
+        if (!ALLOWED.includes(input.emoji)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '不支援嘅 emoji' });
+        }
+        const { getChatRoomById, getUserMemberLevel, getMessageRoomId } = await import('./db');
+        const { notifyReactionChanged } = await import('./_core/chatWebSocket');
+
+        const targetRoomId = await getMessageRoomId(input.messageId);
+        if (!targetRoomId) throw new TRPCError({ code: 'NOT_FOUND', message: '訊息不存在' });
+
+        const room = await getChatRoomById(targetRoomId);
+        if (!room || (room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id && ctx.user.role !== 'admin')) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '冇權喺呢個對話加表情' });
+        }
+        // Bidder 必須維持 silver+
+        if (room.bidderId === ctx.user.id && ctx.user.role !== 'admin') {
+          const lvl = await getUserMemberLevel(ctx.user.id);
+          if (lvl !== 'silver' && lvl !== 'gold' && lvl !== 'vip') {
+            throw new TRPCError({ code: 'FORBIDDEN', message: '只有銀牌或以上會員可以加表情' });
+          }
+        }
+
+        const { added } = await toggleMessageReaction(input.messageId, ctx.user.id, input.emoji);
+        const latest = await listReactionsForMessage(input.messageId);
+        notifyReactionChanged(targetRoomId, {
+          messageId: input.messageId,
+          emoji: input.emoji,
+          userId: ctx.user.id,
+          added,
+          reactions: latest.map(r => ({ emoji: r.emoji, userId: r.userId })),
+        });
+        return { added, reactions: latest.map(r => ({ emoji: r.emoji, userId: r.userId })) };
+      }),
+
+    /** 喺指定 room 內搜尋訊息（必須係參與者）。 */
+    searchInRoom: protectedProcedure
+      .input(z.object({ roomId: z.number(), query: z.string().min(1).max(100), limit: z.number().default(50) }))
+      .query(async ({ input, ctx }) => {
+        const { getChatRoomById } = await import('./db');
+        const room = await getChatRoomById(input.roomId);
+        if (!room || (room.bidderId !== ctx.user.id && room.merchantId !== ctx.user.id && ctx.user.role !== 'admin')) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '冇權搜尋呢個對話' });
+        }
+        const messages = await searchChatMessagesInRoom(input.roomId, input.query, input.limit);
+        return { messages };
+      }),
+
+    /** 跨我所有 rooms 全文搜尋。 */
+    searchMessages: protectedProcedure
+      .input(z.object({ query: z.string().min(1).max(100), limit: z.number().default(50) }))
+      .query(async ({ input, ctx }) => {
+        const results = await searchChatMessagesAcrossMyRooms(ctx.user.id, input.query, input.limit);
+        return { results };
       }),
 
     /** 標記為已讀 */
@@ -5860,6 +5960,24 @@ ${kb}`;
       const result = await purgeOldChatRooms(days);
       return { ...result, days };
     }),
+
+    /** 商戶取自己嘅自動回覆設定 */
+    getMyAutoReply: protectedProcedure.query(async ({ ctx }) => {
+      const s = await getMerchantSettings(ctx.user.id);
+      return { enabled: !!s.chatAutoReplyEnabled, message: s.chatAutoReplyMessage ?? '' };
+    }),
+
+    /** 商戶更新自動回覆設定 */
+    updateMyAutoReply: protectedProcedure
+      .input(z.object({ enabled: z.boolean(), message: z.string().max(500) }))
+      .mutation(async ({ input, ctx }) => {
+        const trimmed = input.message.trim();
+        if (input.enabled && !trimmed) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '啟用自動回覆必須填內容' });
+        }
+        await upsertChatAutoReply(ctx.user.id, input.enabled ? 1 : 0, trimmed || null);
+        return { success: true };
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;

@@ -529,3 +529,14 @@ export const auctionChatMessages = mysqlTable("auctionChatMessages", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type AuctionChatMessage = typeof auctionChatMessages.$inferSelect;
+
+// 訊息表情 reaction（每個 user 對同一 message 同 emoji 只可以有一個）
+export const auctionChatMessageReactions = mysqlTable("auctionChatMessageReactions", {
+  id: int("id").autoincrement().primaryKey(),
+  messageId: int("messageId").notNull(),
+  roomId: int("roomId").notNull(),
+  userId: int("userId").notNull(),
+  emoji: varchar("emoji", { length: 16 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AuctionChatMessageReaction = typeof auctionChatMessageReactions.$inferSelect;

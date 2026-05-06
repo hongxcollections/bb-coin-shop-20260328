@@ -42,6 +42,33 @@ export default function MerchantSettings() {
     onError: (err) => toast.error(err.message || "儲存失敗"),
   });
 
+  // ── 商戶聊天離線自動回覆 ─────────────────────────────────────────────────
+  const { data: autoReplyData } = trpc.chat.getMyAutoReply.useQuery(undefined, { enabled: isAuthenticated });
+  const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
+  const [autoReplyMessage, setAutoReplyMessage] = useState("");
+  const [autoReplyInit, setAutoReplyInit] = useState(false);
+  useEffect(() => {
+    if (autoReplyData && !autoReplyInit) {
+      setAutoReplyEnabled(!!autoReplyData.enabled);
+      setAutoReplyMessage(autoReplyData.message ?? "");
+      setAutoReplyInit(true);
+    }
+  }, [autoReplyData, autoReplyInit]);
+  const updateAutoReplyMutation = trpc.chat.updateMyAutoReply.useMutation({
+    onSuccess: () => {
+      toast.success("離線自動回覆設定已儲存");
+      utils.chat.getMyAutoReply.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "儲存失敗"),
+  });
+  const handleSaveAutoReply = () => {
+    if (autoReplyEnabled && !autoReplyMessage.trim()) {
+      toast.error("啟用自動回覆必須填內容");
+      return;
+    }
+    updateAutoReplyMutation.mutate({ enabled: autoReplyEnabled, message: autoReplyMessage });
+  };
+
   // ── 未有出價提示 (商戶可控) ──
   const [noBidEnabled, setNoBidEnabled] = useState(true);
   const [noBidMessage, setNoBidMessage] = useState("暫時未有出價 喜歡來一口的隨時就可以帶回家了 😁");
@@ -1192,6 +1219,50 @@ export default function MerchantSettings() {
                 </div>
               </>
             )}
+          </CardContent>
+        </Card>
+
+        {/* 聊天離線自動回覆 */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-amber-500" />
+              聊天離線自動回覆
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-gray-700">啟用自動回覆</p>
+                <p className="text-xs text-muted-foreground">
+                  當你冇喺線而買家發訊息畀你時，系統會自動回覆。每個對話 30 分鐘最多一次。
+                </p>
+              </div>
+              <Switch checked={autoReplyEnabled} onCheckedChange={setAutoReplyEnabled} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="autoReplyMessage">自動回覆內容</Label>
+              <Textarea
+                id="autoReplyMessage"
+                rows={3}
+                maxLength={500}
+                placeholder="例如：感謝你嘅訊息！我宜家暫時離開，會喺工作時間內盡快回覆你 🙏"
+                value={autoReplyMessage}
+                onChange={(e) => setAutoReplyMessage(e.target.value)}
+                className="text-sm resize-none"
+              />
+              <p className="text-[11px] text-muted-foreground">{autoReplyMessage.length} / 500</p>
+            </div>
+            <div className="flex justify-end pt-1">
+              <Button
+                onClick={handleSaveAutoReply}
+                disabled={updateAutoReplyMutation.isPending}
+                className="gold-gradient text-white border-0 gap-1.5"
+              >
+                {updateAutoReplyMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                儲存自動回覆
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

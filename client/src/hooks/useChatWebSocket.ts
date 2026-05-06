@@ -11,11 +11,21 @@ export type ChatWSMessage = {
   createdAt: string | Date;
 };
 
+export type ChatReactionEvent = {
+  roomId: number;
+  messageId: number;
+  emoji: string;
+  userId: number;
+  added: boolean;
+  reactions: Array<{ emoji: string; userId: number }>;
+};
+
 type WSEvent =
   | { type: "connected"; userId: number }
   | { type: "subscribed"; roomId: number }
   | { type: "message"; message: ChatWSMessage }
   | { type: "unread:refresh" }
+  | { type: "reaction"; roomId: number; messageId: number; emoji: string; userId: number; added: boolean; reactions: Array<{ emoji: string; userId: number }> }
   | { type: "pong" }
   | { type: "error"; error: string };
 
@@ -24,6 +34,7 @@ interface UseChatWebSocketOptions {
   roomId?: number | null;
   onMessage?: (msg: ChatWSMessage) => void;
   onUnreadRefresh?: () => void;
+  onReaction?: (evt: ChatReactionEvent) => void;
 }
 
 export function useChatWebSocket({
@@ -31,6 +42,7 @@ export function useChatWebSocket({
   roomId = null,
   onMessage,
   onUnreadRefresh,
+  onReaction,
 }: UseChatWebSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -39,11 +51,13 @@ export function useChatWebSocket({
   const wantedRoomRef = useRef<number | null>(roomId);
   const onMessageRef = useRef(onMessage);
   const onUnreadRefreshRef = useRef(onUnreadRefresh);
+  const onReactionRef = useRef(onReaction);
   const [connected, setConnected] = useState(false);
 
   // 保持 callback ref 為最新
   useEffect(() => { onMessageRef.current = onMessage; }, [onMessage]);
   useEffect(() => { onUnreadRefreshRef.current = onUnreadRefresh; }, [onUnreadRefresh]);
+  useEffect(() => { onReactionRef.current = onReaction; }, [onReaction]);
   useEffect(() => { wantedRoomRef.current = roomId; }, [roomId]);
 
   const subscribe = useCallback((rid: number | null) => {
@@ -102,6 +116,15 @@ export function useChatWebSocket({
             onUnreadRefreshRef.current?.();
           } else if (evt.type === "unread:refresh") {
             onUnreadRefreshRef.current?.();
+          } else if (evt.type === "reaction") {
+            onReactionRef.current?.({
+              roomId: evt.roomId,
+              messageId: evt.messageId,
+              emoji: evt.emoji,
+              userId: evt.userId,
+              added: evt.added,
+              reactions: evt.reactions,
+            });
           }
         } catch {
           /* ignore */

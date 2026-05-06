@@ -225,6 +225,20 @@ async function bootstrapMissingColumns() {
     INDEX \`idx_chatmsg_sender\` (\`senderId\`)
   )`, 'Ensured auctionChatMessages table');
 
+  // 訊息表情 reaction
+  await alter(`CREATE TABLE IF NOT EXISTS \`auctionChatMessageReactions\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`messageId\` int NOT NULL,
+    \`roomId\` int NOT NULL,
+    \`userId\` int NOT NULL,
+    \`emoji\` varchar(16) NOT NULL,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    CONSTRAINT \`auctionChatMessageReactions_id\` PRIMARY KEY(\`id\`),
+    CONSTRAINT \`uq_chat_reaction_unique\` UNIQUE(\`messageId\`, \`userId\`, \`emoji\`),
+    INDEX \`idx_chatreact_message\` (\`messageId\`),
+    INDEX \`idx_chatreact_room\` (\`roomId\`)
+  )`, 'Ensured auctionChatMessageReactions table');
+
   // 新增 users.memberLevelExpiresAt 欄位（Loyalty 試用到期）
   await alter(
     `ALTER TABLE \`users\` ADD COLUMN \`memberLevelExpiresAt\` timestamp NULL`,
