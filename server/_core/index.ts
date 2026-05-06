@@ -411,6 +411,37 @@ async function bootstrapMissingColumns() {
     await alter(`ALTER TABLE \`auctionRecords\` ADD COLUMN \`imagesJson\` TEXT NULL AFTER \`imageUrl\``, 'Added imagesJson column to auctionRecords');
   }
 
+  // 拍賣訂單欄位（拍賣結束後商戶要 confirm/cancel 交收）
+  if (!(await check('auctions', 'auctionOrderStatus'))) {
+    await alter(`ALTER TABLE \`auctions\` ADD COLUMN \`auctionOrderStatus\` ENUM('pending','confirmed','cancelled') NULL`,
+      'Added auctionOrderStatus to auctions');
+  }
+  if (!(await check('auctions', 'auctionOrderConfirmedAt'))) {
+    await alter(`ALTER TABLE \`auctions\` ADD COLUMN \`auctionOrderConfirmedAt\` DATETIME NULL`,
+      'Added auctionOrderConfirmedAt to auctions');
+  }
+  if (!(await check('auctions', 'auctionOrderCancelledAt'))) {
+    await alter(`ALTER TABLE \`auctions\` ADD COLUMN \`auctionOrderCancelledAt\` DATETIME NULL`,
+      'Added auctionOrderCancelledAt to auctions');
+  }
+  if (!(await check('auctions', 'auctionOrderCancelReason'))) {
+    await alter(`ALTER TABLE \`auctions\` ADD COLUMN \`auctionOrderCancelReason\` VARCHAR(500) NULL`,
+      'Added auctionOrderCancelReason to auctions');
+  }
+  if (!(await check('auctions', 'auctionOrderFinalPrice'))) {
+    await alter(`ALTER TABLE \`auctions\` ADD COLUMN \`auctionOrderFinalPrice\` DECIMAL(12,2) NULL`,
+      'Added auctionOrderFinalPrice to auctions');
+  }
+  // Backfill：所有 status='ended' AND highestBidderId IS NOT NULL AND auctionOrderStatus IS NULL → 'pending'
+  try {
+    const [bres]: any = await pool.execute(
+      "UPDATE `auctions` SET `auctionOrderStatus` = 'pending' WHERE `status` = 'ended' AND `highestBidderId` IS NOT NULL AND `auctionOrderStatus` IS NULL"
+    );
+    if (bres?.affectedRows) console.log(`[Bootstrap] Backfilled auctionOrderStatus='pending' on ${bres.affectedRows} ended auctions`);
+  } catch (e: any) {
+    console.warn('[Bootstrap] Backfill auctionOrderStatus skipped:', e?.message ?? e);
+  }
+
   // 修正 auctions.category 從 ENUM 改為 VARCHAR（支援自定義分類）
   try {
     await pool.execute("ALTER TABLE `auctions` MODIFY COLUMN `category` VARCHAR(100) NULL DEFAULT '其它'");

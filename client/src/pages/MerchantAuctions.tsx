@@ -20,7 +20,7 @@ import {
   Megaphone, ShoppingBag, Gavel,
 } from "lucide-react";
 import MerchantBroadcastDialog from "@/components/MerchantBroadcastDialog";
-import { MerchantOrdersTab } from "@/pages/MerchantProducts";
+import { MerchantAuctionOrdersTab } from "@/components/MerchantAuctionOrdersTab";
 
 const MAX_IMAGES = 10;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -519,10 +519,8 @@ export default function MerchantAuctions() {
   const { data: myAuctions, isLoading: loadingActive, refetch: refetchActive } = trpc.merchants.myAuctions.useQuery();
   const { data: myDrafts, isLoading: loadingDrafts, refetch: refetchDrafts } = trpc.merchants.myDrafts.useQuery();
   const { data: myArchived, isLoading: loadingArchived, refetch: refetchArchived } = trpc.merchants.myArchived.useQuery();
-  const { data: myMerchantOrders } = trpc.productOrders.myMerchantOrders.useQuery(undefined, { enabled: isAuthenticated, staleTime: 30_000 }) as any;
-  const pendingOrdersCount = Array.isArray(myMerchantOrders)
-    ? myMerchantOrders.filter((o: any) => o.status === "pending").length
-    : 0;
+  const { data: pendingAuctionOrdersCount = 0 } = trpc.auctionOrders.myPendingCount.useQuery(undefined, { enabled: isAuthenticated, staleTime: 30_000 }) as any;
+  const pendingOrdersCount = pendingAuctionOrdersCount;
   const [mainTab, setMainTab] = useState<"auctions" | "orders">("auctions");
 
   const uploadMutation = trpc.merchants.uploadAuctionImage.useMutation();
@@ -1030,8 +1028,8 @@ export default function MerchantAuctions() {
             <Gavel className="w-4 h-4" />我的拍賣
           </button>
           <button onClick={() => setMainTab("orders")}
-            className={`relative flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${mainTab === "orders" ? "bg-white text-blue-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-            <ShoppingBag className="w-4 h-4" />訂單管理
+            className={`relative flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${mainTab === "orders" ? "bg-white text-amber-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+            <Gavel className="w-4 h-4" />拍賣訂單
             {pendingOrdersCount > 0 && (
               <span className="ml-0.5 min-w-[18px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
                 {pendingOrdersCount}
@@ -1040,7 +1038,7 @@ export default function MerchantAuctions() {
           </button>
         </div>
 
-        {mainTab === "orders" && <MerchantOrdersTab />}
+        {mainTab === "orders" && <MerchantAuctionOrdersTab />}
 
         {mainTab === "auctions" && (<>
 

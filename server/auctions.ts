@@ -1,6 +1,6 @@
 import { getDb, getAuctionById, getBidHistory, placeBid as dbPlaceBid, getAuctions as dbGetAuctions, getActiveProxiesForAuction, insertProxyBidLog, getNotificationSettings, getBiddersForAuction, getMerchantSettings } from './db';
 import { auctions as auctionsTable, users, merchantApplications } from '../drizzle/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { sendOutbidEmail, sendWonEmail, sendEndingSoonEmail, sendMerchantWonEmail } from './email';
 import { getUserById } from './db';
 import { sendPushToUser, isSilverOrAbove } from './push';
@@ -473,6 +473,18 @@ export async function checkAndUpdateAuctionStatus(auctionId: number, origin = ''
         .update(auctionsTable)
         .set({ status: 'ended' })
         .where(eq(auctionsTable.id, auctionId));
+
+      // 拍賣有得標者 → 自動建立拍賣訂單（pending 待商戶確認交收）
+      if (auction.highestBidderId) {
+        try {
+          await db.execute(sql`
+            UPDATE \`auctions\` SET \`auctionOrderStatus\` = 'pending'
+            WHERE id = ${auctionId} AND \`auctionOrderStatus\` IS NULL
+          `);
+        } catch (e) {
+          console.warn('[Auctions] Set auctionOrderStatus=pending failed:', e instanceof Error ? e.message : e);
+        }
+      }
 
       // Send won notification (fire-and-forget)
       notifyWon(auctionId, origin).catch(err =>

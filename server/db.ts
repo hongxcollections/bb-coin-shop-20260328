@@ -4568,6 +4568,85 @@ export async function cancelProductOrder(orderId: number, byUserId: number, isAd
   return { ok: true };
 }
 
+// ── 拍賣訂單（auction-as-order）──────────────────────────────────────────
+// 拍賣結束後，highestBidderId 自動 set auctionOrderStatus='pending'，商戶要 confirm/cancel 交收
+export async function getMerchantAuctionOrders(merchantId: number, status?: string): Promise<any[]> {
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const where: any[] = [`a.createdBy = ?`, `a.status = 'ended'`, `a.highestBidderId IS NOT NULL`, `a.auctionOrderStatus IS NOT NULL`];
+  const params: any[] = [merchantId];
+  if (status && status !== 'all') {
+    where.push(`a.auctionOrderStatus = ?`);
+    params.push(status);
+  }
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT a.id AS auctionId, a.title, a.currency, a.currentPrice, a.startingPrice,
+            a.endTime, a.highestBidderId AS buyerId,
+            a.auctionOrderStatus AS status, a.auctionOrderConfirmedAt AS confirmedAt,
+            a.auctionOrderCancelledAt AS cancelledAt, a.auctionOrderCancelReason AS cancelReason,
+            a.auctionOrderFinalPrice AS finalPrice,
+            (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY displayOrder ASC, id ASC LIMIT 1) AS thumbUrl,
+            u.name AS buyerName, u.phone AS buyerPhone,
+            (SELECT isAnonymous FROM bids WHERE auctionId = a.id AND userId = a.highestBidderId ORDER BY id DESC LIMIT 1) AS buyerIsAnonymous,
+            TIMESTAMPDIFF(DAY, a.endTime, NOW()) AS pendingDays
+     FROM auctions a
+     LEFT JOIN users u ON u.id = a.highestBidderId
+     WHERE ${where.join(' AND ')}
+     ORDER BY a.endTime DESC`,
+    params
+  );
+  return rows ?? [];
+}
+
+export async function confirmMerchantAuctionOrder(auctionId: number, merchantId: number, isAdmin = false, finalPrice?: number): Promise<{ ok: boolean; error?: string }> {
+  const db = await getDb();
+  if (!db) return { ok: false, error: 'DB unavailable' };
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT id, createdBy, status, highestBidderId, auctionOrderStatus, currentPrice, currency
+     FROM auctions WHERE id = ? LIMIT 1`,
+    [auctionId]
+  );
+  const a = (rows ?? [])[0];
+  if (!a) return { ok: false, error: '找不到此拍賣' };
+  if (!isAdmin && a.createdBy !== merchantId) return { ok: false, error: '無權操作' };
+  if (a.status !== 'ended' || !a.highestBidderId) return { ok: false, error: '拍賣未結束或無得標者' };
+  if (a.auctionOrderStatus !== 'pending') return { ok: false, error: '訂單狀態不可確認' };
+  const fp = (finalPrice != null && finalPrice > 0 && finalPrice !== parseFloat(String(a.currentPrice))) ? finalPrice : null;
+  await pool.execute(
+    `UPDATE auctions SET auctionOrderStatus = 'confirmed', auctionOrderConfirmedAt = NOW(), auctionOrderFinalPrice = ? WHERE id = ?`,
+    [fp, auctionId]
+  );
+  return { ok: true };
+}
+
+export async function cancelMerchantAuctionOrder(auctionId: number, merchantId: number, isAdmin = false, reason?: string): Promise<{ ok: boolean; error?: string }> {
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT id, createdBy, status, highestBidderId, auctionOrderStatus FROM auctions WHERE id = ? LIMIT 1`,
+    [auctionId]
+  );
+  const a = (rows ?? [])[0];
+  if (!a) return { ok: false, error: '找不到此拍賣' };
+  if (!isAdmin && a.createdBy !== merchantId) return { ok: false, error: '無權操作' };
+  if (a.auctionOrderStatus !== 'pending') return { ok: false, error: '只有待確認的拍賣訂單可以取消' };
+  await pool.execute(
+    `UPDATE auctions SET auctionOrderStatus = 'cancelled', auctionOrderCancelledAt = NOW(), auctionOrderCancelReason = ? WHERE id = ?`,
+    [reason ?? null, auctionId]
+  );
+  return { ok: true };
+}
+
+export async function countPendingMerchantAuctionOrders(merchantId: number): Promise<number> {
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT COUNT(*) AS cnt FROM auctions WHERE createdBy = ? AND status = 'ended' AND highestBidderId IS NOT NULL AND auctionOrderStatus = 'pending'`,
+    [merchantId]
+  );
+  return Number((rows ?? [])[0]?.cnt ?? 0);
+}
+
 export async function deleteBuyerOrder(orderId: number, buyerId: number): Promise<{ ok: boolean; error?: string }> {
   await ensureProductOrdersTable();
   const db = await getDb();
