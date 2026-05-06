@@ -8,8 +8,9 @@ import {
   AlertCircle, ArrowUpRight, ArrowDownLeft, ShoppingBag, Settings,
   RotateCcw, Layers, CreditCard, PlusCircle, Send, ChevronDown, Loader2,
   Upload, X, ImageIcon, Printer, Search, HelpCircle, Package,
-  LayoutList, LayoutGrid, Grid3X3, Maximize2, Link2, Copy,
+  LayoutList, LayoutGrid, Grid3X3, Maximize2, Link2, Copy, Tag,
 } from "lucide-react";
+import MerchantOffersDialog from "@/components/MerchantOffersDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -254,6 +255,12 @@ export default function MerchantDashboard() {
   const [selectedTierId, setSelectedTierId] = useState<number | null>(null);
   const [showTierInfo, setShowTierInfo] = useState(false);
   const [showMerchantLayout, setShowMerchantLayout] = useState(false);
+  const [showOffersDialog, setShowOffersDialog] = useState(false);
+
+  const { data: pendingOffersCount } = trpc.offers.pendingCount.useQuery(undefined, {
+    enabled: isAuthenticated,
+    refetchInterval: 60_000,
+  });
 
   const { data: myApp, isLoading: loadingApp } = trpc.merchants.myApplication.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -523,6 +530,23 @@ export default function MerchantDashboard() {
               </div>
             </div>
           </Link>
+          <button
+            onClick={() => setShowOffersDialog(true)}
+            className="text-left rounded-2xl bg-white border border-orange-100 p-4 flex items-center gap-3 hover:border-orange-300 hover:bg-orange-50/50 transition-colors cursor-pointer relative"
+          >
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
+              <Tag className="w-5 h-5 text-orange-500" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm text-gray-800">排價管理</p>
+              <p className="text-xs text-gray-400 mt-0.5">買家議價 · 接受/拒絕</p>
+            </div>
+            {pendingOffersCount && pendingOffersCount > 0 ? (
+              <span className="absolute top-2 right-2 min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+                {pendingOffersCount}
+              </span>
+            ) : null}
+          </button>
           <Link href="/merchant-refund-requests">
             <div className="rounded-2xl bg-white border border-gray-100 p-4 flex items-center gap-3 hover:border-amber-300 hover:bg-amber-50/50 transition-colors cursor-pointer">
               <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
@@ -969,6 +993,7 @@ export default function MerchantDashboard() {
         </Card>
 
       </div>
+      <MerchantOffersDialog open={showOffersDialog} onOpenChange={setShowOffersDialog} />
     </div>
   );
 }

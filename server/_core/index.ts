@@ -225,6 +225,36 @@ async function bootstrapMissingColumns() {
     INDEX \`idx_chatmsg_sender\` (\`senderId\`)
   )`, 'Ensured auctionChatMessages table');
 
+  // ── 排價 (price offer) 表 ────────────────────────────────────────────────
+  await alter(`CREATE TABLE IF NOT EXISTS \`productOffers\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`productId\` int NOT NULL,
+    \`buyerId\` int NOT NULL,
+    \`merchantId\` int NOT NULL,
+    \`amount\` decimal(10,2) NOT NULL,
+    \`currency\` varchar(10) NOT NULL DEFAULT 'HKD',
+    \`buyerNote\` text NULL,
+    \`status\` varchar(20) NOT NULL DEFAULT 'pending',
+    \`merchantResponse\` text NULL,
+    \`expiresAt\` timestamp NULL,
+    \`orderId\` int NULL,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT \`productOffers_id\` PRIMARY KEY(\`id\`),
+    INDEX \`idx_offer_product\` (\`productId\`),
+    INDEX \`idx_offer_buyer\` (\`buyerId\`, \`status\`),
+    INDEX \`idx_offer_merchant\` (\`merchantId\`, \`status\`),
+    INDEX \`idx_offer_status_expires\` (\`status\`, \`expiresAt\`)
+  )`, 'Ensured productOffers table');
+
+  // 加 merchantProducts.allowOffers
+  if (!(await check('merchantProducts', 'allowOffers'))) {
+    await alter(
+      `ALTER TABLE \`merchantProducts\` ADD COLUMN \`allowOffers\` tinyint(1) NOT NULL DEFAULT 1`,
+      'Added allowOffers to merchantProducts'
+    );
+  }
+
   // 訊息表情 reaction
   await alter(`CREATE TABLE IF NOT EXISTS \`auctionChatMessageReactions\` (
     \`id\` int AUTO_INCREMENT NOT NULL,
@@ -1177,6 +1207,16 @@ Output ONLY the JSON, nothing else.`;
       console.error('[Scheduler] Loyalty maintenance error:', err);
     }
   }, 6 * 60 * 60 * 1000);
+
+  // 排價過期 — 每 15 分鐘跑一次
+  setInterval(async () => {
+    try {
+      const { expireStaleOffers } = await import('../db');
+      await expireStaleOffers();
+    } catch (err) {
+      console.error('[Scheduler] expireStaleOffers error:', err);
+    }
+  }, 15 * 60 * 1000);
 
   // 啟動後 30 秒跑一次初始化
   setTimeout(async () => {

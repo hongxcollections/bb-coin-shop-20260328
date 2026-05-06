@@ -410,6 +410,7 @@ export const merchantProducts = mysqlTable("merchantProducts", {
   images: text("images"),
   videoUrl: varchar("videoUrl", { length: 500 }),
   stock: int("stock").default(1).notNull(),
+  allowOffers: int("allowOffers").default(1).notNull(),
   status: mysqlEnum("status", ["active", "sold", "hidden"]).default("active").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

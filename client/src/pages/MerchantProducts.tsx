@@ -67,10 +67,11 @@ interface ProductForm {
   stock: string;
   images: string[];
   videoUrl: string;
+  allowOffers: boolean;
 }
 
 const EMPTY_FORM: ProductForm = {
-  title: "", description: "", price: "", currency: "HKD", categories: [], stock: "1", images: [], videoUrl: "",
+  title: "", description: "", price: "", currency: "HKD", categories: [], stock: "1", images: [], videoUrl: "", allowOffers: true,
 };
 
 const MAX_VIDEO_SIZE = 30 * 1024 * 1024;
@@ -681,6 +682,7 @@ export default function MerchantProducts() {
         return p.category.trim() ? [p.category.trim()] : [];
       })(),
       stock: String(p.stock ?? 1),
+      allowOffers: Number((p as any).allowOffers ?? 1) === 1,
       images: imgs,
       videoUrl: p.videoUrl ?? "",
     });
@@ -805,6 +807,7 @@ export default function MerchantProducts() {
       images: form.images.length > 0 ? JSON.stringify(form.images) : undefined,
       videoUrl: form.videoUrl ? form.videoUrl : null,
       stock,
+      allowOffers: form.allowOffers ? 1 : 0,
     };
     setSaving(true);
     try {
@@ -1042,6 +1045,19 @@ export default function MerchantProducts() {
             <div className="space-y-2">
               <label className="text-xs text-gray-500 font-medium">庫存數量</label>
               <Input type="number" placeholder="1" min="0" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} />
+            </div>
+
+            <div className="flex items-center justify-between rounded-xl border border-orange-100 bg-orange-50/50 px-3 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-gray-700">允許買家排價</p>
+                <p className="text-[11px] text-gray-500 mt-0.5">關咗就唔會喺商品頁顯示「排價」按鈕</p>
+              </div>
+              <input
+                type="checkbox"
+                className="w-5 h-5 accent-orange-500 cursor-pointer shrink-0"
+                checked={form.allowOffers}
+                onChange={e => setForm(f => ({ ...f, allowOffers: e.target.checked }))}
+              />
             </div>
 
             <div className="flex gap-2 pt-1">

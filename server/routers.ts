@@ -11,7 +11,7 @@ import { merchantApplications as merchantAppsTable, merchantProducts as merchant
 import { sanitizeUserText } from "./_core/sanitize";
 import { eq, sql } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, deleteBuyerOrder, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS, toggleMessageReaction, listReactionsForRoom, listReactionsForMessage, upsertChatAutoReply, getLastMerchantOrAutoReplyAt, searchChatMessagesInRoom, searchChatMessagesAcrossMyRooms } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, deleteBuyerOrder, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS, toggleMessageReaction, listReactionsForRoom, listReactionsForMessage, upsertChatAutoReply, getLastMerchantOrAutoReplyAt, searchChatMessagesInRoom, searchChatMessagesAcrossMyRooms, setMerchantOffersEnabled, createProductOffer, countRecentBuyerOffersForProduct, getProductOfferById, getActiveBuyerOfferForProduct, listOffersForBuyer, listOffersForMerchant, countPendingOffersForMerchant, respondProductOffer, markOfferPurchased, claimAcceptedOffer, releaseClaimedOffer, getUserMemberLevel } from "./db";
 import { storagePut, storageSignPut } from "./storage";
 import { applyWatermark } from "./watermark";
 import { getRawPool } from "./db";
@@ -3413,6 +3413,7 @@ export const appRouter = router({
         images: z.string().optional(),
         videoUrl: z.string().max(500).nullable().optional(),
         stock: z.number().int().min(1).default(1),
+        allowOffers: z.number().int().min(0).max(1).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         // 停權檢查
@@ -3460,6 +3461,7 @@ export const appRouter = router({
           images: input.images,
           videoUrl: input.videoUrl ?? null,
           stock: input.stock,
+          allowOffers: input.allowOffers,
         });
 
         // ── 扣減公佈額度（有限額時才扣） ────────────────────────────────────
@@ -3483,6 +3485,7 @@ export const appRouter = router({
         videoUrl: z.string().max(500).nullable().optional(),
         stock: z.number().int().min(0).optional(),
         status: z.enum(['active', 'sold', 'hidden']).optional(),
+        allowOffers: z.number().int().min(0).max(1).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const app = await getMerchantApplicationByUser(ctx.user.id);
@@ -3491,6 +3494,18 @@ export const appRouter = router({
         }
         const { id, ...data } = input;
         await updateMerchantProduct(id, ctx.user.id, data as any);
+        return { success: true };
+      }),
+
+    /** 商戶：開關「接受排價」總開關 */
+    setOffersEnabled: protectedProcedure
+      .input(z.object({ enabled: z.boolean() }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        await setMerchantOffersEnabled(ctx.user.id, input.enabled ? 1 : 0);
         return { success: true };
       }),
 
@@ -5985,6 +6000,180 @@ ${kb}`;
         }
         await upsertChatAutoReply(ctx.user.id, input.enabled ? 1 : 0, trimmed || null);
         return { success: true };
+      }),
+  }),
+
+  // ─── 排價 (price offer) ─────────────────────────────────────────────────
+  offers: router({
+    /** 買家：建立排價 */
+    create: protectedProcedure
+      .input(z.object({
+        productId: z.number().int().positive(),
+        amount: z.number().positive(),
+        buyerNote: z.string().max(500).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if ((ctx.user as any).isBanned === 1) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '您的帳號已被停權' });
+        }
+        const product = await getMerchantProduct(input.productId);
+        if (!product || product.status !== 'active' || (product as any).stock <= 0) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: '商品不存在或已售出' });
+        }
+        if (product.merchantId === ctx.user.id) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '不能對自己嘅商品排價' });
+        }
+        // 全域 + 個別商品 toggle
+        const settings = await getMerchantSettings(product.merchantId);
+        if (!settings.offersGloballyEnabled) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '此商戶暫時唔接受排價' });
+        }
+        if (Number((product as any).allowOffers ?? 1) === 0) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '此商品唔接受排價' });
+        }
+        // 銀牌+ 限制
+        const lvl = (await getUserMemberLevel(ctx.user.id)) ?? 'bronze';
+        if (!['silver','gold','vip'].includes(lvl) && (ctx.user as any).role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '銀牌或以上會員先可以排價' });
+        }
+        // 最低 50%
+        const listPrice = Number((product as any).price);
+        const minAllowed = listPrice * 0.5;
+        if (input.amount < minAllowed) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `排價最低 ${product.currency} $${minAllowed.toFixed(2)}（標價嘅 50%）` });
+        }
+        if (input.amount >= listPrice) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '排價金額需要低於標價，否則請直接落單' });
+        }
+        // 已有未處理排價？
+        const existing = await getActiveBuyerOfferForProduct(ctx.user.id, input.productId);
+        if (existing) {
+          throw new TRPCError({ code: 'CONFLICT', message: '你對此商品已有一個未處理嘅排價' });
+        }
+        // 24h 最多 3 次
+        const recentCount = await countRecentBuyerOffersForProduct(ctx.user.id, input.productId, 24);
+        if (recentCount >= 3) {
+          throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: '同一商品 24 小時內最多 3 次排價' });
+        }
+        const note = input.buyerNote ? sanitizeUserText(input.buyerNote) : null;
+        const id = await createProductOffer({
+          productId: input.productId,
+          buyerId: ctx.user.id,
+          merchantId: product.merchantId,
+          amount: input.amount,
+          currency: product.currency || 'HKD',
+          buyerNote: note,
+        });
+        return { id };
+      }),
+
+    /** 買家：睇返自己對某商品嘅排價 */
+    myActiveForProduct: protectedProcedure
+      .input(z.object({ productId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        return await getActiveBuyerOfferForProduct(ctx.user.id, input.productId);
+      }),
+
+    /** 買家：列出自己所有排價 */
+    listMine: protectedProcedure.query(async ({ ctx }) => {
+      return await listOffersForBuyer(ctx.user.id);
+    }),
+
+    /** 商戶：列出收到嘅排價 */
+    listForMerchant: protectedProcedure
+      .input(z.object({ status: z.enum(['all','pending','accepted','rejected','expired','purchased']).default('all') }))
+      .query(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        return await listOffersForMerchant(ctx.user.id, input.status);
+      }),
+
+    /** 商戶：未處理排價數（badge） */
+    pendingCount: protectedProcedure.query(async ({ ctx }) => {
+      const app = await getMerchantApplicationByUser(ctx.user.id);
+      if (app?.status !== 'approved' && ctx.user.role !== 'admin') return 0;
+      return await countPendingOffersForMerchant(ctx.user.id);
+    }),
+
+    /** 商戶：接受／拒絕排價 */
+    respond: protectedProcedure
+      .input(z.object({
+        offerId: z.number().int().positive(),
+        action: z.enum(['accept','reject']),
+        responseText: z.string().max(500).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        const result = await respondProductOffer(
+          input.offerId,
+          ctx.user.id,
+          input.action,
+          input.responseText ? sanitizeUserText(input.responseText) : null,
+        );
+        if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.reason ?? '操作失敗' });
+        return { success: true };
+      }),
+
+    /** 買家：將已接受嘅排價轉做訂單（用 offer 金額作 unit price） */
+    convertToOrder: protectedProcedure
+      .input(z.object({
+        offerId: z.number().int().positive(),
+        buyerName: z.string().max(80).optional(),
+        buyerPhone: z.string().max(40).optional(),
+        buyerNote: z.string().max(500).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const offer = await getProductOfferById(input.offerId);
+        if (!offer) throw new TRPCError({ code: 'NOT_FOUND', message: '排價唔存在' });
+        if (offer.buyerId !== ctx.user.id) throw new TRPCError({ code: 'FORBIDDEN', message: '冇權限' });
+        if (offer.status !== 'accepted') throw new TRPCError({ code: 'BAD_REQUEST', message: '排價未被接受或已過期' });
+        if (offer.expiresAt && offer.expiresAt.getTime() < Date.now()) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '排價有效期已過' });
+        }
+        const product = await getMerchantProduct(offer.productId);
+        if (!product || product.status !== 'active' || (product as any).stock <= 0) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '商品已售出或下架' });
+        }
+        // 原子搶佔，避免重複落單（並發/重試）
+        const claimed = await claimAcceptedOffer(offer.id, ctx.user.id);
+        if (!claimed) {
+          throw new TRPCError({ code: 'CONFLICT', message: '排價已被使用或已過期' });
+        }
+        let orderId: number;
+        try {
+          const deposit = await getOrCreateSellerDeposit(offer.merchantId);
+          const commissionRate = Number(deposit?.commissionRate ?? 0.05);
+          orderId = await createProductOrder({
+            productId: offer.productId,
+            buyerId: ctx.user.id,
+            merchantId: offer.merchantId,
+            title: (product as any).title,
+            price: Number(offer.amount),
+            currency: offer.currency,
+            quantity: 1,
+            commissionRate,
+            buyerName: input.buyerName ?? (ctx.user as any).name ?? undefined,
+            buyerPhone: input.buyerPhone ?? (ctx.user as any).phone ?? undefined,
+            buyerNote: input.buyerNote ?? `排價成交（原排價 #${offer.id}）`,
+          });
+        } catch (err) {
+          await releaseClaimedOffer(offer.id);
+          throw err;
+        }
+        // 將 'converting' 升做 'purchased' 並寫入 orderId
+        const db = await (await import("./db")).getDb();
+        if (db) {
+          await db.execute((await import("drizzle-orm")).sql`
+            UPDATE productOffers SET status = 'purchased', orderId = ${orderId}
+            WHERE id = ${offer.id} AND status = 'converting'
+          `);
+        }
+        return { orderId };
       }),
   }),
 });

@@ -3253,6 +3253,7 @@ async function ensureMerchantSettingsTable() {
       ['watermarkSize', 'INT NOT NULL DEFAULT 12'],
       ['chatAutoReplyEnabled', 'INT NOT NULL DEFAULT 0'],
       ['chatAutoReplyMessage', 'TEXT NULL'],
+      ['offersGloballyEnabled', 'TINYINT NOT NULL DEFAULT 1'],
     ] as [string, string][]) {
       const chk = await db.execute(sql`
         SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
@@ -3298,13 +3299,14 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   fbRefreshPreviewEnabled: 0,
   chatAutoReplyEnabled: 0,
   chatAutoReplyMessage: null as string | null,
+  offersGloballyEnabled: 1,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, offersGloballyEnabled FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -3339,6 +3341,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         fbRefreshPreviewEnabled: Number(row.fbRefreshPreviewEnabled ?? 0),
         chatAutoReplyEnabled: Number(row.chatAutoReplyEnabled ?? 0),
         chatAutoReplyMessage: row.chatAutoReplyMessage != null ? String(row.chatAutoReplyMessage) : null,
+        offersGloballyEnabled: Number(row.offersGloballyEnabled ?? 1),
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -3396,6 +3399,17 @@ export async function setMerchantListingLayout(userId: number, listingLayout: st
     INSERT INTO merchant_settings (userId, listingLayout)
     VALUES (${userId}, ${listingLayout})
     ON DUPLICATE KEY UPDATE listingLayout = ${listingLayout}, updatedAt = CURRENT_TIMESTAMP
+  `);
+}
+
+export async function setMerchantOffersEnabled(userId: number, enabled: number): Promise<void> {
+  await ensureMerchantSettingsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  await db.execute(sql`
+    INSERT INTO merchant_settings (userId, offersGloballyEnabled)
+    VALUES (${userId}, ${enabled})
+    ON DUPLICATE KEY UPDATE offersGloballyEnabled = ${enabled}, updatedAt = CURRENT_TIMESTAMP
   `);
 }
 
@@ -4024,6 +4038,7 @@ export async function createMerchantProduct(data: {
   merchantId: number; merchantName: string; merchantIcon?: string; whatsapp?: string;
   title: string; description?: string; price: number; currency?: string;
   category?: string; images?: string; videoUrl?: string | null; stock?: number;
+  allowOffers?: number;
 }): Promise<number> {
   await ensureMerchantProductsTable();
   const db = await getDb();
@@ -4043,12 +4058,18 @@ export async function createMerchantProduct(data: {
     stock: data.stock ?? 1,
     status: 'active',
   });
-  return (result as any).insertId as number;
+  const id = (result as any).insertId as number;
+  // allowOffers (raw SQL since column added via bootstrap)
+  if (typeof data.allowOffers === 'number') {
+    try { await db.execute(sql`UPDATE merchantProducts SET allowOffers = ${data.allowOffers} WHERE id = ${id}`); } catch {}
+  }
+  return id;
 }
 
 export async function updateMerchantProduct(id: number, merchantId: number, data: Partial<{
   title: string; description: string; price: number; currency: string;
   category: string; images: string; videoUrl: string | null; stock: number; status: string;
+  allowOffers: number;
 }>): Promise<void> {
   await ensureMerchantProductsTable();
   const db = await getDb();
@@ -4065,6 +4086,9 @@ export async function updateMerchantProduct(id: number, merchantId: number, data
   if (data.status !== undefined) payload.status = data.status;
   await db.update(merchantProducts).set(payload)
     .where(and(eq(merchantProducts.id, id), eq(merchantProducts.merchantId, merchantId)));
+  if (typeof data.allowOffers === 'number') {
+    try { await db.execute(sql`UPDATE merchantProducts SET allowOffers = ${data.allowOffers} WHERE id = ${id} AND merchantId = ${merchantId}`); } catch {}
+  }
   // 商品售出或下架時，自動處理主打刊登（queued 退費，active 過期+提升排隊）
   if (data.status === 'sold' || data.status === 'hidden') {
     await autoExpireFeaturedForProduct(id);
@@ -5672,6 +5696,224 @@ export async function searchChatMessagesAcrossMyRooms(userId: number, query: str
     console.error('[chat] searchChatMessagesAcrossMyRooms error:', e);
     return [];
   }
+}
+
+// ─── 排價 (price offer) ───────────────────────────────────────────────────
+export type ProductOffer = {
+  id: number;
+  productId: number;
+  buyerId: number;
+  merchantId: number;
+  amount: string;
+  currency: string;
+  buyerNote: string | null;
+  status: 'pending' | 'accepted' | 'rejected' | 'expired' | 'purchased';
+  merchantResponse: string | null;
+  expiresAt: Date | null;
+  orderId: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export async function createProductOffer(input: {
+  productId: number;
+  buyerId: number;
+  merchantId: number;
+  amount: number;
+  currency: string;
+  buyerNote?: string | null;
+}): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const [result] = await db.execute(sql`
+    INSERT INTO productOffers (productId, buyerId, merchantId, amount, currency, buyerNote, status)
+    VALUES (${input.productId}, ${input.buyerId}, ${input.merchantId}, ${input.amount.toFixed(2)}, ${input.currency}, ${input.buyerNote ?? null}, 'pending')
+  `);
+  return (result as any).insertId as number;
+}
+
+export async function countRecentBuyerOffersForProduct(buyerId: number, productId: number, hoursWindow: number = 24): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const [rows]: any = await db.execute(sql`
+    SELECT COUNT(*) AS cnt FROM productOffers
+    WHERE buyerId = ${buyerId} AND productId = ${productId}
+      AND createdAt >= (NOW() - INTERVAL ${hoursWindow} HOUR)
+  `);
+  const row = Array.isArray(rows) ? rows[0] : rows;
+  return Number(row?.cnt ?? 0);
+}
+
+export async function getProductOfferById(id: number): Promise<ProductOffer | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [rows]: any = await db.execute(sql`SELECT * FROM productOffers WHERE id = ${id} LIMIT 1`);
+  const r = Array.isArray(rows) ? rows[0] : rows;
+  if (!r) return null;
+  return {
+    id: Number(r.id), productId: Number(r.productId), buyerId: Number(r.buyerId), merchantId: Number(r.merchantId),
+    amount: String(r.amount), currency: String(r.currency), buyerNote: r.buyerNote ?? null,
+    status: String(r.status) as any, merchantResponse: r.merchantResponse ?? null,
+    expiresAt: r.expiresAt ? new Date(r.expiresAt) : null,
+    orderId: r.orderId != null ? Number(r.orderId) : null,
+    createdAt: new Date(r.createdAt), updatedAt: new Date(r.updatedAt),
+  };
+}
+
+export async function getActiveBuyerOfferForProduct(buyerId: number, productId: number): Promise<ProductOffer | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [rows]: any = await db.execute(sql`
+    SELECT * FROM productOffers
+    WHERE buyerId = ${buyerId} AND productId = ${productId}
+      AND (
+        status = 'pending'
+        OR (status = 'accepted' AND (expiresAt IS NULL OR expiresAt > NOW()))
+      )
+    ORDER BY createdAt DESC LIMIT 1
+  `);
+  const r = Array.isArray(rows) ? rows[0] : rows;
+  if (!r) return null;
+  return {
+    id: Number(r.id), productId: Number(r.productId), buyerId: Number(r.buyerId), merchantId: Number(r.merchantId),
+    amount: String(r.amount), currency: String(r.currency), buyerNote: r.buyerNote ?? null,
+    status: String(r.status) as any, merchantResponse: r.merchantResponse ?? null,
+    expiresAt: r.expiresAt ? new Date(r.expiresAt) : null,
+    orderId: r.orderId != null ? Number(r.orderId) : null,
+    createdAt: new Date(r.createdAt), updatedAt: new Date(r.updatedAt),
+  };
+}
+
+export async function listOffersForBuyer(buyerId: number): Promise<any[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const [rows]: any = await db.execute(sql`
+    SELECT o.*, mp.title AS productTitle, mp.images AS productImages, mp.price AS productListPrice,
+           u.name AS merchantName
+    FROM productOffers o
+    LEFT JOIN merchantProducts mp ON mp.id = o.productId
+    LEFT JOIN users u ON u.id = o.merchantId
+    WHERE o.buyerId = ${buyerId}
+    ORDER BY o.createdAt DESC
+    LIMIT 200
+  `);
+  return (Array.isArray(rows) ? rows : []) as any[];
+}
+
+export async function listOffersForMerchant(merchantId: number, status?: string): Promise<any[]> {
+  const db = await getDb();
+  if (!db) return [];
+  let rows: any;
+  if (status && status !== 'all') {
+    [rows] = await db.execute(sql`
+      SELECT o.*, mp.title AS productTitle, mp.images AS productImages, mp.price AS productListPrice,
+             u.name AS buyerName, u.memberLevel AS buyerMemberLevel
+      FROM productOffers o
+      LEFT JOIN merchantProducts mp ON mp.id = o.productId
+      LEFT JOIN users u ON u.id = o.buyerId
+      WHERE o.merchantId = ${merchantId} AND o.status = ${status}
+      ORDER BY o.createdAt DESC
+      LIMIT 300
+    `);
+  } else {
+    [rows] = await db.execute(sql`
+      SELECT o.*, mp.title AS productTitle, mp.images AS productImages, mp.price AS productListPrice,
+             u.name AS buyerName, u.memberLevel AS buyerMemberLevel
+      FROM productOffers o
+      LEFT JOIN merchantProducts mp ON mp.id = o.productId
+      LEFT JOIN users u ON u.id = o.buyerId
+      WHERE o.merchantId = ${merchantId}
+      ORDER BY o.createdAt DESC
+      LIMIT 300
+    `);
+  }
+  return (Array.isArray(rows) ? rows : []) as any[];
+}
+
+export async function countPendingOffersForMerchant(merchantId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const [rows]: any = await db.execute(sql`
+    SELECT COUNT(*) AS cnt FROM productOffers WHERE merchantId = ${merchantId} AND status = 'pending'
+  `);
+  const r = Array.isArray(rows) ? rows[0] : rows;
+  return Number(r?.cnt ?? 0);
+}
+
+export async function respondProductOffer(offerId: number, merchantId: number, action: 'accept' | 'reject', responseText?: string | null): Promise<{ ok: boolean; reason?: string }> {
+  const db = await getDb();
+  if (!db) return { ok: false, reason: 'DB unavailable' };
+  const offer = await getProductOfferById(offerId);
+  if (!offer) return { ok: false, reason: '排價唔存在' };
+  if (offer.merchantId !== merchantId) return { ok: false, reason: '冇權限' };
+  if (offer.status !== 'pending') return { ok: false, reason: `排價狀態為 ${offer.status}，無法操作` };
+  if (action === 'accept') {
+    await db.execute(sql`
+      UPDATE productOffers
+      SET status = 'accepted',
+          merchantResponse = ${responseText ?? null},
+          expiresAt = (NOW() + INTERVAL 24 HOUR)
+      WHERE id = ${offerId}
+    `);
+  } else {
+    await db.execute(sql`
+      UPDATE productOffers
+      SET status = 'rejected', merchantResponse = ${responseText ?? null}
+      WHERE id = ${offerId}
+    `);
+  }
+  return { ok: true };
+}
+
+export async function markOfferPurchased(offerId: number, orderId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const [r]: any = await db.execute(sql`
+    UPDATE productOffers
+    SET status = 'purchased', orderId = ${orderId}
+    WHERE id = ${offerId} AND status = 'accepted'
+      AND (expiresAt IS NULL OR expiresAt > NOW())
+  `);
+  return Number(r?.affectedRows ?? 0) === 1;
+}
+
+/** 原子搶佔 accepted offer：成功後狀態改為 'converting'，避免重複落單 */
+export async function claimAcceptedOffer(offerId: number, buyerId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const [r]: any = await db.execute(sql`
+    UPDATE productOffers
+    SET status = 'converting'
+    WHERE id = ${offerId} AND buyerId = ${buyerId} AND status = 'accepted'
+      AND (expiresAt IS NULL OR expiresAt > NOW())
+  `);
+  return Number(r?.affectedRows ?? 0) === 1;
+}
+
+/** 失敗時 rollback 'converting' 返 'accepted'（如尚未過期） */
+export async function releaseClaimedOffer(offerId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.execute(sql`
+    UPDATE productOffers SET status = 'accepted'
+    WHERE id = ${offerId} AND status = 'converting'
+      AND (expiresAt IS NULL OR expiresAt > NOW())
+  `);
+}
+
+/** 過期清理：pending > 48h、accepted 過期未購買，全部設為 expired */
+export async function expireStaleOffers(): Promise<{ pendingExpired: number; acceptedExpired: number }> {
+  const db = await getDb();
+  if (!db) return { pendingExpired: 0, acceptedExpired: 0 };
+  const [r1]: any = await db.execute(sql`
+    UPDATE productOffers SET status = 'expired'
+    WHERE status = 'pending' AND createdAt < (NOW() - INTERVAL 48 HOUR)
+  `);
+  const [r2]: any = await db.execute(sql`
+    UPDATE productOffers SET status = 'expired'
+    WHERE status = 'accepted' AND expiresAt IS NOT NULL AND expiresAt < NOW()
+  `);
+  return { pendingExpired: Number(r1?.affectedRows ?? 0), acceptedExpired: Number(r2?.affectedRows ?? 0) };
 }
 
 /** Helper: 攞 message 所屬 roomId。 */

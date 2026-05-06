@@ -37,6 +37,10 @@ export default function MerchantSettings() {
     },
     onError: (err) => toast.error(err.message || "儲存失敗"),
   });
+  const setOffersEnabledMutation = trpc.merchants.setOffersEnabled.useMutation({
+    onSuccess: () => { utils.merchants.getSettings.invalidate(); toast.success("排價設定已更新"); },
+    onError: (err) => toast.error(err.message || "更新失敗"),
+  });
   const setPageSizes = trpc.merchants.setPageSizes.useMutation({
     onSuccess: () => { utils.merchants.getSettings.invalidate(); utils.merchants.listApprovedMerchants.invalidate(); toast.success("每頁顯示數量已儲存"); },
     onError: (err) => toast.error(err.message || "儲存失敗"),
@@ -1262,6 +1266,32 @@ export default function MerchantSettings() {
                 {updateAutoReplyMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 儲存自動回覆
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 排價總開關 */}
+        <Card className="rounded-2xl border-orange-100">
+          <CardContent className="p-4 sm:p-5 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                  <span className="text-orange-500">🏷️</span> 接受排價（議價）總開關
+                </h3>
+                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                  關閉後，所有商品都不會顯示「排價」按鈕。可在個別商品再單獨關閉。
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={Number((settings as any)?.offersGloballyEnabled ?? 1) === 1}
+                  disabled={!settings || setOffersEnabledMutation.isPending}
+                  onChange={(e) => setOffersEnabledMutation.mutate({ enabled: e.target.checked })}
+                />
+                <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-orange-500 transition-colors relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:w-5 after:h-5 after:transition-transform peer-checked:after:translate-x-5"></div>
+              </label>
             </div>
           </CardContent>
         </Card>
