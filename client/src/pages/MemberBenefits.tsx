@@ -22,7 +22,6 @@ function UpgradeChartsSection() {
   const buttons: { kind: ChartKind; label: string; emoji: string }[] = [
     { kind: "silver", label: "銀牌升級門檻", emoji: "🥈" },
     { kind: "gold", label: "金牌升級門檻", emoji: "🥇" },
-    { kind: "cashback", label: "Credit 回贈率", emoji: "💰" },
     { kind: "preview", label: "提前預覽時數", emoji: "👀" },
     { kind: "autobid", label: "代理出價限制", emoji: "🤖" },
     { kind: "inactivity", label: "降級規則", emoji: "📉" },

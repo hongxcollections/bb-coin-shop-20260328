@@ -279,7 +279,6 @@ export default function AdminLoyalty() {
               </div>
 
               <div className="flex flex-wrap justify-end gap-2">
-                <Button variant="outline" onClick={() => setChartKind("cashback")} className="gap-2"><BarChart3 className="w-4 h-4" />Credit 回贈圖表</Button>
                 <Button variant="outline" onClick={() => setChartKind("preview")} className="gap-2"><BarChart3 className="w-4 h-4" />提前預覽圖表</Button>
                 <Button onClick={() => saveSection({
                   silverCashbackRate: cfg.silverCashbackRate,
