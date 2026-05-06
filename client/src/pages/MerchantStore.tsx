@@ -7,7 +7,7 @@ import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { ShareMenu, ProductShareMenu } from "@/components/ShareMenu";
 import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag, Share2 } from "lucide-react";
-import { buildWhatsAppUrl, sanitizeUserText } from "@/lib/utils";
+import { buildWhatsAppUrl, sanitizeUserText, parseCategories } from "@/lib/utils";
 import { getCurrencySymbol } from "./AdminAuctions";
 
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
@@ -419,7 +419,7 @@ export default function MerchantStore() {
 
   const totalProductPages = Math.ceil(activeProducts.length / productsPerPage);
   const paginatedActiveProducts = activeProducts.slice(productPage * productsPerPage, (productPage + 1) * productsPerPage);
-  const categories = merchant?.categories ? merchant.categories.split(",").map((c: string) => c.trim()).filter(Boolean) : [];
+  const categories = parseCategories(merchant?.categories);
 
   if (!userId || error) {
     return (

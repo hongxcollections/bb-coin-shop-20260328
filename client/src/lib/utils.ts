@@ -35,6 +35,33 @@ export function sanitizeUserText(input: string | null | undefined): string {
     .replace(/[\uDB80-\uDBFF][\uDC00-\uDFFF]/g, "");
 }
 
+/**
+ * 解析商戶 categories field — 可能係：
+ *   - JSON 陣列字串：'["香港硬幣","紙幣"]' → ["香港硬幣","紙幣"]
+ *   - CSV 字串：'香港硬幣,紙幣' → ["香港硬幣","紙幣"]
+ *   - 空 / '[]' / '{}' → []
+ * 過濾「冇任何中英數」嘅垃圾 token（避免 '[]' 變成一個 badge 顯示）。
+ */
+export function parseCategories(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === "[]" || trimmed === "{}") return [];
+  let arr: string[] = [];
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) arr = parsed.map(String);
+    } catch {
+      arr = trimmed.split(",");
+    }
+  } else {
+    arr = trimmed.split(",");
+  }
+  return arr
+    .map((c) => sanitizeUserText(c).trim())
+    .filter((c) => c && /[\u4e00-\u9fa5a-zA-Z0-9]/.test(c));
+}
+
 export function buildWhatsAppUrl(rawPhone: string, text: string): string {
   const digits = (() => {
     const d = rawPhone.replace(/[^0-9]/g, "");

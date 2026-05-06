@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { sanitizeUserText } from "@/lib/utils";
+import { sanitizeUserText, parseCategories } from "@/lib/utils";
 import Header from "@/components/Header";
 import ImageLightbox from "@/components/ImageLightbox";
 import { Store, ChevronRight, Gavel, Package, Search, X, MessageCircle } from "lucide-react";
@@ -45,12 +45,7 @@ export default function Merchants() {
   const allCategories = useMemo(() => {
     const set = new Set<string>();
     (merchants as any[]).forEach((m) => {
-      if (m.categories) {
-        (m.categories as string).split(",").forEach((c: string) => {
-          const t = c.trim();
-          if (t && /[\u4e00-\u9fa5a-zA-Z0-9]/.test(t)) set.add(t);
-        });
-      }
+      parseCategories(m.categories).forEach((c) => set.add(c));
     });
     return Array.from(set).sort();
   }, [merchants]);
@@ -67,7 +62,7 @@ export default function Merchants() {
     }
     if (activeCategory) {
       list = list.filter((m) =>
-        m.categories?.split(",").some((c: string) => c.trim() === activeCategory)
+        parseCategories(m.categories).includes(activeCategory)
       );
     }
     return list;
@@ -170,9 +165,7 @@ export default function Merchants() {
           </div>
         ) : (
           filtered.map((m: any, idx: number) => {
-            const cats = m.categories
-              ? (m.categories as string).split(",").map((c: string) => c.trim()).filter(Boolean)
-              : [];
+            const cats = parseCategories(m.categories);
             const hasAuctions = (m.auctionCount ?? 0) > 0;
             const hasProducts = (m.productCount ?? 0) > 0;
             const isTop = idx < 3;
