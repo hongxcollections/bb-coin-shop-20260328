@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Gavel, CheckCircle2, XCircle, Clock, ImageIcon } from "lucide-react";
@@ -156,10 +157,12 @@ export function MerchantAuctionOrdersTab() {
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="font-semibold text-sm text-gray-800 line-clamp-2 flex items-center gap-1.5">
-                        <Gavel className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                        {o.title}
-                      </p>
+                      <Link href={`/auctions/${o.auctionId}`}>
+                        <a className="font-semibold text-sm text-amber-700 hover:underline line-clamp-2 flex items-center gap-1.5">
+                          <Gavel className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          {o.title}
+                        </a>
+                      </Link>
                       <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${STATUS_COLORS[o.status] ?? ""}`}>
                         {STATUS_LABELS[o.status] ?? o.status}
                       </span>
