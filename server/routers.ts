@@ -8,6 +8,7 @@ import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, cr
 import type { AdTargetType } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids } from "../drizzle/schema";
+import { sanitizeUserText } from "./_core/sanitize";
 import { eq, sql } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
 import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, deleteBuyerOrder, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS } from "./db";
@@ -1550,8 +1551,8 @@ export const appRouter = router({
           await getOrCreateSellerDeposit(newUserId);
           await createMerchantApplication({
             userId: newUserId,
-            contactName: input.name,
-            merchantName: input.merchantName || input.name,
+            contactName: sanitizeUserText(input.name),
+            merchantName: sanitizeUserText(input.merchantName || input.name),
             selfIntro: '',
             whatsapp: input.phone ?? '',
             yearsExperience: '0',
@@ -2372,9 +2373,9 @@ export const appRouter = router({
         }
         await createMerchantApplication({
           userId: ctx.user.id,
-          contactName: input.contactName,
-          merchantName: input.merchantName,
-          selfIntro: input.selfIntro,
+          contactName: sanitizeUserText(input.contactName),
+          merchantName: sanitizeUserText(input.merchantName),
+          selfIntro: sanitizeUserText(input.selfIntro),
           whatsapp: input.whatsapp,
           merchantIcon: input.merchantIcon ?? null,
           status: 'pending',
@@ -2402,8 +2403,8 @@ export const appRouter = router({
           throw new TRPCError({ code: 'FORBIDDEN', message: '只有已審核商戶才能修改資料' });
         }
         await updateMerchantProfile(ctx.user.id, {
-          merchantName: input.merchantName,
-          selfIntro: input.selfIntro,
+          merchantName: sanitizeUserText(input.merchantName),
+          selfIntro: sanitizeUserText(input.selfIntro),
           whatsapp: input.whatsapp,
           facebook: input.facebook ?? null,
           merchantIcon: input.merchantIcon ?? null,
