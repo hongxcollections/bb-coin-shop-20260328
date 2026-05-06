@@ -21,11 +21,11 @@ function ConfirmDialog({ row, type, onClose, onConfirm, isPending }: {
   const [finalPrice, setFinalPrice] = useState<string>("");
   const [reason, setReason] = useState<string>("");
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4 pb-24 sm:pb-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden my-auto">
         <div className={`px-5 py-4 text-white ${type === "confirm" ? "bg-green-500" : "bg-rose-500"}`}>
           <h2 className="font-bold text-base">{type === "confirm" ? "確認交收完成" : "取消拍賣訂單"}</h2>
-          <p className="text-xs opacity-90 mt-0.5">{row.title}</p>
+          <p className="text-xs opacity-90 mt-0.5 line-clamp-2">{row.title}</p>
         </div>
         <div className="p-5 space-y-3">
           <div className="bg-gray-50 rounded-xl p-3 text-xs space-y-1">
