@@ -49,18 +49,21 @@ export default function OfferDialog({ product, open, onOpenChange }: OfferDialog
 
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
-    if (!open) { setAmount(""); setNote(""); }
+    if (!open) { setAmount(""); setNote(""); setConfirming(false); }
   }, [open]);
+  useEffect(() => { setConfirming(false); }, [amount, note]);
 
   const createOffer = trpc.offers.create.useMutation({
     onSuccess: () => {
       toast.success("排價已送出，等候商戶回覆");
+      setConfirming(false);
       utils.offers.myActiveForProduct.invalidate({ productId: product.id });
       utils.offers.listMine.invalidate();
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => { setConfirming(false); toast.error(e.message); },
   });
 
   const convertToOrder = trpc.offers.convertToOrder.useMutation({
@@ -73,11 +76,20 @@ export default function OfferDialog({ product, open, onOpenChange }: OfferDialog
     onError: (e) => toast.error(e.message),
   });
 
-  function handleSubmit() {
+  function validate(): number | null {
     const v = parseFloat(amount);
-    if (isNaN(v) || v <= 0) return toast.error("請輸入有效金額");
-    if (v >= listPrice) return toast.error("排價金額需要低於標價");
-    if (v < minAllowed) return toast.error(`排價最低 ${product.currency} $${minAllowed.toFixed(2)}`);
+    if (isNaN(v) || v <= 0) { toast.error("請輸入有效金額"); return null; }
+    if (v >= listPrice) { toast.error("排價金額需要低於標價"); return null; }
+    if (v < minAllowed) { toast.error(`排價最低 ${product.currency} $${minAllowed.toFixed(2)}`); return null; }
+    return v;
+  }
+  function handleFirstClick() {
+    if (validate() == null) return;
+    setConfirming(true);
+  }
+  function handleConfirm() {
+    const v = validate();
+    if (v == null) return;
     createOffer.mutate({ productId: product.id, amount: v, buyerNote: note.trim() || undefined });
   }
 
@@ -169,16 +181,45 @@ export default function OfferDialog({ product, open, onOpenChange }: OfferDialog
               <p>• 商戶可選擇接受或拒絕；接受後 24 小時內未落單會自動取消</p>
               <p>• 同一商品 24 小時內最多 3 次排價</p>
             </div>
+            {confirming && (
+              <div className="rounded-xl border-2 border-orange-300 bg-orange-50 p-3 text-sm text-gray-700 space-y-1">
+                <p className="font-semibold text-orange-700 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" /> 請再次確認排價
+                </p>
+                <p>商品：<span className="font-medium">{product.title}</span></p>
+                <p>排價金額：<span className="font-bold text-orange-700">{product.currency} ${Number(amount || 0).toLocaleString()}</span>（標價 ${listPrice.toLocaleString()}）</p>
+                {note.trim() && <p className="text-xs text-gray-600">留言：{note.trim()}</p>}
+                <p className="text-[11px] text-gray-500 pt-0.5">送出後唔可以修改，48 小時內未獲回覆會自動取消。</p>
+              </div>
+            )}
             <div className="flex gap-2 pt-1">
-              <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>取消</Button>
               <Button
-                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white gap-1.5"
+                variant="outline"
+                className="flex-1"
+                onClick={() => { if (confirming) setConfirming(false); else onOpenChange(false); }}
                 disabled={createOffer.isPending}
-                onClick={handleSubmit}
               >
-                {createOffer.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Tag className="w-4 h-4" />}
-                送出排價
+                {confirming ? "返回修改" : "取消"}
               </Button>
+              {confirming ? (
+                <Button
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white gap-1.5"
+                  disabled={createOffer.isPending}
+                  onClick={handleConfirm}
+                >
+                  {createOffer.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  確認送出
+                </Button>
+              ) : (
+                <Button
+                  className="flex-1 bg-orange-500 hover:bg-orange-600 text-white gap-1.5"
+                  disabled={createOffer.isPending}
+                  onClick={handleFirstClick}
+                >
+                  <Tag className="w-4 h-4" />
+                  送出排價
+                </Button>
+              )}
             </div>
           </div>
         )}
