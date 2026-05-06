@@ -176,7 +176,7 @@ function OrderActionDialog({ order, type, onClose, onConfirm, isPending }: {
   );
 }
 
-function MerchantOrdersTab() {
+export function MerchantOrdersTab() {
   const utils = trpc.useUtils();
   const [statusFilter, setStatusFilter] = useState("pending");
   const { data: orders = [], isLoading, error: ordersError } = trpc.productOrders.myMerchantOrders.useQuery({ status: statusFilter });

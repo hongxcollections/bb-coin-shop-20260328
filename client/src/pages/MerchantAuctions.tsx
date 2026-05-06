@@ -17,9 +17,10 @@ import {
   Plus, Pencil, Trash2, Archive, RotateCcw, Upload, X,
   ImageIcon, CheckCircle2, AlertCircle, AlertTriangle, Loader2, ChevronLeft,
   RefreshCw, Eye, Send, CheckSquare, Square, CreditCard, Facebook, Copy, Check, Sparkles, Mic,
-  Megaphone, ShoppingBag,
+  Megaphone, ShoppingBag, Gavel,
 } from "lucide-react";
 import MerchantBroadcastDialog from "@/components/MerchantBroadcastDialog";
+import { MerchantOrdersTab } from "@/pages/MerchantProducts";
 
 const MAX_IMAGES = 10;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -522,6 +523,7 @@ export default function MerchantAuctions() {
   const pendingOrdersCount = Array.isArray(myMerchantOrders)
     ? myMerchantOrders.filter((o: any) => o.status === "pending").length
     : 0;
+  const [mainTab, setMainTab] = useState<"auctions" | "orders">("auctions");
 
   const uploadMutation = trpc.merchants.uploadAuctionImage.useMutation();
   const uploadVideoMutation = trpc.merchants.uploadVideo.useMutation();
@@ -1000,52 +1002,68 @@ export default function MerchantAuctions() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      {/* 吸附在主頭部導航下方的操作欄 + Tab 列 */}
-      <div className="border-b bg-card sticky top-16 z-10">
-        <div className="max-w-4xl mx-auto px-3 py-2 flex items-center gap-2">
+      <div className="max-w-4xl mx-auto px-4 pt-4 pb-28 space-y-3">
+        {/* 頁首：返回 + icon + 標題 + 建立草稿 */}
+        <div className="flex items-center gap-3">
           <Link href="/merchant-dashboard">
-            <span className="text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-0.5 text-sm">
-              <ChevronLeft className="w-3.5 h-3.5" />後台
-            </span>
+            <button className="p-2 rounded-xl hover:bg-amber-50 transition-colors">
+              <ChevronLeft className="w-5 h-5 text-gray-600" />
+            </button>
           </Link>
-          <span className="text-muted-foreground text-sm">/</span>
-          <span className="font-semibold text-amber-600 text-sm flex-1">拍賣管理</span>
-          <Link href="/merchant-orders">
-            <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1 relative border-blue-200 text-blue-600 hover:bg-blue-50">
-              <ShoppingBag className="w-3 h-3" />訂單管理
-              {pendingOrdersCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
-                  {pendingOrdersCount}
-                </span>
-              )}
-            </Button>
-          </Link>
-          <Button variant="outline" size="sm" onClick={() => { refetchActive(); refetchDrafts(); refetchArchived(); }} className="h-7 px-2 text-xs gap-1">
-            <RefreshCw className="w-3 h-3" />刷新
-          </Button>
-          <Button size="sm" className="gold-gradient text-white border-0 h-7 px-2.5 text-xs gap-1" onClick={() => { setEditId(null); setForm({ ...defaultForm, startingPrice: String(merchantSettings?.defaultStartingPrice ?? 0), bidIncrement: merchantSettings?.defaultBidIncrement ?? 30, antiSnipeEnabled: (merchantSettings?.defaultAntiSnipeEnabled ?? 1) === 1, antiSnipeMinutes: merchantSettings?.defaultAntiSnipeMinutes ?? 3, extendMinutes: merchantSettings?.defaultExtendMinutes ?? 3 }); setPendingImages([]); setUploadedImages([]); setFormOpen(true); }}>
-            <Plus className="w-3.5 h-3.5" />建立草稿
-          </Button>
+          <Gavel className="w-5 h-5 text-amber-600" />
+          <h1 className="text-lg font-bold text-gray-800 flex-1">拍賣管理</h1>
+          {mainTab === "auctions" && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => { refetchActive(); refetchDrafts(); refetchArchived(); }} className="h-8 px-2 text-xs gap-1">
+                <RefreshCw className="w-3.5 h-3.5" />刷新
+              </Button>
+              <Button
+                size="sm"
+                className="gold-gradient text-white border-0 gap-1"
+                onClick={() => { setEditId(null); setForm({ ...defaultForm, startingPrice: String(merchantSettings?.defaultStartingPrice ?? 0), bidIncrement: merchantSettings?.defaultBidIncrement ?? 30, antiSnipeEnabled: (merchantSettings?.defaultAntiSnipeEnabled ?? 1) === 1, antiSnipeMinutes: merchantSettings?.defaultAntiSnipeMinutes ?? 3, extendMinutes: merchantSettings?.defaultExtendMinutes ?? 3 }); setPendingImages([]); setUploadedImages([]); setFormOpen(true); }}
+              >
+                <Plus className="w-4 h-4" />建立草稿
+              </Button>
+            </>
+          )}
         </div>
 
-        {/* Tab 列 */}
-        <div className="flex border-t gap-0 max-w-4xl mx-auto px-0">
+        {/* 大 Tab：我的拍賣 / 訂單管理 */}
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+          <button onClick={() => setMainTab("auctions")}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${mainTab === "auctions" ? "bg-white text-amber-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+            <Gavel className="w-4 h-4" />我的拍賣
+          </button>
+          <button onClick={() => setMainTab("orders")}
+            className={`relative flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors ${mainTab === "orders" ? "bg-white text-blue-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+            <ShoppingBag className="w-4 h-4" />訂單管理
+            {pendingOrdersCount > 0 && (
+              <span className="ml-0.5 min-w-[18px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+                {pendingOrdersCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {mainTab === "orders" && <MerchantOrdersTab />}
+
+        {mainTab === "auctions" && (<>
+
+        {/* 子 Tab 列：進行中/草稿/已結束/封存 */}
+        <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => { setTab(t.key); if (t.key !== "草稿") setSelectedDrafts(new Set()); }}
-              className={`flex-1 px-2 py-1.5 text-xs font-medium border-b-2 transition-colors ${tab === t.key ? "border-amber-500 text-amber-600" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${tab === t.key ? "bg-amber-500 text-white" : "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"}`}
             >
               {t.label}
-              <span className={`ml-1 text-xs px-1 py-0.5 rounded-full ${tab === t.key ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"}`}>
+              <span className={`text-[10px] px-1 py-0.5 rounded-full font-bold ${tab === t.key ? "bg-white/30 text-white" : "bg-amber-100 text-amber-600"}`}>
                 {t.count}
               </span>
             </button>
           ))}
         </div>
-      </div>
-
-      <div className="max-w-4xl mx-auto px-2 pt-2 pb-28 space-y-1.5">
         {/* ── 進行中 Tab 批量分享欄 ── */}
         {tab === "進行中" && activeAuctions.length > 0 && (
           <div className="flex items-center gap-2 px-1 py-1">
@@ -1129,6 +1147,7 @@ export default function MerchantAuctions() {
             ))}
           </div>
         )}
+        </>)}
       </div>
 
       {/* ── 建立 / 編輯 草稿 Dialog ── */}
