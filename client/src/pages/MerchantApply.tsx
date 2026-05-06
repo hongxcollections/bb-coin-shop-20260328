@@ -203,6 +203,19 @@ export default function MerchantApply() {
     selfIntro: "",
     whatsapp: "",
   });
+
+  // 自動填入註冊資料（聯繫姓名／商戶名稱 = user.name；WhatsApp = user.phone）
+  // 只填空欄位，唔覆寫用戶已輸入嘅嘢；亦唔影響已提交嘅申請
+  useEffect(() => {
+    if (!user || myApp) return;
+    const u = user as { name?: string | null; phone?: string | null };
+    setForm((f) => ({
+      ...f,
+      contactName: f.contactName || (u.name ?? ""),
+      merchantName: f.merchantName || (u.name ?? ""),
+      whatsapp: f.whatsapp || (u.phone ?? ""),
+    }));
+  }, [user, myApp]);
   const [iconUrl, setIconUrl] = useState<string>("");      // S3 URL
   const [iconPreview, setIconPreview] = useState<string>(""); // local preview
   const [uploading, setUploading] = useState(false);
