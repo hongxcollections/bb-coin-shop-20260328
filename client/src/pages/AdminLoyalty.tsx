@@ -82,9 +82,44 @@ export default function AdminLoyalty() {
     updateMut.mutate(partial);
   }
 
-  const NumInput = ({ value, onChange, min = 0, max = 99999, step = 1 }: { value: number; onChange: (n: number) => void; min?: number; max?: number; step?: number }) => (
-    <Input type="number" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="max-w-[160px]" />
-  );
+  const NumInput = ({ value, onChange, min = 0, max = 99999, step = 1 }: { value: number; onChange: (n: number) => void; min?: number; max?: number; step?: number }) => {
+    const [text, setText] = useState<string>(String(value ?? 0));
+    // 同步：當 parent value 變（例：載入新 cfg、reset）即更新本地文字
+    useEffect(() => {
+      const n = Number(text);
+      if (isNaN(n) || n !== value) setText(String(value ?? 0));
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [value]);
+    return (
+      <Input
+        type="number"
+        inputMode="decimal"
+        min={min}
+        max={max}
+        step={step}
+        value={text}
+        onChange={(e) => {
+          const v = e.target.value;
+          setText(v);
+          // 空字串 / 負號等中間狀態 → 唔即刻 propagate（保留現值）
+          if (v === "" || v === "-" || v === ".") return;
+          const n = Number(v);
+          if (isNaN(n)) return;
+          onChange(n);
+        }}
+        onBlur={() => {
+          // blur 時 normalize：空 / NaN → 用 min（或 0）；超出範圍 → 夾返
+          let n = Number(text);
+          if (text === "" || isNaN(n)) n = min;
+          if (n < min) n = min;
+          if (n > max) n = max;
+          setText(String(n));
+          if (n !== value) onChange(n);
+        }}
+        className="max-w-[160px]"
+      />
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
