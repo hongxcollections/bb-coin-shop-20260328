@@ -17,7 +17,7 @@ import {
   Plus, Pencil, Trash2, Archive, RotateCcw, Upload, X,
   ImageIcon, CheckCircle2, AlertCircle, AlertTriangle, Loader2, ChevronLeft,
   RefreshCw, Eye, Send, CheckSquare, Square, CreditCard, Facebook, Copy, Check, Sparkles, Mic,
-  Megaphone,
+  Megaphone, ShoppingBag,
 } from "lucide-react";
 import MerchantBroadcastDialog from "@/components/MerchantBroadcastDialog";
 
@@ -518,6 +518,10 @@ export default function MerchantAuctions() {
   const { data: myAuctions, isLoading: loadingActive, refetch: refetchActive } = trpc.merchants.myAuctions.useQuery();
   const { data: myDrafts, isLoading: loadingDrafts, refetch: refetchDrafts } = trpc.merchants.myDrafts.useQuery();
   const { data: myArchived, isLoading: loadingArchived, refetch: refetchArchived } = trpc.merchants.myArchived.useQuery();
+  const { data: myMerchantOrders } = trpc.productOrders.myMerchantOrders.useQuery(undefined, { enabled: isAuthenticated, staleTime: 30_000 }) as any;
+  const pendingOrdersCount = Array.isArray(myMerchantOrders)
+    ? myMerchantOrders.filter((o: any) => o.status === "pending").length
+    : 0;
 
   const uploadMutation = trpc.merchants.uploadAuctionImage.useMutation();
   const uploadVideoMutation = trpc.merchants.uploadVideo.useMutation();
@@ -1006,6 +1010,16 @@ export default function MerchantAuctions() {
           </Link>
           <span className="text-muted-foreground text-sm">/</span>
           <span className="font-semibold text-amber-600 text-sm flex-1">拍賣管理</span>
+          <Link href="/merchant-orders">
+            <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1 relative border-blue-200 text-blue-600 hover:bg-blue-50">
+              <ShoppingBag className="w-3 h-3" />訂單管理
+              {pendingOrdersCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
+                  {pendingOrdersCount}
+                </span>
+              )}
+            </Button>
+          </Link>
           <Button variant="outline" size="sm" onClick={() => { refetchActive(); refetchDrafts(); refetchArchived(); }} className="h-7 px-2 text-xs gap-1">
             <RefreshCw className="w-3 h-3" />刷新
           </Button>
