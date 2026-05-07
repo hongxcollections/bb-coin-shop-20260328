@@ -253,7 +253,7 @@ export function MerchantOrdersTab() {
     onError: (e) => toast.error(e.message),
   });
   const deleteOrder = trpc.productOrders.deleteMerchantOrder.useMutation({
-    onSuccess: () => { toast.success('已清除訂單紀錄'); utils.productOrders.myMerchantOrders.invalidate(); utils.productOrders.myMerchantStatusCounts.invalidate(); setDeleteConfirm(null); },
+    onSuccess: () => { toast.success('已從你嘅清單隱藏'); utils.productOrders.myMerchantOrders.invalidate(); utils.productOrders.myMerchantStatusCounts.invalidate(); setDeleteConfirm(null); },
     onError: (e) => { toast.error(e.message); setDeleteConfirm(null); },
   });
   const [deleteConfirm, setDeleteConfirm] = useState<{ orderId: number; title: string; markedAsBuyerFailure?: number } | null>(null);
@@ -429,11 +429,20 @@ export function MerchantOrdersTab() {
                     )}
                   </div>
                 )}
-                {o.status === "confirmed" && o.confirmedAt && (
-                  <p className="text-xs text-green-600 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    成交於 {new Date(o.confirmedAt).toLocaleDateString("zh-HK")}
-                  </p>
+                {o.status === "confirmed" && (
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <p className="text-xs text-green-600 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      {o.confirmedAt ? `成交於 ${new Date(o.confirmedAt).toLocaleDateString("zh-HK")}` : '已成交'}
+                    </p>
+                    <button
+                      onClick={() => setDeleteConfirm({ orderId: o.id, title: o.title, markedAsBuyerFailure: Number(o.markedAsBuyerFailure) })}
+                      className="text-[11px] text-gray-400 hover:text-amber-600 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-amber-50"
+                      title="只會從你嘅清單隱藏，紀錄永遠保留"
+                    >
+                      <Trash2 className="w-3 h-3" />隱藏紀錄
+                    </button>
+                  </div>
                 )}
                 {o.status === "cancelled" && (
                   <div className="flex items-center justify-between gap-2 pt-1">
@@ -444,16 +453,13 @@ export function MerchantOrdersTab() {
                         <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 text-[10px] font-semibold">已記失約</span>
                       )}
                     </div>
-                    {Number(o.markedAsBuyerFailure) === 1 ? (
-                      <span className="text-[11px] text-gray-300" title="標記失約嘅訂單需保留作計數，不可刪除">🔒 不可刪</span>
-                    ) : (
-                      <button
-                        onClick={() => setDeleteConfirm({ orderId: o.id, title: o.title, markedAsBuyerFailure: Number(o.markedAsBuyerFailure) })}
-                        className="text-[11px] text-gray-400 hover:text-red-500 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-red-50"
-                      >
-                        <Trash2 className="w-3 h-3" />清除紀錄
-                      </button>
-                    )}
+                    <button
+                      onClick={() => setDeleteConfirm({ orderId: o.id, title: o.title, markedAsBuyerFailure: Number(o.markedAsBuyerFailure) })}
+                      className="text-[11px] text-gray-400 hover:text-amber-600 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-amber-50"
+                      title="只會從你嘅清單隱藏，紀錄永遠保留"
+                    >
+                      <Trash2 className="w-3 h-3" />隱藏紀錄
+                    </button>
                   </div>
                 )}
               </div>
@@ -487,11 +493,11 @@ export function MerchantOrdersTab() {
         >
           <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-3" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-bold text-gray-800 text-base flex items-center gap-2">
-              <Trash2 className="w-4 h-4 text-red-500" />清除訂單紀錄
+              <Trash2 className="w-4 h-4 text-amber-600" />從清單隱藏紀錄
             </h2>
             <p className="text-xs text-gray-500">商品：{deleteConfirm.title}</p>
             <p className="text-xs text-gray-600 bg-amber-50 rounded-lg px-3 py-2 border border-amber-100 leading-relaxed">
-              ⚠️ 清除後紀錄將永久刪除，無法復原。買家側顯示不受影響（仍可在自己訂單列表見到）。
+              ℹ️ 此操作只會將紀錄從你嘅清單隱藏，<span className="font-semibold">交易紀錄、傭金、失約計數一律完整保留</span>。買家側顯示不受影響。
             </p>
             <div className="flex gap-2 pt-1">
               <button
@@ -501,8 +507,8 @@ export function MerchantOrdersTab() {
               <button
                 onClick={() => deleteOrder.mutate({ orderId: deleteConfirm.orderId })}
                 disabled={deleteOrder.isPending}
-                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold disabled:opacity-60"
-              >{deleteOrder.isPending ? '清除中…' : '確定清除'}</button>
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold disabled:opacity-60"
+              >{deleteOrder.isPending ? '隱藏中…' : '確認隱藏'}</button>
             </div>
           </div>
         </div>

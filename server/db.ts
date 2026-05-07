@@ -4480,6 +4480,8 @@ async function ensureProductOrdersTable() {
   `);
   // 欄位遷移（一次性）
   try { await db.execute(sql`ALTER TABLE productOrders ADD COLUMN finalPrice DECIMAL(12,2)`); } catch {}
+  try { await db.execute(sql`ALTER TABLE productOrders ADD COLUMN hiddenForBuyer TINYINT(1) NOT NULL DEFAULT 0`); } catch {}
+  try { await db.execute(sql`ALTER TABLE productOrders ADD COLUMN hiddenForMerchant TINYINT(1) NOT NULL DEFAULT 0`); } catch {}
   _ordersTableEnsured = true;
 }
 
@@ -4538,7 +4540,7 @@ export async function getProductOrdersByMerchant(merchantId: number, status?: st
       FROM productOrders o
       LEFT JOIN users u ON u.id = o.buyerId
       LEFT JOIN merchantProducts mp ON mp.id = o.productId
-      WHERE o.merchantId = ${merchantId} AND o.status = ${status}
+      WHERE o.merchantId = ${merchantId} AND o.status = ${status} AND COALESCE(o.hiddenForMerchant, 0) = 0
       ORDER BY o.createdAt DESC
     `);
   } else {
@@ -4549,7 +4551,7 @@ export async function getProductOrdersByMerchant(merchantId: number, status?: st
       FROM productOrders o
       LEFT JOIN users u ON u.id = o.buyerId
       LEFT JOIN merchantProducts mp ON mp.id = o.productId
-      WHERE o.merchantId = ${merchantId}
+      WHERE o.merchantId = ${merchantId} AND COALESCE(o.hiddenForMerchant, 0) = 0
       ORDER BY o.createdAt DESC
     `);
   }
@@ -4564,7 +4566,7 @@ export async function getProductOrdersByBuyer(buyerId: number): Promise<any[]> {
     SELECT o.*, ma.merchantName
     FROM productOrders o
     LEFT JOIN merchantApplications ma ON ma.userId = o.merchantId AND ma.status = 'approved'
-    WHERE o.buyerId = ${buyerId}
+    WHERE o.buyerId = ${buyerId} AND COALESCE(o.hiddenForBuyer, 0) = 0
     ORDER BY o.createdAt DESC
   `);
   return (rows[0] as any[]) ?? [];
@@ -4920,7 +4922,7 @@ export async function countMerchantAuctionOrdersByStatus(merchantId: number): Pr
 export async function countMerchantProductOrdersByStatus(merchantId: number): Promise<{ pending: number; confirmed: number; cancelled: number }> {
   const pool = await getRawPool();
   const [rows]: any = await pool.execute(
-    `SELECT status AS s, COUNT(*) AS c FROM productOrders WHERE merchantId = ? GROUP BY status`,
+    `SELECT status AS s, COUNT(*) AS c FROM productOrders WHERE merchantId = ? AND COALESCE(hiddenForMerchant, 0) = 0 GROUP BY status`,
     [merchantId]
   );
   const out = { pending: 0, confirmed: 0, cancelled: 0 } as any;
@@ -4937,6 +4939,11 @@ export async function countPendingMerchantAuctionOrders(merchantId: number): Pro
   return Number((rows ?? [])[0]?.cnt ?? 0);
 }
 
+/**
+ * 買家：將訂單從自己嘅清單軟隱藏（永不物理刪除，保留交易憑證）。
+ * - 待確認嘅訂單必須先取消／處理，唔畀直接隱藏
+ * - 已成交／已取消可以隱藏，數據完整保留，商戶側顯示不受影響
+ */
 export async function deleteBuyerOrder(orderId: number, buyerId: number): Promise<{ ok: boolean; error?: string }> {
   await ensureProductOrdersTable();
   const db = await getDb();
@@ -4945,23 +4952,26 @@ export async function deleteBuyerOrder(orderId: number, buyerId: number): Promis
   const order = ((rows[0] as any[])[0]) as any;
   if (!order) return { ok: false, error: '找不到此訂單' };
   if (order.buyerId !== buyerId) return { ok: false, error: '無權操作' };
-  if (order.status === 'pending') return { ok: false, error: '待確認的訂單無法刪除，請先取消' };
-  await db.execute(sql`DELETE FROM productOrders WHERE id = ${orderId} AND buyerId = ${buyerId}`);
+  if (order.status === 'pending') return { ok: false, error: '待確認的訂單無法隱藏，請先取消' };
+  await db.execute(sql`UPDATE productOrders SET hiddenForBuyer = 1 WHERE id = ${orderId} AND buyerId = ${buyerId}`);
   return { ok: true };
 }
 
-/** 商戶：清除已取消／已成交嘅訂單紀錄。為咗保留失約計數，標記咗失約嘅訂單禁止刪除。 */
+/**
+ * 商戶：將訂單從自己嘅清單軟隱藏（永不物理刪除，保留交易憑證 + 失約計數）。
+ * - 待確認嘅訂單必須先處理，唔畀直接隱藏
+ * - 已成交／已取消（包括標記失約）都可以隱藏，數據完整保留，買家側顯示不受影響
+ */
 export async function deleteMerchantOrder(orderId: number, merchantId: number, isAdmin = false): Promise<{ ok: boolean; error?: string }> {
   await ensureProductOrdersTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
-  const rows = await db.execute(sql`SELECT id, merchantId, status, markedAsBuyerFailure FROM productOrders WHERE id = ${orderId} LIMIT 1`);
+  const rows = await db.execute(sql`SELECT id, merchantId, status FROM productOrders WHERE id = ${orderId} LIMIT 1`);
   const order = ((rows[0] as any[])[0]) as any;
   if (!order) return { ok: false, error: '找不到此訂單' };
   if (!isAdmin && order.merchantId !== merchantId) return { ok: false, error: '無權操作' };
-  if (order.status === 'pending') return { ok: false, error: '待確認嘅訂單無法刪除，請先處理' };
-  if (Number(order.markedAsBuyerFailure) === 1) return { ok: false, error: '已標記失約嘅訂單唔可以刪除（保留失約計數所需）' };
-  await db.execute(sql`DELETE FROM productOrders WHERE id = ${orderId}`);
+  if (order.status === 'pending') return { ok: false, error: '待確認嘅訂單無法隱藏，請先處理' };
+  await db.execute(sql`UPDATE productOrders SET hiddenForMerchant = 1 WHERE id = ${orderId}`);
   return { ok: true };
 }
 

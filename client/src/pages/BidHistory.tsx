@@ -135,7 +135,7 @@ function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCanc
     onError: (e) => toast.error(e.message),
   });
   const deleteOrder = trpc.productOrders.deleteBuyerOrder.useMutation({
-    onSuccess: () => { utils.productOrders.myBuyerOrders.invalidate(); toast.success('訂單紀錄已永久刪除'); setShowDeleteConfirm(false); },
+    onSuccess: () => { utils.productOrders.myBuyerOrders.invalidate(); toast.success('已從你嘅清單隱藏'); setShowDeleteConfirm(false); },
     onError: (e) => { toast.error(e.message); setShowDeleteConfirm(false); },
   });
 
@@ -217,10 +217,11 @@ function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCanc
             <button
               onClick={() => setShowDeleteConfirm(true)}
               disabled={deleteOrder.isPending}
-              className="mt-2 flex items-center gap-1 text-xs px-3 py-1 rounded-md border border-gray-200 bg-gray-50 text-gray-400 hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-colors disabled:opacity-50"
+              className="mt-2 flex items-center gap-1 text-xs px-3 py-1 rounded-md border border-gray-200 bg-gray-50 text-gray-400 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-600 transition-colors disabled:opacity-50"
+              title="只會從你嘅清單隱藏，紀錄永遠保留"
             >
               <Trash2 className="w-3 h-3" />
-              刪除紀錄
+              隱藏紀錄
             </button>
           )}
         </div>
@@ -267,17 +268,17 @@ function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCanc
         </div>
       )}
 
-      {/* 刪除紀錄確認框 */}
+      {/* 隱藏紀錄確認框 */}
       <ConfirmActionDialog
         open={showDeleteConfirm}
-        iconBg="bg-red-50"
-        icon={<Trash2 className="w-5 h-5 text-red-500" />}
-        heading="刪除訂單紀錄"
+        iconBg="bg-amber-50"
+        icon={<Trash2 className="w-5 h-5 text-amber-600" />}
+        heading="從清單隱藏紀錄"
         itemName={order.title}
-        warning="此操作不可還原，紀錄將永久消失"
-        confirmLabel="確認刪除"
-        confirmingLabel="刪除中…"
-        confirmClass="bg-red-500 hover:bg-red-600"
+        warning="只會從你嘅清單隱藏，交易紀錄完整保留，商戶側不受影響"
+        confirmLabel="確認隱藏"
+        confirmingLabel="隱藏中…"
+        confirmClass="bg-amber-500 hover:bg-amber-600"
         loading={deleteOrder.isPending}
         onConfirm={() => deleteOrder.mutate({ orderId: order.id })}
         onClose={() => setShowDeleteConfirm(false)}
