@@ -68,7 +68,15 @@ export default function MyOffersDialog({ open, onOpenChange }: MyOffersDialogPro
       utils.offers.listMine.invalidate();
       utils.offers.myAcceptedCount.invalidate();
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => {
+      const msg = /未回覆/.test(e.message)
+        ? "呢個排價商戶已經處理（接受或拒絕），請刷新後查看最新狀態"
+        : e.message;
+      toast.error(msg);
+      setCancelTarget(null);
+      utils.offers.listMine.invalidate();
+      utils.offers.myAcceptedCount.invalidate();
+    },
   });
 
   const list: any[] = offers ?? [];
