@@ -247,6 +247,14 @@ async function bootstrapMissingColumns() {
     INDEX \`idx_offer_status_expires\` (\`status\`, \`expiresAt\`)
   )`, 'Ensured productOffers table');
 
+  // 加 productOffers.hiddenForBuyer（買家可隱藏已拒絕／已取消／已過期紀錄）
+  if (!(await check('productOffers', 'hiddenForBuyer'))) {
+    await alter(
+      `ALTER TABLE \`productOffers\` ADD COLUMN \`hiddenForBuyer\` tinyint(1) NOT NULL DEFAULT 0`,
+      'Added hiddenForBuyer to productOffers'
+    );
+  }
+
   // 加 merchantProducts.allowOffers
   if (!(await check('merchantProducts', 'allowOffers'))) {
     await alter(

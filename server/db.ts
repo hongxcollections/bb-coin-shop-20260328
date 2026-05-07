@@ -4669,6 +4669,25 @@ export async function countBuyerPendingWonAuctions(userId: number): Promise<numb
   return Number(rows?.[0]?.cnt ?? 0);
 }
 
+export async function hideBuyerOffer(offerId: number, buyerId: number): Promise<{ ok: boolean; reason?: string }> {
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT id, buyerId, status FROM productOffers WHERE id = ? LIMIT 1`,
+    [offerId]
+  );
+  const r = Array.isArray(rows) ? rows[0] : null;
+  if (!r) return { ok: false, reason: '排價不存在' };
+  if (Number(r.buyerId) !== buyerId) return { ok: false, reason: '無權清除此紀錄' };
+  if (!['rejected', 'cancelled', 'expired'].includes(String(r.status))) {
+    return { ok: false, reason: '只可以清除已拒絕／已取消／已過期嘅紀錄' };
+  }
+  await pool.execute(
+    `UPDATE productOffers SET hiddenForBuyer = 1 WHERE id = ? AND buyerId = ?`,
+    [offerId, buyerId]
+  );
+  return { ok: true };
+}
+
 export async function cancelBuyerOffer(offerId: number, buyerId: number): Promise<{ ok: boolean; reason?: string }> {
   const pool = await getRawPool();
   const [rows]: any = await pool.execute(
@@ -5953,7 +5972,7 @@ export async function listOffersForBuyer(buyerId: number): Promise<any[]> {
     FROM productOffers o
     LEFT JOIN merchantProducts mp ON mp.id = o.productId
     LEFT JOIN users u ON u.id = o.merchantId
-    WHERE o.buyerId = ${buyerId}
+    WHERE o.buyerId = ${buyerId} AND COALESCE(o.hiddenForBuyer, 0) = 0
     ORDER BY o.createdAt DESC
     LIMIT 200
   `);

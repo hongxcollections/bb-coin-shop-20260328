@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Tag, Loader2, CheckCircle2, XCircle, Clock, ShoppingCart, Ban } from "lucide-react";
+import { Tag, Loader2, CheckCircle2, XCircle, Clock, ShoppingCart, Ban, Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Link } from "wouter";
 import { toast } from "sonner";
@@ -48,6 +48,14 @@ export default function MyOffersDialog({ open, onOpenChange }: MyOffersDialogPro
   const convert = trpc.offers.convertToOrder.useMutation({
     onSuccess: ({ orderId }) => {
       toast.success(`已落單（單號 #${orderId}），請等商戶確認`);
+      utils.offers.listMine.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const hideOffer = trpc.offers.hide.useMutation({
+    onSuccess: () => {
+      toast.success("已清除紀錄");
       utils.offers.listMine.invalidate();
     },
     onError: (e) => toast.error(e.message),
@@ -155,6 +163,18 @@ export default function MyOffersDialog({ open, onOpenChange }: MyOffersDialogPro
                     >
                       {cancelOffer.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
                       取消排價
+                    </Button>
+                  )}
+                  {(o.status === "rejected" || o.status === "cancelled" || o.status === "expired") && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full text-gray-500 border-gray-200 hover:bg-gray-50 gap-1.5"
+                      disabled={hideOffer.isPending}
+                      onClick={() => hideOffer.mutate({ offerId: o.id })}
+                    >
+                      {hideOffer.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      清除紀錄
                     </Button>
                   )}
                   {o.status === "accepted" && !acceptedExpired && (
