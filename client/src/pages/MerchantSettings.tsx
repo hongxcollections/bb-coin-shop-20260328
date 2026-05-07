@@ -1308,13 +1308,13 @@ function FailureLockCard({ settings }: { settings: any }) {
   const utils = trpc.useUtils();
   const [thresholdStr, setThresholdStr] = useState<string>("3");
   const [lockDaysStr, setLockDaysStr] = useState<string>("3");
-  const [enabled, setEnabled] = useState<boolean>(true);
+  const [enabled, setEnabled] = useState<boolean>(false);
   const [initialized, setInitialized] = useState(false);
   useEffect(() => {
     if (settings && !initialized) {
       setThresholdStr(String(Number(settings.failureLockThreshold ?? 3)));
       setLockDaysStr(String(Number(settings.failureLockDays ?? 3)));
-      setEnabled(Number(settings.failureLockEnabled ?? 1) === 1);
+      setEnabled(Number(settings.failureLockEnabled ?? 0) === 1);
       setInitialized(true);
     }
   }, [settings, initialized]);

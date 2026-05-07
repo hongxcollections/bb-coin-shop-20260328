@@ -3306,7 +3306,7 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   offerMaxPerWindow: 3,
   failureLockThreshold: 3,
   failureLockDays: 3,
-  failureLockEnabled: 1,
+  failureLockEnabled: 0,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
@@ -3353,7 +3353,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         offerMaxPerWindow: Number(row.offerMaxPerWindow ?? 3),
         failureLockThreshold: Number(row.failureLockThreshold ?? 3),
         failureLockDays: Number(row.failureLockDays ?? 3),
-        failureLockEnabled: Number(row.failureLockEnabled ?? 1),
+        failureLockEnabled: Number(row.failureLockEnabled ?? 0),
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -3431,7 +3431,7 @@ export async function setMerchantFailureLock(userId: number, threshold: number, 
   if (!db) throw new Error('DB unavailable');
   const t = Math.max(1, Math.min(20, Math.floor(threshold)));
   const d = Math.max(1, Math.min(60, Math.floor(days)));
-  const en = enabled === false ? 0 : 1;
+  const en = enabled === true ? 1 : 0;
   await db.execute(sql`
     INSERT INTO merchant_settings (userId, failureLockThreshold, failureLockDays, failureLockEnabled)
     VALUES (${userId}, ${t}, ${d}, ${en})
@@ -3457,7 +3457,7 @@ export async function getBuyerLockFromMerchant(buyerId: number, merchantId: numb
   const settings = await getMerchantSettings(merchantId);
   const threshold = Math.max(1, Number(settings.failureLockThreshold ?? 3));
   const lockDays = Math.max(1, Number(settings.failureLockDays ?? 3));
-  const enabled = Number(settings.failureLockEnabled ?? 1) === 1;
+  const enabled = Number(settings.failureLockEnabled ?? 0) === 1;
   const db = await getDb();
   if (!db) return { locked: false, lockedUntil: null, failureCount: 0, threshold, lockDays, lastFailureAt: null, merchantName: null, enabled };
   try {

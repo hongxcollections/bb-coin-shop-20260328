@@ -164,6 +164,7 @@ function OrderActionDialog({ order, type, onClose, onConfirm, isPending }: {
         {!isConfirm && (
           <>
             <p className="text-sm text-gray-500">確定取消此訂單？取消後不會扣除傭金。</p>
+            {failureStats?.enabled && (
             <label className="flex items-start gap-2 bg-red-50 rounded-xl px-3 py-2 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -206,6 +207,7 @@ function OrderActionDialog({ order, type, onClose, onConfirm, isPending }: {
                 )}
               </div>
             </label>
+            )}
           </>
         )}
 
