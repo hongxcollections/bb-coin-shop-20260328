@@ -179,6 +179,19 @@ export default function MerchantProductDetail() {
   const [merchantOpen, setMerchantOpen] = useState(false);
   const [buyingProduct, setBuyingProduct] = useState<any | null>(null);
   const { user } = useAuth();
+  const utilsLock = trpc.useUtils();
+  const handleBuy = async (p: any) => {
+    if (!user) { setBuyingProduct(p); return; }
+    try {
+      const lock = await utilsLock.merchants.myLockStatusForMerchant.fetch({ merchantId: p.merchantId });
+      if (lock?.locked && lock.lockedUntil) {
+        const until = new Date(lock.lockedUntil).toLocaleString('zh-HK', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        toast.error(`你已被「${lock.merchantName ?? '此商戶'}」暫停落單／出價／排價，至 ${until}`);
+        return;
+      }
+    } catch {}
+    setBuyingProduct(p);
+  };
 
   const { data: product, isLoading, error } = trpc.merchants.getPublicProduct.useQuery(
     { id: productId },
@@ -603,7 +616,7 @@ export default function MerchantProductDetail() {
                       </div>
                     ) : (
                       <button
-                        onClick={() => setBuyingProduct(product)}
+                        onClick={() => handleBuy(product)}
                         className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
                       >
                         <ShoppingCart className="w-4 h-4" />立即落單
@@ -696,7 +709,7 @@ export default function MerchantProductDetail() {
                   {p.merchantId === user?.id ? (
                     <span className={`${pill} bg-gray-100 text-gray-400 cursor-not-allowed`}>🚫 自己</span>
                   ) : (
-                    <button onClick={e => { e.preventDefault(); e.stopPropagation(); setBuyingProduct(p); }}
+                    <button onClick={e => { e.preventDefault(); e.stopPropagation(); handleBuy(p); }}
                       className={`${pill} bg-amber-500 hover:bg-amber-600 text-white`}>
                       <ShoppingCart className={icon} />落單
                     </button>

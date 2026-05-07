@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Tag } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
 import OfferDialog from "./OfferDialog";
 
 interface OfferButtonProps {
@@ -20,6 +21,7 @@ interface OfferButtonProps {
 export default function OfferButton({ product, className }: OfferButtonProps) {
   const { user, isAuthenticated } = useAuth();
   const [open, setOpen] = useState(false);
+  const utils = trpc.useUtils();
   const lvl = (user as any)?.memberLevel ?? "bronze";
   const role = (user as any)?.role ?? "user";
   const isOwn = user != null && product.merchantId === user.id;
@@ -27,7 +29,7 @@ export default function OfferButton({ product, className }: OfferButtonProps) {
 
   if (isOwn || !allowed) return null;
 
-  function handleClick() {
+  async function handleClick() {
     if (!isAuthenticated) {
       toast.error("請先登入");
       return;
@@ -36,6 +38,14 @@ export default function OfferButton({ product, className }: OfferButtonProps) {
       toast.error("銀牌或以上會員先可以排價");
       return;
     }
+    try {
+      const lock = await utils.merchants.myLockStatusForMerchant.fetch({ merchantId: product.merchantId });
+      if (lock?.locked && lock.lockedUntil) {
+        const until = new Date(lock.lockedUntil).toLocaleString('zh-HK', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        toast.error(`你已被「${lock.merchantName ?? '此商戶'}」暫停落單／出價／排價，至 ${until}`);
+        return;
+      }
+    } catch {}
     setOpen(true);
   }
 

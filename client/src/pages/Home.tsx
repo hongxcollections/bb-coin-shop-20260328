@@ -983,6 +983,7 @@ const AUCTION_SECTION_TITLES = [
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
+  const utils = trpc.useUtils();
 
   // Auctions Logic
   const [search, setSearch] = useState("");
@@ -999,11 +1000,19 @@ export default function Home() {
   const [showMerchantFlow, setShowMerchantFlow] = useState(false);
 
   // 落單按鈕：未登入直接跳登入頁，登入後返回商品詳情頁
-  const handleBuy = (product: any) => {
+  const handleBuy = async (product: any) => {
     if (!isAuthenticated) {
       navigate(`/login?from=${encodeURIComponent(`/merchant-products/${product.id}`)}`);
       return;
     }
+    try {
+      const lock = await utils.merchants.myLockStatusForMerchant.fetch({ merchantId: product.merchantId });
+      if (lock?.locked && lock.lockedUntil) {
+        const until = new Date(lock.lockedUntil).toLocaleString('zh-HK', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        toast.error(`你已被「${lock.merchantName ?? '此商戶'}」暫停落單／出價／排價，至 ${until}`);
+        return;
+      }
+    } catch {}
     setBuyingProduct(product);
   };
 
