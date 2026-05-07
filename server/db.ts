@@ -4653,7 +4653,7 @@ export async function countBuyerPendingWonAuctions(userId: number): Promise<numb
 export async function countBuyerAcceptedOffers(userId: number): Promise<number> {
   const pool = await getRawPool();
   const [rows]: any = await pool.execute(
-    `SELECT COUNT(*) AS cnt FROM productOffers WHERE buyerId = ? AND status = 'accepted'`,
+    `SELECT COUNT(*) AS cnt FROM productOffers WHERE buyerId = ? AND status IN ('accepted','rejected','countered')`,
     [userId]
   );
   return Number(rows?.[0]?.cnt ?? 0);
