@@ -4587,6 +4587,81 @@ export async function cancelProductOrder(orderId: number, byUserId: number, isAd
   return { ok: true };
 }
 
+// ── 取消申請（方案 B：買家申請，商戶批准）──────────────────────────────────
+export async function requestCancelProductOrder(orderId: number, buyerId: number, reason?: string): Promise<{ ok: boolean; error?: string; merchantId?: number; productTitle?: string }> {
+  await ensureProductOrdersTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const rows: any = await db.execute(sql`SELECT id, buyerId, merchantId, status, cancelRequestStatus, title FROM productOrders WHERE id = ${orderId} LIMIT 1`);
+  const order: any = (rows[0] as any[])[0];
+  if (!order) return { ok: false, error: '找不到此訂單' };
+  if (Number(order.buyerId) !== buyerId) return { ok: false, error: '無權操作' };
+  if (order.status !== 'pending') return { ok: false, error: '只有待確認訂單可申請取消' };
+  if (String(order.cancelRequestStatus ?? '') === 'pending') return { ok: false, error: '已遞交取消申請，請等待商戶處理' };
+  await db.execute(sql`
+    UPDATE productOrders
+    SET cancelRequestStatus = 'pending',
+        cancelRequestReason = ${reason ?? null},
+        cancelRequestedAt = NOW(),
+        cancelRequestRespondedAt = NULL,
+        cancelRequestRejectReason = NULL
+    WHERE id = ${orderId}
+  `);
+  return { ok: true, merchantId: Number(order.merchantId), productTitle: String(order.title ?? '') };
+}
+
+export async function withdrawCancelRequest(orderId: number, buyerId: number): Promise<{ ok: boolean; error?: string }> {
+  await ensureProductOrdersTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const rows: any = await db.execute(sql`SELECT buyerId, cancelRequestStatus FROM productOrders WHERE id = ${orderId} LIMIT 1`);
+  const order: any = (rows[0] as any[])[0];
+  if (!order) return { ok: false, error: '找不到此訂單' };
+  if (Number(order.buyerId) !== buyerId) return { ok: false, error: '無權操作' };
+  if (String(order.cancelRequestStatus ?? '') !== 'pending') return { ok: false, error: '冇待處理嘅取消申請' };
+  await db.execute(sql`
+    UPDATE productOrders
+    SET cancelRequestStatus = NULL,
+        cancelRequestReason = NULL,
+        cancelRequestedAt = NULL
+    WHERE id = ${orderId}
+  `);
+  return { ok: true };
+}
+
+export async function respondCancelRequest(orderId: number, merchantId: number, action: 'approve' | 'reject', rejectReason?: string): Promise<{ ok: boolean; error?: string; buyerId?: number; productTitle?: string }> {
+  await ensureProductOrdersTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const rows: any = await db.execute(sql`SELECT id, buyerId, merchantId, status, cancelRequestStatus, cancelRequestReason, title FROM productOrders WHERE id = ${orderId} LIMIT 1`);
+  const order: any = (rows[0] as any[])[0];
+  if (!order) return { ok: false, error: '找不到此訂單' };
+  if (Number(order.merchantId) !== merchantId) return { ok: false, error: '無權操作' };
+  if (String(order.cancelRequestStatus ?? '') !== 'pending') return { ok: false, error: '冇待處理嘅取消申請' };
+  if (order.status !== 'pending') return { ok: false, error: '訂單狀態唔可以再變更' };
+
+  if (action === 'approve') {
+    await db.execute(sql`
+      UPDATE productOrders
+      SET status = 'cancelled',
+          cancelledAt = NOW(),
+          cancelReason = CONCAT('買家申請取消：', COALESCE(cancelRequestReason, '')),
+          cancelRequestStatus = 'approved',
+          cancelRequestRespondedAt = NOW()
+      WHERE id = ${orderId}
+    `);
+  } else {
+    await db.execute(sql`
+      UPDATE productOrders
+      SET cancelRequestStatus = 'rejected',
+          cancelRequestRespondedAt = NOW(),
+          cancelRequestRejectReason = ${rejectReason ?? null}
+      WHERE id = ${orderId}
+    `);
+  }
+  return { ok: true, buyerId: Number(order.buyerId), productTitle: String(order.title ?? '') };
+}
+
 // ── 拍賣訂單（auction-as-order）──────────────────────────────────────────
 // 拍賣結束後，highestBidderId 自動 set auctionOrderStatus='pending'，商戶要 confirm/cancel 交收
 export async function getMerchantAuctionOrders(merchantId: number, status?: string): Promise<any[]> {

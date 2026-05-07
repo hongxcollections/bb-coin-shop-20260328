@@ -194,6 +194,12 @@ export function MerchantOrdersTab() {
     onSuccess: () => { toast.success("訂單已取消"); utils.productOrders.myMerchantOrders.invalidate(); utils.productOrders.myMerchantStatusCounts.invalidate(); setActionDialog(null); },
     onError: (e) => toast.error(e.message),
   });
+  const respondCancelReq = trpc.productOrders.respondCancelRequest.useMutation({
+    onSuccess: (_d, vars) => { toast.success(vars.action === 'approve' ? '已批准取消，訂單已關閉' : '已拒絕取消申請'); utils.productOrders.myMerchantOrders.invalidate(); utils.productOrders.myMerchantStatusCounts.invalidate(); setRejectDialog(null); setRejectReason(""); },
+    onError: (e) => toast.error(e.message),
+  });
+  const [rejectDialog, setRejectDialog] = useState<{ orderId: number; title: string } | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   return (
     <div className="space-y-4">
@@ -312,6 +318,32 @@ export function MerchantOrdersTab() {
 
                 {o.buyerNote && (
                   <p className="text-xs text-gray-500 bg-amber-50 rounded-lg px-2.5 py-1.5">備注：{o.buyerNote}</p>
+                )}
+
+                {o.status === "pending" && o.cancelRequestStatus === "pending" && (
+                  <div className="rounded-xl border border-orange-300 bg-orange-50 px-3 py-2.5 space-y-2">
+                    <p className="text-xs font-bold text-orange-700">⚠️ 買家申請取消此訂單</p>
+                    {o.cancelRequestReason && (
+                      <p className="text-xs text-orange-600">原因：{o.cancelRequestReason}</p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setRejectDialog({ orderId: o.id, title: o.title })}
+                        disabled={respondCancelReq.isPending}
+                        className="flex-1 text-xs py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-60"
+                      >拒絕申請</button>
+                      <button
+                        onClick={() => respondCancelReq.mutate({ orderId: o.id, action: 'approve' })}
+                        disabled={respondCancelReq.isPending}
+                        className="flex-1 text-xs py-1.5 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 disabled:opacity-60"
+                      >批准取消</button>
+                    </div>
+                  </div>
+                )}
+                {o.status === "pending" && o.cancelRequestStatus === "rejected" && (
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                    你已拒絕買家嘅取消申請{o.cancelRequestRejectReason ? `（${o.cancelRequestRejectReason}）` : ''}
+                  </div>
                 )}
 
                 {o.status === "pending" && (

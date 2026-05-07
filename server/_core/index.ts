@@ -263,6 +263,38 @@ async function bootstrapMissingColumns() {
     );
   }
 
+  // 買家申請取消訂單（方案 B：申請制，商戶必須批准）
+  if (!(await check('productOrders', 'cancelRequestStatus'))) {
+    await alter(
+      `ALTER TABLE \`productOrders\` ADD COLUMN \`cancelRequestStatus\` varchar(20) NULL`,
+      'Added cancelRequestStatus to productOrders'
+    );
+  }
+  if (!(await check('productOrders', 'cancelRequestReason'))) {
+    await alter(
+      `ALTER TABLE \`productOrders\` ADD COLUMN \`cancelRequestReason\` text NULL`,
+      'Added cancelRequestReason to productOrders'
+    );
+  }
+  if (!(await check('productOrders', 'cancelRequestedAt'))) {
+    await alter(
+      `ALTER TABLE \`productOrders\` ADD COLUMN \`cancelRequestedAt\` timestamp NULL`,
+      'Added cancelRequestedAt to productOrders'
+    );
+  }
+  if (!(await check('productOrders', 'cancelRequestRespondedAt'))) {
+    await alter(
+      `ALTER TABLE \`productOrders\` ADD COLUMN \`cancelRequestRespondedAt\` timestamp NULL`,
+      'Added cancelRequestRespondedAt to productOrders'
+    );
+  }
+  if (!(await check('productOrders', 'cancelRequestRejectReason'))) {
+    await alter(
+      `ALTER TABLE \`productOrders\` ADD COLUMN \`cancelRequestRejectReason\` text NULL`,
+      'Added cancelRequestRejectReason to productOrders'
+    );
+  }
+
   // 加 merchantProducts.allowOffers
   if (!(await check('merchantProducts', 'allowOffers'))) {
     await alter(

@@ -115,15 +115,24 @@ type ProductOrderItem = {
   confirmedAt?: string | null;
   cancelledAt?: string | null;
   merchantName?: string | null;
+  cancelRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
+  cancelRequestReason?: string | null;
+  cancelRequestedAt?: string | null;
+  cancelRequestRejectReason?: string | null;
 };
 
 function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCancel: () => void }) {
   const utils = trpc.useUtils();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const cancel = trpc.productOrders.cancel.useMutation({
-    onSuccess: () => { utils.productOrders.myBuyerOrders.invalidate(); toast.success('訂單已取消'); setShowCancelConfirm(false); onCancel(); },
-    onError: (e) => { toast.error(e.message); setShowCancelConfirm(false); },
+  const [cancelReason, setCancelReason] = useState("");
+  const requestCancel = trpc.productOrders.requestCancel.useMutation({
+    onSuccess: () => { utils.productOrders.myBuyerOrders.invalidate(); toast.success('已遞交取消申請，等待商戶批准'); setShowCancelConfirm(false); setCancelReason(""); onCancel(); },
+    onError: (e) => { toast.error(e.message); },
+  });
+  const withdrawCancel = trpc.productOrders.withdrawCancelRequest.useMutation({
+    onSuccess: () => { utils.productOrders.myBuyerOrders.invalidate(); toast.success('已撤回取消申請'); },
+    onError: (e) => toast.error(e.message),
   });
   const deleteOrder = trpc.productOrders.deleteBuyerOrder.useMutation({
     onSuccess: () => { utils.productOrders.myBuyerOrders.invalidate(); toast.success('訂單紀錄已永久刪除'); setShowDeleteConfirm(false); },
@@ -169,16 +178,39 @@ function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCanc
         </div>
       </div>
 
+      {/* 取消申請狀態 banner */}
+      {order.status === 'pending' && order.cancelRequestStatus === 'pending' && (
+        <div className="mx-3 mb-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+          <p className="font-medium">⏳ 已遞交取消申請，等待商戶批准</p>
+          {order.cancelRequestReason && <p className="mt-0.5 text-amber-600">原因：{order.cancelRequestReason}</p>}
+        </div>
+      )}
+      {order.status === 'pending' && order.cancelRequestStatus === 'rejected' && (
+        <div className="mx-3 mb-2 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-700">
+          <p className="font-medium">❌ 商戶已拒絕你嘅取消申請</p>
+          {order.cancelRequestRejectReason && <p className="mt-0.5 text-rose-600">商戶回覆：{order.cancelRequestRejectReason}</p>}
+        </div>
+      )}
+
       {/* 底部操作列 */}
       {(order.status === 'pending' || canDelete) && (
         <div className="px-3 pb-2.5 flex items-center justify-end gap-2 border-t border-amber-50">
-          {order.status === 'pending' && (
+          {order.status === 'pending' && order.cancelRequestStatus === 'pending' && (
             <button
-              onClick={() => setShowCancelConfirm(true)}
-              disabled={cancel.isPending}
-              className="mt-2 text-xs px-3 py-1 rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50"
+              onClick={() => withdrawCancel.mutate({ orderId: order.id })}
+              disabled={withdrawCancel.isPending}
+              className="mt-2 text-xs px-3 py-1 rounded-md border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
             >
-              取消訂單
+              撤回取消申請
+            </button>
+          )}
+          {order.status === 'pending' && order.cancelRequestStatus !== 'pending' && (
+            <button
+              onClick={() => { setCancelReason(""); setShowCancelConfirm(true); }}
+              disabled={requestCancel.isPending}
+              className="mt-2 text-xs px-3 py-1 rounded-md border border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100 transition-colors disabled:opacity-50"
+            >
+              {order.cancelRequestStatus === 'rejected' ? '再次申請取消' : '申請取消訂單'}
             </button>
           )}
           {canDelete && (
@@ -194,21 +226,42 @@ function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCanc
         </div>
       )}
 
-      {/* 取消訂單確認框 */}
-      <ConfirmActionDialog
-        open={showCancelConfirm}
-        iconBg="bg-orange-50"
-        icon={<ShoppingBag className="w-5 h-5 text-orange-500" />}
-        heading="取消訂單"
-        itemName={order.title}
-        warning="取消後無法恢復，如需重新購買請再次落單"
-        confirmLabel="確認取消"
-        confirmingLabel="取消中…"
-        confirmClass="bg-orange-500 hover:bg-orange-600"
-        loading={cancel.isPending}
-        onConfirm={() => cancel.mutate({ orderId: order.id })}
-        onClose={() => setShowCancelConfirm(false)}
-      />
+      {/* 申請取消訂單對話框 */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4 pb-20" onClick={() => setShowCancelConfirm(false)}>
+          <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-3" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-bold text-gray-800 text-base flex items-center gap-2">
+              <ShoppingBag className="w-5 h-5 text-orange-500" />申請取消訂單
+            </h2>
+            <p className="text-xs text-gray-500">商品：{order.title}</p>
+            <p className="text-xs text-gray-500 leading-relaxed bg-amber-50 rounded-lg px-3 py-2 border border-amber-100">
+              ℹ️ 取消申請須由商戶批准，請填寫取消原因方便商戶處理。
+            </p>
+            <textarea
+              rows={3}
+              maxLength={300}
+              placeholder="（選填）請告訴商戶取消原因…"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-orange-400 resize-none"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowCancelConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50"
+                disabled={requestCancel.isPending}
+              >返回</button>
+              <button
+                onClick={() => requestCancel.mutate({ orderId: order.id, reason: cancelReason.trim() || undefined })}
+                disabled={requestCancel.isPending}
+                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold disabled:opacity-60"
+              >
+                {requestCancel.isPending ? '遞交中…' : '遞交申請'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 刪除紀錄確認框 */}
       <ConfirmActionDialog
