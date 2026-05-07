@@ -28,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Pencil, Trash2, Store, UserRound, ShieldAlert, ChevronDown, Gavel, Mail, KeyRound, CheckCircle2, Copy, Clock, XCircle, ChevronUp, UserPlus, Wrench, Loader2, PackagePlus, AlertTriangle, Wallet, Minus, Plus, Package } from "lucide-react";
+import { Users, Pencil, Trash2, Store, UserRound, ShieldAlert, ChevronDown, Gavel, Mail, KeyRound, CheckCircle2, Copy, Clock, XCircle, ChevronUp, UserPlus, Wrench, Loader2, PackagePlus, AlertTriangle, Wallet, Minus, Plus, Package, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { MemberBadge, type MemberLevel } from "@/components/MemberBadge";
 
@@ -1085,6 +1085,20 @@ export default function AdminUsers() {
     },
     onError: (e) => toast.error(e.message),
   });
+  // T1: 一鍵批核 onboarding（同時開通商戶 + 訂閱 + 保證金）
+  const approveOnboarding = trpc.merchants.approveOnboarding.useMutation({
+    onSuccess: (res) => {
+      const parts = ["✅ 商戶已批核"];
+      if (res.subscriptionApproved) parts.push("📅 訂閱已開通");
+      if (res.depositToppedUp) parts.push(`💰 保證金已入帳 HK$${res.depositAmount.toLocaleString()}`);
+      toast.success(parts.join(" / "));
+      setMerchantReviewId(null);
+      setMerchantNote("");
+      refetchMerchantApps();
+      refetch();
+    },
+    onError: (e) => toast.error(e.message),
+  });
   const pendingMerchantApps = merchantApps?.filter(a => a.status === "pending") ?? [];
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -1572,6 +1586,35 @@ export default function AdminUsers() {
                       </span>
                     </div>
 
+                    {/* T1: 3-in-1 onboarding 摘要（pending 都顯示，醒目嘅 banner） */}
+                    {app.chosenPlanId && (
+                      <div className="mt-2 rounded-xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 px-3 py-2 text-xs space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-amber-900">💎 完整入駐套餐</span>
+                          <span className="font-bold text-amber-700">
+                            HK${parseFloat((app.totalAmount as unknown as string) ?? "0").toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-amber-800">
+                          {app.chosenPlanName && (
+                            <span>📅 {app.chosenPlanName}（{app.chosenPeriod === "yearly" ? "年費" : "月費"}）</span>
+                          )}
+                          {app.chosenTierName && (
+                            <span>💰 {app.chosenTierName}（HK${parseFloat((app.chosenTierAmount as unknown as string) ?? "0").toLocaleString()}）</span>
+                          )}
+                        </div>
+                        {app.paymentReference && (
+                          <p className="text-amber-700">🔖 參考號：{app.paymentReference}</p>
+                        )}
+                        {app.paymentProofUrl && (
+                          <a href={app.paymentProofUrl} target="_blank" rel="noreferrer"
+                            className="inline-block text-amber-700 underline hover:text-amber-900">
+                            🧾 查看收據
+                          </a>
+                        )}
+                      </div>
+                    )}
+
                     {/* Expanded details */}
                     {expanded && (
                       <div className="mt-3 space-y-3">
@@ -1594,17 +1637,39 @@ export default function AdminUsers() {
                           {app.applicantEmail && <p>📧 {app.applicantEmail}</p>}
                           {app.applicantPhone && <p>📱 {app.applicantPhone}</p>}
                         </div>
+                        {app.paymentProofUrl && (
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 mb-1">付款收據</p>
+                            <a href={app.paymentProofUrl} target="_blank" rel="noreferrer">
+                              <img src={app.paymentProofUrl} alt="付款收據"
+                                className="max-w-[200px] rounded-xl border border-amber-200 hover:opacity-90" />
+                            </a>
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {/* Review actions */}
                     {!reviewing ? (
-                      <div className="mt-3 flex gap-2">
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {/* 一鍵批核（只有 onboarding 套餐先有） */}
+                        {app.chosenPlanId && (
+                          <button
+                            disabled={approveOnboarding.isPending}
+                            onClick={() => {
+                              if (!confirm(`確認一鍵批核？將會同時：\n• 批核商戶身份\n• 開通訂閱（${app.chosenPlanName ?? ""}）\n• 入帳保證金 HK$${parseFloat((app.chosenTierAmount as unknown as string) ?? "0").toLocaleString()}`)) return;
+                              approveOnboarding.mutate({ id: app.id });
+                            }}
+                            className="flex items-center gap-1 text-xs gold-gradient text-white rounded-lg px-3 py-1.5 hover:opacity-90 transition-opacity disabled:opacity-50 font-semibold shadow"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" /> 一鍵批核 + 開通
+                          </button>
+                        )}
                         <button
                           onClick={() => { setMerchantReviewId(app.id); setMerchantNote(""); }}
                           className="flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg px-3 py-1.5 hover:bg-emerald-100 transition-colors"
                         >
-                          <CheckCircle2 className="w-3.5 h-3.5" /> 批准
+                          <CheckCircle2 className="w-3.5 h-3.5" /> {app.chosenPlanId ? "只批商戶" : "批准"}
                         </button>
                         <button
                           onClick={() => { setMerchantReviewId(-app.id); setMerchantNote(""); }}

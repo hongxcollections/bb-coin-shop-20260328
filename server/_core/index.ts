@@ -130,6 +130,44 @@ async function bootstrapMissingColumns() {
     );
   }
 
+  // ── 3-in-1 onboarding columns（T1: 商戶申請可一次過揀 plan + tier + 上載收據）──
+  if (!(await check('merchantApplications', 'chosenPlanId'))) {
+    await alter(
+      'ALTER TABLE `merchantApplications` ADD COLUMN `chosenPlanId` int NULL',
+      'Added chosenPlanId to merchantApplications'
+    );
+  }
+  if (!(await check('merchantApplications', 'chosenPeriod'))) {
+    await alter(
+      "ALTER TABLE `merchantApplications` ADD COLUMN `chosenPeriod` varchar(20) NULL",
+      'Added chosenPeriod to merchantApplications'
+    );
+  }
+  if (!(await check('merchantApplications', 'chosenDepositTierId'))) {
+    await alter(
+      'ALTER TABLE `merchantApplications` ADD COLUMN `chosenDepositTierId` int NULL',
+      'Added chosenDepositTierId to merchantApplications'
+    );
+  }
+  if (!(await check('merchantApplications', 'totalAmount'))) {
+    await alter(
+      'ALTER TABLE `merchantApplications` ADD COLUMN `totalAmount` decimal(12,2) NULL',
+      'Added totalAmount to merchantApplications'
+    );
+  }
+  if (!(await check('merchantApplications', 'paymentReference'))) {
+    await alter(
+      'ALTER TABLE `merchantApplications` ADD COLUMN `paymentReference` varchar(255) NULL',
+      'Added paymentReference to merchantApplications'
+    );
+  }
+  if (!(await check('merchantApplications', 'paymentProofUrl'))) {
+    await alter(
+      'ALTER TABLE `merchantApplications` ADD COLUMN `paymentProofUrl` varchar(500) NULL',
+      'Added paymentProofUrl to merchantApplications'
+    );
+  }
+
   // One-time repair: initialise remainingQuota for active subscriptions
   await alter(`
     UPDATE user_subscriptions us

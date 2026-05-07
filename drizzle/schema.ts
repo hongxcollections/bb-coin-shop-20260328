@@ -388,6 +388,13 @@ export const merchantApplications = mysqlTable("merchantApplications", {
   samplePhotos: text("samplePhotos"),
   status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
   adminNote: text("adminNote"),
+  // ── 3-in-1 onboarding（可選；舊 plain submit 唔會填）──
+  chosenPlanId: int("chosenPlanId"),                       // 揀咗嘅訂閱 plan
+  chosenPeriod: varchar("chosenPeriod", { length: 20 }),   // 'monthly' | 'yearly'
+  chosenDepositTierId: int("chosenDepositTierId"),         // 揀咗嘅保證金 tier
+  totalAmount: decimal("totalAmount", { precision: 12, scale: 2 }), // 月費 + 保證金合計
+  paymentReference: varchar("paymentReference", { length: 255 }),    // 用戶填嘅參考號
+  paymentProofUrl: varchar("paymentProofUrl", { length: 500 }),      // 收據圖
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

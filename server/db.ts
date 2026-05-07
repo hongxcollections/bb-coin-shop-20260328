@@ -3081,6 +3081,16 @@ export async function getAllMerchantApplications() {
     samplePhotos: merchantApplications.samplePhotos,
     status: merchantApplications.status,
     adminNote: merchantApplications.adminNote,
+    // ── 3-in-1 onboarding fields ──
+    chosenPlanId: merchantApplications.chosenPlanId,
+    chosenPeriod: merchantApplications.chosenPeriod,
+    chosenDepositTierId: merchantApplications.chosenDepositTierId,
+    totalAmount: merchantApplications.totalAmount,
+    paymentReference: merchantApplications.paymentReference,
+    paymentProofUrl: merchantApplications.paymentProofUrl,
+    chosenPlanName: sql<string | null>`(SELECT name FROM subscription_plans WHERE id = ${merchantApplications.chosenPlanId})`,
+    chosenTierName: sql<string | null>`(SELECT name FROM depositTierPresets WHERE id = ${merchantApplications.chosenDepositTierId})`,
+    chosenTierAmount: sql<string | null>`(SELECT amount FROM depositTierPresets WHERE id = ${merchantApplications.chosenDepositTierId})`,
     createdAt: merchantApplications.createdAt,
     updatedAt: merchantApplications.updatedAt,
     applicantName: sql<string | null>`(SELECT name FROM users WHERE id = ${merchantApplications.userId})`,
@@ -3590,6 +3600,88 @@ export async function reviewMerchantApplication(
     // 檢查是否符合 VIP 三個條件
     await checkAndUpgradeToVip(app.userId).catch(() => {});
   }
+}
+
+/**
+ * T1: 一鍵批核 3-in-1 onboarding 申請。
+ * Atomic：批商戶 + 自動建立並批核訂閱（如果有揀 plan）+ 入帳保證金（如果有揀 tier）。
+ * 任一步失敗會 throw 出去畀 router 處理；已成功嘅副作用唔會回滾（best-effort），
+ * 但每步都係 idempotent-friendly（subscription / topUp 各自有獨立 record）。
+ */
+export async function approveOnboardingApplication(
+  applicationId: number,
+  adminId: number,
+  adminNote?: string
+): Promise<{ success: true; subscriptionApproved: boolean; depositToppedUp: boolean; depositAmount: number }> {
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+
+  const [app] = await db.select().from(merchantApplications)
+    .where(eq(merchantApplications.id, applicationId)).limit(1);
+  if (!app) throw new Error('找不到商戶申請');
+  if (app.status !== 'pending') throw new Error('此申請已審核');
+
+  // 1. 批商戶申請（重用既有邏輯：會建 sellerDeposits + checkVip）
+  await reviewMerchantApplication(applicationId, 'approved', adminNote);
+
+  let subscriptionApproved = false;
+  let depositToppedUp = false;
+  let depositAmount = 0;
+
+  // 2. 如果有揀 plan → 建 subscription pending 然後即批
+  if (app.chosenPlanId && (app.chosenPeriod === 'monthly' || app.chosenPeriod === 'yearly')) {
+    try {
+      // 建 pending subscription，順便保留用戶提交嘅付款資料
+      await createUserSubscription({
+        userId: app.userId,
+        planId: app.chosenPlanId,
+        billingCycle: app.chosenPeriod as 'monthly' | 'yearly',
+        paymentMethod: 'merchant_onboarding',
+        paymentReference: app.paymentReference ?? undefined,
+        paymentProofUrl: app.paymentProofUrl ?? undefined,
+      });
+      // 攞返啱啱建嘅最新一張，approve 佢
+      const [latest] = await db.select({ id: userSubscriptions.id })
+        .from(userSubscriptions)
+        .where(and(eq(userSubscriptions.userId, app.userId), eq(userSubscriptions.planId, app.chosenPlanId)))
+        .orderBy(desc(userSubscriptions.createdAt))
+        .limit(1);
+      if (latest) {
+        await approveSubscription(latest.id, adminId, `[商戶 onboarding] ${adminNote ?? ''}`.trim());
+        subscriptionApproved = true;
+      }
+    } catch (err) {
+      console.error('[approveOnboardingApplication] subscription step failed:', err);
+      throw new Error(`商戶已批核，但訂閱開通失敗：${(err as Error).message}`);
+    }
+  }
+
+  // 3. 如果有揀 tier → 入帳保證金（用 tier amount）+ 套用 tier commission rate
+  if (app.chosenDepositTierId) {
+    try {
+      const [tier] = await db.select().from(depositTierPresets)
+        .where(eq(depositTierPresets.id, app.chosenDepositTierId)).limit(1);
+      if (!tier) throw new Error('找不到指定保證金套餐');
+      depositAmount = parseFloat(tier.amount.toString());
+      await topUpDeposit(
+        app.userId,
+        depositAmount,
+        `商戶 onboarding 保證金套餐「${tier.name}」(參考號: ${app.paymentReference ?? '-'})`,
+        adminId
+      );
+      // 套用 tier commission rate
+      if (tier.commissionRate) {
+        const rate = parseFloat(tier.commissionRate.toString());
+        await updateSellerDepositSettings(app.userId, { commissionRate: rate });
+      }
+      depositToppedUp = true;
+    } catch (err) {
+      console.error('[approveOnboardingApplication] deposit step failed:', err);
+      throw new Error(`商戶／訂閱已開通，但保證金入帳失敗：${(err as Error).message}`);
+    }
+  }
+
+  return { success: true, subscriptionApproved, depositToppedUp, depositAmount };
 }
 
 // ─── Commission Auto-Deduction ────────────────────────────────────────────────
