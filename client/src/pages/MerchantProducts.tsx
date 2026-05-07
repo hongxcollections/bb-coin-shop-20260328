@@ -385,7 +385,7 @@ export function MerchantOrdersTab() {
                         className="flex-1 text-xs py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-60"
                       >拒絕申請</button>
                       <button
-                        onClick={() => respondCancelReq.mutate({ orderId: o.id, action: 'approve' })}
+                        onClick={() => setActionDialog({ order: o, type: "cancel" })}
                         disabled={respondCancelReq.isPending}
                         className="flex-1 text-xs py-1.5 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 disabled:opacity-60"
                       >批准取消</button>
@@ -440,10 +440,15 @@ export function MerchantOrdersTab() {
           type={actionDialog.type}
           onClose={() => setActionDialog(null)}
           onConfirm={(finalPrice, markAsFailure) => {
-            if (actionDialog.type === "confirm") confirm.mutate({ orderId: actionDialog.order.id, finalPrice });
-            else cancel.mutate({ orderId: actionDialog.order.id, reason: markAsFailure ? "商戶取消（買家失約）" : "商戶取消", markAsFailure });
+            if (actionDialog.type === "confirm") {
+              confirm.mutate({ orderId: actionDialog.order.id, finalPrice });
+            } else if (actionDialog.order.cancelRequestStatus === "pending") {
+              respondCancelReq.mutate({ orderId: actionDialog.order.id, action: 'approve', markAsFailure });
+            } else {
+              cancel.mutate({ orderId: actionDialog.order.id, reason: markAsFailure ? "商戶取消（買家失約）" : "商戶取消", markAsFailure });
+            }
           }}
-          isPending={confirm.isPending || cancel.isPending}
+          isPending={confirm.isPending || cancel.isPending || respondCancelReq.isPending}
         />
       )}
 

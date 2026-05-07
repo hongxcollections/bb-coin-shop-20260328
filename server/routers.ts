@@ -3808,13 +3808,13 @@ export const appRouter = router({
 
     /** 商戶：批准 / 拒絕買家嘅取消申請 */
     respondCancelRequest: protectedProcedure
-      .input(z.object({ orderId: z.number(), action: z.enum(['approve', 'reject']), rejectReason: z.string().max(300).optional() }))
+      .input(z.object({ orderId: z.number(), action: z.enum(['approve', 'reject']), rejectReason: z.string().max(300).optional(), markAsFailure: z.boolean().optional() }))
       .mutation(async ({ input, ctx }) => {
         const app = await getMerchantApplicationByUser(ctx.user.id);
         if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
         }
-        const result = await respondCancelRequest(input.orderId, ctx.user.id, input.action, input.rejectReason);
+        const result = await respondCancelRequest(input.orderId, ctx.user.id, input.action, input.rejectReason, input.markAsFailure);
         if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
         if (result.buyerId) {
           const title = input.action === 'approve' ? '✅ 取消申請已批准' : '❌ 取消申請被拒絕';

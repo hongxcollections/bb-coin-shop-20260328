@@ -4714,7 +4714,7 @@ export async function withdrawCancelRequest(orderId: number, buyerId: number): P
   return { ok: true };
 }
 
-export async function respondCancelRequest(orderId: number, merchantId: number, action: 'approve' | 'reject', rejectReason?: string): Promise<{ ok: boolean; error?: string; buyerId?: number; productTitle?: string }> {
+export async function respondCancelRequest(orderId: number, merchantId: number, action: 'approve' | 'reject', rejectReason?: string, markAsFailure?: boolean): Promise<{ ok: boolean; error?: string; buyerId?: number; productTitle?: string }> {
   await ensureProductOrdersTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
@@ -4726,13 +4726,15 @@ export async function respondCancelRequest(orderId: number, merchantId: number, 
   if (order.status !== 'pending') return { ok: false, error: '訂單狀態唔可以再變更' };
 
   if (action === 'approve') {
+    const failureFlag = markAsFailure ? 1 : 0;
     await db.execute(sql`
       UPDATE productOrders
       SET status = 'cancelled',
           cancelledAt = NOW(),
           cancelReason = CONCAT('買家申請取消：', COALESCE(cancelRequestReason, '')),
           cancelRequestStatus = 'approved',
-          cancelRequestRespondedAt = NOW()
+          cancelRequestRespondedAt = NOW(),
+          markedAsBuyerFailure = ${failureFlag}
       WHERE id = ${orderId}
     `);
   } else {
