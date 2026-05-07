@@ -553,7 +553,10 @@ export async function getMyLoyaltyStatus(userId: number) {
   let nextLevel: MemberLevel | null = null;
   let progress: { targetLevel: MemberLevel; conditions: { label: string; current: number; target: number; done: boolean }[] } | null = null;
 
-  if (LEVEL_RANK[natural] < LEVEL_RANK['silver']) {
+  // 以「當前等級」同「自然等級」較高者為準，避免 admin 授予 VIP / Gold 嘅用戶仍見到「升銀牌」途徑
+  const effectiveRank = Math.max(LEVEL_RANK[currentLevel] ?? 0, LEVEL_RANK[natural] ?? 0);
+
+  if (effectiveRank < LEVEL_RANK['silver']) {
     nextLevel = 'silver';
     progress = {
       targetLevel: 'silver',
@@ -563,7 +566,7 @@ export async function getMyLoyaltyStatus(userId: number) {
         { label: '近 90 日競投總額 (HKD)', current: Math.floor(stats.spend90Days), target: config.silver90DaySpend, done: stats.spend90Days >= config.silver90DaySpend },
       ],
     };
-  } else if (LEVEL_RANK[natural] < LEVEL_RANK['gold']) {
+  } else if (effectiveRank < LEVEL_RANK['gold']) {
     nextLevel = 'gold';
     progress = {
       targetLevel: 'gold',
