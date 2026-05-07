@@ -3254,6 +3254,8 @@ async function ensureMerchantSettingsTable() {
       ['chatAutoReplyEnabled', 'INT NOT NULL DEFAULT 0'],
       ['chatAutoReplyMessage', 'TEXT NULL'],
       ['offersGloballyEnabled', 'TINYINT NOT NULL DEFAULT 1'],
+      ['offerWindowDays', 'INT NOT NULL DEFAULT 7'],
+      ['offerMaxPerWindow', 'INT NOT NULL DEFAULT 3'],
     ] as [string, string][]) {
       const chk = await db.execute(sql`
         SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
@@ -3300,13 +3302,15 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   chatAutoReplyEnabled: 0,
   chatAutoReplyMessage: null as string | null,
   offersGloballyEnabled: 1,
+  offerWindowDays: 7,
+  offerMaxPerWindow: 3,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, offersGloballyEnabled FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, offersGloballyEnabled, offerWindowDays, offerMaxPerWindow FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -3342,6 +3346,8 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         chatAutoReplyEnabled: Number(row.chatAutoReplyEnabled ?? 0),
         chatAutoReplyMessage: row.chatAutoReplyMessage != null ? String(row.chatAutoReplyMessage) : null,
         offersGloballyEnabled: Number(row.offersGloballyEnabled ?? 1),
+        offerWindowDays: Number(row.offerWindowDays ?? 7),
+        offerMaxPerWindow: Number(row.offerMaxPerWindow ?? 3),
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -3410,6 +3416,19 @@ export async function setMerchantOffersEnabled(userId: number, enabled: number):
     INSERT INTO merchant_settings (userId, offersGloballyEnabled)
     VALUES (${userId}, ${enabled})
     ON DUPLICATE KEY UPDATE offersGloballyEnabled = ${enabled}, updatedAt = CURRENT_TIMESTAMP
+  `);
+}
+
+export async function setMerchantOfferLimits(userId: number, windowDays: number, maxPerWindow: number): Promise<void> {
+  await ensureMerchantSettingsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const wd = Math.max(1, Math.min(365, Math.floor(windowDays)));
+  const mx = Math.max(1, Math.min(20, Math.floor(maxPerWindow)));
+  await db.execute(sql`
+    INSERT INTO merchant_settings (userId, offerWindowDays, offerMaxPerWindow)
+    VALUES (${userId}, ${wd}, ${mx})
+    ON DUPLICATE KEY UPDATE offerWindowDays = ${wd}, offerMaxPerWindow = ${mx}, updatedAt = CURRENT_TIMESTAMP
   `);
 }
 

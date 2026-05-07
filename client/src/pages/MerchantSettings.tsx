@@ -1270,9 +1270,9 @@ export default function MerchantSettings() {
           </CardContent>
         </Card>
 
-        {/* 排價總開關 */}
+        {/* 排價總開關 + 限制 */}
         <Card className="rounded-2xl border-orange-100">
-          <CardContent className="p-4 sm:p-5 space-y-3">
+          <CardContent className="p-4 sm:p-5 space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
@@ -1293,8 +1293,73 @@ export default function MerchantSettings() {
                 <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-orange-500 transition-colors relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:w-5 after:h-5 after:transition-transform peer-checked:after:translate-x-5"></div>
               </label>
             </div>
+
+            <OfferLimitsEditor settings={settings} />
           </CardContent>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+function OfferLimitsEditor({ settings }: { settings: any }) {
+  const utils = trpc.useUtils();
+  const [windowDays, setWindowDays] = useState<number>(7);
+  const [maxPerWindow, setMaxPerWindow] = useState<number>(3);
+  const [initialized, setInitialized] = useState(false);
+  useEffect(() => {
+    if (settings && !initialized) {
+      setWindowDays(Number(settings.offerWindowDays ?? 7));
+      setMaxPerWindow(Number(settings.offerMaxPerWindow ?? 3));
+      setInitialized(true);
+    }
+  }, [settings, initialized]);
+
+  const m = trpc.merchants.setOfferLimits.useMutation({
+    onSuccess: () => {
+      toast.success("已儲存排價限制");
+      utils.merchants.mySettings.invalidate();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <div className="border-t border-orange-100 pt-3 space-y-2">
+      <h4 className="text-sm font-semibold text-gray-700">排價次數限制</h4>
+      <p className="text-[11px] text-gray-500 leading-relaxed">
+        買家對同一商品在指定日數內可以排價嘅次數（包括已取消／已拒絕）。預設：7 日內 3 次。
+      </p>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span>每</span>
+        <input
+          type="number"
+          min={1}
+          max={365}
+          value={windowDays}
+          onChange={(e) => setWindowDays(Math.max(1, Math.min(365, Number(e.target.value) || 1)))}
+          className="w-20 px-2 py-1 border border-orange-200 rounded text-center"
+        />
+        <span>日內，每位買家最多可以排價</span>
+        <input
+          type="number"
+          min={1}
+          max={20}
+          value={maxPerWindow}
+          onChange={(e) => setMaxPerWindow(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+          className="w-16 px-2 py-1 border border-orange-200 rounded text-center"
+        />
+        <span>次</span>
+      </div>
+      <div className="flex justify-end">
+        <Button
+          size="sm"
+          onClick={() => m.mutate({ windowDays, maxPerWindow })}
+          disabled={m.isPending}
+          className="gold-gradient text-white border-0 gap-1.5"
+        >
+          {m.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          儲存限制
+        </Button>
       </div>
     </div>
   );
