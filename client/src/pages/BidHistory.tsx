@@ -235,12 +235,12 @@ function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCanc
             </h2>
             <p className="text-xs text-gray-500">商品：{order.title}</p>
             <p className="text-xs text-gray-500 leading-relaxed bg-amber-50 rounded-lg px-3 py-2 border border-amber-100">
-              ℹ️ 取消申請須由商戶批准，請填寫取消原因方便商戶處理。
+              ℹ️ 取消申請須由商戶批准，<span className="text-red-500 font-medium">必須填寫取消原因</span>方便商戶處理。
             </p>
             <textarea
               rows={3}
               maxLength={300}
-              placeholder="（選填）請告訴商戶取消原因…"
+              placeholder="請告訴商戶取消原因（必填）…"
               value={cancelReason}
               onChange={(e) => setCancelReason(e.target.value)}
               className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-orange-400 resize-none"
@@ -252,9 +252,13 @@ function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCanc
                 disabled={requestCancel.isPending}
               >返回</button>
               <button
-                onClick={() => requestCancel.mutate({ orderId: order.id, reason: cancelReason.trim() || undefined })}
-                disabled={requestCancel.isPending}
-                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold disabled:opacity-60"
+                onClick={() => {
+                  const reason = cancelReason.trim();
+                  if (!reason) { toast.error('請填寫取消原因'); return; }
+                  requestCancel.mutate({ orderId: order.id, reason });
+                }}
+                disabled={requestCancel.isPending || !cancelReason.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {requestCancel.isPending ? '遞交中…' : '遞交申請'}
               </button>

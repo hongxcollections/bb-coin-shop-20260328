@@ -3736,7 +3736,7 @@ export const appRouter = router({
 
     /** 買家：申請取消訂單（需商戶批准） */
     requestCancel: protectedProcedure
-      .input(z.object({ orderId: z.number(), reason: z.string().max(300).optional() }))
+      .input(z.object({ orderId: z.number(), reason: z.string().trim().min(1, '請填寫取消原因').max(300) }))
       .mutation(async ({ input, ctx }) => {
         const result = await requestCancelProductOrder(input.orderId, ctx.user.id, input.reason);
         if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
