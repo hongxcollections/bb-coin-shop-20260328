@@ -255,6 +255,14 @@ async function bootstrapMissingColumns() {
     );
   }
 
+  // 加 productOffers.hiddenForMerchant（商戶可隱藏已拒絕紀錄）
+  if (!(await check('productOffers', 'hiddenForMerchant'))) {
+    await alter(
+      `ALTER TABLE \`productOffers\` ADD COLUMN \`hiddenForMerchant\` tinyint(1) NOT NULL DEFAULT 0`,
+      'Added hiddenForMerchant to productOffers'
+    );
+  }
+
   // 加 merchantProducts.allowOffers
   if (!(await check('merchantProducts', 'allowOffers'))) {
     await alter(

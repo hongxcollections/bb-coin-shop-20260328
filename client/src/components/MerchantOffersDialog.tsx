@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Tag, Loader2, CheckCircle2, XCircle, Clock, ShoppingBag } from "lucide-react";
+import { Tag, Loader2, CheckCircle2, XCircle, Clock, ShoppingBag, Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
@@ -54,6 +54,14 @@ export default function MerchantOffersDialog({ open, onOpenChange }: MerchantOff
       setResponseText("");
     },
     onError: (e) => toast.error(e.message),
+  });
+
+  const hideMerchant = trpc.offers.hideForMerchant.useMutation({
+    onSuccess: () => {
+      toast.success("已清除紀錄");
+      utils.offers.listForMerchant.invalidate();
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const list = (offers ?? []) as any[];
@@ -189,6 +197,18 @@ export default function MerchantOffersDialog({ open, onOpenChange }: MerchantOff
                   )}
                   {o.merchantResponse && o.status !== "pending" && (
                     <p className="text-[11px] text-gray-500">你嘅回覆：{o.merchantResponse}</p>
+                  )}
+                  {(o.status === "rejected" || o.status === "cancelled" || o.status === "expired") && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full text-gray-500 border-gray-200 hover:bg-gray-50 gap-1.5"
+                      disabled={hideMerchant.isPending}
+                      onClick={() => hideMerchant.mutate({ offerId: o.id })}
+                    >
+                      {hideMerchant.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      清除紀錄
+                    </Button>
                   )}
                 </div>
               );
