@@ -23,6 +23,8 @@ const STATUS_LABELS: Record<string, { label: string; cls: string; icon: any }> =
   pending: { label: "待處理", cls: "bg-amber-100 text-amber-700", icon: Clock },
   accepted: { label: "已接受", cls: "bg-green-100 text-green-700", icon: CheckCircle2 },
   rejected: { label: "已拒絕", cls: "bg-rose-100 text-rose-700", icon: XCircle },
+  cancelled: { label: "對方已取消排價", cls: "bg-gray-100 text-gray-500", icon: XCircle },
+  countered: { label: "已還價", cls: "bg-indigo-100 text-indigo-700", icon: Tag },
   expired: { label: "已過期", cls: "bg-gray-100 text-gray-500", icon: Clock },
   purchased: { label: "已成交", cls: "bg-blue-100 text-blue-700", icon: ShoppingBag },
 };
