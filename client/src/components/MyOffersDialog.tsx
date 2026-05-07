@@ -31,6 +31,7 @@ function getFirstImg(images: string | null | undefined): string | null {
 export default function MyOffersDialog({ open, onOpenChange }: MyOffersDialogProps) {
   const utils = trpc.useUtils();
   const [tab, setTab] = useState<"pending" | "accepted" | "all">("all");
+  const [cancelTarget, setCancelTarget] = useState<{ id: number; productName?: string } | null>(null);
 
   const { data: offersAll, isLoading } = trpc.offers.listMine.useQuery(
     undefined,
@@ -55,6 +56,7 @@ export default function MyOffersDialog({ open, onOpenChange }: MyOffersDialogPro
   const cancelOffer = trpc.offers.cancel.useMutation({
     onSuccess: () => {
       toast.success("已取消排價");
+      setCancelTarget(null);
       utils.offers.listMine.invalidate();
       utils.offers.myAcceptedCount.invalidate();
     },
@@ -149,11 +151,7 @@ export default function MyOffersDialog({ open, onOpenChange }: MyOffersDialogPro
                       variant="outline"
                       className="w-full text-rose-600 border-rose-200 hover:bg-rose-50 gap-1.5"
                       disabled={cancelOffer.isPending}
-                      onClick={() => {
-                        if (confirm("確定要取消此排價？取消後仍會佔用 30 日內 2 次配額。")) {
-                          cancelOffer.mutate({ offerId: o.id });
-                        }
-                      }}
+                      onClick={() => setCancelTarget({ id: o.id, productName: o.productName })}
                     >
                       {cancelOffer.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
                       取消排價
@@ -184,6 +182,44 @@ export default function MyOffersDialog({ open, onOpenChange }: MyOffersDialogPro
           </div>
         )}
       </DialogContent>
+
+      <Dialog open={!!cancelTarget} onOpenChange={(v) => { if (!v) setCancelTarget(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <Ban className="w-5 h-5" /> 確定取消排價？
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-1">
+            {cancelTarget?.productName && (
+              <div className="text-sm font-medium text-gray-800 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
+                {cancelTarget.productName}
+              </div>
+            )}
+            <p className="text-sm text-gray-600 leading-relaxed">
+              取消後將無法恢復，並仍會佔用一次排價配額（用嚟防止濫用）。
+            </p>
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setCancelTarget(null)}
+                disabled={cancelOffer.isPending}
+              >
+                返回
+              </Button>
+              <Button
+                className="flex-1 bg-rose-600 hover:bg-rose-700 text-white border-0 gap-1.5"
+                disabled={cancelOffer.isPending}
+                onClick={() => cancelTarget && cancelOffer.mutate({ offerId: cancelTarget.id })}
+              >
+                {cancelOffer.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                確定取消
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
