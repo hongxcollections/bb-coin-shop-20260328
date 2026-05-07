@@ -200,7 +200,7 @@ export default function MyOffersDialog({ open, onOpenChange }: MyOffersDialogPro
                     </div>
                   )}
                   {o.status === "purchased" && o.orderId && (
-                    <Link href={`/buyer-orders`}>
+                    <Link href={`/bid-history?tab=orders`}>
                       <Button size="sm" variant="outline" className="w-full">查看訂單 #{o.orderId}</Button>
                     </Link>
                   )}

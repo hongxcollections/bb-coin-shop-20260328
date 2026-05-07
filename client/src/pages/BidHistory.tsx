@@ -393,7 +393,13 @@ export default function BidHistory() {
   const { data: myOrders, isLoading: ordersLoading } = trpc.productOrders.myBuyerOrders.useQuery(undefined, { enabled: isAuthenticated });
   const [expandedBidId, setExpandedBidId] = useState<number | null>(null);
   const [bidFilter, setBidFilter] = useState<'all' | 'active' | 'won'>('all');
-  const [activeTab, setActiveTab] = useState<'bids' | 'won' | 'orders'>('won');
+  const [activeTab, setActiveTab] = useState<'bids' | 'won' | 'orders'>(() => {
+    if (typeof window !== 'undefined') {
+      const t = new URLSearchParams(window.location.search).get('tab');
+      if (t === 'orders' || t === 'bids' || t === 'won') return t;
+    }
+    return 'won';
+  });
   const [orderStatusFilter, setOrderStatusFilter] = useState<'pending' | 'confirmed' | 'cancelled'>('pending');
   const [orderPage, setOrderPage] = useState(1);
   const ORDER_PAGE_SIZE = 10;
