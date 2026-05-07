@@ -64,8 +64,6 @@ export default function AuctionDetail() {
   }, [auctionId]);
   const [bidAmount, setBidAmount] = useState("");
   const [showHistory, setShowHistory] = useState(false);
-  const [bidMessage, setBidMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
-  const [bidMsgExiting, setBidMsgExiting] = useState(false);
   const [proxyMode, setProxyMode] = useState(false);
   const [proxyAmount, setProxyAmount] = useState("");
   const [historyTab, setHistoryTab] = useState<"bids" | "proxy">("bids");
@@ -120,11 +118,6 @@ export default function AuctionDetail() {
     onSuccess: (data) => setIsFavorited((data as { isFavorited: boolean }).isFavorited),
     onError: () => setIsFavorited((prev) => !prev),
   });
-
-  const dismissBidMessage = () => {
-    setBidMsgExiting(true);
-    setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400);
-  };
 
   const { data: auction, isLoading, refetch } = trpc.auctions.detail.useQuery(
     { id: auctionId },
@@ -295,12 +288,10 @@ export default function AuctionDetail() {
 
   const placeBid = trpc.auctions.placeBid.useMutation({
     onSuccess: (data) => {
-      setBidMsgExiting(false);
-      if (data.extended) {
-        setBidMessage({ type: "success", text: bidSuccessExtendedMessage.replace("{minutes}", String(data.extendMinutes ?? 3)) });
-      } else {
-        setBidMessage({ type: "success", text: bidSuccessMessage });
-      }
+      const text = data.extended
+        ? bidSuccessExtendedMessage.replace("{minutes}", String(data.extendMinutes ?? 3))
+        : bidSuccessMessage;
+      toast.success(text, { className: "bb-toast-success", duration: 5000 });
       setBidAmount("");
       setPriceUpdated(false);
       // 出價成功後立即刷新所有相關 query，確保自己的頁面也即時更新
@@ -311,39 +302,35 @@ export default function AuctionDetail() {
       // 代理出價相關 query 也一並刷新
       utils.auctions.getProxyBidLogs.invalidate({ auctionId });
       utils.auctions.getMyProxyBid.invalidate({ auctionId });
-      setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 5600);
     },
     onError: (err) => {
-      setBidMsgExiting(false);
       // 出價失敗時自動刷新最新出價，避免用戶再次使用舊數據出價
       refetch();
       const errMsg = err.message || "出價失敗，請重試";
       // 判斷錯誤類型並顯示易懂提示
       const isStalePrice = errMsg.includes('出價金額必須') || errMsg.includes('必須至少為');
       const isRateLimit = errMsg.includes('請求過於頻繁') || errMsg.includes('rate') || errMsg.includes('Rate') || errMsg.includes('TOO_MANY');
-      if (isStalePrice) {
-        setBidMessage({ type: "error", text: `❌ 已有新出價！頁面已更新最新出價，請重新確認金額` });
-      } else if (isRateLimit) {
-        setBidMessage({ type: "error", text: `⏳ 請求過於頻繁，請稍候幾秒再試` });
-      } else {
-        setBidMessage({ type: "error", text: `❌ ${errMsg}` });
-      }
-      setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 6600);
+      const text = isStalePrice
+        ? '已有新出價！頁面已更新最新出價，請重新確認金額'
+        : isRateLimit
+        ? '請求過於頻繁，請稍候幾秒再試'
+        : errMsg;
+      toast.error(text, { className: "bb-toast-err", duration: 6000 });
     },
   });
 
   const handleBid = async () => {
     const amount = parseFloat(bidAmount);
     if (isNaN(amount) || amount <= 0) {
-      setBidMsgExiting(false);
-      setBidMessage({ type: "error", text: "❌ 請輸入有效的出價金額" });
-      setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 5600);
+      toast.error("請輸入有效的出價金額", { className: "bb-toast-err", duration: 5000 });
       return;
     }
     if (amount < minBid) {
-      setBidMsgExiting(false);
-      setBidMessage({ type: "error", text: `❌ 最低出價 ${currencySymbol}${minBid.toLocaleString()}（${hasExistingBid ? `現價 + 每口加幅 ${currencySymbol}${bidIncrement}` : `起拍價`}）` });
-      setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 5600);
+      toast.error(`最低出價 ${currencySymbol}${minBid.toLocaleString()}`, {
+        description: hasExistingBid ? `現價 + 每口加幅 ${currencySymbol}${bidIncrement}` : '起拍價',
+        className: "bb-toast-err",
+        duration: 5000,
+      });
       return;
     }
     // 即時檢查是否被該賣家停權
@@ -369,8 +356,13 @@ export default function AuctionDetail() {
 
   const confirmBid = () => {
     setShowBidConfirm(false);
-    setBidMessage({ type: "info", text: "⏳ 出價處理中，請稍候..." });
-    placeBid.mutate({ auctionId, bidAmount: pendingBidAmount, isAnonymous: isAnonymous ? 1 : 0 });
+    toast.loading("出價處理中…", { id: "bid-loading", className: "bb-toast-success", duration: 30000 });
+    placeBid.mutate(
+      { auctionId, bidAmount: pendingBidAmount, isAnonymous: isAnonymous ? 1 : 0 },
+      {
+        onSettled: () => toast.dismiss("bid-loading"),
+      }
+    );
   };
 
   // 使用 bidIncrement 計算最低出價金額
@@ -693,55 +685,6 @@ export default function AuctionDetail() {
                     </div>
                   </div>
                   <div className="text-right space-y-1 relative">
-                    {/* Bid Message — floating pop-up above 出價次數, uses --popup-* theme */}
-                    {bidMessage && (
-                      <div
-                        className={`absolute bottom-full right-0 mb-2 z-20 w-64 text-xs font-medium border overflow-hidden ${
-                          bidMessage.type === "info" ? "bid-processing-card" : ""
-                        } ${bidMsgExiting ? "bid-msg-exit" : "bid-msg-enter"}`}
-                        style={{
-                          background: "var(--popup-bg)",
-                          color: "var(--popup-text)",
-                          borderColor: "var(--popup-border)",
-                          boxShadow: "var(--popup-shadow)",
-                          borderRadius: "var(--popup-radius)",
-                          borderWidth: "1px",
-                          borderStyle: "solid",
-                        }}
-                      >
-                        <div className="px-3 py-2 flex items-center justify-between">
-                          {bidMessage.type === "info" ? (
-                            <span className="flex items-center gap-1.5">
-                              <span className="bid-coin text-base" aria-hidden="true">🪙</span>
-                              <span className="bid-shimmer-text">出價處理中</span>
-                              <span className="flex items-center gap-0.5 ml-0.5">
-                                <span className="bid-dot" />
-                                <span className="bid-dot" />
-                                <span className="bid-dot" />
-                              </span>
-                            </span>
-                          ) : (
-                            <span className="flex-1" style={{ color: "var(--popup-text)" }}>{bidMessage.text}</span>
-                          )}
-                          <button
-                            onClick={dismissBidMessage}
-                            className="ml-2 opacity-40 hover:opacity-80 transition-opacity flex-shrink-0"
-                            style={{ color: "var(--popup-desc)" }}
-                            aria-label="關閉"
-                          >✕</button>
-                        </div>
-                        {bidMessage.type !== "info" && !bidMsgExiting && (
-                          <div
-                            key={bidMessage.text}
-                            className={`bid-progress-bar ${
-                              bidMessage.type === "success"
-                                ? "bg-emerald-400"
-                                : "bg-red-400"
-                            }`}
-                          />
-                        )}
-                      </div>
-                    )}
                     <div>
                       <div className="text-xs text-muted-foreground mb-0.5">出價次數</div>
                       <div className="flex items-center gap-1 text-amber-700 font-bold justify-end">
