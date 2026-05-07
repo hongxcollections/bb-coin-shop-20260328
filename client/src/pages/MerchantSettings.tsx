@@ -1349,8 +1349,8 @@ function FailureLockCard({ settings }: { settings: any }) {
         </p>
         <div className="flex items-center justify-between bg-red-50 rounded-xl px-3 py-2.5 border border-red-100">
           <div>
-            <p className="text-sm font-semibold text-red-700">啟用自動凍結</p>
-            <p className="text-[11px] text-gray-500 mt-0.5">關閉後仍可標記失約作紀錄，但唔會自動凍結買家</p>
+            <p className="text-sm font-semibold text-red-700">啟用買家失約封鎖</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">關閉後，取消訂單時唔會顯示失約標記選項，亦唔會記錄／計算任何失約</p>
           </div>
           <Switch checked={enabled} onCheckedChange={setEnabled} />
         </div>
