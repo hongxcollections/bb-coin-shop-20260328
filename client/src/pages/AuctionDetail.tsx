@@ -332,7 +332,7 @@ export default function AuctionDetail() {
     },
   });
 
-  const handleBid = () => {
+  const handleBid = async () => {
     const amount = parseFloat(bidAmount);
     if (isNaN(amount) || amount <= 0) {
       setBidMsgExiting(false);
@@ -345,6 +345,20 @@ export default function AuctionDetail() {
       setBidMessage({ type: "error", text: `❌ 最低出價 ${currencySymbol}${minBid.toLocaleString()}（${hasExistingBid ? `現價 + 每口加幅 ${currencySymbol}${bidIncrement}` : `起拍價`}）` });
       setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 5600);
       return;
+    }
+    // 即時檢查是否被該賣家停權
+    const sellerId = (auction as { createdBy?: number } | null)?.createdBy;
+    if (sellerId && user && sellerId !== user.id) {
+      try {
+        const lock = await utils.merchants.myLockStatusForMerchant.fetch({ merchantId: sellerId });
+        if (lock?.locked && lock.lockedUntil) {
+          const until = new Date(lock.lockedUntil).toLocaleString('zh-HK', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+          setBidMsgExiting(false);
+          setBidMessage({ type: "error", text: `❌ 你已被「${lock.merchantName ?? '此賣家'}」暫停出價，至 ${until}` });
+          setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 5600);
+          return;
+        }
+      } catch {}
     }
     // 顯示確認彈窗
     setPendingBidAmount(amount);
