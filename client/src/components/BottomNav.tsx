@@ -19,6 +19,18 @@ export default function BottomNav() {
     staleTime: 30_000,
   });
   const unreadChatCount = (chatUnread as { total?: number } | undefined)?.total ?? 0;
+  const isMerchantBuyerCheck = isMerchantData === true;
+  const { data: pendingWonCount } = trpc.wonAuctions.myPendingActionCount.useQuery(undefined, {
+    enabled: isAuthenticated && !isMerchantBuyerCheck,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const { data: acceptedOfferCount } = trpc.offers.myAcceptedCount.useQuery(undefined, {
+    enabled: isAuthenticated && !isMerchantBuyerCheck,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const buyerActionCount = (Number(pendingWonCount ?? 0)) + (Number(acceptedOfferCount ?? 0));
   // 對話訊息只開放畀銀牌或以上 + admin（同 ChatButton 一致）
   const { data: _autoBidStatus } = trpc.loyalty.myAutoBidStatus.useQuery(undefined, { enabled: isAuthenticated });
   const _memberLevel = (_autoBidStatus?.level as string | undefined) ?? "bronze";
@@ -237,6 +249,11 @@ export default function BottomNav() {
                           >
                             <TrendingUp className="w-4 h-4" />
                             <span>出價紀錄</span>
+                            {!isMerchant && buyerActionCount > 0 && (
+                              <span style={{ marginLeft: "auto", background: "#dc2626", color: "white", fontSize: "10px", fontWeight: 700, padding: "1px 6px", borderRadius: "9px", minWidth: "18px", textAlign: "center" }}>
+                                {buyerActionCount > 99 ? "99+" : buyerActionCount}
+                              </span>
+                            )}
                           </Link>
                           {isMerchant && (
                             <Link

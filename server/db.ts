@@ -4638,6 +4638,27 @@ export async function cancelMerchantAuctionOrder(auctionId: number, merchantId: 
   return { ok: true };
 }
 
+export async function countBuyerPendingWonAuctions(userId: number): Promise<number> {
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT COUNT(*) AS cnt FROM auctions a
+     WHERE a.status = 'ended'
+       AND (SELECT b.userId FROM bids b WHERE b.auctionId = a.id ORDER BY b.bidAmount DESC, b.createdAt ASC LIMIT 1) = ?
+       AND (a.paymentStatus IS NULL OR a.paymentStatus = 'pending_payment')`,
+    [userId]
+  );
+  return Number(rows?.[0]?.cnt ?? 0);
+}
+
+export async function countBuyerAcceptedOffers(userId: number): Promise<number> {
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT COUNT(*) AS cnt FROM productOffers WHERE buyerId = ? AND status = 'accepted'`,
+    [userId]
+  );
+  return Number(rows?.[0]?.cnt ?? 0);
+}
+
 export async function countMerchantAuctionOrdersByStatus(merchantId: number): Promise<{ pending: number; confirmed: number; cancelled: number }> {
   const pool = await getRawPool();
   const [rows]: any = await pool.execute(
