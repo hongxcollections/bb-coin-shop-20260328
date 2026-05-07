@@ -95,7 +95,7 @@ const PAYMENT_STATUS_CONFIG = {
 
 const ORDER_STATUS_CONFIG = {
   pending:   { label: '待確認', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: '⏳' },
-  confirmed: { label: '已確認', color: 'bg-green-100 text-green-800 border-green-200',  icon: '✅' },
+  confirmed: { label: '已成交', color: 'bg-green-100 text-green-800 border-green-200',  icon: '✅' },
   cancelled: { label: '已取消', color: 'bg-gray-100 text-gray-500 border-gray-200',     icon: '✕'  },
 } as const;
 
@@ -752,7 +752,7 @@ export default function BidHistory() {
           const filteredOrders = statusOrders.slice((safePage - 1) * ORDER_PAGE_SIZE, safePage * ORDER_PAGE_SIZE);
           const orderStatusTabs = [
             { key: 'pending'   as const, label: '待確認', count: pendingCount,   color: 'bg-yellow-500' },
-            { key: 'confirmed' as const, label: '已確認', count: confirmedCount, color: 'bg-green-500'  },
+            { key: 'confirmed' as const, label: '已成交', count: confirmedCount, color: 'bg-green-500'  },
             { key: 'cancelled' as const, label: '已取消', count: cancelledCount, color: 'bg-gray-400'   },
           ];
           return (
