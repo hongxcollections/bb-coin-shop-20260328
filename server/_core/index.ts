@@ -295,6 +295,26 @@ async function bootstrapMissingColumns() {
     );
   }
 
+  // 買家失約標記（商戶 cancel 時可標記）→ 失約累積到門檻會被該商戶封鎖
+  if (!(await check('productOrders', 'markedAsBuyerFailure'))) {
+    await alter(
+      `ALTER TABLE \`productOrders\` ADD COLUMN \`markedAsBuyerFailure\` tinyint(1) NOT NULL DEFAULT 0`,
+      'Added markedAsBuyerFailure to productOrders'
+    );
+  }
+  if (!(await check('merchant_settings', 'failureLockThreshold'))) {
+    await alter(
+      `ALTER TABLE \`merchant_settings\` ADD COLUMN \`failureLockThreshold\` int NOT NULL DEFAULT 3`,
+      'Added failureLockThreshold to merchant_settings'
+    );
+  }
+  if (!(await check('merchant_settings', 'failureLockDays'))) {
+    await alter(
+      `ALTER TABLE \`merchant_settings\` ADD COLUMN \`failureLockDays\` int NOT NULL DEFAULT 3`,
+      'Added failureLockDays to merchant_settings'
+    );
+  }
+
   // 加 merchantProducts.allowOffers
   if (!(await check('merchantProducts', 'allowOffers'))) {
     await alter(

@@ -94,7 +94,7 @@ const ORDER_STATUS_COLORS: Record<string, string> = {
 };
 
 function OrderActionDialog({ order, type, onClose, onConfirm, isPending }: {
-  order: any; type: "confirm" | "cancel"; onClose: () => void; onConfirm: (finalPrice?: number) => void; isPending: boolean;
+  order: any; type: "confirm" | "cancel"; onClose: () => void; onConfirm: (finalPrice?: number, markAsFailure?: boolean) => void; isPending: boolean;
 }) {
   const listedPrice = parseFloat(String(order.price));
   const qty = parseInt(String(order.quantity));
@@ -103,6 +103,7 @@ function OrderActionDialog({ order, type, onClose, onConfirm, isPending }: {
   const isConfirm = type === "confirm";
 
   const [finalPriceInput, setFinalPriceInput] = useState("");
+  const [markAsFailure, setMarkAsFailure] = useState(false);
   const finalPrice = finalPriceInput !== "" ? parseFloat(finalPriceInput) : null;
   const actualUnitPrice = (finalPrice != null && finalPrice > 0) ? finalPrice : listedPrice;
   const commissionAmount = actualUnitPrice * qty * commissionRate;
@@ -157,13 +158,32 @@ function OrderActionDialog({ order, type, onClose, onConfirm, isPending }: {
           </div>
         )}
         {!isConfirm && (
-          <p className="text-sm text-gray-500">確定取消此訂單？取消後不會扣除傭金。</p>
+          <>
+            <p className="text-sm text-gray-500">確定取消此訂單？取消後不會扣除傭金。</p>
+            <label className="flex items-start gap-2 bg-red-50 rounded-xl px-3 py-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={markAsFailure}
+                onChange={(e) => setMarkAsFailure(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-red-500 shrink-0"
+              />
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-red-600">標記買家失約</p>
+                <p className="text-[11px] text-gray-500 leading-relaxed mt-0.5">
+                  失約累積到設定門檻後，將自動暫停該買家對你嘅落單／出價／排價（凍結日數可在「商戶設定」調整）。
+                </p>
+              </div>
+            </label>
+          </>
         )}
 
         <div className="flex gap-2 pt-1">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50">返回</button>
           <button
-            onClick={() => onConfirm(isConfirm && finalPrice != null && finalPrice > 0 ? finalPrice : undefined)}
+            onClick={() => onConfirm(
+              isConfirm && finalPrice != null && finalPrice > 0 ? finalPrice : undefined,
+              !isConfirm ? markAsFailure : undefined,
+            )}
             disabled={isPending}
             className={`flex-1 py-2.5 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-60 ${isConfirm ? "bg-green-500 hover:bg-green-600" : "bg-red-400 hover:bg-red-500"}`}
           >
@@ -387,9 +407,9 @@ export function MerchantOrdersTab() {
           order={actionDialog.order}
           type={actionDialog.type}
           onClose={() => setActionDialog(null)}
-          onConfirm={(finalPrice) => {
+          onConfirm={(finalPrice, markAsFailure) => {
             if (actionDialog.type === "confirm") confirm.mutate({ orderId: actionDialog.order.id, finalPrice });
-            else cancel.mutate({ orderId: actionDialog.order.id, reason: "商戶取消" });
+            else cancel.mutate({ orderId: actionDialog.order.id, reason: markAsFailure ? "商戶取消（買家失約）" : "商戶取消", markAsFailure });
           }}
           isPending={confirm.isPending || cancel.isPending}
         />

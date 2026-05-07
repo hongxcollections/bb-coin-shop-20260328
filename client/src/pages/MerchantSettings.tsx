@@ -1297,8 +1297,82 @@ export default function MerchantSettings() {
             <OfferLimitsEditor settings={settings} />
           </CardContent>
         </Card>
+
+        <FailureLockCard settings={settings} />
       </div>
     </div>
+  );
+}
+
+function FailureLockCard({ settings }: { settings: any }) {
+  const utils = trpc.useUtils();
+  const [threshold, setThreshold] = useState<number>(3);
+  const [lockDays, setLockDays] = useState<number>(3);
+  const [initialized, setInitialized] = useState(false);
+  useEffect(() => {
+    if (settings && !initialized) {
+      setThreshold(Number(settings.failureLockThreshold ?? 3));
+      setLockDays(Number(settings.failureLockDays ?? 3));
+      setInitialized(true);
+    }
+  }, [settings, initialized]);
+
+  const m = trpc.merchants.setFailureLock.useMutation({
+    onSuccess: () => {
+      toast.success("已儲存買家失約封鎖設定");
+      utils.merchants.getSettings.invalidate();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <Card className="border-red-200">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-red-600">
+          <ShieldCheck className="w-5 h-5" />
+          買家失約封鎖
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs text-gray-500 leading-relaxed">
+          當你喺取消訂單時剔咗「標記買家失約」，呢位買家對你嘅失約紀錄會累積。
+          達到下方門檻後，該買家會被自動暫停對你旗下所有商品嘅落單、出價同排價，凍結期由最後一次失約計起。
+          只計過去 30 日內嘅失約。
+        </p>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span>失約累積</span>
+          <input
+            type="number"
+            min={1}
+            max={20}
+            value={threshold}
+            onChange={(e) => setThreshold(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+            className="w-16 px-2 py-1 border border-red-200 rounded text-center"
+          />
+          <span>次後，自動凍結</span>
+          <input
+            type="number"
+            min={1}
+            max={60}
+            value={lockDays}
+            onChange={(e) => setLockDays(Math.max(1, Math.min(60, Number(e.target.value) || 1)))}
+            className="w-16 px-2 py-1 border border-red-200 rounded text-center"
+          />
+          <span>日</span>
+        </div>
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            onClick={() => m.mutate({ threshold, lockDays })}
+            disabled={m.isPending}
+            className="bg-red-500 hover:bg-red-600 text-white border-0 gap-1.5"
+          >
+            {m.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            儲存
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

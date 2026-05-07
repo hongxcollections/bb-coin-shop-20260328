@@ -3304,13 +3304,15 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   offersGloballyEnabled: 1,
   offerWindowDays: 7,
   offerMaxPerWindow: 3,
+  failureLockThreshold: 3,
+  failureLockDays: 3,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, offersGloballyEnabled, offerWindowDays, offerMaxPerWindow FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, offersGloballyEnabled, offerWindowDays, offerMaxPerWindow, failureLockThreshold, failureLockDays FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -3348,6 +3350,8 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         offersGloballyEnabled: Number(row.offersGloballyEnabled ?? 1),
         offerWindowDays: Number(row.offerWindowDays ?? 7),
         offerMaxPerWindow: Number(row.offerMaxPerWindow ?? 3),
+        failureLockThreshold: Number(row.failureLockThreshold ?? 3),
+        failureLockDays: Number(row.failureLockDays ?? 3),
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -3417,6 +3421,79 @@ export async function setMerchantOffersEnabled(userId: number, enabled: number):
     VALUES (${userId}, ${enabled})
     ON DUPLICATE KEY UPDATE offersGloballyEnabled = ${enabled}, updatedAt = CURRENT_TIMESTAMP
   `);
+}
+
+export async function setMerchantFailureLock(userId: number, threshold: number, days: number): Promise<void> {
+  await ensureMerchantSettingsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const t = Math.max(1, Math.min(20, Math.floor(threshold)));
+  const d = Math.max(1, Math.min(60, Math.floor(days)));
+  await db.execute(sql`
+    INSERT INTO merchant_settings (userId, failureLockThreshold, failureLockDays)
+    VALUES (${userId}, ${t}, ${d})
+    ON DUPLICATE KEY UPDATE failureLockThreshold = ${t}, failureLockDays = ${d}, updatedAt = CURRENT_TIMESTAMP
+  `);
+}
+
+/**
+ * 計算買家對某商戶嘅封鎖狀況：
+ * - 過去 30 日內被該商戶 cancel 並標記失約嘅次數 >= threshold → 由最後一次失約計起 lockDays 日內凍結
+ * 回傳 { locked, lockedUntil, failureCount, threshold, lockDays, lastFailureAt, merchantName }
+ */
+export async function getBuyerLockFromMerchant(buyerId: number, merchantId: number): Promise<{
+  locked: boolean;
+  lockedUntil: Date | null;
+  failureCount: number;
+  threshold: number;
+  lockDays: number;
+  lastFailureAt: Date | null;
+  merchantName: string | null;
+}> {
+  const settings = await getMerchantSettings(merchantId);
+  const threshold = Math.max(1, Number(settings.failureLockThreshold ?? 3));
+  const lockDays = Math.max(1, Number(settings.failureLockDays ?? 3));
+  const db = await getDb();
+  if (!db) return { locked: false, lockedUntil: null, failureCount: 0, threshold, lockDays, lastFailureAt: null, merchantName: null };
+  try {
+    const rows: any = await db.execute(sql`
+      SELECT COUNT(*) AS cnt, MAX(cancelledAt) AS lastFailure
+      FROM productOrders
+      WHERE buyerId = ${buyerId}
+        AND merchantId = ${merchantId}
+        AND status = 'cancelled'
+        AND markedAsBuyerFailure = 1
+        AND cancelledAt IS NOT NULL
+        AND cancelledAt > (NOW() - INTERVAL 30 DAY)
+    `);
+    const row: any = (rows[0] as any[])[0] ?? {};
+    const failureCount = Number(row.cnt ?? 0);
+    const lastFailureAt = row.lastFailure ? new Date(row.lastFailure) : null;
+    let lockedUntil: Date | null = null;
+    if (failureCount >= threshold && lastFailureAt) {
+      lockedUntil = new Date(lastFailureAt.getTime() + lockDays * 24 * 60 * 60 * 1000);
+    }
+    const locked = !!(lockedUntil && lockedUntil.getTime() > Date.now());
+    let merchantName: string | null = null;
+    try {
+      const m: any = await db.execute(sql`SELECT merchantName FROM merchantApplications WHERE userId = ${merchantId} AND status = 'approved' LIMIT 1`);
+      merchantName = (m[0] as any[])[0]?.merchantName ?? null;
+    } catch {}
+    return { locked, lockedUntil, failureCount, threshold, lockDays, lastFailureAt, merchantName };
+  } catch (e) {
+    console.error('[getBuyerLockFromMerchant] error', e);
+    return { locked: false, lockedUntil: null, failureCount: 0, threshold, lockDays, lastFailureAt: null, merchantName: null };
+  }
+}
+
+export async function assertBuyerNotLockedFromMerchant(buyerId: number, merchantId: number, action: '落單' | '出價' | '排價' = '落單'): Promise<void> {
+  if (buyerId === merchantId) return;
+  const lock = await getBuyerLockFromMerchant(buyerId, merchantId);
+  if (lock.locked && lock.lockedUntil) {
+    const untilStr = lock.lockedUntil.toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const merchantLabel = lock.merchantName ? `「${lock.merchantName}」` : '此商戶';
+    throw new Error(`你因失約 ${lock.failureCount} 次，已被${merchantLabel}暫停${action}權限至 ${untilStr}（HKT）。`);
+  }
 }
 
 export async function setMerchantOfferLimits(userId: number, windowDays: number, maxPerWindow: number): Promise<void> {
@@ -4559,7 +4636,7 @@ export async function confirmProductOrder(orderId: number, merchantId: number, f
   return { ok: true };
 }
 
-export async function cancelProductOrder(orderId: number, byUserId: number, isAdmin: boolean, reason?: string): Promise<{ ok: boolean; error?: string }> {
+export async function cancelProductOrder(orderId: number, byUserId: number, isAdmin: boolean, reason?: string, markAsFailure?: boolean): Promise<{ ok: boolean; error?: string }> {
   await ensureProductOrdersTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
@@ -4580,8 +4657,16 @@ export async function cancelProductOrder(orderId: number, byUserId: number, isAd
     }
   }
 
+  // 「標記買家失約」只可由商戶本人或 admin 設定
+  const isMerchantOrAdmin = isAdmin || order.merchantId === byUserId;
+  const failureFlag = (markAsFailure && isMerchantOrAdmin) ? 1 : 0;
+
   await db.execute(sql`
-    UPDATE productOrders SET status = 'cancelled', cancelledAt = NOW(), cancelReason = ${reason ?? null}
+    UPDATE productOrders
+    SET status = 'cancelled',
+        cancelledAt = NOW(),
+        cancelReason = ${reason ?? null},
+        markedAsBuyerFailure = ${failureFlag}
     WHERE id = ${orderId}
   `);
   return { ok: true };

@@ -11,7 +11,7 @@ import { merchantApplications as merchantAppsTable, merchantProducts as merchant
 import { sanitizeUserText } from "./_core/sanitize";
 import { eq, sql } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, requestCancelProductOrder, withdrawCancelRequest, respondCancelRequest, deleteBuyerOrder, getMerchantAuctionOrders, confirmMerchantAuctionOrder, cancelMerchantAuctionOrder, countPendingMerchantAuctionOrders, countMerchantAuctionOrdersByStatus, countMerchantProductOrdersByStatus, countBuyerPendingWonAuctions, countBuyerAcceptedOffers, cancelBuyerOffer, hideBuyerOffer, hideMerchantOffer, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS, toggleMessageReaction, listReactionsForRoom, listReactionsForMessage, upsertChatAutoReply, getLastMerchantOrAutoReplyAt, searchChatMessagesInRoom, searchChatMessagesAcrossMyRooms, setMerchantOffersEnabled, setMerchantOfferLimits, createProductOffer, countRecentBuyerOffersForProduct, getProductOfferById, getActiveBuyerOfferForProduct, listOffersForBuyer, listOffersForMerchant, countPendingOffersForMerchant, respondProductOffer, markOfferPurchased, claimAcceptedOffer, releaseClaimedOffer, getUserMemberLevel } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, requestCancelProductOrder, withdrawCancelRequest, respondCancelRequest, deleteBuyerOrder, assertBuyerNotLockedFromMerchant, getBuyerLockFromMerchant, setMerchantFailureLock, getMerchantAuctionOrders, confirmMerchantAuctionOrder, cancelMerchantAuctionOrder, countPendingMerchantAuctionOrders, countMerchantAuctionOrdersByStatus, countMerchantProductOrdersByStatus, countBuyerPendingWonAuctions, countBuyerAcceptedOffers, cancelBuyerOffer, hideBuyerOffer, hideMerchantOffer, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS, toggleMessageReaction, listReactionsForRoom, listReactionsForMessage, upsertChatAutoReply, getLastMerchantOrAutoReplyAt, searchChatMessagesInRoom, searchChatMessagesAcrossMyRooms, setMerchantOffersEnabled, setMerchantOfferLimits, createProductOffer, countRecentBuyerOffersForProduct, getProductOfferById, getActiveBuyerOfferForProduct, listOffersForBuyer, listOffersForMerchant, countPendingOffersForMerchant, respondProductOffer, markOfferPurchased, claimAcceptedOffer, releaseClaimedOffer, getUserMemberLevel } from "./db";
 import { storagePut, storageSignPut } from "./storage";
 import { applyWatermark } from "./watermark";
 import { getRawPool } from "./db";
@@ -308,6 +308,11 @@ export const appRouter = router({
         const auctionForBid = await getAuctionById(input.auctionId);
         if (auctionForBid && auctionForBid.createdBy === ctx.user.id) {
           throw new TRPCError({ code: 'FORBIDDEN', message: '不能競投自己刊登的拍賣' });
+        }
+        // 失約封鎖檢查（針對該拍賣商戶）
+        if (auctionForBid?.createdBy) {
+          try { await assertBuyerNotLockedFromMerchant(ctx.user.id, auctionForBid.createdBy, '出價'); }
+          catch (err) { throw new TRPCError({ code: 'FORBIDDEN', message: err instanceof Error ? err.message : '已被該商戶暫停出價' }); }
         }
         // Loyalty 等級限制：匿名出價權限校驗
         if ((input.isAnonymous ?? 0) === 1) {
@@ -3515,6 +3520,29 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    /** 商戶：設定買家失約封鎖（門檻 + 凍結日數） */
+    setFailureLock: protectedProcedure
+      .input(z.object({
+        threshold: z.number().int().min(1).max(20),
+        lockDays: z.number().int().min(1).max(60),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        await setMerchantFailureLock(ctx.user.id, input.threshold, input.lockDays);
+        return { success: true };
+      }),
+
+    /** 買家：查詢自己係邊個商戶被封鎖（可選用，前端友善提示） */
+    myLockStatusForMerchant: protectedProcedure
+      .input(z.object({ merchantId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        const lock = await getBuyerLockFromMerchant(ctx.user.id, input.merchantId);
+        return lock;
+      }),
+
     /** 商戶：設定排價限制（同一商品 X 日內最多 Y 次） */
     setOfferLimits: protectedProcedure
       .input(z.object({
@@ -3653,6 +3681,10 @@ export const appRouter = router({
         if (product.stock < input.quantity) throw new TRPCError({ code: 'BAD_REQUEST', message: '庫存不足' });
         if (product.merchantId === ctx.user.id) throw new TRPCError({ code: 'BAD_REQUEST', message: '不能購買自己的商品' });
 
+        // 失約封鎖檢查
+        try { await assertBuyerNotLockedFromMerchant(ctx.user.id, product.merchantId, '落單'); }
+        catch (err) { throw new TRPCError({ code: 'FORBIDDEN', message: err instanceof Error ? err.message : '已被該商戶暫停落單' }); }
+
         const deposit = await getOrCreateSellerDeposit(product.merchantId);
         // 優先用貨品傭金率，若未設定則 fallback 拍賣傭金率，最後 fallback 5%
         const commissionRate = deposit
@@ -3719,7 +3751,7 @@ export const appRouter = router({
 
     /** 取消訂單（商戶或管理員，買家請改用 requestCancel） */
     cancel: protectedProcedure
-      .input(z.object({ orderId: z.number(), reason: z.string().max(200).optional() }))
+      .input(z.object({ orderId: z.number(), reason: z.string().max(200).optional(), markAsFailure: z.boolean().optional() }))
       .mutation(async ({ input, ctx }) => {
         const isAdmin = ctx.user.role === 'admin';
         if (!isAdmin) {
@@ -3729,7 +3761,7 @@ export const appRouter = router({
             throw new TRPCError({ code: 'FORBIDDEN', message: '買家不可直接取消，請改用「申請取消訂單」' });
           }
         }
-        const result = await cancelProductOrder(input.orderId, ctx.user.id, isAdmin, input.reason);
+        const result = await cancelProductOrder(input.orderId, ctx.user.id, isAdmin, input.reason, input.markAsFailure);
         if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
         return { success: true };
       }),
@@ -6194,6 +6226,9 @@ ${kb}`;
         if (existing) {
           throw new TRPCError({ code: 'CONFLICT', message: '你對此商品已有一個未處理嘅排價' });
         }
+        // 失約封鎖檢查
+        try { await assertBuyerNotLockedFromMerchant(ctx.user.id, product.merchantId, '排價'); }
+        catch (err) { throw new TRPCError({ code: 'FORBIDDEN', message: err instanceof Error ? err.message : '已被該商戶暫停排價' }); }
         // 同一商品 X 日內最多 Y 次（由商戶後台設定，預設 7 日 3 次；包括已取消／已拒絕）
         const windowDays = Math.max(1, Number((settings as any).offerWindowDays ?? 7));
         const maxPerWindow = Math.max(1, Number((settings as any).offerMaxPerWindow ?? 3));
