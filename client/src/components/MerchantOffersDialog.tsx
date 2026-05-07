@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tag, Loader2, CheckCircle2, XCircle, Clock, ShoppingBag, Trash2 } from "lucide-react";
-import { Link } from "wouter";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
@@ -36,6 +36,7 @@ function getFirstImg(images: string | null | undefined): string | null {
 
 export default function MerchantOffersDialog({ open, onOpenChange }: MerchantOffersDialogProps) {
   const utils = trpc.useUtils();
+  const [, setLocation] = useLocation();
   const [tab, setTab] = useState<"pending" | "accepted" | "all">("pending");
   const [respondingId, setRespondingId] = useState<number | null>(null);
   const [responseText, setResponseText] = useState("");
@@ -200,11 +201,14 @@ export default function MerchantOffersDialog({ open, onOpenChange }: MerchantOff
                     <p className="text-[11px] text-gray-500">你嘅回覆：{o.merchantResponse}</p>
                   )}
                   {o.status === "purchased" && o.orderId && (
-                    <Link href={`/merchant-products?tab=orders`}>
-                      <Button size="sm" variant="outline" className="w-full gap-1.5">
-                        <ShoppingBag className="w-3.5 h-3.5" />查看訂單 #{o.orderId}
-                      </Button>
-                    </Link>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full gap-1.5"
+                      onClick={() => { onOpenChange(false); setLocation(`/merchant-products?tab=orders`); }}
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5" />查看訂單 #{o.orderId}
+                    </Button>
                   )}
                   {(o.status === "rejected" || o.status === "cancelled" || o.status === "expired") && (
                     <Button

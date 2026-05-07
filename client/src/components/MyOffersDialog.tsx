@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Tag, Loader2, CheckCircle2, XCircle, Clock, ShoppingCart, Ban, Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 
 interface MyOffersDialogProps {
@@ -30,6 +30,7 @@ function getFirstImg(images: string | null | undefined): string | null {
 
 export default function MyOffersDialog({ open, onOpenChange }: MyOffersDialogProps) {
   const utils = trpc.useUtils();
+  const [, setLocation] = useLocation();
   const [tab, setTab] = useState<"pending" | "accepted" | "all">("all");
   const [cancelTarget, setCancelTarget] = useState<{ id: number; productName?: string } | null>(null);
 
@@ -200,9 +201,14 @@ export default function MyOffersDialog({ open, onOpenChange }: MyOffersDialogPro
                     </div>
                   )}
                   {o.status === "purchased" && o.orderId && (
-                    <Link href={`/bid-history?tab=orders`}>
-                      <Button size="sm" variant="outline" className="w-full">查看訂單 #{o.orderId}</Button>
-                    </Link>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => { onOpenChange(false); setLocation(`/bid-history?tab=orders`); }}
+                    >
+                      查看訂單 #{o.orderId}
+                    </Button>
                   )}
                 </div>
               );
