@@ -17,7 +17,7 @@ const STATUS_LABELS: Record<string, { label: string; cls: string; icon: any }> =
   rejected: { label: "已被拒絕", cls: "bg-rose-100 text-rose-700", icon: XCircle },
   expired: { label: "已過期", cls: "bg-gray-100 text-gray-500", icon: Clock },
   cancelled: { label: "已取消", cls: "bg-gray-100 text-gray-500", icon: Ban },
-  purchased: { label: "已成交", cls: "bg-blue-100 text-blue-700", icon: ShoppingCart },
+  purchased: { label: "訂單待確認", cls: "bg-blue-100 text-blue-700", icon: ShoppingCart },
   converting: { label: "處理中", cls: "bg-amber-100 text-amber-700", icon: Loader2 },
 };
 
