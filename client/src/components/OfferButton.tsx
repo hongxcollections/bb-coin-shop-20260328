@@ -40,7 +40,7 @@ export default function OfferButton({ product, className }: OfferButtonProps) {
     }
     try {
       const lock = await utils.merchants.myLockStatusForMerchant.fetch({ merchantId: product.merchantId });
-      if (lock?.locked && lock.lockedUntil) {
+      if (lock?.enabled && lock.locked && lock.lockedUntil) {
         const until = new Date(lock.lockedUntil).toLocaleString('zh-HK', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
         toast.error(`你已被「${lock.merchantName ?? '此商戶'}」暫停落單／出價／排價，至 ${until}`);
         return;

@@ -3458,6 +3458,10 @@ export async function getBuyerLockFromMerchant(buyerId: number, merchantId: numb
   const threshold = Math.max(1, Number(settings.failureLockThreshold ?? 3));
   const lockDays = Math.max(1, Number(settings.failureLockDays ?? 3));
   const enabled = Number(settings.failureLockEnabled ?? 0) === 1;
+  // 商戶關閉「買家失約封鎖」總開關時，完全跳過任何查詢／檢查
+  if (!enabled) {
+    return { locked: false, lockedUntil: null, failureCount: 0, threshold, lockDays, lastFailureAt: null, merchantName: null, enabled };
+  }
   const db = await getDb();
   if (!db) return { locked: false, lockedUntil: null, failureCount: 0, threshold, lockDays, lastFailureAt: null, merchantName: null, enabled };
   try {

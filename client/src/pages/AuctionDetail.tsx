@@ -338,7 +338,8 @@ export default function AuctionDetail() {
     if (sellerId && user && sellerId !== user.id) {
       try {
         const lock = await utils.merchants.myLockStatusForMerchant.fetch({ merchantId: sellerId });
-        if (lock?.locked && lock.lockedUntil) {
+        // 商戶關閉「買家失約封鎖」總開關 → 跳過任何凍結提示
+        if (lock?.enabled && lock.locked && lock.lockedUntil) {
           const until = new Date(lock.lockedUntil).toLocaleString('zh-HK', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
           toast.error(`你已被「${lock.merchantName ?? '此賣家'}」暫停出價`, {
             description: `凍結至 ${until}`,
