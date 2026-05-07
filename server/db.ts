@@ -4939,6 +4939,87 @@ export async function countPendingMerchantAuctionOrders(merchantId: number): Pro
   return Number((rows ?? [])[0]?.cnt ?? 0);
 }
 
+/** 買家：列出我嘅已隱藏訂單（hiddenForBuyer = 1） */
+export async function getHiddenProductOrdersByBuyer(buyerId: number): Promise<any[]> {
+  await ensureProductOrdersTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const rows = await db.execute(sql`
+    SELECT o.*, ma.merchantName
+    FROM productOrders o
+    LEFT JOIN merchantApplications ma ON ma.userId = o.merchantId AND ma.status = 'approved'
+    WHERE o.buyerId = ${buyerId} AND COALESCE(o.hiddenForBuyer, 0) = 1
+    ORDER BY o.createdAt DESC
+  `);
+  return (rows[0] as any[]) ?? [];
+}
+
+/** 商戶：列出我嘅已隱藏訂單（hiddenForMerchant = 1） */
+export async function getHiddenProductOrdersByMerchant(merchantId: number): Promise<any[]> {
+  await ensureProductOrdersTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const rows = await db.execute(sql`
+    SELECT o.*, u.name as buyerDisplayName, u.phone as buyerPhoneFromUser,
+           mp.images as productImages,
+           TIMESTAMPDIFF(DAY, o.createdAt, NOW()) AS pendingDays
+    FROM productOrders o
+    LEFT JOIN users u ON u.id = o.buyerId
+    LEFT JOIN merchantProducts mp ON mp.id = o.productId
+    WHERE o.merchantId = ${merchantId} AND COALESCE(o.hiddenForMerchant, 0) = 1
+    ORDER BY o.createdAt DESC
+  `);
+  return (rows[0] as any[]) ?? [];
+}
+
+/** 買家：取消隱藏（將訂單還原到正常清單） */
+export async function restoreBuyerOrder(orderId: number, buyerId: number): Promise<{ ok: boolean; error?: string }> {
+  await ensureProductOrdersTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const rows = await db.execute(sql`SELECT id, buyerId FROM productOrders WHERE id = ${orderId} LIMIT 1`);
+  const order = ((rows[0] as any[])[0]) as any;
+  if (!order) return { ok: false, error: '找不到此訂單' };
+  if (order.buyerId !== buyerId) return { ok: false, error: '無權操作' };
+  await db.execute(sql`UPDATE productOrders SET hiddenForBuyer = 0 WHERE id = ${orderId} AND buyerId = ${buyerId}`);
+  return { ok: true };
+}
+
+/** 商戶：取消隱藏（將訂單還原到正常清單） */
+export async function restoreMerchantOrder(orderId: number, merchantId: number, isAdmin = false): Promise<{ ok: boolean; error?: string }> {
+  await ensureProductOrdersTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const rows = await db.execute(sql`SELECT id, merchantId FROM productOrders WHERE id = ${orderId} LIMIT 1`);
+  const order = ((rows[0] as any[])[0]) as any;
+  if (!order) return { ok: false, error: '找不到此訂單' };
+  if (!isAdmin && order.merchantId !== merchantId) return { ok: false, error: '無權操作' };
+  await db.execute(sql`UPDATE productOrders SET hiddenForMerchant = 0 WHERE id = ${orderId}`);
+  return { ok: true };
+}
+
+/** 買家：已隱藏訂單嘅總數（badge 用） */
+export async function countHiddenProductOrdersByBuyer(buyerId: number): Promise<number> {
+  await ensureProductOrdersTable();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT COUNT(*) AS cnt FROM productOrders WHERE buyerId = ? AND COALESCE(hiddenForBuyer, 0) = 1`,
+    [buyerId]
+  );
+  return Number(rows?.[0]?.cnt ?? 0);
+}
+
+/** 商戶：已隱藏訂單嘅總數（badge 用） */
+export async function countHiddenProductOrdersByMerchant(merchantId: number): Promise<number> {
+  await ensureProductOrdersTable();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT COUNT(*) AS cnt FROM productOrders WHERE merchantId = ? AND COALESCE(hiddenForMerchant, 0) = 1`,
+    [merchantId]
+  );
+  return Number(rows?.[0]?.cnt ?? 0);
+}
+
 /**
  * 買家：將訂單從自己嘅清單軟隱藏（永不物理刪除，保留交易憑證）。
  * - 待確認嘅訂單必須先取消／處理，唔畀直接隱藏

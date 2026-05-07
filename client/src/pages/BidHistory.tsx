@@ -5,7 +5,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, TrendingUp, Trophy, ChevronDown, ChevronUp, ShoppingBag, Trash2, Tag } from "lucide-react";
+import { Clock, TrendingUp, Trophy, ChevronDown, ChevronUp, ShoppingBag, Trash2, Tag, RotateCcw } from "lucide-react";
 import MyOffersDialog from "@/components/MyOffersDialog";
 import { toast } from "sonner";
 import { ShareMenu } from "@/components/ShareMenu";
@@ -121,7 +121,7 @@ type ProductOrderItem = {
   cancelRequestRejectReason?: string | null;
 };
 
-function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCancel: () => void }) {
+function ProductOrderCard({ order, onCancel, isHidden = false }: { order: ProductOrderItem; onCancel: () => void; isHidden?: boolean }) {
   const utils = trpc.useUtils();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -135,8 +135,23 @@ function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCanc
     onError: (e) => toast.error(e.message),
   });
   const deleteOrder = trpc.productOrders.deleteBuyerOrder.useMutation({
-    onSuccess: () => { utils.productOrders.myBuyerOrders.invalidate(); toast.success('已從你嘅清單隱藏'); setShowDeleteConfirm(false); },
+    onSuccess: () => {
+      utils.productOrders.myBuyerOrders.invalidate();
+      utils.productOrders.myBuyerHiddenOrders.invalidate();
+      utils.productOrders.myBuyerHiddenCount.invalidate();
+      toast.success('已從你嘅清單隱藏');
+      setShowDeleteConfirm(false);
+    },
     onError: (e) => { toast.error(e.message); setShowDeleteConfirm(false); },
+  });
+  const restoreOrder = trpc.productOrders.restoreBuyerOrder.useMutation({
+    onSuccess: () => {
+      utils.productOrders.myBuyerOrders.invalidate();
+      utils.productOrders.myBuyerHiddenOrders.invalidate();
+      utils.productOrders.myBuyerHiddenCount.invalidate();
+      toast.success('已還原到正常清單');
+    },
+    onError: (e) => toast.error(e.message),
   });
 
   const statusCfg = ORDER_STATUS_CONFIG[order.status] ?? { label: order.status, color: 'bg-gray-100 text-gray-500 border-gray-200', icon: '?' };
@@ -192,8 +207,25 @@ function ProductOrderCard({ order, onCancel }: { order: ProductOrderItem; onCanc
         </div>
       )}
 
+      {/* 已隱藏 view：只顯示復原按鈕 */}
+      {isHidden && (
+        <div className="px-3 pb-2.5 flex items-center justify-between gap-2 border-t border-amber-50 pt-2">
+          <span className="text-[11px] text-gray-400">
+            <span className="px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">已隱藏</span>
+            <span className="ml-1.5">原狀態：{statusCfg.label}</span>
+          </span>
+          <button
+            onClick={() => restoreOrder.mutate({ orderId: order.id })}
+            disabled={restoreOrder.isPending}
+            className="text-[11px] text-amber-600 hover:text-amber-700 flex items-center gap-1 px-2 py-1 rounded-md border border-amber-200 bg-amber-50 hover:bg-amber-100 disabled:opacity-50"
+          >
+            <RotateCcw className="w-3 h-3" />復原到正常清單
+          </button>
+        </div>
+      )}
+
       {/* 底部操作列 */}
-      {(order.status === 'pending' || canDelete) && (
+      {!isHidden && (order.status === 'pending' || canDelete) && (
         <div className="px-3 pb-2.5 flex items-center justify-end gap-2 border-t border-amber-50">
           {order.status === 'pending' && order.cancelRequestStatus === 'pending' && (
             <button
@@ -449,6 +481,8 @@ export default function BidHistory() {
   const { data: myBids, isLoading } = trpc.auctions.myBids.useQuery(undefined, { enabled: isAuthenticated });
   const { data: wonAuctions, isLoading: wonLoading } = trpc.wonAuctions.myWon.useQuery(undefined, { enabled: isAuthenticated });
   const { data: myOrders, isLoading: ordersLoading } = trpc.productOrders.myBuyerOrders.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: myHiddenOrders, isLoading: hiddenOrdersLoading } = trpc.productOrders.myBuyerHiddenOrders.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: hiddenOrdersCount = 0 } = trpc.productOrders.myBuyerHiddenCount.useQuery(undefined, { enabled: isAuthenticated, staleTime: 15_000 });
   const [expandedBidId, setExpandedBidId] = useState<number | null>(null);
   const [bidFilter, setBidFilter] = useState<'all' | 'active' | 'won'>('all');
   const [activeTab, setActiveTab] = useState<'bids' | 'won' | 'orders'>(() => {
@@ -458,7 +492,7 @@ export default function BidHistory() {
     }
     return 'won';
   });
-  const [orderStatusFilter, setOrderStatusFilter] = useState<'pending' | 'confirmed' | 'cancelled'>('pending');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<'pending' | 'confirmed' | 'cancelled' | 'hidden'>('pending');
   const [orderPage, setOrderPage] = useState(1);
   const ORDER_PAGE_SIZE = 10;
   const [showOffersDialog, setShowOffersDialog] = useState(false);
@@ -744,18 +778,24 @@ export default function BidHistory() {
         {/* 我的訂單 Tab */}
         {activeTab === 'orders' && (() => {
           const allOrders = (myOrders ?? []) as ProductOrderItem[];
+          const allHidden = (myHiddenOrders ?? []) as ProductOrderItem[];
           const pendingCount   = allOrders.filter(o => o.status === 'pending').length;
           const confirmedCount = allOrders.filter(o => o.status === 'confirmed').length;
           const cancelledCount = allOrders.filter(o => o.status === 'cancelled').length;
-          const statusOrders = allOrders.filter(o => o.status === orderStatusFilter);
+          const isHiddenView = orderStatusFilter === 'hidden';
+          const statusOrders = isHiddenView
+            ? allHidden
+            : allOrders.filter(o => o.status === orderStatusFilter);
           const totalPages = Math.max(1, Math.ceil(statusOrders.length / ORDER_PAGE_SIZE));
           const safePage = Math.min(orderPage, totalPages);
           const filteredOrders = statusOrders.slice((safePage - 1) * ORDER_PAGE_SIZE, safePage * ORDER_PAGE_SIZE);
           const orderStatusTabs = [
-            { key: 'pending'   as const, label: '待確認', count: pendingCount,   color: 'bg-yellow-500' },
-            { key: 'confirmed' as const, label: '已成交', count: confirmedCount, color: 'bg-green-500'  },
-            { key: 'cancelled' as const, label: '已取消', count: cancelledCount, color: 'bg-gray-400'   },
+            { key: 'pending'   as const, label: '待確認', count: pendingCount,         color: 'bg-yellow-500' },
+            { key: 'confirmed' as const, label: '已成交', count: confirmedCount,       color: 'bg-green-500'  },
+            { key: 'cancelled' as const, label: '已取消', count: cancelledCount,       color: 'bg-gray-400'   },
+            { key: 'hidden'    as const, label: '已隱藏', count: Number(hiddenOrdersCount ?? 0), color: 'bg-gray-500' },
           ];
+          const showLoading = isHiddenView ? hiddenOrdersLoading : ordersLoading;
           return (
             <Card className="border-amber-100">
               <CardHeader className="pb-2">
@@ -766,8 +806,8 @@ export default function BidHistory() {
                     <span className="ml-auto text-xs font-normal text-muted-foreground">{allOrders.length} 件</span>
                   )}
                 </CardTitle>
-                {allOrders.length > 0 && (
-                  <div className="flex gap-1.5 mt-2">
+                {(allOrders.length > 0 || allHidden.length > 0) && (
+                  <div className="flex gap-1.5 mt-2 flex-wrap">
                     {orderStatusTabs.map(t => (
                       <button
                         key={t.key}
@@ -776,26 +816,37 @@ export default function BidHistory() {
                         className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                           orderStatusFilter === t.key
                             ? `${t.color} text-white`
-                            : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
+                            : t.key === 'hidden'
+                              ? 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-200'
+                              : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
                         }`}
                       >
                         {t.label}
                         <span className={`text-[0.6rem] px-1 py-0.5 rounded-full font-bold ${
-                          orderStatusFilter === t.key ? 'bg-white/30 text-white' : 'bg-amber-100 text-amber-600'
+                          orderStatusFilter === t.key
+                            ? 'bg-white/30 text-white'
+                            : t.key === 'hidden'
+                              ? 'bg-gray-100 text-gray-500'
+                              : 'bg-amber-100 text-amber-600'
                         }`}>{t.count}</span>
                       </button>
                     ))}
                   </div>
                 )}
+                {isHiddenView && (
+                  <p className="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 leading-relaxed mt-2">
+                    ℹ️ 呢度顯示你已從清單隱藏嘅紀錄。商戶側顯示不受影響，按「復原」可以將紀錄放返正常清單。
+                  </p>
+                )}
               </CardHeader>
               <CardContent>
-                {ordersLoading ? (
+                {showLoading ? (
                   <div className="space-y-3">
                     {[...Array(3)].map((_, i) => (
                       <div key={i} className="h-16 bg-amber-50 rounded-lg animate-pulse" />
                     ))}
                   </div>
-                ) : allOrders.length === 0 ? (
+                ) : (allOrders.length === 0 && allHidden.length === 0) ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <ShoppingBag className="w-10 h-10 mx-auto mb-3 opacity-30" />
                     <p className="font-medium">尚未購買任何商品</p>
@@ -812,7 +863,7 @@ export default function BidHistory() {
                 ) : (
                   <div className="space-y-2">
                     {filteredOrders.map((order) => (
-                      <ProductOrderCard key={order.id} order={order} onCancel={() => {}} />
+                      <ProductOrderCard key={order.id} order={order} onCancel={() => {}} isHidden={isHiddenView} />
                     ))}
                     {totalPages > 1 && (
                       <div className="flex items-center justify-between pt-2 border-t border-amber-100">

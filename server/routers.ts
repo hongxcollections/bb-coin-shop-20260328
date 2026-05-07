@@ -11,7 +11,7 @@ import { merchantApplications as merchantAppsTable, merchantProducts as merchant
 import { sanitizeUserText } from "./_core/sanitize";
 import { eq, sql } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, requestCancelProductOrder, withdrawCancelRequest, respondCancelRequest, deleteBuyerOrder, deleteMerchantOrder, assertBuyerNotLockedFromMerchant, getBuyerLockFromMerchant, setMerchantFailureLock, getMerchantAuctionOrders, confirmMerchantAuctionOrder, cancelMerchantAuctionOrder, countPendingMerchantAuctionOrders, countMerchantAuctionOrdersByStatus, countMerchantProductOrdersByStatus, countBuyerPendingWonAuctions, countBuyerAcceptedOffers, cancelBuyerOffer, hideBuyerOffer, hideMerchantOffer, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS, toggleMessageReaction, listReactionsForRoom, listReactionsForMessage, upsertChatAutoReply, getLastMerchantOrAutoReplyAt, searchChatMessagesInRoom, searchChatMessagesAcrossMyRooms, setMerchantOffersEnabled, setMerchantOfferLimits, createProductOffer, countRecentBuyerOffersForProduct, getProductOfferById, getActiveBuyerOfferForProduct, listOffersForBuyer, listOffersForMerchant, countPendingOffersForMerchant, respondProductOffer, markOfferPurchased, claimAcceptedOffer, releaseClaimedOffer, getUserMemberLevel } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, requestCancelProductOrder, withdrawCancelRequest, respondCancelRequest, deleteBuyerOrder, deleteMerchantOrder, getHiddenProductOrdersByBuyer, getHiddenProductOrdersByMerchant, restoreBuyerOrder, restoreMerchantOrder, countHiddenProductOrdersByBuyer, countHiddenProductOrdersByMerchant, assertBuyerNotLockedFromMerchant, getBuyerLockFromMerchant, setMerchantFailureLock, getMerchantAuctionOrders, confirmMerchantAuctionOrder, cancelMerchantAuctionOrder, countPendingMerchantAuctionOrders, countMerchantAuctionOrdersByStatus, countMerchantProductOrdersByStatus, countBuyerPendingWonAuctions, countBuyerAcceptedOffers, cancelBuyerOffer, hideBuyerOffer, hideMerchantOffer, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS, toggleMessageReaction, listReactionsForRoom, listReactionsForMessage, upsertChatAutoReply, getLastMerchantOrAutoReplyAt, searchChatMessagesInRoom, searchChatMessagesAcrossMyRooms, setMerchantOffersEnabled, setMerchantOfferLimits, createProductOffer, countRecentBuyerOffersForProduct, getProductOfferById, getActiveBuyerOfferForProduct, listOffersForBuyer, listOffersForMerchant, countPendingOffersForMerchant, respondProductOffer, markOfferPurchased, claimAcceptedOffer, releaseClaimedOffer, getUserMemberLevel } from "./db";
 import { storagePut, storageSignPut } from "./storage";
 import { applyWatermark } from "./watermark";
 import { getRawPool } from "./db";
@@ -3856,7 +3856,37 @@ export const appRouter = router({
         return getProductOrdersByBuyer(ctx.user.id);
       }),
 
-    /** 買家：永久刪除已確認／已取消的訂單紀錄 */
+    /** 買家：我嘅已隱藏訂單 */
+    myBuyerHiddenOrders: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getHiddenProductOrdersByBuyer(ctx.user.id);
+      }),
+
+    /** 買家：已隱藏訂單嘅數量（badge 用） */
+    myBuyerHiddenCount: protectedProcedure
+      .query(async ({ ctx }) => {
+        return countHiddenProductOrdersByBuyer(ctx.user.id);
+      }),
+
+    /** 商戶：我嘅已隱藏訂單 */
+    myMerchantHiddenOrders: protectedProcedure
+      .query(async ({ ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        return getHiddenProductOrdersByMerchant(ctx.user.id);
+      }),
+
+    /** 商戶：已隱藏訂單嘅數量（badge 用） */
+    myMerchantHiddenCount: protectedProcedure
+      .query(async ({ ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') return 0;
+        return countHiddenProductOrdersByMerchant(ctx.user.id);
+      }),
+
+    /** 買家：將訂單從自己清單軟隱藏（紀錄永遠保留，商戶側不受影響） */
     deleteBuyerOrder: protectedProcedure
       .input(z.object({ orderId: z.number() }))
       .mutation(async ({ input, ctx }) => {
@@ -3865,7 +3895,16 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    /** 商戶：清除已取消／已成交嘅訂單紀錄（標記失約嘅唔可以刪） */
+    /** 買家：取消隱藏訂單（還原到正常清單） */
+    restoreBuyerOrder: protectedProcedure
+      .input(z.object({ orderId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const result = await restoreBuyerOrder(input.orderId, ctx.user.id);
+        if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
+        return { success: true };
+      }),
+
+    /** 商戶：將訂單從自己清單軟隱藏（紀錄永遠保留，買家側不受影響） */
     deleteMerchantOrder: protectedProcedure
       .input(z.object({ orderId: z.number() }))
       .mutation(async ({ input, ctx }) => {
@@ -3877,6 +3916,22 @@ export const appRouter = router({
           }
         }
         const result = await deleteMerchantOrder(input.orderId, ctx.user.id, isAdmin);
+        if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
+        return { success: true };
+      }),
+
+    /** 商戶：取消隱藏訂單（還原到正常清單） */
+    restoreMerchantOrder: protectedProcedure
+      .input(z.object({ orderId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const isAdmin = ctx.user.role === 'admin';
+        if (!isAdmin) {
+          const app = await getMerchantApplicationByUser(ctx.user.id);
+          if (app?.status !== 'approved') {
+            throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+          }
+        }
+        const result = await restoreMerchantOrder(input.orderId, ctx.user.id, isAdmin);
         if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
         return { success: true };
       }),
