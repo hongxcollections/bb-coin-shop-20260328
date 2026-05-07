@@ -314,6 +314,12 @@ async function bootstrapMissingColumns() {
       'Added failureLockDays to merchant_settings'
     );
   }
+  if (!(await check('merchant_settings', 'failureLockEnabled'))) {
+    await alter(
+      `ALTER TABLE \`merchant_settings\` ADD COLUMN \`failureLockEnabled\` tinyint(1) NOT NULL DEFAULT 1`,
+      'Added failureLockEnabled to merchant_settings'
+    );
+  }
 
   // 加 merchantProducts.allowOffers
   if (!(await check('merchantProducts', 'allowOffers'))) {

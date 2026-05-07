@@ -3520,18 +3520,19 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    /** 商戶：設定買家失約封鎖（門檻 + 凍結日數） */
+    /** 商戶：設定買家失約封鎖（總開關 + 門檻 + 凍結日數） */
     setFailureLock: protectedProcedure
       .input(z.object({
         threshold: z.number().int().min(1).max(20),
         lockDays: z.number().int().min(1).max(60),
+        enabled: z.boolean().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const app = await getMerchantApplicationByUser(ctx.user.id);
         if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
         }
-        await setMerchantFailureLock(ctx.user.id, input.threshold, input.lockDays);
+        await setMerchantFailureLock(ctx.user.id, input.threshold, input.lockDays, input.enabled);
         return { success: true };
       }),
 

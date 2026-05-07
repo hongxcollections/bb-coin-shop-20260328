@@ -1308,11 +1308,13 @@ function FailureLockCard({ settings }: { settings: any }) {
   const utils = trpc.useUtils();
   const [thresholdStr, setThresholdStr] = useState<string>("3");
   const [lockDaysStr, setLockDaysStr] = useState<string>("3");
+  const [enabled, setEnabled] = useState<boolean>(true);
   const [initialized, setInitialized] = useState(false);
   useEffect(() => {
     if (settings && !initialized) {
       setThresholdStr(String(Number(settings.failureLockThreshold ?? 3)));
       setLockDaysStr(String(Number(settings.failureLockDays ?? 3)));
+      setEnabled(Number(settings.failureLockEnabled ?? 1) === 1);
       setInitialized(true);
     }
   }, [settings, initialized]);
@@ -1345,17 +1347,25 @@ function FailureLockCard({ settings }: { settings: any }) {
           達到下方門檻後，該買家會被自動暫停對你旗下所有商品嘅落單、出價同排價，凍結期由最後一次失約計起。
           只計過去 30 日內嘅失約。
         </p>
-        <div className="flex flex-wrap items-center gap-2 text-sm">
+        <div className="flex items-center justify-between bg-red-50 rounded-xl px-3 py-2.5 border border-red-100">
+          <div>
+            <p className="text-sm font-semibold text-red-700">啟用自動凍結</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">關閉後仍可標記失約作紀錄，但唔會自動凍結買家</p>
+          </div>
+          <Switch checked={enabled} onCheckedChange={setEnabled} />
+        </div>
+        <div className={`flex flex-wrap items-center gap-2 text-sm transition-opacity ${enabled ? '' : 'opacity-50'}`}>
           <span>失約累積</span>
           <input
             type="number"
             inputMode="numeric"
             min={1}
             max={20}
+            disabled={!enabled}
             value={thresholdStr}
             onChange={(e) => setThresholdStr(e.target.value.replace(/[^\d]/g, ""))}
             onBlur={() => setThresholdStr(String(clamp(thresholdStr, 1, 20, 3)))}
-            className="w-16 px-2 py-1 border border-red-200 rounded text-center"
+            className="w-16 px-2 py-1 border border-red-200 rounded text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
           />
           <span>次後，自動凍結</span>
           <input
@@ -1363,10 +1373,11 @@ function FailureLockCard({ settings }: { settings: any }) {
             inputMode="numeric"
             min={1}
             max={60}
+            disabled={!enabled}
             value={lockDaysStr}
             onChange={(e) => setLockDaysStr(e.target.value.replace(/[^\d]/g, ""))}
             onBlur={() => setLockDaysStr(String(clamp(lockDaysStr, 1, 60, 3)))}
-            className="w-16 px-2 py-1 border border-red-200 rounded text-center"
+            className="w-16 px-2 py-1 border border-red-200 rounded text-center disabled:bg-gray-100 disabled:cursor-not-allowed"
           />
           <span>日</span>
         </div>
@@ -1378,7 +1389,7 @@ function FailureLockCard({ settings }: { settings: any }) {
               const lockDays = clamp(lockDaysStr, 1, 60, 3);
               setThresholdStr(String(threshold));
               setLockDaysStr(String(lockDays));
-              m.mutate({ threshold, lockDays });
+              m.mutate({ threshold, lockDays, enabled });
             }}
             disabled={m.isPending}
             className="bg-red-500 hover:bg-red-600 text-white border-0 gap-1.5"
