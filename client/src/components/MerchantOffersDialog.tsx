@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tag, Loader2, CheckCircle2, XCircle, Clock, ShoppingBag, Trash2 } from "lucide-react";
+import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
@@ -197,6 +198,13 @@ export default function MerchantOffersDialog({ open, onOpenChange }: MerchantOff
                   )}
                   {o.merchantResponse && o.status !== "pending" && (
                     <p className="text-[11px] text-gray-500">你嘅回覆：{o.merchantResponse}</p>
+                  )}
+                  {o.status === "purchased" && o.orderId && (
+                    <Link href={`/merchant-products?tab=orders`}>
+                      <Button size="sm" variant="outline" className="w-full gap-1.5">
+                        <ShoppingBag className="w-3.5 h-3.5" />查看訂單 #{o.orderId}
+                      </Button>
+                    </Link>
                   )}
                   {(o.status === "rejected" || o.status === "cancelled" || o.status === "expired") && (
                     <Button
