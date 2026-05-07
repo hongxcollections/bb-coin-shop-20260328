@@ -4941,6 +4941,21 @@ export async function deleteBuyerOrder(orderId: number, buyerId: number): Promis
   return { ok: true };
 }
 
+/** 商戶：清除已取消／已成交嘅訂單紀錄。為咗保留失約計數，標記咗失約嘅訂單禁止刪除。 */
+export async function deleteMerchantOrder(orderId: number, merchantId: number, isAdmin = false): Promise<{ ok: boolean; error?: string }> {
+  await ensureProductOrdersTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  const rows = await db.execute(sql`SELECT id, merchantId, status, markedAsBuyerFailure FROM productOrders WHERE id = ${orderId} LIMIT 1`);
+  const order = ((rows[0] as any[])[0]) as any;
+  if (!order) return { ok: false, error: '找不到此訂單' };
+  if (!isAdmin && order.merchantId !== merchantId) return { ok: false, error: '無權操作' };
+  if (order.status === 'pending') return { ok: false, error: '待確認嘅訂單無法刪除，請先處理' };
+  if (Number(order.markedAsBuyerFailure) === 1) return { ok: false, error: '已標記失約嘅訂單唔可以刪除（保留失約計數所需）' };
+  await db.execute(sql`DELETE FROM productOrders WHERE id = ${orderId}`);
+  return { ok: true };
+}
+
 // ── 主打商品付費刊登 (featuredListings) ────────────────────────────────────
 
 // 各時段預設收費（HKD）— 程式碼預設值，可被 siteSettings 覆蓋
