@@ -2421,14 +2421,26 @@ export const appRouter = router({
           throw new TRPCError({ code: 'CONFLICT', message: '你已有一份待審申請，請耐心等候' });
         }
 
+        // ── 3-in-1 onboarding 全有全無檢查（避免 admin 端尷尬狀態）──
+        const onboardingFields = [
+          input.chosenPlanId, input.chosenPeriod, input.chosenDepositTierId,
+          input.paymentReference, input.paymentProofUrl,
+        ];
+        const someOnboarding = onboardingFields.some(v => v != null && v !== '');
+        const allOnboarding = !!(input.chosenPlanId && input.chosenPeriod
+          && input.chosenDepositTierId && input.paymentReference && input.paymentProofUrl);
+        if (someOnboarding && !allOnboarding) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: '完整入駐套餐需同時提供：訂閱計劃、月／年費、保證金套餐、付款參考號、收據圖。請補齊或切換至「純資料申請」模式',
+          });
+        }
+
         // 如果用戶揀咗 plan/tier，驗證合法
         if (input.chosenPlanId) {
           const plan = await getSubscriptionPlanById(input.chosenPlanId);
           if (!plan || !plan.isActive) {
             throw new TRPCError({ code: 'BAD_REQUEST', message: '所選訂閱計劃不存在或已停用' });
-          }
-          if (!input.chosenPeriod) {
-            throw new TRPCError({ code: 'BAD_REQUEST', message: '請選擇月費 / 年費' });
           }
         }
         if (input.chosenDepositTierId) {

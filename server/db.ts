@@ -2119,7 +2119,7 @@ export async function createUserSubscription(data: {
   const db = await getDb();
   if (!db) throw new Error('Database not available');
   try {
-    await db.insert(userSubscriptions).values({
+    const result = await db.insert(userSubscriptions).values({
       userId: data.userId,
       planId: data.planId,
       billingCycle: data.billingCycle,
@@ -2128,7 +2128,10 @@ export async function createUserSubscription(data: {
       paymentReference: data.paymentReference ?? null,
       paymentProofUrl: data.paymentProofUrl ?? null,
     });
-    return { success: true };
+    const id = (result as any)?.insertId
+      ?? ((Array.isArray(result) ? (result[0] as any)?.insertId : null))
+      ?? 0;
+    return { success: true, id: Number(id) };
   } catch (error) {
     console.error('[Database] Failed to create user subscription:', error);
     throw error;
@@ -3604,9 +3607,15 @@ export async function reviewMerchantApplication(
 
 /**
  * T1: 一鍵批核 3-in-1 onboarding 申請。
- * Atomic：批商戶 + 自動建立並批核訂閱（如果有揀 plan）+ 入帳保證金（如果有揀 tier）。
- * 任一步失敗會 throw 出去畀 router 處理；已成功嘅副作用唔會回滾（best-effort），
- * 但每步都係 idempotent-friendly（subscription / topUp 各自有獨立 record）。
+ * 執行順序刻意設計成「副作用易回滾／可重試」：
+ *   ① 預先驗證所有資料（plan、tier、payment proof / reference）→ fail-fast，merchant 仍 pending
+ *   ② 建立 subscription（pending）拿 insertId
+ *   ③ approveSubscription 用 insertId（無 race condition）
+ *   ④ topUpDeposit + 套用 commission rate
+ *   ⑤ **最後**先 reviewMerchantApplication('approved') — 之前任何一步 fail，merchant 仍 pending，admin 可重試
+ *
+ * 唯一需要手動處理嘅邊界：步驟 ⑤ 之後（merchant 已批）但 future 步驟 fail；目前無 future 步驟，所以安全。
+ * 如果 ④ 成功 ⑤ fail（極罕見），會喺 catch 入面詳細報錯，admin 可手動撤銷或重試。
  */
 export async function approveOnboardingApplication(
   applicationId: number,
@@ -3621,64 +3630,74 @@ export async function approveOnboardingApplication(
   if (!app) throw new Error('找不到商戶申請');
   if (app.status !== 'pending') throw new Error('此申請已審核');
 
-  // 1. 批商戶申請（重用既有邏輯：會建 sellerDeposits + checkVip）
-  await reviewMerchantApplication(applicationId, 'approved', adminNote);
+  // ── ① 預先驗證所有 onboarding 資料（fail-fast，merchant 仍 pending）──
+  const hasPlan = !!app.chosenPlanId && (app.chosenPeriod === 'monthly' || app.chosenPeriod === 'yearly');
+  const hasTier = !!app.chosenDepositTierId;
+
+  let chosenTier: { id: number; name: string; amount: any; commissionRate: any } | null = null;
+  if (hasTier) {
+    const [t] = await db.select().from(depositTierPresets)
+      .where(eq(depositTierPresets.id, app.chosenDepositTierId!)).limit(1);
+    if (!t) throw new Error('找不到指定保證金套餐，請改用「只批商戶」按鈕後手動處理');
+    chosenTier = t;
+  }
+
+  if (hasPlan) {
+    const plan = await getSubscriptionPlanById(app.chosenPlanId!);
+    if (!plan) throw new Error('找不到指定訂閱計劃，請改用「只批商戶」按鈕後手動處理');
+  }
 
   let subscriptionApproved = false;
   let depositToppedUp = false;
   let depositAmount = 0;
 
-  // 2. 如果有揀 plan → 建 subscription pending 然後即批
-  if (app.chosenPlanId && (app.chosenPeriod === 'monthly' || app.chosenPeriod === 'yearly')) {
-    try {
-      // 建 pending subscription，順便保留用戶提交嘅付款資料
-      await createUserSubscription({
-        userId: app.userId,
-        planId: app.chosenPlanId,
-        billingCycle: app.chosenPeriod as 'monthly' | 'yearly',
-        paymentMethod: 'merchant_onboarding',
-        paymentReference: app.paymentReference ?? undefined,
-        paymentProofUrl: app.paymentProofUrl ?? undefined,
-      });
-      // 攞返啱啱建嘅最新一張，approve 佢
-      const [latest] = await db.select({ id: userSubscriptions.id })
-        .from(userSubscriptions)
-        .where(and(eq(userSubscriptions.userId, app.userId), eq(userSubscriptions.planId, app.chosenPlanId)))
-        .orderBy(desc(userSubscriptions.createdAt))
-        .limit(1);
-      if (latest) {
-        await approveSubscription(latest.id, adminId, `[商戶 onboarding] ${adminNote ?? ''}`.trim());
-        subscriptionApproved = true;
-      }
-    } catch (err) {
-      console.error('[approveOnboardingApplication] subscription step failed:', err);
-      throw new Error(`商戶已批核，但訂閱開通失敗：${(err as Error).message}`);
+  // ── ② + ③ 訂閱（建立 + 立即批核）──
+  if (hasPlan) {
+    const created = await createUserSubscription({
+      userId: app.userId,
+      planId: app.chosenPlanId!,
+      billingCycle: app.chosenPeriod as 'monthly' | 'yearly',
+      paymentMethod: 'merchant_onboarding',
+      paymentReference: app.paymentReference ?? undefined,
+      paymentProofUrl: app.paymentProofUrl ?? undefined,
+    });
+    if (!created.id) {
+      throw new Error('訂閱建立失敗（無法取得 insertId），請改用「只批商戶」按鈕後手動處理');
     }
+    await approveSubscription(created.id, adminId, `[商戶 onboarding] ${adminNote ?? ''}`.trim());
+    subscriptionApproved = true;
   }
 
-  // 3. 如果有揀 tier → 入帳保證金（用 tier amount）+ 套用 tier commission rate
-  if (app.chosenDepositTierId) {
+  // ── ④ 保證金入帳 + 套用 tier commission rate ──
+  if (hasTier && chosenTier) {
+    depositAmount = parseFloat(chosenTier.amount.toString());
     try {
-      const [tier] = await db.select().from(depositTierPresets)
-        .where(eq(depositTierPresets.id, app.chosenDepositTierId)).limit(1);
-      if (!tier) throw new Error('找不到指定保證金套餐');
-      depositAmount = parseFloat(tier.amount.toString());
       await topUpDeposit(
         app.userId,
         depositAmount,
-        `商戶 onboarding 保證金套餐「${tier.name}」(參考號: ${app.paymentReference ?? '-'})`,
+        `商戶 onboarding 保證金套餐「${chosenTier.name}」(參考號: ${app.paymentReference ?? '-'})`,
         adminId
       );
-      // 套用 tier commission rate
-      if (tier.commissionRate) {
-        const rate = parseFloat(tier.commissionRate.toString());
+      if (chosenTier.commissionRate) {
+        const rate = parseFloat(chosenTier.commissionRate.toString());
         await updateSellerDepositSettings(app.userId, { commissionRate: rate });
       }
       depositToppedUp = true;
     } catch (err) {
-      console.error('[approveOnboardingApplication] deposit step failed:', err);
-      throw new Error(`商戶／訂閱已開通，但保證金入帳失敗：${(err as Error).message}`);
+      const detail = subscriptionApproved
+        ? `訂閱已開通但保證金入帳失敗：${(err as Error).message}\n請手動入帳後再「只批商戶」`
+        : `保證金入帳失敗：${(err as Error).message}`;
+      throw new Error(detail);
     }
+  }
+
+  // ── ⑤ 最後先批核商戶身份（之前任何一步 fail，admin 可安全重試）──
+  try {
+    await reviewMerchantApplication(applicationId, 'approved', adminNote);
+  } catch (err) {
+    throw new Error(
+      `訂閱／保證金已開通，但商戶身份批核失敗：${(err as Error).message}\n請手動將申請改為 approved`
+    );
   }
 
   return { success: true, subscriptionApproved, depositToppedUp, depositAmount };

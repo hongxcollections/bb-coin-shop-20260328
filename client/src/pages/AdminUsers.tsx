@@ -1652,19 +1652,23 @@ export default function AdminUsers() {
                     {/* Review actions */}
                     {!reviewing ? (
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {/* 一鍵批核（只有 onboarding 套餐先有） */}
-                        {app.chosenPlanId && (
-                          <button
-                            disabled={approveOnboarding.isPending}
-                            onClick={() => {
-                              if (!confirm(`確認一鍵批核？將會同時：\n• 批核商戶身份\n• 開通訂閱（${app.chosenPlanName ?? ""}）\n• 入帳保證金 HK$${parseFloat((app.chosenTierAmount as unknown as string) ?? "0").toLocaleString()}`)) return;
-                              approveOnboarding.mutate({ id: app.id });
-                            }}
-                            className="flex items-center gap-1 text-xs gold-gradient text-white rounded-lg px-3 py-1.5 hover:opacity-90 transition-opacity disabled:opacity-50 font-semibold shadow"
-                          >
-                            <Sparkles className="w-3.5 h-3.5" /> 一鍵批核 + 開通
-                          </button>
-                        )}
+                        {/* 一鍵批核：必須齊備 plan + tier + 收據 + 參考號（避免半套） */}
+                        {(() => {
+                          const fullOnboarding = !!(app.chosenPlanId && app.chosenDepositTierId
+                            && app.paymentProofUrl && app.paymentReference);
+                          return fullOnboarding ? (
+                            <button
+                              disabled={approveOnboarding.isPending}
+                              onClick={() => {
+                                if (!confirm(`確認一鍵批核？將會同時：\n• 開通訂閱（${app.chosenPlanName ?? ""} ${app.chosenPeriod === "yearly" ? "年費" : "月費"}）\n• 入帳保證金 HK$${parseFloat((app.chosenTierAmount as unknown as string) ?? "0").toLocaleString()}\n• 批核商戶身份`)) return;
+                                approveOnboarding.mutate({ id: app.id });
+                              }}
+                              className="flex items-center gap-1 text-xs gold-gradient text-white rounded-lg px-3 py-1.5 hover:opacity-90 transition-opacity disabled:opacity-50 font-semibold shadow"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" /> 一鍵批核 + 開通
+                            </button>
+                          ) : null;
+                        })()}
                         <button
                           onClick={() => { setMerchantReviewId(app.id); setMerchantNote(""); }}
                           className="flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg px-3 py-1.5 hover:bg-emerald-100 transition-colors"
