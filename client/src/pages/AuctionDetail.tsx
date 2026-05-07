@@ -702,11 +702,7 @@ export default function AuctionDetail() {
                         style={{
                           background: "var(--popup-bg)",
                           color: "var(--popup-text)",
-                          borderColor: bidMessage.type === "success"
-                            ? "rgba(52,211,153,0.45)"
-                            : bidMessage.type === "error"
-                            ? "rgba(248,113,113,0.45)"
-                            : "var(--popup-border)",
+                          borderColor: "var(--popup-border)",
                           boxShadow: "var(--popup-shadow)",
                           borderRadius: "var(--popup-radius)",
                           borderWidth: "1px",
