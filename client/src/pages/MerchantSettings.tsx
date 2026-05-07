@@ -1306,16 +1306,22 @@ export default function MerchantSettings() {
 
 function FailureLockCard({ settings }: { settings: any }) {
   const utils = trpc.useUtils();
-  const [threshold, setThreshold] = useState<number>(3);
-  const [lockDays, setLockDays] = useState<number>(3);
+  const [thresholdStr, setThresholdStr] = useState<string>("3");
+  const [lockDaysStr, setLockDaysStr] = useState<string>("3");
   const [initialized, setInitialized] = useState(false);
   useEffect(() => {
     if (settings && !initialized) {
-      setThreshold(Number(settings.failureLockThreshold ?? 3));
-      setLockDays(Number(settings.failureLockDays ?? 3));
+      setThresholdStr(String(Number(settings.failureLockThreshold ?? 3)));
+      setLockDaysStr(String(Number(settings.failureLockDays ?? 3)));
       setInitialized(true);
     }
   }, [settings, initialized]);
+
+  const clamp = (s: string, min: number, max: number, fallback: number): number => {
+    const n = parseInt(s, 10);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(min, Math.min(max, n));
+  };
 
   const m = trpc.merchants.setFailureLock.useMutation({
     onSuccess: () => {
@@ -1343,19 +1349,23 @@ function FailureLockCard({ settings }: { settings: any }) {
           <span>失約累積</span>
           <input
             type="number"
+            inputMode="numeric"
             min={1}
             max={20}
-            value={threshold}
-            onChange={(e) => setThreshold(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+            value={thresholdStr}
+            onChange={(e) => setThresholdStr(e.target.value.replace(/[^\d]/g, ""))}
+            onBlur={() => setThresholdStr(String(clamp(thresholdStr, 1, 20, 3)))}
             className="w-16 px-2 py-1 border border-red-200 rounded text-center"
           />
           <span>次後，自動凍結</span>
           <input
             type="number"
+            inputMode="numeric"
             min={1}
             max={60}
-            value={lockDays}
-            onChange={(e) => setLockDays(Math.max(1, Math.min(60, Number(e.target.value) || 1)))}
+            value={lockDaysStr}
+            onChange={(e) => setLockDaysStr(e.target.value.replace(/[^\d]/g, ""))}
+            onBlur={() => setLockDaysStr(String(clamp(lockDaysStr, 1, 60, 3)))}
             className="w-16 px-2 py-1 border border-red-200 rounded text-center"
           />
           <span>日</span>
@@ -1363,7 +1373,13 @@ function FailureLockCard({ settings }: { settings: any }) {
         <div className="flex justify-end">
           <Button
             size="sm"
-            onClick={() => m.mutate({ threshold, lockDays })}
+            onClick={() => {
+              const threshold = clamp(thresholdStr, 1, 20, 3);
+              const lockDays = clamp(lockDaysStr, 1, 60, 3);
+              setThresholdStr(String(threshold));
+              setLockDaysStr(String(lockDays));
+              m.mutate({ threshold, lockDays });
+            }}
             disabled={m.isPending}
             className="bg-red-500 hover:bg-red-600 text-white border-0 gap-1.5"
           >
@@ -1378,16 +1394,21 @@ function FailureLockCard({ settings }: { settings: any }) {
 
 function OfferLimitsEditor({ settings }: { settings: any }) {
   const utils = trpc.useUtils();
-  const [windowDays, setWindowDays] = useState<number>(7);
-  const [maxPerWindow, setMaxPerWindow] = useState<number>(3);
+  const [windowDaysStr, setWindowDaysStr] = useState<string>("7");
+  const [maxPerWindowStr, setMaxPerWindowStr] = useState<string>("3");
   const [initialized, setInitialized] = useState(false);
   useEffect(() => {
     if (settings && !initialized) {
-      setWindowDays(Number(settings.offerWindowDays ?? 7));
-      setMaxPerWindow(Number(settings.offerMaxPerWindow ?? 3));
+      setWindowDaysStr(String(Number(settings.offerWindowDays ?? 7)));
+      setMaxPerWindowStr(String(Number(settings.offerMaxPerWindow ?? 3)));
       setInitialized(true);
     }
   }, [settings, initialized]);
+  const clampInt = (s: string, min: number, max: number, fb: number) => {
+    const n = parseInt(s, 10);
+    if (!Number.isFinite(n)) return fb;
+    return Math.max(min, Math.min(max, n));
+  };
 
   const m = trpc.merchants.setOfferLimits.useMutation({
     onSuccess: () => {
@@ -1407,19 +1428,23 @@ function OfferLimitsEditor({ settings }: { settings: any }) {
         <span>每</span>
         <input
           type="number"
+          inputMode="numeric"
           min={1}
           max={365}
-          value={windowDays}
-          onChange={(e) => setWindowDays(Math.max(1, Math.min(365, Number(e.target.value) || 1)))}
+          value={windowDaysStr}
+          onChange={(e) => setWindowDaysStr(e.target.value.replace(/[^\d]/g, ""))}
+          onBlur={() => setWindowDaysStr(String(clampInt(windowDaysStr, 1, 365, 7)))}
           className="w-20 px-2 py-1 border border-orange-200 rounded text-center"
         />
         <span>日內，每位買家最多可以排價</span>
         <input
           type="number"
+          inputMode="numeric"
           min={1}
           max={20}
-          value={maxPerWindow}
-          onChange={(e) => setMaxPerWindow(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+          value={maxPerWindowStr}
+          onChange={(e) => setMaxPerWindowStr(e.target.value.replace(/[^\d]/g, ""))}
+          onBlur={() => setMaxPerWindowStr(String(clampInt(maxPerWindowStr, 1, 20, 3)))}
           className="w-16 px-2 py-1 border border-orange-200 rounded text-center"
         />
         <span>次</span>
@@ -1427,7 +1452,13 @@ function OfferLimitsEditor({ settings }: { settings: any }) {
       <div className="flex justify-end">
         <Button
           size="sm"
-          onClick={() => m.mutate({ windowDays, maxPerWindow })}
+          onClick={() => {
+            const windowDays = clampInt(windowDaysStr, 1, 365, 7);
+            const maxPerWindow = clampInt(maxPerWindowStr, 1, 20, 3);
+            setWindowDaysStr(String(windowDays));
+            setMaxPerWindowStr(String(maxPerWindow));
+            m.mutate({ windowDays, maxPerWindow });
+          }}
           disabled={m.isPending}
           className="gold-gradient text-white border-0 gap-1.5"
         >
