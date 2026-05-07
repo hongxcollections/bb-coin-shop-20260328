@@ -394,6 +394,43 @@ export function MerchantOrdersTab() {
           isPending={confirm.isPending || cancel.isPending}
         />
       )}
+
+      {rejectDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4 pb-20"
+          onClick={() => { setRejectDialog(null); setRejectReason(""); }}
+        >
+          <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-3" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-bold text-gray-800 text-base">拒絕買家取消申請</h2>
+            <p className="text-xs text-gray-500">商品：{rejectDialog.title}</p>
+            <p className="text-xs text-gray-500 leading-relaxed bg-amber-50 rounded-lg px-3 py-2 border border-amber-100">
+              ℹ️ 拒絕後訂單會繼續維持「待確認」，買家會收到通知並見到你嘅回覆。
+            </p>
+            <textarea
+              rows={3}
+              maxLength={300}
+              placeholder="（選填）回覆買家原因，例：已備貨、已寄出…"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-orange-400 resize-none"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setRejectDialog(null); setRejectReason(""); }}
+                disabled={respondCancelReq.isPending}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50"
+              >返回</button>
+              <button
+                onClick={() => respondCancelReq.mutate({ orderId: rejectDialog.orderId, action: 'reject', rejectReason: rejectReason.trim() || undefined })}
+                disabled={respondCancelReq.isPending}
+                className="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold disabled:opacity-60"
+              >
+                {respondCancelReq.isPending ? '處理中…' : '確認拒絕'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
