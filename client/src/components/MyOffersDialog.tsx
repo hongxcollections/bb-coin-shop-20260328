@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Tag, Loader2, CheckCircle2, XCircle, Clock, ShoppingCart } from "lucide-react";
+import { Tag, Loader2, CheckCircle2, XCircle, Clock, ShoppingCart, Ban } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Link } from "wouter";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ const STATUS_LABELS: Record<string, { label: string; cls: string; icon: any }> =
   accepted: { label: "已接受", cls: "bg-green-100 text-green-700", icon: CheckCircle2 },
   rejected: { label: "已被拒絕", cls: "bg-rose-100 text-rose-700", icon: XCircle },
   expired: { label: "已過期", cls: "bg-gray-100 text-gray-500", icon: Clock },
+  cancelled: { label: "已取消", cls: "bg-gray-100 text-gray-500", icon: Ban },
   purchased: { label: "已成交", cls: "bg-blue-100 text-blue-700", icon: ShoppingCart },
   converting: { label: "處理中", cls: "bg-amber-100 text-amber-700", icon: Loader2 },
 };
@@ -47,6 +48,15 @@ export default function MyOffersDialog({ open, onOpenChange }: MyOffersDialogPro
     onSuccess: ({ orderId }) => {
       toast.success(`已落單（單號 #${orderId}），請等商戶確認`);
       utils.offers.listMine.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const cancelOffer = trpc.offers.cancel.useMutation({
+    onSuccess: () => {
+      toast.success("已取消排價");
+      utils.offers.listMine.invalidate();
+      utils.offers.myAcceptedCount.invalidate();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -133,6 +143,22 @@ export default function MyOffersDialog({ open, onOpenChange }: MyOffersDialogPro
                     </p>
                   )}
 
+                  {o.status === "pending" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full text-rose-600 border-rose-200 hover:bg-rose-50 gap-1.5"
+                      disabled={cancelOffer.isPending}
+                      onClick={() => {
+                        if (confirm("確定要取消此排價？取消後仍會佔用 30 日內 2 次配額。")) {
+                          cancelOffer.mutate({ offerId: o.id });
+                        }
+                      }}
+                    >
+                      {cancelOffer.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+                      取消排價
+                    </Button>
+                  )}
                   {o.status === "accepted" && !acceptedExpired && (
                     <div className="space-y-1.5">
                       <p className="text-[11px] text-orange-600">⏰ 須喺 {new Date(o.expiresAt).toLocaleString("zh-HK", { hour12: false })} 前落單</p>

@@ -4650,6 +4650,23 @@ export async function countBuyerPendingWonAuctions(userId: number): Promise<numb
   return Number(rows?.[0]?.cnt ?? 0);
 }
 
+export async function cancelBuyerOffer(offerId: number, buyerId: number): Promise<{ ok: boolean; reason?: string }> {
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT id, buyerId, status FROM productOffers WHERE id = ? LIMIT 1`,
+    [offerId]
+  );
+  const r = Array.isArray(rows) ? rows[0] : null;
+  if (!r) return { ok: false, reason: '排價不存在' };
+  if (Number(r.buyerId) !== buyerId) return { ok: false, reason: '無權取消此排價' };
+  if (String(r.status) !== 'pending') return { ok: false, reason: '只可以取消未回覆嘅排價' };
+  await pool.execute(
+    `UPDATE productOffers SET status = 'cancelled' WHERE id = ? AND status = 'pending'`,
+    [offerId]
+  );
+  return { ok: true };
+}
+
 export async function countBuyerAcceptedOffers(userId: number): Promise<number> {
   const pool = await getRawPool();
   const [rows]: any = await pool.execute(
