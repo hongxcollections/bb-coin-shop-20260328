@@ -104,6 +104,10 @@ function OrderActionDialog({ order, type, onClose, onConfirm, isPending }: {
 
   const [finalPriceInput, setFinalPriceInput] = useState("");
   const [markAsFailure, setMarkAsFailure] = useState(false);
+  const { data: failureStats } = trpc.merchants.getBuyerFailureStats.useQuery(
+    { buyerId: Number(order.buyerId) },
+    { enabled: !isConfirm && !!order.buyerId, staleTime: 10_000 }
+  );
   const finalPrice = finalPriceInput !== "" ? parseFloat(finalPriceInput) : null;
   const actualUnitPrice = (finalPrice != null && finalPrice > 0) ? finalPrice : listedPrice;
   const commissionAmount = actualUnitPrice * qty * commissionRate;
@@ -167,11 +171,39 @@ function OrderActionDialog({ order, type, onClose, onConfirm, isPending }: {
                 onChange={(e) => setMarkAsFailure(e.target.checked)}
                 className="mt-0.5 w-4 h-4 accent-red-500 shrink-0"
               />
-              <div className="flex-1">
+              <div className="flex-1 space-y-1.5">
                 <p className="text-xs font-semibold text-red-600">標記買家失約</p>
-                <p className="text-[11px] text-gray-500 leading-relaxed mt-0.5">
-                  失約累積到設定門檻後，將自動暫停該買家對你嘅落單／出價／排價（凍結日數可在「商戶設定」調整）。
-                </p>
+                {failureStats ? (
+                  <div className="text-[11px] text-gray-600 leading-relaxed bg-white/70 rounded-lg px-2 py-1.5 border border-red-100 space-y-0.5">
+                    <p>
+                      你嘅設定：失約 <span className="font-bold text-red-600">{failureStats.threshold}</span> 次後凍結
+                      <span className="font-bold text-red-600"> {failureStats.lockDays}</span> 日
+                    </p>
+                    <p>
+                      呢位買家過去 30 日失約：
+                      <span className="font-bold text-red-600">{failureStats.failureCount}</span> 次
+                      {markAsFailure && (
+                        <span className="text-gray-500">
+                          {" "}→ 標記後 <span className="font-bold text-red-600">{failureStats.failureCount + 1}</span> 次
+                        </span>
+                      )}
+                    </p>
+                    {markAsFailure && (failureStats.failureCount + 1) >= failureStats.threshold && (
+                      <p className="text-red-600 font-semibold">
+                        ⚠️ 標記後將立即凍結該買家 {failureStats.lockDays} 日
+                      </p>
+                    )}
+                    {failureStats.locked && failureStats.lockedUntil && (
+                      <p className="text-amber-600">
+                        ℹ️ 目前已被凍結至 {new Date(failureStats.lockedUntil).toLocaleString('zh-HK', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-gray-500 leading-relaxed">
+                    失約累積到設定門檻後，將自動暫停該買家對你嘅落單／出價／排價（凍結日數可在「商戶設定」調整）。
+                  </p>
+                )}
               </div>
             </label>
           </>

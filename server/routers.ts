@@ -3543,6 +3543,18 @@ export const appRouter = router({
         return lock;
       }),
 
+    /** 商戶：查詢某買家對自己嘅失約紀錄（用於取消訂單對話框顯示） */
+    getBuyerFailureStats: protectedProcedure
+      .input(z.object({ buyerId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        const lock = await getBuyerLockFromMerchant(input.buyerId, ctx.user.id);
+        return lock;
+      }),
+
     /** 商戶：設定排價限制（同一商品 X 日內最多 Y 次） */
     setOfferLimits: protectedProcedure
       .input(z.object({
