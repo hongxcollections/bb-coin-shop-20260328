@@ -747,12 +747,24 @@ export default function AuctionDetail() {
                   </div>
                 </div>
 
-                {/* Countdown */}
-                <div className="inline-flex flex-col mb-4" style={{ gap: "3px" }}>
-                  <CountdownTimer endTime={new Date(auction.endTime)} />
-                  <span className="text-[0.68rem] text-muted-foreground leading-tight self-end">
-                    結束：{formatDate(new Date(auction.endTime))}
-                  </span>
+                {/* Countdown + 問商戶 icon */}
+                <div className="flex items-center mb-4" style={{ gap: "20px" }}>
+                  <div className="inline-flex flex-col" style={{ gap: "3px" }}>
+                    <CountdownTimer endTime={new Date(auction.endTime)} />
+                    <span className="text-[0.68rem] text-muted-foreground leading-tight self-end">
+                      結束：{formatDate(new Date(auction.endTime))}
+                    </span>
+                  </div>
+                  {auction.createdBy !== user?.id && (
+                    <div className="-rotate-[18deg] origin-center transition-transform hover:-rotate-[8deg] hover:scale-105">
+                      <ChatButton
+                        auctionId={auctionId}
+                        merchantId={auction.createdBy}
+                        auctionEnded={!isActive}
+                        compact
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Ended Notice */}
@@ -1046,19 +1058,6 @@ export default function AuctionDetail() {
                   )
                 )}
 
-                {/* 私訊商戶 — 角落斜角懸浮（商戶自己唔顯示） */}
-                {auction.createdBy !== user?.id && (
-                  <div className="flex justify-end pt-1 -mb-1 pr-1">
-                    <div className="-rotate-[18deg] origin-bottom-right transition-transform hover:-rotate-[8deg] hover:scale-105">
-                      <ChatButton
-                        auctionId={auctionId}
-                        merchantId={auction.createdBy}
-                        auctionEnded={!isActive}
-                        compact
-                      />
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
 
