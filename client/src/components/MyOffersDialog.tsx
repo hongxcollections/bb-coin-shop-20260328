@@ -38,12 +38,17 @@ export default function MyOffersDialog({ open, onOpenChange }: MyOffersDialogPro
     undefined,
     { enabled: open, refetchOnWindowFocus: false },
   ) as any;
+  const allList: any[] = Array.isArray(offersAll) ? offersAll : [];
+  const counts = {
+    pending: allList.filter((o) => o.status === "pending").length,
+    accepted: allList.filter((o) => o.status === "accepted").length,
+    all: allList.length,
+  };
   const offers = (() => {
-    const all: any[] = Array.isArray(offersAll) ? offersAll : [];
-    if (tab === "all") return all;
-    if (tab === "pending") return all.filter((o) => o.status === "pending");
-    if (tab === "accepted") return all.filter((o) => o.status === "accepted");
-    return all;
+    if (tab === "all") return allList;
+    if (tab === "pending") return allList.filter((o) => o.status === "pending");
+    if (tab === "accepted") return allList.filter((o) => o.status === "accepted");
+    return allList;
   })();
 
   const convert = trpc.offers.convertToOrder.useMutation({
@@ -92,17 +97,24 @@ export default function MyOffersDialog({ open, onOpenChange }: MyOffersDialogPro
         </DialogHeader>
 
         <div className="flex gap-1.5 border-b pb-2">
-          {(["pending", "accepted", "all"] as const).map((k) => (
-            <button
-              key={k}
-              onClick={() => setTab(k)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
-                tab === k ? "bg-orange-500 text-white border-orange-500" : "bg-white text-gray-600 border-gray-200"
-              }`}
-            >
-              {k === "pending" ? "待回覆" : k === "accepted" ? "已接受" : "全部"}
-            </button>
-          ))}
+          {(["pending", "accepted", "all"] as const).map((k) => {
+            const label = k === "pending" ? "待回覆" : k === "accepted" ? "已接受" : "全部";
+            const c = counts[k];
+            return (
+              <button
+                key={k}
+                onClick={() => setTab(k)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border inline-flex items-center gap-1 ${
+                  tab === k ? "bg-orange-500 text-white border-orange-500" : "bg-white text-gray-600 border-gray-200"
+                }`}
+              >
+                <span>{label}</span>
+                <span className={`text-[10px] px-1.5 rounded-full font-semibold ${
+                  tab === k ? "bg-white/25 text-white" : "bg-gray-100 text-gray-600"
+                }`}>{c}</span>
+              </button>
+            );
+          })}
         </div>
 
         {isLoading ? (

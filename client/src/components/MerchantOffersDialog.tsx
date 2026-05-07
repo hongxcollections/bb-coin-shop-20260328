@@ -44,10 +44,21 @@ export default function MerchantOffersDialog({ open, onOpenChange }: MerchantOff
   const [responseText, setResponseText] = useState("");
   const [pendingAction, setPendingAction] = useState<"accept" | "reject">("accept");
 
-  const { data: offers, isLoading } = trpc.offers.listForMerchant.useQuery(
-    { status: tab },
+  const { data: offersAll, isLoading } = trpc.offers.listForMerchant.useQuery(
+    { status: "all" },
     { enabled: open, refetchOnWindowFocus: false },
   );
+  const allList: any[] = Array.isArray(offersAll) ? offersAll : [];
+  const counts = {
+    pending: allList.filter((o) => o.status === "pending").length,
+    accepted: allList.filter((o) => o.status === "accepted").length,
+    all: allList.length,
+  };
+  const offers = tab === "all"
+    ? allList
+    : tab === "pending"
+    ? allList.filter((o) => o.status === "pending")
+    : allList.filter((o) => o.status === "accepted");
 
   const respond = trpc.offers.respond.useMutation({
     onSuccess: () => {
@@ -80,17 +91,24 @@ export default function MerchantOffersDialog({ open, onOpenChange }: MerchantOff
         </DialogHeader>
 
         <div className="flex gap-1.5 border-b pb-2">
-          {(["pending", "accepted", "all"] as const).map((k) => (
-            <button
-              key={k}
-              onClick={() => setTab(k)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
-                tab === k ? "bg-orange-500 text-white border-orange-500" : "bg-white text-gray-600 border-gray-200"
-              }`}
-            >
-              {k === "pending" ? "待處理" : k === "accepted" ? "已接受" : "全部"}
-            </button>
-          ))}
+          {(["pending", "accepted", "all"] as const).map((k) => {
+            const label = k === "pending" ? "待處理" : k === "accepted" ? "已接受" : "全部";
+            const c = counts[k];
+            return (
+              <button
+                key={k}
+                onClick={() => setTab(k)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border inline-flex items-center gap-1 ${
+                  tab === k ? "bg-orange-500 text-white border-orange-500" : "bg-white text-gray-600 border-gray-200"
+                }`}
+              >
+                <span>{label}</span>
+                <span className={`text-[10px] px-1.5 rounded-full font-semibold ${
+                  tab === k ? "bg-white/25 text-white" : "bg-gray-100 text-gray-600"
+                }`}>{c}</span>
+              </button>
+            );
+          })}
         </div>
 
         {isLoading ? (
