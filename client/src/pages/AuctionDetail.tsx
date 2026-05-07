@@ -353,9 +353,11 @@ export default function AuctionDetail() {
         const lock = await utils.merchants.myLockStatusForMerchant.fetch({ merchantId: sellerId });
         if (lock?.locked && lock.lockedUntil) {
           const until = new Date(lock.lockedUntil).toLocaleString('zh-HK', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-          setBidMsgExiting(false);
-          setBidMessage({ type: "error", text: `❌ 你已被「${lock.merchantName ?? '此賣家'}」暫停出價，至 ${until}` });
-          setTimeout(() => { setBidMsgExiting(true); setTimeout(() => { setBidMessage(null); setBidMsgExiting(false); }, 400); }, 5600);
+          toast.error(`你已被「${lock.merchantName ?? '此賣家'}」暫停出價`, {
+            description: `凍結至 ${until}`,
+            className: "bb-toast-err",
+            duration: 6000,
+          });
           return;
         }
       } catch {}
