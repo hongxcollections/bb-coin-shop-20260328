@@ -1774,10 +1774,35 @@ export const appRouter = router({
       .query(async ({ ctx }) => {
         const deposit = await getOrCreateSellerDeposit(ctx.user.id);
         if (!deposit) return null;
+
+        // 預警 / 維持門檻：以「商戶申請揀嘅 tier」為單一資料源計算，避免 DB 舊值唔同步
+        let requiredDeposit = parseFloat(deposit.requiredDeposit.toString());
+        let warningDeposit = parseFloat(String((deposit as { warningDeposit?: string | number }).warningDeposit ?? requiredDeposit * 2));
+        try {
+          const app = await getMerchantApplicationByUser(ctx.user.id);
+          const tierId = (app as { chosenDepositTierId?: number | null } | null)?.chosenDepositTierId;
+          if (tierId) {
+            const tiers = await listDepositTierPresets(false);
+            const tier = tiers.find(t => t.id === tierId);
+            if (tier) {
+              const tierAmt = tier.amount ? parseFloat(tier.amount.toString()) : 0;
+              const mPct = (tier as { maintenancePct?: string | number }).maintenancePct ? parseFloat(String((tier as { maintenancePct?: string | number }).maintenancePct)) : 80;
+              const wPct = (tier as { warningPct?: string | number }).warningPct ? parseFloat(String((tier as { warningPct?: string | number }).warningPct)) : 60;
+              if (tierAmt > 0) {
+                requiredDeposit = Math.round(tierAmt * mPct) / 100;
+                warningDeposit = Math.round(tierAmt * wPct) / 100;
+              }
+            }
+          }
+        } catch (err) {
+          console.error('[myDeposit] Failed to compute thresholds from tier:', err);
+        }
+
         return {
           id: deposit.id,
           balance: parseFloat(deposit.balance.toString()),
-          requiredDeposit: parseFloat(deposit.requiredDeposit.toString()),
+          requiredDeposit,
+          warningDeposit,
           commissionRate: parseFloat(deposit.commissionRate.toString()),
           isActive: deposit.isActive === 1,
         };
