@@ -2168,7 +2168,9 @@ export async function getUserActiveSubscription(userId: number) {
       .leftJoin(subscriptionPlans, eq(userSubscriptions.planId, subscriptionPlans.id))
       .where(and(
         eq(userSubscriptions.userId, userId),
-        eq(userSubscriptions.status, 'active')
+        eq(userSubscriptions.status, 'active'),
+        // 排除「未到生效日」嘅 future-start renewal row，避免新批准嘅續期搶 parent quota
+        lte(userSubscriptions.startDate, new Date())
       ))
       .orderBy(desc(userSubscriptions.createdAt))
       .limit(1);
@@ -3837,7 +3839,12 @@ export async function getListingQuotaInfo(userId: number): Promise<{
     })
       .from(userSubscriptions)
       .leftJoin(subscriptionPlans, eq(userSubscriptions.planId, subscriptionPlans.id))
-      .where(and(eq(userSubscriptions.userId, userId), eq(userSubscriptions.status, 'active')))
+      .where(and(
+        eq(userSubscriptions.userId, userId),
+        eq(userSubscriptions.status, 'active'),
+        // 排除「未到生效日」嘅 future-start renewal row（避免續期搶 parent quota）
+        lte(userSubscriptions.startDate, new Date())
+      ))
       .orderBy(desc(userSubscriptions.createdAt))
       .limit(1);
     if (!row) return null;
