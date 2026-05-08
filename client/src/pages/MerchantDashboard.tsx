@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 const DEPOSIT_PAYMENT_METHODS = [
@@ -257,6 +259,13 @@ export default function MerchantDashboard() {
   const [showMerchantLayout, setShowMerchantLayout] = useState(false);
   const [showOffersDialog, setShowOffersDialog] = useState(false);
 
+  // ── 續期一鍵延長 state ──
+  const [renewDialogOpen, setRenewDialogOpen] = useState(false);
+  const [renewPaymentMethod, setRenewPaymentMethod] = useState("");
+  const [renewPaymentRef, setRenewPaymentRef] = useState("");
+  const [renewProofUrl, setRenewProofUrl] = useState("");
+  const [renewProofUploading, setRenewProofUploading] = useState(false);
+
   const { data: pendingOffersCount } = trpc.offers.pendingCount.useQuery(undefined, {
     enabled: isAuthenticated,
     refetchInterval: 60_000,
@@ -326,6 +335,58 @@ export default function MerchantDashboard() {
   const { data: mySubscription } = trpc.subscriptions.mySubscription.useQuery(undefined, {
     enabled: isAuthenticated && myApp?.status === "approved",
   });
+
+  const { data: mySubHistory, refetch: refetchSubHistory } = trpc.subscriptions.myHistory.useQuery(undefined, {
+    enabled: isAuthenticated && myApp?.status === "approved",
+  });
+
+  const renewMutation = trpc.subscriptions.renew.useMutation({
+    onSuccess: () => {
+      toast.success("續期申請已提交，管理員確認收款後將自動延長");
+      setRenewDialogOpen(false);
+      setRenewPaymentMethod(""); setRenewPaymentRef(""); setRenewProofUrl("");
+      refetchSubHistory();
+      utils.subscriptions.mySubscription.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const renewProofUploadMutation = trpc.subscriptions.uploadPaymentProof.useMutation({
+    onSuccess: ({ url }) => { setRenewProofUrl(url); setRenewProofUploading(false); toast.success("收據已上傳"); },
+    onError: (e) => { setRenewProofUploading(false); toast.error("上傳失敗：" + e.message); },
+  });
+
+  function handleRenewProofFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("檔案大小不能超過 5MB"); return; }
+    setRenewProofUploading(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = (ev.target?.result as string).split(",")[1];
+      renewProofUploadMutation.mutate({ base64, filename: file.name });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // 是否已有 pending 續期申請
+  const hasPendingRenewal = (mySubHistory as Array<{ status: string; isRenewal?: number }> | undefined)
+    ?.some(s => s.status === "pending" && s.isRenewal === 1) ?? false;
+
+  // 距到期日嘅日數（用於決定是否顯示「續期」按鈕）
+  const daysUntilExpiry = mySubscription?.endDate
+    ? Math.ceil((new Date(mySubscription.endDate).getTime() - Date.now()) / 86400000)
+    : null;
+  const canRenew = mySubscription && daysUntilExpiry !== null && daysUntilExpiry <= 14;
+
+  const handleSubmitRenew = () => {
+    if (!renewPaymentMethod) { toast.error("請選擇付款方式"); return; }
+    renewMutation.mutate({
+      paymentMethod: renewPaymentMethod,
+      paymentReference: renewPaymentRef || undefined,
+      paymentProofUrl: renewProofUrl || undefined,
+    });
+  };
 
   const fmtDate = (d: Date | string | null) => d
     ? new Date(d).toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
@@ -637,6 +698,38 @@ export default function MerchantDashboard() {
             </div>
           </Link>
         </div>
+
+        {/* ── 訂閱即將到期 / 續期一鍵延長 banner ── */}
+        {canRenew && (
+          <div className={`rounded-xl border px-4 py-3 flex items-start gap-3 text-sm ${
+            (daysUntilExpiry ?? 0) <= 3
+              ? "bg-red-50 border-red-200 text-red-700"
+              : "bg-amber-50 border-amber-200 text-amber-700"
+          }`}>
+            <Clock className="w-5 h-5 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold">
+                訂閱即將到期：{(daysUntilExpiry ?? 0) <= 0 ? "今日到期" : `仲有 ${daysUntilExpiry} 日`}
+              </p>
+              <p className="text-xs mt-0.5">
+                計劃：{mySubscription?.planName ?? "—"} ({mySubscription?.billingCycle === "yearly" ? "年繳" : "月繳"}) | 到期：{fmtDate(mySubscription?.endDate ?? null)}
+              </p>
+              {hasPendingRenewal && (
+                <p className="text-xs mt-1 inline-flex items-center gap-1 text-blue-600">
+                  <Clock className="w-3 h-3" /> 續期申請已提交，待管理員確認收款
+                </p>
+              )}
+            </div>
+            <Button
+              size="sm"
+              disabled={hasPendingRenewal}
+              onClick={() => setRenewDialogOpen(true)}
+              className="bg-amber-600 hover:bg-amber-700 text-white border-0 flex-shrink-0"
+            >
+              {hasPendingRenewal ? "續期審核中" : "一鍵續期"}
+            </Button>
+          </div>
+        )}
 
         {/* ── 保證金警告提示 ── */}
         {!depositOk && deposit && (
@@ -989,6 +1082,61 @@ export default function MerchantDashboard() {
 
       </div>
       <MerchantOffersDialog open={showOffersDialog} onOpenChange={setShowOffersDialog} />
+
+      {/* ── 續期一鍵延長 dialog ── */}
+      <Dialog open={renewDialogOpen} onOpenChange={setRenewDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>續期訂閱計劃</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div className="rounded-lg bg-purple-50 border border-purple-100 p-3 space-y-1">
+              <div className="flex justify-between"><span className="text-gray-500">計劃</span><span className="font-medium">{mySubscription?.planName ?? "—"}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">週期</span><span className="font-medium">{mySubscription?.billingCycle === "yearly" ? "年繳" : "月繳"}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">現有到期</span><span className="font-medium">{fmtDate(mySubscription?.endDate ?? null)}</span></div>
+            </div>
+            <p className="text-xs text-amber-600">⚠️ 管理員批核後，新訂閱將從現有到期日接續延長，限額會在現有結餘耗盡後自動啟用。</p>
+
+            <div>
+              <Label className="text-xs">付款方式 <span className="text-red-500">*</span></Label>
+              <Select value={renewPaymentMethod} onValueChange={setRenewPaymentMethod}>
+                <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="揀付款方式" /></SelectTrigger>
+                <SelectContent>
+                  {DEPOSIT_PAYMENT_METHODS.map(m => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-xs">付款參考編號（選填）</Label>
+              <Input value={renewPaymentRef} onChange={e => setRenewPaymentRef(e.target.value)} placeholder="e.g. FPS / PayMe ref" className="h-9 text-sm" />
+            </div>
+
+            <div>
+              <Label className="text-xs">付款憑證（選填，最多 5MB）</Label>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={handleRenewProofFile}
+                className="block w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                disabled={renewProofUploading}
+              />
+              {renewProofUploading && <p className="text-xs text-blue-500 mt-1">上傳中...</p>}
+              {renewProofUrl && !renewProofUploading && (
+                <p className="text-xs text-green-600 mt-1 inline-flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> 已上傳</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenewDialogOpen(false)} disabled={renewMutation.isPending}>取消</Button>
+            <Button onClick={handleSubmitRenew} disabled={renewMutation.isPending || renewProofUploading} className="bg-amber-600 hover:bg-amber-700">
+              {renewMutation.isPending ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> 提交中</> : "提交續期申請"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -54,6 +54,8 @@ type Subscription = {
   paymentReference: string | null;
   paymentProofUrl: string | null;
   adminNote: string | null;
+  isRenewal?: number;
+  parentSubscriptionId?: number | null;
   createdAt: Date;
 };
 
@@ -476,6 +478,9 @@ export default function AdminSubscriptions() {
                                 <Badge variant="outline" className="text-xs">ID: {sub.userId}</Badge>
                                 <Badge variant="outline" className={`text-xs ${sb.cls}`}>{sb.label}</Badge>
                                 <Badge variant="outline" className={`text-xs ${lb.cls}`}>{lb.icon} {lb.label}</Badge>
+                                {sub.isRenewal === 1 && (
+                                  <Badge className="text-xs bg-blue-500 text-white border-0">🔄 續期</Badge>
+                                )}
                               </div>
                               <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
                                 <p>計劃：{sub.planName ?? "未知"} | 週期：{sub.billingCycle === "yearly" ? "年繳" : "月繳"}</p>

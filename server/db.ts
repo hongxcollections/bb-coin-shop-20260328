@@ -1972,6 +1972,9 @@ async function ensureSubscriptionTables() {
         updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
     `);
+    // T2 續期支援：bootstrap missing columns
+    try { await db.execute(sql`ALTER TABLE user_subscriptions ADD COLUMN isRenewal INT NOT NULL DEFAULT 0`); } catch {}
+    try { await db.execute(sql`ALTER TABLE user_subscriptions ADD COLUMN parentSubscriptionId INT NULL`); } catch {}
     _subscriptionTablesChecked = true;
   } catch (error) {
     console.error('[Database] Failed to ensure subscription tables:', error);
@@ -2114,6 +2117,8 @@ export async function createUserSubscription(data: {
   paymentMethod?: string;
   paymentReference?: string;
   paymentProofUrl?: string;
+  isRenewal?: boolean;
+  parentSubscriptionId?: number;
 }) {
   await ensureSubscriptionTables();
   const db = await getDb();
@@ -2127,6 +2132,8 @@ export async function createUserSubscription(data: {
       paymentMethod: data.paymentMethod ?? null,
       paymentReference: data.paymentReference ?? null,
       paymentProofUrl: data.paymentProofUrl ?? null,
+      isRenewal: data.isRenewal ? 1 : 0,
+      parentSubscriptionId: data.parentSubscriptionId ?? null,
     });
     const id = (result as any)?.insertId
       ?? ((Array.isArray(result) ? (result[0] as any)?.insertId : null))
@@ -2189,6 +2196,8 @@ export async function getUserSubscriptions(userId: number) {
         endDate: userSubscriptions.endDate,
         paymentMethod: userSubscriptions.paymentMethod,
         paymentReference: userSubscriptions.paymentReference,
+        isRenewal: userSubscriptions.isRenewal,
+        parentSubscriptionId: userSubscriptions.parentSubscriptionId,
         createdAt: userSubscriptions.createdAt,
       })
       .from(userSubscriptions)
@@ -2231,6 +2240,8 @@ export async function getAllUserSubscriptions(statusFilter?: string) {
         paymentReference: userSubscriptions.paymentReference,
         paymentProofUrl: userSubscriptions.paymentProofUrl,
         adminNote: userSubscriptions.adminNote,
+        isRenewal: userSubscriptions.isRenewal,
+        parentSubscriptionId: userSubscriptions.parentSubscriptionId,
         createdAt: userSubscriptions.createdAt,
       })
       .from(userSubscriptions)
@@ -2260,9 +2271,19 @@ export async function approveSubscription(subscriptionId: number, adminId: numbe
     if (!plans[0]) throw new Error('找不到訂閱計劃');
     const plan = plans[0];
 
-    // Calculate dates
+    // Calculate dates — 如果係續期且 parent 仲未過期，由 parent.endDate 接續
     const now = new Date();
-    const endDate = new Date(now);
+    let startDate = now;
+    if ((sub as { isRenewal?: number }).isRenewal === 1 && (sub as { parentSubscriptionId?: number | null }).parentSubscriptionId) {
+      try {
+        const [parent] = await db.select().from(userSubscriptions)
+          .where(eq(userSubscriptions.id, (sub as { parentSubscriptionId: number }).parentSubscriptionId)).limit(1);
+        if (parent && parent.endDate && new Date(parent.endDate) > now) {
+          startDate = new Date(parent.endDate);
+        }
+      } catch {}
+    }
+    const endDate = new Date(startDate);
     if (sub.billingCycle === 'yearly') {
       endDate.setFullYear(endDate.getFullYear() + 1);
     } else {
@@ -2271,10 +2292,14 @@ export async function approveSubscription(subscriptionId: number, adminId: numbe
 
     // 累積上一張（或更早幾張）未用完嘅公佈額度 ─ 只有當新計劃為「有限額」時先累積
     // 新計劃 unlimited (maxListings === 0) → 直接設 0，無需累積
+    // 續期且 parent 仲未過期：唔好搶走 parent 嘅 quota（parent 繼續服務直到 endDate；屆時 quota 自然 reset）
+    const isRenewalWithFutureStart = startDate > now;
     let carryOver = 0;
     if (plan.maxListings > 0) {
       const prevSubs = await db.select({
         id: userSubscriptions.id,
+        status: userSubscriptions.status,
+        endDate: userSubscriptions.endDate,
         remainingQuota: userSubscriptions.remainingQuota,
       })
         .from(userSubscriptions)
@@ -2283,6 +2308,8 @@ export async function approveSubscription(subscriptionId: number, adminId: numbe
           ne(userSubscriptions.id, subscriptionId),
         ));
       for (const p of prevSubs) {
+        // Skip 仲 active 嘅 parent（renewal 場景）— 留返 quota 俾佢用到 endDate
+        if (isRenewalWithFutureStart && p.status === 'active' && p.endDate && new Date(p.endDate) > now) continue;
         const r = Number(p.remainingQuota ?? 0);
         if (r > 0) {
           carryOver += r;
@@ -2301,7 +2328,7 @@ export async function approveSubscription(subscriptionId: number, adminId: numbe
     // Update subscription — also initialise remainingQuota from plan.maxListings (+ carryOver)
     await db.update(userSubscriptions).set({
       status: 'active',
-      startDate: now,
+      startDate: startDate,
       endDate: endDate,
       approvedBy: adminId,
       approvedAt: now,

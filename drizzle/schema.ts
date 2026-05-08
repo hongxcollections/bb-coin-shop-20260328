@@ -304,6 +304,8 @@ export const userSubscriptions = mysqlTable("user_subscriptions", {
   paymentProofUrl: text("paymentProofUrl"), // screenshot of payment
   adminNote: text("adminNote"),
   remainingQuota: int("remainingQuota").default(0).notNull(), // remaining listing credits for this subscription period
+  isRenewal: int("isRenewal").default(0).notNull(), // 1 if 此 subscription 是續期申請
+  parentSubscriptionId: int("parentSubscriptionId"), // 對應嘅原本訂閱 id（續期時記錄）
   approvedBy: int("approvedBy"), // admin who approved
   approvedAt: timestamp("approvedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

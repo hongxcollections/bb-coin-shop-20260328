@@ -2077,6 +2077,35 @@ export const appRouter = router({
         });
       }),
 
+    // ── User: Submit renewal request (一鍵延長) ──
+    renew: protectedProcedure
+      .input(z.object({
+        paymentMethod: z.string().optional(),
+        paymentReference: z.string().optional(),
+        paymentProofUrl: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // 必須有 active subscription 先可以續期
+        const active = await getUserActiveSubscription(ctx.user.id);
+        if (!active) throw new TRPCError({ code: 'BAD_REQUEST', message: '冇生效中嘅訂閱，請直接揀計劃訂閱' });
+        // 防止重複申請：check 有冇 pending 嘅 renewal
+        const history = await getUserSubscriptions(ctx.user.id);
+        const pendingRenewal = (history as Array<{ status: string; isRenewal?: number }>).find(
+          h => h.status === 'pending' && h.isRenewal === 1
+        );
+        if (pendingRenewal) throw new TRPCError({ code: 'BAD_REQUEST', message: '已有續期申請待審核，請耐心等候' });
+        return createUserSubscription({
+          userId: ctx.user.id,
+          planId: active.planId,
+          billingCycle: active.billingCycle as 'monthly' | 'yearly',
+          paymentMethod: input.paymentMethod,
+          paymentReference: input.paymentReference,
+          paymentProofUrl: input.paymentProofUrl,
+          isRenewal: true,
+          parentSubscriptionId: active.id,
+        });
+      }),
+
     // ── User: Upload payment proof image ──
     uploadPaymentProof: protectedProcedure
       .input(z.object({
