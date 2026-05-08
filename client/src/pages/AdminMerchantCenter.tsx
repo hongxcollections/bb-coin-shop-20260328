@@ -4,37 +4,176 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import AdminHeader from "@/components/AdminHeader";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
-  Sparkles, CheckCircle2, XCircle, AlertCircle, ChevronLeft,
-  Building2, RefreshCw, ArrowRightLeft, Wallet, FileText, ExternalLink, Loader2,
+  Sparkles, CheckCircle2, XCircle, AlertCircle, ChevronLeft, Inbox,
+  Building2, RefreshCw, ArrowRightLeft, Wallet, ExternalLink, Loader2, Image as ImageIcon,
 } from "lucide-react";
 
+// ── helpers ──
 function fmtHKD(v: string | number | null | undefined) {
   if (v == null) return "—";
   const n = typeof v === "string" ? parseFloat(v) : v;
   if (isNaN(n)) return "—";
   return `HK$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 }
-
 function fmtDate(d: Date | string | null | undefined) {
   if (!d) return "—";
   return new Date(d).toLocaleString("zh-HK", {
     month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
   });
 }
+function relTime(d: Date | string | null | undefined) {
+  if (!d) return "";
+  const ms = Date.now() - new Date(d).getTime();
+  const m = Math.floor(ms / 60000);
+  if (m < 1) return "剛剛";
+  if (m < 60) return `${m} 分鐘前`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} 小時前`;
+  const dd = Math.floor(h / 24);
+  if (dd < 7) return `${dd} 日前`;
+  return fmtDate(d);
+}
 
-function ReceiptThumb({ url }: { url: string | null | undefined }) {
-  if (!url) return <span className="text-xs text-gray-400">未上載收據</span>;
+// ── shared sub-components ──
+function ReceiptBox({ url }: { url: string | null | undefined }) {
+  if (!url) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-gray-400 italic px-3 py-2 rounded-lg border border-dashed border-gray-200 bg-gray-50">
+        <ImageIcon className="w-3.5 h-3.5" />
+        未上載收據
+      </div>
+    );
+  }
   return (
-    <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-amber-700 hover:text-amber-900">
-      <img src={url} alt="收據" className="w-12 h-12 rounded-lg border border-amber-200 object-cover" />
-      <span className="underline flex items-center gap-0.5">查看 <ExternalLink className="w-3 h-3" /></span>
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="group flex items-center gap-3 p-2 rounded-xl border border-gray-200 bg-white hover:border-amber-300 hover:shadow-md transition-all"
+    >
+      <img
+        src={url}
+        alt="收據"
+        className="w-14 h-14 rounded-lg object-cover border border-gray-100 group-hover:scale-105 transition-transform"
+      />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+          🧾 付款收據
+          <ExternalLink className="w-3 h-3 text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+        </p>
+        <p className="text-[10px] text-gray-400 truncate">點擊放大查看</p>
+      </div>
     </a>
+  );
+}
+
+function EmptyState({ icon, title, desc }: { icon: React.ReactNode; title: string; desc?: string }) {
+  return (
+    <div className="text-center py-16 px-4">
+      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-gray-100 to-gray-50 mb-4 text-gray-300">
+        {icon}
+      </div>
+      <p className="text-base font-semibold text-gray-700 mb-1">{title}</p>
+      {desc && <p className="text-xs text-gray-400 max-w-xs mx-auto">{desc}</p>}
+    </div>
+  );
+}
+
+function LoadingBlock() {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+      <Loader2 className="w-8 h-8 animate-spin mb-2" />
+      <p className="text-xs">載入中…</p>
+    </div>
+  );
+}
+
+// ── KPI card (top of page) ──
+function KpiCard({
+  active, count, label, icon, accent, onClick,
+}: {
+  active: boolean;
+  count: number;
+  label: string;
+  icon: React.ReactNode;
+  accent: { text: string; bg: string; border: string; ring: string; dot: string };
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group relative overflow-hidden rounded-2xl border-2 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg ${
+        active ? `${accent.border} ${accent.bg} shadow-md ring-2 ${accent.ring}` : "border-gray-200 bg-white hover:border-gray-300"
+      }`}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${active ? "bg-white/70" : accent.bg} ${accent.text}`}>
+          {icon}
+        </div>
+        {count > 0 && (
+          <span className={`relative inline-flex items-center justify-center min-w-[32px] h-8 px-2 rounded-full text-sm font-bold text-white ${accent.dot} shadow`}>
+            {count}
+            <span className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ${accent.dot} animate-ping opacity-75`} />
+          </span>
+        )}
+      </div>
+      <p className={`text-sm font-bold ${active ? accent.text : "text-gray-700"}`}>{label}</p>
+      <p className="text-xs text-gray-500 mt-0.5">
+        {count === 0 ? "全部已處理" : `${count} 宗待審核`}
+      </p>
+    </button>
+  );
+}
+
+const ACCENTS = {
+  amber: { text: "text-amber-700", bg: "bg-amber-50", border: "border-amber-300", ring: "ring-amber-200", dot: "bg-amber-500" },
+  blue: { text: "text-blue-700", bg: "bg-blue-50", border: "border-blue-300", ring: "ring-blue-200", dot: "bg-blue-500" },
+  purple: { text: "text-purple-700", bg: "bg-purple-50", border: "border-purple-300", ring: "ring-purple-200", dot: "bg-purple-500" },
+  emerald: { text: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-300", ring: "ring-emerald-200", dot: "bg-emerald-500" },
+};
+
+// ── Reusable section header for each card ──
+function CardHero({
+  accent, icon, title, subtitle, amount, badges, time,
+}: {
+  accent: keyof typeof ACCENTS;
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+  amount?: string;
+  badges?: React.ReactNode;
+  time?: string;
+}) {
+  const a = ACCENTS[accent];
+  return (
+    <div className="flex items-start gap-3">
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${a.bg} ${a.text} flex-shrink-0`}>
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2 flex-wrap">
+          <div className="min-w-0">
+            <h3 className="font-bold text-base text-gray-900 truncate">{title}</h3>
+            {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
+          </div>
+          {amount && (
+            <div className={`text-right flex-shrink-0`}>
+              <p className={`text-xl font-bold ${a.text} leading-none`}>{amount}</p>
+              {time && <p className="text-[10px] text-gray-400 mt-1">{time}</p>}
+            </div>
+          )}
+          {!amount && time && <p className="text-[10px] text-gray-400">{time}</p>}
+        </div>
+        {badges && <div className="flex flex-wrap gap-1.5 mt-2">{badges}</div>}
+      </div>
+    </div>
   );
 }
 
@@ -65,12 +204,10 @@ export default function AdminMerchantCenter() {
     },
     onError: (e) => toast.error(e.message || "批核失敗"),
   });
-
   const reviewMerchant = trpc.merchants.review.useMutation({
     onSuccess: () => { toast.success("已處理"); refetchApps(); },
     onError: (e) => toast.error(e.message || "處理失敗"),
   });
-
   const approveSub = trpc.subscriptions.adminApprove.useMutation({
     onSuccess: () => { toast.success("續期已批核 ✅"); refetchSubs(); utils.subscriptions.adminListSubscriptions.invalidate(); },
     onError: (e) => toast.error(e.message || "批核失敗"),
@@ -79,7 +216,6 @@ export default function AdminMerchantCenter() {
     onSuccess: () => { toast.success("已拒絕"); refetchSubs(); },
     onError: (e) => toast.error(e.message || "處理失敗"),
   });
-
   const reviewTopUp = trpc.sellerDeposits.reviewTopUpRequest.useMutation({
     onSuccess: (_d, vars) => {
       toast.success(`充值申請 #${vars.id} ${vars.status === "approved" ? "已批准" : "已拒絕"}`);
@@ -124,94 +260,168 @@ export default function AdminMerchantCenter() {
     planChange: 0,
     topup: pendingTopUps.length,
   };
+  const totalPending = counts.onboarding + counts.renewal + counts.planChange + counts.topup;
 
   return (
-    <>
+    <div className="min-h-screen bg-gradient-to-br from-amber-50/40 via-white to-orange-50/30">
       <AdminHeader />
+
       <div className="container max-w-6xl py-6 space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <Link href="/admin" className="inline-flex items-center gap-1 text-sm text-amber-700 hover:text-amber-900">
-              <ChevronLeft className="w-4 h-4" /> 返回 Admin
-            </Link>
-            <h1 className="text-2xl font-bold mt-2 flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-amber-500" />
-              商戶統一審批中心
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              新入駐 / 續期 / 轉 plan / 保證金充值，4 大流程一頁過。
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 text-xs">
-            <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200">入駐 {counts.onboarding}</span>
-            <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-800 border border-blue-200">續期 {counts.renewal}</span>
-            <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-800 border border-purple-200">轉 plan {counts.planChange}</span>
-            <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">充值 {counts.topup}</span>
+        {/* ── Hero ── */}
+        <div>
+          <Link href="/admin" className="inline-flex items-center gap-1 text-sm text-amber-700 hover:text-amber-900 mb-3">
+            <ChevronLeft className="w-4 h-4" /> 返回 Admin
+          </Link>
+
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 p-6 sm:p-8 shadow-xl">
+            {/* decorative blobs */}
+            <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-white/10 blur-3xl" />
+            <div className="absolute -bottom-16 -left-8 w-56 h-56 rounded-full bg-yellow-300/20 blur-3xl" />
+            <div className="absolute top-4 right-6 opacity-10">
+              <Sparkles className="w-32 h-32 text-white" />
+            </div>
+
+            <div className="relative flex items-start justify-between flex-wrap gap-4">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur text-white text-xs font-medium mb-3">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Merchant Approval Hub
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                  商戶統一審批中心
+                </h1>
+                <p className="text-sm text-white/90 mt-2 max-w-md">
+                  新入駐 · 續期 · 轉 plan · 保證金充值 — 4 大商戶流程一頁過理。
+                </p>
+              </div>
+
+              <div className="bg-white/20 backdrop-blur-md rounded-2xl px-5 py-3 border border-white/30 shadow-lg">
+                <p className="text-xs text-white/80 uppercase tracking-wider font-medium">Total Pending</p>
+                <p className="text-4xl font-bold text-white leading-none mt-1">{totalPending}</p>
+                <p className="text-[10px] text-white/70 mt-1">
+                  {totalPending === 0 ? "🎉 全部處理完" : "宗待審核項目"}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
+        {/* ── KPI / Tab switcher cards ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <KpiCard
+            active={tab === "onboarding"}
+            count={counts.onboarding}
+            label="新入駐申請"
+            icon={<Building2 className="w-5 h-5" />}
+            accent={ACCENTS.amber}
+            onClick={() => setTab("onboarding")}
+          />
+          <KpiCard
+            active={tab === "renewal"}
+            count={counts.renewal}
+            label="訂閱續期"
+            icon={<RefreshCw className="w-5 h-5" />}
+            accent={ACCENTS.blue}
+            onClick={() => setTab("renewal")}
+          />
+          <KpiCard
+            active={tab === "planChange"}
+            count={counts.planChange}
+            label="轉 Plan"
+            icon={<ArrowRightLeft className="w-5 h-5" />}
+            accent={ACCENTS.purple}
+            onClick={() => setTab("planChange")}
+          />
+          <KpiCard
+            active={tab === "topup"}
+            count={counts.topup}
+            label="保證金充值"
+            icon={<Wallet className="w-5 h-5" />}
+            accent={ACCENTS.emerald}
+            onClick={() => setTab("topup")}
+          />
+        </div>
+
+        {/* ── Tabs (hidden visually; KPI cards drive selection but TabsContent handles rendering) ── */}
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-          <TabsList className="w-full grid grid-cols-2 sm:grid-cols-4">
-            <TabsTrigger value="onboarding" className="flex items-center gap-1.5">
-              <Building2 className="w-4 h-4" /> 入駐 <Badge variant="secondary" className="ml-1">{counts.onboarding}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="renewal" className="flex items-center gap-1.5">
-              <RefreshCw className="w-4 h-4" /> 續期 <Badge variant="secondary" className="ml-1">{counts.renewal}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="planChange" className="flex items-center gap-1.5">
-              <ArrowRightLeft className="w-4 h-4" /> 轉 plan <Badge variant="secondary" className="ml-1">{counts.planChange}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="topup" className="flex items-center gap-1.5">
-              <Wallet className="w-4 h-4" /> 充值 <Badge variant="secondary" className="ml-1">{counts.topup}</Badge>
-            </TabsTrigger>
+          <TabsList className="sr-only">
+            <TabsTrigger value="onboarding">入駐</TabsTrigger>
+            <TabsTrigger value="renewal">續期</TabsTrigger>
+            <TabsTrigger value="planChange">轉 plan</TabsTrigger>
+            <TabsTrigger value="topup">充值</TabsTrigger>
           </TabsList>
 
           {/* ── Tab 1: 入駐申請 ── */}
-          <TabsContent value="onboarding" className="space-y-3">
-            {appsLoading ? (
-              <div className="text-center py-8 text-gray-400"><Loader2 className="w-5 h-5 animate-spin inline mr-2" />載入中…</div>
-            ) : pendingApps.length === 0 ? (
-              <div className="text-center py-8 text-gray-400 text-sm">🎉 暫無待審入駐申請</div>
+          <TabsContent value="onboarding" className="space-y-3 mt-0">
+            {appsLoading ? <LoadingBlock /> : pendingApps.length === 0 ? (
+              <Card className="border-dashed border-2 border-amber-200 bg-white/70">
+                <EmptyState
+                  icon={<Inbox className="w-10 h-10" />}
+                  title="暫無待審入駐申請"
+                  desc="所有新商戶申請都已處理完畢，做得好！"
+                />
+              </Card>
             ) : pendingApps.map((app: any) => {
               const fullOnboarding = !!(app.chosenPlanId && app.chosenDepositTierId && app.paymentProofUrl && app.paymentReference);
               return (
-                <Card key={app.id} className="border-amber-200">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2 flex-wrap">
-                      <Building2 className="w-4 h-4 text-amber-600" />
-                      {app.merchantName}
-                      <span className="text-xs text-gray-400 font-normal">— {app.applicantName ?? "未知"}</span>
-                      <span className="text-xs text-gray-400 font-normal ml-auto">{fmtDate(app.createdAt)}</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                      <span>📞 {app.whatsapp}</span>
-                      {app.applicantPhone && <span>📱 {app.applicantPhone}</span>}
-                      {app.applicantEmail && <span>📧 {app.applicantEmail}</span>}
-                    </div>
+                <Card key={app.id} className="overflow-hidden border-l-4 border-l-amber-500 border-amber-100 hover:shadow-lg transition-shadow">
+                  <CardContent className="p-5 space-y-4">
+                    <CardHero
+                      accent="amber"
+                      icon={<Building2 className="w-5 h-5" />}
+                      title={app.merchantName}
+                      subtitle={`申請人：${app.applicantName ?? "未知"}`}
+                      amount={app.totalAmount ? fmtHKD(app.totalAmount) : undefined}
+                      time={relTime(app.createdAt)}
+                      badges={
+                        <>
+                          {fullOnboarding && (
+                            <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 text-[10px]">
+                              <Sparkles className="w-2.5 h-2.5 mr-0.5" /> 完整套餐
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="text-[10px] text-gray-500">📞 {app.whatsapp}</Badge>
+                          {app.applicantPhone && <Badge variant="outline" className="text-[10px] text-gray-500">📱 {app.applicantPhone}</Badge>}
+                          {app.applicantEmail && <Badge variant="outline" className="text-[10px] text-gray-500">📧 {app.applicantEmail}</Badge>}
+                        </>
+                      }
+                    />
 
                     {app.chosenPlanId ? (
-                      <div className="rounded-xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 px-3 py-2 text-xs space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-amber-900">💎 完整入駐套餐</span>
-                          <span className="font-bold text-amber-700">{fmtHKD(app.totalAmount)}</span>
+                      <div className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 via-orange-50/60 to-amber-50 p-4 space-y-3">
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          {app.chosenPlanName && (
+                            <div className="bg-white/70 rounded-lg px-3 py-2">
+                              <p className="text-[10px] text-amber-600 uppercase tracking-wider font-medium">📅 訂閱計劃</p>
+                              <p className="text-sm font-bold text-amber-900 mt-0.5">{app.chosenPlanName}</p>
+                              <p className="text-[10px] text-amber-700">{app.chosenPeriod === "yearly" ? "年費" : "月費"}</p>
+                            </div>
+                          )}
+                          {app.chosenTierName && (
+                            <div className="bg-white/70 rounded-lg px-3 py-2">
+                              <p className="text-[10px] text-amber-600 uppercase tracking-wider font-medium">💰 保證金套餐</p>
+                              <p className="text-sm font-bold text-amber-900 mt-0.5">{app.chosenTierName}</p>
+                              <p className="text-[10px] text-amber-700">{fmtHKD(app.chosenTierAmount)}</p>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-amber-800">
-                          {app.chosenPlanName && <span>📅 {app.chosenPlanName}（{app.chosenPeriod === "yearly" ? "年費" : "月費"}）</span>}
-                          {app.chosenTierName && <span>💰 {app.chosenTierName}（{fmtHKD(app.chosenTierAmount)}）</span>}
-                        </div>
-                        {app.paymentReference && <p className="text-amber-700">🔖 參考號：{app.paymentReference}</p>}
-                        <div className="pt-1"><ReceiptThumb url={app.paymentProofUrl} /></div>
+                        {app.paymentReference && (
+                          <p className="text-xs text-amber-800 flex items-center gap-1.5">
+                            <span className="font-medium">🔖 參考號：</span>
+                            <code className="bg-white/80 px-2 py-0.5 rounded text-amber-900 font-mono">{app.paymentReference}</code>
+                          </p>
+                        )}
+                        <ReceiptBox url={app.paymentProofUrl} />
                       </div>
                     ) : (
-                      <div className="text-xs text-gray-500 italic">舊式 plain 申請（無揀套餐）</div>
+                      <div className="rounded-xl bg-gray-50 border border-gray-200 px-3 py-2 text-xs text-gray-500 italic flex items-center gap-2">
+                        <AlertCircle className="w-3.5 h-3.5" /> 舊式 plain 申請（未揀套餐／保證金）
+                      </div>
                     )}
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 pt-1">
                       {fullOnboarding && (
                         <Button
-                          size="sm"
                           disabled={approveOnboarding.isPending}
                           onClick={async () => {
                             const ok = await confirmDialog({
@@ -222,34 +432,34 @@ export default function AdminMerchantCenter() {
                             if (!ok) return;
                             approveOnboarding.mutate({ id: app.id });
                           }}
-                          className="gold-gradient text-white font-semibold shadow"
+                          className="gold-gradient text-white font-bold shadow-md hover:shadow-lg transition-all"
                         >
-                          <Sparkles className="w-3.5 h-3.5 mr-1" /> 一鍵批核 + 開通
+                          <Sparkles className="w-4 h-4 mr-1.5" /> 一鍵批核 + 開通
                         </Button>
                       )}
                       <Button
-                        size="sm" variant="outline"
+                        variant="outline"
                         disabled={reviewMerchant.isPending}
                         onClick={async () => {
                           const ok = await confirmDialog({ title: "只批商戶身份？", description: "唔會自動開通訂閱／入帳保證金，需要稍後手動處理。" });
                           if (!ok) return;
                           reviewMerchant.mutate({ id: app.id, status: "approved" });
                         }}
-                        className="text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                        className="text-emerald-700 border-emerald-300 hover:bg-emerald-50 hover:border-emerald-400"
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> {app.chosenPlanId ? "只批商戶" : "批准"}
+                        <CheckCircle2 className="w-4 h-4 mr-1.5" /> {app.chosenPlanId ? "只批商戶" : "批准"}
                       </Button>
                       <Button
-                        size="sm" variant="outline"
+                        variant="outline"
                         disabled={reviewMerchant.isPending}
                         onClick={async () => {
                           const ok = await confirmDialog({ title: "確認拒絕？", description: "拒絕後申請者需要重新提交。", tone: "danger" });
                           if (!ok) return;
                           reviewMerchant.mutate({ id: app.id, status: "rejected" });
                         }}
-                        className="text-red-600 border-red-200 hover:bg-red-50"
+                        className="text-red-600 border-red-200 hover:bg-red-50 ml-auto"
                       >
-                        <XCircle className="w-3.5 h-3.5 mr-1" /> 拒絕
+                        <XCircle className="w-4 h-4 mr-1.5" /> 拒絕
                       </Button>
                     </div>
                   </CardContent>
@@ -259,35 +469,49 @@ export default function AdminMerchantCenter() {
           </TabsContent>
 
           {/* ── Tab 2: 續期 ── */}
-          <TabsContent value="renewal" className="space-y-3">
-            {subsLoading ? (
-              <div className="text-center py-8 text-gray-400"><Loader2 className="w-5 h-5 animate-spin inline mr-2" />載入中…</div>
-            ) : pendingRenewals.length === 0 ? (
-              <div className="text-center py-8 text-gray-400 text-sm">🎉 暫無待審續期申請</div>
+          <TabsContent value="renewal" className="space-y-3 mt-0">
+            {subsLoading ? <LoadingBlock /> : pendingRenewals.length === 0 ? (
+              <Card className="border-dashed border-2 border-blue-200 bg-white/70">
+                <EmptyState
+                  icon={<RefreshCw className="w-10 h-10" />}
+                  title="暫無待審續期申請"
+                  desc="商戶提交續期後會自動出現喺呢度。"
+                />
+              </Card>
             ) : pendingRenewals.map((sub: any) => (
-              <Card key={sub.id} className="border-blue-200">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2 flex-wrap">
-                    <RefreshCw className="w-4 h-4 text-blue-600" />
-                    {sub.userName ?? `User #${sub.userId}`}
-                    <Badge className="bg-blue-500 text-white border-0 text-xs">🔄 續期</Badge>
-                    <span className="text-xs text-gray-400 font-normal ml-auto">{fmtDate(sub.createdAt)}</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="rounded-xl bg-blue-50 border border-blue-200 px-3 py-2 text-xs space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-blue-900">📅 {sub.planName ?? "—"}（{sub.billingCycle === "yearly" ? "年費" : "月費"}）</span>
+              <Card key={sub.id} className="overflow-hidden border-l-4 border-l-blue-500 border-blue-100 hover:shadow-lg transition-shadow">
+                <CardContent className="p-5 space-y-4">
+                  <CardHero
+                    accent="blue"
+                    icon={<RefreshCw className="w-5 h-5" />}
+                    title={sub.userName ?? `User #${sub.userId}`}
+                    subtitle={sub.userEmail ?? undefined}
+                    time={relTime(sub.createdAt)}
+                    badges={
+                      <Badge className="bg-blue-500 text-white border-0 text-[10px]">🔄 續期申請</Badge>
+                    }
+                  />
+
+                  <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50/60 p-4 space-y-3">
+                    <div className="bg-white/70 rounded-lg px-3 py-2">
+                      <p className="text-[10px] text-blue-600 uppercase tracking-wider font-medium">📅 續期計劃</p>
+                      <p className="text-sm font-bold text-blue-900 mt-0.5">{sub.planName ?? "—"}</p>
+                      <p className="text-[10px] text-blue-700">
+                        {sub.billingCycle === "yearly" ? "年費 (延 365 日)" : "月費 (延 30 日)"}
+                        {sub.endDate && <span className="ml-2 text-blue-600">· 原到期 {fmtDate(sub.endDate)}</span>}
+                      </p>
                     </div>
-                    <div className="text-blue-800 flex flex-wrap gap-x-3">
-                      {sub.endDate && <span>原到期：{fmtDate(sub.endDate)}</span>}
-                      {sub.paymentReference && <span>🔖 {sub.paymentReference}</span>}
-                    </div>
-                    <div className="pt-1"><ReceiptThumb url={sub.paymentProofUrl} /></div>
+                    {sub.paymentReference && (
+                      <p className="text-xs text-blue-800 flex items-center gap-1.5">
+                        <span className="font-medium">🔖 參考號：</span>
+                        <code className="bg-white/80 px-2 py-0.5 rounded text-blue-900 font-mono">{sub.paymentReference}</code>
+                      </p>
+                    )}
+                    <ReceiptBox url={sub.paymentProofUrl} />
                   </div>
-                  <div className="flex flex-wrap gap-2">
+
+                  <div className="flex flex-wrap gap-2 pt-1">
                     <Button
-                      size="sm"
                       disabled={approveSub.isPending}
                       onClick={async () => {
                         const ok = await confirmDialog({
@@ -298,21 +522,21 @@ export default function AdminMerchantCenter() {
                         if (!ok) return;
                         approveSub.mutate({ subscriptionId: sub.id });
                       }}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold shadow-md hover:shadow-lg transition-all"
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> 批核 + 延長 {sub.billingCycle === "yearly" ? "365" : "30"} 日
+                      <CheckCircle2 className="w-4 h-4 mr-1.5" /> 批核 + 延長 {sub.billingCycle === "yearly" ? "365" : "30"} 日
                     </Button>
                     <Button
-                      size="sm" variant="outline"
+                      variant="outline"
                       disabled={rejectSub.isPending}
                       onClick={async () => {
                         const ok = await confirmDialog({ title: "確認拒絕續期？", tone: "danger" });
                         if (!ok) return;
                         rejectSub.mutate({ subscriptionId: sub.id });
                       }}
-                      className="text-red-600 border-red-200 hover:bg-red-50"
+                      className="text-red-600 border-red-200 hover:bg-red-50 ml-auto"
                     >
-                      <XCircle className="w-3.5 h-3.5 mr-1" /> 拒絕
+                      <XCircle className="w-4 h-4 mr-1.5" /> 拒絕
                     </Button>
                   </div>
                 </CardContent>
@@ -321,48 +545,72 @@ export default function AdminMerchantCenter() {
           </TabsContent>
 
           {/* ── Tab 3: 轉 plan ── */}
-          <TabsContent value="planChange" className="space-y-3">
-            <Card className="border-dashed border-purple-200 bg-purple-50/30">
-              <CardContent className="py-12 text-center space-y-2">
-                <ArrowRightLeft className="w-10 h-10 text-purple-300 mx-auto" />
-                <p className="text-sm text-purple-900 font-medium">轉 plan 流程開發中（T5）</p>
-                <p className="text-xs text-purple-700/70 max-w-md mx-auto">
-                  屆時會自動算差價（升級補差、降級 credit 落下期），商戶上載差價收據後喺呢度一鍵批核。
+          <TabsContent value="planChange" className="mt-0">
+            <Card className="border-dashed border-2 border-purple-200 bg-gradient-to-br from-purple-50/50 to-pink-50/30">
+              <CardContent className="py-16 px-6 text-center space-y-3">
+                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 text-purple-400 mb-2">
+                  <ArrowRightLeft className="w-10 h-10" />
+                </div>
+                <Badge variant="outline" className="bg-white text-purple-700 border-purple-200">即將推出 · T5</Badge>
+                <p className="text-base font-bold text-purple-900">轉 Plan 流程開發中</p>
+                <p className="text-xs text-purple-700/80 max-w-md mx-auto leading-relaxed">
+                  屆時系統會自動計算差價（升級補差價 · 降級 credit 落下期），<br />
+                  商戶上載差價收據後喺呢度一鍵批核。
                 </p>
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* ── Tab 4: 增值保證金 ── */}
-          <TabsContent value="topup" className="space-y-3">
-            {topUpsLoading ? (
-              <div className="text-center py-8 text-gray-400"><Loader2 className="w-5 h-5 animate-spin inline mr-2" />載入中…</div>
-            ) : pendingTopUps.length === 0 ? (
-              <div className="text-center py-8 text-gray-400 text-sm">🎉 暫無待審充值申請</div>
+          <TabsContent value="topup" className="space-y-3 mt-0">
+            {topUpsLoading ? <LoadingBlock /> : pendingTopUps.length === 0 ? (
+              <Card className="border-dashed border-2 border-emerald-200 bg-white/70">
+                <EmptyState
+                  icon={<Wallet className="w-10 h-10" />}
+                  title="暫無待審充值申請"
+                  desc="商戶充值申請會即時出現喺呢度。"
+                />
+              </Card>
             ) : pendingTopUps.map((r: any) => (
-              <Card key={r.id} className="border-emerald-200">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2 flex-wrap">
-                    <Wallet className="w-4 h-4 text-emerald-600" />
-                    {r.merchantName ?? r.userName ?? `User #${r.userId}`}
-                    <Badge className="bg-emerald-500 text-white border-0 text-xs">💰 {fmtHKD(r.amount)}</Badge>
-                    <span className="text-xs text-gray-400 font-normal ml-auto">{fmtDate(r.createdAt)}</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs space-y-1 text-emerald-900">
-                    <div className="flex flex-wrap gap-x-3">
-                      {r.bank && <span>🏦 {r.bank}</span>}
-                      {r.referenceNo && <span>🔖 {r.referenceNo}</span>}
-                      {r.userPhone && <span>📞 {r.userPhone}</span>}
-                      {r.tierName && <span>💎 套餐：{r.tierName}</span>}
-                    </div>
-                    {r.note && <p className="text-emerald-800">📝 {r.note}</p>}
-                    <div className="pt-1"><ReceiptThumb url={r.receiptUrl} /></div>
+              <Card key={r.id} className="overflow-hidden border-l-4 border-l-emerald-500 border-emerald-100 hover:shadow-lg transition-shadow">
+                <CardContent className="p-5 space-y-4">
+                  <CardHero
+                    accent="emerald"
+                    icon={<Wallet className="w-5 h-5" />}
+                    title={r.merchantName ?? r.userName ?? `User #${r.userId}`}
+                    subtitle={r.userPhone ? `📞 ${r.userPhone}` : undefined}
+                    amount={fmtHKD(r.amount)}
+                    time={relTime(r.createdAt)}
+                    badges={
+                      <>
+                        {r.tierName && (
+                          <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-0 text-[10px]">
+                            💎 {r.tierName}
+                          </Badge>
+                        )}
+                        {r.bank && <Badge variant="outline" className="text-[10px] text-gray-500">🏦 {r.bank}</Badge>}
+                      </>
+                    }
+                  />
+
+                  <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50/60 p-4 space-y-3">
+                    {r.referenceNo && (
+                      <p className="text-xs text-emerald-800 flex items-center gap-1.5">
+                        <span className="font-medium">🔖 參考號：</span>
+                        <code className="bg-white/80 px-2 py-0.5 rounded text-emerald-900 font-mono">{r.referenceNo}</code>
+                      </p>
+                    )}
+                    {r.note && (
+                      <div className="bg-white/70 rounded-lg px-3 py-2 text-xs text-emerald-900">
+                        <p className="text-[10px] text-emerald-600 uppercase tracking-wider font-medium mb-0.5">📝 商戶備注</p>
+                        {r.note}
+                      </div>
+                    )}
+                    <ReceiptBox url={r.receiptUrl} />
                   </div>
-                  <div className="flex flex-wrap gap-2">
+
+                  <div className="flex flex-wrap gap-2 pt-1">
                     <Button
-                      size="sm"
                       disabled={reviewTopUp.isPending}
                       onClick={async () => {
                         const ok = await confirmDialog({
@@ -373,21 +621,21 @@ export default function AdminMerchantCenter() {
                         if (!ok) return;
                         reviewTopUp.mutate({ id: r.id, status: "approved" });
                       }}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold shadow-md hover:shadow-lg transition-all"
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> 批准 + 入帳
+                      <CheckCircle2 className="w-4 h-4 mr-1.5" /> 批准 + 入帳
                     </Button>
                     <Button
-                      size="sm" variant="outline"
+                      variant="outline"
                       disabled={reviewTopUp.isPending}
                       onClick={async () => {
                         const ok = await confirmDialog({ title: "確認拒絕充值？", tone: "danger" });
                         if (!ok) return;
                         reviewTopUp.mutate({ id: r.id, status: "rejected" });
                       }}
-                      className="text-red-600 border-red-200 hover:bg-red-50"
+                      className="text-red-600 border-red-200 hover:bg-red-50 ml-auto"
                     >
-                      <XCircle className="w-3.5 h-3.5 mr-1" /> 拒絕
+                      <XCircle className="w-4 h-4 mr-1.5" /> 拒絕
                     </Button>
                   </div>
                 </CardContent>
@@ -396,18 +644,18 @@ export default function AdminMerchantCenter() {
           </TabsContent>
         </Tabs>
 
-        <Card className="bg-gray-50 border-gray-200">
-          <CardContent className="py-3 text-xs text-gray-500 flex items-center gap-2 flex-wrap">
-            <FileText className="w-3.5 h-3.5" />
-            <span>呢個係統一審批中心；舊版獨立頁仍然可用：</span>
-            <Link href="/admin/users" className="underline hover:text-amber-700">會員管理</Link>
-            <span>·</span>
-            <Link href="/admin/subscriptions" className="underline hover:text-amber-700">訂閱管理</Link>
-            <span>·</span>
-            <Link href="/admin/deposits" className="underline hover:text-amber-700">保證金管理</Link>
+        {/* ── Footer hint ── */}
+        <Card className="bg-gradient-to-r from-gray-50 to-slate-50 border-gray-200">
+          <CardContent className="py-3 px-4 text-xs text-gray-500 flex items-center gap-2 flex-wrap">
+            <span className="text-gray-400">💡 進階操作（餘額調整 · 計劃管理 · 套餐設定）請去：</span>
+            <Link href="/admin/users" className="font-medium text-amber-700 hover:text-amber-900 hover:underline">會員管理</Link>
+            <span className="text-gray-300">·</span>
+            <Link href="/admin/subscriptions" className="font-medium text-amber-700 hover:text-amber-900 hover:underline">訂閱管理</Link>
+            <span className="text-gray-300">·</span>
+            <Link href="/admin/deposits" className="font-medium text-amber-700 hover:text-amber-900 hover:underline">保證金管理</Link>
           </CardContent>
         </Card>
       </div>
-    </>
+    </div>
   );
 }
