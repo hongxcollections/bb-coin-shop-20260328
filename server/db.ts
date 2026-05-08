@@ -3816,6 +3816,19 @@ export async function autoDeductCommissionOnAuctionEnd(auctionId: number): Promi
   const finalPrice = parseFloat(String(auction.currentPrice));
   if (finalPrice <= 0) return { deducted: false };
 
+  // Guard: skip if highest bidder is the auction creator (self-bid testing)
+  if (auction.highestBidderId === auction.createdBy) {
+    console.log(`[Commission] Skipped auction #${auctionId}: highest bidder is the creator (self-bid)`);
+    return { deducted: false };
+  }
+
+  // Guard: skip if auction has zero real bids (passed-in / 流拍)
+  const bidCountRows = await db.select({ id: bids.id }).from(bids).where(eq(bids.auctionId, auctionId)).limit(1);
+  if (bidCountRows.length === 0) {
+    console.log(`[Commission] Skipped auction #${auctionId}: no bids recorded (流拍)`);
+    return { deducted: false };
+  }
+
   const deposit = await getOrCreateSellerDeposit(auction.createdBy);
   if (!deposit) return { deducted: false };
 
