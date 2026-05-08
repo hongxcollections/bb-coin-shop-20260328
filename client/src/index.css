@@ -204,8 +204,8 @@
     outline: none;
     border-color: var(--glow);
     box-shadow:
-      0 0 16px 3px color-mix(in oklch, var(--glow) 50%, transparent),
-      0 0 36px 9px color-mix(in oklch, var(--glow) 30%, transparent);
+      0 0 12px 2px color-mix(in oklch, var(--glow) 50%, transparent),
+      0 0 28px 7px color-mix(in oklch, var(--glow) 30%, transparent);
   }
 }
 
