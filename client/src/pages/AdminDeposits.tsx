@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Wallet, Plus, Minus, RefreshCw, Settings, History, DollarSign, AlertCircle, CheckCircle2, XCircle, ChevronDown, ChevronUp, ImageIcon, Layers, Pencil, Trash2 } from "lucide-react";
+import { RefundRequestsDialog } from "@/components/admin/RefundRequestsDialog";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   bank_transfer: "銀行轉帳",
@@ -105,6 +106,14 @@ export default function AdminDeposits() {
   const [transactionUserId, setTransactionUserId] = useState<number | null>(null);
   const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
   const [newUserId, setNewUserId] = useState("");
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+
+  // pending refund count for hero button badge
+  const { data: refundReqs } = trpc.merchants.adminGetRefundRequests.useQuery(undefined, {
+    enabled: isAuthenticated && user?.role === "admin",
+    refetchInterval: 60000,
+  });
+  const pendingRefundCount = refundReqs?.filter((r: { status: string }) => r.status === "pending").length ?? 0;
 
   const { data: deposits, isLoading: depositsLoading } = trpc.sellerDeposits.listAll.useQuery(
     undefined,
@@ -430,11 +439,18 @@ export default function AdminDeposits() {
                   ✨ 商戶中心
                 </Button>
               </Link>
-              <Link href="/admin/refund-requests">
-                <Button size="sm" className="bg-white text-orange-600 hover:bg-orange-50 border-0 shadow">
-                  <AlertCircle className="w-4 h-4 mr-1" /> 退傭申請
-                </Button>
-              </Link>
+              <Button
+                size="sm"
+                onClick={() => setRefundDialogOpen(true)}
+                className="relative bg-white text-orange-600 hover:bg-orange-50 border-0 shadow"
+              >
+                <AlertCircle className="w-4 h-4 mr-1" /> 退傭申請
+                {pendingRefundCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow ring-2 ring-white">
+                    {pendingRefundCount}
+                  </span>
+                )}
+              </Button>
               <Button
                 size="sm"
                 onClick={() => { setShowTransactions(!showTransactions); setTransactionUserId(null); }}
@@ -947,6 +963,8 @@ export default function AdminDeposits() {
           </Card>
         )}
       </div>
+
+      <RefundRequestsDialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen} />
     </div>
   );
 }
