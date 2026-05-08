@@ -373,11 +373,23 @@ export default function MerchantDashboard() {
   const hasPendingRenewal = (mySubHistory as Array<{ status: string; isRenewal?: number }> | undefined)
     ?.some(s => s.status === "pending" && s.isRenewal === 1) ?? false;
 
+  // 是否已有「已批核但未生效」嘅續期 row（status=active 但 startDate 喺未來，接續 parent.endDate）
+  const approvedRenewal = (mySubHistory as Array<{ id: number; status: string; isRenewal?: number; parentSubscriptionId?: number | null; startDate: Date | string | null; endDate: Date | string | null }> | undefined)
+    ?.find(s =>
+      s.status === "active" &&
+      s.isRenewal === 1 &&
+      mySubscription &&
+      s.parentSubscriptionId === mySubscription.id &&
+      s.startDate &&
+      new Date(s.startDate).getTime() > Date.now()
+    );
+
   // 距到期日嘅日數（用於決定是否顯示「續期」按鈕）
   const daysUntilExpiry = mySubscription?.endDate
     ? Math.ceil((new Date(mySubscription.endDate).getTime() - Date.now()) / 86400000)
     : null;
-  const canRenew = mySubscription && daysUntilExpiry !== null && daysUntilExpiry <= 14;
+  // 14 日內到期 + 仲未有「已批核續期」先顯示 banner（已批核改顯示綠色「已續期」提示）
+  const canRenew = mySubscription && daysUntilExpiry !== null && daysUntilExpiry <= 14 && !approvedRenewal;
 
   const handleSubmitRenew = () => {
     if (!renewPaymentMethod) { toast.error("請選擇付款方式"); return; }
@@ -698,6 +710,19 @@ export default function MerchantDashboard() {
             </div>
           </Link>
         </div>
+
+        {/* ── 已批核但未生效嘅續期：顯示綠色「已續期」提示 ── */}
+        {approvedRenewal && (
+          <div className="rounded-xl border bg-green-50 border-green-200 text-green-700 px-4 py-3 flex items-start gap-3 text-sm">
+            <CheckCircle2 className="w-5 h-5 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold">續期已成功</p>
+              <p className="text-xs mt-0.5">
+                現有訂閱於 {fmtDate(mySubscription?.endDate ?? null)} 到期後，新一期將自動接續至 {fmtDate(approvedRenewal.endDate ?? null)}，限額會係新期生效時自動啟用。
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* ── 訂閱即將到期 / 續期一鍵延長 banner ── */}
         {canRenew && (
