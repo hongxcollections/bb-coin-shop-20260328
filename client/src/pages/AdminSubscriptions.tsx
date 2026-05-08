@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useConfirm } from "@/components/ui/confirm-provider";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import AdminHeader from "@/components/AdminHeader";
@@ -104,6 +105,7 @@ const PAYMENT_METHODS = [
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function AdminSubscriptions() {
+  const confirmDialog = useConfirm();
   const { user, isAuthenticated, loading } = useAuth();
   const [activeTab, setActiveTab] = useState("subscriptions");
 
@@ -635,8 +637,14 @@ export default function AdminSubscriptions() {
                               <Button
                                 variant="outline" size="sm"
                                 className="text-red-600 border-red-200 hover:bg-red-50 text-xs h-7"
-                                onClick={() => {
-                                  if (confirm(`確定刪除計劃「${plan.name}」？`)) {
+                                onClick={async () => {
+                                  const ok = await confirmDialog({
+                                    title: "確定刪除計劃？",
+                                    description: `「${plan.name}」`,
+                                    confirmText: "刪除",
+                                    tone: "danger",
+                                  });
+                                  if (ok) {
                                     deletePlanMutation.mutate({ planId: plan.id });
                                   }
                                 }}

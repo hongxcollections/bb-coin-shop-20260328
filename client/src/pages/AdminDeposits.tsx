@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useConfirm } from "@/components/ui/confirm-provider";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import AdminHeader from "@/components/AdminHeader";
@@ -88,6 +89,7 @@ function typeLabel(type: string) {
 }
 
 export default function AdminDeposits() {
+  const confirmDialog = useConfirm();
   const { user, isAuthenticated, loading } = useAuth();
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [actionType, setActionType] = useState<"topUp" | "deduct" | "refund" | "adjust" | "settings" | null>(null);
@@ -494,7 +496,15 @@ export default function AdminDeposits() {
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-gray-400 hover:text-red-500"
-                            onClick={() => { if (confirm(`確定刪除套餐「${tier.name}」？`)) deleteTierMutation.mutate({ id: tier.id }); }}>
+                            onClick={async () => {
+                              const ok = await confirmDialog({
+                                title: "確定刪除套餐？",
+                                description: `「${tier.name}」`,
+                                confirmText: "刪除",
+                                tone: "danger",
+                              });
+                              if (ok) deleteTierMutation.mutate({ id: tier.id });
+                            }}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>

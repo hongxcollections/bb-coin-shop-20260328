@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useConfirm } from "@/components/ui/confirm-provider";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -1141,6 +1142,7 @@ export default function AdminSiteSettings() {
 
 // ─── Chat 對話保留期設定 ──────────────────────────────────────────────────────
 function ChatRetentionCard() {
+  const confirmDialog = useConfirm();
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.chat.getRetentionDays.useQuery();
   const [days, setDays] = useState<string>("");
@@ -1172,8 +1174,14 @@ function ChatRetentionCard() {
     setMut.mutate({ days: n });
   };
 
-  const handlePurge = () => {
-    if (!window.confirm("確定立即執行清理？已結拍超過保留期嘅對話會被永久刪除。")) return;
+  const handlePurge = async () => {
+    const ok = await confirmDialog({
+      title: "確定立即執行清理？",
+      description: "已結拍超過保留期嘅對話會被永久刪除。",
+      confirmText: "執行清理",
+      tone: "danger",
+    });
+    if (!ok) return;
     purgeMut.mutate();
   };
 

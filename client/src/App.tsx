@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { Chatbot } from "@/components/Chatbot";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ConfirmProvider } from "@/components/ui/confirm-provider";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch, Link } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -209,6 +210,7 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light" switchable={true}>
         <TooltipProvider>
+          <ConfirmProvider>
           <ToastProvider>
             <Toaster
               position="top-center"
@@ -229,6 +231,7 @@ function App() {
             <BottomNav />
             <Chatbot />
           </ToastProvider>
+          </ConfirmProvider>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useConfirm } from "@/components/ui/confirm-provider";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -40,6 +41,7 @@ function defaultEndTime(daysFromNow = 3) {
 }
 
 export default function AdminDrafts() {
+  const confirmDialog = useConfirm();
   const { user } = useAuth();
   const utils = trpc.useUtils();
 
@@ -345,8 +347,13 @@ export default function AdminDrafts() {
                         size="sm"
                         variant="outline"
                         className="gap-1 text-red-500 border-red-200 hover:bg-red-50 h-7 text-xs"
-                        onClick={() => {
-                          if (confirm("確定刪除此草稿？")) deleteMutation.mutate({ id: draft.id });
+                        onClick={async () => {
+                          const ok = await confirmDialog({
+                            title: "確定刪除此草稿？",
+                            confirmText: "刪除",
+                            tone: "danger",
+                          });
+                          if (ok) deleteMutation.mutate({ id: draft.id });
                         }}
                       >
                         <Trash2 className="w-3 h-3" />

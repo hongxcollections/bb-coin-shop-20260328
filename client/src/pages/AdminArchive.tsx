@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useConfirm } from "@/components/ui/confirm-provider";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -75,6 +76,7 @@ function useCountdown(onFinish: (ids: number[]) => void) {
 }
 
 export default function AdminArchive() {
+  const confirmDialog = useConfirm();
   const { user, isAuthenticated, logout } = useAuth();
   const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const CATEGORY_OPTIONS = parseCategories(siteSettings as Record<string, string> | undefined);
@@ -190,8 +192,14 @@ export default function AdminArchive() {
     toast.info("已取消還原");
   };
 
-  const handlePermanentDelete = (id: number, title: string) => {
-    if (confirm(`⚠️ 警告：此操作無法還原！\n\n確定要永久刪除「${title}」及其所有出價記錄嗎？`)) {
+  const handlePermanentDelete = async (id: number, title: string) => {
+    const ok = await confirmDialog({
+      title: "⚠️ 此操作無法還原",
+      description: `確定要永久刪除「${title}」及其所有出價記錄？`,
+      confirmText: "永久刪除",
+      tone: "danger",
+    });
+    if (ok) {
       setDeletingId(id); permanentDelete.mutate({ id });
     }
   };

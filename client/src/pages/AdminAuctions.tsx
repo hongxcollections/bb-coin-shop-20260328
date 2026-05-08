@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { useConfirm } from "@/components/ui/confirm-provider";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -283,6 +284,7 @@ function ImageUploadZone({
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function AdminAuctions() {
+  const confirmDialog = useConfirm();
   const { user, isAuthenticated, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -943,8 +945,14 @@ export default function AdminAuctions() {
                             </Button>
                             <Button
                               size="sm"
-                              onClick={() => {
-                                if (confirm(`確定要封存「${auction.title}」嗎？封存後可在封存區查看或永久刪除。`)) {
+                              onClick={async () => {
+                                const ok = await confirmDialog({
+                                  title: "確定要封存？",
+                                  description: `「${auction.title}」\n封存後可在封存區查看或永久刪除。`,
+                                  confirmText: "封存",
+                                  tone: "warning",
+                                });
+                                if (ok) {
                                   archiveAuction.mutate({ id: auction.id });
                                 }
                               }}
@@ -962,7 +970,14 @@ export default function AdminAuctions() {
                               <Pencil className="w-3 h-3" />
                             </Button>
                             <Button size="sm" variant="outline"
-                              onClick={() => { if (confirm("確定要刪除此拍賣嗎？")) { deleteAuction.mutate({ id: auction.id }); } }}
+                              onClick={async () => {
+                                const ok = await confirmDialog({
+                                  title: "確定要刪除此拍賣？",
+                                  confirmText: "刪除",
+                                  tone: "danger",
+                                });
+                                if (ok) deleteAuction.mutate({ id: auction.id });
+                              }}
                               className="border-red-200 text-red-600 hover:bg-red-50 h-7 w-7 p-0">
                               <Trash2 className="w-3 h-3" />
                             </Button>

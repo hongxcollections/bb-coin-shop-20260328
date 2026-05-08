@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useConfirm } from "@/components/ui/confirm-provider";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import AdminHeader from "@/components/AdminHeader";
@@ -1000,6 +1001,7 @@ type EditState = {
 };
 
 export default function AdminUsers() {
+  const confirmDialog = useConfirm();
   const { user, isAuthenticated, loading } = useAuth();
   const [, navigate] = useLocation();
 
@@ -1659,8 +1661,13 @@ export default function AdminUsers() {
                           return fullOnboarding ? (
                             <button
                               disabled={approveOnboarding.isPending}
-                              onClick={() => {
-                                if (!confirm(`確認一鍵批核？將會同時：\n• 開通訂閱（${app.chosenPlanName ?? ""} ${app.chosenPeriod === "yearly" ? "年費" : "月費"}）\n• 入帳保證金 HK$${parseFloat((app.chosenTierAmount as unknown as string) ?? "0").toLocaleString()}\n• 批核商戶身份`)) return;
+                              onClick={async () => {
+                                const ok = await confirmDialog({
+                                  title: "確認一鍵批核？",
+                                  description: `將會同時：\n• 開通訂閱（${app.chosenPlanName ?? ""} ${app.chosenPeriod === "yearly" ? "年費" : "月費"}）\n• 入帳保證金 HK$${parseFloat((app.chosenTierAmount as unknown as string) ?? "0").toLocaleString()}\n• 批核商戶身份`,
+                                  confirmText: "一鍵批核",
+                                });
+                                if (!ok) return;
                                 approveOnboarding.mutate({ id: app.id });
                               }}
                               className="flex items-center gap-1 text-xs gold-gradient text-white rounded-lg px-3 py-1.5 hover:opacity-90 transition-opacity disabled:opacity-50 font-semibold shadow"
