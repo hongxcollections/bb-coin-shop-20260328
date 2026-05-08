@@ -122,6 +122,8 @@ export default function MerchantApply() {
   // ── 取 plan + tier 資料畀 wizard ──
   const { data: plans } = trpc.subscriptions.getPlans.useQuery(undefined, { enabled: isAuthenticated });
   const { data: tiers } = trpc.depositTiers.listActive.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: siteSettings } = trpc.siteSettings.getAll.useQuery();
+  const paymentInfoText = (siteSettings as Record<string, string> | undefined)?.["subscription_payment_methods"] ?? "";
 
   const uploadPhoto = trpc.merchants.uploadPhoto.useMutation();
   const uploadProof = trpc.subscriptions.uploadPaymentProof.useMutation();
@@ -616,12 +618,16 @@ export default function MerchantApply() {
                   </div>
                 </div>
 
-                <div className="bg-amber-50 rounded-xl border border-amber-200 p-4 text-xs text-amber-800 space-y-1.5 leading-relaxed">
-                  <p className="font-semibold">📌 入數方法（請任選其一）</p>
-                  <p>• <b>FPS 轉數快</b>：手機號 9123-4567 / 識別碼 123456789</p>
-                  <p>• <b>銀行轉帳</b>：匯豐 123-456789-001（戶名：HONGX COLLECTIONS）</p>
-                  <p className="text-amber-600 mt-1">入數後請填寫參考號 + 上載收據截圖</p>
-                </div>
+                {paymentInfoText.trim() ? (
+                  <div className="bg-amber-50 rounded-xl border border-amber-200 p-4 text-xs text-amber-800 leading-relaxed whitespace-pre-line">
+                    {paymentInfoText}
+                    <p className="text-amber-600 mt-2">入數後請填寫參考號 + 上載收據截圖</p>
+                  </div>
+                ) : (
+                  <div className="bg-amber-50 rounded-xl border border-amber-200 p-4 text-xs text-amber-700">
+                    請聯絡管理員索取入數方法，或填寫參考號 + 上載收據截圖。
+                  </div>
+                )}
 
                 <div className="bg-white rounded-2xl border border-amber-100 p-4 space-y-3 shadow-sm">
                   <div>
