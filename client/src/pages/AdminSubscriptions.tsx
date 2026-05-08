@@ -453,13 +453,27 @@ export default function AdminSubscriptions() {
                 <CardDescription>審核用戶的訂閱申請，確認收款後批准升級</CardDescription>
               </CardHeader>
               <CardContent>
+                {pendingSubs.length > 0 && (
+                  <div className="mb-4 rounded-xl border-2 border-amber-300 bg-amber-50/60 px-4 py-3 flex items-center gap-3 flex-wrap shadow-sm">
+                    <CreditCard className="w-5 h-5 text-amber-700" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-amber-900">
+                        有 {pendingSubs.length} 宗待審訂閱／續期申請
+                      </p>
+                      <p className="text-xs text-amber-700">所有待審訂閱已遷移至「商戶統一審批中心」一鍵處理（包括新訂閱 + 續期）。</p>
+                    </div>
+                    <Link href="/admin/merchant-center">
+                      <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white">前往商戶中心 →</Button>
+                    </Link>
+                  </div>
+                )}
                 {subsLoading ? (
                   <p className="text-center text-muted-foreground py-8">載入中...</p>
-                ) : !subscriptions || subscriptions.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">尚無訂閱申請</p>
+                ) : !subscriptions || (subscriptions as Subscription[]).filter((s: Subscription) => s.status !== "pending").length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">尚無已審核訂閱記錄</p>
                 ) : (
                   <div className="space-y-3">
-                    {(subscriptions as Subscription[]).map((sub) => {
+                    {(subscriptions as Subscription[]).filter((s: Subscription) => s.status !== "pending").map((sub) => {
                       const sb = statusBadge(sub.status);
                       const lb = levelBadge(sub.memberLevel);
                       return (

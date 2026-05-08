@@ -1547,186 +1547,25 @@ export default function AdminUsers() {
           </div>
         )}
 
-        {/* ── Merchant Application Review Panel ── */}
+        {/* ── 商戶申請審核 已遷移至商戶統一中心 ── */}
         {pendingMerchantApps.length > 0 && (
-          <div className="mb-5 rounded-2xl border-2 border-amber-400 overflow-hidden shadow-md">
-            <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: "#FEF3C7" }}>
-              <Store className="w-4 h-4 text-amber-700" />
-              <span className="font-bold text-sm text-amber-900">
-                商戶申請審核 ({pendingMerchantApps.length})
-              </span>
+          <div className="mb-5 rounded-2xl border-2 border-amber-300 bg-amber-50/60 px-4 py-3 flex items-center gap-3 flex-wrap shadow-sm">
+            <Store className="w-5 h-5 text-amber-700" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-amber-900">
+                有 {pendingMerchantApps.length} 宗待審商戶申請
+              </p>
+              <p className="text-xs text-amber-700">所有商戶入駐審批已遷移至「商戶統一審批中心」一鍵處理。</p>
             </div>
-            <div className="divide-y divide-amber-100">
-              {pendingMerchantApps.map(app => {
-                const expanded = expandedMerchantId === app.id;
-                const reviewing = merchantReviewId === app.id || merchantReviewId === -app.id;
-                return (
-                  <div key={app.id} className="px-4 py-3 bg-white">
-                    {/* Header row */}
-                    <div className="flex items-center gap-2 justify-between">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Store className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                        <span className="font-semibold text-sm text-gray-800 truncate">{app.merchantName}</span>
-                        <span className="text-xs text-gray-400">— {app.applicantName ?? "未知"}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setExpandedMerchantId(expanded ? null : app.id)}
-                        className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800"
-                      >
-                        {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        {expanded ? "收起" : "詳細"}
-                      </button>
-                    </div>
-
-                    {/* Compact info */}
-                    <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
-                      {app.contactName && <span>👤 {app.contactName}</span>}
-                      <span>📞 {app.whatsapp}</span>
-                      <span className="text-gray-400">
-                        {new Date(app.createdAt!).toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </div>
-
-                    {/* T1: 3-in-1 onboarding 摘要（pending 都顯示，醒目嘅 banner） */}
-                    {app.chosenPlanId && (
-                      <div className="mt-2 rounded-xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 px-3 py-2 text-xs space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-amber-900">💎 完整入駐套餐</span>
-                          <span className="font-bold text-amber-700">
-                            HK${parseFloat((app.totalAmount as unknown as string) ?? "0").toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-amber-800">
-                          {app.chosenPlanName && (
-                            <span>📅 {app.chosenPlanName}（{app.chosenPeriod === "yearly" ? "年費" : "月費"}）</span>
-                          )}
-                          {app.chosenTierName && (
-                            <span>💰 {app.chosenTierName}（HK${parseFloat((app.chosenTierAmount as unknown as string) ?? "0").toLocaleString()}）</span>
-                          )}
-                        </div>
-                        {app.paymentReference && (
-                          <p className="text-amber-700">🔖 參考號：{app.paymentReference}</p>
-                        )}
-                        {app.paymentProofUrl && (
-                          <a href={app.paymentProofUrl} target="_blank" rel="noreferrer"
-                            className="inline-block text-amber-700 underline hover:text-amber-900">
-                            🧾 查看收據
-                          </a>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Expanded details */}
-                    {expanded && (
-                      <div className="mt-3 space-y-3">
-                        {/* Merchant icon */}
-                        {app.merchantIcon && (
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={app.merchantIcon}
-                              alt="商戶圖示"
-                              className="w-14 h-14 rounded-xl object-cover border border-amber-100"
-                            />
-                            <span className="text-xs text-gray-400">商戶圖示</span>
-                          </div>
-                        )}
-                        <div className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2">
-                          <p className="text-xs font-medium text-gray-500 mb-1">自我介紹</p>
-                          <p className="text-sm text-gray-700">{app.selfIntro}</p>
-                        </div>
-                        <div className="text-xs text-gray-500 space-y-0.5">
-                          {app.applicantEmail && <p>📧 {app.applicantEmail}</p>}
-                          {app.applicantPhone && <p>📱 {app.applicantPhone}</p>}
-                        </div>
-                        {app.paymentProofUrl && (
-                          <div>
-                            <p className="text-xs font-medium text-gray-500 mb-1">付款收據</p>
-                            <a href={app.paymentProofUrl} target="_blank" rel="noreferrer">
-                              <img src={app.paymentProofUrl} alt="付款收據"
-                                className="max-w-[200px] rounded-xl border border-amber-200 hover:opacity-90" />
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Review actions */}
-                    {!reviewing ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {/* 一鍵批核：必須齊備 plan + tier + 收據 + 參考號（避免半套） */}
-                        {(() => {
-                          const fullOnboarding = !!(app.chosenPlanId && app.chosenDepositTierId
-                            && app.paymentProofUrl && app.paymentReference);
-                          return fullOnboarding ? (
-                            <button
-                              disabled={approveOnboarding.isPending}
-                              onClick={async () => {
-                                const ok = await confirmDialog({
-                                  title: "確認一鍵批核？",
-                                  description: `將會同時：\n• 開通訂閱（${app.chosenPlanName ?? ""} ${app.chosenPeriod === "yearly" ? "年費" : "月費"}）\n• 入帳保證金 HK$${parseFloat((app.chosenTierAmount as unknown as string) ?? "0").toLocaleString()}\n• 批核商戶身份`,
-                                  confirmText: "一鍵批核",
-                                });
-                                if (!ok) return;
-                                approveOnboarding.mutate({ id: app.id });
-                              }}
-                              className="flex items-center gap-1 text-xs gold-gradient text-white rounded-lg px-3 py-1.5 hover:opacity-90 transition-opacity disabled:opacity-50 font-semibold shadow"
-                            >
-                              <Sparkles className="w-3.5 h-3.5" /> 一鍵批核 + 開通
-                            </button>
-                          ) : null;
-                        })()}
-                        <button
-                          onClick={() => { setMerchantReviewId(app.id); setMerchantNote(""); }}
-                          className="flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg px-3 py-1.5 hover:bg-emerald-100 transition-colors"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" /> {app.chosenPlanId ? "只批商戶" : "批准"}
-                        </button>
-                        <button
-                          onClick={() => { setMerchantReviewId(-app.id); setMerchantNote(""); }}
-                          className="flex items-center gap-1 text-xs bg-red-50 text-red-600 border border-red-200 rounded-lg px-3 py-1.5 hover:bg-red-100 transition-colors"
-                        >
-                          <XCircle className="w-3.5 h-3.5" /> 拒絕
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="mt-3 space-y-2">
-                        <p className="text-xs font-medium text-gray-600">
-                          {merchantReviewId > 0 ? "✅ 批准" : "❌ 拒絕"} — 備注（可選）
-                        </p>
-                        <input
-                          className="w-full text-sm rounded-lg border border-amber-200 px-3 py-1.5 focus:outline-none focus:border-amber-400"
-                          placeholder={merchantReviewId > 0 ? "例如：歡迎加入，保證金 HKD 500" : "例如：資料不足，請補充"}
-                          value={merchantNote}
-                          onChange={e => setMerchantNote(e.target.value)}
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            disabled={reviewMerchant.isPending}
-                            onClick={() => reviewMerchant.mutate({
-                              id: Math.abs(merchantReviewId!),
-                              status: merchantReviewId! > 0 ? "approved" : "rejected",
-                              adminNote: merchantNote || undefined,
-                            })}
-                            className="text-xs bg-amber-500 text-white rounded-lg px-3 py-1.5 hover:bg-amber-600 transition-colors disabled:opacity-50"
-                          >
-                            確認提交
-                          </button>
-                          <button
-                            onClick={() => { setMerchantReviewId(null); setMerchantNote(""); }}
-                            className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5"
-                          >
-                            取消
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <a
+              href="/admin/merchant-center"
+              className="text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg px-3 py-1.5 transition-colors"
+            >
+              前往商戶中心 →
+            </a>
           </div>
         )}
+
 
         {/* Tabs */}
         <Tabs defaultValue="all">
