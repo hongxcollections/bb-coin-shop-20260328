@@ -825,6 +825,93 @@ export default function MerchantDashboard() {
           </div>
         )}
 
+        {/* ── 現有保證金套餐資料 ── */}
+        {deposit && (() => {
+          const currentTier = deposit.currentTierId
+            ? (activeTiers as { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; commissionRate?: string | null; productCommissionRate?: string | null }[] | undefined)?.find(t => t.id === deposit.currentTierId)
+            : null;
+          const balance = deposit.balance ?? 0;
+          const required = deposit.requiredDeposit ?? 0;
+          const warning = deposit.warningDeposit ?? 0;
+          const tierAmt = currentTier ? parseFloat(currentTier.amount) : required;
+          const auctionPct = (deposit.commissionRate ?? 0) * 100;
+          const productPct = (deposit.productCommissionRate ?? deposit.commissionRate ?? 0) * 100;
+          const isLow = required > 0 && balance < required;
+          const isWarn = !isLow && warning > 0 && balance < warning;
+          const ringTone = isLow ? "border-red-300 bg-gradient-to-br from-red-50 to-white" : isWarn ? "border-amber-300 bg-gradient-to-br from-amber-50 to-white" : "border-emerald-200 bg-gradient-to-br from-emerald-50 to-white";
+          const balanceTone = isLow ? "text-red-700" : isWarn ? "text-amber-700" : "text-emerald-700";
+          const pctOfTier = tierAmt > 0 ? Math.min(100, Math.max(0, (balance / tierAmt) * 100)) : 0;
+          return (
+            <Card className={`rounded-2xl border-2 ${ringTone}`}>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Wallet className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <h2 className="font-semibold text-gray-900 text-sm">現有保證金套餐</h2>
+                    {currentTier ? (
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white">{currentTier.name}</span>
+                    ) : (
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-200 text-gray-600">未指定套餐</span>
+                    )}
+                  </div>
+                  {currentTier && <span className="text-xs text-gray-500">套餐金額 <strong className="text-gray-800">HK${tierAmt.toLocaleString()}</strong></span>}
+                </div>
+
+                {/* ── 餘額進度條 ── */}
+                <div className="space-y-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-xs text-gray-500">目前餘額</span>
+                    <span className={`text-2xl font-bold ${balanceTone}`}>HK${balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                  </div>
+                  {tierAmt > 0 && (
+                    <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+                      <div
+                        className={`h-full transition-all ${isLow ? "bg-red-500" : isWarn ? "bg-amber-500" : "bg-emerald-500"}`}
+                        style={{ width: `${pctOfTier}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* ── 維持／預警／傭金 ── */}
+                <div className="grid grid-cols-2 gap-2">
+                  {required > 0 && (
+                    <div className="rounded-lg bg-white border border-emerald-100 px-2.5 py-1.5">
+                      <div className="text-[10px] text-gray-500">維持水平</div>
+                      <div className="text-xs font-semibold text-emerald-700">≥ HK${required.toLocaleString()}</div>
+                    </div>
+                  )}
+                  {warning > 0 && (
+                    <div className="rounded-lg bg-white border border-amber-100 px-2.5 py-1.5">
+                      <div className="text-[10px] text-gray-500">預警水平</div>
+                      <div className="text-xs font-semibold text-amber-700">≤ HK${warning.toLocaleString()}</div>
+                    </div>
+                  )}
+                  <div className="rounded-lg bg-white border border-blue-100 px-2.5 py-1.5">
+                    <div className="text-[10px] text-gray-500">拍賣傭金</div>
+                    <div className="text-xs font-semibold text-blue-700">{auctionPct.toFixed(2)}%</div>
+                  </div>
+                  <div className="rounded-lg bg-white border border-purple-100 px-2.5 py-1.5">
+                    <div className="text-[10px] text-gray-500">商品傭金</div>
+                    <div className="text-xs font-semibold text-purple-700">{productPct.toFixed(2)}%</div>
+                  </div>
+                </div>
+
+                {isLow && (
+                  <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5">
+                    ⚠️ 餘額已低於維持水平，發佈商品將會受限。請盡快充值。
+                  </div>
+                )}
+                {isWarn && (
+                  <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                    ⚠️ 餘額已低於預警水平，建議盡快充值以免影響上架。
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
+
         {/* ── 保證金充值申請 (moved above transactions) ── */}
         <Card className="rounded-2xl border-amber-100">
           <CardContent className="p-4 space-y-3">
