@@ -1333,7 +1333,7 @@ export default function MerchantDashboard() {
 
       {/* ── 轉保證金套餐 dialog ── */}
       <Dialog open={tierChangeOpen} onOpenChange={(o) => { setTierChangeOpen(o); if (!o) setTierChangeTargetId(null); }}>
-        <DialogContent className="max-w-[calc(100%-6px)] sm:max-w-md max-h-[90vh] overflow-y-auto px-[6px]">
+        <DialogContent className="max-w-[calc(100%-10px)] sm:max-w-md max-h-[90vh] overflow-y-auto px-[6px]">
           <DialogHeader className="px-[20px]">
             <DialogTitle>轉保證金套餐</DialogTitle>
           </DialogHeader>
