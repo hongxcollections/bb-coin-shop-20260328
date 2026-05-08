@@ -332,25 +332,59 @@ export default function AdminSubscriptions() {
   const pendingSubs = (subscriptions as Subscription[] | undefined)?.filter(s => s.status === "pending") ?? [];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-violet-50/30 via-white to-blue-50/30">
       <AdminHeader />
 
-      <div className="container py-8 max-w-5xl">
-        {/* Stats */}
+      <div className="container py-6 max-w-5xl space-y-6">
+        {/* ── Hero ── */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-600 p-6 sm:p-8 shadow-xl">
+          <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute -bottom-16 -left-8 w-56 h-56 rounded-full bg-pink-300/20 blur-3xl" />
+          <div className="absolute top-4 right-6 opacity-10">
+            <Crown className="w-32 h-32 text-white" />
+          </div>
+
+          <div className="relative flex items-start justify-between flex-wrap gap-4">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur text-white text-xs font-medium mb-3">
+                <Crown className="w-3.5 h-3.5" />
+                Subscription Operations
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                訂閱管理
+              </h1>
+              <p className="text-sm text-white/90 mt-2 max-w-md">
+                會員計劃 · 訂閱記錄 · 付款方式 · 即將到期跟進。
+              </p>
+            </div>
+            <Link href="/admin/merchant-center" className="self-start">
+              <Button size="sm" className="bg-white text-violet-700 hover:bg-violet-50 border-0 shadow-lg font-semibold">
+                ✨ 待審訂閱去商戶中心
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* ── Stats KPI ── */}
         {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
-              { label: "總訂閱", value: stats.total, icon: <Users className="w-4 h-4" />, cls: "text-blue-600 bg-blue-50 border-blue-200" },
-              { label: "待審核", value: stats.pending, icon: <Clock className="w-4 h-4" />, cls: "text-amber-600 bg-amber-50 border-amber-200" },
-              { label: "生效中", value: stats.active, icon: <CheckCircle2 className="w-4 h-4" />, cls: "text-green-600 bg-green-50 border-green-200" },
-              { label: "已過期", value: stats.expired, icon: <XCircle className="w-4 h-4" />, cls: "text-gray-600 bg-gray-50 border-gray-200" },
-            ].map(({ label, value, icon, cls }) => (
-              <Card key={label} className={`border ${cls}`}>
-                <CardContent className="py-3 px-4 flex items-center gap-3">
-                  {icon}
-                  <div>
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                    <p className="text-xl font-bold">{value}</p>
+              { label: "總訂閱", value: stats.total, icon: <Users className="w-5 h-5" />, ring: "from-blue-500 to-cyan-500", text: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200" },
+              { label: "待審核", value: stats.pending, icon: <Clock className="w-5 h-5" />, ring: "from-amber-500 to-orange-500", text: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200" },
+              { label: "生效中", value: stats.active, icon: <CheckCircle2 className="w-5 h-5" />, ring: "from-emerald-500 to-teal-500", text: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200" },
+              { label: "已過期", value: stats.expired, icon: <XCircle className="w-5 h-5" />, ring: "from-gray-400 to-slate-500", text: "text-gray-600", bg: "bg-gray-50", border: "border-gray-200" },
+            ].map(({ label, value, icon, ring, text, bg, border }) => (
+              <Card key={label} className={`overflow-hidden border-2 ${border} hover:shadow-lg hover:-translate-y-0.5 transition-all`}>
+                <CardContent className="p-4 relative">
+                  <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${ring}`} />
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">{label}</p>
+                      <p className={`text-3xl font-bold ${text} mt-1 leading-none`}>{value}</p>
+                    </div>
+                    <div className={`w-10 h-10 rounded-xl ${bg} ${text} flex items-center justify-center`}>
+                      {icon}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

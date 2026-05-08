@@ -369,40 +369,86 @@ export default function AdminDeposits() {
   const displayTransactions = transactionUserId ? transactions : allTransactions;
   const isTxLoading = transactionUserId ? txLoading : allTxLoading;
 
+  // ── Quick stats for hero ──
+  const totalMerchants = (deposits as DepositRow[] | undefined)?.length ?? 0;
+  const totalBalance = (deposits as DepositRow[] | undefined)?.reduce((s, d) => s + parseFloat(d.balance || "0"), 0) ?? 0;
+  const lowBalanceCount = (deposits as DepositRow[] | undefined)?.filter(d => {
+    const bal = parseFloat(d.balance || "0");
+    const warn = parseFloat(d.warningDeposit || "0");
+    return warn > 0 && bal <= warn;
+  }).length ?? 0;
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50/30 via-white to-amber-50/30">
       <AdminHeader />
 
-      <div className="container py-8 max-w-4xl">
-        {/* Header with Add User button */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-xl font-bold text-amber-900 flex items-center gap-2">
-              <Wallet className="w-5 h-5" /> 商戶保證金管理
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">管理商戶保證金餘額、佣金率及交易記錄</p>
+      <div className="container py-6 max-w-5xl space-y-6">
+        {/* ── Hero ── */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500 via-teal-500 to-emerald-600 p-6 sm:p-8 shadow-xl">
+          <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute -bottom-16 -left-8 w-56 h-56 rounded-full bg-yellow-300/20 blur-3xl" />
+          <div className="absolute top-4 right-6 opacity-10">
+            <Wallet className="w-32 h-32 text-white" />
           </div>
-          <div className="flex gap-2">
-            <Link href="/admin/refund-requests">
-              <Button variant="outline" size="sm" className="border-orange-200 text-orange-600 hover:bg-orange-50">
-                <AlertCircle className="w-4 h-4 mr-1" /> 退傭申請
-              </Button>
-            </Link>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => { setShowTransactions(!showTransactions); setTransactionUserId(null); }}
-              className="border-amber-200"
-            >
-              <History className="w-4 h-4 mr-1" />
-              {showTransactions ? "隱藏交易記錄" : "所有交易記錄"}
-            </Button>
-            <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gold-gradient text-white border-0">
-                  <Plus className="w-4 h-4 mr-1" /> 新增商戶
+
+          <div className="relative flex items-start justify-between flex-wrap gap-4">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur text-white text-xs font-medium mb-3">
+                <Wallet className="w-3.5 h-3.5" />
+                Deposit Operations
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                商戶保證金管理
+              </h1>
+              <p className="text-sm text-white/90 mt-2 max-w-md">
+                餘額管理 · 套餐設定 · 佣金率調整 · 完整交易歷史。
+              </p>
+
+              {/* hero KPIs */}
+              <div className="flex flex-wrap gap-2 mt-4">
+                <div className="bg-white/20 backdrop-blur rounded-lg px-3 py-1.5 border border-white/20">
+                  <p className="text-[10px] text-white/80 uppercase tracking-wider">商戶數</p>
+                  <p className="text-lg font-bold text-white leading-none mt-0.5">{totalMerchants}</p>
+                </div>
+                <div className="bg-white/20 backdrop-blur rounded-lg px-3 py-1.5 border border-white/20">
+                  <p className="text-[10px] text-white/80 uppercase tracking-wider">總餘額</p>
+                  <p className="text-lg font-bold text-white leading-none mt-0.5">HK${totalBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                </div>
+                {lowBalanceCount > 0 && (
+                  <div className="bg-red-500/30 backdrop-blur rounded-lg px-3 py-1.5 border border-red-300/40 animate-pulse">
+                    <p className="text-[10px] text-white/90 uppercase tracking-wider">⚠️ 低餘額</p>
+                    <p className="text-lg font-bold text-white leading-none mt-0.5">{lowBalanceCount}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* action buttons */}
+            <div className="flex flex-wrap gap-2 self-start">
+              <Link href="/admin/merchant-center">
+                <Button size="sm" className="bg-white/20 backdrop-blur hover:bg-white/30 text-white border border-white/30">
+                  ✨ 商戶中心
                 </Button>
-              </DialogTrigger>
+              </Link>
+              <Link href="/admin/refund-requests">
+                <Button size="sm" className="bg-white text-orange-600 hover:bg-orange-50 border-0 shadow">
+                  <AlertCircle className="w-4 h-4 mr-1" /> 退傭申請
+                </Button>
+              </Link>
+              <Button
+                size="sm"
+                onClick={() => { setShowTransactions(!showTransactions); setTransactionUserId(null); }}
+                className="bg-white/90 hover:bg-white text-gray-700 border-0 shadow"
+              >
+                <History className="w-4 h-4 mr-1" />
+                {showTransactions ? "隱藏交易" : "所有交易"}
+              </Button>
+              <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold border-0 shadow-lg">
+                    <Plus className="w-4 h-4 mr-1" /> 新增商戶
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>新增商戶保證金帳戶</DialogTitle>
@@ -427,22 +473,13 @@ export default function AdminDeposits() {
             </Dialog>
           </div>
         </div>
+        </div>
 
-        {/* Info Card */}
-        <Card className="mb-6 border-blue-200 bg-blue-50">
-          <CardContent className="py-4 px-5">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-blue-800">
-                <p className="font-semibold mb-1">保證金機制說明</p>
-                <p className="text-blue-700">
-                  商戶需繳納保證金才能上架商品。拍賣成交後，系統會根據佣金率從保證金中扣除佣金。
-                  管理員可手動充值、扣除、退還或調整保證金餘額。
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Info hint (slim) */}
+        <div className="rounded-xl border border-blue-100 bg-blue-50/40 px-4 py-2.5 text-xs text-blue-800 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
+          <span>商戶需繳納保證金才可上架；成交後依佣金率自動扣除。Admin 可手動充值／扣除／退還／調整。</span>
+        </div>
 
         {/* ── 保證金套餐設定 ── */}
         <Card className="mb-6 border-violet-200">
