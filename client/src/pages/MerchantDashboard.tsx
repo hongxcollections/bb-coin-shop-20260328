@@ -881,6 +881,28 @@ export default function MerchantDashboard() {
                 ) : (
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-amber-900">充值金額 (HKD) *</Label>
+                    {(() => {
+                      const raw = (ss.depositTopUpQuickAmounts ?? "300,800,2000,5000");
+                      const quickAmounts = raw.split(",").map(x => parseFloat(x.trim())).filter(n => !isNaN(n) && n > 0);
+                      if (quickAmounts.length === 0) return null;
+                      return (
+                        <div className="flex flex-wrap gap-1.5">
+                          {quickAmounts.map(amt => {
+                            const isActive = topUpAmount === amt.toString();
+                            return (
+                              <button
+                                key={amt}
+                                type="button"
+                                onClick={() => setTopUpAmount(amt.toString())}
+                                className={`flex-1 min-w-[70px] rounded-lg border px-2 py-1.5 text-xs font-semibold transition-all ${isActive ? "border-amber-500 bg-amber-100 text-amber-900 ring-1 ring-amber-400" : "border-amber-200 bg-white text-amber-700 hover:border-amber-400 hover:bg-amber-50"}`}
+                              >
+                                HK${amt.toLocaleString()}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                     <Input type="number" min="1" step="1" value={topUpAmount} onChange={e => setTopUpAmount(e.target.value)} placeholder="例如：500" className="border-amber-200 focus-visible:ring-amber-400 bg-white" />
                   </div>
                 )}

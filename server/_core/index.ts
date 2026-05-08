@@ -503,6 +503,8 @@ async function bootstrapMissingColumns() {
     'loyalty.silverAutoBidMaxAmount': '5000',   // 銀牌單次代理出價上限金額（HKD），0 = 無限制
     'loyalty.silverCanAnonymous': 'true',       // 銀牌可否匿名出價
     'loyalty.goldDefaultAnonymous': 'true',     // 金牌出價時匿名選項是否預設打開
+    // ── 商戶保證金增值頁快揀金額（4 個按鈕，HKD，逗號分隔）──
+    'depositTopUpQuickAmounts': '300,800,2000,5000',
   };
   try {
     const { drizzle: drizzleMysql2 } = await import('drizzle-orm/mysql2');

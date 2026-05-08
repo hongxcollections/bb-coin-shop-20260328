@@ -69,6 +69,9 @@ export default function AdminSiteSettings() {
   // 保證金警告信息
   const [depositWarningMessage, setDepositWarningMessage] = useState("保證金水平維持不足，可以自行申請保證金充值或者聯絡管理員補交, 以免影響商戶一切正常運作。");
 
+  // 商戶保證金增值頁快揀金額（4 個按鈕，HKD）
+  const [depositTopUpQuickAmounts, setDepositTopUpQuickAmounts] = useState<string[]>(["300", "800", "2000", "5000"]);
+
   // 商戶主頁聯絡訊息預設（WhatsApp / Messenger 共用，會自動加入商戶網址）
   const [merchantContactMessage, setMerchantContactMessage] = useState("你好，我想查詢你的商品");
 
@@ -161,6 +164,11 @@ export default function AdminSiteSettings() {
     if (s.loginWelcomeTitleRegister) setLoginWelcomeTitleRegister(s.loginWelcomeTitleRegister);
     if (s.loginWelcomeDesc) setLoginWelcomeDesc(s.loginWelcomeDesc);
     if (s.depositWarningMessage) setDepositWarningMessage(s.depositWarningMessage);
+    if (s.depositTopUpQuickAmounts) {
+      const arr = s.depositTopUpQuickAmounts.split(",").map(x => x.trim()).filter(Boolean);
+      while (arr.length < 4) arr.push("");
+      setDepositTopUpQuickAmounts(arr.slice(0, 4));
+    }
     if (s.merchantContactMessage) setMerchantContactMessage(s.merchantContactMessage);
     if (s.publishQuotaErrorMsg) setPublishQuotaErrorMsg(s.publishQuotaErrorMsg);
     if (s.publishDepositErrorMsg) setPublishDepositErrorMsg(s.publishDepositErrorMsg);
@@ -853,6 +861,58 @@ export default function AdminSiteSettings() {
                     <span>{depositWarningMessage || "（空白）"}</span>
                   </div>
                   <SaveBtn onClick={() => save('depositWarningMessage', depositWarningMessage, () => !depositWarningMessage.trim() ? "警告信息不可為空" : null)} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 商戶保證金增值頁快揀金額 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-amber-500" />
+                  <CardTitle className="text-lg">保證金增值快揀金額</CardTitle>
+                </div>
+                <CardDescription>
+                  商戶保證金增值頁顯示嘅 4 個一鍵金額按鈕（HKD）。商戶 click 按鈕即填入金額欄。
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[0, 1, 2, 3].map(i => (
+                    <div key={i} className="space-y-1">
+                      <Label className="text-xs">按鈕 {i + 1} (HKD)</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={depositTopUpQuickAmounts[i] ?? ""}
+                        onChange={(e) => {
+                          const next = [...depositTopUpQuickAmounts];
+                          next[i] = e.target.value;
+                          setDepositTopUpQuickAmounts(next);
+                        }}
+                        placeholder={["300", "800", "2000", "5000"][i]}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-2">
+                    {depositTopUpQuickAmounts.filter(a => a && parseFloat(a) > 0).map((a, i) => (
+                      <span key={i} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700">
+                        HK${parseFloat(a).toLocaleString()}
+                      </span>
+                    ))}
+                  </div>
+                  <SaveBtn onClick={() => save(
+                    'depositTopUpQuickAmounts',
+                    depositTopUpQuickAmounts.map(a => a.trim()).filter(a => a && parseFloat(a) > 0).join(","),
+                    () => {
+                      const valid = depositTopUpQuickAmounts.filter(a => a && parseFloat(a) > 0);
+                      if (valid.length === 0) return "請至少填寫一個有效金額";
+                      return null;
+                    }
+                  )} />
                 </div>
               </CardContent>
             </Card>
