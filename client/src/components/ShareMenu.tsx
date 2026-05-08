@@ -226,7 +226,7 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
             </button>
           </div>
           <button type="button" onClick={handleMoreShare} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700">
-            <MoreHorizontal className="w-4 h-4 shrink-0" />更多…（FB / TG / 微信 等）
+            <MoreHorizontal className="w-4 h-4 shrink-0" />更多… ( FB,TG,微信.. )
           </button>
           <button type="button" onClick={handleMessenger} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#0084FF]/10 hover:text-[#0084FF]">
             <MessengerIcon />Facebook Messenger
@@ -418,7 +418,7 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
             className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700"
           >
             <MoreHorizontal className="w-4 h-4 shrink-0" />
-            更多…（FB / TG / 微信 等）
+            更多… ( FB,TG,微信.. )
           </button>
 
           <button
