@@ -3730,6 +3730,24 @@ export async function approveOnboardingApplication(
         `商戶 onboarding 保證金套餐「${chosenTier.name}」(參考號: ${app.paymentReference ?? '-'})`,
         adminId
       );
+      // 同時補插一行 approved topup record，等商戶後台「過往充值記錄」見到 onboarding 嗰筆
+      try {
+        await db.insert(depositTopUpRequests).values({
+          userId: app.userId,
+          tierId: chosenTier.id,
+          amount: depositAmount.toFixed(2),
+          referenceNo: (app.paymentReference ?? '').slice(0, 100),
+          bank: 'merchant_onboarding',
+          note: `商戶 onboarding 保證金套餐「${chosenTier.name}」`,
+          receiptUrl: app.paymentProofUrl ?? null,
+          status: 'approved',
+          adminNote: adminNote ?? null,
+          reviewedBy: adminId,
+          reviewedAt: new Date(),
+        });
+      } catch (logErr) {
+        console.warn('[Onboarding] 補插 depositTopUpRequests 紀錄失敗（保證金已入帳，可手動補）:', logErr);
+      }
       // 套用 tier 嘅維持水平、預警門檻、佣金率（依 tier.amount × 各自 percentage）
       const tierAmt = depositAmount;
       const mPct = chosenTier.maintenancePct ? parseFloat(chosenTier.maintenancePct.toString()) : 80;
