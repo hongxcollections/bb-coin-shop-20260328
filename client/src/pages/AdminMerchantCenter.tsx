@@ -195,6 +195,9 @@ export default function AdminMerchantCenter() {
   const { data: topUps, refetch: refetchTopUps, isLoading: topUpsLoading } = trpc.sellerDeposits.allTopUpRequests.useQuery(
     undefined, { enabled: adminEnabled, refetchInterval: 30000 }
   );
+  const { data: tierChanges, refetch: refetchTierChanges, isLoading: tierChangesLoading } = trpc.depositTiers.listChangeRequests.useQuery(
+    undefined, { enabled: adminEnabled, refetchInterval: 30000 }
+  );
 
   // ── Mutations ──
   const approveOnboarding = trpc.merchants.approveOnboarding.useMutation({
@@ -223,6 +226,13 @@ export default function AdminMerchantCenter() {
     },
     onError: (e) => toast.error(e.message),
   });
+  const reviewTierChange = trpc.depositTiers.reviewChangeRequest.useMutation({
+    onSuccess: (_d, vars) => {
+      toast.success(`轉套餐申請 #${vars.id} ${vars.status === "approved" ? "已批准 ✅" : "已拒絕"}`);
+      refetchTierChanges();
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   // ── Derived ──
   const pendingApps = useMemo(
@@ -236,6 +246,10 @@ export default function AdminMerchantCenter() {
   const pendingTopUps = useMemo(
     () => (topUps ?? []).filter((r: { status: string }) => r.status === "pending"),
     [topUps]
+  );
+  const pendingTierChanges = useMemo(
+    () => (tierChanges ?? []).filter((r: { status: string }) => r.status === "pending"),
+    [tierChanges]
   );
 
   if (loading) {
@@ -257,7 +271,7 @@ export default function AdminMerchantCenter() {
   const counts = {
     onboarding: pendingApps.length,
     renewal: pendingRenewals.length,
-    planChange: 0,
+    planChange: pendingTierChanges.length,
     topup: pendingTopUps.length,
   };
   const totalPending = counts.onboarding + counts.renewal + counts.planChange + counts.topup;
@@ -544,21 +558,90 @@ export default function AdminMerchantCenter() {
             ))}
           </TabsContent>
 
-          {/* ── Tab 3: 轉 plan ── */}
-          <TabsContent value="planChange" className="mt-0">
-            <Card className="border-dashed border-2 border-purple-200 bg-gradient-to-br from-purple-50/50 to-pink-50/30">
-              <CardContent className="py-16 px-6 text-center space-y-3">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 text-purple-400 mb-2">
-                  <ArrowRightLeft className="w-10 h-10" />
-                </div>
-                <Badge variant="outline" className="bg-white text-purple-700 border-purple-200">即將推出 · T5</Badge>
-                <p className="text-base font-bold text-purple-900">轉 Plan 流程開發中</p>
-                <p className="text-xs text-purple-700/80 max-w-md mx-auto leading-relaxed">
-                  屆時系統會自動計算差價（升級補差價 · 降級 credit 落下期），<br />
-                  商戶上載差價收據後喺呢度一鍵批核。
-                </p>
-              </CardContent>
-            </Card>
+          {/* ── Tab 3: 轉保證金套餐 ── */}
+          <TabsContent value="planChange" className="space-y-3 mt-0">
+            {tierChangesLoading ? <LoadingBlock /> : pendingTierChanges.length === 0 ? (
+              <Card className="border-dashed border-2 border-purple-200 bg-white/70">
+                <EmptyState
+                  icon={<ArrowRightLeft className="w-10 h-10" />}
+                  title="暫無待審轉套餐申請"
+                  desc="商戶申請轉保證金套餐後會喺呢度顯示。差價收據已自動上傳。"
+                />
+              </Card>
+            ) : pendingTierChanges.map((r: any) => (
+              <Card key={r.id} className="overflow-hidden border-l-4 border-l-purple-500 border-purple-100 hover:shadow-lg transition-shadow">
+                <CardContent className="p-5 space-y-4">
+                  <CardHero
+                    accent="purple"
+                    icon={<ArrowRightLeft className="w-5 h-5" />}
+                    title={r.merchantName ?? r.userName ?? `User #${r.userId}`}
+                    subtitle={r.userPhone ? `📞 ${r.userPhone}` : undefined}
+                    amount={fmtHKD(r.diffAmount)}
+                    time={relTime(r.createdAt)}
+                    badges={
+                      <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 text-[10px]">
+                        🔄 轉套餐 · 須補差價
+                      </Badge>
+                    }
+                  />
+
+                  <div className="rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 via-pink-50/60 to-purple-50 p-4 space-y-3">
+                    <div className="flex items-center justify-center gap-3 py-2">
+                      <div className="text-center min-w-0 flex-1">
+                        <p className="text-[10px] text-purple-600 uppercase tracking-wider font-medium">原套餐</p>
+                        <p className="text-sm font-bold text-purple-900 mt-0.5 truncate">{r.fromTierName ?? "（無）"}</p>
+                      </div>
+                      <ArrowRightLeft className="w-5 h-5 text-purple-400 flex-shrink-0" />
+                      <div className="text-center min-w-0 flex-1">
+                        <p className="text-[10px] text-purple-600 uppercase tracking-wider font-medium">轉至</p>
+                        <p className="text-sm font-bold text-purple-900 mt-0.5 truncate">{r.toTierName ?? `Tier #${r.toTierId}`}</p>
+                      </div>
+                    </div>
+                    {r.paymentReference && (
+                      <p className="text-xs text-purple-800 flex items-center gap-1.5">
+                        <span className="font-medium">🔖 參考號：</span>
+                        <code className="bg-white/80 px-2 py-0.5 rounded text-purple-900 font-mono">{r.paymentReference}</code>
+                        {r.paymentMethod && <span className="text-[10px] text-purple-500">· {r.paymentMethod}</span>}
+                      </p>
+                    )}
+                    {r.note && (
+                      <p className="text-xs text-purple-700 bg-white/50 rounded-lg px-3 py-2 italic">📝 {r.note}</p>
+                    )}
+                    <ReceiptBox url={r.receiptUrl} />
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button
+                      disabled={reviewTierChange.isPending}
+                      onClick={async () => {
+                        const ok = await confirmDialog({
+                          title: "確認批核轉套餐？",
+                          description: `將會：\n• 入帳差價 ${fmtHKD(r.diffAmount)}\n• 切換至「${r.toTierName}」套餐\n• 即時更新傭金率／維持門檻`,
+                          confirmText: "批核並切換",
+                        });
+                        if (!ok) return;
+                        reviewTierChange.mutate({ id: r.id, status: "approved" });
+                      }}
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold shadow-md hover:shadow-lg transition-all"
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-1.5" /> 批核 + 切換套餐
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={reviewTierChange.isPending}
+                      onClick={async () => {
+                        const ok = await confirmDialog({ title: "確認拒絕？", description: "拒絕後商戶可重新提交申請。", tone: "danger" });
+                        if (!ok) return;
+                        reviewTierChange.mutate({ id: r.id, status: "rejected" });
+                      }}
+                      className="text-red-600 border-red-200 hover:bg-red-50 ml-auto"
+                    >
+                      <XCircle className="w-4 h-4 mr-1.5" /> 拒絕
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </TabsContent>
 
           {/* ── Tab 4: 增值保證金 ── */}

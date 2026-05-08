@@ -266,6 +266,15 @@ export default function MerchantDashboard() {
   const [renewProofUrl, setRenewProofUrl] = useState("");
   const [renewProofUploading, setRenewProofUploading] = useState(false);
 
+  // ── 轉保證金套餐 state ──
+  const [tierChangeOpen, setTierChangeOpen] = useState(false);
+  const [tierChangeTargetId, setTierChangeTargetId] = useState<number | null>(null);
+  const [tierChangePaymentMethod, setTierChangePaymentMethod] = useState("");
+  const [tierChangeRef, setTierChangeRef] = useState("");
+  const [tierChangeNote, setTierChangeNote] = useState("");
+  const [tierChangeReceiptUrl, setTierChangeReceiptUrl] = useState("");
+  const [tierChangeReceiptUploading, setTierChangeReceiptUploading] = useState(false);
+
   const { data: pendingOffersCount } = trpc.offers.pendingCount.useQuery(undefined, {
     enabled: isAuthenticated,
     refetchInterval: 60_000,
@@ -280,6 +289,24 @@ export default function MerchantDashboard() {
   const { data: activeTiers } = trpc.depositTiers.listActive.useQuery(undefined, { enabled: isAuthenticated });
   const { data: myTopUpRequests, refetch: refetchTopUpRequests } = trpc.sellerDeposits.myTopUpRequests.useQuery(undefined, {
     enabled: isAuthenticated,
+  });
+
+  const { data: myTierChangeRequests, refetch: refetchMyTierChanges } = trpc.depositTiers.myChangeRequests.useQuery(undefined, { enabled: isAuthenticated });
+  const hasPendingTierChange = (myTierChangeRequests ?? []).some((r: { status: string }) => r.status === "pending");
+
+  const tierSwitchPreview = trpc.depositTiers.previewSwitch.useQuery(
+    { toTierId: tierChangeTargetId ?? 0 },
+    { enabled: tierChangeOpen && !!tierChangeTargetId, refetchOnWindowFocus: false }
+  );
+
+  const requestTierChangeMut = trpc.depositTiers.requestChange.useMutation({
+    onSuccess: (r) => {
+      toast.success(r.message);
+      setTierChangeOpen(false);
+      setTierChangeTargetId(null); setTierChangePaymentMethod(""); setTierChangeRef(""); setTierChangeNote(""); setTierChangeReceiptUrl("");
+      refetchMyTierChanges();
+    },
+    onError: (e) => toast.error(e.message),
   });
 
   const submitTopUp = trpc.sellerDeposits.submitTopUpRequest.useMutation({
@@ -310,6 +337,22 @@ export default function MerchantDashboard() {
     reader.onload = (ev) => {
       const base64 = (ev.target?.result as string).split(",")[1];
       uploadReceiptMutation.mutate({ base64, filename: file.name });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  const uploadTierChangeReceipt = trpc.subscriptions.uploadPaymentProof.useMutation({
+    onSuccess: ({ url }) => { setTierChangeReceiptUrl(url); setTierChangeReceiptUploading(false); toast.success("收據已上傳"); },
+    onError: (err) => { setTierChangeReceiptUploading(false); toast.error("上傳失敗：" + err.message); },
+  });
+  function handleTierChangeReceiptFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setTierChangeReceiptUploading(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = (ev.target?.result as string).split(",")[1];
+      uploadTierChangeReceipt.mutate({ base64, filename: file.name });
     };
     reader.readAsDataURL(file);
   }
@@ -791,14 +834,25 @@ export default function MerchantDashboard() {
                 <PlusCircle className="w-4 h-4 text-amber-600" />
                 <h2 className="font-semibold text-amber-900 text-sm">保證金充值申請</h2>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowTopUpForm(v => !v)}
-                className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200"
-              >
-                <ChevronDown size={11} style={{ transform: showTopUpForm ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
-                {showTopUpForm ? "收起" : "提交申請"}
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={hasPendingTierChange || !(activeTiers && (activeTiers as unknown[]).length > 1)}
+                  onClick={() => { setTierChangeOpen(true); setTierChangeTargetId(null); }}
+                  className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={hasPendingTierChange ? "已有待審核轉套餐申請" : "轉到其他保證金套餐"}
+                >
+                  🔄 {hasPendingTierChange ? "轉套餐審核中" : "轉套餐"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowTopUpForm(v => !v)}
+                  className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200"
+                >
+                  <ChevronDown size={11} style={{ transform: showTopUpForm ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+                  {showTopUpForm ? "收起" : "提交申請"}
+                </button>
+              </div>
             </div>
 
             {/* ── 提交表單 ── */}
@@ -1164,6 +1218,142 @@ export default function MerchantDashboard() {
             <Button variant="outline" onClick={() => setRenewDialogOpen(false)} disabled={renewMutation.isPending}>取消</Button>
             <Button onClick={handleSubmitRenew} disabled={renewMutation.isPending || renewProofUploading} className="bg-amber-600 hover:bg-amber-700">
               {renewMutation.isPending ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> 提交中</> : "提交續期申請"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── 轉保證金套餐 dialog ── */}
+      <Dialog open={tierChangeOpen} onOpenChange={(o) => { setTierChangeOpen(o); if (!o) setTierChangeTargetId(null); }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>轉保證金套餐</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="text-xs text-gray-500">揀新套餐。如目前餘額已夠新套餐金額，會即時切換；否則須上載差價收據，等管理員批核。</p>
+
+            {/* ── 套餐列表 ── */}
+            <div className="space-y-2">
+              {(activeTiers as { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; commissionRate?: string | null; description: string | null }[] | undefined)?.filter(t => t.id !== deposit?.currentTierId).map(tier => {
+                const amt = parseFloat(tier.amount);
+                const commPct = tier.commissionRate ? parseFloat(tier.commissionRate) * 100 : null;
+                const isSelected = tierChangeTargetId === tier.id;
+                return (
+                  <button
+                    key={tier.id}
+                    type="button"
+                    onClick={() => setTierChangeTargetId(tier.id)}
+                    className={`w-full text-left rounded-xl border px-3 py-2.5 transition-all ${isSelected ? "border-purple-500 bg-purple-50 ring-1 ring-purple-400" : "border-gray-200 bg-white hover:border-purple-300"}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-gray-900">{tier.name}</span>
+                          <span className="text-sm font-bold text-purple-700">HK${amt.toLocaleString()}</span>
+                          {commPct !== null && (
+                            <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">傭金 {commPct.toFixed(2)}%</span>
+                          )}
+                        </div>
+                        {tier.description && <p className="text-xs text-gray-400 mt-0.5">{tier.description}</p>}
+                      </div>
+                      {isSelected && <div className="w-4 h-4 rounded-full bg-purple-500 flex-shrink-0 flex items-center justify-center"><div className="w-2 h-2 rounded-full bg-white" /></div>}
+                    </div>
+                  </button>
+                );
+              })}
+              {(!activeTiers || (activeTiers as unknown[]).filter((t) => (t as { id: number }).id !== deposit?.currentTierId).length === 0) && (
+                <p className="text-xs text-gray-400 text-center py-4">沒有可轉換嘅套餐</p>
+              )}
+            </div>
+
+            {/* ── 差價預覽 ── */}
+            {tierChangeTargetId && tierSwitchPreview.data?.ok && (
+              <div className={`rounded-lg border px-3 py-2.5 space-y-1.5 ${tierSwitchPreview.data.diffAmount > 0 ? "bg-amber-50 border-amber-200" : "bg-green-50 border-green-200"}`}>
+                <div className="flex justify-between text-xs"><span className="text-gray-600">目前餘額</span><span className="font-medium">HK${tierSwitchPreview.data.currentBalance.toLocaleString()}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-gray-600">新套餐金額</span><span className="font-medium">HK${tierSwitchPreview.data.toTier?.amount.toLocaleString()}</span></div>
+                <div className="border-t border-gray-200 pt-1.5 flex justify-between text-sm">
+                  <span className="font-semibold">須補差價</span>
+                  <span className={`font-bold ${tierSwitchPreview.data.diffAmount > 0 ? "text-amber-700" : "text-green-700"}`}>
+                    {tierSwitchPreview.data.diffAmount > 0 ? `HK$${tierSwitchPreview.data.diffAmount.toLocaleString()}` : "毋須補差（即時生效）"}
+                  </span>
+                </div>
+                {tierSwitchPreview.data.diffAmount <= 0 && (
+                  <p className="text-[11px] text-green-700">✅ 餘額已足夠 — 提交後即刻切換套餐，傭金率即時更新。保證金餘額不變。</p>
+                )}
+              </div>
+            )}
+
+            {/* ── 須補差價：付款資料 ── */}
+            {tierChangeTargetId && tierSwitchPreview.data?.ok && tierSwitchPreview.data.diffAmount > 0 && (
+              <>
+                {depositPaymentInfo && (
+                  <div className="p-2.5 rounded-lg bg-blue-50 border border-blue-200">
+                    <p className="text-[11px] font-semibold text-blue-800 mb-1">付款資訊</p>
+                    <div className="text-[11px] text-blue-700 whitespace-pre-line leading-relaxed">{depositPaymentInfo}</div>
+                  </div>
+                )}
+                <div>
+                  <Label className="text-xs">付款方式 <span className="text-red-500">*</span></Label>
+                  <Select value={tierChangePaymentMethod} onValueChange={setTierChangePaymentMethod}>
+                    <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="揀付款方式" /></SelectTrigger>
+                    <SelectContent>
+                      {DEPOSIT_PAYMENT_METHODS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">付款參考號 <span className="text-red-500">*</span></Label>
+                  <Input value={tierChangeRef} onChange={e => setTierChangeRef(e.target.value)} placeholder="e.g. FPS / PayMe ref" className="h-9 text-sm" />
+                </div>
+                <div>
+                  <Label className="text-xs">付款收據 <span className="text-red-500">*</span></Label>
+                  {tierChangeReceiptUrl ? (
+                    <div className="relative rounded-lg overflow-hidden border border-purple-200">
+                      <img src={tierChangeReceiptUrl} alt="收據" className="w-full max-h-32 object-contain bg-gray-50" />
+                      <button type="button" onClick={() => setTierChangeReceiptUrl("")} className="absolute top-1 right-1 bg-white rounded-full p-0.5 shadow border border-gray-200 hover:bg-red-50">
+                        <X className="w-3.5 h-3.5 text-gray-500" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-purple-200 rounded-lg p-3 cursor-pointer hover:bg-purple-50 transition-colors bg-white">
+                      {tierChangeReceiptUploading ? <Loader2 className="w-4 h-4 animate-spin text-purple-500" /> : <><Upload className="w-4 h-4 text-purple-400" /><span className="text-xs text-purple-700">點擊上傳收據</span></>}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleTierChangeReceiptFile} disabled={tierChangeReceiptUploading} />
+                    </label>
+                  )}
+                </div>
+                <div>
+                  <Label className="text-xs">備注（選填）</Label>
+                  <Textarea value={tierChangeNote} onChange={e => setTierChangeNote(e.target.value)} placeholder="補充說明" rows={2} className="text-sm resize-none" />
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTierChangeOpen(false)} disabled={requestTierChangeMut.isPending}>取消</Button>
+            <Button
+              onClick={() => {
+                if (!tierChangeTargetId) return toast.error("請揀新套餐");
+                const needPay = (tierSwitchPreview.data?.diffAmount ?? 0) > 0;
+                if (needPay) {
+                  if (!tierChangePaymentMethod) return toast.error("請揀付款方式");
+                  if (!tierChangeRef.trim()) return toast.error("請填寫付款參考號");
+                  if (!tierChangeReceiptUrl) return toast.error("請上載付款收據");
+                }
+                requestTierChangeMut.mutate({
+                  toTierId: tierChangeTargetId,
+                  paymentMethod: needPay ? tierChangePaymentMethod : undefined,
+                  paymentReference: needPay ? tierChangeRef.trim() : undefined,
+                  receiptUrl: needPay ? tierChangeReceiptUrl : undefined,
+                  note: tierChangeNote.trim() || undefined,
+                });
+              }}
+              disabled={requestTierChangeMut.isPending || !tierChangeTargetId || tierChangeReceiptUploading}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {requestTierChangeMut.isPending
+                ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> 提交中</>
+                : ((tierSwitchPreview.data?.diffAmount ?? 0) > 0 ? "提交差價申請" : "即時切換")
+              }
             </Button>
           </DialogFooter>
         </DialogContent>

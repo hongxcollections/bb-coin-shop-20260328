@@ -1,7 +1,7 @@
 import { eq, ne, desc, asc, and, or, gte, lte, gt, sql, inArray, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, merchantProducts, MerchantProduct, featuredListings, FeaturedListing, auctionChatRooms, auctionChatMessages, AuctionChatRoom, AuctionChatMessage, auctionChatMessageReactions, AuctionChatMessageReaction } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, depositTierChangeRequests, merchantProducts, MerchantProduct, featuredListings, FeaturedListing, auctionChatRooms, auctionChatMessages, AuctionChatRoom, AuctionChatMessage, auctionChatMessageReactions, AuctionChatMessageReaction } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1559,7 +1559,32 @@ async function ensureDepositTables() {
     try { await db.execute(sql`ALTER TABLE depositTierPresets ADD COLUMN commissionRate DECIMAL(5,4) NOT NULL DEFAULT 0.0500`); } catch {}
     try { await db.execute(sql`ALTER TABLE depositTierPresets ADD COLUMN productCommissionRate DECIMAL(5,4) NOT NULL DEFAULT 0.0500`); } catch {}
     try { await db.execute(sql`ALTER TABLE seller_deposits ADD COLUMN productCommissionRate DECIMAL(5,4) NOT NULL DEFAULT 0.0500`); } catch {}
+    try { await db.execute(sql`ALTER TABLE seller_deposits ADD COLUMN currentTierId INT`); } catch {}
     try { await db.execute(sql`ALTER TABLE depositTopUpRequests ADD COLUMN tierId INT`); } catch {}
+    // 商戶轉保證金套餐申請表
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS depositTierChangeRequests (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          userId INT NOT NULL,
+          fromTierId INT NULL,
+          toTierId INT NOT NULL,
+          diffAmount DECIMAL(12,2) NOT NULL,
+          paymentMethod VARCHAR(50) NULL,
+          paymentReference VARCHAR(100) NULL,
+          receiptUrl VARCHAR(500) NULL,
+          note TEXT NULL,
+          status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+          adminNote TEXT NULL,
+          reviewedBy INT NULL,
+          reviewedAt TIMESTAMP NULL,
+          createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_dtcr_user (userId),
+          INDEX idx_dtcr_status (status)
+        )
+      `);
+    } catch {}
     try { await db.execute(sql`ALTER TABLE merchantApplications ADD COLUMN facebook VARCHAR(500)`); } catch {}
     // proxyBids: 加 unique constraint 防止 setProxyBid 重複插入（onDuplicateKeyUpdate 需要 unique key 才能 upsert）
     try { await db.execute(sql`ALTER TABLE proxyBids ADD UNIQUE KEY uniq_proxy_auction_user (auctionId, userId)`); } catch {}
@@ -3863,6 +3888,230 @@ export async function autoDeductCommissionOnAuctionEnd(auctionId: number): Promi
 
   console.log(`[Commission] Auction #${auctionId}: deducted $${commission} from merchant ${auction.createdBy}, balance $${currentBalance} → $${newBalance}${belowWarning ? ' ⚠️ below warning' : ''}`);
   return { deducted: true, amount: commission, newBalance, belowWarning };
+}
+
+// ─── Deposit Tier Change (商戶轉保證金套餐) ───────────────────────────────────
+
+/**
+ * Apply a tier's settings to a seller deposit.
+ * Updates: requiredDeposit, warningDeposit, commissionRate, productCommissionRate, currentTierId
+ */
+async function applyTierToSellerDeposit(userId: number, tier: { id: number; amount: string | number; maintenancePct?: string | number; warningPct?: string | number; commissionRate?: string | number; productCommissionRate?: string | number; }) {
+  const tierAmt = parseFloat(String(tier.amount));
+  const mPct = parseFloat(String(tier.maintenancePct ?? 80));
+  const wPct = parseFloat(String(tier.warningPct ?? 60));
+  const settings: { requiredDeposit?: number; warningDeposit?: number; commissionRate?: number; productCommissionRate?: number } = {};
+  if (tierAmt > 0) {
+    settings.requiredDeposit = Math.round((tierAmt * mPct) / 100 * 100) / 100;
+    settings.warningDeposit = Math.round((tierAmt * wPct) / 100 * 100) / 100;
+  }
+  if (tier.commissionRate != null) settings.commissionRate = parseFloat(String(tier.commissionRate));
+  if (tier.productCommissionRate != null) settings.productCommissionRate = parseFloat(String(tier.productCommissionRate));
+  await updateSellerDepositSettings(userId, settings);
+  const db = await getDb();
+  if (db) {
+    await db.update(sellerDeposits).set({ currentTierId: tier.id }).where(eq(sellerDeposits.userId, userId));
+  }
+}
+
+/**
+ * Compute diff amount needed for a merchant to switch to a given tier.
+ * Positive = needs to top up that much (admin approval required).
+ * Zero or negative = can switch immediately (no payment).
+ */
+export async function computeTierSwitchDiff(userId: number, toTierId: number): Promise<{
+  ok: boolean;
+  error?: string;
+  diffAmount: number;
+  fromTierId: number | null;
+  fromTierName: string | null;
+  toTier: { id: number; name: string; amount: number; commissionRate: number; productCommissionRate: number } | null;
+  currentBalance: number;
+  newRequiredDeposit: number;
+}> {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) return { ok: false, error: 'DB unavailable', diffAmount: 0, fromTierId: null, fromTierName: null, toTier: null, currentBalance: 0, newRequiredDeposit: 0 };
+
+  const deposit = await getOrCreateSellerDeposit(userId);
+  if (!deposit) return { ok: false, error: '保證金記錄不存在', diffAmount: 0, fromTierId: null, fromTierName: null, toTier: null, currentBalance: 0, newRequiredDeposit: 0 };
+
+  const tiers = await listDepositTierPresets(false);
+  const toTier = tiers.find(t => t.id === toTierId);
+  if (!toTier) return { ok: false, error: '目標套餐不存在', diffAmount: 0, fromTierId: null, fromTierName: null, toTier: null, currentBalance: 0, newRequiredDeposit: 0 };
+
+  const fromTierId = (deposit as { currentTierId?: number | null }).currentTierId ?? null;
+  const fromTier = fromTierId ? tiers.find(t => t.id === fromTierId) : null;
+
+  const currentBalance = parseFloat(deposit.balance.toString());
+  const tierAmt = parseFloat(toTier.amount.toString());
+  const mPct = parseFloat(String((toTier as any).maintenancePct ?? 80));
+  const newRequired = Math.round((tierAmt * mPct) / 100 * 100) / 100;
+  // 須補金額 = 新套餐要求金額 - 目前 balance（負或零代表已夠）
+  const diffAmount = Math.max(0, parseFloat((tierAmt - currentBalance).toFixed(2)));
+
+  return {
+    ok: true,
+    diffAmount,
+    fromTierId,
+    fromTierName: fromTier?.name ?? null,
+    toTier: {
+      id: toTier.id,
+      name: toTier.name,
+      amount: tierAmt,
+      commissionRate: parseFloat(toTier.commissionRate.toString()),
+      productCommissionRate: parseFloat(String((toTier as any).productCommissionRate ?? toTier.commissionRate)),
+    },
+    currentBalance,
+    newRequiredDeposit: newRequired,
+  };
+}
+
+/**
+ * Merchant: request a tier switch. If diffAmount > 0, creates a pending request requiring admin approval + receipt.
+ * If diffAmount <= 0 (balance already sufficient), applies the new tier immediately.
+ */
+export async function requestTierChange(userId: number, data: {
+  toTierId: number;
+  paymentMethod?: string;
+  paymentReference?: string;
+  receiptUrl?: string;
+  note?: string;
+}): Promise<{ applied: boolean; requestId?: number; diffAmount: number; message: string }> {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+
+  // 檢查現存 pending 申請
+  const existing = await db.select({ id: depositTierChangeRequests.id })
+    .from(depositTierChangeRequests)
+    .where(and(eq(depositTierChangeRequests.userId, userId), eq(depositTierChangeRequests.status, 'pending')))
+    .limit(1);
+  if (existing.length > 0) {
+    throw new Error('已有待審核轉套餐申請，請先取消或等待批核');
+  }
+
+  const calc = await computeTierSwitchDiff(userId, data.toTierId);
+  if (!calc.ok || !calc.toTier) throw new Error(calc.error ?? '計算失敗');
+
+  // 即時應用（無需補錢）
+  if (calc.diffAmount <= 0) {
+    const tiers = await listDepositTierPresets(false);
+    const toTier = tiers.find(t => t.id === data.toTierId);
+    if (!toTier) throw new Error('目標套餐不存在');
+    await applyTierToSellerDeposit(userId, toTier as any);
+    console.log(`[TierChange] User ${userId} immediately switched to tier "${toTier.name}" (no payment needed, balance ${calc.currentBalance})`);
+    return { applied: true, diffAmount: 0, message: `已即時轉至「${toTier.name}」套餐，新傭金率即時生效。` };
+  }
+
+  // 須補錢 → 建立 pending 申請（必須有收據）
+  if (!data.receiptUrl) {
+    throw new Error('需要補充保證金，請上載付款收據');
+  }
+  if (!data.paymentReference || data.paymentReference.trim() === '') {
+    throw new Error('請填寫付款參考號');
+  }
+
+  const [result] = await db.insert(depositTierChangeRequests).values({
+    userId,
+    fromTierId: calc.fromTierId,
+    toTierId: data.toTierId,
+    diffAmount: calc.diffAmount.toFixed(2),
+    paymentMethod: data.paymentMethod?.trim() || null,
+    paymentReference: data.paymentReference.trim(),
+    receiptUrl: data.receiptUrl.trim(),
+    note: data.note?.trim() || null,
+    status: 'pending',
+  });
+  const requestId = (result as { insertId?: number })?.insertId ?? 0;
+  console.log(`[TierChange] User ${userId} submitted request #${requestId}: tier ${calc.fromTierId} → ${data.toTierId}, diff $${calc.diffAmount}`);
+  return {
+    applied: false,
+    requestId,
+    diffAmount: calc.diffAmount,
+    message: `已提交申請（補 HK$${calc.diffAmount.toLocaleString()}），管理員確認收款後將自動轉套餐。`,
+  };
+}
+
+export async function listMyTierChangeRequests(userId: number) {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(depositTierChangeRequests)
+    .where(eq(depositTierChangeRequests.userId, userId))
+    .orderBy(desc(depositTierChangeRequests.createdAt))
+    .limit(20);
+}
+
+export async function listAllTierChangeRequests() {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select({
+      id: depositTierChangeRequests.id,
+      userId: depositTierChangeRequests.userId,
+      fromTierId: depositTierChangeRequests.fromTierId,
+      toTierId: depositTierChangeRequests.toTierId,
+      diffAmount: depositTierChangeRequests.diffAmount,
+      paymentMethod: depositTierChangeRequests.paymentMethod,
+      paymentReference: depositTierChangeRequests.paymentReference,
+      receiptUrl: depositTierChangeRequests.receiptUrl,
+      note: depositTierChangeRequests.note,
+      status: depositTierChangeRequests.status,
+      adminNote: depositTierChangeRequests.adminNote,
+      reviewedBy: depositTierChangeRequests.reviewedBy,
+      reviewedAt: depositTierChangeRequests.reviewedAt,
+      createdAt: depositTierChangeRequests.createdAt,
+      userName: users.name,
+      userPhone: users.phone,
+      fromTierName: sql<string | null>`(SELECT name FROM depositTierPresets WHERE id = ${depositTierChangeRequests.fromTierId})`,
+      toTierName: sql<string | null>`(SELECT name FROM depositTierPresets WHERE id = ${depositTierChangeRequests.toTierId})`,
+      merchantName: sql<string | null>`(SELECT merchantName FROM merchantApplications WHERE userId = ${depositTierChangeRequests.userId} AND status = 'approved' ORDER BY createdAt DESC LIMIT 1)`,
+    })
+    .from(depositTierChangeRequests)
+    .leftJoin(users, eq(depositTierChangeRequests.userId, users.id))
+    .orderBy(desc(depositTierChangeRequests.createdAt))
+    .limit(200);
+  return rows;
+}
+
+export async function reviewTierChangeRequest(
+  id: number,
+  status: 'approved' | 'rejected',
+  adminNote: string | undefined,
+  adminId: number,
+) {
+  await ensureDepositTables();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+
+  const [req] = await db.select().from(depositTierChangeRequests)
+    .where(eq(depositTierChangeRequests.id, id)).limit(1);
+  if (!req) throw new Error('找不到申請');
+  if (req.status !== 'pending') throw new Error('此申請已審核');
+
+  await db.update(depositTierChangeRequests).set({
+    status,
+    adminNote: adminNote ?? null,
+    reviewedBy: adminId,
+    reviewedAt: new Date(),
+  }).where(eq(depositTierChangeRequests.id, id));
+
+  if (status === 'approved') {
+    const diff = parseFloat(req.diffAmount.toString());
+    if (diff > 0) {
+      await topUpDeposit(req.userId, diff, `轉保證金套餐補差 (參考號: ${req.paymentReference ?? '—'})`, adminId);
+    }
+    const tiers = await listDepositTierPresets(false);
+    const toTier = tiers.find(t => t.id === req.toTierId);
+    if (toTier) {
+      await applyTierToSellerDeposit(req.userId, toTier as any);
+      console.log(`[TierChange] Approved request #${id}: user ${req.userId} → tier "${toTier.name}", diff $${diff}`);
+    }
+  } else {
+    console.log(`[TierChange] Rejected request #${id}`);
+  }
 }
 
 // ─── Listing Quota ────────────────────────────────────────────────────────────

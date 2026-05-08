@@ -232,6 +232,7 @@ export const sellerDeposits = mysqlTable("seller_deposits", {
   warningDeposit: decimal("warningDeposit", { precision: 12, scale: 2 }).default("1000.00").notNull(), // warn when balance < this
   commissionRate: decimal("commissionRate", { precision: 5, scale: 4 }).default("0.0500").notNull(), // 拍賣傭金率 5%
   productCommissionRate: decimal("productCommissionRate", { precision: 5, scale: 4 }).default("0.0500").notNull(), // 貨品傭金率 5%
+  currentTierId: int("currentTierId"), // 目前綁定保證金套餐 id（NULL = 未指定 / 自定義設定）
   isActive: int("isActive").default(1).notNull(), // 1 = can list
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -375,6 +376,29 @@ export const depositTierPresets = mysqlTable("depositTierPresets", {
 
 export type DepositTierPreset = typeof depositTierPresets.$inferSelect;
 export type InsertDepositTierPreset = typeof depositTierPresets.$inferInsert;
+
+// ─── Deposit Tier Change Requests (商戶轉保證金套餐) ──────────────────────────
+// 商戶申請由 fromTier 轉至 toTier。只有需要補錢嘅 case (diffAmount > 0) 先要 admin 批准；
+// diffAmount <= 0 嘅情況喺商戶端即時應用，不會建立 row。
+export const depositTierChangeRequests = mysqlTable("depositTierChangeRequests", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  fromTierId: int("fromTierId"),
+  toTierId: int("toTierId").notNull(),
+  diffAmount: decimal("diffAmount", { precision: 12, scale: 2 }).notNull(), // 須補充金額（>0）
+  paymentMethod: varchar("paymentMethod", { length: 50 }),
+  paymentReference: varchar("paymentReference", { length: 100 }),
+  receiptUrl: varchar("receiptUrl", { length: 500 }),
+  note: text("note"),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  adminNote: text("adminNote"),
+  reviewedBy: int("reviewedBy"),
+  reviewedAt: timestamp("reviewedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type DepositTierChangeRequest = typeof depositTierChangeRequests.$inferSelect;
+export type InsertDepositTierChangeRequest = typeof depositTierChangeRequests.$inferInsert;
 
 // ─── Merchant Applications ────────────────────────────────────────────────────
 export const merchantApplications = mysqlTable("merchantApplications", {
