@@ -355,6 +355,7 @@ export default function AdminMerchantCenter() {
                       {r.bank && <span>🏦 {r.bank}</span>}
                       {r.referenceNo && <span>🔖 {r.referenceNo}</span>}
                       {r.userPhone && <span>📞 {r.userPhone}</span>}
+                      {r.tierName && <span>💎 套餐：{r.tierName}</span>}
                     </div>
                     {r.note && <p className="text-emerald-800">📝 {r.note}</p>}
                     <div className="pt-1"><ReceiptThumb url={r.receiptUrl} /></div>

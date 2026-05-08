@@ -4157,6 +4157,8 @@ export async function getAllDepositTopUpRequests() {
       reviewedBy: depositTopUpRequests.reviewedBy,
       reviewedAt: depositTopUpRequests.reviewedAt,
       createdAt: depositTopUpRequests.createdAt,
+      tierId: depositTopUpRequests.tierId,
+      tierName: sql<string | null>`(SELECT name FROM depositTierPresets WHERE id = ${depositTopUpRequests.tierId})`,
       userName: users.name,
       userPhone: users.phone,
       merchantName: sql<string | null>`(SELECT merchantName FROM merchantApplications WHERE userId = ${depositTopUpRequests.userId} AND status = 'approved' ORDER BY createdAt DESC LIMIT 1)`,
