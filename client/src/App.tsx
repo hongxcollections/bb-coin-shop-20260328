@@ -33,6 +33,7 @@ import AdminWonOrders from "./pages/AdminWonOrders";
 import AdminProductOrders from "./pages/AdminProductOrders";
 import AdminDeposits from "./pages/AdminDeposits";
 import AdminSubscriptions from "./pages/AdminSubscriptions";
+import AdminMerchantCenter from "./pages/AdminMerchantCenter";
 import AdminLoyalty from "./pages/AdminLoyalty";
 import SubscriptionPlans from "./pages/SubscriptionPlans";
 import Login from "./pages/Login";
@@ -174,6 +175,7 @@ function Router() {
       <Route path={"/admin/product-orders"} component={AdminProductOrders} />
       <Route path={"/admin/deposits"} component={AdminDeposits} />
       <Route path={"/admin/subscriptions"} component={AdminSubscriptions} />
+      <Route path={"/admin/merchant-center"} component={AdminMerchantCenter} />
       <Route path={"/admin/loyalty"} component={AdminLoyalty} />
       <Route path={"/subscriptions"} component={SubscriptionPlans} />
       <Route path={"/login"} component={Login} />
