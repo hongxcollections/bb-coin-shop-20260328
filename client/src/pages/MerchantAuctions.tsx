@@ -1124,7 +1124,7 @@ export default function MerchantAuctions() {
                 onRelist={(id) => relistMutation.mutate({ id })}
                 onActiveEdit={openActiveEdit}
                 onActiveDelete={(id, title) => setActiveDeleteConfirm({ id, title })}
-                fbRefreshEnabled={Number(merchantSettingsData?.fbRefreshPreviewEnabled ?? 0) === 1}
+                fbRefreshEnabled={false /* FB 預覽功能暫時停用 */}
               />
             ))}
           </div>
