@@ -311,7 +311,7 @@ export default function MerchantApply() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-amber-900">開通商戶</h1>
-            <p className="text-xs text-muted-foreground">一次過完成資料、訂閱、保證金，最快 1-3 工作天即用</p>
+            <p className="text-xs text-muted-foreground">一次過完成資料、訂閱、保證金，秒速一天內即用</p>
           </div>
         </div>
 
