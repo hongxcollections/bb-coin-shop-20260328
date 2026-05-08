@@ -4116,18 +4116,27 @@ export async function reviewDepositTopUpRequest(
     const amount = parseFloat(req.amount.toString());
     await topUpDeposit(req.userId, amount, `商戶自助申請充值 (參考號: ${req.referenceNo})`, adminId);
 
-    // Auto-apply tier commission rate if the request was linked to a tier
+    // Auto-apply tier 設定（維持水平 / 預警門檻 / 佣金率）if the request was linked to a tier
     if (req.tierId) {
       try {
         const [tier] = await db.select().from(depositTierPresets)
           .where(eq(depositTierPresets.id, req.tierId)).limit(1);
-        if (tier && tier.commissionRate) {
-          const commissionRate = parseFloat(tier.commissionRate.toString());
-          await updateSellerDepositSettings(req.userId, { commissionRate });
-          console.log(`[Deposit] Auto-applied tier "${tier.name}" commission rate ${(commissionRate * 100).toFixed(2)}% to user ${req.userId}`);
+        if (tier) {
+          const tierAmt = tier.amount ? parseFloat(tier.amount.toString()) : 0;
+          const mPct = (tier as any).maintenancePct ? parseFloat(String((tier as any).maintenancePct)) : 80;
+          const wPct = (tier as any).warningPct ? parseFloat(String((tier as any).warningPct)) : 60;
+          const settings: { requiredDeposit?: number; warningDeposit?: number; commissionRate?: number; productCommissionRate?: number } = {};
+          if (tierAmt > 0) {
+            settings.requiredDeposit = Math.round((tierAmt * mPct) / 100 * 100) / 100;
+            settings.warningDeposit = Math.round((tierAmt * wPct) / 100 * 100) / 100;
+          }
+          if (tier.commissionRate) settings.commissionRate = parseFloat(tier.commissionRate.toString());
+          if ((tier as any).productCommissionRate) settings.productCommissionRate = parseFloat(String((tier as any).productCommissionRate));
+          await updateSellerDepositSettings(req.userId, settings);
+          console.log(`[Deposit] Applied tier "${tier.name}" → required=${settings.requiredDeposit}, warning=${settings.warningDeposit}, commission=${settings.commissionRate} to user ${req.userId}`);
         }
       } catch (err) {
-        console.error('[Deposit] Failed to apply tier commission rate:', err);
+        console.error('[Deposit] Failed to apply tier settings:', err);
       }
     }
 
