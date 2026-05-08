@@ -1573,9 +1573,15 @@ export const appRouter = router({
             const tiers = await listDepositTierPresets(true);
             if (tiers.length > 0) {
               const tier = tiers[Math.floor(Math.random() * tiers.length)];
-              const settings: { requiredDeposit?: number; commissionRate?: number; productCommissionRate?: number } = {};
+              const settings: { requiredDeposit?: number; warningDeposit?: number; commissionRate?: number; productCommissionRate?: number } = {};
               const tierAmount = tier.amount ? parseFloat(String(tier.amount)) : 0;
-              if (tierAmount > 0) settings.requiredDeposit = tierAmount;
+              const mPct = (tier as any).maintenancePct ? parseFloat(String((tier as any).maintenancePct)) : 80;
+              const wPct = (tier as any).warningPct ? parseFloat(String((tier as any).warningPct)) : 60;
+              if (tierAmount > 0) {
+                // requiredDeposit = 維持水平 = tier.amount × maintenancePct / 100
+                settings.requiredDeposit = Math.round((tierAmount * mPct) / 100 * 100) / 100;
+                settings.warningDeposit = Math.round((tierAmount * wPct) / 100 * 100) / 100;
+              }
               if (tier.commissionRate) settings.commissionRate = parseFloat(String(tier.commissionRate));
               if ((tier as any).productCommissionRate) settings.productCommissionRate = parseFloat(String((tier as any).productCommissionRate));
               await updateSellerDepositSettings(newUserId, settings);

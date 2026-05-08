@@ -3634,7 +3634,7 @@ export async function approveOnboardingApplication(
   const hasPlan = !!app.chosenPlanId && (app.chosenPeriod === 'monthly' || app.chosenPeriod === 'yearly');
   const hasTier = !!app.chosenDepositTierId;
 
-  let chosenTier: { id: number; name: string; amount: any; commissionRate: any } | null = null;
+  let chosenTier: { id: number; name: string; amount: any; commissionRate: any; maintenancePct: any; warningPct: any; productCommissionRate?: any } | null = null;
   if (hasTier) {
     const [t] = await db.select().from(depositTierPresets)
       .where(eq(depositTierPresets.id, app.chosenDepositTierId!)).limit(1);
@@ -3678,10 +3678,21 @@ export async function approveOnboardingApplication(
         `商戶 onboarding 保證金套餐「${chosenTier.name}」(參考號: ${app.paymentReference ?? '-'})`,
         adminId
       );
+      // 套用 tier 嘅維持水平、預警門檻、佣金率（依 tier.amount × 各自 percentage）
+      const tierAmt = depositAmount;
+      const mPct = chosenTier.maintenancePct ? parseFloat(chosenTier.maintenancePct.toString()) : 80;
+      const wPct = chosenTier.warningPct ? parseFloat(chosenTier.warningPct.toString()) : 60;
+      const settings: { requiredDeposit?: number; warningDeposit?: number; commissionRate?: number; productCommissionRate?: number } = {
+        requiredDeposit: Math.round((tierAmt * mPct) / 100 * 100) / 100,
+        warningDeposit: Math.round((tierAmt * wPct) / 100 * 100) / 100,
+      };
       if (chosenTier.commissionRate) {
-        const rate = parseFloat(chosenTier.commissionRate.toString());
-        await updateSellerDepositSettings(app.userId, { commissionRate: rate });
+        settings.commissionRate = parseFloat(chosenTier.commissionRate.toString());
       }
+      if (chosenTier.productCommissionRate) {
+        settings.productCommissionRate = parseFloat(chosenTier.productCommissionRate.toString());
+      }
+      await updateSellerDepositSettings(app.userId, settings);
       depositToppedUp = true;
     } catch (err) {
       const detail = subscriptionApproved
