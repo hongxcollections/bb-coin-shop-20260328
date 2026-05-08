@@ -180,15 +180,18 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
   }
 
   async function handleCopyText() {
-    try { await navigator.clipboard.writeText(shareText); toast.success("已複製廣告文字！"); }
-    catch { toast.error("複製失敗"); }
+    try {
+      await navigator.clipboard.writeText(shareText);
+      toast.success("已複製廣告文字！", { description: shareText, duration: 5000 });
+    } catch { toast.error("複製失敗"); }
     setOpen(false);
   }
 
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(productUrl);
-      setCopied(true); toast.success("已複製連結");
+      setCopied(true);
+      toast.success("已複製連結", { description: productUrl, duration: 5000 });
       setTimeout(() => setCopied(false), 2000);
     } catch { toast.error("複製失敗，請手動複製連結"); }
     setOpen(false);
@@ -223,7 +226,7 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
             </button>
           </div>
           <button type="button" onClick={handleMoreShare} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700">
-            <MoreHorizontal className="w-4 h-4 shrink-0" />更多…
+            <MoreHorizontal className="w-4 h-4 shrink-0" />更多…（FB / TG / 微信 等）
           </button>
           <button type="button" onClick={handleMessenger} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#0084FF]/10 hover:text-[#0084FF]">
             <MessengerIcon />Facebook Messenger
@@ -358,9 +361,10 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
   }
 
   async function handleCopyText() {
+    const fullText = shareText + "\n" + auctionUrl;
     try {
-      await navigator.clipboard.writeText(shareText + "\n" + auctionUrl);
-      toast.success("已複製廣告文字！");
+      await navigator.clipboard.writeText(fullText);
+      toast.success("已複製廣告文字！", { description: fullText, duration: 5000 });
     } catch {
       toast.error("複製失敗");
     }
@@ -371,7 +375,7 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
     try {
       await navigator.clipboard.writeText(auctionUrl);
       setCopied(true);
-      toast.success("已複製連結");
+      toast.success("已複製連結", { description: auctionUrl, duration: 5000 });
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("複製失敗，請手動複製連結");
@@ -414,7 +418,7 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
             className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700"
           >
             <MoreHorizontal className="w-4 h-4 shrink-0" />
-            更多…
+            更多…（FB / TG / 微信 等）
           </button>
 
           <button
