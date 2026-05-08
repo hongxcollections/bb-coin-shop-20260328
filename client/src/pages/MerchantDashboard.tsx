@@ -642,13 +642,19 @@ export default function MerchantDashboard() {
         {!depositOk && deposit && (
           <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 flex items-start gap-2 text-sm text-red-600">
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <span>{depositWarningMessage}</span>
+            <span>
+              保證金餘額（{HKD(balance)}）已低於<strong>維持水平</strong>（{HKD(required)}），
+              發佈商品 / 拍賣將會受限。{depositWarningMessage}
+            </span>
           </div>
         )}
         {belowWarning && deposit && (
           <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2 text-sm text-amber-700">
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <span>保證金餘額低於維持水平/預警門檻（{HKD(warningThreshold)}），建議盡快補交以避免帳戶受限。</span>
+            <span>
+              保證金餘額（{HKD(balance)}）已低於<strong>預警門檻</strong>（{HKD(warningThreshold)}），
+              建議盡快補交以免跌穿維持水平（{HKD(required)}）。
+            </span>
           </div>
         )}
 
