@@ -1547,7 +1547,7 @@ export const appRouter = router({
           phone: input.phone ?? null,
           email: input.email ?? null,
           password: hashedPassword,
-          loginMethod: 'phone',
+          loginMethod: input.phone ? 'phone' : 'email',
           role: input.role,
           memberLevel: input.memberLevel,
         });

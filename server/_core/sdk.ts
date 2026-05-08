@@ -286,33 +286,16 @@ class SDKServer {
 
     // ── 2. 快取過期或首次請求，才查 DB ──────────────────────────────
     const signedInAt = new Date();
-    let user = await db.getUserByOpenId(sessionUserId);
+    const user = await db.getUserByOpenId(sessionUserId);
 
     if (!user) {
-      try {
-        await db.upsertUser({
-          openId: sessionUserId,
-          name: session.name || null,
-          email: null,
-          loginMethod: "google",
-          lastSignedIn: signedInAt,
-        });
-        user = await db.getUserByOpenId(sessionUserId);
-      } catch (dbError) {
-        console.warn("[Auth] Failed to upsert user from session:", dbError);
-      }
-
-      if (!user) {
-        const ownerOpenId = ENV.ownerOpenId || process.env.OWNER_OPEN_ID || "";
-        const isOwner = ownerOpenId.length > 0 && sessionUserId === ownerOpenId;
-        console.warn(`[Auth] Database unavailable, using session data for: ${sessionUserId}`);
-        return {
-          id: 0, openId: sessionUserId, name: session.name || null, email: null,
-          loginMethod: "google", role: (isOwner ? "admin" : "user") as "admin" | "user",
-          notifyOutbid: 1, notifyWon: 1, notifyEndingSoon: 1, memberLevel: "bronze",
-          defaultAnonymous: 0, lastSignedIn: signedInAt, createdAt: signedInAt, updatedAt: signedInAt,
-        } as User;
-      }
+      // ⚠️ SAFETY：如果 session cookie 嘅 openId 喺 DB 揾唔到對應 user，
+      // 一律拒絕請求並要求重新登入。**唔可以**靜靜地建立新 user — 舊版本
+      // 嘅 fallback 會用 `loginMethod: "google"` 重建任何 missing user，
+      // 結果令到電話登入嘅商戶被靜默改成 google 登入（資料丟失）。
+      // 真正嘅 user creation 只應該由明確嘅 register / OAuth callback / adminCreateUser 做。
+      console.warn(`[Auth] Session openId ${sessionUserId} 喺 DB 揾唔到對應 user，拒絕請求`);
+      throw ForbiddenError("User not found for session — please sign in again");
     }
 
     // ── 3. 寫入快取（30秒 TTL）──────────────────────────────────────
