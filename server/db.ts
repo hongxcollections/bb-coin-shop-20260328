@@ -2273,19 +2273,35 @@ export async function approveSubscription(subscriptionId: number, adminId: numbe
     if (!plans[0]) throw new Error('找不到訂閱計劃');
     const plan = plans[0];
 
-    // Calculate dates — 如果係續期且 parent 仲未過期，由 parent.endDate 接續
+    // Calculate dates
+    // 續期 (carry-over 模式)：
+    //   - startDate = now（即時生效）
+    //   - endDate = (parent.endDate 仲未過期 ? parent.endDate : now) + 一個 cycle，保留 parent 未用嘅日數
+    //   - parent 即時 mark 'expired'，parent.remainingQuota 落入 carryOver
     const now = new Date();
+    const isRenewal = (sub as { isRenewal?: number }).isRenewal === 1;
+    const parentSubId = (sub as { parentSubscriptionId?: number | null }).parentSubscriptionId ?? null;
     let startDate = now;
-    if ((sub as { isRenewal?: number }).isRenewal === 1 && (sub as { parentSubscriptionId?: number | null }).parentSubscriptionId) {
+    let extendBaseDate = now; // endDate 由邊個基準加 cycle
+    let parentRow: { id: number; endDate: Date | null; remainingQuota: number | null; status: string } | null = null;
+    if (isRenewal && parentSubId) {
       try {
-        const [parent] = await db.select().from(userSubscriptions)
-          .where(eq(userSubscriptions.id, (sub as { parentSubscriptionId: number }).parentSubscriptionId)).limit(1);
-        if (parent && parent.endDate && new Date(parent.endDate) > now) {
-          startDate = new Date(parent.endDate);
+        const [p] = await db.select().from(userSubscriptions)
+          .where(eq(userSubscriptions.id, parentSubId)).limit(1);
+        if (p) {
+          parentRow = {
+            id: p.id,
+            endDate: p.endDate,
+            remainingQuota: p.remainingQuota,
+            status: p.status,
+          };
+          if (p.endDate && new Date(p.endDate) > now) {
+            extendBaseDate = new Date(p.endDate);
+          }
         }
       } catch {}
     }
-    const endDate = new Date(startDate);
+    const endDate = new Date(extendBaseDate);
     if (sub.billingCycle === 'yearly') {
       endDate.setFullYear(endDate.getFullYear() + 1);
     } else {
@@ -2294,8 +2310,7 @@ export async function approveSubscription(subscriptionId: number, adminId: numbe
 
     // 累積上一張（或更早幾張）未用完嘅公佈額度 ─ 只有當新計劃為「有限額」時先累積
     // 新計劃 unlimited (maxListings === 0) → 直接設 0，無需累積
-    // 續期且 parent 仲未過期：唔好搶走 parent 嘅 quota（parent 繼續服務直到 endDate；屆時 quota 自然 reset）
-    const isRenewalWithFutureStart = startDate > now;
+    // Carry-over 模式：所有舊 sub（包括續期 parent）嘅 remainingQuota 都加埋落新一期，舊 row 即時清零並 mark expired
     let carryOver = 0;
     if (plan.maxListings > 0) {
       const prevSubs = await db.select({
@@ -2310,8 +2325,6 @@ export async function approveSubscription(subscriptionId: number, adminId: numbe
           ne(userSubscriptions.id, subscriptionId),
         ));
       for (const p of prevSubs) {
-        // Skip 仲 active 嘅 parent（renewal 場景）— 留返 quota 俾佢用到 endDate
-        if (isRenewalWithFutureStart && p.status === 'active' && p.endDate && new Date(p.endDate) > now) continue;
         const r = Number(p.remainingQuota ?? 0);
         if (r > 0) {
           carryOver += r;
@@ -2321,6 +2334,13 @@ export async function approveSubscription(subscriptionId: number, adminId: numbe
             .where(eq(userSubscriptions.id, p.id));
         }
       }
+    }
+
+    // 續期：parent 即時 mark 'expired'，避免兩張 active sub 同時存在
+    if (isRenewal && parentRow && parentRow.status === 'active') {
+      await db.update(userSubscriptions)
+        .set({ status: 'expired' })
+        .where(eq(userSubscriptions.id, parentRow.id));
     }
 
     const newRemainingQuota = plan.maxListings === 0
