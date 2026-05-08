@@ -239,6 +239,7 @@ export default function MerchantDashboard() {
 
   // Top-up request form state
   const [showTopUpForm, setShowTopUpForm] = useState(false);
+  const [showTxList, setShowTxList] = useState(false);
   const [showTopUpHistory, setShowTopUpHistory] = useState(false);
   const [txPage, setTxPage] = useState(1);
   const TX_PAGE_SIZE = 10;
@@ -1123,15 +1124,27 @@ export default function MerchantDashboard() {
                 <Wallet className="w-4 h-4 text-amber-600" />
                 <h2 className="font-semibold text-amber-900 text-sm">保證金交易記錄</h2>
               </div>
-              {transactions.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                {showTxList && transactions.length > 0 && (
+                  <button
+                    onClick={() => printTxReport(transactions, txFromDate, txToDate, myApp?.merchantName ?? "商戶")}
+                    className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 rounded-lg px-2.5 py-1 transition-colors"
+                  >
+                    <Printer className="w-3 h-3" />列印 / PDF
+                  </button>
+                )}
                 <button
-                  onClick={() => printTxReport(transactions, txFromDate, txToDate, myApp?.merchantName ?? "商戶")}
-                  className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 rounded-lg px-2.5 py-1 transition-colors"
+                  type="button"
+                  onClick={() => setShowTxList(v => !v)}
+                  className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200"
                 >
-                  <Printer className="w-3 h-3" />列印 / PDF
+                  <ChevronDown size={11} style={{ transform: showTxList ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+                  {showTxList ? "收起" : "展開"}
                 </button>
-              )}
+              </div>
             </div>
+
+            {showTxList && (<>
 
             {/* Date range filter */}
             <div className="flex items-end gap-2 flex-wrap">
@@ -1254,6 +1267,8 @@ export default function MerchantDashboard() {
                 })()}
               </div>
             )}
+
+            </>)}
 
           </CardContent>
         </Card>
