@@ -1167,7 +1167,7 @@ export default function Home() {
       {/* 商戶申請流程彈窗 */}
       {showMerchantFlow && (
         <ImageLightbox
-          images={["/merchant-apply-steps.png"]}
+          images={["/merchant-apply-steps.png?v=2"]}
           alt="商戶申請流程"
           onClose={() => setShowMerchantFlow(false)}
         />
