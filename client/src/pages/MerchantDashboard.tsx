@@ -1334,10 +1334,10 @@ export default function MerchantDashboard() {
       {/* ── 轉保證金套餐 dialog ── */}
       <Dialog open={tierChangeOpen} onOpenChange={(o) => { setTierChangeOpen(o); if (!o) setTierChangeTargetId(null); }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto px-[3px]">
-          <DialogHeader>
+          <DialogHeader className="px-[20px]">
             <DialogTitle>轉保證金套餐</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 text-sm">
+          <div className="space-y-3 text-sm px-[20px]">
             <p className="text-xs text-gray-500">揀新套餐。如目前餘額已夠新套餐金額，會即時切換；否則須上載差價收據，等管理員批核。</p>
 
             {/* ── 套餐列表 ── */}

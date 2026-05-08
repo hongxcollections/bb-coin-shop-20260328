@@ -1135,10 +1135,10 @@ export default function MerchantAuctions() {
       {/* ── 建立 / 編輯 草稿 Dialog ── */}
       <Dialog open={formOpen} onOpenChange={(v) => { if (!v) closeForm(); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-amber-50 px-[3px]">
-          <DialogHeader>
+          <DialogHeader className="px-[10px]">
             <DialogTitle>{editId ? "編輯草稿" : "建立新草稿"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 mt-2">
+          <div className="space-y-4 mt-2 px-[10px]">
             <div>
               <div className="flex items-center gap-1.5 mb-1">
                 <Label>圖片</Label>
