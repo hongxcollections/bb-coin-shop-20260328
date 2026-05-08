@@ -180,7 +180,7 @@ export default function MerchantOrders() {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="max-w-4xl mx-auto px-4 pt-16 text-center space-y-3">
+        <div className="container max-w-4xl mx-auto pt-16 text-center space-y-3">
           <p className="text-destructive font-medium">載入訂單時發生錯誤</p>
           <p className="text-sm text-muted-foreground">{(error as { message?: string })?.message ?? '未知錯誤'}</p>
           <button onClick={() => refetch()} className="text-sm underline">重試</button>
@@ -226,7 +226,7 @@ export default function MerchantOrders() {
     <div className="min-h-screen bg-background">
       <Header />
       <div className="border-b bg-card sticky top-16 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-2 text-sm flex-wrap">
+        <div className="container max-w-4xl mx-auto py-3 flex items-center gap-2 text-sm flex-wrap">
           <Link href="/merchant-dashboard">
             <span className="text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-1">
               <ChevronLeft className="w-3.5 h-3.5" />商戶後台
@@ -237,7 +237,7 @@ export default function MerchantOrders() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 pt-5 pb-28 space-y-4">
+      <div className="container max-w-4xl mx-auto pt-5 pb-28 space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2">

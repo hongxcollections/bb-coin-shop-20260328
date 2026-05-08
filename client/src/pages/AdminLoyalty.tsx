@@ -119,7 +119,7 @@ export default function AdminLoyalty() {
     return (
       <div className="min-h-screen bg-background">
         <AdminHeader />
-        <div className="max-w-3xl mx-auto px-4 py-8 text-center text-muted-foreground">載入設定中...</div>
+        <div className="container max-w-3xl mx-auto py-8 text-center text-muted-foreground">載入設定中...</div>
       </div>
     );
   }
@@ -135,7 +135,7 @@ export default function AdminLoyalty() {
   return (
     <div className="min-h-screen bg-background">
       <AdminHeader />
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="container max-w-3xl mx-auto py-8">
         <div className="flex items-center gap-3 mb-2">
           <Link href="/admin"><Button variant="ghost" size="sm" className="gap-1"><ChevronLeft className="w-4 h-4" />返回</Button></Link>
         </div>

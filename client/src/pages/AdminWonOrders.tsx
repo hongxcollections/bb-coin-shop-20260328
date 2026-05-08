@@ -197,7 +197,7 @@ export default function AdminWonOrders() {
     <div className="min-h-screen bg-background">
       <AdminHeader />
 
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <div className="container max-w-6xl mx-auto py-6 space-y-6">
         {/* 標題 */}
         <div className="flex items-center justify-between">
           <div>

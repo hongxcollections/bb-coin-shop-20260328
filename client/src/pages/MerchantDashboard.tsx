@@ -464,7 +464,7 @@ export default function MerchantDashboard() {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="max-w-lg mx-auto px-4 pt-6 pb-24 text-center space-y-3">
+        <div className="container max-w-lg mx-auto pt-6 pb-24 text-center space-y-3">
           <AlertCircle className="w-10 h-10 text-amber-400 mx-auto" />
           <p className="font-semibold text-gray-700">你尚未成為商戶會員</p>
           <Link href="/merchant-apply" className="text-sm text-amber-600 underline">前往申請開通商戶</Link>
@@ -485,7 +485,7 @@ export default function MerchantDashboard() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="max-w-lg mx-auto px-4 pt-4 pb-28 space-y-4">
+      <div className="container max-w-lg mx-auto pt-4 pb-28 space-y-4">
 
         {/* Back + title */}
         <div className="flex items-center gap-2">

@@ -325,7 +325,7 @@ export default function MerchantSettings() {
       <Header />
       {/* 吸附在主頭部導航下方的麵包屑欄 */}
       <div className="border-b bg-card sticky top-16 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-2 text-sm flex-wrap">
+        <div className="container max-w-4xl mx-auto py-3 flex items-center gap-2 text-sm flex-wrap">
           <Link href="/merchant-dashboard">
             <span className="text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-1">
               <ChevronLeft className="w-3.5 h-3.5" />商戶後台
@@ -336,7 +336,7 @@ export default function MerchantSettings() {
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 pt-8 pb-28 space-y-6">
+      <div className="container max-w-lg mx-auto pt-8 pb-28 space-y-6">
         {/* 標題 */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">

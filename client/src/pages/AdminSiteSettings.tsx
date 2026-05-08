@@ -232,7 +232,7 @@ export default function AdminSiteSettings() {
     <div className="min-h-screen bg-background">
       <AdminHeader />
 
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="container max-w-3xl mx-auto py-8">
         <div className="flex items-center gap-3 mb-8">
           <Settings className="w-7 h-7 text-amber-600" />
           <div>

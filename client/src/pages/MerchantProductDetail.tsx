@@ -292,7 +292,7 @@ export default function MerchantProductDetail() {
     <div className="min-h-screen bg-background pb-28">
       <Header />
 
-      <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
+      <div className="container max-w-lg mx-auto pt-4 space-y-4">
         {/* 返回 */}
         <button onClick={() => history.back()} className="flex items-center gap-1 text-sm text-gray-500 hover:text-amber-600 transition-colors">
           <ChevronLeft className="w-4 h-4" />返回

@@ -438,7 +438,7 @@ export default function MerchantStore() {
     <div className="min-h-screen bg-background pb-24">
       <Header />
 
-      <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
+      <div className="container max-w-lg mx-auto pt-4 space-y-4">
         {/* 返回 + 分享 */}
         <div className="flex items-center justify-between">
           <Link href="/merchants" className="flex items-center gap-1 text-sm text-gray-500 hover:text-amber-600 transition-colors">

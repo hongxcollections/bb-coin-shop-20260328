@@ -668,7 +668,7 @@ export default function CoinAnalysis() {
   return (
     <div className="min-h-screen bg-background pb-28">
       <Header />
-      <div className="max-w-lg mx-auto px-4 pt-4 space-y-4">
+      <div className="container max-w-lg mx-auto pt-4 space-y-4">
 
         {/* 標題列 */}
         <div className="flex items-center justify-between">

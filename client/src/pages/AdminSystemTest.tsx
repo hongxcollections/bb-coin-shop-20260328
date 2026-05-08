@@ -117,7 +117,7 @@ export default function AdminSystemTest() {
   return (
     <div className="min-h-screen bg-gray-50">
       <AdminHeader />
-      <div className="max-w-xl mx-auto px-4 py-6 space-y-5">
+      <div className="container max-w-xl mx-auto py-6 space-y-5">
 
         {/* 標題 */}
         <div className="flex items-center gap-3">

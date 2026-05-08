@@ -206,7 +206,7 @@ export default function SubscriptionPlans() {
       <Header />
       {/* 吸附在主頭部導航下方的麵包屑欄 */}
       <div className="border-b bg-card sticky top-16 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-2 text-sm">
+        <div className="container max-w-4xl mx-auto py-3 flex items-center gap-2 text-sm">
           <Link href="/merchant-dashboard">
             <span className="text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-1">
               <ArrowLeft className="w-3.5 h-3.5" />商戶後台

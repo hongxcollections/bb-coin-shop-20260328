@@ -554,7 +554,7 @@ export default function AdminAuctionRecords() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="container max-w-6xl mx-auto py-6">
         <div className="flex items-center gap-3 mb-6">
           <Link href="/admin">
             <Button variant="ghost" size="icon">

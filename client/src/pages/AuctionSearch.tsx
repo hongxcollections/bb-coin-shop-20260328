@@ -186,7 +186,7 @@ export default function AuctionSearch() {
 
       {/* Sticky search bar — sits just below the fixed Header (top-16 = 64px) */}
       <div className="sticky top-16 z-30 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 pt-3 pb-3 space-y-2.5">
+        <div className="container max-w-2xl mx-auto pt-3 pb-3 space-y-2.5">
           <div className="flex items-center gap-2">
             <h1 className="text-sm font-bold text-gray-700 whitespace-nowrap">拍賣紀錄庫</h1>
             {/* Search input */}
@@ -287,7 +287,7 @@ export default function AuctionSearch() {
       </div>
 
       {/* Results */}
-      <div className="max-w-2xl mx-auto px-4 py-4 pb-36 space-y-2.5">
+      <div className="container max-w-2xl mx-auto py-4 pb-36 space-y-2.5">
         {records.length === 0 && !isFetching ? (
           <div className="text-center py-20">
             <Database className="h-10 w-10 mx-auto text-gray-300 mb-3" />

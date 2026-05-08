@@ -83,7 +83,7 @@ export default function AdminRefundRequests() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="max-w-2xl mx-auto px-4 pt-4 pb-12 space-y-4">
+      <div className="container max-w-2xl mx-auto pt-4 pb-12 space-y-4">
 
         <div className="flex items-center gap-2">
           <Link href="/admin/deposits" className="p-1.5 rounded-xl hover:bg-amber-50 transition-colors">

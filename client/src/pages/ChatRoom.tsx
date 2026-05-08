@@ -40,7 +40,7 @@ export default function ChatRoom() {
   return (
     <>
       <Header />
-      <div className="container max-w-2xl mx-auto px-4 py-4 pb-24">
+      <div className="container max-w-2xl mx-auto py-4 pb-24">
         <p className="text-sm text-gray-500">打開緊對話...</p>
       </div>
       <BottomNav />

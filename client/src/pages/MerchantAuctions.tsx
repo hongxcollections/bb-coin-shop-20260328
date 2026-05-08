@@ -989,7 +989,7 @@ export default function MerchantAuctions() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="max-w-4xl mx-auto px-4 pt-4 pb-28 space-y-3">
+      <div className="container max-w-4xl mx-auto pt-4 pb-28 space-y-3">
         {/* 頁首：返回 + icon + 標題 + 建立草稿 */}
         <div className="flex items-center gap-3">
           <Link href="/merchant-dashboard">

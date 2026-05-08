@@ -109,7 +109,7 @@ export default function AdminAds() {
   return (
     <div className="min-h-screen bg-amber-50/30">
       <AdminHeader />
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+      <div className="container max-w-2xl mx-auto py-6 space-y-4">
         <div className="flex items-center gap-2">
           <Megaphone className="w-5 h-5 text-amber-500" />
           <h1 className="text-lg font-semibold">彈出廣告管理</h1>

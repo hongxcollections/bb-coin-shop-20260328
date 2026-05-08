@@ -100,7 +100,7 @@ export default function MerchantRefundRequests() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="max-w-lg mx-auto px-4 pt-4 pb-28 space-y-4">
+      <div className="container max-w-lg mx-auto pt-4 pb-28 space-y-4">
 
         <div className="flex items-center gap-2">
           <Link href="/merchant-dashboard" className="p-1.5 rounded-xl hover:bg-amber-50 transition-colors">

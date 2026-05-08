@@ -73,7 +73,7 @@ export default function Merchants() {
       <Header />
 
       {/* 商戶申請流程 — 獨立頂部列，跟足主頁頂部同款 sky-600 */}
-      <div className="max-w-2xl mx-auto px-4 pt-2 pb-0 flex justify-end">
+      <div className="container max-w-2xl mx-auto pt-2 pb-0 flex justify-end">
         <button
           onClick={() => setShowMerchantFlow(true)}
           className="inline-flex items-center gap-1.5 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow transition-colors cursor-pointer select-none"
@@ -93,7 +93,7 @@ export default function Merchants() {
 
       {/* 頁首 */}
       <div className="sticky top-16 z-10 bg-background/95 backdrop-blur border-b border-amber-100">
-        <div className="max-w-2xl mx-auto px-4 pt-3 pb-2 space-y-2">
+        <div className="container max-w-2xl mx-auto pt-3 pb-2 space-y-2">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-amber-500 flex items-center justify-center shadow-sm">
@@ -155,7 +155,7 @@ export default function Merchants() {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 pt-4 pb-28 flex flex-col" style={{ gap: "5px" }}>
+      <div className="container max-w-2xl mx-auto pt-4 pb-28 flex flex-col" style={{ gap: "5px" }}>
         {isLoading ? (
           <div className="text-center py-20 text-4xl animate-spin">💰</div>
         ) : filtered.length === 0 ? (
