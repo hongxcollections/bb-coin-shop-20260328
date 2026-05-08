@@ -573,27 +573,57 @@ export default function AuctionDetail() {
                       </span>
                     </div>
                   )}
-                  {/* 右下：分享按鈕 */}
+                  {/* 右下：分享按鈕組 */}
                   {!isVideoSelected && (
-                    <button
-                      type="button"
-                      onTouchEnd={(e) => e.stopPropagation()}
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        const url = window.location.href;
-                        const shareText = `${auction.title}\n目前出價 ${getCurrencySymbol((auction as { currency?: string })?.currency ?? "HKD")}${Number(auction.currentPrice).toLocaleString()}\n結標：${new Date(auction.endTime).toLocaleString("zh-HK", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}\n\n${url}`;
-                        if (navigator.share) {
-                          try { await navigator.share({ title: auction.title, text: shareText, url }); } catch {}
-                        } else {
-                          await navigator.clipboard.writeText(url);
-                          toast.success("連結已複製");
-                        }
-                      }}
-                      className="absolute bottom-2 right-2 flex items-center justify-center w-7 h-7 rounded-full bg-black/35 hover:bg-black/55 transition-colors backdrop-blur-sm z-10"
-                      title="分享"
-                    >
-                      <Share2 className="w-3.5 h-3.5 text-white" />
-                    </button>
+                    <div className="absolute bottom-2 right-2 flex items-center gap-1.5 z-10">
+                      {/* Messenger 分享 */}
+                      <button
+                        type="button"
+                        onTouchEnd={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const url = window.location.href;
+                          const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+                          if (isMobile) {
+                            window.location.href = `fb-messenger://share/?link=${encodeURIComponent(url)}`;
+                            setTimeout(() => {
+                              navigator.clipboard.writeText(url).catch(() => {});
+                            }, 500);
+                          } else {
+                            navigator.clipboard.writeText(url).then(() => {
+                              toast.success("連結已複製，請貼到 Messenger 分享");
+                            }).catch(() => toast.error("複製失敗"));
+                          }
+                        }}
+                        className="flex items-center justify-center w-7 h-7 rounded-full bg-[#0084FF] hover:bg-[#0073e6] transition-colors shadow-md"
+                        title="分享到 Messenger"
+                        aria-label="分享到 Messenger"
+                      >
+                        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="white">
+                          <path d="M12 2C6.36 2 2 6.13 2 11.7c0 2.91 1.19 5.44 3.14 7.17.16.14.26.34.27.55l.05 1.78a.8.8 0 0 0 1.12.71l1.99-.88c.16-.07.34-.08.5-.04.91.25 1.88.39 2.93.39 5.64 0 10-4.13 10-9.7C22 6.13 17.64 2 12 2zm6 7.46-2.94 4.66a1.5 1.5 0 0 1-2.16.4l-2.34-1.75a.6.6 0 0 0-.72 0l-3.16 2.4c-.42.32-.97-.18-.69-.62l2.94-4.66a1.5 1.5 0 0 1 2.16-.4l2.34 1.75a.6.6 0 0 0 .72 0l3.16-2.4c.42-.32.97.18.69.62z"/>
+                        </svg>
+                      </button>
+                      {/* 通用分享 */}
+                      <button
+                        type="button"
+                        onTouchEnd={(e) => e.stopPropagation()}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const url = window.location.href;
+                          const shareText = `${auction.title}\n目前出價 ${getCurrencySymbol((auction as { currency?: string })?.currency ?? "HKD")}${Number(auction.currentPrice).toLocaleString()}\n結標：${new Date(auction.endTime).toLocaleString("zh-HK", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}\n\n${url}`;
+                          if (navigator.share) {
+                            try { await navigator.share({ title: auction.title, text: shareText, url }); } catch {}
+                          } else {
+                            await navigator.clipboard.writeText(url);
+                            toast.success("連結已複製");
+                          }
+                        }}
+                        className="flex items-center justify-center w-7 h-7 rounded-full bg-black/35 hover:bg-black/55 transition-colors backdrop-blur-sm"
+                        title="分享"
+                      >
+                        <Share2 className="w-3.5 h-3.5 text-white" />
+                      </button>
+                    </div>
                   )}
                 </>
               ) : (
