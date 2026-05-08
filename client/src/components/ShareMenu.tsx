@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Share2, Copy, Check, X } from "lucide-react";
+import { Share2, Copy, Check, X, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
 interface ShareMenuProps {
@@ -63,12 +63,6 @@ function getCurrSymbol(currency: string): string {
   };
   return map[currency] ?? currency + "$";
 }
-
-const FacebookIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current shrink-0" aria-hidden="true">
-    <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.267h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z" />
-  </svg>
-);
 
 const TwitterIcon = () => (
   <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current shrink-0" aria-hidden="true">
@@ -142,22 +136,22 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
     };
   }, [open]);
 
-  async function handleFacebook() {
+  async function handleMoreShare() {
     setOpen(false);
     if (navigator.share) {
       try {
         await navigator.clipboard.writeText(shareText).catch(() => {});
         await navigator.share({ title, text: shareText, url: productUrl });
-        toast.success("已開啟分享選單，可選擇 Facebook 群組", { duration: 3000 });
+        toast.success("已開啟系統分享選單，可選擇 Messenger / FB 群組 / WhatsApp 等", { duration: 3000 });
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== "AbortError") {
-          window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productUrl)}`, "_blank", "noopener,noreferrer");
+          try { await navigator.clipboard.writeText(shareText + "\n" + productUrl); } catch {}
+          toast.success("已複製連結及廣告文字，可貼到任何平台分享", { duration: 5000 });
         }
       }
     } else {
-      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productUrl)}`, "_blank", "noopener,noreferrer");
-      try { await navigator.clipboard.writeText(shareText); } catch {}
-      toast.success("商品文字已複製！在 Facebook 貼文框長按「貼上」即可", { duration: 5000 });
+      try { await navigator.clipboard.writeText(shareText + "\n" + productUrl); } catch {}
+      toast.success("已複製連結及廣告文字，可貼到任何平台分享", { duration: 5000 });
     }
   }
 
@@ -219,8 +213,8 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
               <X className="w-3 h-3" />
             </button>
           </div>
-          <button type="button" onClick={handleFacebook} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#1877F2]/10 hover:text-[#1877F2]">
-            <FacebookIcon />Facebook
+          <button type="button" onClick={handleMoreShare} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700">
+            <MoreHorizontal className="w-4 h-4 shrink-0" />更多…
           </button>
           <button type="button" onClick={handleTwitter} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-black/10 hover:text-black">
             <TwitterIcon />X / Twitter
@@ -307,28 +301,24 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
     };
   }, [open]);
 
-  async function handleFacebook() {
+  async function handleMoreShare() {
     setOpen(false);
-    // On mobile: use navigator.share() so the OS share sheet opens —
-    // the user can then pick "Facebook" and choose a GROUP (not just timeline).
-    // On desktop: fall back to sharer.php (no group choice available on desktop).
+    // 用系統原生 share sheet：手機可揀 Messenger / FB 群組 / WhatsApp / IG / Threads / 其他 app
     if (navigator.share) {
       try {
         await navigator.clipboard.writeText(shareText).catch(() => {});
         await navigator.share({ title, text: shareText, url: auctionUrl });
-        toast.success("已開啟分享選單，可選擇 Facebook 群組", { duration: 3000 });
+        toast.success("已開啟系統分享選單，可選擇 Messenger / FB 群組 / WhatsApp 等", { duration: 3000 });
       } catch (err: unknown) {
-        // User cancelled share — ignore AbortError
         if (err instanceof Error && err.name !== "AbortError") {
-          // Fallback to sharer.php if share() fails for other reasons
-          window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}`, "_blank", "noopener,noreferrer");
+          try { await navigator.clipboard.writeText(shareText + "\n" + auctionUrl); } catch {}
+          toast.success("已複製連結及廣告文字，可貼到任何平台分享", { duration: 5000 });
         }
       }
     } else {
-      // Desktop fallback
-      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}`, "_blank", "noopener,noreferrer");
-      try { await navigator.clipboard.writeText(shareText); } catch {}
-      toast.success("拍賣文字已複製！在 Facebook 貼文框長按「貼上」即可", { duration: 5000 });
+      // 桌面：直接 copy（桌面無 system share sheet）
+      try { await navigator.clipboard.writeText(shareText + "\n" + auctionUrl); } catch {}
+      toast.success("已複製連結及廣告文字，可貼到任何平台分享", { duration: 5000 });
     }
   }
 
@@ -403,11 +393,11 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
 
           <button
             type="button"
-            onClick={handleFacebook}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#1877F2]/10 hover:text-[#1877F2]"
+            onClick={handleMoreShare}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700"
           >
-            <FacebookIcon />
-            Facebook
+            <MoreHorizontal className="w-4 h-4 shrink-0" />
+            更多…
           </button>
 
           <button
