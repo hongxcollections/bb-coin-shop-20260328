@@ -321,7 +321,7 @@ export default function MerchantApply() {
 
         {/* 申請流程圖 */}
         <div className="mb-6">
-          <img src="/merchant-apply-steps.png?v=2" alt="成為商戶的申請步驟"
+          <img src="/merchant-apply-steps.png?v=3" alt="成為商戶的申請步驟"
             className="w-full rounded-2xl shadow-sm cursor-zoom-in active:opacity-80 transition-opacity"
             onClick={() => setStepsLightbox(true)} />
           <p className="text-center text-xs text-gray-400 mt-1.5">點擊圖片可放大查看</p>
@@ -681,7 +681,7 @@ export default function MerchantApply() {
           </>
         )}
       </div>
-      {stepsLightbox && <ImageLightbox images={["/merchant-apply-steps.png?v=2"]} alt="成為商戶的申請步驟" onClose={() => setStepsLightbox(false)} />}
+      {stepsLightbox && <ImageLightbox images={["/merchant-apply-steps.png?v=3"]} alt="成為商戶的申請步驟" onClose={() => setStepsLightbox(false)} />}
     </div>
   );
 }

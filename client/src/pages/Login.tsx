@@ -1279,7 +1279,7 @@ export default function Login() {
         {/* 商戶申請流程燈箱（支援雙指縮放）*/}
         {showMerchantFlow && (
           <ImageLightbox
-            images={["/merchant-apply-steps.png?v=2"]}
+            images={["/merchant-apply-steps.png?v=3"]}
             alt="商戶申請流程"
             onClose={() => setShowMerchantFlow(false)}
           />
