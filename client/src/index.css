@@ -197,12 +197,15 @@
 }
 
 @layer utilities {
+  .focus-glow {
+    --glow: var(--ring);
+  }
   .focus-glow:focus-visible {
     outline: none;
-    border-color: var(--ring);
+    border-color: var(--glow);
     box-shadow:
-      0 0 22px 4px color-mix(in oklch, var(--ring) 50%, transparent),
-      0 0 48px 12px color-mix(in oklch, var(--ring) 30%, transparent);
+      0 0 22px 4px color-mix(in oklch, var(--glow) 50%, transparent),
+      0 0 48px 12px color-mix(in oklch, var(--glow) 30%, transparent);
   }
 }
 
