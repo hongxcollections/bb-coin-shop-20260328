@@ -60,7 +60,7 @@ export default function AdminHeader() {
                   letterSpacing: "0.02em",
                 }}
               >
-                Powered by hongxcollections
+                Powered by 大BB錢幣店
               </span>
             </div>
           </Link>
