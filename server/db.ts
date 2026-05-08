@@ -1975,6 +1975,7 @@ async function ensureSubscriptionTables() {
     // T2 續期支援：bootstrap missing columns
     try { await db.execute(sql`ALTER TABLE user_subscriptions ADD COLUMN isRenewal INT NOT NULL DEFAULT 0`); } catch {}
     try { await db.execute(sql`ALTER TABLE user_subscriptions ADD COLUMN parentSubscriptionId INT NULL`); } catch {}
+    try { await db.execute(sql`ALTER TABLE user_subscriptions ADD COLUMN periodMaxListings INT NOT NULL DEFAULT 0`); } catch {}
     _subscriptionTablesChecked = true;
   } catch (error) {
     console.error('[Database] Failed to ensure subscription tables:', error);
@@ -2348,6 +2349,7 @@ export async function approveSubscription(subscriptionId: number, adminId: numbe
       : plan.maxListings + carryOver;
 
     // Update subscription — also initialise remainingQuota from plan.maxListings (+ carryOver)
+    // periodMaxListings 記錄本期總限額（含 carry-over），用於 UI 顯示「分母」
     await db.update(userSubscriptions).set({
       status: 'active',
       startDate: startDate,
@@ -2356,6 +2358,7 @@ export async function approveSubscription(subscriptionId: number, adminId: numbe
       approvedAt: now,
       adminNote: adminNote ?? null,
       remainingQuota: newRemainingQuota,
+      periodMaxListings: plan.maxListings === 0 ? 0 : newRemainingQuota,
     }).where(eq(userSubscriptions.id, subscriptionId));
 
     // Update user's member level (subscription plan level)
@@ -3854,6 +3857,7 @@ export async function getListingQuotaInfo(userId: number): Promise<{
       id: userSubscriptions.id,
       planName: subscriptionPlans.name,
       maxListings: subscriptionPlans.maxListings,
+      periodMaxListings: userSubscriptions.periodMaxListings,
       remainingQuota: userSubscriptions.remainingQuota,
       endDate: userSubscriptions.endDate,
     })
@@ -3868,17 +3872,19 @@ export async function getListingQuotaInfo(userId: number): Promise<{
       .orderBy(desc(userSubscriptions.createdAt))
       .limit(1);
     if (!row) return null;
-    const max = row.maxListings ?? 0;
+    const planMax = row.maxListings ?? 0;
+    // periodMaxListings 記錄本期實際總限額（含 carry-over）；如未 set（legacy）就 fall back 去 plan.maxListings
+    const periodMax = row.periodMaxListings && row.periodMaxListings > 0 ? row.periodMaxListings : planMax;
     // If remainingQuota is null (legacy records before fix), treat as full quota
     const remaining = row.remainingQuota !== null && row.remainingQuota !== undefined
       ? row.remainingQuota
-      : max;
+      : periodMax;
     return {
       subscriptionId: row.id,
       planName: row.planName ?? '',
-      maxListings: max,
+      maxListings: periodMax,
       remainingQuota: remaining,
-      unlimited: max === 0,
+      unlimited: planMax === 0,
       endDate: row.endDate ?? null,
     };
   } catch {

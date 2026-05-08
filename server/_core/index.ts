@@ -181,11 +181,12 @@ async function bootstrapMissingColumns() {
   // ── Legacy migration：將舊嘅 future-start renewal row 合併為 carry-over 即時生效形態
   // 場景：之前批核嘅續期 row 仲 active 但 startDate > NOW()，同時 parent 仲 active —
   // 將 parent.remainingQuota 加入 renewal.remainingQuota，將 renewal.startDate = NOW()，
-  // parent 即時 mark 'expired'。
+  // parent 即時 mark 'expired'，同時 set periodMaxListings = 合併後嘅 remainingQuota。
   await alter(`
     UPDATE user_subscriptions r
     JOIN user_subscriptions p ON p.id = r.parentSubscriptionId
     SET r.remainingQuota = COALESCE(r.remainingQuota, 0) + COALESCE(p.remainingQuota, 0),
+        r.periodMaxListings = COALESCE(r.remainingQuota, 0) + COALESCE(p.remainingQuota, 0),
         r.startDate = NOW(),
         p.remainingQuota = 0,
         p.status = 'expired'
@@ -194,6 +195,18 @@ async function bootstrapMissingColumns() {
       AND r.startDate > NOW()
       AND p.status = 'active'
   `, 'Merged legacy future-start renewal subscriptions into carry-over form');
+
+  // ── Backfill periodMaxListings for active subscriptions where it's not yet set
+  // 對於現存 active sub（包括上面 merge 完嘅），如果 periodMaxListings = 0 而 plan.maxListings > 0，
+  // 設為 max(remainingQuota, plan.maxListings) — 即至少係 plan 嘅基礎額度，但若已有更多剩餘（carry-over）就用嗰個數。
+  await alter(`
+    UPDATE user_subscriptions us
+    JOIN subscription_plans sp ON us.planId = sp.id
+    SET us.periodMaxListings = GREATEST(COALESCE(us.remainingQuota, 0), sp.maxListings)
+    WHERE us.status = 'active'
+      AND sp.maxListings > 0
+      AND (us.periodMaxListings IS NULL OR us.periodMaxListings = 0)
+  `, 'Backfilled periodMaxListings for active subscriptions');
 
   // commissionRefundRequests table
   await alter(`CREATE TABLE IF NOT EXISTS \`commissionRefundRequests\` (
