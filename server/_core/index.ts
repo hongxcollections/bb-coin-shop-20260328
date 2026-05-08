@@ -178,6 +178,23 @@ async function bootstrapMissingColumns() {
       AND us.remainingQuota = 0
   `, 'Repaired remainingQuota for active subscriptions');
 
+  // ── Legacy migration：將舊嘅 future-start renewal row 合併為 carry-over 即時生效形態
+  // 場景：之前批核嘅續期 row 仲 active 但 startDate > NOW()，同時 parent 仲 active —
+  // 將 parent.remainingQuota 加入 renewal.remainingQuota，將 renewal.startDate = NOW()，
+  // parent 即時 mark 'expired'。
+  await alter(`
+    UPDATE user_subscriptions r
+    JOIN user_subscriptions p ON p.id = r.parentSubscriptionId
+    SET r.remainingQuota = COALESCE(r.remainingQuota, 0) + COALESCE(p.remainingQuota, 0),
+        r.startDate = NOW(),
+        p.remainingQuota = 0,
+        p.status = 'expired'
+    WHERE r.isRenewal = 1
+      AND r.status = 'active'
+      AND r.startDate > NOW()
+      AND p.status = 'active'
+  `, 'Merged legacy future-start renewal subscriptions into carry-over form');
+
   // commissionRefundRequests table
   await alter(`CREATE TABLE IF NOT EXISTS \`commissionRefundRequests\` (
     \`id\` int AUTO_INCREMENT NOT NULL,
