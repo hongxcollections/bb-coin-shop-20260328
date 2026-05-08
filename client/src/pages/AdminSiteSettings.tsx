@@ -69,6 +69,14 @@ export default function AdminSiteSettings() {
   // 保證金警告信息
   const [depositWarningMessage, setDepositWarningMessage] = useState("保證金水平維持不足，可以自行申請保證金充值或者聯絡管理員補交, 以免影響商戶一切正常運作。");
 
+  // 商戶付款資訊（保證金充值／轉套餐／續期 用嘅入數方法）
+  const DEFAULT_PAYMENT_INFO = `📌 入數方法（請任選其一）
+
+• FPS 轉數快：手機號 9123-4567 / 識別碼 123456789
+
+• 銀行轉帳：匯豐 123-456789-001（戶名：HONGX COLLECTIONS）`;
+  const [subscriptionPaymentMethods, setSubscriptionPaymentMethods] = useState(DEFAULT_PAYMENT_INFO);
+
   // 商戶主頁聯絡訊息預設（WhatsApp / Messenger 共用，會自動加入商戶網址）
   const [merchantContactMessage, setMerchantContactMessage] = useState("你好，我想查詢你的商品");
 
@@ -161,6 +169,7 @@ export default function AdminSiteSettings() {
     if (s.loginWelcomeTitleRegister) setLoginWelcomeTitleRegister(s.loginWelcomeTitleRegister);
     if (s.loginWelcomeDesc) setLoginWelcomeDesc(s.loginWelcomeDesc);
     if (s.depositWarningMessage) setDepositWarningMessage(s.depositWarningMessage);
+    if (s.subscription_payment_methods) setSubscriptionPaymentMethods(s.subscription_payment_methods);
     if (s.merchantContactMessage) setMerchantContactMessage(s.merchantContactMessage);
     if (s.publishQuotaErrorMsg) setPublishQuotaErrorMsg(s.publishQuotaErrorMsg);
     if (s.publishDepositErrorMsg) setPublishDepositErrorMsg(s.publishDepositErrorMsg);
@@ -853,6 +862,49 @@ export default function AdminSiteSettings() {
                     <span>{depositWarningMessage || "（空白）"}</span>
                   </div>
                   <SaveBtn onClick={() => save('depositWarningMessage', depositWarningMessage, () => !depositWarningMessage.trim() ? "警告信息不可為空" : null)} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 商戶付款資訊 */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-blue-500" />
+                  <CardTitle className="text-lg">商戶付款資訊（入數方法）</CardTitle>
+                </div>
+                <CardDescription>
+                  商戶提交保證金充值、轉套餐差價、訂閱續期時，會喺收據上載步驟之上見到呢段付款指引（FPS / 銀行戶口等）。
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="flex items-center gap-2 mb-2"><AlertCircle className="w-4 h-4 text-blue-500" />付款資訊內容（支援多行 / Emoji）</Label>
+                  <Textarea
+                    value={subscriptionPaymentMethods}
+                    onChange={(e) => setSubscriptionPaymentMethods(e.target.value)}
+                    rows={8}
+                    placeholder={DEFAULT_PAYMENT_INFO}
+                    className="resize-y font-mono text-sm"
+                  />
+                  <div className="flex items-center gap-2 mt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSubscriptionPaymentMethods(DEFAULT_PAYMENT_INFO)}
+                      className="text-xs"
+                    >
+                      還原預設範例
+                    </Button>
+                    <span className="text-xs text-gray-400">商戶端會以淺藍卡片顯示，保留換行。</span>
+                  </div>
+                </div>
+                <div className="flex items-start justify-between flex-wrap gap-3">
+                  <div className="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 text-xs text-blue-700 max-w-md whitespace-pre-line leading-relaxed">
+                    {subscriptionPaymentMethods || "（空白 — 商戶端唔會顯示付款卡片）"}
+                  </div>
+                  <SaveBtn onClick={() => save('subscription_payment_methods', subscriptionPaymentMethods, () => null)} />
                 </div>
               </CardContent>
             </Card>
