@@ -64,9 +64,9 @@ function getCurrSymbol(currency: string): string {
   return map[currency] ?? currency + "$";
 }
 
-const TwitterIcon = () => (
+const MessengerIcon = () => (
   <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current shrink-0" aria-hidden="true">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    <path d="M12 2C6.36 2 2 6.13 2 11.7c0 2.91 1.19 5.44 3.14 7.17.16.14.26.34.27.55l.05 1.78a.8.8 0 0 0 1.12.71l1.99-.88c.16-.07.34-.08.5-.04.91.25 1.88.39 2.93.39 5.64 0 10-4.13 10-9.7C22 6.13 17.64 2 12 2zm6 7.46-2.94 4.66a1.5 1.5 0 0 1-2.16.4l-2.34-1.75a.6.6 0 0 0-.72 0l-3.16 2.4c-.42.32-.97-.18-.69-.62l2.94-4.66a1.5 1.5 0 0 1 2.16-.4l2.34 1.75a.6.6 0 0 0 .72 0l3.16-2.4c.42-.32.97.18.69.62z"/>
   </svg>
 );
 
@@ -155,9 +155,18 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
     }
   }
 
-  function handleTwitter() {
-    window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(productUrl)}&text=${encodeURIComponent(shareText)}`, "_blank", "noopener,noreferrer,width=600,height=500");
+  async function handleMessenger() {
     setOpen(false);
+    const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+    if (isMobile) {
+      try { await navigator.clipboard.writeText(shareText + "\n" + productUrl); } catch {}
+      window.location.href = `fb-messenger://share?link=${encodeURIComponent(productUrl)}`;
+      toast.success("已複製文案，Messenger 開啟後可貼上", { duration: 4000 });
+    } else {
+      try { await navigator.clipboard.writeText(shareText + "\n" + productUrl); } catch {}
+      window.open("https://www.messenger.com/", "_blank", "noopener,noreferrer");
+      toast.success("已複製連結，請喺 Messenger 對話框貼上", { duration: 5000 });
+    }
   }
 
   function handleWhatsApp() {
@@ -216,8 +225,8 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
           <button type="button" onClick={handleMoreShare} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700">
             <MoreHorizontal className="w-4 h-4 shrink-0" />更多…
           </button>
-          <button type="button" onClick={handleTwitter} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-black/10 hover:text-black">
-            <TwitterIcon />X / Twitter
+          <button type="button" onClick={handleMessenger} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#0084FF]/10 hover:text-[#0084FF]">
+            <MessengerIcon />Facebook Messenger
           </button>
           <button type="button" onClick={handleWhatsApp} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#25D366]/10 hover:text-[#25D366]">
             <WhatsAppIcon />WhatsApp
@@ -322,10 +331,18 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
     }
   }
 
-  function handleTwitter() {
-    const url = `https://twitter.com/intent/tweet?url=${encodeURIComponent(auctionUrl)}&text=${encodeURIComponent(shareText)}`;
-    window.open(url, "_blank", "noopener,noreferrer,width=600,height=500");
+  async function handleMessenger() {
     setOpen(false);
+    const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+    if (isMobile) {
+      try { await navigator.clipboard.writeText(shareText + "\n" + auctionUrl); } catch {}
+      window.location.href = `fb-messenger://share?link=${encodeURIComponent(auctionUrl)}`;
+      toast.success("已複製文案，Messenger 開啟後可貼上", { duration: 4000 });
+    } else {
+      try { await navigator.clipboard.writeText(shareText + "\n" + auctionUrl); } catch {}
+      window.open("https://www.messenger.com/", "_blank", "noopener,noreferrer");
+      toast.success("已複製連結，請喺 Messenger 對話框貼上", { duration: 5000 });
+    }
   }
 
   function handleWhatsApp() {
@@ -402,11 +419,11 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
 
           <button
             type="button"
-            onClick={handleTwitter}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-black/10 hover:text-black"
+            onClick={handleMessenger}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#0084FF]/10 hover:text-[#0084FF]"
           >
-            <TwitterIcon />
-            X / Twitter
+            <MessengerIcon />
+            Facebook Messenger
           </button>
 
           <button
