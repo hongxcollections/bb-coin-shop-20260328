@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, Link, useLocation } from "wouter";
 import ImageLightbox from "@/components/ImageLightbox";
+import { ProductShareMenu } from "@/components/ShareMenu";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import OfferButton from "@/components/OfferButton";
@@ -11,7 +12,7 @@ import {
   Store, MessageCircle, Package, Gavel, ChevronLeft,
   Clock, Tag, ShoppingBag, ChevronLeft as Prev, ChevronRight as Next,
   ChevronDown, ChevronUp, Star, Phone, ShoppingCart, Loader2, X, CheckCircle2,
-  Facebook, Play,
+  Play,
 } from "lucide-react";
 
 // ── 落單確認彈窗 ──
@@ -374,36 +375,19 @@ export default function MerchantProductDetail() {
                       {imgIdx + 1}/{totalMedia}
                     </div>
                   )}
-                  {/* Facebook 分享按鈕（圖片右下角） */}
-                  <button
-                    type="button"
-                    onTouchEnd={e => e.stopPropagation()}
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      const url = window.location.href;
-                      const price = parseFloat(product.price ?? "0");
-                      const currency = product.currency ?? "HKD";
-                      const shareText = `${product.title}\n出售價格：${currency} $${price.toLocaleString()}\n${url}`;
-                      if (navigator.share) {
-                        try {
-                          await navigator.clipboard.writeText(shareText).catch(() => {});
-                          await navigator.share({ title: product.title, text: shareText, url });
-                        } catch (err: unknown) {
-                          if (err instanceof Error && err.name !== "AbortError") {
-                            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, "_blank", "noopener,noreferrer");
-                          }
-                        }
-                      } else {
-                        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, "_blank", "noopener,noreferrer");
-                        try { await navigator.clipboard.writeText(shareText); } catch {}
-                        toast.success("商品文字已複製！在 Facebook 貼文框長按「貼上」即可", { duration: 5000 });
-                      }
-                    }}
-                    className="absolute bottom-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-[#1877F2]/90 hover:bg-[#1877F2] transition-colors backdrop-blur-sm z-10 shadow"
-                    title="分享到 Facebook"
+                  {/* 分享按鈕（統一 ShareMenu，圖片右下角） */}
+                  <div
+                    className="absolute bottom-2 right-2 z-10"
+                    onClick={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => e.stopPropagation()}
                   >
-                    <Facebook className="w-4 h-4 text-white" />
-                  </button>
+                    <ProductShareMenu
+                      productId={product.id}
+                      title={product.title}
+                      price={parseFloat(product.price ?? "0")}
+                      currency={product.currency}
+                    />
+                  </div>
                 </div>
               ) : (
                 <div className="w-full aspect-square bg-amber-50 flex items-center justify-center">
@@ -650,33 +634,6 @@ export default function MerchantProductDetail() {
                   </div>
                 )}
 
-                {/* Facebook 分享按鈕（永遠顯示） */}
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const url = window.location.href;
-                    const price = parseFloat(product.price ?? "0");
-                    const currency = product.currency ?? "HKD";
-                    const shareText = `${product.title}\n出售價格：${currency} $${price.toLocaleString()}\n${url}`;
-                    if (navigator.share) {
-                      try {
-                        await navigator.clipboard.writeText(shareText).catch(() => {});
-                        await navigator.share({ title: product.title, text: shareText, url });
-                      } catch (err: unknown) {
-                        if (err instanceof Error && err.name !== "AbortError") {
-                          window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, "_blank", "noopener,noreferrer");
-                        }
-                      }
-                    } else {
-                      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, "_blank", "noopener,noreferrer");
-                      try { await navigator.clipboard.writeText(shareText); } catch {}
-                      toast.success("商品文字已複製！在 Facebook 貼文框長按「貼上」即可", { duration: 5000 });
-                    }
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-[#1877F2] hover:bg-[#1560c8] text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
-                >
-                  <Facebook className="w-4 h-4" />分享到 Facebook
-                </button>
               </div>
             </div>
 
