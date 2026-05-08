@@ -894,11 +894,12 @@ export default function MerchantDashboard() {
                       </div>
                     )}
                     <div className="grid grid-cols-1 gap-2">
-                      {(activeTiers as { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; commissionRate?: string | null; description: string | null }[]).map(tier => {
+                      {(activeTiers as { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; commissionRate?: string | null; productCommissionRate?: string | null; description: string | null }[]).map(tier => {
                         const amt = parseFloat(tier.amount);
                         const mPct = parseFloat(tier.maintenancePct);
                         const wPct = parseFloat(tier.warningPct);
-                        const commPct = tier.commissionRate ? parseFloat(tier.commissionRate) * 100 : null;
+                        const auctionPct = tier.commissionRate ? parseFloat(tier.commissionRate) * 100 : null;
+                        const productPct = tier.productCommissionRate ? parseFloat(tier.productCommissionRate) * 100 : null;
                         const isSelected = selectedTierId === tier.id;
                         return (
                           <button
@@ -915,8 +916,13 @@ export default function MerchantDashboard() {
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="text-sm font-semibold text-amber-900">{tier.name}</span>
                                   <span className="text-sm font-bold text-amber-700">HK${amt.toLocaleString()}</span>
-                                  {commPct !== null && (
-                                    <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">傭金 {commPct.toFixed(2)}%</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                                  {auctionPct !== null && (
+                                    <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">拍賣傭金 {auctionPct.toFixed(2)}%</span>
+                                  )}
+                                  {productPct !== null && (
+                                    <span className="text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-full px-2 py-0.5">商品傭金 {productPct.toFixed(2)}%</span>
                                   )}
                                 </div>
                                 <div className="mt-0.5 text-xs text-gray-500 space-y-0.5">
@@ -1234,9 +1240,10 @@ export default function MerchantDashboard() {
 
             {/* ── 套餐列表 ── */}
             <div className="space-y-2">
-              {(activeTiers as { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; commissionRate?: string | null; description: string | null }[] | undefined)?.filter(t => t.id !== deposit?.currentTierId).map(tier => {
+              {(activeTiers as { id: number; name: string; amount: string; maintenancePct: string; warningPct: string; commissionRate?: string | null; productCommissionRate?: string | null; description: string | null }[] | undefined)?.filter(t => t.id !== deposit?.currentTierId).map(tier => {
                 const amt = parseFloat(tier.amount);
-                const commPct = tier.commissionRate ? parseFloat(tier.commissionRate) * 100 : null;
+                const auctionPct = tier.commissionRate ? parseFloat(tier.commissionRate) * 100 : null;
+                const productPct = tier.productCommissionRate ? parseFloat(tier.productCommissionRate) * 100 : null;
                 const isSelected = tierChangeTargetId === tier.id;
                 return (
                   <button
@@ -1250,8 +1257,13 @@ export default function MerchantDashboard() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-semibold text-gray-900">{tier.name}</span>
                           <span className="text-sm font-bold text-purple-700">HK${amt.toLocaleString()}</span>
-                          {commPct !== null && (
-                            <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">傭金 {commPct.toFixed(2)}%</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                          {auctionPct !== null && (
+                            <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">拍賣傭金 {auctionPct.toFixed(2)}%</span>
+                          )}
+                          {productPct !== null && (
+                            <span className="text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-full px-2 py-0.5">商品傭金 {productPct.toFixed(2)}%</span>
                           )}
                         </div>
                         {tier.description && <p className="text-xs text-gray-400 mt-0.5">{tier.description}</p>}
