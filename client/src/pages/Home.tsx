@@ -1165,11 +1165,11 @@ export default function Home() {
       {/* Navigation */}
       <Header />
 
-      {/* ── 商品拍賣主頁 Hero（淺金黃漸變，配合藏家天地 sky hero 風格）── */}
-      <div className="bg-gradient-to-br from-amber-100 via-yellow-100 to-amber-50 border-b border-amber-200/60">
+      {/* ── 商品拍賣主頁 Hero（淺橙漸變）── */}
+      <div className="bg-gradient-to-br from-orange-50 via-orange-100/70 to-amber-50 border-b border-orange-200/50">
         <div className="max-w-5xl mx-auto px-4 pt-6 pb-7 relative overflow-hidden">
-          <div className="absolute -right-12 -top-12 w-48 h-48 bg-amber-300/30 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -left-10 bottom-0 w-32 h-32 bg-yellow-200/40 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -right-12 -top-12 w-48 h-48 bg-orange-200/40 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -left-10 bottom-0 w-32 h-32 bg-orange-100/50 rounded-full blur-2xl pointer-events-none" />
           <div className="relative flex items-center justify-between gap-4">
             <div className="min-w-0">
               <div className="inline-flex items-center gap-1.5 bg-white/70 backdrop-blur text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold mb-2 shadow-sm">
