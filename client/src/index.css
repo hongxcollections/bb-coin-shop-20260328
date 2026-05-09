@@ -200,7 +200,11 @@
   .focus-glow {
     --glow: var(--ring);
   }
-  .focus-glow:focus-visible {
+  .focus-glow:focus-visible,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="submit"]):not([type="button"]):not([type="reset"]):focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    --glow: var(--ring);
     outline: none;
     border-color: var(--glow);
     box-shadow:
