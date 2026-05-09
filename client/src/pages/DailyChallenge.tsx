@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Trophy, Medal, Coins, Sparkles, Calendar, CheckCircle2, XCircle, Award, Users } from "lucide-react";
+import { Trophy, Medal, Coins, Sparkles, Calendar, CheckCircle2, XCircle, Award, Users, ChevronLeft } from "lucide-react";
 
 function rankBadge(r: number | null | undefined) {
   if (r === 1) return { label: "🥇 第 1 位", cls: "bg-yellow-100 text-yellow-800 border-yellow-300" };
@@ -93,6 +93,12 @@ export default function DailyChallenge() {
     <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-white">
       <Header />
       <div className="container max-w-5xl py-6 md:py-10 pb-32 md:pb-10">
+        {/* 返回連結 */}
+        <Link href="/collection-square">
+          <a className="inline-flex items-center gap-1 text-sm text-amber-700 hover:text-amber-900 mb-3 transition-colors">
+            <ChevronLeft className="w-4 h-4" /> 返回藏家天地
+          </a>
+        </Link>
         {/* Hero */}
         <div className="rounded-2xl bg-gradient-to-b from-amber-500 via-orange-400 to-orange-200 p-6 md:p-8 mb-6 shadow-lg">
           <div className="flex items-center gap-2 text-white/90 text-sm">
