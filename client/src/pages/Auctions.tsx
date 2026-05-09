@@ -203,58 +203,49 @@ export default function Auctions() {
       {/* Navigation */}
       <Header />
 
-      {/* ── 拍賣 Hero（淺金黃漸變，與藏家天地 sky hero 同款風格）── */}
-      <div className="bg-gradient-to-br from-amber-300/80 via-yellow-300/80 to-amber-200/80 border-b border-amber-400/60">
-        <div className="max-w-5xl mx-auto px-4 pt-6 pb-7 relative overflow-hidden">
-          <div className="absolute -right-12 -top-12 w-48 h-48 bg-amber-300/30 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -left-10 bottom-0 w-32 h-32 bg-yellow-200/40 rounded-full blur-2xl pointer-events-none" />
-          <div className="relative flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="inline-flex items-center gap-1.5 bg-white/70 backdrop-blur text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold mb-2 shadow-sm">
-                <Gavel className="w-3.5 h-3.5" /> 即時競拍
-              </div>
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-amber-900">所有拍賣</h1>
-              <p className="text-xs md:text-sm text-amber-800/80 mt-1.5">精選錢幣 · 公開競投 · 安心交易</p>
+      {/* ── 拍賣 Hero（深重黃金漸變：頂部深 → 底部淺）── */}
+      <div className="bg-gradient-to-b from-amber-500 via-amber-300 to-amber-100 border-b border-amber-400/60 pb-10">
+        <div className="max-w-5xl mx-auto px-4 pt-6 pb-7 relative">
+          <div className="absolute -right-12 -top-12 w-48 h-48 bg-amber-400/40 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -left-10 -bottom-4 w-32 h-32 bg-yellow-300/40 rounded-full blur-2xl pointer-events-none" />
+          <div className="relative">
+            <div className="inline-flex items-center gap-1.5 bg-white/80 backdrop-blur text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold mb-2 shadow-sm">
+              <Gavel className="w-3.5 h-3.5" /> 即時競拍
             </div>
-            <Link href="/auctions/search">
-              <span className="inline-flex items-center gap-1.5 bg-white text-amber-700 hover:bg-amber-50 text-xs font-bold px-3.5 py-2 rounded-full shadow-sm border border-amber-200 transition cursor-pointer select-none shrink-0">
-                <Search className="w-3.5 h-3.5" /> 搜尋紀錄
+            <div className="flex items-baseline gap-3 flex-wrap">
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-amber-900">所有拍賣</h1>
+              <span className="inline-flex items-center bg-white/85 backdrop-blur text-amber-800 px-2.5 py-0.5 rounded-full text-xs font-bold border border-amber-300/60 shadow-sm">
+                共 {filtered.length} 件拍品
               </span>
-            </Link>
+            </div>
+            <p className="text-xs md:text-sm text-amber-900/80 mt-1.5">精選錢幣 · 公開競投 · 安心交易</p>
+
+            {/* ── 統計格搬入 hero：副題下方，負 margin 凸出 hero 底部分隔線 ── */}
+            <div className="grid grid-cols-3 gap-2 mt-3 max-w-md relative z-10 -mb-14">
+              {(() => {
+                const activeCount = (auctions ?? []).filter(a => a.status === 'active' && new Date(a.endTime).getTime() > Date.now()).length;
+                const endedCount = (auctions ?? []).filter(a => a.status === 'ended' || new Date(a.endTime).getTime() <= Date.now()).length;
+                return [
+                  { label: "活躍拍賣", value: activeCount, suffix: "件", icon: "🔨", color: "from-amber-400 to-orange-500" },
+                  { label: "已成交", value: endedCount, suffix: "件", icon: "✅", color: "from-emerald-400 to-teal-500" },
+                  { label: "錢幣品類", value: "100+", suffix: "", icon: "🪙", color: "from-purple-400 to-indigo-500" },
+                ].map((s) => (
+                  <div key={s.label} className="p-2.5 text-center relative overflow-hidden rounded-xl border border-amber-200 bg-white shadow-md">
+                    <div className={`absolute inset-0 bg-gradient-to-br ${s.color} opacity-[0.07]`} />
+                    <div className="relative">
+                      <div className="text-base mb-0.5">{s.icon}</div>
+                      <div className="text-base font-extrabold text-amber-800">{s.value}{s.suffix}</div>
+                      <div className="text-[10px] font-medium text-muted-foreground tracking-wide">{s.label}</div>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="container py-3">
-        {/* ── 統計格 (icons + 漸層) ── */}
-        <div className="grid grid-cols-3 gap-2 mb-2 max-w-md">
-          {(() => {
-            const activeCount = (auctions ?? []).filter(a => a.status === 'active' && new Date(a.endTime).getTime() > Date.now()).length;
-            const endedCount = (auctions ?? []).filter(a => a.status === 'ended' || new Date(a.endTime).getTime() <= Date.now()).length;
-            return [
-              { label: "活躍拍賣", value: activeCount, suffix: "件", icon: "🔨", color: "from-amber-400 to-orange-500" },
-              { label: "已成交", value: endedCount, suffix: "件", icon: "✅", color: "from-emerald-400 to-teal-500" },
-              { label: "錢幣品類", value: "100+", suffix: "", icon: "🪙", color: "from-purple-400 to-indigo-500" },
-            ].map((s) => (
-              <div key={s.label} className="p-2.5 text-center relative overflow-hidden rounded-xl border border-amber-100 bg-white">
-                <div className={`absolute inset-0 bg-gradient-to-br ${s.color} opacity-[0.07]`} />
-                <div className="relative">
-                  <div className="text-base mb-0.5">{s.icon}</div>
-                  <div className="text-base font-extrabold text-amber-800">{s.value}{s.suffix}</div>
-                  <div className="text-[10px] font-medium text-muted-foreground tracking-wide">{s.label}</div>
-                </div>
-              </div>
-            ));
-          })()}
-        </div>
-
-        {/* 拍品數量小 chip（hero 已有大標題，呢度只 show 件數） */}
-        <div className="mb-3 flex items-center gap-2">
-          <div className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-semibold border border-amber-200">
-            共 {filtered.length} 件拍品
-          </div>
-        </div>
-
+      <div className="container pt-10 pb-3">
         {/* ── 未登入用戶引導橫幅 ── */}
         {!isAuthenticated && (
           <div className="mb-3">
