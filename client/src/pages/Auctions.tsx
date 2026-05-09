@@ -15,7 +15,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Clock, Search, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown, Shield, TrendingUp, Award, Coins, Store, Users, LogIn } from "lucide-react";
+import { Clock, Search, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown, Shield, TrendingUp, Award, Coins, Store, Users, LogIn, Gavel, Sparkles } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrencySymbol } from "./AdminAuctions";
 import { parseCategories } from "@/lib/categories";
@@ -199,9 +199,32 @@ export default function Auctions() {
     }, null)?.id ?? null;
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-amber-50 via-yellow-50/40 to-white overflow-x-hidden">
       {/* Navigation */}
       <Header />
+
+      {/* ── 拍賣 Hero（淺金黃漸變，與藏家天地 sky hero 同款風格）── */}
+      <div className="bg-gradient-to-br from-amber-100 via-yellow-100 to-amber-50 border-b border-amber-200/60">
+        <div className="max-w-5xl mx-auto px-4 pt-6 pb-7 relative overflow-hidden">
+          <div className="absolute -right-12 -top-12 w-48 h-48 bg-amber-300/30 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -left-10 bottom-0 w-32 h-32 bg-yellow-200/40 rounded-full blur-2xl pointer-events-none" />
+          <div className="relative flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-1.5 bg-white/70 backdrop-blur text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold mb-2 shadow-sm">
+                <Gavel className="w-3.5 h-3.5" /> 即時競拍
+              </div>
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-amber-900">所有拍賣</h1>
+              <p className="text-xs md:text-sm text-amber-800/80 mt-1.5">精選錢幣 · 公開競投 · 安心交易</p>
+            </div>
+            <Link href="/auctions/search">
+              <span className="inline-flex items-center gap-1.5 bg-white text-amber-700 hover:bg-amber-50 text-xs font-bold px-3.5 py-2 rounded-full shadow-sm border border-amber-200 transition cursor-pointer select-none shrink-0">
+                <Search className="w-3.5 h-3.5" /> 搜尋紀錄
+              </span>
+            </Link>
+          </div>
+        </div>
+      </div>
+
       <div className="container py-3">
         {/* ── 統計格 (icons + 漸層) ── */}
         <div className="grid grid-cols-3 gap-2 mb-2 max-w-md">
@@ -225,12 +248,10 @@ export default function Auctions() {
           })()}
         </div>
 
-        {/* Header with gold gradient bar — 放在統計格下方 */}
+        {/* 拍品數量小 chip（hero 已有大標題，呢度只 show 件數） */}
         <div className="mb-3 flex items-center gap-2">
-          <div className="h-7 w-1 rounded-full bg-gradient-to-b from-amber-400 to-orange-500 shrink-0" />
-          <div className="flex items-center gap-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg">
-            <h1 className="text-xl font-bold">所有拍賣</h1>
-            <p className="text-sm opacity-90">(共 {filtered.length} 件拍品)</p>
+          <div className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-semibold border border-amber-200">
+            共 {filtered.length} 件拍品
           </div>
         </div>
 

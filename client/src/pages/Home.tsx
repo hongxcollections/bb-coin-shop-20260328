@@ -1175,7 +1175,7 @@ export default function Home() {
               <div className="inline-flex items-center gap-1.5 bg-white/70 backdrop-blur text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold mb-2 shadow-sm">
                 <Sparkles className="w-3.5 h-3.5" /> 大BB錢幣店
               </div>
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-amber-900">商品拍賣主頁</h1>
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-amber-900">開放式錢幣拍賣網站</h1>
               <p className="text-xs md:text-sm text-amber-800/80 mt-1.5">精選拍品 · 商家直銷 · 安心交易</p>
             </div>
             <div className="flex flex-col gap-2 shrink-0">

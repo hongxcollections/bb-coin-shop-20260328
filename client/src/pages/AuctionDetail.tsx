@@ -432,7 +432,7 @@ export default function AuctionDetail() {
   const isActive = auction.status === "active" && new Date() < new Date(auction.endTime);
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-amber-50 via-yellow-50/40 to-white overflow-x-hidden">
       {/* No-bid floating popup — fixed top-center, only when active with zero bids 且商戶開咗開關 */}
       {isActive && bids.length === 0 && noBidEnabled && (
         <div className="bottom-nav-toast" style={{ zIndex: 9999 }}>

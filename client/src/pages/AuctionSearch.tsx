@@ -181,11 +181,11 @@ export default function AuctionSearch() {
   const nextPage = () => setOffset(o => o + PAGE_SIZE);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-b from-amber-50 via-yellow-50/40 to-white">
       <Header />
 
       {/* Sticky search bar — sits just below the fixed Header (top-16 = 64px) */}
-      <div className="sticky top-16 z-30 bg-white border-b border-gray-200 shadow-sm">
+      <div className="sticky top-16 z-30 bg-gradient-to-r from-amber-50 to-yellow-50 border-b border-amber-200/60 shadow-sm">
         <div className="container max-w-2xl mx-auto pt-3 pb-3 space-y-2.5">
           <div className="flex items-center gap-2">
             <h1 className="text-sm font-bold text-gray-700 whitespace-nowrap">拍賣紀錄庫</h1>
