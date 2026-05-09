@@ -6771,9 +6771,10 @@ ${kb}`;
     // 上傳圖片（任何已登入會員，base64 上載）
     uploadImage: protectedProcedure
       .input(z.object({
-        imageData: z.string(),
-        fileName: z.string(),
-        mimeType: z.string().default("image/jpeg"),
+        // 8MB 二進制 ≈ 11MB base64；上限 12MB 字串可堵 DoS
+        imageData: z.string().max(12 * 1024 * 1024, "圖片資料過大"),
+        fileName: z.string().min(1).max(255),
+        mimeType: z.string().max(64).default("image/jpeg"),
       }))
       .mutation(async ({ input, ctx }) => {
         const allowedMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif", "image/gif"];

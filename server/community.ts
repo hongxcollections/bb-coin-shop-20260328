@@ -24,8 +24,10 @@ const FORBIDDEN_PATTERNS: { re: RegExp; reason: string }[] = [
   { re: /instagram|\big\b/i, reason: "IG" },
   { re: /messenger/i, reason: "Messenger" },
   { re: /\+852[\s\-]?\d{3,}/, reason: "電話 (+852)" },
-  { re: /\b[5-9]\d{7}\b/, reason: "8位電話號碼" },
-  { re: /\b\d{3,4}[\s\-]\d{3,4}[\s\-]?\d{0,4}\b/, reason: "電話 pattern" },
+  // HK 8 位電話：要求前後有電話相關關鍵字 / 符號，避免誤殺價格如「80000000」
+  { re: /(?:電話|手機|手机|電話號碼|聯絡|聯絡電話|tel|phone|mobile|hp|whats?app|wtsapp|wts|☎|📱)[^\d]{0,8}[5-9]\d{7}\b/i, reason: "電話 (HK 8 位)" },
+  // 顯式分組嘅電話 pattern (e.g. 9123-4567 / 9123 4567)
+  { re: /\b[5-9]\d{3}[\s\-]\d{4}\b/, reason: "電話 pattern" },
   { re: /https?:\/\//i, reason: "外部 URL" },
   { re: /\bwww\.[a-z0-9]/i, reason: "外部 URL (www)" },
   { re: /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i, reason: "電郵" },
@@ -305,40 +307,37 @@ export async function deleteCollectionPostComment(commentId: number, userId: num
   return true;
 }
 
+/**
+ * Atomic like toggle 利用 unique key (postId, userId) + INSERT IGNORE / DELETE
+ * 嘅 affectedRows 判斷實際變化，避免 read-then-write race condition。
+ */
 export async function toggleCollectionPostLike(postId: number, userId: number): Promise<{ isLiked: boolean }> {
   const db = await getDb();
   if (!db) return { isLiked: false };
-  const existing: any[] = await db
-    .select()
-    .from(collectionPostLikes)
-    .where(and(eq(collectionPostLikes.postId, postId), eq(collectionPostLikes.userId, userId)))
-    .limit(1);
-  if (existing.length > 0) {
-    await db.delete(collectionPostLikes).where(and(eq(collectionPostLikes.postId, postId), eq(collectionPostLikes.userId, userId)));
-    try { await db.execute(sql`UPDATE collectionPosts SET likeCount = GREATEST(likeCount - 1, 0) WHERE id = ${postId}`); } catch { /* ignore */ }
-    return { isLiked: false };
-  } else {
-    await db.insert(collectionPostLikes).values({ postId, userId });
+  // 先嘗試 INSERT IGNORE — 如果無 row 則 affectedRows=1 表示新讚
+  const insRes: any = await db.execute(sql`INSERT IGNORE INTO collectionPostLikes (postId, userId) VALUES (${postId}, ${userId})`);
+  const insAffected = Number(insRes?.[0]?.affectedRows ?? insRes?.affectedRows ?? 0);
+  if (insAffected > 0) {
     try { await db.execute(sql`UPDATE collectionPosts SET likeCount = likeCount + 1 WHERE id = ${postId}`); } catch { /* ignore */ }
     return { isLiked: true };
   }
+  // 已存在 → DELETE，affectedRows=1 即真正移除
+  const delRes: any = await db.execute(sql`DELETE FROM collectionPostLikes WHERE postId = ${postId} AND userId = ${userId}`);
+  const delAffected = Number(delRes?.[0]?.affectedRows ?? delRes?.affectedRows ?? 0);
+  if (delAffected > 0) {
+    try { await db.execute(sql`UPDATE collectionPosts SET likeCount = GREATEST(likeCount - 1, 0) WHERE id = ${postId}`); } catch { /* ignore */ }
+  }
+  return { isLiked: false };
 }
 
 export async function toggleCollectionPostSave(postId: number, userId: number): Promise<{ isSaved: boolean }> {
   const db = await getDb();
   if (!db) return { isSaved: false };
-  const existing: any[] = await db
-    .select()
-    .from(collectionPostSaves)
-    .where(and(eq(collectionPostSaves.postId, postId), eq(collectionPostSaves.userId, userId)))
-    .limit(1);
-  if (existing.length > 0) {
-    await db.delete(collectionPostSaves).where(and(eq(collectionPostSaves.postId, postId), eq(collectionPostSaves.userId, userId)));
-    return { isSaved: false };
-  } else {
-    await db.insert(collectionPostSaves).values({ postId, userId });
-    return { isSaved: true };
-  }
+  const insRes: any = await db.execute(sql`INSERT IGNORE INTO collectionPostSaves (postId, userId) VALUES (${postId}, ${userId})`);
+  const insAffected = Number(insRes?.[0]?.affectedRows ?? insRes?.affectedRows ?? 0);
+  if (insAffected > 0) return { isSaved: true };
+  await db.execute(sql`DELETE FROM collectionPostSaves WHERE postId = ${postId} AND userId = ${userId}`);
+  return { isSaved: false };
 }
 
 export async function deleteCollectionPost(postId: number, userId: number, isAdmin: boolean): Promise<boolean> {
