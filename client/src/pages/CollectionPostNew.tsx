@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/contexts/ToastContext";
 import { ChevronLeft, X, Loader2, AlertTriangle, Sparkles } from "lucide-react";
+import { parseCategories } from "@/lib/categories";
 
 export default function CollectionPostNew() {
   const { user, isAuthenticated, loading } = useAuth();
@@ -18,17 +19,26 @@ export default function CollectionPostNew() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const intent: "display" = "display";
-  const [tagsInput, setTagsInput] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60_000 });
+  const allCategories = parseCategories(siteSettings as Record<string, string> | undefined);
+
   const uploadImage = trpc.community.uploadImage.useMutation();
   const createPost = trpc.community.create.useMutation();
   const lintQuery = trpc.community.lintContent.useQuery(
-    { text: `${title}\n${body}\n${tagsInput}` },
+    { text: `${title}\n${body}\n${selectedTags.join(" ")}` },
     { enabled: title.length > 1 || body.length > 5 }
   );
+
+  function toggleTag(tag: string) {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : (prev.length >= 5 ? prev : [...prev, tag])
+    );
+  }
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" /></div>;
@@ -93,7 +103,7 @@ export default function CollectionPostNew() {
     }
     setSubmitting(true);
     try {
-      const tags = tagsInput.split(/[,，\s]+/).map((s) => s.trim()).filter(Boolean).slice(0, 10);
+      const tags = selectedTags.slice(0, 10);
       const res = await createPost.mutateAsync({
         title: title.trim(),
         body: body.trim(),
@@ -136,7 +146,7 @@ export default function CollectionPostNew() {
             <Sparkles className="w-3.5 h-3.5" /> 發布收藏
           </div>
           <h1 className="text-2xl md:text-3xl font-bold">分享你嘅藏品</h1>
-          <p className="text-sm text-sky-50/95 mt-1.5">講下年代、來源、品相，等同道中人睇到 · 請勿留價格／聯絡方式</p>
+          <p className="text-sm text-sky-50/95 mt-1.5">講下年代、來源、品相，等同道中人睇到互相欣賞評語 · 請勿留價格／聯絡方式 一經系統發現即時戶口禁用。</p>
         </div>
       </div>
 
@@ -186,10 +196,36 @@ export default function CollectionPostNew() {
             <div className="text-xs text-gray-400 mt-1">{body.length} / 5000</div>
           </div>
 
-          {/* Tags */}
+          {/* Tags — 由商品分類選擇，可多選（最多 5 個） */}
           <div>
-            <label className="block text-sm font-medium mb-2">分類 Tags（用空格／逗號分隔，例：清朝 銅錢 樣幣）</label>
-            <Input value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} placeholder="清朝 銅錢 樣幣" />
+            <label className="block text-sm font-medium mb-2">
+              分類 Tags <span className="text-xs text-gray-500 font-normal">（可多選，最多 5 個 · 已選 {selectedTags.length}/5）</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {allCategories.map((cat) => {
+                const active = selectedTags.includes(cat);
+                const disabled = !active && selectedTags.length >= 5;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => toggleTag(cat)}
+                    disabled={disabled}
+                    className={
+                      "inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1 disabled:opacity-40 disabled:cursor-not-allowed " +
+                      (active
+                        ? "bg-sky-500 border-sky-600 text-white shadow-sm hover:bg-sky-600"
+                        : "bg-white border-gray-300 text-gray-700 hover:border-sky-400 hover:text-sky-700")
+                    }
+                  >
+                    {active ? "✓ " : ""}{cat}
+                  </button>
+                );
+              })}
+            </div>
+            {selectedTags.length === 0 && (
+              <div className="text-xs text-gray-400 mt-2">請至少揀一個分類</div>
+            )}
           </div>
 
           {/* Lint warning */}
