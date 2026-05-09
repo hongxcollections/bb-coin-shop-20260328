@@ -6,6 +6,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
 import { getAuctionById, getAuctionImages, getMerchantProduct } from "../db";
+import { getCollectionPostForOg } from "../community";
 import { getCurrencySymbol } from "./currency";
 
 /**
@@ -310,6 +311,87 @@ async function injectProductOgMeta(html: string, reqPath: string, protocol: stri
   }
 }
 
+/**
+ * Inject Open Graph meta tags for collection square (藏品社區) post detail pages.
+ * Mirrors injectProductOgMeta() pattern but for /collection-square/:id URLs.
+ * Independent function so existing auction / product OG / robots / bot code remains untouched.
+ */
+async function injectCollectionPostOgMeta(html: string, reqPath: string, protocol: string, host: string): Promise<string | null> {
+  const m = reqPath.match(/^\/collection-square\/(\d+)$/);
+  if (!m) return null;
+
+  try {
+    const postId = parseInt(m[1], 10);
+    const post = await getCollectionPostForOg(postId);
+    if (!post) return null;
+
+    const ogImageUrl = post.firstImageUrl
+      ? `${protocol}://${host}/api/og-image-community/${postId}`
+      : "";
+    const imgMime = "image/jpeg";
+
+    const intentLabel = post.intent === "seek_value" ? "求估價" : post.intent === "for_sale" ? "想出讓" : "藏品分享";
+    const author = post.authorName ? ` ｜ ${post.authorName}` : "";
+    const ogTitle = `${post.title} ｜ ${intentLabel}${author}｜藏品社區`;
+    const rawBody = post.body.replace(/\s+/g, " ").trim();
+    const shortBody = rawBody.length > 120 ? rawBody.slice(0, 120) + "…" : rawBody;
+    const tagPart = post.tags.length > 0 ? ` ｜ #${post.tags.slice(0, 5).join(" #")}` : "";
+    const ogDesc = `【hongxcollections 藏品社區】${post.title}${shortBody ? ` ｜ ${shortBody}` : ""}${tagPart}`;
+    const fullUrl = `${protocol}://${host}${reqPath}`;
+
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    const jsonLd = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": post.title,
+      "description": ogDesc,
+      "url": fullUrl,
+      ...(ogImageUrl ? { "image": ogImageUrl } : {}),
+      ...(post.authorName ? { "author": { "@type": "Person", "name": post.authorName } } : {}),
+      ...(post.createdAt ? { "datePublished": new Date(post.createdAt).toISOString() } : {}),
+      ...(post.updatedAt ? { "dateModified": new Date(post.updatedAt).toISOString() } : {}),
+      "publisher": {
+        "@type": "Organization",
+        "name": "hongxcollections"
+      }
+    });
+
+    const ogMeta = [
+      `<meta property="og:type" content="article" />`,
+      `<meta property="og:site_name" content="hongxcollections" />`,
+      `<meta property="og:title" content="${esc(ogTitle)}" />`,
+      `<meta property="og:description" content="${esc(ogDesc)}" />`,
+      `<meta property="og:url" content="${esc(fullUrl)}" />`,
+      `<meta property="og:locale" content="zh_HK" />`,
+      ogImageUrl ? `<meta property="og:image" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:secure_url" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:type" content="${imgMime}" />` : "",
+      `<meta name="twitter:card" content="${ogImageUrl ? "summary_large_image" : "summary"}" />`,
+      `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
+      `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
+      ogImageUrl ? `<meta name="twitter:image" content="${esc(ogImageUrl)}" />` : "",
+      `<meta name="description" content="${esc(ogDesc)}" />`,
+      `<link rel="canonical" href="${esc(fullUrl)}" />`,
+      `<title>${esc(ogTitle)}</title>`,
+      `<script type="application/ld+json">${jsonLd}</script>`,
+    ].filter(Boolean).join("\n    ");
+
+    let result = html
+      .replace(/<title>[^<]*<\/title>/gi, "")
+      .replace(/<meta\s+(?:property|name)="(?:og:|twitter:)[^"]*"[^>]*\/?>/gi, "")
+      .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "")
+      .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "")
+      .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
+    result = result.replace("</head>", `    ${ogMeta}\n  </head>`);
+    console.log(`[OG Meta] Injected for collection post ${postId}: title="${ogTitle}" imageUrl="${ogImageUrl}"`);
+    return result;
+  } catch (err) {
+    console.error("[OG Meta] Error generating collection-post OG tags:", err);
+    return null;
+  }
+}
+
 export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
@@ -353,6 +435,7 @@ export async function setupVite(app: Express, server: Server) {
       const _cleanPath = req.path.split("?")[0].replace(/\/+$/, "") || "/";
       const ogHtml = await injectOgMeta(template, _cleanPath, protocol, host)
         ?? await injectProductOgMeta(template, _cleanPath, protocol, host)
+        ?? await injectCollectionPostOgMeta(template, _cleanPath, protocol, host)
         ?? injectStaticPageMeta(template, _cleanPath, base);
       if (ogHtml) {
         // For bots: serve injected HTML directly (skip Vite transform to preserve tags)
@@ -506,6 +589,7 @@ export function serveStatic(app: Express) {
     let html = await fs.promises.readFile(indexPath, "utf-8");
     const ogHtml = await injectOgMeta(html, cleanPath, protocol, host)
       ?? await injectProductOgMeta(html, cleanPath, protocol, host)
+      ?? await injectCollectionPostOgMeta(html, cleanPath, protocol, host)
       ?? injectStaticPageMeta(html, cleanPath, base);
     if (ogHtml) {
       res.status(200).set({ "Content-Type": "text/html", ...noCacheHeaders }).end(ogHtml);

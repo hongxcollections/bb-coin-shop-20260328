@@ -253,6 +253,78 @@ export async function getCollectionPostDetail(postId: number, viewerUserId: numb
   };
 }
 
+/**
+ * SEO 用：lightweight post fetch（無 view bump、無 viewer 邏輯）。
+ * 只 return 公開（isHidden = 0）嘅 post + 第一張圖。畀 OG meta injection / sitemap 用。
+ */
+export async function getCollectionPostForOg(postId: number): Promise<{
+  id: number;
+  title: string;
+  body: string;
+  intent: string;
+  authorName: string | null;
+  firstImageUrl: string | null;
+  imageCount: number;
+  tags: string[];
+  updatedAt: Date | null;
+  createdAt: Date | null;
+} | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows: any[] = await db
+    .select()
+    .from(collectionPosts)
+    .where(and(eq(collectionPosts.id, postId), eq(collectionPosts.isHidden, 0)))
+    .limit(1);
+  if (rows.length === 0) return null;
+  const post = rows[0];
+
+  const imgs: any[] = await db
+    .select()
+    .from(collectionPostImages)
+    .where(eq(collectionPostImages.postId, postId))
+    .orderBy(collectionPostImages.displayOrder, collectionPostImages.id);
+
+  let authorName: string | null = null;
+  try {
+    const aRaw: any = await db.execute(sql`SELECT name FROM users WHERE id = ${post.userId} LIMIT 1`);
+    const aRows = (Array.isArray(aRaw) ? aRaw[0] : aRaw) as any[];
+    authorName = aRows?.[0]?.name ?? null;
+  } catch { /* ignore */ }
+
+  return {
+    id: post.id,
+    title: post.title,
+    body: post.body ?? "",
+    intent: post.intent,
+    authorName,
+    firstImageUrl: imgs[0]?.imageUrl ?? null,
+    imageCount: imgs.length,
+    tags: safeParseTags(post.tagsJson),
+    updatedAt: post.updatedAt ?? null,
+    createdAt: post.createdAt ?? null,
+  };
+}
+
+/**
+ * SEO 用：list 公開帖文，畀 sitemap.xml 用（最多 2000 條）。
+ */
+export async function listCollectionPostsForSitemap(): Promise<Array<{ id: number; updatedAt: Date | null; createdAt: Date | null }>> {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const raw: any = await db.execute(sql`
+      SELECT id, updatedAt, createdAt
+      FROM collectionPosts
+      WHERE isHidden = 0
+      ORDER BY COALESCE(updatedAt, createdAt) DESC
+      LIMIT 2000
+    `);
+    const rows = (Array.isArray(raw) ? raw[0] : raw) as Array<{ id: number; updatedAt: Date | null; createdAt: Date | null }>;
+    return rows ?? [];
+  } catch { return []; }
+}
+
 export async function listCollectionPostComments(postId: number, viewerIsAdmin: boolean) {
   const db = await getDb();
   if (!db) return [];

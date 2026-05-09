@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation, useRoute, Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -71,6 +71,38 @@ export default function CollectionPostDetail() {
       </div>
     );
   }
+
+  // SEO：client-side update document.title + meta description（FB/WA 走 SSR OG，呢個係畀 Google crawler 同 in-app browser fallback）
+  useEffect(() => {
+    if (!post) return;
+    const intentLabel = post.intent === "seek_value" ? "求估價" : post.intent === "for_sale" ? "想出讓" : "藏品分享";
+    const newTitle = `${post.title} ｜ ${intentLabel}｜藏品社區 - hongxcollections`;
+    const prevTitle = document.title;
+    document.title = newTitle;
+
+    const rawBody = ((post as any).body ?? "").replace(/\s+/g, " ").trim();
+    const shortBody = rawBody.length > 120 ? rawBody.slice(0, 120) + "…" : rawBody;
+    const desc = `【hongxcollections 藏品社區】${post.title}${shortBody ? ` ｜ ${shortBody}` : ""}`;
+
+    let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
+    let created = false;
+    let prevContent = "";
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.name = "description";
+      document.head.appendChild(meta);
+      created = true;
+    } else {
+      prevContent = meta.content;
+    }
+    meta.content = desc;
+
+    return () => {
+      document.title = prevTitle;
+      if (created) meta?.remove();
+      else if (meta) meta.content = prevContent;
+    };
+  }, [post]);
 
   const isOwner = user?.id === post.userId;
   const isAdmin = user?.role === "admin";

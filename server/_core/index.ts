@@ -1342,6 +1342,31 @@ Output ONLY the JSON, nothing else.`;
     }
   });
 
+  // ── OG 圖片代理（藏品社區）：對應 collectionPostImages ──
+  app.get('/api/og-image-community/:postId', async (req, res) => {
+    try {
+      const postId = parseInt(req.params.postId, 10);
+      if (isNaN(postId) || postId <= 0) { res.status(400).send('Invalid post ID'); return; }
+      const { getCollectionPostForOg } = await import('../community');
+      const post = await getCollectionPostForOg(postId);
+      if (!post || !post.firstImageUrl) { res.status(404).send('No image'); return; }
+      const s3Res = await fetch(post.firstImageUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HongxCollections/1.0)' },
+      });
+      if (!s3Res.ok) { res.status(s3Res.status).send('Image fetch failed'); return; }
+      const buf = Buffer.from(await s3Res.arrayBuffer());
+      const contentType = s3Res.headers.get('content-type') || 'image/jpeg';
+      res.set({
+        'Content-Type': contentType,
+        'Content-Length': buf.length.toString(),
+        'Cache-Control': 'public, max-age=3600',
+      }).end(buf);
+    } catch (err) {
+      console.error('[OG Image Community Proxy] Error:', err);
+      res.status(500).send('Error');
+    }
+  });
+
   // ── OG 圖片代理：讓 Facebook 爬蟲透過我們的伺服器拿圖片，繞過 S3 的 IP 限制 ──
   app.get('/api/og-image/:auctionId', async (req, res) => {
     try {
@@ -1400,11 +1425,22 @@ Output ONLY the JSON, nothing else.`;
       ) as [Array<{ id: number; updatedAt: Date | null; createdAt: Date | null }>, unknown];
       const products = (Array.isArray(productRows[0]) ? productRows[0] : productRows) as Array<{ id: number; updatedAt: Date | null; createdAt: Date | null }>;
 
+      // Collection square 帖文（藏品社區）
+      let collectionPostsRows: Array<{ id: number; updatedAt: Date | null; createdAt: Date | null }> = [];
+      try {
+        const { listCollectionPostsForSitemap } = await import('../community');
+        collectionPostsRows = await listCollectionPostsForSitemap();
+      } catch (e) {
+        console.error('[Sitemap] community list failed:', e);
+      }
+
       const staticPages = [
-        { loc: `${base}/`,           changefreq: 'daily',   priority: '1.0', lastmod: now },
-        { loc: `${base}/auctions`,   changefreq: 'hourly',  priority: '0.9', lastmod: now },
-        { loc: `${base}/merchants`,  changefreq: 'daily',   priority: '0.7', lastmod: now },
-        { loc: `${base}/plans`,      changefreq: 'monthly', priority: '0.5', lastmod: now },
+        { loc: `${base}/`,                  changefreq: 'daily',   priority: '1.0', lastmod: now },
+        { loc: `${base}/auctions`,          changefreq: 'hourly',  priority: '0.9', lastmod: now },
+        { loc: `${base}/merchants`,         changefreq: 'daily',   priority: '0.7', lastmod: now },
+        { loc: `${base}/plans`,             changefreq: 'monthly', priority: '0.5', lastmod: now },
+        { loc: `${base}/collection-square`, changefreq: 'daily',   priority: '0.7', lastmod: now },
+        { loc: `${base}/daily-challenge`,   changefreq: 'daily',   priority: '0.5', lastmod: now },
       ];
 
       const toEntry = (loc: string, lastmod: string, changefreq: string, priority: string) =>
@@ -1426,7 +1462,14 @@ Output ONLY the JSON, nothing else.`;
         return toEntry(`${base}/merchants?product=${p.id}`, lastmod, 'weekly', '0.6');
       });
 
-      const allEntries = [...staticEntries, ...auctionEntries, ...productEntries];
+      const collectionEntries = collectionPostsRows.map((c) => {
+        const lastmod = c.updatedAt
+          ? new Date(c.updatedAt).toISOString().split('T')[0]
+          : (c.createdAt ? new Date(c.createdAt).toISOString().split('T')[0] : now);
+        return toEntry(`${base}/collection-square/${c.id}`, lastmod, 'weekly', '0.6');
+      });
+
+      const allEntries = [...staticEntries, ...auctionEntries, ...productEntries, ...collectionEntries];
       const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${allEntries.join('\n')}\n</urlset>`;
       res.setHeader('Content-Type', 'application/xml; charset=utf-8');
       res.setHeader('Cache-Control', 'public, max-age=3600');
