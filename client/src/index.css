@@ -200,12 +200,16 @@
   .focus-glow {
     --glow: var(--ring);
   }
-  .focus-glow:focus-visible,
-  input:focus-visible,
-  textarea:focus-visible,
-  select:focus-visible,
-  button:focus-visible,
-  [role="button"]:focus-visible {
+  .focus-glow:focus,
+  input:focus,
+  textarea:focus,
+  select:focus,
+  button:focus,
+  [role="button"]:focus,
+  [role="tab"]:focus,
+  [role="menuitem"]:focus,
+  [role="option"]:focus,
+  a:focus {
     --glow: var(--ring);
     outline: none;
     border-color: var(--glow);
