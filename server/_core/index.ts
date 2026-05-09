@@ -723,6 +723,44 @@ async function bootstrapMissingColumns() {
   await addIndex('idx_collectionPostComments_postId', 'CREATE INDEX `idx_collectionPostComments_postId` ON `collectionPostComments` (`postId`)');
   await addIndex('idx_collectionPostImages_postId', 'CREATE INDEX `idx_collectionPostImages_postId` ON `collectionPostImages` (`postId`)');
 
+  // ── 每日一幣挑戰 — Phase 1 表 ──────────────────────────────────────────────
+  await alter(`CREATE TABLE IF NOT EXISTS \`dailyChallenges\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`imageUrl\` text NOT NULL,
+    \`publishDate\` varchar(10) NOT NULL,
+    \`answerCountry\` varchar(80) NOT NULL,
+    \`answerYear\` int NOT NULL,
+    \`yearTolerance\` int NOT NULL DEFAULT 5,
+    \`answerCategory\` varchar(40) NOT NULL,
+    \`hint\` text,
+    \`description\` text,
+    \`status\` enum('draft','published','closed') NOT NULL DEFAULT 'draft',
+    \`createdBy\` int NOT NULL,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT \`dailyChallenges_id\` PRIMARY KEY(\`id\`)
+  )`, 'Ensured dailyChallenges table');
+
+  await alter(`CREATE TABLE IF NOT EXISTS \`dailyChallengeAnswers\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`challengeId\` int NOT NULL,
+    \`userId\` int NOT NULL,
+    \`answerCountry\` varchar(80) NOT NULL,
+    \`answerYear\` int NOT NULL,
+    \`answerCategory\` varchar(40) NOT NULL,
+    \`isCorrect\` int NOT NULL DEFAULT 0,
+    \`answerRank\` int NULL,
+    \`pointsAwarded\` int NOT NULL DEFAULT 0,
+    \`submittedAt\` timestamp NOT NULL DEFAULT (now()),
+    CONSTRAINT \`dailyChallengeAnswers_id\` PRIMARY KEY(\`id\`),
+    UNIQUE KEY \`uniq_challenge_user\` (\`challengeId\`, \`userId\`)
+  )`, 'Ensured dailyChallengeAnswers table');
+
+  await addIndex('idx_dailyChallenges_publishDate', 'CREATE INDEX `idx_dailyChallenges_publishDate` ON `dailyChallenges` (`publishDate`)');
+  await addIndex('idx_dailyChallenges_status', 'CREATE INDEX `idx_dailyChallenges_status` ON `dailyChallenges` (`status`)');
+  await addIndex('idx_dailyChallengeAnswers_userId', 'CREATE INDEX `idx_dailyChallengeAnswers_userId` ON `dailyChallengeAnswers` (`userId`)');
+  await addIndex('idx_dailyChallengeAnswers_challengeId', 'CREATE INDEX `idx_dailyChallengeAnswers_challengeId` ON `dailyChallengeAnswers` (`challengeId`)');
+
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
 }

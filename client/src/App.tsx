@@ -35,6 +35,8 @@ import AdminDeposits from "./pages/AdminDeposits";
 import AdminSubscriptions from "./pages/AdminSubscriptions";
 import AdminMerchantCenter from "./pages/AdminMerchantCenter";
 import AdminLoyalty from "./pages/AdminLoyalty";
+import AdminDailyChallenge from "./pages/AdminDailyChallenge";
+import DailyChallenge from "./pages/DailyChallenge";
 import SubscriptionPlans from "./pages/SubscriptionPlans";
 import Login from "./pages/Login";
 import Favorites from "./pages/Favorites";
@@ -183,6 +185,8 @@ function Router() {
       <Route path={"/admin/subscriptions"} component={AdminSubscriptions} />
       <Route path={"/admin/merchant-center"} component={AdminMerchantCenter} />
       <Route path={"/admin/loyalty"} component={AdminLoyalty} />
+      <Route path={"/admin/daily-challenge"} component={AdminDailyChallenge} />
+      <Route path={"/daily-challenge"} component={DailyChallenge} />
       <Route path={"/subscriptions"} component={SubscriptionPlans} />
       <Route path={"/login"} component={Login} />
       <Route path={"/privacy"} component={Privacy} />

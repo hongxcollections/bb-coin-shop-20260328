@@ -628,3 +628,38 @@ export const collectionPostSaves = mysqlTable("collectionPostSaves", {
   userId: int("userId").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
+
+/**
+ * 每日一幣挑戰（Daily Coin Challenge）— Phase 1
+ * 每日一張錢幣／紙幣圖，用戶估國家 / 年代 / 種類，前 3 名得勳章 + 積分。
+ */
+export const dailyChallenges = mysqlTable("dailyChallenges", {
+  id: int("id").autoincrement().primaryKey(),
+  imageUrl: text("imageUrl").notNull(),
+  publishDate: varchar("publishDate", { length: 10 }).notNull(), // YYYY-MM-DD (HK)
+  answerCountry: varchar("answerCountry", { length: 80 }).notNull(),
+  answerYear: int("answerYear").notNull(),
+  yearTolerance: int("yearTolerance").default(5).notNull(),
+  answerCategory: varchar("answerCategory", { length: 40 }).notNull(),
+  hint: text("hint"),
+  description: text("description"),
+  status: mysqlEnum("status", ["draft", "published", "closed"]).default("draft").notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type DailyChallenge = typeof dailyChallenges.$inferSelect;
+
+export const dailyChallengeAnswers = mysqlTable("dailyChallengeAnswers", {
+  id: int("id").autoincrement().primaryKey(),
+  challengeId: int("challengeId").notNull(),
+  userId: int("userId").notNull(),
+  answerCountry: varchar("answerCountry", { length: 80 }).notNull(),
+  answerYear: int("answerYear").notNull(),
+  answerCategory: varchar("answerCategory", { length: 40 }).notNull(),
+  isCorrect: int("isCorrect").default(0).notNull(),
+  answerRank: int("answerRank"),
+  pointsAwarded: int("pointsAwarded").default(0).notNull(),
+  submittedAt: timestamp("submittedAt").defaultNow().notNull(),
+});
+export type DailyChallengeAnswer = typeof dailyChallengeAnswers.$inferSelect;

@@ -28,6 +28,24 @@ import {
   adminCountFlagged,
   checkForbidden,
 } from "./community";
+import {
+  CHALLENGE_COUNTRIES,
+  CHALLENGE_CATEGORIES,
+  hkTodayStr,
+  adminCreateChallenge,
+  adminUpdateChallenge,
+  adminDeleteChallenge,
+  adminListChallenges,
+  getTodayChallenge,
+  getChallengeById,
+  submitChallengeAnswer,
+  getMyAnswerForChallenge,
+  getChallengeStats,
+  getChallengeWinners,
+  getLeaderboard as getChallengeLeaderboard,
+  getMyChallengeStats,
+  listMyAnswerHistory,
+} from "./dailyChallenge";
 import { applyWatermark } from "./watermark";
 import { getRawPool } from "./db";
 import { TRPCError } from "@trpc/server";
@@ -6820,6 +6838,197 @@ ${kb}`;
         const r = checkForbidden(input.text);
         return r;
       }),
+  }),
+
+  // ── 每日一幣挑戰（Daily Coin Challenge）— Phase 1 ───────────────────────
+  dailyChallenge: router({
+    // 用戶：取今日題目（隱藏正確答案）+ 我嘅答案 + 答中名單
+    today: publicProcedure
+      .query(async ({ ctx }) => {
+        const c = await getTodayChallenge();
+        if (!c) {
+          return { hasChallenge: false as const, hkDate: hkTodayStr() };
+        }
+        const stats = await getChallengeStats(c.id);
+        const winners = await getChallengeWinners(c.id, 20);
+        let myAnswer: any = null;
+        if (ctx.user?.id) {
+          myAnswer = await getMyAnswerForChallenge(c.id, ctx.user.id);
+        }
+        const safe = {
+          id: c.id,
+          imageUrl: c.imageUrl,
+          publishDate: c.publishDate,
+          hint: c.hint || null,
+          status: c.status,
+          createdAt: c.createdAt,
+        };
+        // 已答嘅 user 可以見正確答案 + 描述
+        const reveal = myAnswer
+          ? {
+              country: c.answerCountry,
+              year: Number(c.answerYear),
+              category: c.answerCategory,
+              tolerance: Number(c.yearTolerance ?? 5),
+              description: c.description || null,
+            }
+          : null;
+        return {
+          hasChallenge: true as const,
+          hkDate: hkTodayStr(),
+          challenge: safe,
+          stats,
+          winners,
+          myAnswer,
+          reveal,
+          options: {
+            countries: CHALLENGE_COUNTRIES,
+            categories: CHALLENGE_CATEGORIES,
+          },
+        };
+      }),
+
+    submitAnswer: protectedProcedure
+      .input(z.object({
+        challengeId: z.number().int().positive(),
+        answerCountry: z.string().min(1).max(80),
+        answerYear: z.number().int().min(-2000).max(3000),
+        answerCategory: z.string().min(1).max(40),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.isBanned) throw new TRPCError({ code: "FORBIDDEN", message: "帳戶已停權" });
+        if (!CHALLENGE_COUNTRIES.includes(input.answerCountry as any)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "國家選項無效" });
+        }
+        if (!CHALLENGE_CATEGORIES.includes(input.answerCategory as any)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "種類選項無效" });
+        }
+        try {
+          const r = await submitChallengeAnswer({
+            challengeId: input.challengeId,
+            userId: ctx.user.id,
+            answerCountry: input.answerCountry,
+            answerYear: input.answerYear,
+            answerCategory: input.answerCategory,
+          });
+          return r;
+        } catch (e: any) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: e?.message || "提交失敗" });
+        }
+      }),
+
+    leaderboard: publicProcedure
+      .input(z.object({ limit: z.number().int().min(1).max(50).default(20) }).optional())
+      .query(async ({ input }) => {
+        return getChallengeLeaderboard(input?.limit ?? 20);
+      }),
+
+    myStats: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getMyChallengeStats(ctx.user.id);
+      }),
+
+    myHistory: protectedProcedure
+      .input(z.object({ limit: z.number().int().min(1).max(100).default(30) }).optional())
+      .query(async ({ ctx, input }) => {
+        return listMyAnswerHistory(ctx.user.id, input?.limit ?? 30);
+      }),
+
+    // ── Admin endpoints ──
+    adminList: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        return adminListChallenges(100);
+      }),
+
+    adminGet: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        const c = await getChallengeById(input.id);
+        if (!c) throw new TRPCError({ code: "NOT_FOUND", message: "挑戰不存在" });
+        const stats = await getChallengeStats(c.id);
+        const winners = await getChallengeWinners(c.id, 50);
+        return { challenge: c, stats, winners };
+      }),
+
+    adminCreate: protectedProcedure
+      .input(z.object({
+        imageUrl: z.string().url(),
+        publishDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "格式須為 YYYY-MM-DD"),
+        answerCountry: z.string().min(1).max(80),
+        answerYear: z.number().int().min(-2000).max(3000),
+        yearTolerance: z.number().int().min(0).max(50).default(5),
+        answerCategory: z.string().min(1).max(40),
+        hint: z.string().max(500).optional(),
+        description: z.string().max(2000).optional(),
+        status: z.enum(["draft", "published"]).default("draft"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        if (!CHALLENGE_COUNTRIES.includes(input.answerCountry as any)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "國家選項無效" });
+        }
+        if (!CHALLENGE_CATEGORIES.includes(input.answerCategory as any)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "種類選項無效" });
+        }
+        return adminCreateChallenge({ ...input, createdBy: ctx.user.id });
+      }),
+
+    adminUpdate: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        patch: z.object({
+          imageUrl: z.string().url().optional(),
+          publishDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+          answerCountry: z.string().min(1).max(80).optional(),
+          answerYear: z.number().int().optional(),
+          yearTolerance: z.number().int().min(0).max(50).optional(),
+          answerCategory: z.string().min(1).max(40).optional(),
+          hint: z.string().max(500).nullable().optional(),
+          description: z.string().max(2000).nullable().optional(),
+          status: z.enum(["draft", "published", "closed"]).optional(),
+        }),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        await adminUpdateChallenge(input.id, input.patch);
+        return { ok: true };
+      }),
+
+    adminDelete: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        await adminDeleteChallenge(input.id);
+        return { ok: true };
+      }),
+
+    adminUploadImage: protectedProcedure
+      .input(z.object({
+        imageData: z.string(),
+        fileName: z.string().min(1).max(200),
+        mimeType: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        const allowedMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif", "image/gif"];
+        const mime = (input.mimeType || "image/jpeg").toLowerCase();
+        if (!allowedMimes.includes(mime)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: `不支援此圖片格式（${mime}）` });
+        }
+        const buffer = Buffer.from(input.imageData, "base64");
+        if (buffer.length > 8 * 1024 * 1024) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "圖片不可超過 8MB" });
+        }
+        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
+        const key = `daily-challenge/${Date.now()}-${safeName}`;
+        const { url } = await storagePut(key, buffer, mime);
+        return { url };
+      }),
+
+    options: publicProcedure
+      .query(() => ({ countries: CHALLENGE_COUNTRIES, categories: CHALLENGE_CATEGORIES })),
   }),
 });
 export type AppRouter = typeof appRouter;
