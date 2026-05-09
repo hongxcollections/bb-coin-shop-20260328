@@ -7029,6 +7029,84 @@ ${kb}`;
 
     options: publicProcedure
       .query(() => ({ countries: CHALLENGE_COUNTRIES, categories: CHALLENGE_CATEGORIES })),
+
+    // Admin：AI 一鍵生成 3 個候選錢幣題目（國家/年份/種類/提示/描述）
+    adminGenerateSuggestions: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+
+        // 攞返最近 30 條挑戰嘅答案，避免重複
+        const recent = await adminListChallenges(30);
+        const recentList = recent
+          .map((r: any) => `${r.answerCountry}/${r.answerYear}/${r.answerCategory}`)
+          .join("、") || "（暫無）";
+
+        const systemPrompt = `你係「hongxcollections」嘅錢幣挑戰出題助手。任務係為「每日一幣挑戰」生成 3 條候選題目。
+每條題目包含：
+- country: 國家名稱（必須喺以下選項：${CHALLENGE_COUNTRIES.join("/")}）
+- year: 真實存在嘅西元年份（整數，1700-2025 之間嘅錢幣／紙幣為主）
+- yearTolerance: 年份容差（一般 3-10）
+- category: 種類（必須喺以下選項：${CHALLENGE_CATEGORIES.join("/")}）
+- hint: 一句簡短提示（≤30 字，例如「呢張紙幣有龍紋」「呢個錢幣係某朝代發行」），唔可以直接劇透答案
+- description: 50-120 字嘅背景介紹（粵語口語），講呢個錢幣／紙幣嘅歷史、特徵、收藏價值
+- titleHint: 一句俾 admin 自己睇嘅描述（≤20 字，例如「1898 香港 5 仙銀幣」）
+
+要求：
+1. 3 條題目要有差異（唔同國家、唔同年代、唔同種類，盡量分散）
+2. 必須係真實歷史上有發行嘅錢幣／紙幣，唔好作料
+3. 避免同最近出過嘅題目重複（最近題目：${recentList}）
+4. 直接輸出 JSON array，唔好包 markdown code fence、唔好加前言
+
+格式範例：
+[
+  {"country":"香港","year":1898,"yearTolerance":5,"category":"銀幣","hint":"維多利亞女皇頭像","description":"...","titleHint":"1898 香港 5 仙銀幣"},
+  ...
+]`;
+
+        try {
+          const result = await invokeLLMSafe({
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: "請生成 3 條題目。" },
+            ],
+            maxTokens: 1500,
+          });
+          const content = result.choices?.[0]?.message?.content;
+          let text = typeof content === "string" ? content : Array.isArray(content) ? content.map((c: any) => c.text || "").join("") : "";
+          text = text.trim();
+          // strip markdown code fences if present
+          text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+          // try to extract first [ ... ] block
+          const m = text.match(/\[[\s\S]*\]/);
+          if (m) text = m[0];
+          let arr: any;
+          try {
+            arr = JSON.parse(text);
+          } catch {
+            throw new Error("AI 回覆無法解析為 JSON");
+          }
+          if (!Array.isArray(arr)) throw new Error("AI 回覆唔係 array");
+          const suggestions = arr.slice(0, 3).map((it: any) => {
+            const country = CHALLENGE_COUNTRIES.includes(it.country) ? it.country : "其他";
+            const category = CHALLENGE_CATEGORIES.includes(it.category) ? it.category : "其他";
+            const year = parseInt(it.year);
+            const yearTolerance = Math.max(0, Math.min(50, parseInt(it.yearTolerance) || 5));
+            return {
+              country,
+              year: isNaN(year) ? new Date().getFullYear() : year,
+              yearTolerance,
+              category,
+              hint: String(it.hint || "").slice(0, 200),
+              description: String(it.description || "").slice(0, 800),
+              titleHint: String(it.titleHint || `${country} ${year} ${category}`).slice(0, 80),
+            };
+          });
+          if (suggestions.length === 0) throw new Error("AI 未生成任何建議");
+          return { suggestions };
+        } catch (e: any) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `AI 生成失敗：${e?.message ?? e}` });
+        }
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;

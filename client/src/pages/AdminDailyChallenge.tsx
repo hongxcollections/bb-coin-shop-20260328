@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { Plus, Image as ImageIcon, Pencil, Trash2, CheckCircle2, EyeOff, Calendar } from "lucide-react";
+import { Plus, Image as ImageIcon, Pencil, Trash2, CheckCircle2, EyeOff, Calendar, Sparkles, Wand2 } from "lucide-react";
 
 const COUNTRIES = ["香港","中國","英國","美國","日本","加拿大","澳洲","法國","德國","意大利","俄羅斯","印度","新加坡","馬來西亞","其他"] as const;
 const CATEGORIES = ["銅幣","銀幣","金幣","紙幣","紀念幣","流通幣","其他"] as const;
@@ -86,6 +86,35 @@ export default function AdminDailyChallenge() {
     onError: (e) => toast.error(e.message || "刪除失敗"),
   });
   const uploadMut = trpc.dailyChallenge.adminUploadImage.useMutation();
+  const suggestMut = trpc.dailyChallenge.adminGenerateSuggestions.useMutation();
+  const [suggestions, setSuggestions] = useState<Array<{
+    country: string; year: number; yearTolerance: number; category: string;
+    hint: string; description: string; titleHint: string;
+  }>>([]);
+
+  const handleGenerate = async () => {
+    try {
+      const r = await suggestMut.mutateAsync();
+      setSuggestions(r.suggestions);
+      toast.success(`已生成 ${r.suggestions.length} 個建議，揀一個套用`);
+    } catch (e: any) {
+      toast.error(e?.message || "AI 生成失敗");
+    }
+  };
+
+  const applySuggestion = (s: typeof suggestions[number]) => {
+    setForm((f) => ({
+      ...f,
+      answerCountry: s.country,
+      answerYear: String(s.year),
+      yearTolerance: String(s.yearTolerance),
+      answerCategory: s.category,
+      hint: s.hint,
+      description: s.description,
+    }));
+    setSuggestions([]);
+    toast.success(`已套用：${s.titleHint}（記得上載對應圖片）`);
+  };
 
   if (user && user.role !== "admin") {
     return <div className="p-10 text-center">需要管理員權限</div>;
@@ -254,6 +283,70 @@ export default function AdminDailyChallenge() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{form.id ? "編輯挑戰" : "新增每日挑戰"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
+            {/* AI 一鍵生成建議（新建模式先顯示） */}
+            {!form.id && (
+              <div className="border border-dashed border-amber-300 bg-amber-50/50 rounded-lg p-3">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="text-xs text-amber-800 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span className="font-medium">AI 出題助手</span>
+                    <span className="text-amber-700/70">— 一鍵生成 3 個候選</span>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-400 text-amber-700 hover:bg-amber-100"
+                    onClick={handleGenerate}
+                    disabled={suggestMut.isPending}
+                  >
+                    <Wand2 className="w-3.5 h-3.5 mr-1" />
+                    {suggestMut.isPending ? "生成中…" : suggestions.length ? "重新生成" : "AI 生成建議"}
+                  </Button>
+                </div>
+                {suggestions.length > 0 && (
+                  <div className="space-y-2">
+                    {suggestions.map((s, i) => (
+                      <div key={i} className="bg-white rounded-md border border-amber-200 p-2.5 hover:border-amber-400 transition">
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-stone-800">
+                              {s.titleHint || `${s.country} ${s.year} ${s.category}`}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground mt-0.5">
+                              🌍 {s.country} · 📅 {s.year} (±{s.yearTolerance}) · 🪙 {s.category}
+                            </div>
+                            {s.hint && (
+                              <div className="text-[11px] text-amber-700 mt-1">💡 {s.hint}</div>
+                            )}
+                            {s.description && (
+                              <div className="text-[11px] text-stone-600 mt-1 line-clamp-2">{s.description}</div>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="bg-amber-500 hover:bg-amber-600 shrink-0"
+                            onClick={() => applySuggestion(s)}
+                          >
+                            套用
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-amber-700/80 px-1">
+                      ⚠️ 套用後請手動上載對應錢幣圖片，AI 唔會生成圖片。
+                    </p>
+                  </div>
+                )}
+                {suggestions.length === 0 && !suggestMut.isPending && (
+                  <p className="text-[11px] text-amber-700/70">
+                    AI 會根據最近題目避免重複，生成 3 個唔同國家／年代／種類嘅候選；揀一個再上載對應圖片即可發佈。
+                  </p>
+                )}
+              </div>
+            )}
+
             <div>
               <Label className="text-xs">錢幣／紙幣圖片</Label>
               {form.imageUrl ? (
