@@ -243,14 +243,6 @@ export default function BottomNav() {
                             </Link>
                           )}
                           <Link
-                            href="/collection-square"
-                            onClick={() => setShowMore(false)}
-                            className="bottom-nav-more-item"
-                          >
-                            <Sparkles className="w-4 h-4" />
-                            <span>藏品社區</span>
-                          </Link>
-                          <Link
                             href="/bid-history"
                             onClick={() => setShowMore(false)}
                             className="bottom-nav-more-item"
@@ -262,6 +254,14 @@ export default function BottomNav() {
                                 {buyerActionCount > 99 ? "99+" : buyerActionCount}
                               </span>
                             )}
+                          </Link>
+                          <Link
+                            href="/collection-square"
+                            onClick={() => setShowMore(false)}
+                            className="bottom-nav-more-item"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            <span>藏品社區</span>
                           </Link>
                           {isMerchant && (
                             <Link
