@@ -90,7 +90,11 @@ export default function CollectionPostNew() {
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(drawSrc, 0, 0, w, h);
     if ((bmp as any)?.close) (bmp as any).close();
-    const blob: Blob = await new Promise((res) => canvas.toBlob((b) => res(b || file), "image/jpeg", 0.82));
+    const blob: Blob | null = await new Promise((res) => canvas.toBlob((b) => res(b), "image/jpeg", 0.82));
+    if (!blob) {
+      // toBlob 失敗，原檔上載
+      return { blob: file, mime: file.type || "image/jpeg", name: file.name };
+    }
     const newName = file.name.replace(/\.(png|webp|heic|heif|jpe?g|gif)$/i, ".jpg");
     return { blob, mime: "image/jpeg", name: newName };
   }
