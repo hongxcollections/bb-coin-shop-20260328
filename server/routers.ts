@@ -7132,7 +7132,7 @@ EXAMPLE OUTPUT (exact format):
             console.warn("[dailyChallenge] AI suggestions parse failed. Raw:", lastRaw.slice(0, 500));
             throw new Error(lastErr || "AI 回覆無法解析為 JSON");
           }
-          const suggestions = arr.slice(0, 3).map((it: any) => {
+          const baseSuggestions = arr.slice(0, 3).map((it: any) => {
             const country = CHALLENGE_COUNTRIES.includes(it.country) ? it.country : "其他";
             const category = CHALLENGE_CATEGORIES.includes(it.category) ? it.category : "其他";
             const year = parseInt(it.year);
@@ -7147,7 +7147,19 @@ EXAMPLE OUTPUT (exact format):
               titleHint: String(it.titleHint || `${country} ${year} ${category}`).slice(0, 80),
             };
           });
-          if (suggestions.length === 0) throw new Error("AI 未生成任何建議");
+          if (baseSuggestions.length === 0) throw new Error("AI 未生成任何建議");
+
+          // 為每條建議從 Wikimedia Commons 揾真實圖片，再 mirror 到 S3
+          const suggestions = await Promise.all(baseSuggestions.map(async (s) => {
+            let imageUrl: string | null = null;
+            try {
+              imageUrl = await fetchAndMirrorChallengeImage(s);
+            } catch (err) {
+              console.warn("[dailyChallenge] image fetch failed for", s.titleHint, err);
+            }
+            return { ...s, imageUrl };
+          }));
+
           return { suggestions };
         } catch (e: any) {
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `AI 生成失敗：${e?.message ?? e}` });
@@ -7156,6 +7168,59 @@ EXAMPLE OUTPUT (exact format):
   }),
 });
 export type AppRouter = typeof appRouter;
+
+// ─── Wikimedia Commons 圖片搜尋 + S3 mirror（畀每日挑戰 AI 生成用）────────────
+async function fetchAndMirrorChallengeImage(s: {
+  country: string; year: number; category: string; titleHint: string;
+}): Promise<string | null> {
+  const queries: string[] = [];
+  if (s.titleHint) queries.push(s.titleHint);
+  queries.push(`${s.country} ${s.year} ${s.category}`);
+  queries.push(`${s.year} ${s.country} coin`);
+  queries.push(`${s.country} ${s.category} ${s.year}`);
+
+  for (const q of queries) {
+    try {
+      const apiUrl = `https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(q + " filetype:bitmap")}&gsrlimit=5&prop=imageinfo&iiprop=url|mime|size&iiurlwidth=800&origin=*`;
+      const r = await fetch(apiUrl, {
+        headers: { "User-Agent": "hongxcollections/1.0 (https://hongxcollections.com)" },
+      });
+      if (!r.ok) continue;
+      const j: any = await r.json();
+      const pages = j?.query?.pages;
+      if (!pages) continue;
+      const candidates: Array<{ url: string; mime: string }> = [];
+      for (const k of Object.keys(pages)) {
+        const ii = pages[k]?.imageinfo?.[0];
+        if (!ii) continue;
+        const mime = String(ii.mime || "").toLowerCase();
+        if (!["image/jpeg", "image/png", "image/webp"].includes(mime)) continue;
+        const url = ii.thumburl || ii.url;
+        if (!url) continue;
+        candidates.push({ url, mime });
+      }
+      for (const c of candidates) {
+        try {
+          const imgResp = await fetch(c.url, {
+            headers: { "User-Agent": "hongxcollections/1.0 (https://hongxcollections.com)" },
+          });
+          if (!imgResp.ok) continue;
+          const ct = (imgResp.headers.get("content-type") || c.mime).split(";")[0].trim().toLowerCase();
+          if (!["image/jpeg", "image/png", "image/webp"].includes(ct)) continue;
+          const ab = await imgResp.arrayBuffer();
+          const buf = Buffer.from(ab);
+          if (buf.length < 5_000 || buf.length > 5_000_000) continue;
+          const ext = ct === "image/png" ? "png" : ct === "image/webp" ? "webp" : "jpg";
+          const safeStem = `${s.country}-${s.year}-${s.category}`.replace(/[^a-zA-Z0-9\-]/g, "_").slice(0, 40);
+          const key = `daily-challenge/ai-${Date.now()}-${safeStem}.${ext}`;
+          const { url } = await storagePut(key, buf, ct);
+          return url;
+        } catch {}
+      }
+    } catch {}
+  }
+  return null;
+}
 
 // ─── invokeLLM with multi-key/multi-model fallback on 429/quota errors ────────
 // Tries Forge → OpenRouter → Gemini(2.5-flash key1/key2 → 2.0-flash key1/key2) → OpenAI

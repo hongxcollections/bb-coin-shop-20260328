@@ -89,7 +89,7 @@ export default function AdminDailyChallenge() {
   const suggestMut = trpc.dailyChallenge.adminGenerateSuggestions.useMutation();
   const [suggestions, setSuggestions] = useState<Array<{
     country: string; year: number; yearTolerance: number; category: string;
-    hint: string; description: string; titleHint: string;
+    hint: string; description: string; titleHint: string; imageUrl: string | null;
   }>>([]);
 
   const handleGenerate = async () => {
@@ -111,9 +111,14 @@ export default function AdminDailyChallenge() {
       answerCategory: s.category,
       hint: s.hint,
       description: s.description,
+      imageUrl: s.imageUrl || f.imageUrl,
     }));
     setSuggestions([]);
-    toast.success(`已套用：${s.titleHint}（記得上載對應圖片）`);
+    if (s.imageUrl) {
+      toast.success(`已套用：${s.titleHint}（圖片已自動帶入，可手動更換）`);
+    } else {
+      toast.success(`已套用：${s.titleHint}（暫時搵唔到對應圖片，請手動上載）`);
+    }
   };
 
   if (user && user.role !== "admin") {
@@ -309,6 +314,17 @@ export default function AdminDailyChallenge() {
                     {suggestions.map((s, i) => (
                       <div key={i} className="bg-white rounded-md border border-amber-200 p-2.5 hover:border-amber-400 transition">
                         <div className="flex items-start gap-2">
+                          {s.imageUrl ? (
+                            <img
+                              src={s.imageUrl}
+                              alt=""
+                              className="w-16 h-16 object-cover rounded bg-stone-100 shrink-0 ring-1 ring-amber-200"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 rounded bg-stone-100 shrink-0 flex items-center justify-center text-[10px] text-stone-400 text-center px-1">
+                              無圖片
+                            </div>
+                          )}
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium text-stone-800">
                               {s.titleHint || `${s.country} ${s.year} ${s.category}`}
@@ -335,13 +351,13 @@ export default function AdminDailyChallenge() {
                       </div>
                     ))}
                     <p className="text-[10px] text-amber-700/80 px-1">
-                      ⚠️ 套用後請手動上載對應錢幣圖片，AI 唔會生成圖片。
+                      💡 圖片由 Wikimedia Commons 自動配對，套用後可手動更換。
                     </p>
                   </div>
                 )}
                 {suggestions.length === 0 && !suggestMut.isPending && (
                   <p className="text-[11px] text-amber-700/70">
-                    AI 會根據最近題目避免重複，生成 3 個唔同國家／年代／種類嘅候選；揀一個再上載對應圖片即可發佈。
+                    AI 會根據最近題目避免重複，生成 3 個唔同國家／年代／種類嘅候選，並自動從 Wikimedia Commons 配對真實圖片；揀一個即可發佈。
                   </p>
                 )}
               </div>
