@@ -177,6 +177,10 @@ export default function AdminDailyChallenge() {
   // ── 馬賽克編輯：原圖上拉矩形 ──
   const imgEditorRef = useRef<HTMLDivElement>(null);
   const [drawing, setDrawing] = useState<null | { startX: number; startY: number; cur: Region }>(null);
+  // 跟住原圖實際 aspect ratio 設 container size，避免 object-contain letterbox 令矩形對唔正
+  const [imgRatio, setImgRatio] = useState<number>(4 / 3);
+  // 重設 imgRatio 當 imageUrl 變
+  useEffect(() => { if (!form.imageUrl) setImgRatio(4 / 3); }, [form.imageUrl]);
   const regions = form.imageRegions || [];
   const setRegions = (rs: Region[]) => setForm((f) => ({ ...f, imageRegions: rs }));
 
@@ -506,8 +510,8 @@ export default function AdminDailyChallenge() {
                   {/* 馬賽克編輯器：原圖 + 拖拉矩形 */}
                   <div
                     ref={imgEditorRef}
-                    className="relative w-full bg-stone-100 rounded overflow-hidden select-none touch-none"
-                    style={{ aspectRatio: "4 / 3" }}
+                    className="relative w-full max-h-[60vh] bg-stone-100 rounded overflow-hidden select-none touch-none mx-auto"
+                    style={{ aspectRatio: `${imgRatio}`, maxWidth: `min(100%, calc(60vh * ${imgRatio}))` }}
                     onPointerDown={onEditorPointerDown}
                     onPointerMove={onEditorPointerMove}
                     onPointerUp={onEditorPointerUp}
@@ -516,8 +520,14 @@ export default function AdminDailyChallenge() {
                     <img
                       src={form.imageUrl}
                       alt=""
-                      className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                      className="absolute inset-0 w-full h-full object-fill pointer-events-none"
                       draggable={false}
+                      onLoad={(e) => {
+                        const t = e.currentTarget;
+                        if (t.naturalWidth && t.naturalHeight) {
+                          setImgRatio(t.naturalWidth / t.naturalHeight);
+                        }
+                      }}
                     />
                     {/* 已存矩形 */}
                     {regions.map((r, i) => (

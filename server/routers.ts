@@ -7008,8 +7008,8 @@ ${kb}`;
         regions: z.array(z.object({
           x: z.number().min(0).max(1),
           y: z.number().min(0).max(1),
-          w: z.number().min(0).max(1),
-          h: z.number().min(0).max(1),
+          w: z.number().min(0.005).max(1),
+          h: z.number().min(0.005).max(1),
         })).max(10),
       }))
       .mutation(async ({ ctx, input }) => {
