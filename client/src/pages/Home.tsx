@@ -1186,7 +1186,7 @@ export default function Home() {
               </Link>
               <Link href="/collection-square">
                 <span className="inline-flex items-center gap-1.5 bg-white text-amber-700 hover:bg-amber-50 text-xs font-bold px-3.5 py-2 rounded-full shadow-sm border border-amber-200 transition cursor-pointer select-none">
-                  <Sparkles className="w-3.5 h-3.5" /> 藏家天地
+                  <Sparkles className="w-3.5 h-3.5" /> 藏品社區
                 </span>
               </Link>
             </div>

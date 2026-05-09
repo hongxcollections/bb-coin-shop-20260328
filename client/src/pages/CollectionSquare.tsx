@@ -48,9 +48,9 @@ export default function CollectionSquare() {
           <div className="relative flex items-center justify-between gap-4">
             <div>
               <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur px-2.5 py-1 rounded-full text-xs font-medium mb-3">
-                <Sparkles className="w-3.5 h-3.5" /> 藏品社區
+                <Sparkles className="w-3.5 h-3.5" /> 藏家天地
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">藏家天地</h1>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">藏品社區</h1>
               <p className="text-sm md:text-base text-sky-50/95 mt-2 max-w-md">分享你嘅心愛收藏，識多啲同道中人</p>
             </div>
             <Button

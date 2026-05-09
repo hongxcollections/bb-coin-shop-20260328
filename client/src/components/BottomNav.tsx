@@ -248,7 +248,7 @@ export default function BottomNav() {
                             className="bottom-nav-more-item"
                           >
                             <Sparkles className="w-4 h-4" />
-                            <span>藏家天地</span>
+                            <span>藏品社區</span>
                           </Link>
                           <Link
                             href="/bid-history"

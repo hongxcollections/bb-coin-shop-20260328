@@ -101,7 +101,7 @@ export default function CollectionPostDetail() {
       <Header />
       <div className="max-w-3xl mx-auto p-4">
         <button onClick={() => navigate("/collection-square")} className="flex items-center text-sm text-gray-600 mb-3 hover:text-gray-900">
-          <ChevronLeft className="w-4 h-4" /> 返回藏家天地
+          <ChevronLeft className="w-4 h-4" /> 返回藏品社區
         </button>
 
         {(post as any).isHidden && (
