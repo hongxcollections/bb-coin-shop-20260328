@@ -47,11 +47,11 @@
 
   /* ── 彈出訊息配色（客服 popup / 錯誤 toast 共用） ──────────────────────── *
    * 如需更換整體彈出視窗風格，只需修改以下六個變數即可全站套用。             */
-  --popup-bg:         #1c1917;               /* 深棕黑底色                   */
-  --popup-text:       #fef3c7;               /* 暖米色主文字                 */
-  --popup-desc:       #d6d3d1;               /* 說明文字（淺灰）             */
-  --popup-border:     rgba(245, 158, 11, 0.3); /* 琥珀色半透明邊框            */
-  --popup-shadow:     0 8px 28px rgba(0, 0, 0, 0.32); /* 深色陰影            */
+  --popup-bg:         linear-gradient(to bottom, #f97316 0%, #fb923c 50%, #fed7aa 100%); /* 橙色垂直漸變：頂深→底淺 */
+  --popup-text:       #7c2d12;               /* 深棕橙主文字（amber-900）    */
+  --popup-desc:       #9a3412;               /* 說明文字（orange-800）       */
+  --popup-border:     rgba(194, 65, 12, 0.5); /* 橙色半透明邊框（orange-700） */
+  --popup-shadow:     0 8px 28px rgba(234, 88, 12, 0.32); /* 暖橙陰影         */
   --popup-radius:     0.875rem;              /* 圓角大小                     */
   /* ──────────────────────────────────────────────────────────────────────── */
 
@@ -712,7 +712,7 @@
 }
 
 .dark .bottom-nav-toast-inner {
-  background: #292524;
+  background: linear-gradient(to bottom, #c2410c 0%, #ea580c 50%, #fb923c 100%);
   border-color: var(--popup-border);
 }
 
