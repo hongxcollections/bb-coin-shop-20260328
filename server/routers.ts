@@ -6801,14 +6801,32 @@ ${kb}`;
         if (!allowedMimes.includes(mime)) {
           throw new TRPCError({ code: "BAD_REQUEST", message: `不支援此圖片格式（${mime}）` });
         }
-        const buffer = Buffer.from(input.imageData, "base64");
-        if (buffer.length > 8 * 1024 * 1024) {
+        const rawBuffer = Buffer.from(input.imageData, "base64");
+        if (rawBuffer.length > 8 * 1024 * 1024) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "圖片不可超過 8MB" });
         }
-        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
+        // 壓縮：max 1600px、jpeg q82。GIF（動圖）保留原狀避免郁咗。
+        let outBuffer = rawBuffer;
+        let outMime = mime;
+        try {
+          if (mime !== "image/gif") {
+            const sharpMod = (await import("sharp")).default;
+            outBuffer = await sharpMod(rawBuffer, { failOn: "none" })
+              .rotate() // honor EXIF orientation
+              .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+              .jpeg({ quality: 82, progressive: true, mozjpeg: true })
+              .toBuffer();
+            outMime = "image/jpeg";
+          }
+        } catch {
+          // 壓縮失敗（例如損壞圖片）就用原檔上載
+          outBuffer = rawBuffer;
+          outMime = mime;
+        }
+        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80).replace(/\.(png|webp|heic|heif|jpe?g)$/i, ".jpg");
         const key = `community/${ctx.user.id}/${Date.now()}-${safeName}`;
-        const { url } = await storagePut(key, buffer, mime);
-        return { url };
+        const { url } = await storagePut(key, outBuffer, outMime);
+        return { url, originalSize: rawBuffer.length, storedSize: outBuffer.length };
       }),
 
     // ── Admin endpoints ──

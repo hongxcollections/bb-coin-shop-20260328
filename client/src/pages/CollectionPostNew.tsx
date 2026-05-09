@@ -55,6 +55,59 @@ export default function CollectionPostNew() {
     );
   }
 
+  // Client-side downscale + JPEG 壓縮，省 upload bandwidth（後端會再 sharp 二次保險）
+  async function compressImage(file: File): Promise<{ blob: Blob; mime: string; name: string }> {
+    // GIF 動圖唔壓縮，保留原狀
+    if (file.type === "image/gif") {
+      return { blob: file, mime: "image/gif", name: file.name };
+    }
+    const MAX = 1600;
+    const bmp = await (async () => {
+      try { return await createImageBitmap(file); } catch { return null; }
+    })();
+    let width: number, height: number;
+    let drawSrc: CanvasImageSource;
+    if (bmp) {
+      width = bmp.width; height = bmp.height; drawSrc = bmp;
+    } else {
+      // fallback：走 <img>
+      const url = URL.createObjectURL(file);
+      try {
+        const img = await new Promise<HTMLImageElement>((res, rej) => {
+          const i = new Image();
+          i.onload = () => res(i); i.onerror = rej; i.src = url;
+        });
+        width = img.naturalWidth; height = img.naturalHeight; drawSrc = img;
+      } finally { URL.revokeObjectURL(url); }
+    }
+    const scale = Math.min(1, MAX / Math.max(width, height));
+    const w = Math.max(1, Math.round(width * scale));
+    const h = Math.max(1, Math.round(height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return { blob: file, mime: file.type, name: file.name };
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(drawSrc, 0, 0, w, h);
+    if ((bmp as any)?.close) (bmp as any).close();
+    const blob: Blob = await new Promise((res) => canvas.toBlob((b) => res(b || file), "image/jpeg", 0.82));
+    const newName = file.name.replace(/\.(png|webp|heic|heif|jpe?g|gif)$/i, ".jpg");
+    return { blob, mime: "image/jpeg", name: newName };
+  }
+
+  function blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onerror = reject;
+      r.onload = () => {
+        const dataUrl = r.result as string;
+        const i = dataUrl.indexOf(",");
+        resolve(i >= 0 ? dataUrl.slice(i + 1) : dataUrl);
+      };
+      r.readAsDataURL(blob);
+    });
+  }
+
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     if (imageUrls.length + files.length > 9) {
@@ -65,19 +118,21 @@ export default function CollectionPostNew() {
     const uploaded: string[] = [];
     for (const file of Array.from(files)) {
       try {
-        if (file.size > 8 * 1024 * 1024) {
-          showToast({ icon: "⚠️", title: `${file.name} 超過 8MB`, desc: "", durationMs: 2500 });
+        if (file.size > 20 * 1024 * 1024) {
+          showToast({ icon: "⚠️", title: `${file.name} 超過 20MB`, desc: "", durationMs: 2500 });
           continue;
         }
-        const buf = await file.arrayBuffer();
-        const bytes = new Uint8Array(buf);
-        let binary = "";
-        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-        const base64 = btoa(binary);
+        // 預壓縮（max 1600px、jpeg 82）
+        const { blob, mime, name } = await compressImage(file);
+        if (blob.size > 8 * 1024 * 1024) {
+          showToast({ icon: "⚠️", title: `${file.name} 壓縮後仍超過 8MB`, desc: "", durationMs: 2500 });
+          continue;
+        }
+        const base64 = await blobToBase64(blob);
         const res = await uploadImage.mutateAsync({
           imageData: base64,
-          fileName: file.name,
-          mimeType: file.type || "image/jpeg",
+          fileName: name,
+          mimeType: mime,
         });
         uploaded.push(res.url);
       } catch (e: any) {

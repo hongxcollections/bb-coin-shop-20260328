@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation, useRoute, Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/components/ui/confirm-provider";
-import { Heart, Bookmark, MessageCircle, Eye, ChevronLeft, Trash2, Store, ShoppingBag, AlertTriangle } from "lucide-react";
+import ImageLightbox from "@/components/ImageLightbox";
+import { CollectionShareMenu } from "@/components/ShareMenu";
+import { Heart, Bookmark, MessageCircle, Eye, ChevronLeft, Trash2, Store, ShoppingBag, AlertTriangle, ChevronRight } from "lucide-react";
 
 function intentBadge(intent: string) {
   if (intent === "seek_value") return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">求估價</Badge>;
@@ -31,6 +33,10 @@ export default function CollectionPostDetail() {
 
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [commentText, setCommentText] = useState("");
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
+  const touchOpenedLightboxRef = useRef(false);
 
   const toggleLike = trpc.community.toggleLike.useMutation({
     onSuccess: () => utils.community.get.invalidate({ id }),
@@ -115,11 +121,71 @@ export default function CollectionPostDetail() {
         )}
 
         <div className="bg-white rounded-lg border overflow-hidden">
-          {/* Image */}
+          {/* Image gallery（跟拍賣商品圖片做法：swipe + tap 燈箱 + 縮圖列） */}
           {images.length > 0 && (
             <div>
-              <div className="aspect-square bg-gray-100">
-                <img src={images[activeImageIdx]?.imageUrl} alt="" className="w-full h-full object-contain" />
+              <div
+                className="aspect-square bg-gray-100 relative cursor-zoom-in select-none"
+                onTouchStart={(e) => {
+                  touchStartXRef.current = e.touches[0].clientX;
+                  touchStartYRef.current = e.touches[0].clientY;
+                  touchOpenedLightboxRef.current = false;
+                }}
+                onTouchEnd={(e) => {
+                  const dx = touchStartXRef.current - e.changedTouches[0].clientX;
+                  const dy = touchStartYRef.current - e.changedTouches[0].clientY;
+                  const dist = Math.sqrt(dx * dx + dy * dy);
+                  if (Math.abs(dx) >= 40 && images.length > 1 && Math.abs(dx) > Math.abs(dy)) {
+                    if (dx > 0) setActiveImageIdx((i) => (i + 1) % images.length);
+                    else setActiveImageIdx((i) => (i - 1 + images.length) % images.length);
+                  } else if (dist < 10) {
+                    touchOpenedLightboxRef.current = true;
+                    setLightboxOpen(true);
+                  }
+                }}
+                onClick={() => {
+                  if (!touchOpenedLightboxRef.current) setLightboxOpen(true);
+                  touchOpenedLightboxRef.current = false;
+                }}
+              >
+                <img
+                  src={images[activeImageIdx]?.imageUrl}
+                  alt=""
+                  className="w-full h-full object-contain pointer-events-none"
+                  draggable={false}
+                />
+                {/* 左右箭咀（desktop） */}
+                {images.length > 1 && (
+                  <>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setActiveImageIdx((i) => (i - 1 + images.length) % images.length); }}
+                      className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 items-center justify-center bg-black/40 hover:bg-black/60 text-white rounded-full backdrop-blur"
+                      aria-label="上一張"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setActiveImageIdx((i) => (i + 1) % images.length); }}
+                      className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 items-center justify-center bg-black/40 hover:bg-black/60 text-white rounded-full backdrop-blur"
+                      aria-label="下一張"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 pointer-events-none">
+                      <span className="text-white/95 text-xs font-semibold tabular-nums drop-shadow bg-black/35 px-2 py-0.5 rounded-full backdrop-blur">
+                        {activeImageIdx + 1}/{images.length}
+                      </span>
+                    </div>
+                  </>
+                )}
+                {/* 右下：分享按鈕 */}
+                <div
+                  className="absolute bottom-2 right-2 z-10"
+                  onClick={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => e.stopPropagation()}
+                >
+                  <CollectionShareMenu postId={id} title={post.title} iconOnly />
+                </div>
               </div>
               {images.length > 1 && (
                 <div className="flex gap-2 p-2 overflow-x-auto">
@@ -127,7 +193,7 @@ export default function CollectionPostDetail() {
                     <button
                       key={img.id}
                       onClick={() => setActiveImageIdx(i)}
-                      className={`shrink-0 w-16 h-16 rounded border overflow-hidden ${i === activeImageIdx ? "border-amber-500 ring-2 ring-amber-200" : "border-gray-200"}`}
+                      className={`shrink-0 w-16 h-16 rounded border overflow-hidden ${i === activeImageIdx ? "border-sky-500 ring-2 ring-sky-200" : "border-gray-200"}`}
                     >
                       <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
                     </button>
@@ -291,6 +357,15 @@ export default function CollectionPostDetail() {
           )}
         </div>
       </div>
+
+      {lightboxOpen && images.length > 0 && (
+        <ImageLightbox
+          images={images.map((i: any) => i.imageUrl)}
+          initialIndex={activeImageIdx}
+          alt={post.title}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
     </div>
   );
 }
