@@ -89,20 +89,28 @@ export default function AdminDailyChallenge() {
   const suggestMut = trpc.dailyChallenge.adminGenerateSuggestions.useMutation();
   const [suggestions, setSuggestions] = useState<Array<{
     country: string; year: number; yearTolerance: number; category: string;
-    hint: string; description: string; titleHint: string; imageUrl: string | null;
+    hint: string; description: string; titleHint: string; imageUrls: string[];
   }>>([]);
+  // 每條 suggestion 揀邊張圖（index）
+  const [picked, setPicked] = useState<Record<number, number>>({});
 
   const handleGenerate = async () => {
     try {
       const r = await suggestMut.mutateAsync();
       setSuggestions(r.suggestions);
-      toast.success(`已生成 ${r.suggestions.length} 個建議，揀一個套用`);
+      // 預設揀第一張圖
+      const initPicked: Record<number, number> = {};
+      r.suggestions.forEach((_, i) => { initPicked[i] = 0; });
+      setPicked(initPicked);
+      toast.success(`已生成 ${r.suggestions.length} 個建議，揀張圖再套用`);
     } catch (e: any) {
       toast.error(e?.message || "AI 生成失敗");
     }
   };
 
-  const applySuggestion = (s: typeof suggestions[number]) => {
+  const applySuggestion = (s: typeof suggestions[number], idx: number) => {
+    const pickIdx = picked[idx] ?? 0;
+    const chosenImage = s.imageUrls[pickIdx] || s.imageUrls[0] || "";
     setForm((f) => ({
       ...f,
       answerCountry: s.country,
@@ -111,11 +119,12 @@ export default function AdminDailyChallenge() {
       answerCategory: s.category,
       hint: s.hint,
       description: s.description,
-      imageUrl: s.imageUrl || f.imageUrl,
+      imageUrl: chosenImage || f.imageUrl,
     }));
     setSuggestions([]);
-    if (s.imageUrl) {
-      toast.success(`已套用：${s.titleHint}（圖片已自動帶入，可手動更換）`);
+    setPicked({});
+    if (chosenImage) {
+      toast.success(`已套用：${s.titleHint}（已選圖 #${pickIdx + 1}，可手動更換）`);
     } else {
       toast.success(`已套用：${s.titleHint}（暫時搵唔到對應圖片，請手動上載）`);
     }
@@ -311,47 +320,67 @@ export default function AdminDailyChallenge() {
                 </div>
                 {suggestions.length > 0 && (
                   <div className="space-y-2">
-                    {suggestions.map((s, i) => (
-                      <div key={i} className="bg-white rounded-md border border-amber-200 p-2.5 hover:border-amber-400 transition">
-                        <div className="flex items-start gap-2">
-                          {s.imageUrl ? (
-                            <img
-                              src={s.imageUrl}
-                              alt=""
-                              className="w-16 h-16 object-cover rounded bg-stone-100 shrink-0 ring-1 ring-amber-200"
-                            />
+                    {suggestions.map((s, i) => {
+                      const pickIdx = picked[i] ?? 0;
+                      return (
+                        <div key={i} className="bg-white rounded-md border border-amber-200 p-2.5 hover:border-amber-400 transition">
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-stone-800">
+                                {s.titleHint || `${s.country} ${s.year} ${s.category}`}
+                              </div>
+                              <div className="text-[11px] text-muted-foreground mt-0.5">
+                                🌍 {s.country} · 📅 {s.year} (±{s.yearTolerance}) · 🪙 {s.category}
+                              </div>
+                              {s.hint && (
+                                <div className="text-[11px] text-amber-700 mt-1">💡 {s.hint}</div>
+                              )}
+                              {s.description && (
+                                <div className="text-[11px] text-stone-600 mt-1 line-clamp-2">{s.description}</div>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="bg-amber-500 hover:bg-amber-600 shrink-0"
+                              onClick={() => applySuggestion(s, i)}
+                            >
+                              套用
+                            </Button>
+                          </div>
+                          {s.imageUrls && s.imageUrls.length > 0 ? (
+                            <div>
+                              <div className="text-[10px] text-stone-500 mb-1">
+                                揀一張圖片（共 {s.imageUrls.length} 張，已選 #{pickIdx + 1}）
+                              </div>
+                              <div className="grid grid-cols-4 gap-1.5">
+                                {s.imageUrls.map((url, j) => (
+                                  <button
+                                    key={j}
+                                    type="button"
+                                    onClick={() => setPicked((p) => ({ ...p, [i]: j }))}
+                                    className={`relative aspect-square rounded overflow-hidden border-2 transition ${
+                                      pickIdx === j ? "border-amber-500 ring-2 ring-amber-300" : "border-stone-200 hover:border-amber-300"
+                                    }`}
+                                  >
+                                    <img src={url} alt="" className="w-full h-full object-cover bg-stone-100" />
+                                    {pickIdx === j && (
+                                      <div className="absolute top-0.5 right-0.5 bg-amber-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold shadow">✓</div>
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
                           ) : (
-                            <div className="w-16 h-16 rounded bg-stone-100 shrink-0 flex items-center justify-center text-[10px] text-stone-400 text-center px-1">
-                              無圖片
+                            <div className="text-[11px] text-stone-500 bg-stone-50 rounded p-2 text-center">
+                              暫時搵唔到對應圖片，套用後請手動上載
                             </div>
                           )}
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-stone-800">
-                              {s.titleHint || `${s.country} ${s.year} ${s.category}`}
-                            </div>
-                            <div className="text-[11px] text-muted-foreground mt-0.5">
-                              🌍 {s.country} · 📅 {s.year} (±{s.yearTolerance}) · 🪙 {s.category}
-                            </div>
-                            {s.hint && (
-                              <div className="text-[11px] text-amber-700 mt-1">💡 {s.hint}</div>
-                            )}
-                            {s.description && (
-                              <div className="text-[11px] text-stone-600 mt-1 line-clamp-2">{s.description}</div>
-                            )}
-                          </div>
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="bg-amber-500 hover:bg-amber-600 shrink-0"
-                            onClick={() => applySuggestion(s)}
-                          >
-                            套用
-                          </Button>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <p className="text-[10px] text-amber-700/80 px-1">
-                      💡 圖片由 Wikimedia Commons 自動配對，套用後可手動更換。
+                      💡 每條建議自動配對 2-5 張 Wikimedia Commons 圖片，揀一張再「套用」即可。
                     </p>
                   </div>
                 )}

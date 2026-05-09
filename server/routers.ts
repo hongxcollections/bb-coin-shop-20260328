@@ -7149,15 +7149,15 @@ EXAMPLE OUTPUT (exact format):
           });
           if (baseSuggestions.length === 0) throw new Error("AI 未生成任何建議");
 
-          // 為每條建議從 Wikimedia Commons 揾真實圖片，再 mirror 到 S3
+          // 為每條建議從 Wikimedia Commons 揾 2-5 張真實圖片，mirror 到 S3 畀 admin 揀
           const suggestions = await Promise.all(baseSuggestions.map(async (s) => {
-            let imageUrl: string | null = null;
+            let imageUrls: string[] = [];
             try {
-              imageUrl = await fetchAndMirrorChallengeImage(s);
+              imageUrls = await fetchAndMirrorChallengeImages(s, 4);
             } catch (err) {
               console.warn("[dailyChallenge] image fetch failed for", s.titleHint, err);
             }
-            return { ...s, imageUrl };
+            return { ...s, imageUrls };
           }));
 
           return { suggestions };
@@ -7170,18 +7170,23 @@ EXAMPLE OUTPUT (exact format):
 export type AppRouter = typeof appRouter;
 
 // ─── Wikimedia Commons 圖片搜尋 + S3 mirror（畀每日挑戰 AI 生成用）────────────
-async function fetchAndMirrorChallengeImage(s: {
+// 為每條建議揾 2-5 張候選圖片，mirror 落 S3 畀 admin 揀
+async function fetchAndMirrorChallengeImages(s: {
   country: string; year: number; category: string; titleHint: string;
-}): Promise<string | null> {
+}, targetCount = 4): Promise<string[]> {
   const queries: string[] = [];
   if (s.titleHint) queries.push(s.titleHint);
   queries.push(`${s.country} ${s.year} ${s.category}`);
   queries.push(`${s.year} ${s.country} coin`);
   queries.push(`${s.country} ${s.category} ${s.year}`);
 
+  // 收集所有候選 (deduped by source URL)
+  const seen = new Set<string>();
+  const allCandidates: Array<{ url: string; mime: string }> = [];
   for (const q of queries) {
+    if (allCandidates.length >= targetCount * 3) break;
     try {
-      const apiUrl = `https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(q + " filetype:bitmap")}&gsrlimit=5&prop=imageinfo&iiprop=url|mime|size&iiurlwidth=800&origin=*`;
+      const apiUrl = `https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(q + " filetype:bitmap")}&gsrlimit=8&prop=imageinfo&iiprop=url|mime|size&iiurlwidth=800&origin=*`;
       const r = await fetch(apiUrl, {
         headers: { "User-Agent": "hongxcollections/1.0 (https://hongxcollections.com)" },
       });
@@ -7189,37 +7194,41 @@ async function fetchAndMirrorChallengeImage(s: {
       const j: any = await r.json();
       const pages = j?.query?.pages;
       if (!pages) continue;
-      const candidates: Array<{ url: string; mime: string }> = [];
       for (const k of Object.keys(pages)) {
         const ii = pages[k]?.imageinfo?.[0];
         if (!ii) continue;
         const mime = String(ii.mime || "").toLowerCase();
         if (!["image/jpeg", "image/png", "image/webp"].includes(mime)) continue;
         const url = ii.thumburl || ii.url;
-        if (!url) continue;
-        candidates.push({ url, mime });
-      }
-      for (const c of candidates) {
-        try {
-          const imgResp = await fetch(c.url, {
-            headers: { "User-Agent": "hongxcollections/1.0 (https://hongxcollections.com)" },
-          });
-          if (!imgResp.ok) continue;
-          const ct = (imgResp.headers.get("content-type") || c.mime).split(";")[0].trim().toLowerCase();
-          if (!["image/jpeg", "image/png", "image/webp"].includes(ct)) continue;
-          const ab = await imgResp.arrayBuffer();
-          const buf = Buffer.from(ab);
-          if (buf.length < 5_000 || buf.length > 5_000_000) continue;
-          const ext = ct === "image/png" ? "png" : ct === "image/webp" ? "webp" : "jpg";
-          const safeStem = `${s.country}-${s.year}-${s.category}`.replace(/[^a-zA-Z0-9\-]/g, "_").slice(0, 40);
-          const key = `daily-challenge/ai-${Date.now()}-${safeStem}.${ext}`;
-          const { url } = await storagePut(key, buf, ct);
-          return url;
-        } catch {}
+        if (!url || seen.has(url)) continue;
+        seen.add(url);
+        allCandidates.push({ url, mime });
       }
     } catch {}
   }
-  return null;
+
+  // 並行 fetch + upload 到 S3，最多取 targetCount 個成功
+  const safeStem = `${s.country}-${s.year}-${s.category}`.replace(/[^a-zA-Z0-9\-]/g, "_").slice(0, 40);
+  const results = await Promise.all(allCandidates.slice(0, targetCount * 2).map(async (c, idx) => {
+    try {
+      const imgResp = await fetch(c.url, {
+        headers: { "User-Agent": "hongxcollections/1.0 (https://hongxcollections.com)" },
+      });
+      if (!imgResp.ok) return null;
+      const ct = (imgResp.headers.get("content-type") || c.mime).split(";")[0].trim().toLowerCase();
+      if (!["image/jpeg", "image/png", "image/webp"].includes(ct)) return null;
+      const ab = await imgResp.arrayBuffer();
+      const buf = Buffer.from(ab);
+      if (buf.length < 5_000 || buf.length > 5_000_000) return null;
+      const ext = ct === "image/png" ? "png" : ct === "image/webp" ? "webp" : "jpg";
+      const key = `daily-challenge/ai-${Date.now()}-${idx}-${safeStem}.${ext}`;
+      const { url } = await storagePut(key, buf, ct);
+      return url;
+    } catch {
+      return null;
+    }
+  }));
+  return results.filter((u): u is string => !!u).slice(0, targetCount);
 }
 
 // ─── invokeLLM with multi-key/multi-model fallback on 429/quota errors ────────
