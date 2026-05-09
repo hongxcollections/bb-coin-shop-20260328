@@ -227,6 +227,8 @@ async function injectProductOgMeta(html: string, reqPath: string, protocol: stri
     const productId = parseInt(productMatch[1], 10);
     const product = await getMerchantProduct(productId);
     if (!product) return null;
+    // 私隱保護：hidden / sold 商品唔出 product OG meta（fall back 到 default index.html meta）
+    if ((product as { status?: string }).status !== 'active') return null;
 
     let firstImage = "";
     try {
