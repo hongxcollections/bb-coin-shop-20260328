@@ -212,8 +212,9 @@
       0 0 12px 2px color-mix(in oklch, var(--glow) 50%, transparent),
       0 0 28px 7px color-mix(in oklch, var(--glow) 30%, transparent);
   }
-  /* Button / tab / menu / link 類：focus 即出光暈，1.5 秒後 0.5 秒 fade 走；
-     重複撳同一個掣時，:active 會將 animation reset，放手後重新由頭播一次 */
+  /* Button / tab / menu / link 類：focus 即出光暈，0.3s 持續 + 0.2s fade（總 0.5s）；
+     重複撳同一個掣時，:active 會將 animation reset，放手後重新由頭播一次。
+     底部 nav bar (.bottom-nav-bar) 內所有元素唔出光暈，保留原樣 */
   button:focus,
   [role="button"]:focus,
   [role="tab"]:focus,
@@ -233,6 +234,13 @@
   [role="option"]:active,
   a:active {
     animation: none;
+  }
+  /* 底部 nav bar：完全唔要 focus 光暈 */
+  .bottom-nav-bar :focus,
+  .bottom-nav-bar :focus-visible,
+  .bottom-nav-bar :active {
+    box-shadow: none !important;
+    animation: none !important;
   }
   @keyframes btn-glow-fade {
     to {
