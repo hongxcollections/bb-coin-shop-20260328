@@ -575,3 +575,56 @@ export const auctionChatMessageReactions = mysqlTable("auctionChatMessageReactio
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type AuctionChatMessageReaction = typeof auctionChatMessageReactions.$inferSelect;
+
+/**
+ * 收藏品分享社區（藏品廣場）— Phase 1
+ */
+export const collectionPosts = mysqlTable("collectionPosts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body"),
+  intent: mysqlEnum("intent", ["display", "seek_value", "for_sale"]).default("display").notNull(),
+  tagsJson: text("tagsJson"),
+  isHidden: int("isHidden").default(0).notNull(),
+  isFlagged: int("isFlagged").default(0).notNull(),
+  flagReason: varchar("flagReason", { length: 500 }),
+  likeCount: int("likeCount").default(0).notNull(),
+  commentCount: int("commentCount").default(0).notNull(),
+  viewCount: int("viewCount").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CollectionPost = typeof collectionPosts.$inferSelect;
+
+export const collectionPostImages = mysqlTable("collectionPostImages", {
+  id: int("id").autoincrement().primaryKey(),
+  postId: int("postId").notNull(),
+  imageUrl: text("imageUrl").notNull(),
+  displayOrder: int("displayOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const collectionPostLikes = mysqlTable("collectionPostLikes", {
+  id: int("id").autoincrement().primaryKey(),
+  postId: int("postId").notNull(),
+  userId: int("userId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const collectionPostComments = mysqlTable("collectionPostComments", {
+  id: int("id").autoincrement().primaryKey(),
+  postId: int("postId").notNull(),
+  userId: int("userId").notNull(),
+  content: text("content").notNull(),
+  isHidden: int("isHidden").default(0).notNull(),
+  isFlagged: int("isFlagged").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const collectionPostSaves = mysqlTable("collectionPostSaves", {
+  id: int("id").autoincrement().primaryKey(),
+  postId: int("postId").notNull(),
+  userId: int("userId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});

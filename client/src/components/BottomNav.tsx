@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Link, useLocation } from "wouter";
-import { Home, Gavel, Store, User, MoreHorizontal, MessageCircle, Shield, LogOut, ShoppingBag, LayoutDashboard, BookOpen, TrendingUp, Mail } from "lucide-react";
+import { Home, Gavel, Store, User, MoreHorizontal, MessageCircle, Shield, LogOut, ShoppingBag, LayoutDashboard, BookOpen, TrendingUp, Mail, Sparkles } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/contexts/ToastContext";
 import { trpc } from "@/lib/trpc";
@@ -242,6 +242,14 @@ export default function BottomNav() {
                               <span>管理後台</span>
                             </Link>
                           )}
+                          <Link
+                            href="/collection-square"
+                            onClick={() => setShowMore(false)}
+                            className="bottom-nav-more-item"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            <span>藏品廣場</span>
+                          </Link>
                           <Link
                             href="/bid-history"
                             onClick={() => setShowMore(false)}

@@ -660,6 +660,69 @@ async function bootstrapMissingColumns() {
   // favorites: 我的收藏
   await addIndex('idx_favorites_userId', 'CREATE INDEX `idx_favorites_userId` ON `favorites` (`userId`)');
 
+  // ── 收藏品分享社區（藏品廣場）— Phase 1 表 ──────────────────────────────────
+  await alter(`CREATE TABLE IF NOT EXISTS \`collectionPosts\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`userId\` int NOT NULL,
+    \`title\` varchar(255) NOT NULL,
+    \`body\` text,
+    \`intent\` enum('display','seek_value','for_sale') NOT NULL DEFAULT 'display',
+    \`tagsJson\` text,
+    \`isHidden\` int NOT NULL DEFAULT 0,
+    \`isFlagged\` int NOT NULL DEFAULT 0,
+    \`flagReason\` varchar(500) NULL,
+    \`likeCount\` int NOT NULL DEFAULT 0,
+    \`commentCount\` int NOT NULL DEFAULT 0,
+    \`viewCount\` int NOT NULL DEFAULT 0,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT \`collectionPosts_id\` PRIMARY KEY(\`id\`)
+  )`, 'Ensured collectionPosts table');
+
+  await alter(`CREATE TABLE IF NOT EXISTS \`collectionPostImages\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`postId\` int NOT NULL,
+    \`imageUrl\` text NOT NULL,
+    \`displayOrder\` int NOT NULL DEFAULT 0,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    CONSTRAINT \`collectionPostImages_id\` PRIMARY KEY(\`id\`)
+  )`, 'Ensured collectionPostImages table');
+
+  await alter(`CREATE TABLE IF NOT EXISTS \`collectionPostLikes\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`postId\` int NOT NULL,
+    \`userId\` int NOT NULL,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    CONSTRAINT \`collectionPostLikes_id\` PRIMARY KEY(\`id\`),
+    UNIQUE KEY \`uniq_post_user_like\` (\`postId\`, \`userId\`)
+  )`, 'Ensured collectionPostLikes table');
+
+  await alter(`CREATE TABLE IF NOT EXISTS \`collectionPostComments\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`postId\` int NOT NULL,
+    \`userId\` int NOT NULL,
+    \`content\` text NOT NULL,
+    \`isHidden\` int NOT NULL DEFAULT 0,
+    \`isFlagged\` int NOT NULL DEFAULT 0,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    CONSTRAINT \`collectionPostComments_id\` PRIMARY KEY(\`id\`)
+  )`, 'Ensured collectionPostComments table');
+
+  await alter(`CREATE TABLE IF NOT EXISTS \`collectionPostSaves\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`postId\` int NOT NULL,
+    \`userId\` int NOT NULL,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    CONSTRAINT \`collectionPostSaves_id\` PRIMARY KEY(\`id\`),
+    UNIQUE KEY \`uniq_post_user_save\` (\`postId\`, \`userId\`)
+  )`, 'Ensured collectionPostSaves table');
+
+  await addIndex('idx_collectionPosts_intent', 'CREATE INDEX `idx_collectionPosts_intent` ON `collectionPosts` (`intent`)');
+  await addIndex('idx_collectionPosts_userId', 'CREATE INDEX `idx_collectionPosts_userId` ON `collectionPosts` (`userId`)');
+  await addIndex('idx_collectionPosts_hidden', 'CREATE INDEX `idx_collectionPosts_hidden` ON `collectionPosts` (`isHidden`)');
+  await addIndex('idx_collectionPostComments_postId', 'CREATE INDEX `idx_collectionPostComments_postId` ON `collectionPostComments` (`postId`)');
+  await addIndex('idx_collectionPostImages_postId', 'CREATE INDEX `idx_collectionPostImages_postId` ON `collectionPostImages` (`postId`)');
+
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
 }

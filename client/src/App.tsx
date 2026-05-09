@@ -38,6 +38,9 @@ import AdminLoyalty from "./pages/AdminLoyalty";
 import SubscriptionPlans from "./pages/SubscriptionPlans";
 import Login from "./pages/Login";
 import Favorites from "./pages/Favorites";
+import CollectionSquare from "./pages/CollectionSquare";
+import CollectionPostNew from "./pages/CollectionPostNew";
+import CollectionPostDetail from "./pages/CollectionPostDetail";
 import MemberBenefits from "./pages/MemberBenefits";
 import WebhookSetup from "./pages/WebhookSetup";
 import Privacy from "./pages/Privacy";
@@ -168,6 +171,9 @@ function Router() {
       <Route path={"/admin/dashboard"} component={AdminDashboard} />
       <Route path={"/admin/export-bids"} component={AdminExportBids} />
       <Route path={"/favorites"} component={Favorites} />
+      <Route path={"/collection-square"} component={CollectionSquare} />
+      <Route path={"/collection-square/new"} component={CollectionPostNew} />
+      <Route path={"/collection-square/:id"} component={CollectionPostDetail} />
       <Route path={"/member-benefits"} component={MemberBenefits} />
       <Route path={"/admin/webhook-setup"} component={WebhookSetup} />
       <Route path={"/admin/settings"} component={AdminSiteSettings} />

@@ -13,6 +13,21 @@ import { eq, sql } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
 import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, approveOnboardingApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, computeTierSwitchDiff, requestTierChange, listMyTierChangeRequests, listAllTierChangeRequests, reviewTierChangeRequest, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, requestCancelProductOrder, withdrawCancelRequest, respondCancelRequest, deleteBuyerOrder, deleteMerchantOrder, getHiddenProductOrdersByBuyer, getHiddenProductOrdersByMerchant, restoreBuyerOrder, restoreMerchantOrder, countHiddenProductOrdersByBuyer, countHiddenProductOrdersByMerchant, assertBuyerNotLockedFromMerchant, getBuyerLockFromMerchant, setMerchantFailureLock, getMerchantAuctionOrders, confirmMerchantAuctionOrder, cancelMerchantAuctionOrder, countPendingMerchantAuctionOrders, countMerchantAuctionOrdersByStatus, countMerchantProductOrdersByStatus, countBuyerPendingWonAuctions, countBuyerAcceptedOffers, cancelBuyerOffer, hideBuyerOffer, hideMerchantOffer, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS, toggleMessageReaction, listReactionsForRoom, listReactionsForMessage, upsertChatAutoReply, getLastMerchantOrAutoReplyAt, searchChatMessagesInRoom, searchChatMessagesAcrossMyRooms, setMerchantOffersEnabled, setMerchantOfferLimits, createProductOffer, countRecentBuyerOffersForProduct, getProductOfferById, getActiveBuyerOfferForProduct, listOffersForBuyer, listOffersForMerchant, countPendingOffersForMerchant, respondProductOffer, markOfferPurchased, claimAcceptedOffer, releaseClaimedOffer, getUserMemberLevel } from "./db";
 import { storagePut, storageSignPut } from "./storage";
+import {
+  createCollectionPost,
+  listCollectionPosts,
+  getCollectionPostDetail,
+  listCollectionPostComments,
+  addCollectionPostComment,
+  deleteCollectionPostComment,
+  toggleCollectionPostLike,
+  toggleCollectionPostSave,
+  deleteCollectionPost,
+  adminSetPostHidden,
+  adminListFlaggedPosts,
+  adminCountFlagged,
+  checkForbidden,
+} from "./community";
 import { applyWatermark } from "./watermark";
 import { getRawPool } from "./db";
 import { TRPCError } from "@trpc/server";
@@ -6642,6 +6657,167 @@ ${kb}`;
           `);
         }
         return { orderId };
+      }),
+  }),
+
+  // ── 收藏品分享社區（藏品廣場）— Phase 1 ──────────────────────────────
+  community: router({
+    list: publicProcedure
+      .input(z.object({
+        intent: z.enum(["all", "display", "seek_value", "for_sale"]).default("all"),
+        sort: z.enum(["latest", "hot"]).default("latest"),
+        search: z.string().optional(),
+        cursor: z.number().int().optional(),
+        limit: z.number().int().min(1).max(50).default(20),
+        authorId: z.number().int().positive().optional(),
+      }))
+      .query(async ({ input, ctx }) => {
+        const viewerIsAdmin = ctx.user?.role === "admin";
+        return listCollectionPosts({
+          intent: input.intent,
+          sort: input.sort,
+          search: input.search,
+          cursor: input.cursor,
+          limit: input.limit,
+          viewerIsAdmin,
+          viewerUserId: ctx.user?.id ?? null,
+          authorId: input.authorId,
+        });
+      }),
+
+    get: publicProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        const viewerIsAdmin = ctx.user?.role === "admin";
+        const post = await getCollectionPostDetail(input.id, ctx.user?.id ?? null, viewerIsAdmin);
+        if (!post) throw new TRPCError({ code: "NOT_FOUND", message: "帖文不存在或已被隱藏" });
+        return post;
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        title: z.string().min(2).max(255),
+        body: z.string().max(5000).optional().default(""),
+        intent: z.enum(["display", "seek_value", "for_sale"]).default("display"),
+        tags: z.array(z.string().max(40)).max(10).default([]),
+        imageUrls: z.array(z.string().url()).max(9).default([]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.isBanned) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "帳戶已停權，無法發布" });
+        }
+        const cleanTitle = sanitizeUserText(input.title).trim();
+        const cleanBody = sanitizeUserText(input.body || "").trim();
+        const cleanTags = (input.tags || []).map((t) => sanitizeUserText(t).trim()).filter(Boolean);
+        const result = await createCollectionPost({
+          userId: ctx.user.id,
+          title: cleanTitle,
+          body: cleanBody,
+          intent: input.intent,
+          tags: cleanTags,
+          imageUrls: input.imageUrls,
+        });
+        return result;
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const ok = await deleteCollectionPost(input.id, ctx.user.id, ctx.user.role === "admin");
+        if (!ok) throw new TRPCError({ code: "FORBIDDEN", message: "無權刪除" });
+        return { ok: true };
+      }),
+
+    listComments: publicProcedure
+      .input(z.object({ postId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        return listCollectionPostComments(input.postId, ctx.user?.role === "admin");
+      }),
+
+    addComment: protectedProcedure
+      .input(z.object({
+        postId: z.number().int().positive(),
+        content: z.string().min(1).max(1000),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.isBanned) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "帳戶已停權，無法留言" });
+        }
+        const cleaned = sanitizeUserText(input.content).trim();
+        if (!cleaned) throw new TRPCError({ code: "BAD_REQUEST", message: "留言內容不可為空" });
+        return addCollectionPostComment(input.postId, ctx.user.id, cleaned);
+      }),
+
+    deleteComment: protectedProcedure
+      .input(z.object({ commentId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const ok = await deleteCollectionPostComment(input.commentId, ctx.user.id, ctx.user.role === "admin");
+        if (!ok) throw new TRPCError({ code: "FORBIDDEN", message: "無權刪除" });
+        return { ok: true };
+      }),
+
+    toggleLike: protectedProcedure
+      .input(z.object({ postId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        return toggleCollectionPostLike(input.postId, ctx.user.id);
+      }),
+
+    toggleSave: protectedProcedure
+      .input(z.object({ postId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        return toggleCollectionPostSave(input.postId, ctx.user.id);
+      }),
+
+    // 上傳圖片（任何已登入會員，base64 上載）
+    uploadImage: protectedProcedure
+      .input(z.object({
+        imageData: z.string(),
+        fileName: z.string(),
+        mimeType: z.string().default("image/jpeg"),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const allowedMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif", "image/gif"];
+        const mime = (input.mimeType || "image/jpeg").toLowerCase();
+        if (!allowedMimes.includes(mime)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: `不支援此圖片格式（${mime}）` });
+        }
+        const buffer = Buffer.from(input.imageData, "base64");
+        if (buffer.length > 8 * 1024 * 1024) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "圖片不可超過 8MB" });
+        }
+        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
+        const key = `community/${ctx.user.id}/${Date.now()}-${safeName}`;
+        const { url } = await storagePut(key, buffer, mime);
+        return { url };
+      }),
+
+    // ── Admin endpoints ──
+    adminListFlagged: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        return adminListFlaggedPosts();
+      }),
+
+    adminCountFlagged: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") return { count: 0 };
+        return { count: await adminCountFlagged() };
+      }),
+
+    adminSetHidden: protectedProcedure
+      .input(z.object({ postId: z.number().int().positive(), hidden: z.boolean() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        await adminSetPostHidden(input.postId, input.hidden);
+        return { ok: true };
+      }),
+
+    // 預先 lint 內文，幫前端先警告（可選）
+    lintContent: publicProcedure
+      .input(z.object({ text: z.string().max(6000) }))
+      .query(async ({ input }) => {
+        const r = checkForbidden(input.text);
+        return r;
       }),
   }),
 });
