@@ -224,7 +224,7 @@
     box-shadow:
       0 0 12px 2px color-mix(in oklch, var(--ring) 50%, transparent),
       0 0 28px 7px color-mix(in oklch, var(--ring) 30%, transparent);
-    animation: btn-glow-fade 0.5s ease-out 1.5s forwards;
+    animation: btn-glow-fade 0.3s ease-out 0.7s forwards;
   }
   button:active,
   [role="button"]:active,
