@@ -204,7 +204,7 @@ export default function Auctions() {
       <Header />
 
       {/* ── 拍賣 Hero（淺金黃漸變，與藏家天地 sky hero 同款風格）── */}
-      <div className="bg-gradient-to-br from-amber-100 via-yellow-100 to-amber-50 border-b border-amber-200/60">
+      <div className="bg-gradient-to-br from-amber-300/80 via-yellow-300/80 to-amber-200/80 border-b border-amber-400/60">
         <div className="max-w-5xl mx-auto px-4 pt-6 pb-7 relative overflow-hidden">
           <div className="absolute -right-12 -top-12 w-48 h-48 bg-amber-300/30 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -left-10 bottom-0 w-32 h-32 bg-yellow-200/40 rounded-full blur-2xl pointer-events-none" />
