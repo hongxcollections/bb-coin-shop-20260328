@@ -7,13 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/contexts/ToastContext";
-import { ChevronLeft, X, Loader2, AlertTriangle } from "lucide-react";
-
-const INTENTS: { key: "display" | "seek_value" | "for_sale"; label: string; desc: string }[] = [
-  { key: "display", label: "純展示", desc: "純粹分享心愛收藏，唔需要估價或出讓" },
-  { key: "seek_value", label: "求估價 / 求教", desc: "想聽其他藏家或商戶意見、估值、辨偽" },
-  { key: "for_sale", label: "想出讓", desc: "希望搵買家。注意：唔可以寫價格／聯絡方式，會被自動隱藏" },
-];
+import { ChevronLeft, X, Loader2, AlertTriangle, Sparkles } from "lucide-react";
 
 export default function CollectionPostNew() {
   const { user, isAuthenticated, loading } = useAuth();
@@ -23,7 +17,7 @@ export default function CollectionPostNew() {
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [intent, setIntent] = useState<"display" | "seek_value" | "for_sale">("display");
+  const intent: "display" = "display";
   const [tagsInput, setTagsInput] = useState("");
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -128,17 +122,26 @@ export default function CollectionPostNew() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-white pb-24">
       <Header />
-      <div className="max-w-2xl mx-auto p-4">
-        <button onClick={() => navigate("/collection-square")} className="flex items-center text-sm text-gray-600 mb-4 hover:text-gray-900">
-          <ChevronLeft className="w-4 h-4" /> 返回藏品社區
-        </button>
+      <div className="bg-gradient-to-br from-sky-400 via-sky-500 to-cyan-500 text-white">
+        <div className="max-w-2xl mx-auto px-4 pt-6 pb-8">
+          <button
+            onClick={() => navigate("/collection-square")}
+            className="flex items-center text-sm text-white/90 mb-4 hover:text-white"
+          >
+            <ChevronLeft className="w-4 h-4" /> 返回藏品社區
+          </button>
+          <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur px-2.5 py-1 rounded-full text-xs font-medium mb-2">
+            <Sparkles className="w-3.5 h-3.5" /> 發布收藏
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold">分享你嘅藏品</h1>
+          <p className="text-sm text-sky-50/95 mt-1.5">講下年代、來源、品相，等同道中人睇到 · 請勿留價格／聯絡方式</p>
+        </div>
+      </div>
 
-        <h1 className="text-2xl font-bold mb-1">發布收藏品</h1>
-        <p className="text-sm text-gray-500 mb-6">分享心愛收藏 · 唔可以填寫價格／聯絡方式（會被自動隱藏）</p>
-
-        <div className="bg-white rounded-lg border p-4 space-y-5">
+      <div className="max-w-2xl mx-auto p-4 -mt-4 relative">
+        <div className="bg-white rounded-2xl shadow-lg border border-sky-100 p-5 space-y-5">
           {/* 圖片 */}
           <div>
             <label className="block text-sm font-medium mb-2">圖片（最多 9 張，每張 ≤ 8MB）</label>
@@ -189,32 +192,6 @@ export default function CollectionPostNew() {
             <Input value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} placeholder="清朝 銅錢 樣幣" />
           </div>
 
-          {/* Intent */}
-          <div>
-            <label className="block text-sm font-medium mb-2">發帖意圖</label>
-            <div className="space-y-2">
-              {INTENTS.map((opt) => (
-                <label
-                  key={opt.key}
-                  className={`flex items-start gap-3 p-3 border rounded cursor-pointer transition ${
-                    intent === opt.key ? "border-amber-400 bg-amber-50" : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    checked={intent === opt.key}
-                    onChange={() => setIntent(opt.key)}
-                    className="mt-1"
-                  />
-                  <div>
-                    <div className="font-medium text-sm">{opt.label}</div>
-                    <div className="text-xs text-gray-500">{opt.desc}</div>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
           {/* Lint warning */}
           {lintQuery.data?.flagged && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded flex gap-2">
@@ -226,7 +203,12 @@ export default function CollectionPostNew() {
             </div>
           )}
 
-          <Button onClick={submit} disabled={submitting || uploading} className="w-full bg-amber-500 hover:bg-amber-600 text-white">
+          <Button
+            onClick={submit}
+            disabled={submitting || uploading}
+            size="lg"
+            className="w-full bg-sky-500 hover:bg-sky-600 text-white shadow-md font-semibold"
+          >
             {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
             發布
           </Button>
