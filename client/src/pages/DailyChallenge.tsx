@@ -96,7 +96,7 @@ export default function DailyChallenge() {
         {/* 返回連結 */}
         <Link href="/collection-square">
           <a className="inline-flex items-center gap-1 text-sm text-amber-700 hover:text-amber-900 mb-3 transition-colors">
-            <ChevronLeft className="w-4 h-4" /> 返回藏家天地
+            <ChevronLeft className="w-4 h-4" /> 返回藏品社區
           </a>
         </Link>
         {/* Hero */}
