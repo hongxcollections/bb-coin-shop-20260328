@@ -132,7 +132,7 @@ export default function CollectionPostNew() {
       <Header />
       <div className="max-w-2xl mx-auto p-4">
         <button onClick={() => navigate("/collection-square")} className="flex items-center text-sm text-gray-600 mb-4 hover:text-gray-900">
-          <ChevronLeft className="w-4 h-4" /> 返回藏品廣場
+          <ChevronLeft className="w-4 h-4" /> 返回藏品社區
         </button>
 
         <h1 className="text-2xl font-bold mb-1">發布收藏品</h1>

@@ -42,7 +42,7 @@ export default function CollectionSquare() {
       <div className="max-w-5xl mx-auto px-4 pt-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">藏品廣場</h1>
+            <h1 className="text-2xl font-bold text-gray-900">藏品社區</h1>
             <p className="text-sm text-gray-500 mt-1">分享你嘅收藏 · 求教估價 · 想出讓嘅可申請開通商戶</p>
           </div>
           <Button
