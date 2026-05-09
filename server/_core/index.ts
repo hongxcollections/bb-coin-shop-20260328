@@ -1486,7 +1486,7 @@ Output ONLY the JSON, nothing else.`;
         const lastmod = p.updatedAt
           ? new Date(p.updatedAt).toISOString().split('T')[0]
           : (p.createdAt ? new Date(p.createdAt).toISOString().split('T')[0] : now);
-        return toEntry(`${base}/merchants?product=${p.id}`, lastmod, 'weekly', '0.6');
+        return toEntry(`${base}/merchant-products/${p.id}`, lastmod, 'weekly', '0.6');
       });
 
       const collectionEntries = collectionPostsRows.map((c) => {
