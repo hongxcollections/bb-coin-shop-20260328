@@ -1166,11 +1166,11 @@ export default function Home() {
       {/* Navigation */}
       <Header />
 
-      {/* ── 商品拍賣主頁 Hero（淺橙漸變）── */}
-      <div className="bg-gradient-to-br from-orange-300 via-orange-200 to-orange-100 border-b border-orange-300/60">
+      {/* ── 商品拍賣主頁 Hero（深橙垂直漸變：頂部深 → 底部淺，無底線）── */}
+      <div className="bg-gradient-to-b from-orange-500 via-orange-300 to-orange-100">
         <div className="max-w-5xl mx-auto px-4 pt-6 pb-7 relative overflow-hidden">
-          <div className="absolute -right-12 -top-12 w-48 h-48 bg-orange-300/50 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -left-10 bottom-0 w-32 h-32 bg-orange-200/60 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -right-12 -top-12 w-48 h-48 bg-orange-400/40 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -left-10 bottom-0 w-32 h-32 bg-orange-300/50 rounded-full blur-2xl pointer-events-none" />
           <div className="relative flex items-center justify-between gap-4">
             <div className="min-w-0">
               <div className="inline-flex items-center gap-1.5 bg-white/70 backdrop-blur text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold mb-2 shadow-sm">

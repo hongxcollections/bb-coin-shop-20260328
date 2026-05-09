@@ -204,7 +204,7 @@ export default function Auctions() {
       <Header />
 
       {/* ── 拍賣 Hero（深重黃金漸變：頂部深 → 底部淺）── */}
-      <div className="bg-gradient-to-b from-amber-500 via-amber-300 to-amber-100 border-b border-amber-400/60 pb-10">
+      <div className="bg-gradient-to-b from-amber-500 via-amber-300 to-amber-100 border-b border-amber-400/60 pb-6">
         <div className="max-w-5xl mx-auto px-4 pt-6 pb-7 relative">
           <div className="absolute -right-12 -top-12 w-48 h-48 bg-amber-400/40 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -left-10 -bottom-4 w-32 h-32 bg-yellow-300/40 rounded-full blur-2xl pointer-events-none" />
@@ -221,7 +221,7 @@ export default function Auctions() {
             <p className="text-xs md:text-sm text-amber-900/80 mt-1.5">精選錢幣 · 公開競投 · 安心交易</p>
 
             {/* ── 統計格搬入 hero：副題下方，負 margin 凸出 hero 底部分隔線 ── */}
-            <div className="grid grid-cols-3 gap-2 mt-3 max-w-md relative z-10 -mb-14">
+            <div className="grid grid-cols-3 gap-2 mt-3 max-w-md relative z-10 -mb-10">
               {(() => {
                 const activeCount = (auctions ?? []).filter(a => a.status === 'active' && new Date(a.endTime).getTime() > Date.now()).length;
                 const endedCount = (auctions ?? []).filter(a => a.status === 'ended' || new Date(a.endTime).getTime() <= Date.now()).length;
@@ -245,7 +245,7 @@ export default function Auctions() {
         </div>
       </div>
 
-      <div className="container pt-10 pb-3">
+      <div className="container pt-6 pb-3">
         {/* ── 未登入用戶引導橫幅 ── */}
         {!isAuthenticated && (
           <div className="mb-3">
