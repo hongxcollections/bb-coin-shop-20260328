@@ -212,7 +212,8 @@
       0 0 12px 2px color-mix(in oklch, var(--glow) 50%, transparent),
       0 0 28px 7px color-mix(in oklch, var(--glow) 30%, transparent);
   }
-  /* Button / tab / menu / link 類：focus 即出光暈（同 input 一樣），1.5 秒後 0.5 秒 fade 走 */
+  /* Button / tab / menu / link 類：focus 即出光暈，1.5 秒後 0.5 秒 fade 走；
+     重複撳同一個掣時，:active 會將 animation reset，放手後重新由頭播一次 */
   button:focus,
   [role="button"]:focus,
   [role="tab"]:focus,
@@ -224,6 +225,14 @@
       0 0 12px 2px color-mix(in oklch, var(--ring) 50%, transparent),
       0 0 28px 7px color-mix(in oklch, var(--ring) 30%, transparent);
     animation: btn-glow-fade 0.5s ease-out 1.5s forwards;
+  }
+  button:active,
+  [role="button"]:active,
+  [role="tab"]:active,
+  [role="menuitem"]:active,
+  [role="option"]:active,
+  a:active {
+    animation: none;
   }
   @keyframes btn-glow-fade {
     to {
