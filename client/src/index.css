@@ -203,7 +203,9 @@
   .focus-glow:focus-visible,
   input:focus-visible,
   textarea:focus-visible,
-  select:focus-visible {
+  select:focus-visible,
+  button:focus-visible,
+  [role="button"]:focus-visible {
     --glow: var(--ring);
     outline: none;
     border-color: var(--glow);
