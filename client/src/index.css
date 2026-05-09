@@ -200,10 +200,19 @@
   .focus-glow {
     --glow: var(--ring);
   }
+  /* Input 類：持續光暈直至 blur */
   .focus-glow:focus,
   input:focus,
   textarea:focus,
-  select:focus,
+  select:focus {
+    --glow: var(--ring);
+    outline: none;
+    border-color: var(--glow);
+    box-shadow:
+      0 0 12px 2px color-mix(in oklch, var(--glow) 50%, transparent),
+      0 0 28px 7px color-mix(in oklch, var(--glow) 30%, transparent);
+  }
+  /* Button / tab / menu / link 類：focus 後 2 秒自動 fade out */
   button:focus,
   [role="button"]:focus,
   [role="tab"]:focus,
@@ -212,10 +221,17 @@
   a:focus {
     --glow: var(--ring);
     outline: none;
-    border-color: var(--glow);
-    box-shadow:
-      0 0 12px 2px color-mix(in oklch, var(--glow) 50%, transparent),
-      0 0 28px 7px color-mix(in oklch, var(--glow) 30%, transparent);
+    animation: btn-glow-fade 2000ms ease-out forwards;
+  }
+  @keyframes btn-glow-fade {
+    0% {
+      box-shadow:
+        0 0 12px 2px color-mix(in oklch, var(--glow) 50%, transparent),
+        0 0 28px 7px color-mix(in oklch, var(--glow) 30%, transparent);
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
   }
 }
 
