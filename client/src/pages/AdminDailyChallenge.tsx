@@ -228,7 +228,7 @@ export default function AdminDailyChallenge() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Calendar className="w-6 h-6 text-amber-600" /> 每日一幣挑戰
+              <Calendar className="w-6 h-6 text-amber-600" /> 每日一藏品挑戰
             </h1>
             <p className="text-sm text-muted-foreground mt-1">每日凌晨 00:00（HK）發佈新挑戰，用戶估國家／年代／種類，前 3 名得勳章。</p>
           </div>
@@ -281,7 +281,7 @@ export default function AdminDailyChallenge() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{form.id ? "編輯挑戰" : "新增每日挑戰"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{form.id ? "編輯挑戰" : "新增每日一藏品挑戰"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             {/* AI 一鍵生成建議（新建模式先顯示） */}
             {!form.id && (

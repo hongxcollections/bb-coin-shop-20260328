@@ -97,7 +97,7 @@ export default function DailyChallenge() {
         <div className="rounded-2xl bg-gradient-to-b from-amber-500 via-orange-400 to-orange-200 p-6 md:p-8 mb-6 shadow-lg">
           <div className="flex items-center gap-2 text-white/90 text-sm">
             <Sparkles className="w-4 h-4" />
-            <span>每日一幣挑戰</span>
+            <span className="whitespace-nowrap">每日一藏品挑戰</span>
             {today?.hkDate && <span className="opacity-70">· {today.hkDate}</span>}
           </div>
           <h1 className="text-2xl md:text-3xl font-bold text-white mt-2 drop-shadow">

@@ -7041,51 +7041,97 @@ ${kb}`;
           .map((r: any) => `${r.answerCountry}/${r.answerYear}/${r.answerCategory}`)
           .join("、") || "（暫無）";
 
-        const systemPrompt = `你係「hongxcollections」嘅錢幣挑戰出題助手。任務係為「每日一幣挑戰」生成 3 條候選題目。
-每條題目包含：
-- country: 國家名稱（必須喺以下選項：${CHALLENGE_COUNTRIES.join("/")}）
-- year: 真實存在嘅西元年份（整數，1700-2025 之間嘅錢幣／紙幣為主）
-- yearTolerance: 年份容差（一般 3-10）
-- category: 種類（必須喺以下選項：${CHALLENGE_CATEGORIES.join("/")}）
-- hint: 一句簡短提示（≤30 字，例如「呢張紙幣有龍紋」「呢個錢幣係某朝代發行」），唔可以直接劇透答案
-- description: 50-120 字嘅背景介紹（粵語口語），講呢個錢幣／紙幣嘅歷史、特徵、收藏價值
-- titleHint: 一句俾 admin 自己睇嘅描述（≤20 字，例如「1898 香港 5 仙銀幣」）
+        const systemPrompt = `You are a coin/banknote challenge generator for "hongxcollections" website. Generate 3 candidate quiz questions for the daily collectible challenge.
 
-要求：
-1. 3 條題目要有差異（唔同國家、唔同年代、唔同種類，盡量分散）
-2. 必須係真實歷史上有發行嘅錢幣／紙幣，唔好作料
-3. 避免同最近出過嘅題目重複（最近題目：${recentList}）
-4. 直接輸出 JSON array，唔好包 markdown code fence、唔好加前言
+OUTPUT FORMAT: ONLY a valid JSON array (no markdown, no code fences, no prose, no explanation). Start with [ and end with ]. Each item must have these exact keys:
+- country: string, MUST be one of: ${CHALLENGE_COUNTRIES.join(" | ")}
+- year: integer (1700-2025 range, real historical coin/banknote year)
+- yearTolerance: integer (3-10)
+- category: string, MUST be one of: ${CHALLENGE_CATEGORIES.join(" | ")}
+- hint: short Cantonese hint, ≤30 chars, do NOT reveal answer directly
+- description: Cantonese background story 50-120 chars
+- titleHint: short Cantonese title for admin reference, ≤20 chars
 
-格式範例：
-[
-  {"country":"香港","year":1898,"yearTolerance":5,"category":"銀幣","hint":"維多利亞女皇頭像","description":"...","titleHint":"1898 香港 5 仙銀幣"},
-  ...
-]`;
+REQUIREMENTS:
+1. 3 items must differ in country, year, and category (diversify)
+2. Must be REAL historical coins/banknotes (no fabrication)
+3. Avoid recent questions: ${recentList}
+4. RETURN ONLY THE JSON ARRAY. NO markdown fences. NO prose before or after.
 
-        try {
-          const result = await invokeLLMSafe({
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: "請生成 3 條題目。" },
-            ],
-            maxTokens: 1500,
-          });
-          const content = result.choices?.[0]?.message?.content;
-          let text = typeof content === "string" ? content : Array.isArray(content) ? content.map((c: any) => c.text || "").join("") : "";
-          text = text.trim();
-          // strip markdown code fences if present
-          text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-          // try to extract first [ ... ] block
-          const m = text.match(/\[[\s\S]*\]/);
-          if (m) text = m[0];
-          let arr: any;
+EXAMPLE OUTPUT (exact format):
+[{"country":"香港","year":1898,"yearTolerance":5,"category":"銀幣","hint":"維多利亞女皇頭像","description":"呢個係香港早期英治時代嘅 5 仙銀幣，正面有維多利亞女皇頭像，收藏價值高。","titleHint":"1898 香港 5 仙銀幣"},{"country":"中國","year":1912,"yearTolerance":3,"category":"銀幣","hint":"開國紀念幣","description":"中華民國開國紀念銀幣，正面孫中山先生頭像，背面嘉禾圖案。","titleHint":"1912 民國開國紀念幣"},{"country":"英國","year":1953,"yearTolerance":5,"category":"流通幣","hint":"伊利沙伯二世登基年","description":"英女皇伊利沙伯二世登基當年發行嘅流通硬幣，極具紀念意義。","titleHint":"1953 英國伊利沙伯二世硬幣"}]`;
+
+        // helper：盡量 robust 抽 JSON array
+        function tryParseSuggestions(raw: string): any[] | null {
+          if (!raw) return null;
+          let t = raw.trim();
+          // 剝走所有 markdown code fences
+          t = t.replace(/```(?:json|JSON)?\s*/g, "").replace(/```/g, "").trim();
+          // 嘗試 1：直接 parse
           try {
-            arr = JSON.parse(text);
-          } catch {
-            throw new Error("AI 回覆無法解析為 JSON");
+            const j = JSON.parse(t);
+            if (Array.isArray(j)) return j;
+            if (j && Array.isArray(j.suggestions)) return j.suggestions;
+            if (j && Array.isArray(j.data)) return j.data;
+            if (j && Array.isArray(j.items)) return j.items;
+            // 單個 object → wrap
+            if (j && typeof j === "object" && j.country) return [j];
+          } catch {}
+          // 嘗試 2：抽第一個 [ ... ] block（greedy）
+          const arrMatch = t.match(/\[[\s\S]*\]/);
+          if (arrMatch) {
+            try {
+              const j = JSON.parse(arrMatch[0]);
+              if (Array.isArray(j)) return j;
+            } catch {}
           }
-          if (!Array.isArray(arr)) throw new Error("AI 回覆唔係 array");
+          // 嘗試 3：抽所有 { ... } object，逐個 parse 砌返 array
+          const objMatches = t.match(/\{[^{}]*\}/g);
+          if (objMatches && objMatches.length > 0) {
+            const parsed: any[] = [];
+            for (const om of objMatches) {
+              try {
+                const o = JSON.parse(om);
+                if (o && typeof o === "object" && o.country) parsed.push(o);
+              } catch {}
+            }
+            if (parsed.length > 0) return parsed;
+          }
+          return null;
+        }
+
+        let arr: any[] | null = null;
+        let lastRaw = "";
+        let lastErr = "";
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const result = await invokeLLMSafe({
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: attempt === 0
+                  ? "Generate 3 challenge items now. Output ONLY the JSON array, nothing else."
+                  : "Your previous response was not valid JSON. Output ONLY a JSON array starting with [ and ending with ], no markdown, no explanation. Generate 3 items now." },
+              ],
+              maxTokens: 1500,
+            });
+            const content = result.choices?.[0]?.message?.content;
+            const text = typeof content === "string" ? content : Array.isArray(content) ? content.map((c: any) => c.text || "").join("") : "";
+            lastRaw = text;
+            const parsed = tryParseSuggestions(text);
+            if (parsed && parsed.length > 0) {
+              arr = parsed;
+              break;
+            }
+            lastErr = "回覆內容無法擷取 JSON";
+          } catch (e: any) {
+            lastErr = e?.message || String(e);
+          }
+        }
+        try {
+          if (!arr) {
+            console.warn("[dailyChallenge] AI suggestions parse failed. Raw:", lastRaw.slice(0, 500));
+            throw new Error(lastErr || "AI 回覆無法解析為 JSON");
+          }
           const suggestions = arr.slice(0, 3).map((it: any) => {
             const country = CHALLENGE_COUNTRIES.includes(it.country) ? it.country : "其他";
             const category = CHALLENGE_CATEGORIES.includes(it.category) ? it.category : "其他";

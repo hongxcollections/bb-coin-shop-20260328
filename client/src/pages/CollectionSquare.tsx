@@ -87,8 +87,9 @@ export default function CollectionSquare() {
                   </div>
                 )}
                 <div className="flex-1 min-w-0 text-white">
-                  <div className="flex items-center gap-1.5 text-[11px] md:text-xs font-medium opacity-95">
-                    <Trophy className="w-3.5 h-3.5" /> 每日一幣挑戰
+                  <div className="flex items-center gap-1.5 text-[11px] md:text-xs font-medium opacity-95 whitespace-nowrap">
+                    <Trophy className="w-3.5 h-3.5 shrink-0" />
+                    <span>每日一藏品挑戰</span>
                     {challengeToday?.hkDate && <span className="opacity-80">· {challengeToday.hkDate}</span>}
                   </div>
                   <div className="font-bold text-base md:text-lg mt-0.5 truncate drop-shadow-sm">
