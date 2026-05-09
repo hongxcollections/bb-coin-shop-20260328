@@ -211,6 +211,21 @@
       0 0 12px 2px color-mix(in oklch, var(--glow) 50%, transparent),
       0 0 28px 7px color-mix(in oklch, var(--glow) 30%, transparent);
   }
+  button:focus,
+  a:focus {
+    --glow: var(--ring);
+    animation: btn-glow-fade 1500ms ease-out forwards;
+  }
+  @keyframes btn-glow-fade {
+    0% {
+      box-shadow:
+        0 0 12px 2px color-mix(in oklch, var(--glow) 50%, transparent),
+        0 0 28px 7px color-mix(in oklch, var(--glow) 30%, transparent);
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
 }
 
 @layer components {
