@@ -1220,14 +1220,35 @@ export default function Home() {
           </Link>
         </div>
       </div>
-      {/* ── Section 1: Stats (Top) ── */}
-      <section className="pt-3 pb-2">
+      {/* ── Section 1: Stats (Top) — 金幣風格圓形 badge ── */}
+      <section className="pt-4 pb-3">
         <div className="container">
-          <div className="grid grid-cols-3 gap-2 max-w-md mx-auto">
+          <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
             {stats.map((s) => (
-              <div key={s.label} className="home-section-card p-2 text-center">
-                <div className="text-lg font-extrabold text-amber-700">{s.value}{s.suffix}</div>
-                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{s.label}</div>
+              <div key={s.label} className="relative aspect-square">
+                {/* 外圈（深金邊） */}
+                <div
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    background: "linear-gradient(135deg, #b45309 0%, #f59e0b 30%, #fde68a 50%, #f59e0b 70%, #92400e 100%)",
+                    boxShadow: "0 4px 10px rgba(180, 83, 9, 0.3), inset 0 1px 2px rgba(255,255,255,0.5)",
+                  }}
+                />
+                {/* 內圈（幣面） */}
+                <div
+                  className="absolute inset-[3px] rounded-full flex flex-col items-center justify-center text-center"
+                  style={{
+                    background: "radial-gradient(circle at 30% 30%, #fffbeb 0%, #fde68a 35%, #fbbf24 70%, #d97706 100%)",
+                    boxShadow: "inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 4px rgba(146, 64, 14, 0.25)",
+                  }}
+                >
+                  <div className="text-base sm:text-lg font-extrabold text-amber-900 leading-none drop-shadow-sm">
+                    {s.value}{s.suffix}
+                  </div>
+                  <div className="text-[9px] sm:text-[10px] font-bold text-amber-800/90 mt-1 tracking-wide">
+                    {s.label}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
