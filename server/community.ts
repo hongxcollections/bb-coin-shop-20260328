@@ -47,6 +47,48 @@ export function checkForbidden(text: string | null | undefined): { flagged: bool
 
 export type Intent = "display" | "seek_value" | "for_sale";
 
+// 方案 B：商戶上架配額（每月）— 預設 3，將來可由 site setting 覆蓋
+export const MERCHANT_POST_MONTHLY_LIMIT_DEFAULT = 3;
+
+export async function getMerchantPostMonthlyLimit(): Promise<number> {
+  try {
+    const { getSiteSetting } = await import("./db");
+    const v = await getSiteSetting("merchant_post_monthly_limit");
+    if (v) {
+      const n = parseInt(v, 10);
+      if (!isNaN(n) && n >= 0 && n <= 50) return n;
+    }
+  } catch { /* ignore */ }
+  return MERCHANT_POST_MONTHLY_LIMIT_DEFAULT;
+}
+
+/** 商戶呢個月已發咗幾多 isMerchantPost 嘅帖（無論隱藏與否，都算入配額避免洗版） */
+export async function getMerchantPostQuotaInfo(userId: number): Promise<{
+  isMerchant: boolean;
+  used: number;
+  limit: number;
+  canPost: boolean;
+}> {
+  const db = await getDb();
+  if (!db) return { isMerchant: false, used: 0, limit: 0, canPost: false };
+  const merchRaw: any = await db.execute(sql`SELECT 1 FROM merchantApplications WHERE userId = ${userId} AND status = 'approved' LIMIT 1`);
+  const merchRows = (Array.isArray(merchRaw) ? merchRaw[0] : merchRaw) as any[];
+  const isMerchant = (merchRows?.length ?? 0) > 0;
+  if (!isMerchant) return { isMerchant: false, used: 0, limit: 0, canPost: false };
+
+  const limit = await getMerchantPostMonthlyLimit();
+  // 算當月（本地 server 月份）
+  const usedRaw: any = await db.execute(sql`
+    SELECT COUNT(*) AS cnt FROM collectionPosts
+    WHERE userId = ${userId}
+      AND isMerchantPost = 1
+      AND createdAt >= DATE_FORMAT(NOW(), '%Y-%m-01 00:00:00')
+  `);
+  const usedRows = (Array.isArray(usedRaw) ? usedRaw[0] : usedRaw) as any[];
+  const used = Number(usedRows?.[0]?.cnt ?? 0);
+  return { isMerchant, used, limit, canPost: used < limit };
+}
+
 export async function createCollectionPost(input: {
   userId: number;
   title: string;
@@ -54,12 +96,17 @@ export async function createCollectionPost(input: {
   intent: Intent;
   tags: string[];
   imageUrls: string[];
+  isMerchantPost?: boolean;
+  merchantProductId?: number | null;
 }): Promise<{ id: number; flagged: boolean; reason: string }> {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
 
   const combined = `${input.title}\n${input.body}\n${input.tags.join(" ")}`;
   const { flagged, reason } = checkForbidden(combined);
+
+  const isMerchantPost = input.isMerchantPost ? 1 : 0;
+  const merchantProductId = input.merchantProductId ?? null;
 
   const result: any = await db.insert(collectionPosts).values({
     userId: input.userId,
@@ -70,6 +117,8 @@ export async function createCollectionPost(input: {
     isHidden: flagged ? 1 : 0,
     isFlagged: flagged ? 1 : 0,
     flagReason: flagged ? reason.slice(0, 500) : null,
+    isMerchantPost,
+    merchantProductId,
   });
   const insertId = (result?.[0]?.insertId ?? result?.insertId ?? 0) as number;
 
@@ -94,6 +143,13 @@ export async function listCollectionPosts(input: {
   viewerIsAdmin: boolean;
   viewerUserId: number | null;
   authorId?: number;
+  /**
+   * 方案 B：tab filter
+   * - "community"（預設）：純會員分享，**唔包**商戶上架帖
+   * - "merchant"：只 show 商戶上架帖
+   * - "all"：兩種都包
+   */
+  tab?: "community" | "merchant" | "all";
 }) {
   const db = await getDb();
   if (!db) return { items: [], nextCursor: null as number | null };
@@ -101,6 +157,11 @@ export async function listCollectionPosts(input: {
   const conds: any[] = [];
   if (!input.viewerIsAdmin) conds.push(sql`cp.isHidden = 0`);
   if (input.intent !== "all") conds.push(sql`cp.intent = ${input.intent}`);
+  // 方案 B：tab 過濾（唔指定就當 community）
+  const tab = input.tab ?? "community";
+  if (tab === "community") conds.push(sql`cp.isMerchantPost = 0`);
+  else if (tab === "merchant") conds.push(sql`cp.isMerchantPost = 1`);
+  // tab === "all" 不過濾
   if (input.search && input.search.trim()) {
     const kw = `%${input.search.trim()}%`;
     conds.push(sql`(cp.title LIKE ${kw} OR cp.body LIKE ${kw})`);
@@ -127,6 +188,7 @@ export async function listCollectionPosts(input: {
       cp.id, cp.userId, cp.title, cp.body, cp.intent, cp.tagsJson,
       cp.isHidden, cp.isFlagged, cp.flagReason,
       cp.likeCount, cp.commentCount, cp.viewCount,
+      cp.isMerchantPost, cp.merchantProductId,
       cp.createdAt,
       u.name AS authorName,
       u.photoUrl AS authorPhoto,
@@ -242,6 +304,45 @@ export async function getCollectionPostDetail(postId: number, viewerUserId: numb
     try { await db.execute(sql`UPDATE collectionPosts SET viewCount = viewCount + 1 WHERE id = ${postId}`); } catch { /* ignore */ }
   }
 
+  // 方案 B：如果係商戶上架帖且有 link product，攞 product 簡介（必須仍 active）
+  let merchantProduct: {
+    id: number;
+    title: string;
+    price: string;
+    currency: string;
+    coverImage: string | null;
+    merchantId: number;
+    merchantName: string;
+  } | null = null;
+  if (post.isMerchantPost && post.merchantProductId) {
+    try {
+      const mpRaw: any = await db.execute(sql`
+        SELECT id, title, price, currency, images, merchantId, merchantName
+        FROM merchantProducts
+        WHERE id = ${post.merchantProductId} AND status = 'active'
+        LIMIT 1
+      `);
+      const mpRows = (Array.isArray(mpRaw) ? mpRaw[0] : mpRaw) as any[];
+      const mp = mpRows?.[0];
+      if (mp) {
+        let coverImage: string | null = null;
+        try {
+          const arr = mp.images ? JSON.parse(mp.images) : [];
+          if (Array.isArray(arr) && typeof arr[0] === "string") coverImage = arr[0];
+        } catch { /* ignore */ }
+        merchantProduct = {
+          id: mp.id,
+          title: mp.title,
+          price: String(mp.price ?? ""),
+          currency: mp.currency ?? "HKD",
+          coverImage,
+          merchantId: mp.merchantId,
+          merchantName: mp.merchantName ?? "",
+        };
+      }
+    } catch { /* ignore */ }
+  }
+
   return {
     ...post,
     tags: safeParseTags(post.tagsJson),
@@ -250,6 +351,7 @@ export async function getCollectionPostDetail(postId: number, viewerUserId: numb
     authorIsMerchant,
     isLiked,
     isSaved,
+    merchantProduct,
   };
 }
 

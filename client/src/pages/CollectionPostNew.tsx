@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/contexts/ToastContext";
-import { ChevronLeft, X, Loader2, AlertTriangle, Sparkles } from "lucide-react";
+import { ChevronLeft, X, Loader2, AlertTriangle, Sparkles, Store } from "lucide-react";
 import { parseCategories } from "@/lib/categories";
 
 export default function CollectionPostNew() {
@@ -16,16 +16,61 @@ export default function CollectionPostNew() {
   const { showToast } = useToast();
   const utils = trpc.useUtils();
 
+  // 方案 B：?productId= prefill — 商戶分享自己嘅 active 商品
+  const productIdFromQuery = (() => {
+    if (typeof window === "undefined") return null;
+    const sp = new URLSearchParams(window.location.search);
+    const v = sp.get("productId");
+    if (!v) return null;
+    const n = parseInt(v, 10);
+    return isNaN(n) || n <= 0 ? null : n;
+  })();
+
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const intent: "display" = "display";
+  const [intent, setIntent] = useState<"display">("display");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [merchantProductId, setMerchantProductId] = useState<number | null>(productIdFromQuery);
 
   const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60_000 });
   const allCategories = parseCategories(siteSettings as Record<string, string> | undefined);
+
+  // 方案 B：商戶配額 + 自己嘅 active 商品 list（畀 selector 用）
+  const { data: quotaInfo } = trpc.community.merchantPostQuota.useQuery(undefined, {
+    enabled: isAuthenticated,
+    staleTime: 30_000,
+  });
+  const isMerchantMode = !!merchantProductId;
+  const { data: myProducts } = trpc.merchants.myProducts.useQuery(undefined, {
+    enabled: isAuthenticated && !!quotaInfo?.isMerchant,
+    staleTime: 60_000,
+  });
+  const activeProducts = ((myProducts as any[]) ?? []).filter((p: any) => p.status === "active");
+  const selectedProduct = activeProducts.find((p: any) => p.id === merchantProductId) ?? null;
+
+  // ?productId prefill — 自動填標題／圖片／tag
+  useEffect(() => {
+    if (!selectedProduct) return;
+    setTitle((prev) => prev || selectedProduct.title || "");
+    try {
+      const arr = selectedProduct.images ? JSON.parse(selectedProduct.images) : [];
+      if (Array.isArray(arr)) {
+        setImageUrls((prev) => prev.length === 0 ? arr.filter((u: any) => typeof u === "string").slice(0, 9) : prev);
+      }
+    } catch { /* ignore */ }
+    if (selectedProduct.category) {
+      const cats = String(selectedProduct.category).split("|").map((c: string) => c.trim()).filter(Boolean).slice(0, 5);
+      setSelectedTags((prev) => prev.length === 0 ? cats : prev);
+    }
+  }, [selectedProduct?.id]);
+
+  // 商戶模式 → intent 強制 for_sale；普通模式 → display
+  const finalIntent: "display" | "for_sale" = isMerchantMode ? "for_sale" : "display";
+  // mute "intent" lint
+  void intent; void setIntent;
 
   const uploadImage = trpc.community.uploadImage.useMutation();
   const createPost = trpc.community.create.useMutation();
@@ -160,15 +205,30 @@ export default function CollectionPostNew() {
       showToast({ icon: "⚠️", title: "至少上載 1 張圖", desc: "", durationMs: 2500 });
       return;
     }
+    if (isMerchantMode) {
+      if (!quotaInfo?.isMerchant) {
+        showToast({ icon: "⚠️", title: "只有商戶可以分享商品", desc: "", durationMs: 3000 });
+        return;
+      }
+      if (!quotaInfo.canPost) {
+        showToast({ icon: "⚠️", title: "本月商戶上架配額已滿", desc: `${quotaInfo.used}/${quotaInfo.limit}，下個月再試`, durationMs: 4000 });
+        return;
+      }
+      if (!selectedProduct) {
+        showToast({ icon: "⚠️", title: "請揀返一件上架中嘅商品", desc: "", durationMs: 3000 });
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       const tags = selectedTags.slice(0, 10);
       const res = await createPost.mutateAsync({
         title: title.trim(),
         body: body.trim(),
-        intent,
+        intent: finalIntent,
         tags,
         imageUrls,
+        ...(isMerchantMode && merchantProductId ? { merchantProductId } : {}),
       });
       utils.community.list.invalidate();
       if (res.flagged) {
@@ -211,6 +271,37 @@ export default function CollectionPostNew() {
 
       <div className="max-w-2xl mx-auto p-4 -mt-4 relative">
         <div className="bg-white rounded-2xl shadow-lg border border-sky-100 p-5 space-y-5">
+          {/* 方案 B：商戶 — 附帶我嘅商品 selector + 配額 */}
+          {quotaInfo?.isMerchant && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <Store className="w-4 h-4 text-amber-700" />
+                <div className="text-sm font-semibold text-amber-900">商戶分享：附帶我嘅商品</div>
+                <span className="ml-auto text-xs text-amber-700">本月配額 {quotaInfo.used} / {quotaInfo.limit}</span>
+              </div>
+              <select
+                value={merchantProductId ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setMerchantProductId(v ? parseInt(v, 10) : null);
+                }}
+                className="w-full bg-white border border-amber-200 rounded-md text-sm px-2 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                disabled={!quotaInfo.canPost && !merchantProductId}
+              >
+                <option value="">— 唔附帶（純分享，唔計入商戶配額） —</option>
+                {activeProducts.map((p: any) => (
+                  <option key={p.id} value={p.id}>{p.title}（{p.currency} ${parseFloat(p.price ?? "0").toLocaleString()}）</option>
+                ))}
+              </select>
+              {!quotaInfo.canPost && (
+                <div className="text-xs text-red-600">配額已用完，今個月唔可以再附帶商品。可以選「唔附帶」改用普通會員分享發布。</div>
+              )}
+              {isMerchantMode && (
+                <div className="text-xs text-amber-700">附帶商品後，帖文會 show 喺「商戶上架」tab，並標 intent =「想出讓」。</div>
+              )}
+            </div>
+          )}
+
           {/* 圖片 */}
           <div>
             <label className="block text-sm font-medium mb-2">圖片（最多 9 張，每張 ≤ 8MB）</label>

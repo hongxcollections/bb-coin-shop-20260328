@@ -720,6 +720,11 @@ async function bootstrapMissingColumns() {
   await addIndex('idx_collectionPosts_intent', 'CREATE INDEX `idx_collectionPosts_intent` ON `collectionPosts` (`intent`)');
   await addIndex('idx_collectionPosts_userId', 'CREATE INDEX `idx_collectionPosts_userId` ON `collectionPosts` (`userId`)');
   await addIndex('idx_collectionPosts_hidden', 'CREATE INDEX `idx_collectionPosts_hidden` ON `collectionPosts` (`isHidden`)');
+
+  // 方案 B：商戶上架帖文 — 加 columns + index
+  await alter('ALTER TABLE `collectionPosts` ADD COLUMN `isMerchantPost` int NOT NULL DEFAULT 0', 'Ensured collectionPosts.isMerchantPost column');
+  await alter('ALTER TABLE `collectionPosts` ADD COLUMN `merchantProductId` int NULL', 'Ensured collectionPosts.merchantProductId column');
+  await addIndex('idx_collectionPosts_merchant', 'CREATE INDEX `idx_collectionPosts_merchant` ON `collectionPosts` (`isMerchantPost`)');
   await addIndex('idx_collectionPostComments_postId', 'CREATE INDEX `idx_collectionPostComments_postId` ON `collectionPostComments` (`postId`)');
   await addIndex('idx_collectionPostImages_postId', 'CREATE INDEX `idx_collectionPostImages_postId` ON `collectionPostImages` (`postId`)');
 

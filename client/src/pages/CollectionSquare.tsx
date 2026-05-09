@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Heart, MessageCircle, Eye, Plus, Search, Sparkles, Camera, Trophy, CheckCircle2 } from "lucide-react";
+import { Heart, MessageCircle, Eye, Plus, Search, Sparkles, Camera, Trophy, CheckCircle2, Store, Users } from "lucide-react";
 
 function intentBadge(intent: string) {
   if (intent === "seek_value") return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-0 shadow-sm">求估價</Badge>;
@@ -20,12 +20,15 @@ export default function CollectionSquare() {
   const [sort, setSort] = useState<"latest" | "hot">("latest");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  // 方案 B：tab — community（純會員分享）/ merchant（商戶上架）
+  const [tab, setTab] = useState<"community" | "merchant">("community");
 
   const { data, isLoading } = trpc.community.list.useQuery({
     intent: "all",
     sort,
     search: search || undefined,
     limit: 30,
+    tab,
   });
 
   const { data: challengeToday } = trpc.dailyChallenge.today.useQuery(undefined, {
@@ -144,6 +147,31 @@ export default function CollectionSquare() {
               <Button type="button" variant="ghost" onClick={() => { setSearchInput(""); setSearch(""); }}>清除</Button>
             )}
           </form>
+          {/* 方案 B：tab bar — 會員分享 / 商戶上架 */}
+          <div className="flex items-center gap-2 mt-3 border-b border-gray-100 pb-3">
+            <button
+              type="button"
+              onClick={() => setTab("community")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+                tab === "community"
+                  ? "bg-sky-500 text-white border-sky-500 shadow-sm"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-sky-300"
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />會員分享
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("merchant")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+                tab === "merchant"
+                  ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-amber-300"
+              }`}
+            >
+              <Store className="w-3.5 h-3.5" />商戶上架
+            </button>
+          </div>
           <div className="flex items-center gap-1.5 mt-3">
             <span className="text-xs text-gray-500 mr-1">排序</span>
             {(["latest", "hot"] as const).map((s) => (

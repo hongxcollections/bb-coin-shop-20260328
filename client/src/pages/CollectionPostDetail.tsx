@@ -273,8 +273,43 @@ export default function CollectionPostDetail() {
               </div>
             )}
 
-            {/* For sale CTA */}
-            {post.intent === "for_sale" && (
+            {/* 方案 B：商戶上架帖文 — show 商戶商品卡（去店鋪睇貨） */}
+            {(post as any).isMerchantPost && (post as any).merchantProduct && (
+              <Link href={`/merchant/${(post as any).merchantProduct.merchantId}`}>
+                <a className="block rounded-xl border border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-3 hover:shadow-md transition">
+                  <div className="flex items-center gap-3">
+                    {(post as any).merchantProduct.coverImage ? (
+                      <img
+                        src={(post as any).merchantProduct.coverImage}
+                        alt=""
+                        className="w-16 h-16 rounded-lg object-cover border border-amber-200 flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                        <Store className="w-6 h-6 text-amber-500" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1 text-[11px] text-amber-700 font-semibold mb-0.5">
+                        <Store className="w-3 h-3" />商戶上架商品
+                      </div>
+                      <div className="font-semibold text-sm text-gray-900 line-clamp-1">{(post as any).merchantProduct.title}</div>
+                      <div className="flex items-center justify-between gap-2 mt-1">
+                        <span className="text-amber-600 font-bold text-sm">
+                          {(post as any).merchantProduct.currency} ${parseFloat((post as any).merchantProduct.price || "0").toLocaleString()}
+                        </span>
+                        <span className="text-xs text-amber-700 inline-flex items-center gap-0.5">
+                          去店鋪睇貨 <ChevronRight className="w-3 h-3" />
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              </Link>
+            )}
+
+            {/* For sale CTA — 非商戶帖先顯示（商戶帖已用上面 product card） */}
+            {post.intent === "for_sale" && !(post as any).isMerchantPost && (
               <div className="border border-amber-300 bg-amber-50 rounded p-3 text-sm space-y-2">
                 <div className="font-semibold text-amber-900">想出讓呢件藏品？</div>
                 {(post as any).authorIsMerchant ? (

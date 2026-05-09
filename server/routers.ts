@@ -27,6 +27,7 @@ import {
   adminListFlaggedPosts,
   adminCountFlagged,
   checkForbidden,
+  getMerchantPostQuotaInfo,
 } from "./community";
 import {
   CHALLENGE_COUNTRIES,
@@ -6689,6 +6690,8 @@ ${kb}`;
         cursor: z.number().int().optional(),
         limit: z.number().int().min(1).max(50).default(20),
         authorId: z.number().int().positive().optional(),
+        // 方案 B：tab 過濾。"community"（預設）唔包商戶帖；"merchant" 只 show 商戶帖；"all" 兩種都 show。
+        tab: z.enum(["community", "merchant", "all"]).default("community"),
       }))
       .query(async ({ input, ctx }) => {
         const viewerIsAdmin = ctx.user?.role === "admin";
@@ -6701,7 +6704,14 @@ ${kb}`;
           viewerIsAdmin,
           viewerUserId: ctx.user?.id ?? null,
           authorId: input.authorId,
+          tab: input.tab,
         });
+      }),
+
+    // 方案 B：商戶查詢自己當月配額
+    merchantPostQuota: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getMerchantPostQuotaInfo(ctx.user.id);
       }),
 
     get: publicProcedure
@@ -6720,6 +6730,8 @@ ${kb}`;
         intent: z.enum(["display", "seek_value", "for_sale"]).default("display"),
         tags: z.array(z.string().max(40)).max(10).default([]),
         imageUrls: z.array(z.string().url()).max(9).default([]),
+        // 方案 B：商戶可附帶自己嘅 active 商品（會 set isMerchantPost=1, intent=for_sale）
+        merchantProductId: z.number().int().positive().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.isBanned) {
@@ -6728,13 +6740,42 @@ ${kb}`;
         const cleanTitle = sanitizeUserText(input.title).trim();
         const cleanBody = sanitizeUserText(input.body || "").trim();
         const cleanTags = (input.tags || []).map((t) => sanitizeUserText(t).trim()).filter(Boolean);
+
+        // 方案 B：附帶商戶商品時 — validate ownership + active + 配額
+        let isMerchantPost = false;
+        let merchantProductId: number | null = null;
+        let finalIntent = input.intent;
+        if (input.merchantProductId) {
+          const quota = await getMerchantPostQuotaInfo(ctx.user.id);
+          if (!quota.isMerchant) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "只有商戶可以附帶商品" });
+          }
+          if (!quota.canPost) {
+            throw new TRPCError({ code: "FORBIDDEN", message: `本月商戶上架配額已滿（${quota.used}/${quota.limit}），下個月再試` });
+          }
+          // ownership + status check
+          const { getMerchantProduct } = await import("./db");
+          const product = await getMerchantProduct(input.merchantProductId);
+          if (!product || (product as any).merchantId !== ctx.user.id) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "唔係你嘅商品" });
+          }
+          if ((product as any).status !== "active") {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "只可以分享上架中嘅商品" });
+          }
+          isMerchantPost = true;
+          merchantProductId = input.merchantProductId;
+          finalIntent = "for_sale";
+        }
+
         const result = await createCollectionPost({
           userId: ctx.user.id,
           title: cleanTitle,
           body: cleanBody,
-          intent: input.intent,
+          intent: finalIntent,
           tags: cleanTags,
           imageUrls: input.imageUrls,
+          isMerchantPost,
+          merchantProductId,
         });
         return result;
       }),

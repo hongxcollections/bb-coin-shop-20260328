@@ -1581,6 +1581,15 @@ export default function MerchantProducts() {
                       <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />刪除
                       </button>
+                      {p.status === "active" && (
+                        <a
+                          href={`/collection-square/new?productId=${p.id}`}
+                          className="flex items-center gap-1 text-xs px-3 py-1.5 bg-sky-50 text-sky-600 rounded-lg hover:bg-sky-100 transition-colors flex-1 justify-center"
+                          title="分享呢件商品去藏家天地"
+                        >
+                          <Sparkles className="w-3 h-3" />分享去藏家天地
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>

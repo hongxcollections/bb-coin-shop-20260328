@@ -592,6 +592,9 @@ export const collectionPosts = mysqlTable("collectionPosts", {
   likeCount: int("likeCount").default(0).notNull(),
   commentCount: int("commentCount").default(0).notNull(),
   viewCount: int("viewCount").default(0).notNull(),
+  // 方案 B：商戶上架帖文標識 + 引用商戶商品
+  isMerchantPost: int("isMerchantPost").default(0).notNull(),
+  merchantProductId: int("merchantProductId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
