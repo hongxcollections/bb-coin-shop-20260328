@@ -48,9 +48,9 @@
   /* ── 彈出訊息配色（客服 popup / 錯誤 toast 共用） ──────────────────────── *
    * 如需更換整體彈出視窗風格，只需修改以下六個變數即可全站套用。             */
   --popup-bg:         linear-gradient(to bottom, #f97316 0%, #fb923c 50%, #fed7aa 100%); /* 橙色垂直漸變：頂深→底淺 */
-  --popup-text:       #7c2d12;               /* 深棕橙主文字（amber-900）    */
-  --popup-desc:       #9a3412;               /* 說明文字（orange-800）       */
-  --popup-border:     rgba(194, 65, 12, 0.5); /* 橙色半透明邊框（orange-700） */
+  --popup-text:       #ffffff;               /* 白色主文字                   */
+  --popup-desc:       rgba(255, 255, 255, 0.92); /* 說明文字（白色帶少許透明）*/
+  --popup-border:     transparent;           /* 不要框邊                     */
   --popup-shadow:     0 8px 28px rgba(234, 88, 12, 0.32); /* 暖橙陰影         */
   --popup-radius:     0.875rem;              /* 圓角大小                     */
   /* ──────────────────────────────────────────────────────────────────────── */
