@@ -1,6 +1,60 @@
 import { and, desc, eq, sql } from "drizzle-orm";
+import sharp from "sharp";
 import { getDb } from "./db";
 import { dailyChallenges, dailyChallengeAnswers } from "../drizzle/schema";
+import { storagePut } from "./storage";
+
+export type ImageRegion = { x: number; y: number; w: number; h: number };
+
+/**
+ * 為圖片指定矩形區域加馬賽克（pixelate）。
+ * regions 用 0-1 ratio 表示，方便前端唔需要知原圖實際 px。
+ * 用 sharp：每個 region extract → resize 到細 → resize 回原 size（nearest）→ composite 返落原圖。
+ */
+export async function pixelateRegions(srcBuffer: Buffer, regions: ImageRegion[]): Promise<Buffer> {
+  if (!regions || regions.length === 0) return srcBuffer;
+  const meta = await sharp(srcBuffer).metadata();
+  const W = meta.width || 0;
+  const H = meta.height || 0;
+  if (!W || !H) return srcBuffer;
+
+  const composites: { input: Buffer; left: number; top: number }[] = [];
+  for (const r of regions) {
+    const left = Math.max(0, Math.floor(r.x * W));
+    const top = Math.max(0, Math.floor(r.y * H));
+    let width = Math.min(W - left, Math.max(1, Math.floor(r.w * W)));
+    let height = Math.min(H - top, Math.max(1, Math.floor(r.h * H)));
+    if (width < 4 || height < 4) continue;
+
+    // 馬賽克強度：取較短邊嘅 1/12，clamp 2-25 px
+    const block = Math.max(2, Math.min(25, Math.floor(Math.min(width, height) / 12)));
+    const smallW = Math.max(2, Math.floor(width / block));
+    const smallH = Math.max(2, Math.floor(height / block));
+
+    const tile = await sharp(srcBuffer)
+      .extract({ left, top, width, height })
+      .resize(smallW, smallH, { kernel: "nearest" })
+      .resize(width, height, { kernel: "nearest" })
+      .toBuffer();
+    composites.push({ input: tile, left, top });
+  }
+  if (composites.length === 0) return srcBuffer;
+  return sharp(srcBuffer).composite(composites).jpeg({ quality: 88 }).toBuffer();
+}
+
+/**
+ * 由 imageUrl 下載原圖、套用馬賽克、上載 censored 版本到 S3，返回新 URL。
+ */
+export async function generateCensoredImage(imageUrl: string, regions: ImageRegion[]): Promise<string> {
+  const r = await fetch(imageUrl, { headers: { "User-Agent": "hongxcollections/1.0" } });
+  if (!r.ok) throw new Error(`下載原圖失敗（HTTP ${r.status}）`);
+  const ab = await r.arrayBuffer();
+  const buf = Buffer.from(ab);
+  const out = await pixelateRegions(buf, regions);
+  const key = `daily-challenge/censored-${Date.now()}.jpg`;
+  const { url } = await storagePut(key, out, "image/jpeg");
+  return url;
+}
 
 export const CHALLENGE_COUNTRIES = [
   "香港", "中國", "英國", "美國", "日本", "加拿大", "澳洲",
@@ -60,6 +114,8 @@ export async function adminUpdateChallenge(
     hint: string | null;
     description: string | null;
     status: "draft" | "published" | "closed";
+    imageRegions: string | null;
+    imageUrlCensored: string | null;
   }>
 ): Promise<void> {
   const db = await getDb();

@@ -645,6 +645,9 @@ export const dailyChallenges = mysqlTable("dailyChallenges", {
   description: text("description"),
   status: mysqlEnum("status", ["draft", "published", "closed"]).default("draft").notNull(),
   createdBy: int("createdBy").notNull(),
+  // 馬賽克：admin 可指定要遮蓋嘅矩形（JSON: [{x,y,w,h}] 0-1 比例），server 用 sharp 生成 censored 版本
+  imageRegions: text("imageRegions"),
+  imageUrlCensored: varchar("imageUrlCensored", { length: 500 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

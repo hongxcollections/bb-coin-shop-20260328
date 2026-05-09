@@ -756,6 +756,10 @@ async function bootstrapMissingColumns() {
     UNIQUE KEY \`uniq_challenge_user\` (\`challengeId\`, \`userId\`)
   )`, 'Ensured dailyChallengeAnswers table');
 
+  // dailyChallenges 馬賽克欄位（後加，bootstrap 補上）
+  await alter("ALTER TABLE `dailyChallenges` ADD COLUMN `imageRegions` text NULL", "Ensured dailyChallenges.imageRegions column");
+  await alter("ALTER TABLE `dailyChallenges` ADD COLUMN `imageUrlCensored` varchar(500) NULL", "Ensured dailyChallenges.imageUrlCensored column");
+
   await addIndex('idx_dailyChallenges_publishDate', 'CREATE INDEX `idx_dailyChallenges_publishDate` ON `dailyChallenges` (`publishDate`)');
   await addIndex('idx_dailyChallenges_status', 'CREATE INDEX `idx_dailyChallenges_status` ON `dailyChallenges` (`status`)');
   await addIndex('idx_dailyChallengeAnswers_userId', 'CREATE INDEX `idx_dailyChallengeAnswers_userId` ON `dailyChallengeAnswers` (`userId`)');

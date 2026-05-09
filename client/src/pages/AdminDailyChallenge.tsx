@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import AdminHeader from "@/components/AdminHeader";
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { Plus, Image as ImageIcon, Pencil, Trash2, CheckCircle2, EyeOff, Calendar, Sparkles, Wand2 } from "lucide-react";
+import { Plus, Image as ImageIcon, Pencil, Trash2, Calendar, Sparkles, Wand2, SquareDashed, Eye, EyeOff } from "lucide-react";
 
 const COUNTRIES = ["香港","中國","英國","美國","日本","加拿大","澳洲","法國","德國","意大利","俄羅斯","印度","新加坡","馬來西亞","其他"] as const;
 const CATEGORIES = ["銅幣","銀幣","金幣","紙幣","紀念幣","流通幣","其他"] as const;
@@ -21,9 +21,13 @@ function hkToday() {
   return d.toISOString().slice(0, 10);
 }
 
+type Region = { x: number; y: number; w: number; h: number };
+
 type FormState = {
   id?: number;
   imageUrl: string;
+  imageUrlCensored?: string | null;
+  imageRegions?: Region[];
   publishDate: string;
   answerCountry: string;
   answerYear: string;
@@ -36,6 +40,8 @@ type FormState = {
 
 const emptyForm: FormState = {
   imageUrl: "",
+  imageUrlCensored: null,
+  imageRegions: [],
   publishDate: hkToday(),
   answerCountry: "",
   answerYear: "",
@@ -87,6 +93,13 @@ export default function AdminDailyChallenge() {
   });
   const uploadMut = trpc.dailyChallenge.adminUploadImage.useMutation();
   const suggestMut = trpc.dailyChallenge.adminGenerateSuggestions.useMutation();
+  const mosaicMut = trpc.dailyChallenge.adminApplyMosaic.useMutation({
+    onSuccess: () => {
+      toast.success("已套用馬賽克並儲存");
+      utils.dailyChallenge.adminList.invalidate();
+    },
+    onError: (e) => toast.error(e.message || "馬賽克處理失敗"),
+  });
   const [suggestions, setSuggestions] = useState<Array<{
     country: string; year: number; yearTolerance: number; category: string;
     hint: string; description: string; titleHint: string; imageUrls: string[];
@@ -140,9 +153,15 @@ export default function AdminDailyChallenge() {
   };
 
   const openEdit = (c: any) => {
+    let regions: Region[] = [];
+    try {
+      if (c.imageRegions) regions = JSON.parse(c.imageRegions);
+    } catch {}
     setForm({
       id: c.id,
       imageUrl: c.imageUrl,
+      imageUrlCensored: c.imageUrlCensored || null,
+      imageRegions: regions,
       publishDate: c.publishDate,
       answerCountry: c.answerCountry,
       answerYear: String(c.answerYear),
@@ -153,6 +172,59 @@ export default function AdminDailyChallenge() {
       status: c.status,
     });
     setOpen(true);
+  };
+
+  // ── 馬賽克編輯：原圖上拉矩形 ──
+  const imgEditorRef = useRef<HTMLDivElement>(null);
+  const [drawing, setDrawing] = useState<null | { startX: number; startY: number; cur: Region }>(null);
+  const regions = form.imageRegions || [];
+  const setRegions = (rs: Region[]) => setForm((f) => ({ ...f, imageRegions: rs }));
+
+  const onEditorPointerDown = (e: React.PointerEvent) => {
+    if (!imgEditorRef.current) return;
+    const rect = imgEditorRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    setDrawing({ startX: x, startY: y, cur: { x, y, w: 0, h: 0 } });
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+  };
+  const onEditorPointerMove = (e: React.PointerEvent) => {
+    if (!drawing || !imgEditorRef.current) return;
+    const rect = imgEditorRef.current.getBoundingClientRect();
+    const cx = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    const cy = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+    const x = Math.min(drawing.startX, cx);
+    const y = Math.min(drawing.startY, cy);
+    const w = Math.abs(cx - drawing.startX);
+    const h = Math.abs(cy - drawing.startY);
+    setDrawing({ ...drawing, cur: { x, y, w, h } });
+  };
+  const onEditorPointerUp = () => {
+    if (!drawing) return;
+    const r = drawing.cur;
+    if (r.w > 0.01 && r.h > 0.01) {
+      setRegions([...regions, r]);
+    }
+    setDrawing(null);
+  };
+
+  const applyMosaic = async () => {
+    if (!form.id) {
+      toast.error("請先儲存挑戰，再套用馬賽克");
+      return;
+    }
+    const r = await mosaicMut.mutateAsync({ id: form.id, regions });
+    setForm((f) => ({ ...f, imageUrlCensored: r.censoredUrl || null }));
+  };
+  const clearMosaic = async () => {
+    if (!form.id) {
+      setRegions([]);
+      setForm((f) => ({ ...f, imageUrlCensored: null }));
+      return;
+    }
+    await mosaicMut.mutateAsync({ id: form.id, regions: [] });
+    setRegions([]);
+    setForm((f) => ({ ...f, imageUrlCensored: null }));
   };
 
   const handleUpload = async (file: File) => {
@@ -259,32 +331,67 @@ export default function AdminDailyChallenge() {
               <p className="text-sm text-muted-foreground py-8 text-center">尚未建立任何挑戰，按右上角「新增挑戰」開始。</p>
             )}
             {list && list.length > 0 && (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {list.map((c: any) => (
-                  <div key={c.id} className="flex items-center gap-3 p-3 border rounded-lg bg-white">
-                    <img src={c.imageUrl} alt="" className="w-16 h-16 object-cover rounded bg-stone-100" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs px-2 py-0.5 rounded bg-stone-100">{c.publishDate}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded ${
-                          c.status === "published" ? "bg-emerald-100 text-emerald-700" :
-                          c.status === "closed" ? "bg-stone-200 text-stone-600" :
-                          "bg-amber-100 text-amber-700"
-                        }`}>
-                          {c.status === "published" ? "✓ 已發佈" : c.status === "closed" ? "已結束" : "草稿"}
+                  <div
+                    key={c.id}
+                    className="group relative border border-stone-200 rounded-xl bg-white overflow-hidden hover:border-amber-400 hover:shadow-md transition cursor-pointer"
+                    onClick={() => openEdit(c)}
+                  >
+                    {/* 縮圖 */}
+                    <div className="relative aspect-[4/3] bg-stone-100">
+                      <img
+                        src={c.imageUrlCensored || c.imageUrl}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-contain"
+                        loading="lazy"
+                      />
+                      {c.imageUrlCensored && (
+                        <span className="absolute top-2 left-2 text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full shadow">
+                          🟫 已馬賽克
                         </span>
+                      )}
+                      <span className={`absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full shadow ${
+                        c.status === "published" ? "bg-emerald-500 text-white" :
+                        c.status === "closed" ? "bg-stone-500 text-white" :
+                        "bg-amber-100 text-amber-800 border border-amber-300"
+                      }`}>
+                        {c.status === "published" ? "✓ 已發佈" : c.status === "closed" ? "已結束" : "草稿"}
+                      </span>
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2">
+                        <span className="font-mono text-xs text-white drop-shadow">{c.publishDate}</span>
                       </div>
-                      <div className="text-sm mt-1">
-                        🌍 {c.answerCountry} · 📅 {c.answerYear} (±{c.yearTolerance}) · 🪙 {c.answerCategory}
-                      </div>
-                      {c.hint && <div className="text-xs text-muted-foreground truncate">💡 {c.hint}</div>}
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => openEdit(c)}>
-                      <Pencil className="w-3.5 h-3.5 mr-1" /> 編輯
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-rose-600" onClick={() => handleDelete(c.id)}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                    {/* 資料 */}
+                    <div className="p-3 space-y-1.5">
+                      <div className="text-sm font-medium text-stone-800 truncate">
+                        🌍 {c.answerCountry} · 🪙 {c.answerCategory}
+                      </div>
+                      <div className="text-xs text-stone-600">
+                        📅 <b>{c.answerYear}</b> <span className="text-stone-400">(±{c.yearTolerance})</span>
+                      </div>
+                      {c.hint && (
+                        <div className="text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded line-clamp-1">
+                          💡 {c.hint}
+                        </div>
+                      )}
+                      <div className="flex gap-1.5 pt-1">
+                        <Button
+                          variant="outline" size="sm"
+                          className="flex-1 h-8 text-xs"
+                          onClick={(e) => { e.stopPropagation(); openEdit(c); }}
+                        >
+                          <Pencil className="w-3 h-3 mr-1" /> 編輯
+                        </Button>
+                        <Button
+                          variant="outline" size="sm"
+                          className="h-8 text-rose-600 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300"
+                          onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -395,13 +502,117 @@ export default function AdminDailyChallenge() {
             <div>
               <Label className="text-xs">錢幣／紙幣圖片</Label>
               {form.imageUrl ? (
-                <div className="mt-1 relative">
-                  <img src={form.imageUrl} alt="" className="w-full max-h-64 object-contain bg-stone-100 rounded" />
-                  <Button
-                    variant="outline" size="sm"
-                    className="absolute top-2 right-2"
-                    onClick={() => setForm((f) => ({ ...f, imageUrl: "" }))}
-                  >更換</Button>
+                <div className="mt-1 space-y-2">
+                  {/* 馬賽克編輯器：原圖 + 拖拉矩形 */}
+                  <div
+                    ref={imgEditorRef}
+                    className="relative w-full bg-stone-100 rounded overflow-hidden select-none touch-none"
+                    style={{ aspectRatio: "4 / 3" }}
+                    onPointerDown={onEditorPointerDown}
+                    onPointerMove={onEditorPointerMove}
+                    onPointerUp={onEditorPointerUp}
+                    onPointerCancel={onEditorPointerUp}
+                  >
+                    <img
+                      src={form.imageUrl}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                      draggable={false}
+                    />
+                    {/* 已存矩形 */}
+                    {regions.map((r, i) => (
+                      <div
+                        key={i}
+                        className="absolute bg-amber-500/40 border-2 border-amber-500 group"
+                        style={{
+                          left: `${r.x * 100}%`,
+                          top: `${r.y * 100}%`,
+                          width: `${r.w * 100}%`,
+                          height: `${r.h * 100}%`,
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRegions(regions.filter((_, j) => j !== i));
+                          }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 text-white rounded-full text-[10px] flex items-center justify-center shadow hover:bg-rose-600"
+                          title="刪除呢個馬賽克區域"
+                        >×</button>
+                      </div>
+                    ))}
+                    {/* 正在拉嘅矩形 */}
+                    {drawing && (
+                      <div
+                        className="absolute bg-amber-500/30 border-2 border-amber-500 border-dashed pointer-events-none"
+                        style={{
+                          left: `${drawing.cur.x * 100}%`,
+                          top: `${drawing.cur.y * 100}%`,
+                          width: `${drawing.cur.w * 100}%`,
+                          height: `${drawing.cur.h * 100}%`,
+                        }}
+                      />
+                    )}
+                    <Button
+                      variant="outline" size="sm"
+                      className="absolute top-2 right-2 z-10"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={() => setForm((f) => ({ ...f, imageUrl: "", imageUrlCensored: null, imageRegions: [] }))}
+                    >更換</Button>
+                  </div>
+
+                  {/* 馬賽克控制 */}
+                  <div className="bg-stone-50 border border-stone-200 rounded p-2.5 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-xs flex items-center gap-1.5 text-stone-700">
+                        <SquareDashed className="w-3.5 h-3.5 text-amber-600" />
+                        <span className="font-medium">馬賽克遮蓋區域</span>
+                        <span className="text-stone-500">·</span>
+                        <span className="text-stone-500">{regions.length} 個</span>
+                        {form.imageUrlCensored && (
+                          <span className="text-emerald-600 text-[10px] bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">已套用</span>
+                        )}
+                      </div>
+                      <div className="flex gap-1.5">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-7"
+                          onClick={clearMosaic}
+                          disabled={mosaicMut.isPending || (regions.length === 0 && !form.imageUrlCensored)}
+                        >
+                          <EyeOff className="w-3 h-3 mr-1" /> 清除
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="text-xs h-7 bg-amber-500 hover:bg-amber-600"
+                          onClick={applyMosaic}
+                          disabled={mosaicMut.isPending || regions.length === 0}
+                        >
+                          {mosaicMut.isPending ? "處理中…" : (
+                            <><Eye className="w-3 h-3 mr-1" /> 套用</>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-stone-500 leading-relaxed">
+                      💡 喺圖上 <b>拖拉矩形</b> 遮蓋紙幣／錢幣上嘅年份字樣，再按「套用」生成模糊版本畀用戶睇。可加多個區域（國家、面值等都可遮）。{!form.id && "（編輯時可用 — 請先儲存挑戰）"}
+                    </p>
+                    {form.imageUrlCensored && (
+                      <div>
+                        <div className="text-[10px] text-stone-500 mb-1">用戶實際睇到嘅版本：</div>
+                        <img
+                          src={form.imageUrlCensored}
+                          alt=""
+                          className="w-full max-h-32 object-contain bg-white rounded border border-stone-200"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div

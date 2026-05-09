@@ -45,6 +45,7 @@ import {
   getLeaderboard as getChallengeLeaderboard,
   getMyChallengeStats,
   listMyAnswerHistory,
+  generateCensoredImage,
 } from "./dailyChallenge";
 import { applyWatermark } from "./watermark";
 import { getRawPool } from "./db";
@@ -6857,7 +6858,9 @@ ${kb}`;
         }
         const safe = {
           id: c.id,
-          imageUrl: c.imageUrl,
+          // 公開畀用戶嘅 imageUrl：有 censored 用 censored，否則用原圖
+          imageUrl: c.imageUrlCensored || c.imageUrl,
+          hasMosaic: !!c.imageUrlCensored,
           publishDate: c.publishDate,
           hint: c.hint || null,
           status: c.status,
@@ -6988,12 +6991,43 @@ ${kb}`;
           hint: z.string().max(500).nullable().optional(),
           description: z.string().max(2000).nullable().optional(),
           status: z.enum(["draft", "published", "closed"]).optional(),
+          imageRegions: z.string().nullable().optional(),
+          imageUrlCensored: z.string().nullable().optional(),
         }),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
         await adminUpdateChallenge(input.id, input.patch);
         return { ok: true };
+      }),
+
+    // 為挑戰圖片加馬賽克（指定矩形區域），生成 censored 版本並儲存
+    adminApplyMosaic: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        regions: z.array(z.object({
+          x: z.number().min(0).max(1),
+          y: z.number().min(0).max(1),
+          w: z.number().min(0).max(1),
+          h: z.number().min(0).max(1),
+        })).max(10),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Admin only" });
+        const c = await getChallengeById(input.id);
+        if (!c) throw new TRPCError({ code: "NOT_FOUND", message: "挑戰不存在" });
+        try {
+          const censoredUrl = input.regions.length > 0
+            ? await generateCensoredImage(c.imageUrl, input.regions)
+            : null;
+          await adminUpdateChallenge(input.id, {
+            imageRegions: input.regions.length > 0 ? JSON.stringify(input.regions) : null,
+            imageUrlCensored: censoredUrl,
+          });
+          return { ok: true, censoredUrl };
+        } catch (e: any) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: e?.message || "馬賽克處理失敗" });
+        }
       }),
 
     adminDelete: protectedProcedure
