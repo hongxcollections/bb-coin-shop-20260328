@@ -60,19 +60,8 @@ export default function CollectionPostDetail() {
     onSuccess: () => utils.community.get.invalidate({ id }),
   });
 
-  if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" /></div>;
-  }
-  if (!post) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        <div className="max-w-2xl mx-auto p-8 text-center text-gray-500">帖文不存在或已被隱藏</div>
-      </div>
-    );
-  }
-
   // SEO：client-side update document.title + meta description（FB/WA 走 SSR OG，呢個係畀 Google crawler 同 in-app browser fallback）
+  // 必須喺所有 early return 之前 declare，避免 hook order 違規。
   useEffect(() => {
     if (!post) return;
     const intentLabel = post.intent === "seek_value" ? "求估價" : post.intent === "for_sale" ? "想出讓" : "藏品分享";
@@ -103,6 +92,18 @@ export default function CollectionPostDetail() {
       else if (meta) meta.content = prevContent;
     };
   }, [post]);
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" /></div>;
+  }
+  if (!post) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="max-w-2xl mx-auto p-8 text-center text-gray-500">帖文不存在或已被隱藏</div>
+      </div>
+    );
+  }
 
   const isOwner = user?.id === post.userId;
   const isAdmin = user?.role === "admin";

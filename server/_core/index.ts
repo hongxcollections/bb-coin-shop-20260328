@@ -1343,6 +1343,7 @@ Output ONLY the JSON, nothing else.`;
   });
 
   // ── OG 圖片代理（藏品社區）：對應 collectionPostImages ──
+  // SSRF 防護：只 allow https + 限定 host 喺我哋 S3 endpoint / bucket domain
   app.get('/api/og-image-community/:postId', async (req, res) => {
     try {
       const postId = parseInt(req.params.postId, 10);
@@ -1350,12 +1351,38 @@ Output ONLY the JSON, nothing else.`;
       const { getCollectionPostForOg } = await import('../community');
       const post = await getCollectionPostForOg(postId);
       if (!post || !post.firstImageUrl) { res.status(404).send('No image'); return; }
-      const s3Res = await fetch(post.firstImageUrl, {
+
+      // SSRF allowlist：只接受 https + host 屬於 S3 endpoint / bucket
+      let target: URL;
+      try { target = new URL(post.firstImageUrl); } catch { res.status(400).send('Invalid URL'); return; }
+      if (target.protocol !== 'https:') { res.status(400).send('Invalid scheme'); return; }
+      const allowedHosts = new Set<string>();
+      try {
+        const ep = process.env.S3_ENDPOINT?.trim();
+        if (ep) {
+          const epUrl = new URL(ep.startsWith('http') ? ep : `https://${ep}`);
+          allowedHosts.add(epUrl.hostname.toLowerCase());
+          const bucket = process.env.S3_BUCKET?.trim();
+          if (bucket) allowedHosts.add(`${bucket}.${epUrl.hostname}`.toLowerCase());
+        }
+      } catch { /* ignore */ }
+      const host = target.hostname.toLowerCase();
+      const allowed = Array.from(allowedHosts).some(h => host === h || host.endsWith(`.${h}`));
+      if (!allowed) {
+        console.warn(`[OG Image Community Proxy] Blocked non-allowlisted host: ${host}`);
+        res.status(403).send('Host not allowed');
+        return;
+      }
+
+      const s3Res = await fetch(target.toString(), {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HongxCollections/1.0)' },
+        redirect: 'error',
       });
       if (!s3Res.ok) { res.status(s3Res.status).send('Image fetch failed'); return; }
       const buf = Buffer.from(await s3Res.arrayBuffer());
       const contentType = s3Res.headers.get('content-type') || 'image/jpeg';
+      // 確保 only image content type 流出
+      if (!contentType.startsWith('image/')) { res.status(415).send('Not an image'); return; }
       res.set({
         'Content-Type': contentType,
         'Content-Length': buf.length.toString(),
