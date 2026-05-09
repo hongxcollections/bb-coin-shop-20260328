@@ -200,45 +200,16 @@
   .focus-glow {
     --glow: var(--ring);
   }
-}
-
-/* Layer-less focus rules（永遠贏所有 layered rules，包括 Tailwind utilities 同 shadcn outline-none） */
-.focus-glow:focus,
-input:focus,
-textarea:focus,
-select:focus {
-  --glow: var(--ring);
-  outline: none !important;
-  border-color: var(--glow) !important;
-  box-shadow:
-    0 0 12px 2px color-mix(in oklch, var(--glow) 50%, transparent),
-    0 0 28px 7px color-mix(in oklch, var(--glow) 30%, transparent) !important;
-}
-
-button:focus,
-[role="button"]:focus,
-[role="tab"]:focus,
-[role="menuitem"]:focus,
-[role="option"]:focus,
-a:focus {
-  --glow: var(--ring);
-  outline: 3px solid var(--glow) !important;
-  outline-offset: 2px !important;
-  animation: focus-glow-fade 3200ms ease-out forwards;
-}
-
-@keyframes focus-glow-fade {
-  0% {
-    outline-color: var(--glow);
+  .focus-glow:focus,
+  input:focus,
+  textarea:focus,
+  select:focus {
+    --glow: var(--ring);
+    outline: none;
+    border-color: var(--glow);
     box-shadow:
       0 0 12px 2px color-mix(in oklch, var(--glow) 50%, transparent),
       0 0 28px 7px color-mix(in oklch, var(--glow) 30%, transparent);
-  }
-  100% {
-    outline-color: transparent;
-    box-shadow:
-      0 0 0 0 transparent,
-      0 0 0 0 transparent;
   }
 }
 
