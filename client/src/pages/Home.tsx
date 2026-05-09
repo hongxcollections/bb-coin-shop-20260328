@@ -987,10 +987,24 @@ function RotatingMerchantBadge() {
   });
   const list = (merchants as any[]).filter((m) => m?.merchantName);
   const [idx, setIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+
   useEffect(() => {
     if (list.length <= 1) return;
-    const t = setInterval(() => setIdx((i) => (i + 1) % list.length), 2500);
-    return () => clearInterval(t);
+    const FADE_MS = 450;
+    const HOLD_MS = 2400;
+    let fadeTimer: ReturnType<typeof setTimeout>;
+    const cycle = setInterval(() => {
+      setVisible(false); // fade out
+      fadeTimer = setTimeout(() => {
+        setIdx((i) => (i + 1) % list.length);
+        setVisible(true); // fade in 新商戶
+      }, FADE_MS);
+    }, HOLD_MS + FADE_MS);
+    return () => {
+      clearInterval(cycle);
+      clearTimeout(fadeTimer);
+    };
   }, [list.length]);
 
   if (list.length === 0) {
@@ -1003,8 +1017,7 @@ function RotatingMerchantBadge() {
   const m = list[idx % list.length];
   return (
     <div
-      key={m.userId ?? idx}
-      className="inline-flex items-center gap-1.5 bg-white/80 backdrop-blur text-amber-800 pl-1 pr-2.5 py-1 rounded-full text-xs font-semibold mb-2 shadow-sm transition-opacity duration-500 animate-in fade-in"
+      className={`inline-flex items-center gap-1.5 bg-white/80 backdrop-blur text-amber-800 pl-1 pr-2.5 py-1 rounded-full text-xs font-semibold mb-2 shadow-sm transition-opacity duration-[450ms] ease-in-out ${visible ? "opacity-100" : "opacity-0"}`}
       title={m.merchantName}
     >
       {m.merchantIcon ? (
