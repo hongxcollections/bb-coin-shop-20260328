@@ -263,14 +263,6 @@ export default function BottomNav() {
                             <Sparkles className="w-4 h-4" />
                             <span>藏品社區</span>
                           </Link>
-                          <Link
-                            href="/daily-challenge"
-                            onClick={() => setShowMore(false)}
-                            className="bottom-nav-more-item"
-                          >
-                            <span className="w-4 h-4 inline-flex items-center justify-center">🪙</span>
-                            <span>每日挑戰</span>
-                          </Link>
                           {isMerchant && (
                             <Link
                               href="/merchant-dashboard"

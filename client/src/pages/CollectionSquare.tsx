@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Heart, MessageCircle, Eye, Plus, Search, Sparkles, Camera } from "lucide-react";
+import { Heart, MessageCircle, Eye, Plus, Search, Sparkles, Camera, Trophy, CheckCircle2 } from "lucide-react";
 
 function intentBadge(intent: string) {
   if (intent === "seek_value") return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-0 shadow-sm">求估價</Badge>;
@@ -26,6 +26,11 @@ export default function CollectionSquare() {
     sort,
     search: search || undefined,
     limit: 30,
+  });
+
+  const { data: challengeToday } = trpc.dailyChallenge.today.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+    staleTime: 60_000,
   });
 
   function goNew() {
@@ -65,6 +70,56 @@ export default function CollectionSquare() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 -mt-5 relative">
+        {/* 每日一幣挑戰 入口 banner */}
+        <Link href="/daily-challenge">
+          <a className="block mb-4">
+            <div className="rounded-2xl shadow-lg border border-amber-200 overflow-hidden bg-gradient-to-r from-amber-500 via-orange-400 to-orange-300 hover:shadow-xl transition group cursor-pointer">
+              <div className="flex items-center gap-3 p-3 md:p-4">
+                {challengeToday?.hasChallenge && challengeToday.challenge?.imageUrl ? (
+                  <img
+                    src={challengeToday.challenge.imageUrl}
+                    alt="今日挑戰"
+                    className="w-16 h-16 md:w-20 md:h-20 rounded-xl object-cover bg-white/20 ring-2 ring-white/40 shrink-0"
+                  />
+                ) : (
+                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl bg-white/20 ring-2 ring-white/40 flex items-center justify-center shrink-0 text-3xl">
+                    🪙
+                  </div>
+                )}
+                <div className="flex-1 min-w-0 text-white">
+                  <div className="flex items-center gap-1.5 text-[11px] md:text-xs font-medium opacity-95">
+                    <Trophy className="w-3.5 h-3.5" /> 每日一幣挑戰
+                    {challengeToday?.hkDate && <span className="opacity-80">· {challengeToday.hkDate}</span>}
+                  </div>
+                  <div className="font-bold text-base md:text-lg mt-0.5 truncate drop-shadow-sm">
+                    {!challengeToday
+                      ? "估中今日錢幣，攞分上榜"
+                      : !challengeToday.hasChallenge
+                      ? "今日尚未發佈挑戰，睇排行榜"
+                      : challengeToday.myAnswer
+                      ? (challengeToday.myAnswer.isCorrect === 1
+                          ? `已答中！+${challengeToday.myAnswer.pointsAwarded} 分`
+                          : "今日已作答，睇下答中名單")
+                      : "今日題目已開放，估國家+年代+種類"}
+                  </div>
+                  <div className="text-[11px] md:text-xs text-white/90 mt-0.5 truncate">
+                    {challengeToday?.hasChallenge
+                      ? `已 ${challengeToday.stats.total} 人作答 · 正確 ${challengeToday.stats.correct} 人 · 1st+5 / 2nd+3 / 3rd+2`
+                      : "前 3 名得 🥇🥈🥉 勳章 + 加分上榜"}
+                  </div>
+                </div>
+                <div className="shrink-0 bg-white/25 backdrop-blur text-white text-xs md:text-sm font-semibold px-3 py-1.5 rounded-full group-hover:bg-white/35 transition flex items-center gap-1">
+                  {challengeToday?.hasChallenge && challengeToday.myAnswer ? (
+                    <><CheckCircle2 className="w-3.5 h-3.5" /> 查看</>
+                  ) : (
+                    <>立即挑戰 →</>
+                  )}
+                </div>
+              </div>
+            </div>
+          </a>
+        </Link>
+
         {/* Search + sort floating card */}
         <div className="bg-white rounded-2xl shadow-lg border border-sky-100 p-3 md:p-4 mb-5">
           <form
