@@ -34,6 +34,7 @@ import {
   X,
   CheckCircle2,
   Sparkles,
+  ArrowRight,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -1203,54 +1204,76 @@ export default function Home() {
         />
       )}
 
-      {/* ── AI 鑑定快捷入口（三格上方右側）── */}
-      <div className="container pt-2 pb-0">
-        <div className="max-w-md mx-auto flex justify-end gap-2">
-          <button
-            onClick={() => setShowMerchantFlow(true)}
-            className="inline-flex items-center gap-1.5 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow transition-colors cursor-pointer select-none"
-          >
-            📋 商戶申請流程
-          </button>
-          <Link href="/coin-analysis">
-            <span className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow transition-colors cursor-pointer select-none">
-              <Sparkles className="w-3.5 h-3.5" />
-              AI 鑑定
-            </span>
-          </Link>
-        </div>
-      </div>
-      {/* ── Section 1: Stats (Top) — 金幣風格圓形 badge ── */}
-      <section className="pt-4 pb-3">
+      {/* ── Section 1: Stats (Top) — 金幣風格圓形 badge + 連接器 + 頂部按鈕 ── */}
+      <section className="pt-10 pb-3">
         <div className="container">
-          <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
-            {stats.map((s) => (
-              <div key={s.label} className="relative aspect-square">
-                {/* 外圈（深金邊） */}
-                <div
-                  className="absolute inset-0 rounded-full"
-                  style={{
-                    background: "linear-gradient(135deg, #b45309 0%, #f59e0b 30%, #fde68a 50%, #f59e0b 70%, #92400e 100%)",
-                    boxShadow: "0 4px 10px rgba(180, 83, 9, 0.3), inset 0 1px 2px rgba(255,255,255,0.5)",
-                  }}
-                />
-                {/* 內圈（幣面） */}
-                <div
-                  className="absolute inset-[3px] rounded-full flex flex-col items-center justify-center text-center"
-                  style={{
-                    background: "radial-gradient(circle at 30% 30%, #fffbeb 0%, #fde68a 35%, #fbbf24 70%, #d97706 100%)",
-                    boxShadow: "inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 4px rgba(146, 64, 14, 0.25)",
-                  }}
-                >
-                  <div className="text-base sm:text-lg font-extrabold text-amber-900 leading-none drop-shadow-sm">
-                    {s.value}{s.suffix}
+          <div className="max-w-md mx-auto flex items-center justify-center gap-1.5">
+            {stats.map((s, idx) => {
+              const topButton =
+                idx === 1 ? (
+                  <button
+                    onClick={() => setShowMerchantFlow(true)}
+                    className="absolute -top-5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-md transition-colors cursor-pointer select-none whitespace-nowrap z-10 border border-sky-700/50"
+                  >
+                    📋 商戶申請流程
+                  </button>
+                ) : idx === 2 ? (
+                  <Link href="/coin-analysis">
+                    <span className="absolute -top-5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-md transition-colors cursor-pointer select-none whitespace-nowrap z-10 border border-amber-700/40">
+                      <Sparkles className="w-3 h-3" />
+                      AI 鑑定
+                    </span>
+                  </Link>
+                ) : null;
+              return (
+                <div key={s.label} className="contents">
+                  {/* 大金幣 */}
+                  <div className="relative aspect-square w-[28%]">
+                    {topButton}
+                    {/* 外圈（深金邊） */}
+                    <div
+                      className="absolute inset-0 rounded-full"
+                      style={{
+                        background: "linear-gradient(135deg, #b45309 0%, #f59e0b 30%, #fde68a 50%, #f59e0b 70%, #92400e 100%)",
+                        boxShadow: "0 6px 14px rgba(180, 83, 9, 0.35), inset 0 1px 2px rgba(255,255,255,0.5)",
+                      }}
+                    />
+                    {/* 內圈（幣面） */}
+                    <div
+                      className="absolute inset-[4px] rounded-full flex flex-col items-center justify-center text-center px-1"
+                      style={{
+                        background: "radial-gradient(circle at 30% 30%, #fffbeb 0%, #fde68a 35%, #fbbf24 70%, #d97706 100%)",
+                        boxShadow: "inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 4px rgba(146, 64, 14, 0.25)",
+                      }}
+                    >
+                      <div className="text-2xl sm:text-3xl font-extrabold text-amber-900 leading-none drop-shadow-sm">
+                        {s.value}<span className="text-base sm:text-lg">{s.suffix}</span>
+                      </div>
+                      <div className="text-[10px] sm:text-xs font-bold text-amber-800/90 mt-1.5 tracking-wide">
+                        {s.label}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-[9px] sm:text-[10px] font-bold text-amber-800/90 mt-1 tracking-wide">
-                    {s.label}
-                  </div>
+                  {/* 連接器（最後一個圓後唔需要） */}
+                  {idx < stats.length - 1 && (
+                    <div className="flex items-center justify-center shrink-0" style={{ width: "8%" }}>
+                      <div className="flex items-center gap-0.5">
+                        <ArrowRight className="w-2.5 h-2.5 text-amber-700/70" strokeWidth={3} />
+                        {/* 小金幣 */}
+                        <div
+                          className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full shrink-0"
+                          style={{
+                            background: "radial-gradient(circle at 30% 30%, #fef3c7 0%, #fbbf24 60%, #b45309 100%)",
+                            boxShadow: "0 1px 3px rgba(180,83,9,0.4), inset 0 1px 1px rgba(255,255,255,0.6)",
+                          }}
+                        />
+                        <ArrowRight className="w-2.5 h-2.5 text-amber-700/70" strokeWidth={3} />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
