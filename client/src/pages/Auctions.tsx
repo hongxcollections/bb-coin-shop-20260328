@@ -204,7 +204,7 @@ export default function Auctions() {
       <Header />
 
       {/* ── 拍賣 Hero（深重黃金漸變：頂部深 → 底部淺）── */}
-      <div className="bg-gradient-to-b from-amber-500 via-amber-300 to-amber-100 border-b border-amber-400/60 pb-6">
+      <div className="bg-gradient-to-b from-amber-500 via-amber-300 to-amber-100 pb-6">
         <div className="max-w-5xl mx-auto px-4 pt-6 pb-7 relative">
           <div className="absolute -right-12 -top-12 w-48 h-48 bg-amber-400/40 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -left-10 -bottom-4 w-32 h-32 bg-yellow-300/40 rounded-full blur-2xl pointer-events-none" />
@@ -213,7 +213,7 @@ export default function Auctions() {
               <Gavel className="w-3.5 h-3.5" /> 即時競拍
             </div>
             <div className="flex items-baseline gap-3 flex-wrap">
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-amber-900">所有拍賣</h1>
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-amber-900">實時拍賣區塊</h1>
               <span className="inline-flex items-center bg-white/85 backdrop-blur text-amber-800 px-2.5 py-0.5 rounded-full text-xs font-bold border border-amber-300/60 shadow-sm">
                 共 {filtered.length} 件拍品
               </span>

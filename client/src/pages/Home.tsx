@@ -981,6 +981,48 @@ const AUCTION_SECTION_TITLES = [
 ];
 
 
+function RotatingMerchantBadge() {
+  const { data: merchants = [] } = trpc.merchants.listApprovedMerchants.useQuery(undefined, {
+    staleTime: 5 * 60_000,
+  });
+  const list = (merchants as any[]).filter((m) => m?.merchantName);
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    if (list.length <= 1) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % list.length), 2500);
+    return () => clearInterval(t);
+  }, [list.length]);
+
+  if (list.length === 0) {
+    return (
+      <div className="inline-flex items-center gap-1.5 bg-white/70 backdrop-blur text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold mb-2 shadow-sm">
+        <Store className="w-3.5 h-3.5" /> 大BB錢幣店
+      </div>
+    );
+  }
+  const m = list[idx % list.length];
+  return (
+    <div
+      key={m.userId ?? idx}
+      className="inline-flex items-center gap-1.5 bg-white/80 backdrop-blur text-amber-800 pl-1 pr-2.5 py-1 rounded-full text-xs font-semibold mb-2 shadow-sm transition-opacity duration-500 animate-in fade-in"
+      title={m.merchantName}
+    >
+      {m.merchantIcon ? (
+        <img
+          src={m.merchantIcon}
+          alt={m.merchantName}
+          className="w-5 h-5 rounded-full object-cover border border-amber-200 shrink-0"
+        />
+      ) : (
+        <span className="w-5 h-5 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
+          <Store className="w-3 h-3 text-amber-600" />
+        </span>
+      )}
+      <span className="max-w-[10rem] truncate">{m.merchantName}</span>
+    </div>
+  );
+}
+
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
@@ -1173,9 +1215,7 @@ export default function Home() {
           <div className="absolute -left-10 bottom-0 w-32 h-32 bg-orange-300/50 rounded-full blur-2xl pointer-events-none" />
           <div className="relative flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <div className="inline-flex items-center gap-1.5 bg-white/70 backdrop-blur text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold mb-2 shadow-sm">
-                <Sparkles className="w-3.5 h-3.5" /> 大BB錢幣店
-              </div>
+              <RotatingMerchantBadge />
               <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-amber-900">開放式錢幣拍賣網站</h1>
               <p className="text-xs md:text-sm text-amber-800/80 mt-1.5">精選拍品 · 商家直銷 · 安心交易</p>
             </div>
