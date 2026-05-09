@@ -92,7 +92,7 @@ export default function DailyChallenge() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-white">
       <Header />
-      <div className="container max-w-5xl py-6 md:py-10">
+      <div className="container max-w-5xl py-6 md:py-10 pb-32 md:pb-10">
         {/* Hero */}
         <div className="rounded-2xl bg-gradient-to-b from-amber-500 via-orange-400 to-orange-200 p-6 md:p-8 mb-6 shadow-lg">
           <div className="flex items-center gap-2 text-white/90 text-sm">
