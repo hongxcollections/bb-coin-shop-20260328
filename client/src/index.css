@@ -220,16 +220,19 @@
   [role="option"]:focus,
   a:focus {
     --glow: var(--ring);
-    outline: none;
-    animation: focus-glow-fade 1600ms ease-out forwards;
+    outline: 3px solid var(--glow);
+    outline-offset: 1px;
+    animation: focus-glow-fade 3200ms ease-out forwards;
   }
   @keyframes focus-glow-fade {
     0% {
+      outline-color: var(--glow);
       box-shadow:
         0 0 12px 2px color-mix(in oklch, var(--glow) 50%, transparent),
         0 0 28px 7px color-mix(in oklch, var(--glow) 30%, transparent);
     }
     100% {
+      outline-color: transparent;
       box-shadow:
         0 0 0 0 transparent,
         0 0 0 0 transparent;
