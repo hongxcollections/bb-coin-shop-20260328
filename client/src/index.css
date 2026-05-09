@@ -212,7 +212,7 @@
       0 0 12px 2px color-mix(in oklch, var(--glow) 50%, transparent),
       0 0 28px 7px color-mix(in oklch, var(--glow) 30%, transparent);
   }
-  /* Button / tab / menu / link 類：focus 後保持 1.5 秒，再 0.5 秒 fade out（總 2 秒） */
+  /* Button / tab / menu / link 類：focus 即出光暈（同 input 一樣），1.5 秒後 0.5 秒 fade 走 */
   button:focus,
   [role="button"]:focus,
   [role="tab"]:focus,
@@ -220,16 +220,13 @@
   [role="option"]:focus,
   a:focus {
     outline: none;
-    animation: btn-glow-fade 2000ms ease-out forwards;
+    box-shadow:
+      0 0 12px 2px color-mix(in oklch, var(--ring) 50%, transparent),
+      0 0 28px 7px color-mix(in oklch, var(--ring) 30%, transparent);
+    animation: btn-glow-fade 0.5s ease-out 1.5s forwards;
   }
   @keyframes btn-glow-fade {
-    0%,
-    75% {
-      box-shadow:
-        0 0 12px 2px color-mix(in oklch, var(--ring) 50%, transparent),
-        0 0 28px 7px color-mix(in oklch, var(--ring) 30%, transparent);
-    }
-    100% {
+    to {
       box-shadow: 0 0 0 0 transparent;
     }
   }
