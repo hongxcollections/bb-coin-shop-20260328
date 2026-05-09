@@ -577,7 +577,7 @@ export const auctionChatMessageReactions = mysqlTable("auctionChatMessageReactio
 export type AuctionChatMessageReaction = typeof auctionChatMessageReactions.$inferSelect;
 
 /**
- * 收藏品分享社區（藏品社區）— Phase 1
+ * 收藏品分享社區（藏家天地）— Phase 1
  */
 export const collectionPosts = mysqlTable("collectionPosts", {
   id: int("id").autoincrement().primaryKey(),

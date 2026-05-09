@@ -1164,6 +1164,36 @@ export default function Home() {
       )}
       {/* Navigation */}
       <Header />
+
+      {/* ── 商品拍賣主頁 Hero（淺金黃漸變，配合藏家天地 sky hero 風格）── */}
+      <div className="bg-gradient-to-br from-amber-100 via-yellow-100 to-amber-50 border-b border-amber-200/60">
+        <div className="max-w-5xl mx-auto px-4 pt-6 pb-7 relative overflow-hidden">
+          <div className="absolute -right-12 -top-12 w-48 h-48 bg-amber-300/30 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -left-10 bottom-0 w-32 h-32 bg-yellow-200/40 rounded-full blur-2xl pointer-events-none" />
+          <div className="relative flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-1.5 bg-white/70 backdrop-blur text-amber-800 px-2.5 py-1 rounded-full text-xs font-semibold mb-2 shadow-sm">
+                <Sparkles className="w-3.5 h-3.5" /> 大BB錢幣店
+              </div>
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-amber-900">商品拍賣主頁</h1>
+              <p className="text-xs md:text-sm text-amber-800/80 mt-1.5">精選拍品 · 商家直銷 · 安心交易</p>
+            </div>
+            <div className="flex flex-col gap-2 shrink-0">
+              <Link href="/auctions">
+                <span className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3.5 py-2 rounded-full shadow-md transition cursor-pointer select-none">
+                  <Gavel className="w-3.5 h-3.5" /> 即睇拍品
+                </span>
+              </Link>
+              <Link href="/collection-square">
+                <span className="inline-flex items-center gap-1.5 bg-white text-amber-700 hover:bg-amber-50 text-xs font-bold px-3.5 py-2 rounded-full shadow-sm border border-amber-200 transition cursor-pointer select-none">
+                  <Sparkles className="w-3.5 h-3.5" /> 藏家天地
+                </span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* 商戶申請流程彈窗 */}
       {showMerchantFlow && (
         <ImageLightbox

@@ -130,7 +130,7 @@ export default function CollectionPostNew() {
             onClick={() => navigate("/collection-square")}
             className="flex items-center text-sm text-white/90 mb-4 hover:text-white"
           >
-            <ChevronLeft className="w-4 h-4" /> 返回藏品社區
+            <ChevronLeft className="w-4 h-4" /> 返回藏家天地
           </button>
           <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur px-2.5 py-1 rounded-full text-xs font-medium mb-2">
             <Sparkles className="w-3.5 h-3.5" /> 發布收藏
