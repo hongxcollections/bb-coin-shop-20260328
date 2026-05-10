@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useLocation, useRoute, Link } from "wouter";
+import { useLocation, useRoute, useSearch, Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Header from "@/components/Header";
@@ -21,6 +21,19 @@ function intentBadge(intent: string) {
 export default function CollectionPostDetail() {
   const [, params] = useRoute<{ id: string }>("/collection-square/:id");
   const [, navigate] = useLocation();
+  const searchStr = useSearch();
+  const backHref = (() => {
+    try {
+      const sp = new URLSearchParams(searchStr);
+      const from = sp.get("from") ?? "";
+      if (from.startsWith("user:")) {
+        const uid = from.slice(5);
+        if (uid) return `/users/${uid}?from=community`;
+      }
+    } catch {}
+    return "/collection-square";
+  })();
+  const backLabel = backHref.startsWith("/users/") ? "返回會員主頁" : "返回藏品社區";
   const { user, isAuthenticated } = useAuth();
   const { showToast } = useToast();
   const confirm = useConfirm();
@@ -139,8 +152,8 @@ export default function CollectionPostDetail() {
     <div className="min-h-screen bg-gray-50 pb-32">
       <Header />
       <div className="max-w-3xl mx-auto p-4">
-        <button onClick={() => navigate("/collection-square")} className="flex items-center text-sm text-gray-600 mb-3 hover:text-gray-900">
-          <ChevronLeft className="w-4 h-4" /> 返回藏品社區
+        <button onClick={() => navigate(backHref)} className="flex items-center text-sm text-gray-600 mb-3 hover:text-gray-900">
+          <ChevronLeft className="w-4 h-4" /> {backLabel}
         </button>
 
         {(post as any).isHidden && (
