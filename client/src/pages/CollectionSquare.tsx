@@ -151,7 +151,7 @@ export default function CollectionSquare() {
               {topCreators.map((c, idx) => (
                 <Link
                   key={c.userId}
-                  href={`/u/${c.userId}`}
+                  href={`/users/${c.userId}`}
                   className="shrink-0 w-20 text-center group"
                 >
                   <div className="relative inline-block">
