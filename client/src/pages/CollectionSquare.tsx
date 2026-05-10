@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Heart, MessageCircle, Eye, Plus, Search, Sparkles, Camera, Trophy, CheckCircle2, Store, Users } from "lucide-react";
+import { Heart, MessageCircle, Eye, Plus, Search, Sparkles, Camera, Trophy, CheckCircle2, Store, Users, Flame } from "lucide-react";
 
 function intentBadge(intent: string) {
   if (intent === "seek_value") return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-0 shadow-sm">求估價</Badge>;
@@ -35,6 +35,11 @@ export default function CollectionSquare() {
     refetchOnWindowFocus: false,
     staleTime: 60_000,
   });
+
+  const { data: topCreators } = trpc.community.topWeeklyCreators.useQuery(
+    { limit: 5 },
+    { staleTime: 5 * 60_000 }
+  );
 
   function goNew() {
     if (!isAuthenticated) {
@@ -123,6 +128,64 @@ export default function CollectionSquare() {
             </div>
           </a>
         </Link>
+
+        {/* 本週熱門分享者 */}
+        {topCreators && topCreators.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg border border-orange-100 p-3 md:p-4 mb-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-rose-500 flex items-center justify-center shadow-sm">
+                <Flame className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-bold text-gray-900">本週熱門分享者</div>
+                <div className="text-[11px] text-gray-500">過去 7 日收到最多讚嘅藏家</div>
+              </div>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+              {topCreators.map((c, idx) => (
+                <Link
+                  key={c.userId}
+                  href={`/u/${c.userId}`}
+                  className="shrink-0 w-20 text-center group"
+                >
+                  <div className="relative inline-block">
+                    {c.authorPhoto ? (
+                      <img
+                        src={c.authorPhoto}
+                        alt={c.authorName ?? ""}
+                        className="w-14 h-14 rounded-full object-cover ring-2 ring-orange-200 group-hover:ring-orange-400 transition shadow-sm"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sky-100 to-sky-200 ring-2 ring-orange-200 group-hover:ring-orange-400 transition flex items-center justify-center text-lg font-bold text-sky-600 shadow-sm">
+                        {(c.authorName ?? "?").charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <span
+                      className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-[10px] font-bold text-white flex items-center justify-center shadow ${
+                        idx === 0
+                          ? "bg-yellow-500"
+                          : idx === 1
+                          ? "bg-gray-400"
+                          : idx === 2
+                          ? "bg-amber-700"
+                          : "bg-orange-300"
+                      }`}
+                    >
+                      {idx + 1}
+                    </span>
+                  </div>
+                  <div className="text-xs font-medium text-gray-700 mt-1.5 truncate group-hover:text-orange-600 transition">
+                    {c.authorName ?? "匿名"}
+                  </div>
+                  <div className="flex items-center justify-center gap-0.5 text-[11px] text-rose-500 mt-0.5">
+                    <Heart className="w-3 h-3 fill-rose-500" />
+                    <span className="font-semibold">{c.weeklyLikes}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Search + sort floating card */}
         <div className="bg-white rounded-2xl shadow-lg border border-sky-100 p-3 md:p-4 mb-5">

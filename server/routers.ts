@@ -28,6 +28,8 @@ import {
   adminCountFlagged,
   checkForbidden,
   getMerchantPostQuotaInfo,
+  getCommunityUserStats,
+  listTopWeeklyCreators,
 } from "./community";
 import {
   CHALLENGE_COUNTRIES,
@@ -6712,6 +6714,20 @@ ${kb}`;
     merchantPostQuota: protectedProcedure
       .query(async ({ ctx }) => {
         return getMerchantPostQuotaInfo(ctx.user.id);
+      }),
+
+    // 用戶喺社區嘅統計（發帖數 / 收到讚總數 / 收到收藏總數）
+    userStats: publicProcedure
+      .input(z.object({ userId: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        return getCommunityUserStats(input.userId);
+      }),
+
+    // 本週熱門分享者：過去 7 日收到最多讚嘅 user
+    topWeeklyCreators: publicProcedure
+      .input(z.object({ limit: z.number().int().min(1).max(20).default(5) }).optional())
+      .query(async ({ input }) => {
+        return listTopWeeklyCreators(input?.limit ?? 5);
       }),
 
     get: publicProcedure

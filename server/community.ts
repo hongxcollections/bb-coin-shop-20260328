@@ -559,6 +559,86 @@ export async function adminListFlaggedPosts(): Promise<any[]> {
   return (Array.isArray(rowsRaw) ? rowsRaw[0] : rowsRaw) as any[];
 }
 
+/**
+ * 藏品社區：用戶統計（發帖數 + 收到讚總數 + 收到收藏總數）
+ * 只計公開（isHidden = 0）嘅帖。
+ */
+export async function getCommunityUserStats(userId: number): Promise<{
+  postCount: number;
+  totalLikes: number;
+  totalSaves: number;
+}> {
+  const db = await getDb();
+  if (!db) return { postCount: 0, totalLikes: 0, totalSaves: 0 };
+  try {
+    const raw: any = await db.execute(sql`
+      SELECT
+        COUNT(*) AS postCount,
+        COALESCE(SUM(likeCount), 0) AS totalLikes,
+        (SELECT COUNT(*) FROM collectionPostSaves s
+           JOIN collectionPosts p ON p.id = s.postId
+          WHERE p.userId = ${userId} AND p.isHidden = 0) AS totalSaves
+      FROM collectionPosts
+      WHERE userId = ${userId} AND isHidden = 0
+    `);
+    const rows = (Array.isArray(raw) ? raw[0] : raw) as any[];
+    const r = rows?.[0] ?? {};
+    return {
+      postCount: Number(r.postCount ?? 0),
+      totalLikes: Number(r.totalLikes ?? 0),
+      totalSaves: Number(r.totalSaves ?? 0),
+    };
+  } catch (e) {
+    console.error("[community] getCommunityUserStats failed:", e);
+    return { postCount: 0, totalLikes: 0, totalSaves: 0 };
+  }
+}
+
+/**
+ * 本週熱門分享者：過去 7 日收到最多讚嘅 user（top N）。
+ * 只計公開帖；只 return 過去 7 日有新讚嘅 user。
+ */
+export async function listTopWeeklyCreators(limit: number = 5): Promise<Array<{
+  userId: number;
+  authorName: string | null;
+  authorPhoto: string | null;
+  weeklyLikes: number;
+  postCount: number;
+}>> {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const raw: any = await db.execute(sql`
+      SELECT
+        p.userId AS userId,
+        u.name AS authorName,
+        u.photoUrl AS authorPhoto,
+        COUNT(l.id) AS weeklyLikes,
+        (SELECT COUNT(*) FROM collectionPosts p2 WHERE p2.userId = p.userId AND p2.isHidden = 0) AS postCount
+      FROM collectionPostLikes l
+      JOIN collectionPosts p ON p.id = l.postId
+      LEFT JOIN users u ON u.id = p.userId
+      WHERE p.isHidden = 0
+        AND l.createdAt >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        AND l.userId != p.userId
+      GROUP BY p.userId, u.name, u.photoUrl
+      ORDER BY weeklyLikes DESC, postCount DESC
+      LIMIT ${Math.max(1, Math.min(20, limit))}
+    `);
+    const rows = (Array.isArray(raw) ? raw[0] : raw) as any[];
+    return (rows ?? []).map((r) => ({
+      userId: Number(r.userId),
+      authorName: r.authorName ?? null,
+      authorPhoto: r.authorPhoto ?? null,
+      weeklyLikes: Number(r.weeklyLikes ?? 0),
+      postCount: Number(r.postCount ?? 0),
+    }));
+  } catch (e) {
+    console.error("[community] listTopWeeklyCreators failed:", e);
+    return [];
+  }
+}
+
 export async function adminCountFlagged(): Promise<number> {
   const db = await getDb();
   if (!db) return 0;

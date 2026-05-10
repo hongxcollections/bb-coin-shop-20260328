@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, TrendingUp, LogOut, Mail, CheckCircle2, Bell, BellOff, EyeOff, Heart, Lock, Camera, Pencil, X, Check } from "lucide-react";
+import { User, TrendingUp, LogOut, Mail, CheckCircle2, Bell, BellOff, EyeOff, Heart, Lock, Camera, Pencil, X, Check, Sparkles, Bookmark, ImageIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { PushVolumeSlider } from "@/components/PushVolumeSlider";
@@ -21,6 +21,10 @@ import { LoyaltyProgressCard } from "@/components/LoyaltyProgressCard";
 export default function Profile() {
   const { user, isAuthenticated, loading, logout } = useAuth();
   const { data: myBids } = trpc.auctions.myBids.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: communityStats } = trpc.community.userStats.useQuery(
+    { userId: user?.id ?? 0 },
+    { enabled: isAuthenticated && !!user?.id, staleTime: 60_000 }
+  );
   const [emailInput, setEmailInput] = useState("");
   const [emailSaved, setEmailSaved] = useState(false);
 
@@ -511,6 +515,46 @@ export default function Profile() {
             </Card>
           </Link>
         </div>
+        {/* 藏品社區 — 我嘅參與 */}
+        <Card className="mb-6 border-sky-100 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-sky-50 to-cyan-50 border-b border-sky-100">
+            <CardTitle className="flex items-center gap-2 text-base text-sky-900">
+              <Sparkles className="w-4 h-4 text-sky-500" />
+              藏品社區 — 我嘅參與
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="py-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center">
+                <div className="w-9 h-9 mx-auto mb-1.5 rounded-full bg-sky-50 flex items-center justify-center">
+                  <ImageIcon className="w-4 h-4 text-sky-500" />
+                </div>
+                <div className="text-xl font-bold text-sky-700">{communityStats?.postCount ?? 0}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">已發帖</div>
+              </div>
+              <div className="text-center">
+                <div className="w-9 h-9 mx-auto mb-1.5 rounded-full bg-rose-50 flex items-center justify-center">
+                  <Heart className="w-4 h-4 text-rose-500" />
+                </div>
+                <div className="text-xl font-bold text-rose-600">{communityStats?.totalLikes ?? 0}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">收到讚</div>
+              </div>
+              <div className="text-center">
+                <div className="w-9 h-9 mx-auto mb-1.5 rounded-full bg-amber-50 flex items-center justify-center">
+                  <Bookmark className="w-4 h-4 text-amber-500" />
+                </div>
+                <div className="text-xl font-bold text-amber-600">{communityStats?.totalSaves ?? 0}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">收到收藏</div>
+              </div>
+            </div>
+            <Link href="/collection-square" className="block mt-4">
+              <Button variant="outline" className="w-full border-sky-200 text-sky-700 hover:bg-sky-50 hover:text-sky-800">
+                去藏品社區 →
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
         <Link href="/bid-history" className="block mb-6">
           <Card className="border-amber-100 hover:border-amber-300 transition-colors cursor-pointer">
             <CardContent className="py-3 px-4 flex items-center gap-3">

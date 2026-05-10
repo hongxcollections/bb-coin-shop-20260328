@@ -2,7 +2,7 @@ import { useParams, Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, Trophy, TrendingUp, Calendar, ArrowLeft } from "lucide-react";
+import { User, Trophy, TrendingUp, Calendar, ArrowLeft, Sparkles, Heart, Bookmark, ImageIcon } from "lucide-react";
 
 export default function UserProfile() {
   const params = useParams<{ userId: string }>();
@@ -11,6 +11,10 @@ export default function UserProfile() {
   const { data: profile, isLoading, error } = trpc.users.publicProfile.useQuery(
     { userId },
     { enabled: !!userId && !isNaN(userId) }
+  );
+  const { data: communityStats } = trpc.community.userStats.useQuery(
+    { userId },
+    { enabled: !!userId && !isNaN(userId), staleTime: 60_000 }
   );
 
   if (isLoading) {
@@ -118,6 +122,41 @@ export default function UserProfile() {
             </CardContent>
           </Card>
         </div>
+
+        {/* 藏品社區參與度 */}
+        <Card className="border-sky-100 mb-6 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-sky-50 to-cyan-50 border-b border-sky-100 py-3">
+            <CardTitle className="flex items-center gap-2 text-sm text-sky-900">
+              <Sparkles className="w-4 h-4 text-sky-500" />
+              藏品社區參與
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="py-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center">
+                <div className="w-9 h-9 mx-auto mb-1.5 rounded-full bg-sky-50 flex items-center justify-center">
+                  <ImageIcon className="w-4 h-4 text-sky-500" />
+                </div>
+                <div className="text-xl font-bold text-sky-700">{communityStats?.postCount ?? 0}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">分享</div>
+              </div>
+              <div className="text-center">
+                <div className="w-9 h-9 mx-auto mb-1.5 rounded-full bg-rose-50 flex items-center justify-center">
+                  <Heart className="w-4 h-4 text-rose-500" />
+                </div>
+                <div className="text-xl font-bold text-rose-600">{communityStats?.totalLikes ?? 0}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">收到讚</div>
+              </div>
+              <div className="text-center">
+                <div className="w-9 h-9 mx-auto mb-1.5 rounded-full bg-amber-50 flex items-center justify-center">
+                  <Bookmark className="w-4 h-4 text-amber-500" />
+                </div>
+                <div className="text-xl font-bold text-amber-600">{communityStats?.totalSaves ?? 0}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">收到收藏</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Win rate badge */}
         {profile.auctionsParticipated > 0 && (
