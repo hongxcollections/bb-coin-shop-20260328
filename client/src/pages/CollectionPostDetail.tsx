@@ -11,6 +11,7 @@ import { useConfirm } from "@/components/ui/confirm-provider";
 import ImageLightbox from "@/components/ImageLightbox";
 import { CollectionShareMenu } from "@/components/ShareMenu";
 import { Heart, Bookmark, MessageCircle, Eye, ChevronLeft, Trash2, Store, ShoppingBag, AlertTriangle, ChevronRight } from "lucide-react";
+import { MemberBadge } from "@/components/MemberBadge";
 
 function intentBadge(intent: string) {
   if (intent === "seek_value") return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">求估價</Badge>;
@@ -270,6 +271,9 @@ export default function CollectionPostDetail() {
                 <div className="w-7 h-7 rounded-full bg-gray-200" />
               )}
               <span className="text-gray-700">{(post as any).author?.name ?? "匿名"}</span>
+              {(post as any).author?.memberLevel && (post as any).author.memberLevel !== "bronze" && (
+                <MemberBadge level={(post as any).author.memberLevel} variant="icon" size="sm" />
+              )}
               {(post as any).authorIsMerchant && <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">商戶</Badge>}
               <span className="text-gray-400 text-xs ml-auto flex items-center gap-2">
                 <span className="flex items-center gap-0.5"><Eye className="w-3 h-3" />{post.viewCount}</span>

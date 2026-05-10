@@ -199,7 +199,8 @@ export async function listCollectionPosts(input: {
       cp.isMerchantPost, cp.merchantProductId,
       cp.createdAt,
       u.name AS authorName,
-      u.photoUrl AS authorPhoto,
+      COALESCE(NULLIF(TRIM(u.photoUrl),''), NULLIF(TRIM((SELECT ma2.merchantIcon FROM merchantApplications ma2 WHERE ma2.userId = cp.userId AND ma2.status = 'approved' ORDER BY ma2.id DESC LIMIT 1)),'')) AS authorPhoto,
+      u.memberLevel AS authorMemberLevel,
       (SELECT cpi.imageUrl FROM collectionPostImages cpi WHERE cpi.postId = cp.id ORDER BY cpi.displayOrder, cpi.id LIMIT 1) AS coverImage,
       (SELECT COUNT(*) FROM collectionPostImages cpi WHERE cpi.postId = cp.id) AS imageCount
     FROM collectionPosts cp
@@ -281,7 +282,7 @@ export async function getCollectionPostDetail(postId: number, viewerUserId: numb
     .orderBy(collectionPostImages.displayOrder, collectionPostImages.id);
 
   // author info
-  const authorRowsRaw: any = await db.execute(sql`SELECT id, name, photoUrl FROM users WHERE id = ${post.userId} LIMIT 1`);
+  const authorRowsRaw: any = await db.execute(sql`SELECT id, name, photoUrl, memberLevel FROM users WHERE id = ${post.userId} LIMIT 1`);
   const authorRows = (Array.isArray(authorRowsRaw) ? authorRowsRaw[0] : authorRowsRaw) as any[];
   const author = authorRows?.[0] ?? null;
 

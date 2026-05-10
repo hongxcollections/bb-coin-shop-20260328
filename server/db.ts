@@ -967,6 +967,7 @@ export async function getUserPublicStats(userId: number) {
       name: user.name,
       createdAt: user.createdAt,
       photoUrl: user.photoUrl ?? null,
+      memberLevel: (user.memberLevel ?? "bronze") as string,
       auctionsParticipated,
       auctionsWon,
     };

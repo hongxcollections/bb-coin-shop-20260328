@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Heart, MessageCircle, Eye, Plus, Search, Sparkles, Camera, Trophy, CheckCircle2, Store, Users, Flame } from "lucide-react";
+import { MemberBadge } from "@/components/MemberBadge";
 
 function intentBadge(intent: string) {
   if (intent === "seek_value") return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-0 shadow-sm">求估價</Badge>;
@@ -333,6 +334,9 @@ export default function CollectionSquare() {
                     <div className="w-5 h-5 rounded-full bg-gradient-to-br from-sky-100 to-sky-200" />
                   )}
                   <span className="truncate flex-1 text-gray-600">{post.authorName ?? "匿名"}</span>
+                  {post.authorMemberLevel && post.authorMemberLevel !== "bronze" && (
+                    <MemberBadge level={post.authorMemberLevel} variant="icon" size="sm" />
+                  )}
                 </div>
                 <div className="flex items-center gap-3 mt-2 pt-2 border-t border-gray-50 text-xs text-gray-500">
                   <span className="flex items-center gap-1">

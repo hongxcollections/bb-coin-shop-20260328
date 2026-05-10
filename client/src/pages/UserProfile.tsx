@@ -4,6 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, TrendingUp, Calendar, ArrowLeft, Sparkles, Heart, Bookmark, ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { MemberBadge } from "@/components/MemberBadge";
 
 const PAGE_SIZE = 10;
 
@@ -128,7 +129,12 @@ export default function UserProfile() {
                 );
               })()}
               <div>
-                <h1 className="text-lg font-bold text-amber-900 leading-tight">{profile.name}</h1>
+                <div className="flex items-center gap-1.5">
+                  <h1 className="text-lg font-bold text-amber-900 leading-tight">{profile.name}</h1>
+                  {(profile as any).memberLevel && (profile as any).memberLevel !== "bronze" && (
+                    <MemberBadge level={(profile as any).memberLevel} variant="icon" size="sm" />
+                  )}
+                </div>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                   <Calendar className="w-3 h-3" />
                   <span>加入於 {joinedDate}</span>
