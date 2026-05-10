@@ -147,7 +147,7 @@ export default function CollectionSquare() {
                 </div>
               </div>
             </div>
-            <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+            <div className="flex gap-3 overflow-x-auto overflow-y-visible py-3 px-1 scrollbar-hide">
               {topCreators.map((c, idx) => {
                 const photo = c.authorPhoto && c.authorPhoto.trim() ? c.authorPhoto.trim() : null;
                 return (
