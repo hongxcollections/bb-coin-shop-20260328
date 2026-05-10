@@ -157,7 +157,7 @@ export default function CollectionPostDetail() {
           <ChevronLeft className="w-4 h-4" /> {backLabel}
         </button>
 
-        {(post as any).isHidden && (
+        {!!(post as any).isHidden && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded mb-3 flex gap-2">
             <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <div>
@@ -291,7 +291,7 @@ export default function CollectionPostDetail() {
             )}
 
             {/* 方案 B：商戶上架帖文 — show 商戶商品卡（去了解下商品） */}
-            {(post as any).isMerchantPost && (post as any).merchantProduct && (
+            {!!(post as any).isMerchantPost && !!(post as any).merchantProduct && (
               <Link href={`/merchant-products/${(post as any).merchantProduct.id}`}>
                 <a className="block rounded-xl border border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-3 hover:shadow-md transition">
                   <div className="flex items-center gap-3">
