@@ -273,9 +273,9 @@ export default function CollectionPostDetail() {
               </div>
             )}
 
-            {/* 方案 B：商戶上架帖文 — show 商戶商品卡（去店鋪睇貨） */}
+            {/* 方案 B：商戶上架帖文 — show 商戶商品卡（去了解下商品） */}
             {(post as any).isMerchantPost && (post as any).merchantProduct && (
-              <Link href={`/merchant/${(post as any).merchantProduct.merchantId}`}>
+              <Link href={`/merchant-products/${(post as any).merchantProduct.id}`}>
                 <a className="block rounded-xl border border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-3 hover:shadow-md transition">
                   <div className="flex items-center gap-3">
                     {(post as any).merchantProduct.coverImage ? (
@@ -299,7 +299,7 @@ export default function CollectionPostDetail() {
                           {(post as any).merchantProduct.currency} ${parseFloat((post as any).merchantProduct.price || "0").toLocaleString()}
                         </span>
                         <span className="text-xs text-amber-700 inline-flex items-center gap-0.5">
-                          去店鋪睇貨 <ChevronRight className="w-3 h-3" />
+                          去了解下商品 <ChevronRight className="w-3 h-3" />
                         </span>
                       </div>
                     </div>
