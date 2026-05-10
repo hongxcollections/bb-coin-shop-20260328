@@ -71,7 +71,7 @@ export default function UserProfile() {
 
   return (
     <div className="min-h-screen hero-bg">
-      <div className="container max-w-2xl py-8">
+      <div className="container max-w-2xl py-8 pb-16">
         {/* Back link */}
         <Link href={backHref}>
           <span className="inline-flex items-center gap-1.5 text-sm text-amber-600 hover:text-amber-800 mb-6 cursor-pointer transition-colors">
@@ -120,29 +120,6 @@ export default function UserProfile() {
           </CardContent>
         </Card>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <Card className="border-amber-100 text-center">
-            <CardContent className="pt-6 pb-5">
-              <TrendingUp className="w-7 h-7 mx-auto mb-2 text-amber-500" />
-              <div className="text-3xl font-bold text-amber-700 mb-1">
-                {profile.auctionsParticipated}
-              </div>
-              <div className="text-sm text-muted-foreground">參與競標</div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-amber-100 text-center">
-            <CardContent className="pt-6 pb-5">
-              <Trophy className="w-7 h-7 mx-auto mb-2 text-amber-500" />
-              <div className="text-3xl font-bold text-amber-700 mb-1">
-                {profile.auctionsWon}
-              </div>
-              <div className="text-sm text-muted-foreground">成功得標</div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* 藏品社區參與度 */}
         <Card className="border-sky-100 mb-6 overflow-hidden">
           <CardHeader className="bg-gradient-to-r from-sky-50 to-cyan-50 border-b border-sky-100 py-3">
@@ -177,6 +154,29 @@ export default function UserProfile() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <Card className="border-amber-100 text-center">
+            <CardContent className="pt-6 pb-5">
+              <TrendingUp className="w-7 h-7 mx-auto mb-2 text-amber-500" />
+              <div className="text-3xl font-bold text-amber-700 mb-1">
+                {profile.auctionsParticipated}
+              </div>
+              <div className="text-sm text-muted-foreground">參與競標</div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-amber-100 text-center">
+            <CardContent className="pt-6 pb-5">
+              <Trophy className="w-7 h-7 mx-auto mb-2 text-amber-500" />
+              <div className="text-3xl font-bold text-amber-700 mb-1">
+                {profile.auctionsWon}
+              </div>
+              <div className="text-sm text-muted-foreground">成功得標</div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Win rate badge */}
         {profile.auctionsParticipated > 0 && (

@@ -470,23 +470,7 @@ export default function Profile() {
           </CardContent>
         </Card>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          {[
-            { label: "競標次數", value: myBids?.length ?? 0, suffix: "次", icon: TrendingUp },
-            { label: "競標總額", value: `HK$${totalBidAmount.toLocaleString()}`, suffix: "", icon: TrendingUp },
-            { label: "帳號狀態", value: "正常", suffix: "", icon: User },
-          ].map((stat) => (
-            <Card key={stat.label} className="border-amber-100 text-center">
-              <CardContent className="py-4 px-3">
-                <div className="text-xl font-bold text-amber-700">{stat.value}{stat.suffix}</div>
-                <div className="text-xs text-muted-foreground mt-1">{stat.label}</div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* 藏品社區 — 我嘅參與（中間位置）*/}
+        {/* 藏品社區 — 我嘅參與 */}
         <Card className="mb-6 border-sky-100 overflow-hidden shadow-sm">
           <CardHeader className="bg-gradient-to-r from-sky-50 to-cyan-50 border-b border-sky-100 py-3">
             <CardTitle className="flex items-center gap-2 text-base text-sky-900">
@@ -527,6 +511,22 @@ export default function Profile() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          {[
+            { label: "競標次數", value: myBids?.length ?? 0, suffix: "次", icon: TrendingUp },
+            { label: "競標總額", value: `HK$${totalBidAmount.toLocaleString()}`, suffix: "", icon: TrendingUp },
+            { label: "帳號狀態", value: "正常", suffix: "", icon: User },
+          ].map((stat) => (
+            <Card key={stat.label} className="border-amber-100 text-center">
+              <CardContent className="py-4 px-3">
+                <div className="text-xl font-bold text-amber-700">{stat.value}{stat.suffix}</div>
+                <div className="text-xs text-muted-foreground mt-1">{stat.label}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
         {/* Quick Links */}
         <div className="flex gap-3 mb-6">
@@ -573,6 +573,7 @@ export default function Profile() {
         </Link>
 
       </div>
+      <div className="h-16" />
     </div>
   );
 }
