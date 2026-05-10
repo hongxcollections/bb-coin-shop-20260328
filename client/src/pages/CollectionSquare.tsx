@@ -137,8 +137,14 @@ export default function CollectionSquare() {
                 <Flame className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1">
-                <div className="text-sm font-bold text-gray-900">本週熱門分享者</div>
-                <div className="text-[11px] text-gray-500">過去 7 日收到最多讚嘅藏家</div>
+                <div className="text-sm font-bold text-gray-900">
+                  {topCreators.some((c) => c.weeklyLikes > 0) ? "本週熱門分享者" : "活躍藏家"}
+                </div>
+                <div className="text-[11px] text-gray-500">
+                  {topCreators.some((c) => c.weeklyLikes > 0)
+                    ? "過去 7 日收到最多讚嘅藏家"
+                    : "本週未有讚數，先睇吓最活躍嘅分享者"}
+                </div>
               </div>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
@@ -177,9 +183,15 @@ export default function CollectionSquare() {
                   <div className="text-xs font-medium text-gray-700 mt-1.5 truncate group-hover:text-orange-600 transition">
                     {c.authorName ?? "匿名"}
                   </div>
-                  <div className="flex items-center justify-center gap-0.5 text-[11px] text-rose-500 mt-0.5">
-                    <Heart className="w-3 h-3 fill-rose-500" />
-                    <span className="font-semibold">{c.weeklyLikes}</span>
+                  <div className="flex items-center justify-center gap-0.5 text-[11px] mt-0.5">
+                    {c.weeklyLikes > 0 ? (
+                      <>
+                        <Heart className="w-3 h-3 fill-rose-500 text-rose-500" />
+                        <span className="font-semibold text-rose-500">{c.weeklyLikes}</span>
+                      </>
+                    ) : (
+                      <span className="text-gray-400">{c.postCount} 帖</span>
+                    )}
                   </div>
                 </Link>
               ))}

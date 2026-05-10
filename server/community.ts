@@ -609,35 +609,56 @@ export async function listTopWeeklyCreators(limit: number = 5): Promise<Array<{
   if (!db) return [];
   try {
     const lim = Math.max(1, Math.min(20, limit));
-    // Step 1: 過去 7 日 likes，按 author 聚合（top N）
-    const raw: any = await db.execute(sql`
-      SELECT
-        weekly.userId AS userId,
-        u.name AS authorName,
-        u.photoUrl AS authorPhoto,
-        weekly.weeklyLikes AS weeklyLikes,
-        COALESCE(pc.postCount, 0) AS postCount
-      FROM (
-        SELECT p.userId AS userId, COUNT(l.id) AS weeklyLikes
-        FROM collectionPostLikes l
-        JOIN collectionPosts p ON p.id = l.postId
+    // Helper：用唔同時間窗口去揾 top 創作者
+    async function queryWindow(days: number): Promise<any[]> {
+      const r: any = await db!.execute(sql`
+        SELECT
+          weekly.userId AS userId,
+          u.name AS authorName,
+          u.photoUrl AS authorPhoto,
+          weekly.weeklyLikes AS weeklyLikes,
+          COALESCE(pc.postCount, 0) AS postCount
+        FROM (
+          SELECT p.userId AS userId, COUNT(l.id) AS weeklyLikes
+          FROM collectionPostLikes l
+          JOIN collectionPosts p ON p.id = l.postId
+          WHERE p.isHidden = 0
+            AND l.createdAt >= DATE_SUB(NOW(), INTERVAL ${days} DAY)
+            AND l.userId != p.userId
+          GROUP BY p.userId
+          ORDER BY weeklyLikes DESC
+          LIMIT ${lim}
+        ) AS weekly
+        LEFT JOIN users u ON u.id = weekly.userId
+        LEFT JOIN (
+          SELECT userId, COUNT(*) AS postCount
+          FROM collectionPosts
+          WHERE isHidden = 0
+          GROUP BY userId
+        ) AS pc ON pc.userId = weekly.userId
+        ORDER BY weekly.weeklyLikes DESC, pc.postCount DESC
+      `);
+      return (Array.isArray(r) ? r[0] : r) as any[];
+    }
+    // Step 1: 7 日窗口；冇結果 fallback 去發帖最多嘅活躍藏家
+    let rows = (await queryWindow(7)) ?? [];
+    if (rows.length === 0) {
+      const r2: any = await db.execute(sql`
+        SELECT
+          p.userId AS userId,
+          u.name AS authorName,
+          u.photoUrl AS authorPhoto,
+          0 AS weeklyLikes,
+          COUNT(*) AS postCount
+        FROM collectionPosts p
+        LEFT JOIN users u ON u.id = p.userId
         WHERE p.isHidden = 0
-          AND l.createdAt >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-          AND l.userId != p.userId
-        GROUP BY p.userId
-        ORDER BY weeklyLikes DESC
+        GROUP BY p.userId, u.name, u.photoUrl
+        ORDER BY postCount DESC, p.userId DESC
         LIMIT ${lim}
-      ) AS weekly
-      LEFT JOIN users u ON u.id = weekly.userId
-      LEFT JOIN (
-        SELECT userId, COUNT(*) AS postCount
-        FROM collectionPosts
-        WHERE isHidden = 0
-        GROUP BY userId
-      ) AS pc ON pc.userId = weekly.userId
-      ORDER BY weekly.weeklyLikes DESC, pc.postCount DESC
-    `);
-    const rows = (Array.isArray(raw) ? raw[0] : raw) as any[];
+      `);
+      rows = (Array.isArray(r2) ? r2[0] : r2) as any[];
+    }
     return (rows ?? []).map((r) => ({
       userId: Number(r.userId),
       authorName: r.authorName ?? null,
