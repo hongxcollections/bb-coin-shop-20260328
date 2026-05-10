@@ -660,7 +660,7 @@ async function bootstrapMissingColumns() {
   // favorites: 我的收藏
   await addIndex('idx_favorites_userId', 'CREATE INDEX `idx_favorites_userId` ON `favorites` (`userId`)');
 
-  // ── 收藏品分享社區（藏家天地）— Phase 1 表 ──────────────────────────────────
+  // ── 收藏品分享社區（藏品社區）— Phase 1 表 ──────────────────────────────────
   await alter(`CREATE TABLE IF NOT EXISTS \`collectionPosts\` (
     \`id\` int AUTO_INCREMENT NOT NULL,
     \`userId\` int NOT NULL,

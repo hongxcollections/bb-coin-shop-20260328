@@ -1585,9 +1585,9 @@ export default function MerchantProducts() {
                         <a
                           href={`/collection-square/new?productId=${p.id}`}
                           className="flex items-center gap-1 text-xs px-3 py-1.5 bg-sky-50 text-sky-600 rounded-lg hover:bg-sky-100 transition-colors flex-1 justify-center"
-                          title="分享呢件商品去藏家天地"
+                          title="分享呢件商品去藏品社區"
                         >
-                          <Sparkles className="w-3 h-3" />分享去藏家天地
+                          <Sparkles className="w-3 h-3" />分享去藏品社區
                         </a>
                       )}
                     </div>
