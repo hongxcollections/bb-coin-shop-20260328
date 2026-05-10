@@ -71,7 +71,7 @@ export default function UserProfile() {
 
   return (
     <div className="min-h-screen hero-bg">
-      <div className="container max-w-2xl py-8 pb-16">
+      <div className="container max-w-2xl py-8 pb-20">
         {/* Back link */}
         <Link href={backHref}>
           <span className="inline-flex items-center gap-1.5 text-sm text-amber-600 hover:text-amber-800 mb-6 cursor-pointer transition-colors">
