@@ -615,7 +615,7 @@ export async function listTopWeeklyCreators(limit: number = 5): Promise<Array<{
         SELECT
           weekly.userId AS userId,
           u.name AS authorName,
-          u.photoUrl AS authorPhoto,
+          COALESCE(NULLIF(TRIM(u.photoUrl),''), NULLIF(TRIM(ma.merchantIcon),'')) AS authorPhoto,
           weekly.weeklyLikes AS weeklyLikes,
           COALESCE(pc.postCount, 0) AS postCount
         FROM (
@@ -630,6 +630,7 @@ export async function listTopWeeklyCreators(limit: number = 5): Promise<Array<{
           LIMIT ${lim}
         ) AS weekly
         LEFT JOIN users u ON u.id = weekly.userId
+        LEFT JOIN merchantApplications ma ON ma.userId = weekly.userId AND ma.status = 'approved'
         LEFT JOIN (
           SELECT userId, COUNT(*) AS postCount
           FROM collectionPosts
@@ -647,13 +648,14 @@ export async function listTopWeeklyCreators(limit: number = 5): Promise<Array<{
         SELECT
           p.userId AS userId,
           u.name AS authorName,
-          u.photoUrl AS authorPhoto,
+          COALESCE(NULLIF(TRIM(u.photoUrl),''), NULLIF(TRIM(ma.merchantIcon),'')) AS authorPhoto,
           0 AS weeklyLikes,
           COUNT(*) AS postCount
         FROM collectionPosts p
         LEFT JOIN users u ON u.id = p.userId
+        LEFT JOIN merchantApplications ma ON ma.userId = p.userId AND ma.status = 'approved'
         WHERE p.isHidden = 0
-        GROUP BY p.userId, u.name, u.photoUrl
+        GROUP BY p.userId, u.name, u.photoUrl, ma.merchantIcon
         ORDER BY postCount DESC, p.userId DESC
         LIMIT ${lim}
       `);
