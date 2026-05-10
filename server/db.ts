@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
 import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, depositTierChangeRequests, merchantProducts, MerchantProduct, featuredListings, FeaturedListing, auctionChatRooms, auctionChatMessages, AuctionChatRoom, AuctionChatMessage, auctionChatMessageReactions, AuctionChatMessageReaction } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { pingAuctionOg, pingProductOg } from './_core/facebook-og-refresh';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _db: any = null;
@@ -409,6 +410,8 @@ export async function createAuction(data: InsertAuction) {
     if (!insertedAuction[0]) {
       throw new Error('Failed to retrieve created auction');
     }
+    // Fire-and-forget: 通知 FB 抓 OG cache（避免 first-share 空白卡）
+    try { pingAuctionOg(insertedAuction[0].id); } catch {}
     return insertedAuction[0];
   } catch (error) {
     console.error('[Database] Failed to create auction:', error);
@@ -4641,6 +4644,8 @@ export async function createMerchantProduct(data: {
   if (typeof data.allowOffers === 'number') {
     try { await db.execute(sql`UPDATE merchantProducts SET allowOffers = ${data.allowOffers} WHERE id = ${id}`); } catch {}
   }
+  // Fire-and-forget: 通知 FB 抓 OG cache
+  try { pingProductOg(id); } catch {}
   return id;
 }
 
@@ -4671,6 +4676,8 @@ export async function updateMerchantProduct(id: number, merchantId: number, data
   if (data.status === 'sold' || data.status === 'hidden') {
     await autoExpireFeaturedForProduct(id);
   }
+  // Fire-and-forget: 通知 FB 重新抓 OG cache（改價/改圖/改標題後）
+  try { pingProductOg(id); } catch {}
 }
 
 export async function deleteMerchantProduct(id: number, merchantId: number): Promise<void> {

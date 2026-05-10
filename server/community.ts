@@ -131,6 +131,14 @@ export async function createCollectionPost(input: {
     await db.insert(collectionPostImages).values(rows);
   }
 
+  // Fire-and-forget: 通知 FB 抓 OG cache（藏品社區帖文）
+  if (insertId > 0 && !flagged) {
+    try {
+      const { pingCommunityPostOg } = await import("./_core/facebook-og-refresh");
+      pingCommunityPostOg(insertId);
+    } catch {}
+  }
+
   return { id: insertId, flagged, reason };
 }
 
