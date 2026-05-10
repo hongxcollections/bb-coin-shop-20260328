@@ -486,6 +486,48 @@ export default function Profile() {
           ))}
         </div>
 
+        {/* 藏品社區 — 我嘅參與（中間位置）*/}
+        <Card className="mb-6 border-sky-100 overflow-hidden shadow-sm">
+          <CardHeader className="bg-gradient-to-r from-sky-50 to-cyan-50 border-b border-sky-100 py-3">
+            <CardTitle className="flex items-center gap-2 text-base text-sky-900">
+              <Sparkles className="w-4 h-4 text-sky-500" />
+              藏品社區 — 我嘅參與
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="py-5">
+            <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
+              <div className="flex flex-col items-center justify-center text-center">
+                <div className="w-11 h-11 mb-2 rounded-full bg-sky-50 flex items-center justify-center">
+                  <ImageIcon className="w-5 h-5 text-sky-500" />
+                </div>
+                <div className="text-2xl font-bold text-sky-700 leading-tight">{communityStats?.postCount ?? 0}</div>
+                <div className="text-xs text-muted-foreground mt-1">已發帖</div>
+              </div>
+              <div className="flex flex-col items-center justify-center text-center">
+                <div className="w-11 h-11 mb-2 rounded-full bg-rose-50 flex items-center justify-center">
+                  <Heart className="w-5 h-5 text-rose-500" />
+                </div>
+                <div className="text-2xl font-bold text-rose-600 leading-tight">{communityStats?.totalLikes ?? 0}</div>
+                <div className="text-xs text-muted-foreground mt-1">收到讚</div>
+              </div>
+              <div className="flex flex-col items-center justify-center text-center">
+                <div className="w-11 h-11 mb-2 rounded-full bg-amber-50 flex items-center justify-center">
+                  <Bookmark className="w-5 h-5 text-amber-500" />
+                </div>
+                <div className="text-2xl font-bold text-amber-600 leading-tight">{communityStats?.totalSaves ?? 0}</div>
+                <div className="text-xs text-muted-foreground mt-1">收到收藏</div>
+              </div>
+            </div>
+            <div className="max-w-md mx-auto mt-5">
+              <Link href="/collection-square" className="block">
+                <Button variant="outline" className="w-full border-sky-200 text-sky-700 hover:bg-sky-50 hover:text-sky-800">
+                  去藏品社區 →
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Quick Links */}
         <div className="flex gap-3 mb-6">
           <Link href="/favorites" className="flex-1">
@@ -515,46 +557,6 @@ export default function Profile() {
             </Card>
           </Link>
         </div>
-        {/* 藏品社區 — 我嘅參與 */}
-        <Card className="mb-6 border-sky-100 overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-sky-50 to-cyan-50 border-b border-sky-100">
-            <CardTitle className="flex items-center gap-2 text-base text-sky-900">
-              <Sparkles className="w-4 h-4 text-sky-500" />
-              藏品社區 — 我嘅參與
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="py-4">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="text-center">
-                <div className="w-9 h-9 mx-auto mb-1.5 rounded-full bg-sky-50 flex items-center justify-center">
-                  <ImageIcon className="w-4 h-4 text-sky-500" />
-                </div>
-                <div className="text-xl font-bold text-sky-700">{communityStats?.postCount ?? 0}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">已發帖</div>
-              </div>
-              <div className="text-center">
-                <div className="w-9 h-9 mx-auto mb-1.5 rounded-full bg-rose-50 flex items-center justify-center">
-                  <Heart className="w-4 h-4 text-rose-500" />
-                </div>
-                <div className="text-xl font-bold text-rose-600">{communityStats?.totalLikes ?? 0}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">收到讚</div>
-              </div>
-              <div className="text-center">
-                <div className="w-9 h-9 mx-auto mb-1.5 rounded-full bg-amber-50 flex items-center justify-center">
-                  <Bookmark className="w-4 h-4 text-amber-500" />
-                </div>
-                <div className="text-xl font-bold text-amber-600">{communityStats?.totalSaves ?? 0}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">收到收藏</div>
-              </div>
-            </div>
-            <Link href="/collection-square" className="block mt-4">
-              <Button variant="outline" className="w-full border-sky-200 text-sky-700 hover:bg-sky-50 hover:text-sky-800">
-                去藏品社區 →
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
         <Link href="/bid-history" className="block mb-6">
           <Card className="border-amber-100 hover:border-amber-300 transition-colors cursor-pointer">
             <CardContent className="py-3 px-4 flex items-center gap-3">

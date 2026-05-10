@@ -1,4 +1,4 @@
-import { useParams, Link } from "wouter";
+import { useParams, Link, useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,17 @@ import { User, Trophy, TrendingUp, Calendar, ArrowLeft, Sparkles, Heart, Bookmar
 export default function UserProfile() {
   const params = useParams<{ userId: string }>();
   const userId = parseInt(params.userId ?? "0", 10);
+  const search = useSearch();
+  const fromCommunity = (() => {
+    try {
+      const sp = new URLSearchParams(search);
+      if (sp.get("from") === "community") return true;
+    } catch {}
+    if (typeof document !== "undefined" && document.referrer.includes("/collection-square")) return true;
+    return false;
+  })();
+  const backHref = fromCommunity ? "/collection-square" : "/auctions";
+  const backLabel = fromCommunity ? "返回藏品社區" : "返回拍賣列表";
 
   const { data: profile, isLoading, error } = trpc.users.publicProfile.useQuery(
     { userId },
@@ -42,10 +53,10 @@ export default function UserProfile() {
           <User className="w-16 h-16 mx-auto mb-4 text-amber-300" />
           <h2 className="text-xl font-bold text-amber-900 mb-2">找不到此用戶</h2>
           <p className="text-muted-foreground mb-6">該用戶可能不存在或已被移除</p>
-          <Link href="/auctions">
+          <Link href={backHref}>
             <span className="inline-flex items-center gap-2 text-amber-600 hover:text-amber-800 font-medium">
               <ArrowLeft className="w-4 h-4" />
-              返回拍賣列表
+              {backLabel}
             </span>
           </Link>
         </div>
@@ -62,10 +73,10 @@ export default function UserProfile() {
     <div className="min-h-screen hero-bg">
       <div className="container max-w-2xl py-8">
         {/* Back link */}
-        <Link href="/auctions">
+        <Link href={backHref}>
           <span className="inline-flex items-center gap-1.5 text-sm text-amber-600 hover:text-amber-800 mb-6 cursor-pointer transition-colors">
             <ArrowLeft className="w-4 h-4" />
-            返回拍賣列表
+            {backLabel}
           </span>
         </Link>
 
@@ -74,19 +85,28 @@ export default function UserProfile() {
           <CardContent className="pt-8 pb-6">
             <div className="flex flex-col items-center text-center">
               {/* Avatar */}
-              <div className="w-20 h-20 rounded-full mb-4 shadow-lg overflow-hidden flex items-center justify-center bg-gradient-to-br from-amber-400 to-amber-600">
-                {(profile as { photoUrl?: string | null }).photoUrl ? (
-                  <img
-                    src={(profile as { photoUrl?: string | null }).photoUrl ?? ''}
-                    alt={profile.name ?? ''}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-3xl font-bold text-white">
-                    {profile.name?.charAt(0)?.toUpperCase() ?? "?"}
-                  </span>
-                )}
-              </div>
+              {(() => {
+                const rawPhoto = (profile as { photoUrl?: string | null }).photoUrl;
+                const photo = rawPhoto && rawPhoto.trim() ? rawPhoto.trim() : null;
+                return (
+                  <div className="w-20 h-20 rounded-full mb-4 shadow-lg overflow-hidden flex items-center justify-center bg-gradient-to-br from-amber-400 to-amber-600">
+                    {photo ? (
+                      <img
+                        src={photo}
+                        alt={profile.name ?? ''}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <span className="text-3xl font-bold text-white">
+                        {profile.name?.charAt(0)?.toUpperCase() ?? "?"}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Name */}
               <h1 className="text-2xl font-bold text-amber-900 mb-1">{profile.name}</h1>

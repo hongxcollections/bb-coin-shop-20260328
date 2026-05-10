@@ -148,53 +148,59 @@ export default function CollectionSquare() {
               </div>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-              {topCreators.map((c, idx) => (
-                <Link
-                  key={c.userId}
-                  href={`/users/${c.userId}`}
-                  className="shrink-0 w-20 text-center group"
-                >
-                  <div className="relative inline-block">
-                    {c.authorPhoto ? (
-                      <img
-                        src={c.authorPhoto}
-                        alt={c.authorName ?? ""}
-                        className="w-14 h-14 rounded-full object-cover ring-2 ring-orange-200 group-hover:ring-orange-400 transition shadow-sm"
-                      />
-                    ) : (
-                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-sky-100 to-sky-200 ring-2 ring-orange-200 group-hover:ring-orange-400 transition flex items-center justify-center text-lg font-bold text-sky-600 shadow-sm">
-                        {(c.authorName ?? "?").charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <span
-                      className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-[10px] font-bold text-white flex items-center justify-center shadow ${
-                        idx === 0
-                          ? "bg-yellow-500"
-                          : idx === 1
-                          ? "bg-gray-400"
-                          : idx === 2
-                          ? "bg-amber-700"
-                          : "bg-orange-300"
-                      }`}
-                    >
-                      {idx + 1}
-                    </span>
-                  </div>
-                  <div className="text-xs font-medium text-gray-700 mt-1.5 truncate group-hover:text-orange-600 transition">
-                    {c.authorName ?? "匿名"}
-                  </div>
-                  <div className="flex items-center justify-center gap-0.5 text-[11px] mt-0.5">
-                    {c.weeklyLikes > 0 ? (
-                      <>
-                        <Heart className="w-3 h-3 fill-rose-500 text-rose-500" />
-                        <span className="font-semibold text-rose-500">{c.weeklyLikes}</span>
-                      </>
-                    ) : (
-                      <span className="text-gray-400">{c.postCount} 帖</span>
-                    )}
-                  </div>
-                </Link>
-              ))}
+              {topCreators.map((c, idx) => {
+                const photo = c.authorPhoto && c.authorPhoto.trim() ? c.authorPhoto.trim() : null;
+                return (
+                  <Link
+                    key={c.userId}
+                    href={`/users/${c.userId}?from=community`}
+                    className="shrink-0 w-20 flex flex-col items-center text-center group"
+                  >
+                    <div className="relative w-16 h-16 mx-auto">
+                      {photo ? (
+                        <img
+                          src={photo}
+                          alt={c.authorName ?? ""}
+                          className="w-16 h-16 rounded-full object-cover ring-2 ring-orange-200 group-hover:ring-orange-400 transition shadow-sm bg-white"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-sky-100 to-sky-200 ring-2 ring-orange-200 group-hover:ring-orange-400 transition flex items-center justify-center text-xl font-bold text-sky-600 shadow-sm">
+                          {(c.authorName ?? "?").charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span
+                        className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full text-[10px] font-bold text-white flex items-center justify-center shadow-md ring-2 ring-white z-10 ${
+                          idx === 0
+                            ? "bg-yellow-500"
+                            : idx === 1
+                            ? "bg-gray-400"
+                            : idx === 2
+                            ? "bg-amber-700"
+                            : "bg-orange-300"
+                        }`}
+                      >
+                        {idx + 1}
+                      </span>
+                    </div>
+                    <div className="w-full text-xs font-medium text-gray-700 mt-2 truncate group-hover:text-orange-600 transition">
+                      {c.authorName ?? "匿名"}
+                    </div>
+                    <div className="flex items-center justify-center gap-0.5 text-[11px] mt-0.5">
+                      {c.weeklyLikes > 0 ? (
+                        <>
+                          <Heart className="w-3 h-3 fill-rose-500 text-rose-500" />
+                          <span className="font-semibold text-rose-500">{c.weeklyLikes}</span>
+                        </>
+                      ) : (
+                        <span className="text-gray-400">{c.postCount} 帖</span>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         )}
