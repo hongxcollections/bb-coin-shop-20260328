@@ -1495,6 +1495,12 @@ export default function MerchantProducts() {
                             <Flame className="w-3 h-3" />申請主打
                           </button>
                         )}
+                        {/* 分享去藏品社區 */}
+                        {isActive && (
+                          <a href={`/collection-square/new?productId=${p.id}`} title="分享呢件商品去藏品社區" className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-sky-50 text-sky-600 rounded-lg hover:bg-sky-100 transition-colors font-medium">
+                            <Sparkles className="w-3 h-3" />分享去藏品社區
+                          </a>
+                        )}
                         {/* 刪除 */}
                         <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors font-medium ml-auto">
                           <Trash2 className="w-3 h-3" />刪除
@@ -1658,6 +1664,11 @@ export default function MerchantProducts() {
                       <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="text-[10px] px-1.5 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />
                       </button>
+                      {p.status === "active" && (
+                        <a href={`/collection-square/new?productId=${p.id}`} title="分享去藏品社區" className="text-[10px] px-1.5 py-1 bg-sky-50 text-sky-600 rounded-lg hover:bg-sky-100 transition-colors">
+                          <Sparkles className="w-3 h-3" />
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1725,6 +1736,11 @@ export default function MerchantProducts() {
                       <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="text-[9px] px-1 py-0.5 bg-red-50 text-red-500 rounded hover:bg-red-100 transition-colors">
                         <Trash2 className="w-2.5 h-2.5" />
                       </button>
+                      {p.status === "active" && (
+                        <a href={`/collection-square/new?productId=${p.id}`} title="分享去藏品社區" className="text-[9px] px-1 py-0.5 bg-sky-50 text-sky-600 rounded hover:bg-sky-100 transition-colors">
+                          <Sparkles className="w-2.5 h-2.5" />
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>
