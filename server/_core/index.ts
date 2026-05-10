@@ -727,6 +727,9 @@ async function bootstrapMissingColumns() {
   await addIndex('idx_collectionPosts_merchant', 'CREATE INDEX `idx_collectionPosts_merchant` ON `collectionPosts` (`isMerchantPost`)');
   await addIndex('idx_collectionPostComments_postId', 'CREATE INDEX `idx_collectionPostComments_postId` ON `collectionPostComments` (`postId`)');
   await addIndex('idx_collectionPostImages_postId', 'CREATE INDEX `idx_collectionPostImages_postId` ON `collectionPostImages` (`postId`)');
+  // 本週熱門分享者：likes.createdAt range scan + JOIN postId
+  await addIndex('idx_collectionPostLikes_createdAt_postId', 'CREATE INDEX `idx_collectionPostLikes_createdAt_postId` ON `collectionPostLikes` (`createdAt`, `postId`)');
+  await addIndex('idx_collectionPostSaves_postId', 'CREATE INDEX `idx_collectionPostSaves_postId` ON `collectionPostSaves` (`postId`)');
 
   // ── 每日一幣挑戰 — Phase 1 表 ──────────────────────────────────────────────
   await alter(`CREATE TABLE IF NOT EXISTS \`dailyChallenges\` (
