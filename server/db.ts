@@ -930,15 +930,18 @@ export async function getUserPublicStats(userId: number) {
   if (!db) return null;
 
   try {
-    // Get user basic info
-    const userRows = await db
-      .select({ id: users.id, name: users.name, createdAt: users.createdAt, photoUrl: users.photoUrl })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-
-    if (userRows.length === 0) return null;
-    const user = userRows[0];
+    // Get user basic info + merchantIcon fallback for merchants without photoUrl
+    const userRows = await db.execute(
+      sql`SELECT u.id, u.name, u.createdAt,
+            COALESCE(NULLIF(TRIM(u.photoUrl),''), NULLIF(TRIM(ma.merchantIcon),'')) AS photoUrl
+          FROM users u
+          LEFT JOIN merchantApplications ma ON ma.userId = u.id AND ma.status = 'approved'
+          WHERE u.id = ${userId}
+          LIMIT 1`
+    );
+    const rawRows = (Array.isArray(userRows) ? userRows[0] : userRows) as any[];
+    if (!rawRows || rawRows.length === 0) return null;
+    const user = rawRows[0];
 
     // Count distinct auctions the user has bid on
     const bidCountRows = await db
