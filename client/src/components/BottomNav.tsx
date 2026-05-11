@@ -31,6 +31,28 @@ export default function BottomNav() {
     staleTime: 30_000,
   });
   const buyerActionCount = (Number(pendingWonCount ?? 0)) + (Number(acceptedOfferCount ?? 0));
+  // 商戶後台 badge — 4 個 source 加埋一齊
+  const isMerchantForBadge = isMerchantData === true;
+  const { data: merchantProductOrderCounts } = trpc.productOrders.myMerchantStatusCounts.useQuery(undefined, {
+    enabled: isAuthenticated && isMerchantForBadge,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const { data: merchantAuctionOrderPending } = trpc.auctionOrders.myPendingCount.useQuery(undefined, {
+    enabled: isAuthenticated && isMerchantForBadge,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const { data: merchantOfferPending } = trpc.offers.pendingCount.useQuery(undefined, {
+    enabled: isAuthenticated && isMerchantForBadge,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const merchantActionCount =
+    Number((merchantProductOrderCounts as { pending?: number } | undefined)?.pending ?? 0) +
+    Number(merchantAuctionOrderPending ?? 0) +
+    Number(merchantOfferPending ?? 0) +
+    (isMerchantForBadge ? unreadChatCount : 0);
   // 對話訊息只開放畀銀牌或以上 + admin（同 ChatButton 一致）
   const { data: _autoBidStatus } = trpc.loyalty.myAutoBidStatus.useQuery(undefined, { enabled: isAuthenticated });
   const _memberLevel = (_autoBidStatus?.level as string | undefined) ?? "bronze";
@@ -271,6 +293,11 @@ export default function BottomNav() {
                             >
                               <LayoutDashboard className="w-4 h-4" />
                               <span>商戶後台</span>
+                              {merchantActionCount > 0 && (
+                                <span style={{ marginLeft: "auto", background: "#dc2626", color: "white", fontSize: "10px", fontWeight: 700, padding: "1px 6px", borderRadius: "9px", minWidth: "18px", textAlign: "center" }}>
+                                  {merchantActionCount > 99 ? "99+" : merchantActionCount}
+                                </span>
+                              )}
                             </Link>
                           )}
                           {!isMerchant && (

@@ -1,13 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useToast } from "@/contexts/ToastContext";
 import { LogOut, Menu } from "lucide-react";
+import AdminRecentSignupsModal from "@/components/AdminRecentSignupsModal";
 
 export default function AdminHeader() {
   const { user, logout } = useAuth();
   const { showToast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showSignupsModal, setShowSignupsModal] = useState(false);
+
+  useEffect(() => {
+    if (user?.role !== "admin") return;
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const flagKey = `admin_recent_signups_shown_${today}`;
+      if (!sessionStorage.getItem(flagKey)) {
+        sessionStorage.setItem(flagKey, "1");
+        setShowSignupsModal(true);
+      }
+    } catch {}
+  }, [user?.role]);
 
   const handleLogout = () => {
     const name = user?.name ?? "你";
@@ -119,6 +133,7 @@ export default function AdminHeader() {
       </nav>
       {/* Spacer */}
       <div className="h-16" />
+      <AdminRecentSignupsModal open={showSignupsModal} onOpenChange={setShowSignupsModal} />
     </>
   );
 }

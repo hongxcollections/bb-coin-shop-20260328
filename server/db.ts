@@ -999,6 +999,45 @@ export async function getAllUsers() {
   }
 }
 
+export async function getRecentRegistrations(daysWindow: number, page: number, pageSize: number) {
+  const db = await getDb();
+  if (!db) return { rows: [], total: 0 };
+  const safeDays = Math.max(1, Math.min(30, Math.floor(daysWindow)));
+  const safePage = Math.max(1, Math.floor(page));
+  const safeSize = Math.max(1, Math.min(100, Math.floor(pageSize)));
+  const offset = (safePage - 1) * safeSize;
+  try {
+    const rows = await db.execute(sql`
+      SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.phone,
+        u.role,
+        u.memberLevel,
+        u.createdAt,
+        (SELECT ma.status FROM merchantApplications ma WHERE ma.userId = u.id ORDER BY ma.createdAt DESC LIMIT 1) AS merchantStatus,
+        (SELECT ma.merchantName FROM merchantApplications ma WHERE ma.userId = u.id ORDER BY ma.createdAt DESC LIMIT 1) AS merchantName,
+        (SELECT sp.name FROM user_subscriptions us LEFT JOIN subscription_plans sp ON sp.id = us.planId WHERE us.userId = u.id AND us.status = 'active' ORDER BY us.createdAt DESC LIMIT 1) AS planName,
+        (SELECT sd.balance FROM seller_deposits sd WHERE sd.userId = u.id LIMIT 1) AS depositBalance
+      FROM users u
+      WHERE u.createdAt >= DATE_SUB(NOW(), INTERVAL ${safeDays} DAY)
+      ORDER BY u.createdAt DESC
+      LIMIT ${safeSize} OFFSET ${offset}
+    `);
+    const totalRes = await db.execute(sql`
+      SELECT COUNT(*) AS cnt FROM users WHERE createdAt >= DATE_SUB(NOW(), INTERVAL ${safeDays} DAY)
+    `);
+    const data = (rows as unknown as [Array<Record<string, unknown>>])[0] ?? [];
+    const totalArr = (totalRes as unknown as [Array<{ cnt: number | string }>])[0] ?? [];
+    const total = Number(totalArr[0]?.cnt ?? 0);
+    return { rows: data, total };
+  } catch (error) {
+    console.error('[Database] Failed to get recent registrations:', error);
+    return { rows: [], total: 0 };
+  }
+}
+
 export async function setUserMemberLevel(userId: number, memberLevel: string): Promise<boolean> {
   const db = await getDb();
   if (!db) return false;
