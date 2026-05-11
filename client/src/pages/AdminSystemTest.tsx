@@ -1,12 +1,20 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import AdminHeader from "@/components/AdminHeader";
 import {
   Wifi, Database, Mail, Smartphone, CheckCircle2, XCircle,
-  Loader2, ChevronLeft, Activity, Send,
+  Loader2, ChevronLeft, Activity, Send, Server,
 } from "lucide-react";
+
+const RAILWAY_ORIGIN_LS_KEY = "admin_railway_origin_url";
+const DEFAULT_RAILWAY_ORIGIN = (() => {
+  if (typeof window === "undefined") return "";
+  const host = window.location.hostname;
+  if (host === "uat.hongxcollections.com") return "https://bb-coin-shop-app-uat-uat-6c7e.up.railway.app";
+  return "";
+})();
 
 // ── 狀態 badge ──────────────────────────────────────────────────────────────
 function StatusBadge({ ok, loading, idle }: { ok?: boolean; loading?: boolean; idle?: boolean }) {
@@ -43,6 +51,19 @@ export default function AdminSystemTest() {
   const [pingResults, setPingResults] = useState<{ rtt: number; serverTime: string }[]>([]);
   const [pingRunning, setPingRunning] = useState(false);
   const pingMut = trpc.systemTest.ping.useMutation();
+
+  // ── 直連 Railway origin (bypass CF) state ──
+  const [railwayOrigin, setRailwayOrigin] = useState<string>(DEFAULT_RAILWAY_ORIGIN);
+  const [railwayResults, setRailwayResults] = useState<{ rtt: number }[]>([]);
+  const [railwayRunning, setRailwayRunning] = useState(false);
+  const [railwayError, setRailwayError] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(RAILWAY_ORIGIN_LS_KEY);
+      if (saved && saved.trim()) setRailwayOrigin(saved.trim());
+    } catch {}
+  }, []);
 
   // ── DB state ──
   const [dbResult, setDbResult] = useState<{ ok: boolean; ms: number; error?: string } | null>(null);
@@ -114,6 +135,50 @@ export default function AdminSystemTest() {
     ? Math.round(pingResults.filter(r => r.rtt >= 0).reduce((s, r) => s + r.rtt, 0) / pingResults.filter(r => r.rtt >= 0).length)
     : null;
 
+  // ── 直連 Railway origin 連續 5 次 ping ──
+  // 用 fetch + mode:'no-cors' 對 /robots.txt 量度 RTT。Opaque response 唔讀 body，但 Promise resolve 嗰刻 = 收到 response，timing 有效。
+  // 對比同一 host 經 CF 嘅延遲，可分辨 CF 加價 vs origin 自己慢。
+  async function runRailwayPing() {
+    const origin = railwayOrigin.trim().replace(/\/+$/, "");
+    setRailwayError(null);
+    setRailwayResults([]);
+    if (!origin) {
+      setRailwayError("請先填寫 Railway origin URL（例如 https://bb-coin-shop-app-xxx.up.railway.app）");
+      return;
+    }
+    if (!/^https?:\/\//.test(origin)) {
+      setRailwayError("URL 必須以 https:// 或 http:// 開頭");
+      return;
+    }
+    try {
+      localStorage.setItem(RAILWAY_ORIGIN_LS_KEY, origin);
+    } catch {}
+    setRailwayRunning(true);
+    const res: { rtt: number }[] = [];
+    for (let i = 0; i < 5; i++) {
+      const url = `${origin}/robots.txt?_=${Date.now()}_${i}`;
+      const t0 = Date.now();
+      try {
+        await fetch(url, { mode: "no-cors", cache: "no-store" });
+        res.push({ rtt: Date.now() - t0 });
+      } catch {
+        res.push({ rtt: -1 });
+      }
+      setRailwayResults([...res]);
+      if (i < 4) await new Promise(r => setTimeout(r, 300));
+    }
+    setRailwayRunning(false);
+  }
+
+  const avgRailway = railwayResults.length > 0
+    ? (() => {
+        const ok = railwayResults.filter(r => r.rtt >= 0);
+        return ok.length === 0 ? null : Math.round(ok.reduce((s, r) => s + r.rtt, 0) / ok.length);
+      })()
+    : null;
+
+  const cfDelta = (avgPing !== null && avgRailway !== null) ? avgPing - avgRailway : null;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <AdminHeader />
@@ -181,6 +246,88 @@ export default function AdminSystemTest() {
           >
             {pingRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wifi className="w-4 h-4" />}
             {pingRunning ? `測試中… (${pingResults.length}/5)` : "開始延遲測試 (5次)"}
+          </button>
+        </div>
+
+        {/* ── 1b. 直連 Railway origin (bypass CF) ─────────────────────── */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+              <Server className="w-4 h-4 text-indigo-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="font-semibold text-gray-800 text-sm">直連 Railway origin (bypass Cloudflare)</h2>
+              <p className="text-xs text-gray-400">繞過 CF，直接 ping Railway *.up.railway.app；對比上面 RTT 分辨 CF 慢定 origin 慢</p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Railway origin URL</label>
+            <input
+              type="url"
+              value={railwayOrigin}
+              onChange={(e) => setRailwayOrigin(e.target.value)}
+              placeholder="https://bb-coin-shop-app-xxx.up.railway.app"
+              className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-400"
+              disabled={railwayRunning}
+            />
+            <p className="text-[10px] text-gray-400 mt-1">URL 會儲入瀏覽器 localStorage，下次自動帶返。Railway dashboard → Service → Settings → Networking 攞 Public Domain。</p>
+          </div>
+
+          {railwayError && (
+            <div className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg p-2">
+              {railwayError}
+            </div>
+          )}
+
+          {railwayResults.length > 0 && (
+            <div className="space-y-1.5">
+              {railwayResults.map((r, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <span className="text-gray-400 w-12">#{i + 1}</span>
+                  {r.rtt < 0 ? (
+                    <span className="text-red-400">逾時 / 失敗</span>
+                  ) : (
+                    <>
+                      <span className={`font-bold ${latencyColor(r.rtt)}`}>{r.rtt} ms</span>
+                      <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${r.rtt < 80 ? "bg-green-400" : r.rtt < 300 ? "bg-amber-400" : "bg-red-400"}`}
+                          style={{ width: `${Math.min((r.rtt / 1000) * 100, 100)}%` }}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+              {!railwayRunning && avgRailway !== null && (
+                <div className="pt-2 border-t border-gray-50 text-xs text-gray-500 flex items-center gap-1.5 flex-wrap">
+                  <Activity className="w-3.5 h-3.5" />
+                  平均延遲：<span className={`font-bold ${latencyColor(avgRailway)}`}>{avgRailway} ms</span>
+                  <span className="ml-auto text-gray-400">
+                    {avgRailway < 80 ? "🟢 極快" : avgRailway < 300 ? "🟡 一般" : "🔴 偏慢"}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {cfDelta !== null && (
+            <div className={`text-xs rounded-lg p-2 border ${cfDelta > 100 ? "bg-amber-50 border-amber-200 text-amber-800" : cfDelta < -50 ? "bg-blue-50 border-blue-200 text-blue-800" : "bg-green-50 border-green-200 text-green-800"}`}>
+              <strong>CF vs 直連差值：</strong>
+              {cfDelta >= 0
+                ? `CF 慢 ${cfDelta} ms（${cfDelta > 100 ? "CF 路由較慢" : "正常範圍"}）`
+                : `CF 快 ${Math.abs(cfDelta)} ms（CF 邊緣 cache / PoP 較近）`}
+            </div>
+          )}
+
+          <button
+            onClick={runRailwayPing}
+            disabled={railwayRunning}
+            className="w-full py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {railwayRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Server className="w-4 h-4" />}
+            {railwayRunning ? `測試中… (${railwayResults.length}/5)` : "開始直連測試 (5次)"}
           </button>
         </div>
 
