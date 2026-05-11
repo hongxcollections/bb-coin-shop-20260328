@@ -8,6 +8,10 @@ User-agent: facebookexternalhit
 Allow: /
 Allow: /api/og-image/
 
+User-agent: meta-externalagent
+Allow: /
+Allow: /api/og-image/
+
 User-agent: Twitterbot
 Allow: /
 Allow: /api/og-image/
