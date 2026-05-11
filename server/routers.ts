@@ -4055,9 +4055,35 @@ export const appRouter = router({
         if (session.status !== 'draft') {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '只可以 publish 草稿' });
         }
+        // 自動激活所有 items（draft / 流拍）→ active，endTime 設為 session.endAt，清 archived flag
+        const { inArray: inArr2, and: and2, isNull: isNull2 } = await import('drizzle-orm');
+        const itemRows = await db.select({ auctionId: merchantAuctionSessionItems.auctionId })
+          .from(merchantAuctionSessionItems)
+          .where(eq(merchantAuctionSessionItems.sessionId, input.id));
+        const itemAuctionIds = itemRows.map(r => r.auctionId);
+        let activatedCount = 0;
+        if (itemAuctionIds.length > 0) {
+          const eligible = await db.select({ id: auctions.id }).from(auctions)
+            .where(and2(
+              inArr2(auctions.id, itemAuctionIds),
+              eq(auctions.createdBy, session.merchantUserId),
+              inArr2(auctions.status, ['draft', 'ended'] as any),
+              isNull2(auctions.highestBidderId),
+            )!);
+          if (eligible.length > 0) {
+            const eligibleIds = eligible.map(a => a.id);
+            await db.update(auctions).set({
+              status: 'active' as any,
+              endTime: session.endAt,
+              archived: 0,
+              archivedAt: null as any,
+            }).where(inArr2(auctions.id, eligibleIds));
+            activatedCount = eligibleIds.length;
+          }
+        }
         await db.update(merchantAuctionSessions).set({ status: 'published' })
           .where(eq(merchantAuctionSessions.id, input.id));
-        return { ok: true };
+        return { ok: true, activated: activatedCount };
       }),
 
     /** End: published → ended (manual) */
@@ -4149,11 +4175,13 @@ export const appRouter = router({
         return { added: toAdd.length, skipped: valid.length - toAdd.length };
       }),
 
-    /** 從 session 移除一個 auction（item 本身唔影響 auction 本體） */
+    /** 從 session 移除一個 auction（item 本身唔影響 auction 本體；可選擇順便收返做流拍隱藏） */
     removeItem: protectedProcedure
       .input(z.object({
         sessionId: z.number().int().positive(),
         auctionId: z.number().int().positive(),
+        /** true = 同時將 auction 收返做流拍（status=ended + archived=1），喺主站隱藏；false = 維持現狀繼續喺主站賣 */
+        archiveAuction: z.boolean().optional().default(false),
       }))
       .mutation(async ({ input, ctx }) => {
         const db = await getDb();
@@ -4171,15 +4199,26 @@ export const appRouter = router({
         await db.update(merchantAuctionSessions)
           .set({ itemCount: sql`(SELECT COUNT(*) FROM merchantAuctionSessionItems WHERE sessionId = ${input.sessionId})` })
           .where(eq(merchantAuctionSessions.id, input.sessionId));
+        // 若商戶選擇收返做流拍：只可改自己嘅、未有人 bid 嘅 auction
+        if (input.archiveAuction) {
+          const [auc] = await db.select().from(auctions).where(eq(auctions.id, input.auctionId)).limit(1);
+          if (auc && auc.createdBy === session.merchantUserId && !auc.highestBidderId) {
+            await db.update(auctions).set({
+              status: 'ended' as any,
+              archived: 1,
+              archivedAt: new Date(),
+            }).where(eq(auctions.id, input.auctionId));
+          }
+        }
         return { ok: true };
       }),
 
-    /** V2: 一鍵將 session 入面所有 draft auction publish (status=draft → active) */
+    /** V2: 一鍵將 session 入面所有 draft / 流拍 auction publish (status → active, endTime → session.endAt) */
     bulkPublishItems: protectedProcedure
       .input(z.object({ sessionId: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
         const db = await getDb();
-        const { and, inArray } = await import('drizzle-orm');
+        const { and, inArray, isNull } = await import('drizzle-orm');
         const [session] = await db.select().from(merchantAuctionSessions)
           .where(eq(merchantAuctionSessions.id, input.sessionId)).limit(1);
         if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: '專場不存在' });
@@ -4190,13 +4229,22 @@ export const appRouter = router({
           .where(eq(merchantAuctionSessionItems.sessionId, input.sessionId));
         if (items.length === 0) return { published: 0 };
         const ids = items.map(it => it.auctionId);
-        const draftAucs = await db.select({ id: auctions.id }).from(auctions)
-          .where(and(inArray(auctions.id, ids), eq(auctions.status, 'draft' as any), eq(auctions.createdBy, session.merchantUserId)));
-        if (draftAucs.length === 0) return { published: 0 };
-        const draftIds = draftAucs.map(a => a.id);
-        await db.update(auctions).set({ status: 'active' as any })
-          .where(inArray(auctions.id, draftIds));
-        return { published: draftIds.length };
+        const eligible = await db.select({ id: auctions.id }).from(auctions)
+          .where(and(
+            inArray(auctions.id, ids),
+            inArray(auctions.status, ['draft', 'ended'] as any),
+            eq(auctions.createdBy, session.merchantUserId),
+            isNull(auctions.highestBidderId),
+          )!);
+        if (eligible.length === 0) return { published: 0 };
+        const eligibleIds = eligible.map(a => a.id);
+        await db.update(auctions).set({
+          status: 'active' as any,
+          endTime: session.endAt,
+          archived: 0,
+          archivedAt: null as any,
+        }).where(inArray(auctions.id, eligibleIds));
+        return { published: eligibleIds.length };
       }),
 
     /** 商戶：列出自己可加入專場嘅 auctions — 只計 draft（未發佈）+ 流拍（已結束無人贏） */

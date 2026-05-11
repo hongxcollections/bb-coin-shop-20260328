@@ -70,17 +70,26 @@ export default function MerchantSessionEdit() {
     onError: (e) => toast.error(e.message || "加入失敗"),
   });
   const removeItemMut = trpc.merchantSessions.removeItem.useMutation({
-    onSuccess: () => { toast.success("已移除"); refetch(); },
+    onSuccess: (_d, vars) => {
+      toast.success(vars.archiveAuction ? "已移除並收返做流拍（隱藏）" : "已移除");
+      refetch();
+    },
     onError: (e) => toast.error(e.message || "移除失敗"),
   });
   const publishMut = trpc.merchantSessions.publish.useMutation({
-    onSuccess: () => { toast.success("已發佈"); refetch(); },
+    onSuccess: ({ activated }) => {
+      toast.success(activated > 0 ? `已發佈，自動上架 ${activated} 件商品` : "已發佈");
+      refetch();
+    },
     onError: (e) => toast.error(e.message || "發佈失敗"),
   });
   const bulkPublishMut = trpc.merchantSessions.bulkPublishItems.useMutation({
-    onSuccess: ({ published }) => { toast.success(`已將 ${published} 件 draft auction 發佈`); refetch(); },
+    onSuccess: ({ published }) => { toast.success(published > 0 ? `已上架 ${published} 件商品（endTime 設為場結束時間）` : "冇可上架嘅商品"); refetch(); },
     onError: (e) => toast.error(e.message || "操作失敗"),
   });
+
+  // 移除 item 時嘅 3-option dialog（只喺 published session + 該 auction 為 active 時用）
+  const [removeTarget, setRemoveTarget] = useState<{ auctionId: number; title: string } | null>(null);
 
   const session = data?.session;
   const items = data?.items || [];
@@ -120,7 +129,15 @@ export default function MerchantSessionEdit() {
   if (!session) return <div className="min-h-screen bg-amber-50/30"><Header /><div className="text-center py-12 text-gray-500">專場不存在</div></div>;
 
   const isLocked = session.status === "ended";
-  const draftItemCount = items.filter(it => (it.auction as any)?.status === "draft").length;
+  const isPublished = session.status === "published";
+  // 計「需要上架」嘅商品：draft 或 流拍（status=ended 但無人贏）
+  const needPublishCount = items.filter(it => {
+    const a = it.auction as any;
+    if (!a) return false;
+    if (a.status === "draft") return true;
+    if (a.status === "ended" && !a.highestBidderId) return true;
+    return false;
+  }).length;
 
   return (
     <div className="min-h-screen bg-amber-50/30">
@@ -169,13 +186,13 @@ export default function MerchantSessionEdit() {
                     <Send className="w-3.5 h-3.5 mr-1" /> 發佈
                   </Button>
                 )}
-                {draftItemCount > 0 && (
+                {isPublished && needPublishCount > 0 && (
                   <Button size="sm" variant="outline" className="border-blue-300 text-blue-700"
                     onClick={async () => {
-                      const ok = await confirm({ title: `批量發布 ${draftItemCount} 件草稿`, description: "將呢場入面所有 draft auction 變成 active，立即可被出價。", confirmText: "全部發佈", cancelText: "取消" });
+                      const ok = await confirm({ title: `批量上架 ${needPublishCount} 件商品`, description: "將呢場入面所有未上架（草稿／流拍）商品變成競拍中，endTime 設為場結束時間。", confirmText: "全部上架", cancelText: "取消" });
                       if (ok) bulkPublishMut.mutate({ sessionId });
                     }}>
-                    一鍵發佈 {draftItemCount} 件 draft
+                    一鍵上架 {needPublishCount} 件
                   </Button>
                 )}
               </div>
@@ -261,8 +278,17 @@ export default function MerchantSessionEdit() {
                   {!isLocked && (
                     <Button size="sm" variant="ghost" className="text-rose-600 shrink-0"
                       onClick={async () => {
-                        const ok = await confirm({ title: "從專場移除？", description: "Auction 本身唔會刪除。", confirmText: "移除", cancelText: "取消" });
-                        if (ok) removeItemMut.mutate({ sessionId, auctionId: it.auctionId });
+                        // Published session + auction 已 active → 彈 3-option dialog
+                        if (isPublished && a.status === "active" && !a.highestBidderId) {
+                          setRemoveTarget({ auctionId: it.auctionId, title: a.title });
+                          return;
+                        }
+                        // 其他情況：簡單 confirm
+                        const desc = a.status === "active"
+                          ? "Auction 本身會繼續喺主站賣到原 endTime。"
+                          : "Auction 本身唔會刪除，維持現狀。";
+                        const ok = await confirm({ title: "從專場移除？", description: desc, confirmText: "移除", cancelText: "取消" });
+                        if (ok) removeItemMut.mutate({ sessionId, auctionId: it.auctionId, archiveAuction: false });
                       }}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
@@ -319,6 +345,41 @@ export default function MerchantSessionEdit() {
             <Button onClick={() => addItemsMut.mutate({ sessionId, auctionIds: Array.from(pickedIds) })}
               disabled={pickedIds.size === 0 || addItemsMut.isPending} className="bg-amber-600 hover:bg-amber-700">
               加入 ({pickedIds.size})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 移除商品 3-option dialog（published + active auction） */}
+      <Dialog open={!!removeTarget} onOpenChange={(o) => { if (!o) setRemoveTarget(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>從專場移除「{removeTarget?.title}」</DialogTitle></DialogHeader>
+          <div className="text-sm text-gray-700 space-y-2">
+            <p>呢件商品而家已上架競拍中。從專場移除後，你想：</p>
+            <ul className="text-xs text-gray-500 list-disc pl-5 space-y-1">
+              <li><b>繼續喺主站賣</b> — Auction 維持 active，繼續喺主站列表出現直至原 endTime</li>
+              <li><b>收返做流拍隱藏</b> — Auction 改返做已結束狀態，喺主站隱藏（適合純粹由專場 driving 嘅商品）</li>
+            </ul>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setRemoveTarget(null)}>取消</Button>
+            <Button variant="outline" className="border-amber-300 text-amber-700"
+              disabled={removeItemMut.isPending}
+              onClick={() => {
+                if (!removeTarget) return;
+                removeItemMut.mutate({ sessionId, auctionId: removeTarget.auctionId, archiveAuction: true });
+                setRemoveTarget(null);
+              }}>
+              收返做流拍隱藏
+            </Button>
+            <Button className="bg-amber-600 hover:bg-amber-700"
+              disabled={removeItemMut.isPending}
+              onClick={() => {
+                if (!removeTarget) return;
+                removeItemMut.mutate({ sessionId, auctionId: removeTarget.auctionId, archiveAuction: false });
+                setRemoveTarget(null);
+              }}>
+              繼續喺主站賣
             </Button>
           </DialogFooter>
         </DialogContent>

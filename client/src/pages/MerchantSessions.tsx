@@ -51,7 +51,10 @@ export default function MerchantSessions() {
     onError: (e) => toast.error(e.message || "建立失敗"),
   });
   const publishMut = trpc.merchantSessions.publish.useMutation({
-    onSuccess: () => { toast.success("已發佈"); refetch(); },
+    onSuccess: ({ activated }) => {
+      toast.success(activated > 0 ? `已發佈，自動上架 ${activated} 件商品` : "已發佈");
+      refetch();
+    },
     onError: (e) => toast.error(e.message || "發佈失敗"),
   });
   const endMut = trpc.merchantSessions.end.useMutation({
