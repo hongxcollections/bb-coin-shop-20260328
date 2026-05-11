@@ -120,7 +120,14 @@ function injectStaticPageMeta(html: string, reqPath: string, base: string): stri
     .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "")
     .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "")
     .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
-  result = result.replace("</head>", `    ${metaTags}\n  </head>`);
+  // 一定要 inject 喺 <meta name="viewport"> 之後 / <script>/<link> 之前。
+  // Facebook OG parser 撞到 <script type="module"> 或 <link> 之後嘅 og 標籤會
+  // 直接忽略（佢假設 metadata 一定喺 head 頂部）。原本 inject 喺 </head> 前
+  // 會排喺所有 script/link 之後 → FB silently drop og:title / og:description。
+  const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+  result = viewportRe.test(result)
+    ? result.replace(viewportRe, `$1\n    ${metaTags}`)
+    : result.replace("</head>", `    ${metaTags}\n  </head>`);
   return result;
 }
 
@@ -210,7 +217,10 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
       .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "")
       .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "")
       .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
-    result = result.replace("</head>", `    ${ogMeta}\n  </head>`);
+    const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+    result = viewportRe.test(result)
+      ? result.replace(viewportRe, `$1\n    ${ogMeta}`)
+      : result.replace("</head>", `    ${ogMeta}\n  </head>`);
     console.log(`[OG Meta] Injected for auction ${auctionId}: title="${ogTitle}" imageUrl="${ogImageUrl}"`);
     return result;
   } catch (err) {
@@ -315,7 +325,10 @@ async function injectProductOgMeta(html: string, reqPath: string, protocol: stri
       .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "")
       .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "")
       .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
-    result = result.replace("</head>", `    ${ogMeta}\n  </head>`);
+    const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+    result = viewportRe.test(result)
+      ? result.replace(viewportRe, `$1\n    ${ogMeta}`)
+      : result.replace("</head>", `    ${ogMeta}\n  </head>`);
     console.log(`[OG Meta] Injected for product ${productId}: title="${ogTitle}" imageUrl="${ogImageUrl}"`);
     return result;
   } catch (err) {
@@ -401,7 +414,10 @@ async function injectCollectionPostOgMeta(html: string, reqPath: string, protoco
       .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "")
       .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "")
       .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
-    result = result.replace("</head>", `    ${ogMeta}\n  </head>`);
+    const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+    result = viewportRe.test(result)
+      ? result.replace(viewportRe, `$1\n    ${ogMeta}`)
+      : result.replace("</head>", `    ${ogMeta}\n  </head>`);
     console.log(`[OG Meta] Injected for collection post ${postId}: title="${ogTitle}" imageUrl="${ogImageUrl}"`);
     return result;
   } catch (err) {
