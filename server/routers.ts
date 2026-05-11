@@ -4199,16 +4199,15 @@ export const appRouter = router({
         await db.update(merchantAuctionSessions)
           .set({ itemCount: sql`(SELECT COUNT(*) FROM merchantAuctionSessionItems WHERE sessionId = ${input.sessionId})` })
           .where(eq(merchantAuctionSessions.id, input.sessionId));
-        // 若商戶選擇收返做流拍：只可改自己嘅、未有人 bid 嘅 auction
+        // 若商戶選擇收返做流拍：用 atomic UPDATE 確保中間有 bid 入嚟唔會誤改
         if (input.archiveAuction) {
-          const [auc] = await db.select().from(auctions).where(eq(auctions.id, input.auctionId)).limit(1);
-          if (auc && auc.createdBy === session.merchantUserId && !auc.highestBidderId) {
-            await db.update(auctions).set({
-              status: 'ended' as any,
-              archived: 1,
-              archivedAt: new Date(),
-            }).where(eq(auctions.id, input.auctionId));
-          }
+          await db.execute(sql`
+            UPDATE auctions
+            SET status = 'ended', archived = 1, archivedAt = NOW()
+            WHERE id = ${input.auctionId}
+              AND createdBy = ${session.merchantUserId}
+              AND highestBidderId IS NULL
+          `);
         }
         return { ok: true };
       }),
