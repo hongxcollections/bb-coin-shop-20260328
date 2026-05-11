@@ -4087,8 +4087,12 @@ export const appRouter = router({
         if (session.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的專場' });
         }
-        if (session.status !== 'draft') {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: '只可以刪除草稿。已 publish 嘅專場請改為「結束」' });
+        // 容許刪除：(1) draft，或 (2) 任何 status 但冇商品
+        const itemRows = await db.select({ id: merchantAuctionSessionItems.id })
+          .from(merchantAuctionSessionItems).where(eq(merchantAuctionSessionItems.sessionId, input.id));
+        const isEmpty = itemRows.length === 0;
+        if (session.status !== 'draft' && !isEmpty) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '已發佈/已結束嘅專場必須冇商品先可以刪除。請先移除所有商品，或改為「結束」。' });
         }
         await db.delete(merchantAuctionSessionItems).where(eq(merchantAuctionSessionItems.sessionId, input.id));
         await db.delete(merchantAuctionSessions).where(eq(merchantAuctionSessions.id, input.id));

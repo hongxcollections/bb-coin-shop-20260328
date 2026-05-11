@@ -122,11 +122,13 @@ export default function MerchantSessions() {
                         {s.visibility === "public" ? <><Globe className="w-2.5 h-2.5" /> 公開</> : <><Lock className="w-2.5 h-2.5" /> 半私密</>}
                       </span>
                     </div>
-                    <div className="text-xs text-gray-500 flex items-center gap-3 flex-wrap">
+                    <div className="text-xs text-gray-500 flex items-center gap-2 flex-wrap">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-semibold ${s.itemCount > 0 ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-500"}`}>
+                        📦 {s.itemCount} 件商品
+                      </span>
                       <span className="inline-flex items-center gap-1">
                         <Calendar className="w-3 h-3" /> 結束 {fmtEnd(s.endAt)}
                       </span>
-                      <span>· {s.itemCount} 件商品</span>
                       <span className="text-gray-400">/s/{user?.id}/{s.slug}</span>
                     </div>
                   </div>
@@ -172,10 +174,13 @@ export default function MerchantSessions() {
                       <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> 結束
                     </Button>
                   )}
-                  {s.status === "draft" && (
+                  {(s.status === "draft" || s.itemCount === 0) && (
                     <Button size="sm" variant="outline" className="text-rose-700 border-rose-300"
                       onClick={async () => {
-                        const ok = await confirm({ title: "刪除草稿專場？", description: "只係刪 session 本身，唔影響入面嘅 auction。", confirmText: "確定刪除", cancelText: "取消" });
+                        const desc = s.status === "draft"
+                          ? "只係刪 session 本身，唔影響入面嘅 auction。"
+                          : "呢個專場冇商品，可直接刪除。";
+                        const ok = await confirm({ title: "刪除專場？", description: desc, confirmText: "確定刪除", cancelText: "取消" });
                         if (ok) deleteMut.mutate({ id: s.id });
                       }}
                     >
