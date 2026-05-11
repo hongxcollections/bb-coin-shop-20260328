@@ -150,7 +150,15 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
+// Manus dev-only plugins inline the entire React bundle into HTML and add
+// debug collector scripts. They MUST NOT run in production builds because:
+// (1) the inlined bundle balloons HTML to 370KB+ and breaks Facebook OG parser
+//     (FB silently drops og:title/description on auction/product pages),
+// (2) jsxLocPlugin adds data-loc attributes useful only for the Manus IDE.
+const isProd = process.env.NODE_ENV === "production";
+const plugins = isProd
+  ? [react(), tailwindcss()]
+  : [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
 
 export default defineConfig({
   plugins,
