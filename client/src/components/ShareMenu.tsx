@@ -142,16 +142,16 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
       try {
         await navigator.clipboard.writeText(shareText).catch(() => {});
         await navigator.share({ title, text: shareText, url: productUrl });
-        toast.success("已開啟系統分享選單，可選擇 Messenger / FB 群組 / WhatsApp 等", { duration: 3000 });
+        toast.success("已開啟系統分享選單，可選擇 Messenger / FB 群組 / WhatsApp 等", { description: shareText, duration: 5000 });
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== "AbortError") {
           try { await navigator.clipboard.writeText(shareText + "\n" + productUrl); } catch {}
-          toast.success("已複製連結及廣告文字，可貼到任何平台分享", { duration: 5000 });
+          toast.success("已複製連結及廣告文字，可貼到任何平台分享", { description: shareText, duration: 6000 });
         }
       }
     } else {
       try { await navigator.clipboard.writeText(shareText + "\n" + productUrl); } catch {}
-      toast.success("已複製連結及廣告文字，可貼到任何平台分享", { duration: 5000 });
+      toast.success("已複製連結及廣告文字，可貼到任何平台分享", { description: shareText, duration: 6000 });
     }
   }
 
@@ -161,11 +161,11 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
     if (isMobile) {
       try { await navigator.clipboard.writeText(shareText + "\n" + productUrl); } catch {}
       window.location.href = `fb-messenger://share?link=${encodeURIComponent(productUrl)}`;
-      toast.success("已複製文案，Messenger 開啟後可貼上", { duration: 4000 });
+      toast.success("已複製文案，Messenger 開啟後可貼上", { description: shareText, duration: 6000 });
     } else {
       try { await navigator.clipboard.writeText(shareText + "\n" + productUrl); } catch {}
       window.open("https://www.messenger.com/", "_blank", "noopener,noreferrer");
-      toast.success("已複製連結，請喺 Messenger 對話框貼上", { duration: 5000 });
+      toast.success("已複製連結，請喺 Messenger 對話框貼上", { description: shareText, duration: 6000 });
     }
   }
 
@@ -305,16 +305,16 @@ export function CollectionShareMenu({ postId, title, iconOnly }: CollectionShare
       try {
         await navigator.clipboard.writeText(shareText).catch(() => {});
         await navigator.share({ title, text: shareText, url: postUrl });
-        toast.success("已開啟系統分享選單", { duration: 3000 });
+        toast.success("已開啟系統分享選單", { description: shareText, duration: 5000 });
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== "AbortError") {
           try { await navigator.clipboard.writeText(shareText); } catch {}
-          toast.success("已複製連結及內文", { duration: 5000 });
+          toast.success("已複製連結及內文", { description: shareText, duration: 6000 });
         }
       }
     } else {
       try { await navigator.clipboard.writeText(shareText); } catch {}
-      toast.success("已複製連結及內文", { duration: 5000 });
+      toast.success("已複製連結及內文", { description: shareText, duration: 6000 });
     }
   }
 
@@ -324,11 +324,11 @@ export function CollectionShareMenu({ postId, title, iconOnly }: CollectionShare
     if (isMobile) {
       try { await navigator.clipboard.writeText(shareText); } catch {}
       window.location.href = `fb-messenger://share?link=${encodeURIComponent(postUrl)}`;
-      toast.success("已複製文案，Messenger 開啟後可貼上", { duration: 4000 });
+      toast.success("已複製文案，Messenger 開啟後可貼上", { description: shareText, duration: 6000 });
     } else {
       try { await navigator.clipboard.writeText(shareText); } catch {}
       window.open("https://www.messenger.com/", "_blank", "noopener,noreferrer");
-      toast.success("已複製連結，請喺 Messenger 對話框貼上", { duration: 5000 });
+      toast.success("已複製連結，請喺 Messenger 對話框貼上", { description: shareText, duration: 6000 });
     }
   }
 
@@ -472,17 +472,17 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
       try {
         await navigator.clipboard.writeText(shareText).catch(() => {});
         await navigator.share({ title, text: shareText, url: auctionUrl });
-        toast.success("已開啟系統分享選單，可選擇 Messenger / FB 群組 / WhatsApp 等", { duration: 3000 });
+        toast.success("已開啟系統分享選單，可選擇 Messenger / FB 群組 / WhatsApp 等", { description: shareText, duration: 5000 });
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== "AbortError") {
           try { await navigator.clipboard.writeText(shareText + "\n" + auctionUrl); } catch {}
-          toast.success("已複製連結及廣告文字，可貼到任何平台分享", { duration: 5000 });
+          toast.success("已複製連結及廣告文字，可貼到任何平台分享", { description: shareText, duration: 6000 });
         }
       }
     } else {
       // 桌面：直接 copy（桌面無 system share sheet）
       try { await navigator.clipboard.writeText(shareText + "\n" + auctionUrl); } catch {}
-      toast.success("已複製連結及廣告文字，可貼到任何平台分享", { duration: 5000 });
+      toast.success("已複製連結及廣告文字，可貼到任何平台分享", { description: shareText, duration: 6000 });
     }
   }
 
@@ -492,11 +492,11 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
     if (isMobile) {
       try { await navigator.clipboard.writeText(shareText + "\n" + auctionUrl); } catch {}
       window.location.href = `fb-messenger://share?link=${encodeURIComponent(auctionUrl)}`;
-      toast.success("已複製文案，Messenger 開啟後可貼上", { duration: 4000 });
+      toast.success("已複製文案，Messenger 開啟後可貼上", { description: shareText, duration: 6000 });
     } else {
       try { await navigator.clipboard.writeText(shareText + "\n" + auctionUrl); } catch {}
       window.open("https://www.messenger.com/", "_blank", "noopener,noreferrer");
-      toast.success("已複製連結，請喺 Messenger 對話框貼上", { duration: 5000 });
+      toast.success("已複製連結，請喺 Messenger 對話框貼上", { description: shareText, duration: 6000 });
     }
   }
 

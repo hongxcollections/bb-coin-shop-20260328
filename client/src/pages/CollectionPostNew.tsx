@@ -270,33 +270,72 @@ export default function CollectionPostNew() {
 
       <div className="max-w-2xl mx-auto p-4 -mt-4 relative">
         <div className="bg-white rounded-2xl shadow-lg border border-sky-100 p-5 space-y-5">
-          {/* 方案 B：商戶 — 附帶我嘅商品 selector + 配額 */}
+          {/* 方案 B：商戶 — 2 button 揀「純分享」抑或「附帶商品出讓」 */}
           {quotaInfo?.isMerchant && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+            <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 space-y-3">
               <div className="flex items-center gap-2">
                 <Store className="w-4 h-4 text-amber-700" />
-                <div className="text-sm font-semibold text-amber-900">商戶分享：附帶我嘅商品</div>
+                <div className="text-sm font-semibold text-amber-900">商戶發布類型</div>
                 <span className="ml-auto text-xs text-amber-700">本月配額 {quotaInfo.used} / {quotaInfo.limit}</span>
               </div>
-              <select
-                value={merchantProductId ?? ""}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setMerchantProductId(v ? parseInt(v, 10) : null);
-                }}
-                className="w-full bg-white border border-amber-200 rounded-md text-sm px-2 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
-                disabled={!quotaInfo.canPost && !merchantProductId}
-              >
-                <option value="">— 唔附帶（純分享，唔計入商戶配額） —</option>
-                {activeProducts.map((p: any) => (
-                  <option key={p.id} value={p.id}>{p.title}（{p.currency} ${parseFloat(p.price ?? "0").toLocaleString()}）</option>
-                ))}
-              </select>
-              {!quotaInfo.canPost && (
-                <div className="text-xs text-red-600">配額已用完，今個月唔可以再附帶商品。可以選「唔附帶」改用普通會員分享發布。</div>
-              )}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMerchantProductId(null)}
+                  className={
+                    "rounded-lg border-2 px-3 py-3 text-sm font-semibold transition-colors text-left " +
+                    (!isMerchantMode
+                      ? "border-sky-500 bg-sky-50 text-sky-700 shadow-sm"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-sky-300")
+                  }
+                >
+                  <div className="flex items-center gap-1.5">
+                    {!isMerchantMode && <span className="text-sky-500">✓</span>}
+                    純分享
+                  </div>
+                  <div className="text-[11px] font-normal text-gray-500 mt-0.5">唔計入商戶配額</div>
+                </button>
+                <button
+                  type="button"
+                  disabled={!quotaInfo.canPost && !merchantProductId}
+                  onClick={() => {
+                    if (activeProducts.length > 0 && !merchantProductId) {
+                      setMerchantProductId(activeProducts[0].id);
+                    }
+                  }}
+                  className={
+                    "rounded-lg border-2 px-3 py-3 text-sm font-semibold transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed " +
+                    (isMerchantMode
+                      ? "border-amber-500 bg-amber-50 text-amber-700 shadow-sm"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-amber-300")
+                  }
+                >
+                  <div className="flex items-center gap-1.5">
+                    {isMerchantMode && <span className="text-amber-500">✓</span>}
+                    附帶商品出讓
+                  </div>
+                  <div className="text-[11px] font-normal text-gray-500 mt-0.5">show 喺「商戶上架」tab</div>
+                </button>
+              </div>
               {isMerchantMode && (
-                <div className="text-xs text-amber-700">附帶商品後，帖文會 show 喺「商戶上架」tab，並標 intent =「想出讓」。</div>
+                <div className="space-y-1">
+                  <label className="block text-xs text-amber-800 font-medium">揀商品：</label>
+                  <select
+                    value={merchantProductId ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setMerchantProductId(v ? parseInt(v, 10) : null);
+                    }}
+                    className="w-full bg-white border border-amber-200 rounded-md text-sm px-2 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                  >
+                    {activeProducts.map((p: any) => (
+                      <option key={p.id} value={p.id}>{p.title}（{p.currency} ${parseFloat(p.price ?? "0").toLocaleString()}）</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {!quotaInfo.canPost && (
+                <div className="text-xs text-red-600">配額已用完，今個月唔可以再附帶商品。請揀「純分享」發布。</div>
               )}
             </div>
           )}

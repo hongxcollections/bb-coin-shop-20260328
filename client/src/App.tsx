@@ -225,7 +225,8 @@ function App() {
           <ConfirmProvider>
           <ToastProvider>
             <Toaster
-              position="top-center"
+              position="bottom-center"
+              duration={4000}
               toastOptions={{
                 classNames: {
                   error: 'bb-toast-err',
