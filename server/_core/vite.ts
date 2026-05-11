@@ -574,13 +574,21 @@ export function serveStatic(app: Express) {
         return;
       }
     }
+    // 故意唔出 Content-Length，用 chunked transfer encoding。
+    // Cloudflare 喺 robots.txt body inject Managed Content (~1.7KB AI bot
+    // directives)，但唔會 update Content-Length header — 結果 declared length
+    // 同 actual body bytes 唔啱，FB scraper strict parse 時會判 protocol
+    // violation 然後對所有 URL 報 403。Chunked 之後 Cloudflare 加任何嘢都唔影響
+    // header truth-value，FB 就唔會 mis-judge。
     res.status(200).set({
       "Content-Type": "text/plain; charset=utf-8",
       "Accept-Ranges": "bytes",
-      "Content-Length": content.length.toString(),
+      "Transfer-Encoding": "chunked",
       "Cache-Control": "no-store",
       "Surrogate-Control": "no-store",
-    }).end(content);
+    });
+    res.write(content);
+    res.end();
   });
 
   app.use(express.static(distPath));
