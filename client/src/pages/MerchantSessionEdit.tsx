@@ -12,11 +12,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { ChevronLeft, Plus, Trash2, Save, Eye, Send, X } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Save, Eye, Send, X, Clock } from "lucide-react";
 
 function fmtDateTimeLocal(d: Date) {
   const pad = (n: number) => n.toString().padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fmtEndTime(d: Date | string) {
+  const date = new Date(d);
+  return date.toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+function getCurrencySymbol(c?: string) {
+  switch (c) {
+    case "USD": return "US$"; case "CNY": return "¥"; case "GBP": return "£";
+    case "EUR": return "€"; case "JPY": return "¥"; default: return "HK$";
+  }
+}
+
+function statusLabel(s: string, hasWinner: boolean) {
+  if (s === "active") return { txt: "競拍中", cls: "bg-green-50 text-green-700" };
+  if (s === "draft") return { txt: "草稿", cls: "bg-amber-50 text-amber-700" };
+  if ((s === "ended" || s === "archived") && !hasWinner) return { txt: "流拍", cls: "bg-orange-50 text-orange-700" };
+  if (s === "ended" || s === "sold") return { txt: "已結束", cls: "bg-gray-100 text-gray-600" };
+  return { txt: s, cls: "bg-gray-100 text-gray-600" };
 }
 
 export default function MerchantSessionEdit() {
@@ -28,8 +48,7 @@ export default function MerchantSessionEdit() {
   const { data, isLoading, refetch } = trpc.merchantSessions.getMine.useQuery(
     { id: sessionId }, { enabled: sessionId > 0 }
   );
-  const { data: myAuctions } = trpc.merchants.myAuctions.useQuery(undefined, { enabled: !!user });
-  const { data: myDrafts } = trpc.merchantSessions.myDraftAuctions.useQuery(undefined, { enabled: !!user });
+  const { data: myEligible } = trpc.merchantSessions.myEligibleAuctions.useQuery(undefined, { enabled: !!user });
 
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -67,16 +86,10 @@ export default function MerchantSessionEdit() {
   const items = data?.items || [];
   const itemAuctionIds = useMemo(() => new Set(items.map(it => it.auctionId)), [items]);
 
-  // 商戶可揀嘅 auction：自己嘅 active + draft auctions（未喺 session 入面）
-  const allMine = useMemo(() => {
-    const active = (myAuctions || []) as any[];
-    const drafts = (myDrafts || []) as any[];
-    const combined = [...active, ...drafts];
-    const seen = new Set<number>();
-    return combined
-      .filter((a: any) => a && a.id && !seen.has(a.id) && (seen.add(a.id), true))
-      .filter((a: any) => !itemAuctionIds.has(a.id));
-  }, [myAuctions, myDrafts, itemAuctionIds]);
+  // 商戶可揀嘅 auction：自己嘅 draft + 流拍（未喺 session 入面）
+  const allEligible = useMemo(() => {
+    return ((myEligible || []) as any[]).filter((a: any) => a && a.id && !itemAuctionIds.has(a.id));
+  }, [myEligible, itemAuctionIds]);
 
   function startEdit() {
     if (!session) return;
@@ -221,24 +234,32 @@ export default function MerchantSessionEdit() {
                   )}
                 </div>
               );
+              const firstImg = (a.images && a.images.length > 0) ? a.images[0].imageUrl : null;
+              const sl = statusLabel(a.status, !!a.highestBidderId);
               return (
                 <div key={it.id} className="bg-white border border-amber-100 rounded-xl p-3 flex items-center gap-3">
+                  <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0">
+                    {firstImg ? (
+                      <img src={firstImg} alt={a.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-2xl">🪙</span>
+                    )}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <Link href={`/auctions/${a.id}`}>
                       <a className="font-medium text-sm text-amber-900 hover:underline truncate block">{a.title}</a>
                     </Link>
                     <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
-                      <span>#{a.id}</span>
-                      <span className={`px-1.5 py-0.5 rounded ${
-                        a.status === "active" ? "bg-green-50 text-green-700"
-                        : a.status === "draft" ? "bg-amber-50 text-amber-700"
-                        : "bg-gray-100 text-gray-600"
-                      }`}>{a.status}</span>
-                      <span>· 目前出價 {a.currency || "HKD"} {Number(a.currentPrice).toLocaleString()}</span>
+                      <span className={`px-1.5 py-0.5 rounded ${sl.cls}`}>{sl.txt}</span>
+                      <span>{getCurrencySymbol(a.currency)} {Number(a.currentPrice).toLocaleString()}</span>
+                    </div>
+                    <div className="text-[11px] text-gray-500 mt-0.5 inline-flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      結束 {fmtEndTime(a.endTime)}
                     </div>
                   </div>
                   {!isLocked && (
-                    <Button size="sm" variant="ghost" className="text-rose-600"
+                    <Button size="sm" variant="ghost" className="text-rose-600 shrink-0"
                       onClick={async () => {
                         const ok = await confirm({ title: "從專場移除？", description: "Auction 本身唔會刪除。", confirmText: "移除", cancelText: "取消" });
                         if (ok) removeItemMut.mutate({ sessionId, auctionId: it.auctionId });
@@ -257,13 +278,15 @@ export default function MerchantSessionEdit() {
       <Dialog open={showPicker} onOpenChange={setShowPicker}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>揀拍賣品加入專場</DialogTitle></DialogHeader>
-          <div className="text-xs text-gray-500 mb-2">顯示你嘅 active + draft auctions（未喺呢場入面）。</div>
-          {allMine.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">冇可加入嘅 auction。請先去「拍賣管理」建新 auction。</div>
+          <div className="text-xs text-gray-500 mb-2">只顯示你嘅<b>草稿（未發佈）</b>同<b>流拍（已結束無人贏）</b>auction。已結標／競拍中嘅唔可以加入。</div>
+          {allEligible.length === 0 ? (
+            <div className="text-center text-gray-500 py-8 text-sm">冇可加入嘅 auction。請先去「拍賣管理」建立草稿。</div>
           ) : (
             <div className="max-h-96 overflow-y-auto space-y-1">
-              {allMine.map((a: any) => {
+              {allEligible.map((a: any) => {
                 const checked = pickedIds.has(a.id);
+                const firstImg = (a.images && a.images.length > 0) ? a.images[0].imageUrl : null;
+                const sl = statusLabel(a.status, !!a.highestBidderId);
                 return (
                   <label key={a.id} className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer ${checked ? "bg-amber-50 border border-amber-300" : "hover:bg-gray-50 border border-transparent"}`}>
                     <input type="checkbox" checked={checked} onChange={(e) => {
@@ -271,9 +294,19 @@ export default function MerchantSessionEdit() {
                       if (e.target.checked) next.add(a.id); else next.delete(a.id);
                       setPickedIds(next);
                     }} />
+                    <div className="w-12 h-12 rounded-md overflow-hidden bg-amber-100 flex items-center justify-center shrink-0">
+                      {firstImg ? (
+                        <img src={firstImg} alt={a.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xl">🪙</span>
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{a.title}</div>
-                      <div className="text-xs text-gray-500">#{a.id} · {a.status} · {a.currency || "HKD"} {Number(a.currentPrice).toLocaleString()}</div>
+                      <div className="text-xs text-gray-500 flex items-center gap-1.5 flex-wrap">
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] ${sl.cls}`}>{sl.txt}</span>
+                        <span>{getCurrencySymbol(a.currency)} {Number(a.currentPrice).toLocaleString()}</span>
+                      </div>
                     </div>
                   </label>
                 );

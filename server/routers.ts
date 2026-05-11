@@ -3960,6 +3960,10 @@ export const appRouter = router({
         if (items.length > 0) {
           const ids = items.map(it => it.auctionId);
           auctionsRows = await db.select().from(auctions).where(inArray(auctions.id, ids));
+          auctionsRows = await Promise.all(auctionsRows.map(async (a: any) => ({
+            ...a,
+            images: await getAuctionImages(a.id),
+          })));
         }
         const auctionMap = new Map(auctionsRows.map(a => [a.id, a]));
         const merged = items.map(it => ({ ...it, auction: auctionMap.get(it.auctionId) || null }));
@@ -4191,14 +4195,24 @@ export const appRouter = router({
         return { published: draftIds.length };
       }),
 
-    /** 商戶：列出自己 draft auctions（俾 picker 用） */
-    myDraftAuctions: protectedProcedure.query(async ({ ctx }) => {
+    /** 商戶：列出自己可加入專場嘅 auctions — 只計 draft（未發佈）+ 流拍（已結束無人贏） */
+    myEligibleAuctions: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
-      const { desc, and } = await import('drizzle-orm');
+      const { desc, and, or, isNull, inArray: inArr } = await import('drizzle-orm');
       const rows = await db.select().from(auctions)
-        .where(and(eq(auctions.createdBy, ctx.user.id), eq(auctions.status, 'draft' as any)))
+        .where(and(
+          eq(auctions.createdBy, ctx.user.id),
+          or(
+            eq(auctions.status, 'draft' as any),
+            and(inArr(auctions.status, ['ended', 'archived'] as any), isNull(auctions.highestBidderId))
+          )!,
+        ))
         .orderBy(desc(auctions.createdAt));
-      return rows;
+      const enriched = await Promise.all(rows.map(async (a: any) => ({
+        ...a,
+        images: await getAuctionImages(a.id),
+      })));
+      return enriched;
     }),
 
     /** 公開：根據 merchantUserId + slug 取 session（unlisted 都拎到，只要知 URL） */
