@@ -895,6 +895,36 @@ async function startServer() {
     res.json({ status: 'ok', ts: new Date().toISOString(), nodeEnv: process.env.NODE_ENV });
   });
 
+  // ── Social crawler diagnostic endpoint ────────────────────────────────────
+  // Facebook Sharing Debugger 或任何 crawler 訪問此 URL 都會被記錄並返回診斷資料
+  app.get('/api/crawler-debug', (req, res) => {
+    const info = {
+      ts: new Date().toISOString(),
+      ip: req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+      cfIpCountry: req.headers['cf-ipcountry'],
+      cfRay: req.headers['cf-ray'],
+      userAgent: req.headers['user-agent'],
+      accept: req.headers['accept'],
+      allHeaders: Object.fromEntries(Object.entries(req.headers).filter(([k]) => !k.startsWith('x-railway'))),
+    };
+    console.log('[CRAWLER-DEBUG]', JSON.stringify(info));
+    res.set('Content-Type', 'application/json').json(info);
+  });
+
+  // ── Log all Facebook/social crawler page requests ─────────────────────────
+  app.use((req, res, next) => {
+    const ua = req.headers['user-agent'] ?? '';
+    if (/facebookexternalhit|meta-externalagent|Twitterbot|LinkedInBot/i.test(ua)) {
+      const ip = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      const ray = req.headers['cf-ray'] || '-';
+      console.log(`[SOCIAL-CRAWLER] ${req.method} ${req.path} | IP=${ip} | CF-Ray=${ray} | UA=${ua.substring(0, 80)}`);
+      res.on('finish', () => {
+        console.log(`[SOCIAL-CRAWLER-RESP] ${req.method} ${req.path} → HTTP ${res.statusCode}`);
+      });
+    }
+    next();
+  });
+
   // Dev/Sandbox mock login (non-production only)
   registerDevLoginRoutes(app);
 
