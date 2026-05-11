@@ -9,8 +9,12 @@ Allow: /
 Allow: /api/og-image/
 
 User-agent: meta-externalagent
-Allow: /
+Allow: /auctions/
 Allow: /api/og-image/
+Allow: /merchants/
+Allow: /plans/
+Allow: /collection-square/
+Allow: /
 
 User-agent: Twitterbot
 Allow: /
