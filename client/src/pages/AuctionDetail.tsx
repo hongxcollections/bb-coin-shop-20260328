@@ -51,6 +51,20 @@ function formatDate(date: Date) {
   });
 }
 
+function SessionBelongsBanner({ auctionId, merchantUserId }: { auctionId: number; merchantUserId: number }) {
+  const { data } = trpc.merchantSessions.findSessionForAuction.useQuery(
+    { auctionId }, { enabled: auctionId > 0, retry: false, staleTime: 60_000 }
+  );
+  if (!data) return null;
+  return (
+    <Link href={`/s/${merchantUserId}/${data.slug}`}>
+      <a className="inline-flex items-center gap-1.5 text-xs bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full mb-2 hover:bg-purple-100 transition">
+        🎪 屬於專場「{data.title}」
+      </a>
+    </Link>
+  );
+}
+
 export default function AuctionDetail() {
   const [, params] = useRoute("/auctions/:id");
   const auctionId = parseInt(params?.id ?? "0");
@@ -626,6 +640,7 @@ export default function AuctionDetail() {
           <div className="flex flex-col gap-5">
             {/* Title & Status */}
             <div>
+              <SessionBelongsBanner auctionId={auctionId} merchantUserId={auction.createdBy} />
               <h1 className="text-2xl font-bold leading-tight mb-3">{auction.title}</h1>
               <div className="flex items-center justify-end gap-2 mb-2">
                 <Badge className={isActive ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}>

@@ -626,6 +626,17 @@ export default function MerchantDashboard() {
               </div>
             </div>
           </Link>
+          <Link href="/merchant/sessions">
+            <div className="rounded-2xl bg-white border border-purple-100 p-4 flex items-center gap-3 hover:border-purple-300 hover:bg-purple-50/50 transition-colors cursor-pointer">
+              <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0">
+                <Gavel className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-purple-900">拍賣專場</p>
+                <p className="text-xs text-gray-400 mt-0.5">建立小型拍賣會 · 公開 URL</p>
+              </div>
+            </div>
+          </Link>
           <Link href="/merchant-products">
             <div className="rounded-2xl bg-white border border-green-100 p-4 flex items-center gap-3 hover:border-green-300 hover:bg-green-50/50 transition-colors cursor-pointer">
               <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">

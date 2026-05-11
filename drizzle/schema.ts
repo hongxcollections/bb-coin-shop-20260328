@@ -669,3 +669,35 @@ export const dailyChallengeAnswers = mysqlTable("dailyChallengeAnswers", {
   submittedAt: timestamp("submittedAt").defaultNow().notNull(),
 });
 export type DailyChallengeAnswer = typeof dailyChallengeAnswers.$inferSelect;
+
+/**
+ * 商戶專場拍賣 (Merchant Auction Sessions)
+ * 商戶建立小型拍賣會（有名稱 + 結束日），將自己嘅 auction 分批集中展示。
+ * 公開 URL `/s/:userId/:slug` 集中睇；auction 本身仍存在 `auctions` table，價錢同步。
+ */
+export const merchantAuctionSessions = mysqlTable("merchantAuctionSessions", {
+  id: int("id").autoincrement().primaryKey(),
+  merchantUserId: int("merchantUserId").notNull(),                              // = users.id of the merchant
+  slug: varchar("slug", { length: 80 }).notNull(),                              // URL-safe, unique per merchant
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description"),
+  coverImage: varchar("coverImage", { length: 500 }),
+  endAt: timestamp("endAt").notNull(),
+  status: mysqlEnum("status", ["draft", "published", "ended"]).default("draft").notNull(),
+  visibility: mysqlEnum("visibility", ["public", "unlisted"]).default("public").notNull(), // V2 toggle
+  itemCount: int("itemCount").default(0).notNull(),                             // cached count
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type MerchantAuctionSession = typeof merchantAuctionSessions.$inferSelect;
+export type InsertMerchantAuctionSession = typeof merchantAuctionSessions.$inferInsert;
+
+export const merchantAuctionSessionItems = mysqlTable("merchantAuctionSessionItems", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  auctionId: int("auctionId").notNull(),
+  displayOrder: int("displayOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type MerchantAuctionSessionItem = typeof merchantAuctionSessionItems.$inferSelect;
+export type InsertMerchantAuctionSessionItem = typeof merchantAuctionSessionItems.$inferInsert;

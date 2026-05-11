@@ -7,7 +7,7 @@ import { z } from "zod";
 import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner, saveCoinAnalysisHistory, getUserCoinAnalysisHistory, deleteCoinAnalysisHistory, searchRelatedAuctions, setMerchantPageSizes } from "./db";
 import type { AdTargetType } from "./db";
 import type { Auction } from "../drizzle/schema";
-import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids } from "../drizzle/schema";
+import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids, merchantAuctionSessions, merchantAuctionSessionItems } from "../drizzle/schema";
 import { sanitizeUserText } from "./_core/sanitize";
 import { eq, sql } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
@@ -85,6 +85,34 @@ function getEmailOrigin(req?: IncomingMessage): string {
 // 出價防抖 Map：鍵為 "userId:auctionId"，値為最後出價時間戳
 // 防止同一用戶對同一拍賣在 3 秒內重複出價，減少平台 API 請求量
 export const bidDebounceMap = new Map<string, number>();
+
+/**
+ * 為商戶專場 generate unique slug（每商戶獨立 namespace）。
+ * 由 input string 提取 ASCII alnum + dash，撞名加 -2 / -3 / ...
+ */
+async function generateUniqueSessionSlug(merchantUserId: number, source: string): Promise<string> {
+  const base = (source || 'session')
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-')
+    .slice(0, 60) || 'session';
+  const db = await getDb();
+  const { and: andOp } = await import('drizzle-orm');
+  for (let i = 0; i < 20; i++) {
+    const candidate = i === 0 ? base : `${base}-${i + 1}`;
+    const existing = await db.select({ id: merchantAuctionSessions.id })
+      .from(merchantAuctionSessions)
+      .where(andOp(
+        eq(merchantAuctionSessions.merchantUserId, merchantUserId),
+        eq(merchantAuctionSessions.slug, candidate),
+      ))
+      .limit(1);
+    if (existing.length === 0) return candidate;
+  }
+  // Fallback：加 random suffix
+  return `${base}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 /**
  * 解析影片時長（秒）。支援 MP4/MOV（解析 mvhd box）。
@@ -3893,6 +3921,356 @@ export const appRouter = router({
         const key = `merchant-videos/${ctx.user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
         const { url } = await storagePut(key, buffer, mime);
         return { url };
+      }),
+  }),
+
+  // ── 商戶專場拍賣 (Merchant Auction Sessions) ─────────────────────────────
+  // 商戶建立小型拍賣會：揀名、結束日，將自己嘅 auction 加入；公開 URL 集中展示
+  merchantSessions: router({
+    /** 商戶：列出自己嘅所有 sessions（最新喺前） */
+    myList: protectedProcedure.query(async ({ ctx }) => {
+      const app = await getMerchantApplicationByUser(ctx.user.id);
+      if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: '只限商戶會員' });
+      }
+      const db = await getDb();
+      const { desc } = await import('drizzle-orm');
+      const rows = await db.select().from(merchantAuctionSessions)
+        .where(eq(merchantAuctionSessions.merchantUserId, ctx.user.id))
+        .orderBy(desc(merchantAuctionSessions.createdAt));
+      return rows;
+    }),
+
+    /** 商戶：取得單一 session 詳情 + 內容 auctions（拎齊圖片同價錢） */
+    getMine: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [session] = await db.select().from(merchantAuctionSessions)
+          .where(eq(merchantAuctionSessions.id, input.id)).limit(1);
+        if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: '專場不存在' });
+        if (session.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的專場' });
+        }
+        const { asc, inArray } = await import('drizzle-orm');
+        const items = await db.select().from(merchantAuctionSessionItems)
+          .where(eq(merchantAuctionSessionItems.sessionId, input.id))
+          .orderBy(asc(merchantAuctionSessionItems.displayOrder), asc(merchantAuctionSessionItems.id));
+        let auctionsRows: any[] = [];
+        if (items.length > 0) {
+          const ids = items.map(it => it.auctionId);
+          auctionsRows = await db.select().from(auctions).where(inArray(auctions.id, ids));
+        }
+        const auctionMap = new Map(auctionsRows.map(a => [a.id, a]));
+        const merged = items.map(it => ({ ...it, auction: auctionMap.get(it.auctionId) || null }));
+        return { session, items: merged };
+      }),
+
+    /** 建立新專場（status=draft） */
+    create: protectedProcedure
+      .input(z.object({
+        title: z.string().min(2).max(200),
+        slug: z.string().max(80).optional(),
+        description: z.string().max(2000).optional(),
+        coverImage: z.string().url().optional(),
+        endAt: z.date(),
+        visibility: z.enum(['public', 'unlisted']).default('public'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只限商戶會員' });
+        }
+        if (input.endAt.getTime() < Date.now() + 5 * 60 * 1000) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '結束時間至少要 5 分鐘後' });
+        }
+        const slug = await generateUniqueSessionSlug(ctx.user.id, input.slug?.trim() || input.title);
+        const db = await getDb();
+        const [result]: any = await db.insert(merchantAuctionSessions).values({
+          merchantUserId: ctx.user.id,
+          slug,
+          title: sanitizeUserText(input.title),
+          description: input.description ? sanitizeUserText(input.description) : null,
+          coverImage: input.coverImage || null,
+          endAt: input.endAt,
+          visibility: input.visibility,
+          status: 'draft',
+        });
+        return { id: result.insertId, slug };
+      }),
+
+    /** 更新 session metadata */
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        title: z.string().min(2).max(200).optional(),
+        description: z.string().max(2000).optional().nullable(),
+        coverImage: z.string().url().optional().nullable(),
+        endAt: z.date().optional(),
+        visibility: z.enum(['public', 'unlisted']).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [session] = await db.select().from(merchantAuctionSessions)
+          .where(eq(merchantAuctionSessions.id, input.id)).limit(1);
+        if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: '專場不存在' });
+        if (session.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的專場' });
+        }
+        if (session.status === 'ended') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '已結束嘅專場不可修改' });
+        }
+        const patch: any = {};
+        if (input.title !== undefined) patch.title = sanitizeUserText(input.title);
+        if (input.description !== undefined) patch.description = input.description ? sanitizeUserText(input.description) : null;
+        if (input.coverImage !== undefined) patch.coverImage = input.coverImage;
+        if (input.endAt !== undefined) {
+          if (input.endAt.getTime() < Date.now() + 5 * 60 * 1000) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: '結束時間至少要 5 分鐘後' });
+          }
+          patch.endAt = input.endAt;
+        }
+        if (input.visibility !== undefined) patch.visibility = input.visibility;
+        if (Object.keys(patch).length === 0) return { ok: true };
+        await db.update(merchantAuctionSessions).set(patch)
+          .where(eq(merchantAuctionSessions.id, input.id));
+        return { ok: true };
+      }),
+
+    /** Publish: draft → published */
+    publish: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [session] = await db.select().from(merchantAuctionSessions)
+          .where(eq(merchantAuctionSessions.id, input.id)).limit(1);
+        if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: '專場不存在' });
+        if (session.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的專場' });
+        }
+        if (session.status !== 'draft') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只可以 publish 草稿' });
+        }
+        await db.update(merchantAuctionSessions).set({ status: 'published' })
+          .where(eq(merchantAuctionSessions.id, input.id));
+        return { ok: true };
+      }),
+
+    /** End: published → ended (manual) */
+    end: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [session] = await db.select().from(merchantAuctionSessions)
+          .where(eq(merchantAuctionSessions.id, input.id)).limit(1);
+        if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: '專場不存在' });
+        if (session.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的專場' });
+        }
+        await db.update(merchantAuctionSessions).set({ status: 'ended' })
+          .where(eq(merchantAuctionSessions.id, input.id));
+        return { ok: true };
+      }),
+
+    /** Delete (only draft + 0 items) */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [session] = await db.select().from(merchantAuctionSessions)
+          .where(eq(merchantAuctionSessions.id, input.id)).limit(1);
+        if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: '專場不存在' });
+        if (session.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的專場' });
+        }
+        if (session.status !== 'draft') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只可以刪除草稿。已 publish 嘅專場請改為「結束」' });
+        }
+        await db.delete(merchantAuctionSessionItems).where(eq(merchantAuctionSessionItems.sessionId, input.id));
+        await db.delete(merchantAuctionSessions).where(eq(merchantAuctionSessions.id, input.id));
+        return { ok: true };
+      }),
+
+    /** 加入 auction 落 session（必須係自己嘅 auction） */
+    addItems: protectedProcedure
+      .input(z.object({
+        sessionId: z.number().int().positive(),
+        auctionIds: z.array(z.number().int().positive()).min(1).max(200),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const { inArray, and } = await import('drizzle-orm');
+        const [session] = await db.select().from(merchantAuctionSessions)
+          .where(eq(merchantAuctionSessions.id, input.sessionId)).limit(1);
+        if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: '專場不存在' });
+        if (session.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的專場' });
+        }
+        if (session.status === 'ended') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '已結束嘅專場不可加 item' });
+        }
+        // 驗證 auctions 全部屬於呢個 merchant
+        const myAuctions = await db.select({ id: auctions.id }).from(auctions)
+          .where(and(inArray(auctions.id, input.auctionIds), eq(auctions.createdBy, session.merchantUserId)));
+        const myIds = new Set(myAuctions.map(a => a.id));
+        const valid = input.auctionIds.filter(id => myIds.has(id));
+        if (valid.length === 0) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '所有 auction 都不屬於你' });
+        }
+        // 攞返已加入嘅
+        const existing = await db.select({ auctionId: merchantAuctionSessionItems.auctionId })
+          .from(merchantAuctionSessionItems)
+          .where(and(
+            eq(merchantAuctionSessionItems.sessionId, input.sessionId),
+            inArray(merchantAuctionSessionItems.auctionId, valid),
+          ));
+        const existingSet = new Set(existing.map(e => e.auctionId));
+        const toAdd = valid.filter(id => !existingSet.has(id));
+        if (toAdd.length === 0) return { added: 0, skipped: valid.length };
+        // 攞最大 displayOrder 接住排
+        const [maxRow]: any = await db.execute(sql`SELECT COALESCE(MAX(displayOrder), 0) as maxOrder FROM merchantAuctionSessionItems WHERE sessionId = ${input.sessionId}`);
+        let nextOrder = Number((maxRow as any[])?.[0]?.maxOrder || 0) + 1;
+        const values = toAdd.map(auctionId => ({
+          sessionId: input.sessionId, auctionId, displayOrder: nextOrder++,
+        }));
+        await db.insert(merchantAuctionSessionItems).values(values);
+        // 更新 itemCount
+        await db.update(merchantAuctionSessions)
+          .set({ itemCount: sql`(SELECT COUNT(*) FROM merchantAuctionSessionItems WHERE sessionId = ${input.sessionId})` })
+          .where(eq(merchantAuctionSessions.id, input.sessionId));
+        return { added: toAdd.length, skipped: valid.length - toAdd.length };
+      }),
+
+    /** 從 session 移除一個 auction（item 本身唔影響 auction 本體） */
+    removeItem: protectedProcedure
+      .input(z.object({
+        sessionId: z.number().int().positive(),
+        auctionId: z.number().int().positive(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const { and } = await import('drizzle-orm');
+        const [session] = await db.select().from(merchantAuctionSessions)
+          .where(eq(merchantAuctionSessions.id, input.sessionId)).limit(1);
+        if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: '專場不存在' });
+        if (session.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的專場' });
+        }
+        await db.delete(merchantAuctionSessionItems).where(and(
+          eq(merchantAuctionSessionItems.sessionId, input.sessionId),
+          eq(merchantAuctionSessionItems.auctionId, input.auctionId),
+        ));
+        await db.update(merchantAuctionSessions)
+          .set({ itemCount: sql`(SELECT COUNT(*) FROM merchantAuctionSessionItems WHERE sessionId = ${input.sessionId})` })
+          .where(eq(merchantAuctionSessions.id, input.sessionId));
+        return { ok: true };
+      }),
+
+    /** V2: 一鍵將 session 入面所有 draft auction publish (status=draft → active) */
+    bulkPublishItems: protectedProcedure
+      .input(z.object({ sessionId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const { and, inArray } = await import('drizzle-orm');
+        const [session] = await db.select().from(merchantAuctionSessions)
+          .where(eq(merchantAuctionSessions.id, input.sessionId)).limit(1);
+        if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: '專場不存在' });
+        if (session.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的專場' });
+        }
+        const items = await db.select().from(merchantAuctionSessionItems)
+          .where(eq(merchantAuctionSessionItems.sessionId, input.sessionId));
+        if (items.length === 0) return { published: 0 };
+        const ids = items.map(it => it.auctionId);
+        const draftAucs = await db.select({ id: auctions.id }).from(auctions)
+          .where(and(inArray(auctions.id, ids), eq(auctions.status, 'draft' as any), eq(auctions.createdBy, session.merchantUserId)));
+        if (draftAucs.length === 0) return { published: 0 };
+        const draftIds = draftAucs.map(a => a.id);
+        await db.update(auctions).set({ status: 'active' as any })
+          .where(inArray(auctions.id, draftIds));
+        return { published: draftIds.length };
+      }),
+
+    /** 商戶：列出自己 draft auctions（俾 picker 用） */
+    myDraftAuctions: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      const { desc, and } = await import('drizzle-orm');
+      const rows = await db.select().from(auctions)
+        .where(and(eq(auctions.createdBy, ctx.user.id), eq(auctions.status, 'draft' as any)))
+        .orderBy(desc(auctions.createdAt));
+      return rows;
+    }),
+
+    /** 公開：根據 merchantUserId + slug 取 session（unlisted 都拎到，只要知 URL） */
+    getPublic: publicProcedure
+      .input(z.object({
+        merchantUserId: z.number().int().positive(),
+        slug: z.string().min(1).max(80),
+      }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        const { and, asc, inArray } = await import('drizzle-orm');
+        const [session] = await db.select().from(merchantAuctionSessions)
+          .where(and(
+            eq(merchantAuctionSessions.merchantUserId, input.merchantUserId),
+            eq(merchantAuctionSessions.slug, input.slug),
+          )).limit(1);
+        if (!session || session.status === 'draft') {
+          throw new TRPCError({ code: 'NOT_FOUND', message: '專場不存在或未發佈' });
+        }
+        const items = await db.select().from(merchantAuctionSessionItems)
+          .where(eq(merchantAuctionSessionItems.sessionId, session.id))
+          .orderBy(asc(merchantAuctionSessionItems.displayOrder), asc(merchantAuctionSessionItems.id));
+        let auctionsRows: any[] = [];
+        if (items.length > 0) {
+          const ids = items.map(it => it.auctionId);
+          auctionsRows = await db.select().from(auctions).where(inArray(auctions.id, ids));
+        }
+        // 攞 merchant 名（從 merchantApplications）
+        const merchantApp = await getMerchantApplicationByUser(input.merchantUserId);
+        const merchantName = merchantApp?.merchantName || '商戶';
+        const merchantIcon = merchantApp?.merchantIcon || null;
+        const auctionMap = new Map(auctionsRows.map(a => [a.id, a]));
+        const merged = items
+          .map(it => auctionMap.get(it.auctionId))
+          .filter((a): a is typeof auctionsRows[number] => !!a);
+        return { session, auctions: merged, merchantName, merchantIcon };
+      }),
+
+    /** 公開：列出某商戶嘅所有 published + public sessions */
+    listPublicByMerchant: publicProcedure
+      .input(z.object({ merchantUserId: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        const { and, desc, ne } = await import('drizzle-orm');
+        const rows = await db.select().from(merchantAuctionSessions)
+          .where(and(
+            eq(merchantAuctionSessions.merchantUserId, input.merchantUserId),
+            ne(merchantAuctionSessions.status, 'draft'),
+            eq(merchantAuctionSessions.visibility, 'public'),
+          ))
+          .orderBy(desc(merchantAuctionSessions.endAt));
+        return rows;
+      }),
+
+    /** 公開：取 auction 屬於邊個 published session（俾 AuctionDetail 顯示「屬於專場 X」） */
+    findSessionForAuction: publicProcedure
+      .input(z.object({ auctionId: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        const { and, desc, inArray, ne } = await import('drizzle-orm');
+        const items = await db.select().from(merchantAuctionSessionItems)
+          .where(eq(merchantAuctionSessionItems.auctionId, input.auctionId));
+        if (items.length === 0) return null;
+        const sessionIds = items.map(it => it.sessionId);
+        const sessions = await db.select().from(merchantAuctionSessions)
+          .where(and(
+            inArray(merchantAuctionSessions.id, sessionIds),
+            ne(merchantAuctionSessions.status, 'draft'),
+          ))
+          .orderBy(desc(merchantAuctionSessions.endAt))
+          .limit(1);
+        return sessions[0] || null;
       }),
   }),
 

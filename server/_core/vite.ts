@@ -133,7 +133,71 @@ function injectStaticPageMeta(html: string, reqPath: string, base: string): stri
   return result;
 }
 
+async function injectSessionOgMeta(html: string, reqPath: string, protocol: string, host: string): Promise<string | null> {
+  const m = reqPath.match(/^\/s\/(\d+)\/([A-Za-z0-9\-_\u4e00-\u9fa5]{1,80})$/);
+  if (!m) return null;
+  try {
+    const merchantUserId = parseInt(m[1], 10);
+    const slug = m[2];
+    const { getDb } = await import("../db");
+    const { merchantAuctionSessions } = await import("../../drizzle/schema");
+    const { and, eq } = await import("drizzle-orm");
+    const db = await getDb();
+    const [session] = await db.select().from(merchantAuctionSessions)
+      .where(and(eq(merchantAuctionSessions.merchantUserId, merchantUserId), eq(merchantAuctionSessions.slug, slug)))
+      .limit(1);
+    if (!session || session.status === "draft") return null;
+
+    const stripHtml = (s: string) => s.replace(/<[^>]*>?/g, "").replace(/&lt;[^&]*?&gt;/gi, "");
+    const rawTitle = stripHtml(session.title).replace(/\s+/g, " ").trim();
+    const titleForOg = rawTitle.length > 55 ? rawTitle.slice(0, 55) + "…" : rawTitle;
+    const ogTitle = `${titleForOg} | hongxcollections`;
+    const endStr = formatEndTime(new Date(session.endAt));
+    const ogDesc = `專場拍賣 | ${rawTitle} | ${session.itemCount} 件商品 | 結束 ${endStr} | 香港錢幣拍賣 hongxcollections`;
+    const fullUrl = `${protocol}://${host}${reqPath}`;
+    const ogImageUrl = (session.coverImage || "").trim();
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    const ogMeta = [
+      `<meta property="og:type" content="website" />`,
+      `<meta property="og:site_name" content="hongxcollections" />`,
+      `<meta property="og:title" content="${esc(ogTitle)}" />`,
+      `<meta property="og:description" content="${esc(ogDesc)}" />`,
+      `<meta property="og:url" content="${esc(fullUrl)}" />`,
+      `<meta property="og:locale" content="zh_HK" />`,
+      ogImageUrl ? `<meta property="og:image" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:secure_url" content="${esc(ogImageUrl)}" />` : "",
+      `<meta name="twitter:card" content="${ogImageUrl ? "summary_large_image" : "summary"}" />`,
+      `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
+      `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
+      ogImageUrl ? `<meta name="twitter:image" content="${esc(ogImageUrl)}" />` : "",
+      `<link rel="canonical" href="${esc(fullUrl)}" />`,
+      `<title>${esc(ogTitle)}</title>`,
+    ].filter(Boolean).join("\n    ");
+
+    let result = html
+      .replace(/<title>[^<]*<\/title>/gi, "")
+      .replace(/<meta\s+(?:property|name)="(?:og:|twitter:)[^"]*"[^>]*\/?>/gi, "")
+      .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "")
+      .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "");
+    const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+    // Use function callback to avoid `$1`/`$&` substitution if user's title contains $-tokens
+    result = viewportRe.test(result)
+      ? result.replace(viewportRe, (mm) => `${mm}\n    ${ogMeta}`)
+      : result.replace("</head>", () => `    ${ogMeta}\n  </head>`);
+    console.log(`[OG Meta] Injected for session /s/${merchantUserId}/${slug}: title="${ogTitle}"`);
+    return result;
+  } catch (err) {
+    console.error("[OG Meta] Session inject error:", err);
+    return null;
+  }
+}
+
 async function injectOgMeta(html: string, reqPath: string, protocol: string, host: string): Promise<string | null> {
+  // Merchant auction session 公開頁
+  const sessionInjected = await injectSessionOgMeta(html, reqPath, protocol, host);
+  if (sessionInjected) return sessionInjected;
+
   const auctionMatch = reqPath.match(/^\/auctions\/(\d+)$/);
   if (!auctionMatch) return null;
 

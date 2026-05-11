@@ -481,6 +481,46 @@ async function bootstrapMissingColumns() {
     UNIQUE KEY \`uniq_user_month\` (\`userId\`, \`monthKey\`)
   )`, 'Ensured userAutoBidQuota table');
 
+  // ── Merchant Auction Sessions (專場拍賣) ─────────────────────────────────
+  await alter(`CREATE TABLE IF NOT EXISTS \`merchantAuctionSessions\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`merchantUserId\` int NOT NULL,
+    \`slug\` varchar(80) NOT NULL,
+    \`title\` varchar(200) NOT NULL,
+    \`description\` text NULL,
+    \`coverImage\` varchar(500) NULL,
+    \`endAt\` timestamp NOT NULL,
+    \`status\` enum('draft','published','ended') NOT NULL DEFAULT 'draft',
+    \`visibility\` enum('public','unlisted') NOT NULL DEFAULT 'public',
+    \`itemCount\` int NOT NULL DEFAULT 0,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT \`merchantAuctionSessions_id\` PRIMARY KEY(\`id\`),
+    UNIQUE KEY \`uniq_merchant_slug\` (\`merchantUserId\`, \`slug\`),
+    INDEX \`idx_merchant_status\` (\`merchantUserId\`, \`status\`),
+    INDEX \`idx_endAt\` (\`endAt\`)
+  )`, 'Ensured merchantAuctionSessions table');
+
+  await alter(`CREATE TABLE IF NOT EXISTS \`merchantAuctionSessionItems\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`sessionId\` int NOT NULL,
+    \`auctionId\` int NOT NULL,
+    \`displayOrder\` int NOT NULL DEFAULT 0,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    CONSTRAINT \`merchantAuctionSessionItems_id\` PRIMARY KEY(\`id\`),
+    UNIQUE KEY \`uniq_session_auction\` (\`sessionId\`, \`auctionId\`),
+    INDEX \`idx_session\` (\`sessionId\`),
+    INDEX \`idx_auction\` (\`auctionId\`)
+  )`, 'Ensured merchantAuctionSessionItems table');
+
+  // 加 visibility column 對舊 deploy（保險）
+  if (!(await check('merchantAuctionSessions', 'visibility'))) {
+    await alter(
+      "ALTER TABLE `merchantAuctionSessions` ADD COLUMN `visibility` enum('public','unlisted') NOT NULL DEFAULT 'public'",
+      'Added visibility to merchantAuctionSessions'
+    );
+  }
+
   // Seed loyalty config 預設值（只喺 key 未設定先寫入，唔 overwrite admin 改動）
   const LOYALTY_DEFAULTS: Record<string, string> = {
     'loyalty.earlyBirdEnabled': 'true',
@@ -1585,6 +1625,26 @@ Output ONLY the JSON, nothing else.`;
       console.error('[Scheduler] expireStaleOffers error:', err);
     }
   }, 15 * 60 * 1000);
+
+  // 商戶專場自動結束 — 每 5 分鐘 mark endAt 過咗嘅 published session 為 ended
+  setInterval(async () => {
+    try {
+      const { getDb } = await import('../db');
+      const { merchantAuctionSessions } = await import('../../drizzle/schema');
+      const { and, eq, lte } = await import('drizzle-orm');
+      const db = await getDb();
+      const result: any = await db.update(merchantAuctionSessions)
+        .set({ status: 'ended' })
+        .where(and(
+          eq(merchantAuctionSessions.status, 'published'),
+          lte(merchantAuctionSessions.endAt, new Date()),
+        ));
+      const affected = result?.[0]?.affectedRows ?? result?.affectedRows ?? 0;
+      if (affected > 0) console.log(`[Scheduler] Auto-ended ${affected} merchant auction session(s)`);
+    } catch (err) {
+      console.error('[Scheduler] auto-end sessions error:', err);
+    }
+  }, 5 * 60 * 1000);
 
   // 啟動後 30 秒跑一次初始化
   setTimeout(async () => {

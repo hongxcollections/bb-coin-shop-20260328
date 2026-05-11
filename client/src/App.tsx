@@ -65,6 +65,9 @@ import AdminRecentSignupsAutoPopup from "./components/AdminRecentSignupsAutoPopu
 import AuctionSearch from "./pages/AuctionSearch";
 import Merchants from "./pages/Merchants";
 import MerchantProducts from "./pages/MerchantProducts";
+import MerchantSessions from "./pages/MerchantSessions";
+import MerchantSessionEdit from "./pages/MerchantSessionEdit";
+import MerchantSessionPublic from "./pages/MerchantSessionPublic";
 import MerchantStore from "./pages/MerchantStore";
 import MerchantProductDetail from "./pages/MerchantProductDetail";
 import CoinAnalysis from "./pages/CoinAnalysis";
@@ -209,6 +212,9 @@ function Router() {
       <Route path={"/merchants/:userId"} component={MerchantStore} />
       <Route path={"/merchant-products/:id"} component={MerchantProductDetail} />
       <Route path={"/merchant-products"} component={MerchantProducts} />
+      <Route path={"/merchant/sessions"} component={MerchantSessions} />
+      <Route path={"/merchant/sessions/:id"} component={MerchantSessionEdit} />
+      <Route path={"/s/:userId/:slug"} component={MerchantSessionPublic} />
       <Route path={"/coin-analysis"} component={CoinAnalysis} />
       <Route path={"/messages"} component={Messages} />
       <Route path={"/messages/:roomId"} component={ChatRoom} />
