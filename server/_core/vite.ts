@@ -157,7 +157,9 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
     // og:title 必須保持「短 + 純品名」，否則 Facebook OG parser 會 silently drop
     // 個 tag（實測超過 60 字符或含過多特殊符號 ｜ : 等都會中招），令 share preview
     // 退化成 fallback「hongxcollections.com」。所有起拍價／結標時間搬入 og:description。
-    const rawTitle = auction.title.replace(/\s+/g, " ").trim();
+    // 防護：商戶 paste HTML / og 標籤入 title 會令 og 標籤穿崩 leak 入 body。
+    const stripHtmlA = (s: string) => s.replace(/<[^>]*>?/g, "").replace(/&lt;[^&]*?&gt;/gi, "");
+    const rawTitle = stripHtmlA(auction.title).replace(/\s+/g, " ").trim();
     const titleForOg = rawTitle.length > 55 ? rawTitle.slice(0, 55) + "…" : rawTitle;
     const ogTitle = `${titleForOg} | hongxcollections`;
     const ogDesc = `${rawTitle} | 起拍 ${currSymbol}${startPrice} | 目前出價 ${currSymbol}${currPrice} | 結標 ${endTimeStr} | 香港錢幣拍賣 hongxcollections`;
@@ -266,10 +268,12 @@ async function injectProductOgMeta(html: string, reqPath: string, protocol: stri
 
     // 同 auction injectOgMeta() 一致：og:title 短 + 純品名（避 Facebook parser drop tag），
     // 出售價／商戶／詳細描述全部搬入 og:description。
-    const rawTitle = product.title.replace(/\s+/g, " ").trim();
+    // 防護：商戶有時會 paste HTML / og 標籤入 title / description，會令 og 標籤穿崩 leak 入 body。
+    const stripHtml = (s: string) => s.replace(/<[^>]*>?/g, "").replace(/&lt;[^&]*?&gt;/gi, "");
+    const rawTitle = stripHtml(product.title).replace(/\s+/g, " ").trim();
     const titleForOg = rawTitle.length > 55 ? rawTitle.slice(0, 55) + "…" : rawTitle;
     const ogTitle = `${titleForOg} | hongxcollections`;
-    const rawDesc = (product as { description?: string | null }).description?.toString().replace(/\s+/g, " ").trim() ?? "";
+    const rawDesc = stripHtml((product as { description?: string | null }).description?.toString() ?? "").replace(/\s+/g, " ").trim();
     const shortDesc = rawDesc.length > 100 ? rawDesc.slice(0, 100) + "…" : rawDesc;
     const ogDesc = `${rawTitle} | 出售價 ${currSymbol}${price}${merchantName ? ` | ${merchantName}` : ""}${shortDesc ? ` | ${shortDesc}` : " | 歡迎查詢"} | hongxcollections`;
     const fullUrl = `${protocol}://${host}${reqPath}`;
@@ -357,12 +361,14 @@ async function injectCollectionPostOgMeta(html: string, reqPath: string, protoco
     const imgMime = "image/jpeg";
 
     // 同 auction / product injectOgMeta() 一致：og:title 短 + 純標題（避 Facebook parser drop tag）。
+    // 防護：用戶 paste HTML / og 標籤入 title / body 會令 og 標籤穿崩 leak 入 body。
+    const stripHtmlC = (s: string) => s.replace(/<[^>]*>?/g, "").replace(/&lt;[^&]*?&gt;/gi, "");
     const intentLabel = post.intent === "seek_value" ? "求估價" : post.intent === "for_sale" ? "想出讓" : "藏品分享";
-    const author = post.authorName ? ` | ${post.authorName}` : "";
-    const rawTitle = post.title.replace(/\s+/g, " ").trim();
+    const author = post.authorName ? ` | ${stripHtmlC(post.authorName)}` : "";
+    const rawTitle = stripHtmlC(post.title).replace(/\s+/g, " ").trim();
     const titleForOg = rawTitle.length > 55 ? rawTitle.slice(0, 55) + "…" : rawTitle;
     const ogTitle = `${titleForOg} | 藏品社區`;
-    const rawBody = post.body.replace(/\s+/g, " ").trim();
+    const rawBody = stripHtmlC(post.body).replace(/\s+/g, " ").trim();
     const shortBody = rawBody.length > 120 ? rawBody.slice(0, 120) + "…" : rawBody;
     const tagPart = post.tags.length > 0 ? ` | #${post.tags.slice(0, 5).join(" #")}` : "";
     const ogDesc = `${rawTitle} | ${intentLabel}${author}${shortBody ? ` | ${shortBody}` : ""}${tagPart} | hongxcollections 藏品社區`;

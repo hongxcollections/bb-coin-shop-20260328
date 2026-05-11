@@ -344,8 +344,8 @@ export default function CollectionPostNew() {
             </div>
           )}
 
-          {/* Intent picker — 普通用戶 2 button 二選一；商戶模式自動 for_sale 唔顯示 */}
-          {!isMerchantMode && (
+          {/* Intent picker — 只畀非商戶用戶見到（商戶用上面嘅商戶發布類型 panel） */}
+          {!quotaInfo?.isMerchant && (
             <div>
               <label className="block text-sm font-medium mb-2">發布類型</label>
               <div className="grid grid-cols-2 gap-2">
