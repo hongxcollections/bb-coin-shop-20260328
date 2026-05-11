@@ -28,7 +28,7 @@ export default function CollectionPostNew() {
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [intent, setIntent] = useState<"display">("display");
+  const [intent, setIntent] = useState<"display" | "seek_value">("display");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -68,10 +68,8 @@ export default function CollectionPostNew() {
     }
   }, [selectedProduct?.id]);
 
-  // 商戶模式 → intent 強制 for_sale；普通模式 → display
-  const finalIntent: "display" | "for_sale" = isMerchantMode ? "for_sale" : "display";
-  // mute "intent" lint
-  void intent; void setIntent;
+  // 商戶模式 → intent 強制 for_sale；普通用戶 → 跟 picker (display / seek_value)，default display
+  const finalIntent: "display" | "seek_value" | "for_sale" = isMerchantMode ? "for_sale" : intent;
 
   const uploadImage = trpc.community.uploadImage.useMutation();
   const createPost = trpc.community.create.useMutation();
@@ -299,6 +297,59 @@ export default function CollectionPostNew() {
               )}
               {isMerchantMode && (
                 <div className="text-xs text-amber-700">附帶商品後，帖文會 show 喺「商戶上架」tab，並標 intent =「想出讓」。</div>
+              )}
+            </div>
+          )}
+
+          {/* Intent picker — 普通用戶 2 button 二選一；商戶模式自動 for_sale 唔顯示 */}
+          {!isMerchantMode && (
+            <div>
+              <label className="block text-sm font-medium mb-2">發布類型</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIntent("display")}
+                  className={
+                    "rounded-lg border-2 px-3 py-3 text-sm font-semibold transition-colors text-left " +
+                    (intent === "display"
+                      ? "border-sky-500 bg-sky-50 text-sky-700 shadow-sm"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-sky-300")
+                  }
+                >
+                  <div className="flex items-center gap-1.5">
+                    {intent === "display" && <span className="text-sky-500">✓</span>}
+                    純分享
+                  </div>
+                  <div className="text-[11px] font-normal text-gray-500 mt-0.5">純粹晒藏品 / 交流</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIntent("seek_value")}
+                  className={
+                    "rounded-lg border-2 px-3 py-3 text-sm font-semibold transition-colors text-left " +
+                    (intent === "seek_value"
+                      ? "border-amber-500 bg-amber-50 text-amber-700 shadow-sm"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-amber-300")
+                  }
+                >
+                  <div className="flex items-center gap-1.5">
+                    {intent === "seek_value" && <span className="text-amber-500">✓</span>}
+                    想出讓
+                  </div>
+                  <div className="text-[11px] font-normal text-gray-500 mt-0.5">徵詢估價 / 有意出售</div>
+                </button>
+              </div>
+              {intent === "seek_value" && (
+                <div className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                  想直接上架賣？建議申請成為商戶 →{" "}
+                  <button
+                    type="button"
+                    onClick={() => navigate("/merchant-apply")}
+                    className="underline font-semibold hover:text-amber-900"
+                  >
+                    我要開通商戶
+                  </button>
+                </div>
               )}
             </div>
           )}
