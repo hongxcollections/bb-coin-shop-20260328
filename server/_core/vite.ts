@@ -578,19 +578,26 @@ export function serveStatic(app: Express) {
     const protocol = typeof forwardedProto === "string" ? forwardedProto.split(",")[0].trim() : req.protocol;
     const host = req.get("host") || "";
 
-    // Prevent Railway/Fastly CDN from caching HTML responses.
-    // A cached 403 during deployment would otherwise be served to Facebook's crawler.
-    // - Cache-Control: private prevents shared CDN caches (Fastly) from storing the response.
-    // - Surrogate-Control: no-store is the Fastly-specific directive.
-    // - CDN-Cache-Control: no-store covers other CDN layers.
-    // - Vary: * prevents Fastly from using cached variants per Accept-Encoding.
-    const noCacheHeaders = {
-      "Cache-Control": "private, no-store, no-cache, must-revalidate",
-      "Surrogate-Control": "no-store",
-      "CDN-Cache-Control": "no-store",
-      "Pragma": "no-cache",
-      "Vary": "*",
-    };
+    // Cache headers strategy:
+    // - Normal users: prevent Railway/Fastly CDN from caching HTML (avoid stale 403 / SPA asset hash mismatch)
+    // - Social crawlers (Facebook/Threads/Twitter/LinkedIn/WhatsApp): allow short cache so Facebook
+    //   can properly update its og_object cache. `no-store` was preventing FB Sharing Debugger from
+    //   refreshing cached invalid og_objects even after server returned 200 + correct OG.
+    const ua = String(req.headers["user-agent"] ?? "");
+    const isSocialCrawler = /facebookexternalhit|meta-externalagent|facebot|Twitterbot|LinkedInBot|WhatsApp|TelegramBot|Slackbot|Discordbot|Pinterest/i.test(ua);
+    const noCacheHeaders = isSocialCrawler
+      ? {
+          "Cache-Control": "public, max-age=300, must-revalidate",
+          "CDN-Cache-Control": "no-store",
+          "Surrogate-Control": "no-store",
+        }
+      : {
+          "Cache-Control": "private, no-store, no-cache, must-revalidate",
+          "Surrogate-Control": "no-store",
+          "CDN-Cache-Control": "no-store",
+          "Pragma": "no-cache",
+          "Vary": "*",
+        };
 
     const base = `${protocol}://${host}`;
     const cleanPath = req.path.split("?")[0].replace(/\/+$/, "") || "/";
