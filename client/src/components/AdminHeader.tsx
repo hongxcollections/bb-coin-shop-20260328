@@ -1,34 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useToast } from "@/contexts/ToastContext";
 import { LogOut, Menu } from "lucide-react";
-import AdminRecentSignupsModal from "@/components/AdminRecentSignupsModal";
 
 export default function AdminHeader() {
   const { user, logout } = useAuth();
   const { showToast } = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showSignupsModal, setShowSignupsModal] = useState(false);
-
-  useEffect(() => {
-    if (user?.role !== "admin") return;
-    try {
-      // 用香港時區 YYYY-MM-DD 做 daily flag，避免 UTC 跨日唔啱（HK = UTC+8 永遠冇 DST）
-      const fmt = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Hong_Kong",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
-      const today = fmt.format(new Date()); // en-CA → YYYY-MM-DD
-      const flagKey = `admin_recent_signups_shown_${today}`;
-      if (!sessionStorage.getItem(flagKey)) {
-        sessionStorage.setItem(flagKey, "1");
-        setShowSignupsModal(true);
-      }
-    } catch {}
-  }, [user?.role]);
+  // 註：admin 登入新註冊 modal 已搬去 App.tsx 全域 <AdminRecentSignupsAutoPopup />，
+  // 一登入即時彈，唔再等入 /admin 頁先觸發。
 
   const handleLogout = () => {
     const name = user?.name ?? "你";
@@ -140,7 +121,6 @@ export default function AdminHeader() {
       </nav>
       {/* Spacer */}
       <div className="h-16" />
-      <AdminRecentSignupsModal open={showSignupsModal} onOpenChange={setShowSignupsModal} />
     </>
   );
 }

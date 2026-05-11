@@ -61,6 +61,7 @@ import AdminFeaturedListings from "./pages/AdminFeaturedListings";
 import AdminAds from "./pages/AdminAds";
 import AdBanner from "./components/AdBanner";
 import AdminPendingNotice from "./components/AdminPendingNotice";
+import AdminRecentSignupsAutoPopup from "./components/AdminRecentSignupsAutoPopup";
 import AuctionSearch from "./pages/AuctionSearch";
 import Merchants from "./pages/Merchants";
 import MerchantProducts from "./pages/MerchantProducts";
@@ -238,6 +239,7 @@ function App() {
             <AdBanner />
             <MerchantPendingOrdersNotice />
             <AdminPendingNotice />
+            <AdminRecentSignupsAutoPopup />
             <AutoPushSubscribe />
             <PushForegroundHandler />
             <Router />
