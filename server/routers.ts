@@ -4225,6 +4225,18 @@ export const appRouter = router({
         if (items.length > 0) {
           const ids = items.map(it => it.auctionId);
           auctionsRows = await db.select().from(auctions).where(inArray(auctions.id, ids));
+          // Enrich with images + handle anonymous bidder display
+          auctionsRows = await Promise.all(auctionsRows.map(async (a: any) => {
+            let highestBidderName = a.highestBidderName ?? null;
+            if (a.highestBidderIsAnonymous === 1) {
+              highestBidderName = '🕵️ 匿名買家';
+            }
+            return {
+              ...a,
+              highestBidderName,
+              images: await getAuctionImages(a.id),
+            };
+          }));
         }
         // 攞 merchant 名（從 merchantApplications）
         const merchantApp = await getMerchantApplicationByUser(input.merchantUserId);
