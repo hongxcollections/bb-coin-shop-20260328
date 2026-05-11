@@ -125,9 +125,11 @@ function injectStaticPageMeta(html: string, reqPath: string, base: string): stri
   // 直接忽略（佢假設 metadata 一定喺 head 頂部）。原本 inject 喺 </head> 前
   // 會排喺所有 script/link 之後 → FB silently drop og:title / og:description。
   const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+  // 用 function replacement 避免 String.replace `$1` `$&` substitution
+  // （metaTags 入面如有 `$10` 之類會被當 capture group reference 替換）
   result = viewportRe.test(result)
-    ? result.replace(viewportRe, `$1\n    ${metaTags}`)
-    : result.replace("</head>", `    ${metaTags}\n  </head>`);
+    ? result.replace(viewportRe, (m) => `${m}\n    ${metaTags}`)
+    : result.replace("</head>", () => `    ${metaTags}\n  </head>`);
   return result;
 }
 
@@ -220,9 +222,10 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
       .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "")
       .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
     const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+    // 用 function replacement 避免 String.replace `$1` substitution（ogMeta 入面 `$10` 之類會被當 capture group reference）
     result = viewportRe.test(result)
-      ? result.replace(viewportRe, `$1\n    ${ogMeta}`)
-      : result.replace("</head>", `    ${ogMeta}\n  </head>`);
+      ? result.replace(viewportRe, (m) => `${m}\n    ${ogMeta}`)
+      : result.replace("</head>", () => `    ${ogMeta}\n  </head>`);
     console.log(`[OG Meta] Injected for auction ${auctionId}: title="${ogTitle}" imageUrl="${ogImageUrl}"`);
     return result;
   } catch (err) {
@@ -330,9 +333,10 @@ async function injectProductOgMeta(html: string, reqPath: string, protocol: stri
       .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "")
       .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
     const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+    // 用 function replacement 避免 String.replace `$1` substitution（ogMeta 入面 `$10` 之類會被當 capture group reference）
     result = viewportRe.test(result)
-      ? result.replace(viewportRe, `$1\n    ${ogMeta}`)
-      : result.replace("</head>", `    ${ogMeta}\n  </head>`);
+      ? result.replace(viewportRe, (m) => `${m}\n    ${ogMeta}`)
+      : result.replace("</head>", () => `    ${ogMeta}\n  </head>`);
     console.log(`[OG Meta] Injected for product ${productId}: title="${ogTitle}" imageUrl="${ogImageUrl}"`);
     return result;
   } catch (err) {
@@ -421,9 +425,10 @@ async function injectCollectionPostOgMeta(html: string, reqPath: string, protoco
       .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "")
       .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
     const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+    // 用 function replacement 避免 String.replace `$1` substitution（ogMeta 入面 `$10` 之類會被當 capture group reference）
     result = viewportRe.test(result)
-      ? result.replace(viewportRe, `$1\n    ${ogMeta}`)
-      : result.replace("</head>", `    ${ogMeta}\n  </head>`);
+      ? result.replace(viewportRe, (m) => `${m}\n    ${ogMeta}`)
+      : result.replace("</head>", () => `    ${ogMeta}\n  </head>`);
     console.log(`[OG Meta] Injected for collection post ${postId}: title="${ogTitle}" imageUrl="${ogImageUrl}"`);
     return result;
   } catch (err) {
