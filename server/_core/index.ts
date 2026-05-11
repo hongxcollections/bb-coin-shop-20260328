@@ -1353,6 +1353,18 @@ Output ONLY the JSON, nothing else.`;
     return { ok: true, buf, contentType };
   }
 
+  async function cropToOgSize(buf: Buffer): Promise<Buffer> {
+    try {
+      const sharp = (await import('sharp')).default;
+      return await sharp(buf)
+        .resize(1200, 630, { fit: 'cover', position: 'centre' })
+        .jpeg({ quality: 85 })
+        .toBuffer();
+    } catch {
+      return buf;
+    }
+  }
+
   function sendImageResponse(res: any, contentType: string, buf: Buffer) {
     res.set({
       'Content-Type': contentType,
@@ -1383,7 +1395,8 @@ Output ONLY the JSON, nothing else.`;
       if (!firstImage) { res.status(404).send('No image'); return; }
       const result = await fetchAllowlistedImage(firstImage);
       if (!result.ok) { res.status(result.status).send(result.reason); return; }
-      sendImageResponse(res, result.contentType, result.buf);
+      const cropped = await cropToOgSize(result.buf);
+      sendImageResponse(res, 'image/jpeg', cropped);
     } catch (err) {
       console.error('[OG Image Product Proxy] Error:', err);
       res.status(500).send('Error');
@@ -1400,7 +1413,8 @@ Output ONLY the JSON, nothing else.`;
       if (!post || !post.firstImageUrl) { res.status(404).send('No image'); return; }
       const result = await fetchAllowlistedImage(post.firstImageUrl);
       if (!result.ok) { res.status(result.status).send(result.reason); return; }
-      sendImageResponse(res, result.contentType, result.buf);
+      const cropped = await cropToOgSize(result.buf);
+      sendImageResponse(res, 'image/jpeg', cropped);
     } catch (err) {
       console.error('[OG Image Community Proxy] Error:', err);
       res.status(500).send('Error');
@@ -1417,7 +1431,8 @@ Output ONLY the JSON, nothing else.`;
       if (!images || images.length === 0 || !images[0].imageUrl) { res.status(404).send('No image'); return; }
       const result = await fetchAllowlistedImage(images[0].imageUrl);
       if (!result.ok) { res.status(result.status).send(result.reason); return; }
-      sendImageResponse(res, result.contentType, result.buf);
+      const cropped = await cropToOgSize(result.buf);
+      sendImageResponse(res, 'image/jpeg', cropped);
     } catch (err) {
       console.error('[OG Image Proxy] Error:', err);
       res.status(500).send('Error');
