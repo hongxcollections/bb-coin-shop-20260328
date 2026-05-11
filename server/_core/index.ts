@@ -911,18 +911,58 @@ async function startServer() {
     res.set('Content-Type', 'application/json').json(info);
   });
 
-  // ── Log all Facebook/social crawler page requests ─────────────────────────
+  // ── In-memory ring buffer for ALL incoming requests (last 100) ────────────
+  // 用嚟診斷 Facebook 嘅請求究竟有冇到達 server，以及最終返咗咩 status
+  const requestRing: Array<{
+    ts: string;
+    method: string;
+    path: string;
+    status: number;
+    ip: string;
+    cfRay: string;
+    cfCountry: string;
+    ua: string;
+    isCrawler: boolean;
+  }> = [];
+  const RING_MAX = 200;
+
   app.use((req, res, next) => {
-    const ua = req.headers['user-agent'] ?? '';
-    if (/facebookexternalhit|meta-externalagent|Twitterbot|LinkedInBot/i.test(ua)) {
-      const ip = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-      const ray = req.headers['cf-ray'] || '-';
+    const ua = String(req.headers['user-agent'] ?? '');
+    const isCrawler = /facebookexternalhit|meta-externalagent|Twitterbot|LinkedInBot|WhatsApp|TelegramBot|facebot/i.test(ua);
+    const ip = String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '-');
+    const ray = String(req.headers['cf-ray'] || '-');
+    const country = String(req.headers['cf-ipcountry'] || '-');
+    if (isCrawler) {
       console.log(`[SOCIAL-CRAWLER] ${req.method} ${req.path} | IP=${ip} | CF-Ray=${ray} | UA=${ua.substring(0, 80)}`);
-      res.on('finish', () => {
-        console.log(`[SOCIAL-CRAWLER-RESP] ${req.method} ${req.path} → HTTP ${res.statusCode}`);
-      });
     }
+    res.on('finish', () => {
+      requestRing.push({
+        ts: new Date().toISOString(),
+        method: req.method,
+        path: req.path + (req.url.includes('?') ? '?' + req.url.split('?')[1] : ''),
+        status: res.statusCode,
+        ip,
+        cfRay: ray,
+        cfCountry: country,
+        ua: ua.substring(0, 200),
+        isCrawler,
+      });
+      if (requestRing.length > RING_MAX) requestRing.shift();
+      if (isCrawler) {
+        console.log(`[SOCIAL-CRAWLER-RESP] ${req.method} ${req.path} → HTTP ${res.statusCode}`);
+      }
+    });
     next();
+  });
+
+  // Endpoint to query the ring buffer — filter by ?crawler=1 or ?ua=facebook
+  app.get('/api/request-log', (req, res) => {
+    const onlyCrawler = req.query.crawler === '1';
+    const uaFilter = String(req.query.ua || '').toLowerCase();
+    let items = requestRing.slice().reverse();
+    if (onlyCrawler) items = items.filter(i => i.isCrawler);
+    if (uaFilter) items = items.filter(i => i.ua.toLowerCase().includes(uaFilter));
+    res.json({ count: items.length, total: requestRing.length, items: items.slice(0, 100) });
   });
 
   // Dev/Sandbox mock login (non-production only)
