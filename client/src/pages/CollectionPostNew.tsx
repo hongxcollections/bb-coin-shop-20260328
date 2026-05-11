@@ -51,20 +51,24 @@ export default function CollectionPostNew() {
   const activeProducts = ((myProducts as any[]) ?? []).filter((p: any) => p.status === "active");
   const selectedProduct = activeProducts.find((p: any) => p.id === merchantProductId) ?? null;
 
-  // ?productId prefill — 自動填標題／描述／圖片／tag
+  // 商品揀完／切換 → 直接覆寫 title/body/images/tags（揀新商品就用新商品資料）
   useEffect(() => {
     if (!selectedProduct) return;
-    setTitle((prev) => prev || selectedProduct.title || "");
-    setBody((prev) => prev || selectedProduct.description || "");
+    setTitle(selectedProduct.title || "");
+    setBody(selectedProduct.description || "");
     try {
       const arr = selectedProduct.images ? JSON.parse(selectedProduct.images) : [];
       if (Array.isArray(arr)) {
-        setImageUrls((prev) => prev.length === 0 ? arr.filter((u: any) => typeof u === "string").slice(0, 9) : prev);
+        setImageUrls(arr.filter((u: any) => typeof u === "string").slice(0, 9));
+      } else {
+        setImageUrls([]);
       }
-    } catch { /* ignore */ }
+    } catch {
+      setImageUrls([]);
+    }
     if (selectedProduct.category) {
       const cats = String(selectedProduct.category).split("|").map((c: string) => c.trim()).filter(Boolean).slice(0, 5);
-      setSelectedTags((prev) => prev.length === 0 ? cats : prev);
+      setSelectedTags(cats);
     }
   }, [selectedProduct?.id]);
 
@@ -378,7 +382,7 @@ export default function CollectionPostNew() {
                   <div className="text-[11px] font-normal text-gray-500 mt-0.5">徵詢估價 / 有意出售</div>
                 </button>
               </div>
-              {intent === "seek_value" && (
+              {intent === "seek_value" && !quotaInfo?.isMerchant && (
                 <div className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
                   想直接上架賣？建議申請成為商戶 →{" "}
                   <button

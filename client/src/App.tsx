@@ -225,7 +225,7 @@ function App() {
           <ConfirmProvider>
           <ToastProvider>
             <Toaster
-              position="bottom-center"
+              position="top-center"
               duration={4000}
               toastOptions={{
                 classNames: {
