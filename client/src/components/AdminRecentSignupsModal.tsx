@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   Dialog,
@@ -63,6 +63,12 @@ function tierBadge(level: string | null) {
 
 export default function AdminRecentSignupsModal({ open, onOpenChange }: Props) {
   const [page, setPage] = useState(1);
+
+  // Reset to page 1 每次彈開 modal，避免 stale page 觸發假 empty state
+  useEffect(() => {
+    if (open) setPage(1);
+  }, [open]);
+
   const { data, isLoading } = trpc.users.adminListRecentRegistrations.useQuery(
     { days: DAYS, page, pageSize: PAGE_SIZE },
     { enabled: open, staleTime: 30_000 }
@@ -71,6 +77,11 @@ export default function AdminRecentSignupsModal({ open, onOpenChange }: Props) {
   const rows = (data?.rows as Row[] | undefined) ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // 萬一 total 縮細令 current page out-of-range，自動 clamp 返 valid page
+  useEffect(() => {
+    if (!isLoading && page > totalPages) setPage(totalPages);
+  }, [isLoading, page, totalPages]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

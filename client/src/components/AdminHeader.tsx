@@ -14,7 +14,14 @@ export default function AdminHeader() {
   useEffect(() => {
     if (user?.role !== "admin") return;
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      // 用香港時區 YYYY-MM-DD 做 daily flag，避免 UTC 跨日唔啱（HK = UTC+8 永遠冇 DST）
+      const fmt = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Hong_Kong",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+      const today = fmt.format(new Date()); // en-CA → YYYY-MM-DD
       const flagKey = `admin_recent_signups_shown_${today}`;
       if (!sessionStorage.getItem(flagKey)) {
         sessionStorage.setItem(flagKey, "1");
