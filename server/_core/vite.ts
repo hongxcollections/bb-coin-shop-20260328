@@ -602,10 +602,15 @@ export function serveStatic(app: Express) {
     const base = `${protocol}://${host}`;
     const cleanPath = req.path.split("?")[0].replace(/\/+$/, "") || "/";
     let html = await fs.promises.readFile(indexPath, "utf-8");
-    const ogHtml = await injectOgMeta(html, cleanPath, protocol, host)
-      ?? await injectProductOgMeta(html, cleanPath, protocol, host)
-      ?? await injectCollectionPostOgMeta(html, cleanPath, protocol, host)
-      ?? injectStaticPageMeta(html, cleanPath, base);
+    // 診斷：?og=default 強制行 default static OG（同 auction 20 一樣嗰種），
+    // 用嚟 A/B 測試 dynamic injection 係咪 Facebook 拒絕嘅原因。
+    const ogMode = typeof req.query.og === "string" ? req.query.og : "";
+    const ogHtml = ogMode === "default"
+      ? injectStaticPageMeta(html, cleanPath, base)
+      : (await injectOgMeta(html, cleanPath, protocol, host)
+        ?? await injectProductOgMeta(html, cleanPath, protocol, host)
+        ?? await injectCollectionPostOgMeta(html, cleanPath, protocol, host)
+        ?? injectStaticPageMeta(html, cleanPath, base));
     if (ogHtml) {
       res.status(200).set({ "Content-Type": "text/html", ...noCacheHeaders }).end(ogHtml);
       return;
