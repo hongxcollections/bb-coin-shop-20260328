@@ -51,10 +51,11 @@ export default function CollectionPostNew() {
   const activeProducts = ((myProducts as any[]) ?? []).filter((p: any) => p.status === "active");
   const selectedProduct = activeProducts.find((p: any) => p.id === merchantProductId) ?? null;
 
-  // ?productId prefill — 自動填標題／圖片／tag
+  // ?productId prefill — 自動填標題／描述／圖片／tag
   useEffect(() => {
     if (!selectedProduct) return;
     setTitle((prev) => prev || selectedProduct.title || "");
+    setBody((prev) => prev || selectedProduct.description || "");
     try {
       const arr = selectedProduct.images ? JSON.parse(selectedProduct.images) : [];
       if (Array.isArray(arr)) {
