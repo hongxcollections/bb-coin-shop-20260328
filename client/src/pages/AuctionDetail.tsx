@@ -51,6 +51,28 @@ function formatDate(date: Date) {
   });
 }
 
+function SessionAwareBack({ auctionId, merchantUserId }: { auctionId: number; merchantUserId: number }) {
+  const { data } = trpc.merchantSessions.findSessionForAuction.useQuery(
+    { auctionId }, { enabled: auctionId > 0, retry: false, staleTime: 60_000 }
+  );
+  if (data) {
+    return (
+      <div className="flex items-center gap-2 mb-6 text-sm text-muted-foreground">
+        <Link href={`/s/${merchantUserId}/${data.slug}`} className="flex items-center gap-1 hover:text-amber-700 transition-colors">
+          <ChevronLeft className="w-4 h-4" /> 返回 {data.merchantName ?? '商戶'} 專場 「{data.title}」
+        </Link>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2 mb-6 text-sm text-muted-foreground">
+      <Link href="/auctions" className="flex items-center gap-1 hover:text-amber-700 transition-colors">
+        <ChevronLeft className="w-4 h-4" /> 返回拍賣列表
+      </Link>
+    </div>
+  );
+}
+
 function SessionBelongsBanner({ auctionId, merchantUserId }: { auctionId: number; merchantUserId: number }) {
   const { data } = trpc.merchantSessions.findSessionForAuction.useQuery(
     { auctionId }, { enabled: auctionId > 0, retry: false, staleTime: 60_000 }
@@ -59,7 +81,7 @@ function SessionBelongsBanner({ auctionId, merchantUserId }: { auctionId: number
   return (
     <Link href={`/s/${merchantUserId}/${data.slug}`}>
       <a className="inline-flex items-center gap-1.5 text-xs bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full mb-2 hover:bg-purple-100 transition">
-        🎪 屬於{data.merchantName ?? '商戶'}專場「{data.title}」
+        🎪 {data.merchantName ?? '商戶'} 專場「{data.title}」
       </a>
     </Link>
   );
@@ -463,11 +485,7 @@ export default function AuctionDetail() {
       <Header />
       <div className="container pt-8 pb-40">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 mb-6 text-sm text-muted-foreground">
-          <Link href="/auctions" className="flex items-center gap-1 hover:text-amber-700 transition-colors">
-            <ChevronLeft className="w-4 h-4" /> 返回拍賣列表
-          </Link>
-        </div>
+        <SessionAwareBack auctionId={auctionId} merchantUserId={auction.createdBy} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left: Images */}

@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { ChevronLeft, Plus, Trash2, Save, Eye, Send, X, Clock } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Save, Eye, Send, X, Clock, ChevronUp, ChevronDown } from "lucide-react";
 
 function fmtDateTimeLocal(d: Date) {
   const pad = (n: number) => n.toString().padStart(2, "0");
@@ -22,6 +22,46 @@ function fmtDateTimeLocal(d: Date) {
 function fmtEndTime(d: Date | string) {
   const date = new Date(d);
   return date.toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+function BidHistoryToggle({ auctionId, bidCount, currency }: { auctionId: number; bidCount: number; currency?: string }) {
+  const [open, setOpen] = useState(false);
+  const { data, isLoading } = trpc.auctions.auctionBidHistory.useQuery(
+    { auctionId },
+    { enabled: open, refetchInterval: open ? 8000 : false }
+  );
+  const curr = (() => {
+    switch (currency) {
+      case "USD": return "US$"; case "CNY": return "¥"; case "GBP": return "£";
+      case "EUR": return "€"; case "JPY": return "¥"; default: return "HK$";
+    }
+  })();
+  return (
+    <span className="inline-flex flex-col">
+      <button
+        type="button"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(o => !o); }}
+        className="inline-flex items-center gap-0.5 text-amber-700 hover:text-amber-900 hover:underline"
+      >
+        {bidCount} 個出價
+        {open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+      </button>
+      {open && (
+        <div className="mt-1 w-full max-w-xs bg-amber-50/60 border border-amber-100 rounded-md p-2 text-[11px] space-y-0.5">
+          {isLoading && <div className="text-gray-400">載入中...</div>}
+          {!isLoading && (!data || data.length === 0) && <div className="text-gray-400">無出價紀錄</div>}
+          {!isLoading && data && data.slice(0, 20).map((b: any) => (
+            <div key={b.id} className="flex items-center justify-between gap-2">
+              <span className="truncate text-gray-700">{b.username}</span>
+              <span className="text-amber-700 font-semibold shrink-0">{curr}{Number(b.bidAmount).toLocaleString()}</span>
+              <span className="text-gray-400 shrink-0">{new Date(b.createdAt).toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })}</span>
+            </div>
+          ))}
+          {data && data.length > 20 && <div className="text-gray-400 text-[10px]">只顯示最近 20 條</div>}
+        </div>
+      )}
+    </span>
+  );
 }
 
 function getCurrencySymbol(c?: string) {
@@ -281,7 +321,7 @@ export default function MerchantSessionEdit() {
                         <span className="text-gray-400">未有出價</span>
                       )}
                       {(a.bidCount ?? 0) > 0 && (
-                        <span className="text-amber-700">{a.bidCount} 個出價</span>
+                        <BidHistoryToggle auctionId={a.id} bidCount={a.bidCount} currency={a.currency} />
                       )}
                     </div>
                     <div className="text-[11px] text-gray-500 mt-0.5 inline-flex items-center gap-1">
