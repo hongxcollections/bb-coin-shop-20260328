@@ -289,7 +289,7 @@ export default function MerchantSessionPublic() {
                           </div>
                           <div className="flex items-baseline gap-1.5">
                             <span className="text-sm font-bold text-amber-600">{curr}{curPrice.toLocaleString()}</span>
-                            {startPrice && startPrice !== curPrice && (
+                            {startPrice != null && startPrice > 0 && curPrice > 0 && startPrice !== curPrice && (
                               <span className="text-[10px] text-gray-400 line-through">起{curr}{startPrice.toLocaleString()}</span>
                             )}
                           </div>

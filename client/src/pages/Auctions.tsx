@@ -545,19 +545,22 @@ export default function Auctions() {
                           <div className="flex items-baseline gap-1.5">
                             <span className="text-sm font-bold text-amber-600">{curr}{curPrice.toLocaleString()}</span>
                             {/* 起拍價對比 */}
-                            {startPrice && startPrice !== curPrice && (
+                            {startPrice != null && startPrice > 0 && curPrice > 0 && startPrice !== curPrice && (
                               <span className="text-[10px] text-gray-400 line-through">起{curr}{startPrice.toLocaleString()}</span>
                             )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           {/* 出價人數 */}
-                          {(a.bidCount ?? 0) > 0 && (
-                            <div className="flex items-center gap-0.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
-                              <Users className="w-2.5 h-2.5" />
-                              <span className="font-semibold">{a.bidCount}</span>
-                            </div>
-                          )}
+                          {(() => {
+                            const bc = Number(a.bidCount ?? 0);
+                            return bc > 0 ? (
+                              <div className="flex items-center gap-0.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
+                                <Users className="w-2.5 h-2.5" />
+                                <span className="font-semibold">{bc}</span>
+                              </div>
+                            ) : null;
+                          })()}
                           <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                             <ShareMenu
                               auctionId={auction.id}

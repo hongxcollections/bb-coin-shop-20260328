@@ -479,7 +479,9 @@ export default function MerchantSessionEdit() {
                 </div>
               );
               const firstImg = (a.images && a.images.length > 0) ? a.images[0].imageUrl : null;
-              const sl = statusLabel(a.status, !!a.highestBidderId);
+              const endedByTime = new Date(a.endTime).getTime() <= Date.now();
+              const effectiveStatus = (endedByTime && (a.status === "active" || a.status === "draft")) ? "ended" : a.status;
+              const sl = statusLabel(effectiveStatus, !!a.highestBidderId);
               return (
                 <div key={it.id} className="bg-white border border-amber-100 rounded-xl p-3 flex items-center gap-3">
                   <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0">
