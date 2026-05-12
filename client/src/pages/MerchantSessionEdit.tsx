@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { ChevronLeft, Plus, Trash2, Save, Eye, Send, X, Clock, ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Save, Eye, Send, X, Clock, ChevronUp, ChevronDown, Globe, Lock, Pencil } from "lucide-react";
 import { CoverImageUpload } from "@/components/CoverImageUpload";
 import { SessionShareMenu } from "@/components/ShareMenu";
 
