@@ -4366,7 +4366,10 @@ export const appRouter = router({
           ))
           .orderBy(desc(merchantAuctionSessions.endAt))
           .limit(1);
-        return sessions[0] || null;
+        const s = sessions[0];
+        if (!s) return null;
+        const merchantApp = await getMerchantApplicationByUser(s.merchantUserId);
+        return { ...s, merchantName: merchantApp?.merchantName || '商戶' };
       }),
   }),
 

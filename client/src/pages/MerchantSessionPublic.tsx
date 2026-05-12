@@ -90,7 +90,7 @@ export default function MerchantSessionPublic() {
       enabled: merchantUserId > 0 && !!slug,
       retry: false,
       // 每 15 秒 refetch，價錢／最高出價者實時更新
-      refetchInterval: 15000,
+      refetchInterval: 8000,
       refetchOnWindowFocus: true,
     }
   );

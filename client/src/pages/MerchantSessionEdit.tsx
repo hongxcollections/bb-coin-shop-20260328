@@ -50,7 +50,7 @@ export default function MerchantSessionEdit() {
     {
       enabled: sessionId > 0,
       // 每 15 秒 refetch，價錢／最高出價者實時更新
-      refetchInterval: 15000,
+      refetchInterval: 8000,
       refetchOnWindowFocus: true,
     }
   );
@@ -275,6 +275,14 @@ export default function MerchantSessionEdit() {
                     <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
                       <span className={`px-1.5 py-0.5 rounded ${sl.cls}`}>{sl.txt}</span>
                       <span>{getCurrencySymbol(a.currency)} {Number(a.currentPrice).toLocaleString()}</span>
+                      {a.highestBidderId ? (
+                        <span className="text-rose-600 font-medium">最高: {a.highestBidderName ?? '未知'}</span>
+                      ) : (
+                        <span className="text-gray-400">未有出價</span>
+                      )}
+                      {(a.bidCount ?? 0) > 0 && (
+                        <span className="text-amber-700">{a.bidCount} 個出價</span>
+                      )}
                     </div>
                     <div className="text-[11px] text-gray-500 mt-0.5 inline-flex items-center gap-1">
                       <Clock className="w-3 h-3" />

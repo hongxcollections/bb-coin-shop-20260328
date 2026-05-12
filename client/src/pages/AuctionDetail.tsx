@@ -59,7 +59,7 @@ function SessionBelongsBanner({ auctionId, merchantUserId }: { auctionId: number
   return (
     <Link href={`/s/${merchantUserId}/${data.slug}`}>
       <a className="inline-flex items-center gap-1.5 text-xs bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full mb-2 hover:bg-purple-100 transition">
-        🎪 屬於專場「{data.title}」
+        🎪 屬於{data.merchantName ?? '商戶'}專場「{data.title}」
       </a>
     </Link>
   );
