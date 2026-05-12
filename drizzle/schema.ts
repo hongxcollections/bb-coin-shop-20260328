@@ -687,6 +687,7 @@ export const merchantAuctionSessions = mysqlTable("merchantAuctionSessions", {
   visibility: mysqlEnum("visibility", ["public", "unlisted"]).default("public").notNull(), // V2 toggle
   itemCount: int("itemCount").default(0).notNull(),                             // cached count
   addItemsCutoffMinutes: int("addItemsCutoffMinutes").default(30).notNull(),    // 結束前 N 分鐘內凍結「加入拍賣品」
+  combinedWonEmailSentAt: timestamp("combinedWonEmailSentAt"),                  // idempotency for combined invoice
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

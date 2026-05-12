@@ -123,20 +123,33 @@ function computeSessionSummary(auctionsRows: any[], session: { status: string; e
   const endAtMs = session.endAt ? new Date(session.endAt).getTime() : 0;
   const sessionEnded = session.status === 'ended' || (endAtMs > 0 && endAtMs <= nowMs);
   let soldCount = 0, unsoldCount = 0, activeCount = 0, totalGmv = 0;
-  let currency = 'HKD';
+  const totalsByCurrency: Record<string, number> = {};
+  let primaryCurrency = 'HKD';
   for (const a of auctionsRows) {
-    if (a.currency) currency = a.currency;
+    const cur = a.currency || 'HKD';
+    if (a.currency) primaryCurrency = a.currency;
     const itemEndedByTime = a.endTime ? new Date(a.endTime).getTime() <= nowMs : false;
     const itemEnded = sessionEnded || a.status === 'ended' || itemEndedByTime;
     if (!itemEnded) { activeCount++; continue; }
     if (a.highestBidderId) {
       soldCount++;
-      totalGmv += parseFloat(String(a.currentPrice)) || 0;
+      const amt = parseFloat(String(a.currentPrice)) || 0;
+      totalsByCurrency[cur] = (totalsByCurrency[cur] || 0) + amt;
+      totalGmv += amt;
     } else {
       unsoldCount++;
     }
   }
-  return { totalCount: auctionsRows.length, soldCount, unsoldCount, activeCount, totalGmv, currency, sessionEnded };
+  return {
+    totalCount: auctionsRows.length,
+    soldCount,
+    unsoldCount,
+    activeCount,
+    totalGmv,            // legacy 單貨幣 sum，UI 只喺單一 currency session 顯示
+    currency: primaryCurrency,
+    totalsByCurrency,    // 多貨幣明細，UI 應優先 render 呢個
+    sessionEnded,
+  };
 }
 
 /**
@@ -4182,12 +4195,28 @@ export const appRouter = router({
         }
         await db.update(merchantAuctionSessions).set({ status: 'ended' })
           .where(eq(merchantAuctionSessions.id, input.id));
-        // 手動結束 → 即刻發 combined invoice 俾各位中標買家
+        // 凍結場內所有 active auctions（避免手動 end 後仲俾人出價，搞到 combined email 嘅 winners/totals 失準）
         try {
-          const { notifyCombinedSessionWon } = await import('./auctions');
-          const origin = (ctx.req as any)?.headers?.origin || process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
-          notifyCombinedSessionWon(input.id, origin).catch(err =>
-            console.error(`[Email] Manual end combined invoice failed for session ${input.id}:`, err));
+          await db.execute(sql.raw(
+            `UPDATE auctions a JOIN merchantAuctionSessionItems sit ON sit.auctionId=a.id ` +
+            `SET a.status='ended', a.endTime=NOW() ` +
+            `WHERE sit.sessionId=${input.id} AND a.status='active'`
+          ));
+        } catch (e) {
+          console.error('[Email] Manual end: freeze auctions failed:', e);
+        }
+        // 原子聲明發信權，避免重複發
+        try {
+          const claim: any = await db.execute(sql.raw(
+            `UPDATE merchantAuctionSessions SET combinedWonEmailSentAt=NOW() WHERE id=${input.id} AND combinedWonEmailSentAt IS NULL`
+          ));
+          const claimAffected = claim?.[0]?.affectedRows ?? claim?.affectedRows ?? 0;
+          if (claimAffected > 0) {
+            const { notifyCombinedSessionWon } = await import('./auctions');
+            const origin = (ctx.req as any)?.headers?.origin || process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
+            notifyCombinedSessionWon(input.id, origin).catch(err =>
+              console.error(`[Email] Manual end combined invoice failed for session ${input.id}:`, err));
+          }
         } catch (err) {
           console.error('[Email] Manual end combined invoice trigger error:', err);
         }

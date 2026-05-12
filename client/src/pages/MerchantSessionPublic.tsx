@@ -197,11 +197,24 @@ export default function MerchantSessionPublic() {
                 <div className="text-lg font-bold text-amber-900">{summary.totalCount}</div>
               </div>
             </div>
-            <div className="mt-2 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center justify-between">
-              <span className="text-xs sm:text-sm text-amber-800 font-semibold">總成交額</span>
-              <span className="text-lg sm:text-xl font-extrabold text-amber-700 tabular-nums">
-                {getCurrencySymbol(summary.currency)}{Math.round(summary.totalGmv).toLocaleString()}
-              </span>
+            <div className="mt-2 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-4 py-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs sm:text-sm text-amber-800 font-semibold">總成交額</span>
+              </div>
+              <div className="space-y-1">
+                {Object.keys(summary.totalsByCurrency || {}).length === 0 ? (
+                  <div className="text-right text-lg sm:text-xl font-extrabold text-amber-700 tabular-nums">
+                    {getCurrencySymbol(summary.currency)}0
+                  </div>
+                ) : Object.entries(summary.totalsByCurrency).map(([cur, amt]) => (
+                  <div key={cur} className="flex items-center justify-between">
+                    <span className="text-xs text-amber-700">{cur}</span>
+                    <span className="text-lg sm:text-xl font-extrabold text-amber-700 tabular-nums">
+                      {getCurrencySymbol(cur)}{Math.round(amt as number).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         ) : (

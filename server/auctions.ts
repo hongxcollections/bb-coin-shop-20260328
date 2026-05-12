@@ -383,15 +383,15 @@ export async function notifyCombinedSessionWon(sessionId: number, origin: string
 
     const sessionUrl = origin ? `${origin}/s/${session.merchantUserId}/${session.slug}` : '';
 
-    for (const [, g] of byWinner) {
-      const itemsForEmail = g.items.map(it => ({
+    byWinner.forEach((g) => {
+      const itemsForEmail = g.items.map((it: any) => ({
         title: it.title,
         finalPrice: parseFloat(String(it.currentPrice)) || 0,
         currency: it.currency || 'HKD',
         auctionUrl: origin ? `${origin}/auctions/${it.auctionId}` : '',
       }));
-      const total = itemsForEmail.reduce((s, x) => s + x.finalPrice, 0);
-      const currency = itemsForEmail[0]?.currency ?? 'HKD';
+      const totalsByCurrency: Record<string, number> = {};
+      for (const x of itemsForEmail) totalsByCurrency[x.currency] = (totalsByCurrency[x.currency] || 0) + x.finalPrice;
       try {
         await sendCombinedSessionWonEmail({
           to: g.email,
@@ -401,8 +401,7 @@ export async function notifyCombinedSessionWon(sessionId: number, origin: string
           sessionTitle: session.title,
           sessionUrl,
           items: itemsForEmail,
-          total,
-          currency,
+          totalsByCurrency,
           paymentInstructions,
           deliveryInfo,
           merchantName,
@@ -411,7 +410,7 @@ export async function notifyCombinedSessionWon(sessionId: number, origin: string
       } catch (err) {
         console.error(`[Email] Combined session won email failed for ${g.email}:`, err);
       }
-    }
+    });
     console.log(`[Email] Combined session ${sessionId} invoice sent to ${byWinner.size} winner(s) covering ${items.length} item(s)`);
   } catch (err) {
     console.error('[Email] notifyCombinedSessionWon error:', err);

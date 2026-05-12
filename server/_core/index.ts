@@ -526,6 +526,12 @@ async function bootstrapMissingColumns() {
       'Added addItemsCutoffMinutes to merchantAuctionSessions'
     );
   }
+  if (!(await check('merchantAuctionSessions', 'combinedWonEmailSentAt'))) {
+    await alter(
+      "ALTER TABLE `merchantAuctionSessions` ADD COLUMN `combinedWonEmailSentAt` DATETIME NULL",
+      'Added combinedWonEmailSentAt to merchantAuctionSessions'
+    );
+  }
 
   // Seed loyalty config 預設值（只喺 key 未設定先寫入，唔 overwrite admin 改動）
   const LOYALTY_DEFAULTS: Record<string, string> = {
@@ -1639,7 +1645,7 @@ Output ONLY the JSON, nothing else.`;
       const { merchantAuctionSessions } = await import('../../drizzle/schema');
       const { and, eq, lte } = await import('drizzle-orm');
       const db = await getDb();
-      // 先攞要結束嘅 session id list，update 之後逐個發 combined invoice
+      // 先攞要結束嘅 session id list
       const toEnd = await db.select({ id: merchantAuctionSessions.id })
         .from(merchantAuctionSessions)
         .where(and(
@@ -1657,9 +1663,21 @@ Output ONLY the JSON, nothing else.`;
       if (toEnd.length > 0) {
         const { notifyCombinedSessionWon } = await import('../auctions');
         const origin = process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
+        const { sql: sqlOp } = await import('drizzle-orm');
         for (const s of toEnd) {
-          notifyCombinedSessionWon(s.id, origin).catch(err =>
-            console.error(`[Scheduler] Combined invoice failed for session ${s.id}:`, err));
+          // 原子聲明發信權：只有第一個成功 update combinedWonEmailSentAt 嘅 worker 先發信
+          try {
+            const claim: any = await db.execute(sqlOp.raw(
+              `UPDATE merchantAuctionSessions SET combinedWonEmailSentAt=NOW() WHERE id=${s.id} AND combinedWonEmailSentAt IS NULL`
+            ));
+            const claimAffected = claim?.[0]?.affectedRows ?? claim?.affectedRows ?? 0;
+            if (claimAffected > 0) {
+              notifyCombinedSessionWon(s.id, origin).catch(err =>
+                console.error(`[Scheduler] Combined invoice failed for session ${s.id}:`, err));
+            }
+          } catch (e) {
+            console.error(`[Scheduler] Combined invoice claim failed for session ${s.id}:`, e);
+          }
         }
       }
     } catch (err) {

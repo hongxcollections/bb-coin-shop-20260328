@@ -485,11 +485,22 @@ export default function MerchantSessionEdit() {
                 <div className="text-xl font-extrabold text-amber-900">{summary.totalCount}</div>
               </div>
             </div>
-            <div className="bg-gradient-to-r from-amber-100 to-orange-100 border border-amber-300 rounded-lg px-4 py-3 flex items-center justify-between mb-4">
-              <span className="text-sm text-amber-900 font-semibold">總成交額</span>
-              <span className="text-2xl font-extrabold text-amber-700 tabular-nums">
-                {getCurrencySymbol(summary.currency)}{Math.round(summary.totalGmv).toLocaleString()}
-              </span>
+            <div className="bg-gradient-to-r from-amber-100 to-orange-100 border border-amber-300 rounded-lg px-4 py-3 mb-4">
+              <div className="text-sm text-amber-900 font-semibold mb-1">總成交額</div>
+              <div className="space-y-1">
+                {Object.keys(summary.totalsByCurrency || {}).length === 0 ? (
+                  <div className="text-right text-2xl font-extrabold text-amber-700 tabular-nums">
+                    {getCurrencySymbol(summary.currency)}0
+                  </div>
+                ) : Object.entries(summary.totalsByCurrency).map(([cur, amt]) => (
+                  <div key={cur} className="flex items-center justify-between">
+                    <span className="text-xs text-amber-700">{cur}</span>
+                    <span className="text-2xl font-extrabold text-amber-700 tabular-nums">
+                      {getCurrencySymbol(cur)}{Math.round(amt as number).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* 成交明細 table */}

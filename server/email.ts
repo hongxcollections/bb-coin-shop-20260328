@@ -171,8 +171,7 @@ export interface CombinedWonEmailParams extends EmailOptions {
   sessionTitle: string;
   sessionUrl: string;
   items: { title: string; finalPrice: number; currency: string; auctionUrl: string }[];
-  total: number;
-  currency: string;
+  totalsByCurrency: Record<string, number>;
   paymentInstructions?: string | null;
   deliveryInfo?: string | null;
   merchantName?: string | null;
@@ -180,7 +179,10 @@ export interface CombinedWonEmailParams extends EmailOptions {
 }
 
 export async function sendCombinedSessionWonEmail(params: CombinedWonEmailParams): Promise<boolean> {
-  const { to, senderName, senderEmail, userName, sessionTitle, sessionUrl, items, total, currency, paymentInstructions, deliveryInfo, merchantName, merchantWhatsapp } = params;
+  const { to, senderName, senderEmail, userName, sessionTitle, sessionUrl, items, totalsByCurrency, paymentInstructions, deliveryInfo, merchantName, merchantWhatsapp } = params;
+  const currencyKeys = Object.keys(totalsByCurrency);
+  const primaryCurrency = currencyKeys[0] || (items[0]?.currency ?? 'HKD');
+  const totalsLabel = currencyKeys.map(c => `${c} ${Math.round(totalsByCurrency[c]).toLocaleString()}`).join(' + ');
   const defaultPayment = '接受付款方式：FPS、八達通、微信支付、支付寶、BOCPay、Visa\n請聯絡 hongxcollections 安排付款。';
   const defaultDelivery = '建議順豐到付（買家承擔運費），或歡迎來店自取（請提前聯絡預約）。';
   const paymentHtml = nl2br(paymentInstructions || defaultPayment);
@@ -202,7 +204,7 @@ export async function sendCombinedSessionWonEmail(params: CombinedWonEmailParams
   let contactHtml = '';
   if (merchantWhatsapp) {
     const waNumber = merchantWhatsapp.replace(/\D/g, '');
-    const waMessage = encodeURIComponent(`您好，我在 hongxcollections 「${sessionTitle}」專場以總額 ${currency}$${total.toLocaleString()} 得標 ${items.length} 件，想查詢付款及交收安排，謝謝！`);
+    const waMessage = encodeURIComponent(`您好，我在 hongxcollections 「${sessionTitle}」專場以總額 ${totalsLabel} 得標 ${items.length} 件，想查詢付款及交收安排，謝謝！`);
     const waUrl = `https://wa.me/${waNumber}?text=${waMessage}`;
     contactHtml = `
     <div style="margin-top:24px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px 20px;">
@@ -229,10 +231,11 @@ export async function sendCombinedSessionWonEmail(params: CombinedWonEmailParams
     <table style="width:100%;border-collapse:collapse;margin:8px 0;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;overflow:hidden;">
       <tbody>${itemRowsHtml}</tbody>
       <tfoot>
+        ${currencyKeys.map((c, i) => `
         <tr>
-          <td style="padding:14px 8px;font-size:14px;font-weight:700;color:#92400e;background:#fef3c7;">共 ${items.length} 件 — 總成交額</td>
-          <td style="padding:14px 8px;font-size:18px;font-weight:800;color:#b45309;text-align:right;background:#fef3c7;white-space:nowrap;">${currency} ${total.toLocaleString()}</td>
-        </tr>
+          <td style="padding:${i === 0 ? '14px' : '6px'} 8px;font-size:${i === 0 ? '14px' : '12px'};font-weight:700;color:#92400e;background:#fef3c7;">${i === 0 ? `共 ${items.length} 件 — 總成交額` : ''}</td>
+          <td style="padding:${i === 0 ? '14px' : '6px'} 8px;font-size:${i === 0 ? '18px' : '14px'};font-weight:800;color:#b45309;text-align:right;background:#fef3c7;white-space:nowrap;">${c} ${Math.round(totalsByCurrency[c]).toLocaleString()}</td>
+        </tr>`).join('')}
       </tfoot>
     </table>
 
@@ -251,7 +254,7 @@ export async function sendCombinedSessionWonEmail(params: CombinedWonEmailParams
   `;
   return sendEmail({
     to, senderName, senderEmail,
-    subject: `🎉 【專場得標總結】${sessionTitle} — 共 ${items.length} 件，總額 ${currency} ${total.toLocaleString()}`,
+    subject: `🎉 【專場得標總結】${sessionTitle} — 共 ${items.length} 件，總額 ${totalsLabel || primaryCurrency + ' 0'}`,
     html: baseLayout("專場得標總結", body),
   });
 }
