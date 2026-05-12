@@ -41,6 +41,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrencySymbol } from "./AdminAuctions";
 import { parseCategories } from "@/lib/categories";
 import { ShareMenu } from "@/components/ShareMenu";
+import { QuickBidPopover } from "@/components/QuickBidPopover";
 import Header from "@/components/Header";
 import EarlyBirdBanner from "@/components/EarlyBirdBanner";
 
@@ -1640,6 +1641,19 @@ export default function Home() {
                               latestBid={Number(auction.currentPrice)}
                               currency={(auction as { currency?: string }).currency}
                               endTime={auction.endTime}
+                            />
+                          </div>
+                          <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                            <QuickBidPopover
+                              auctionId={auction.id}
+                              title={auction.title}
+                              currentPrice={Number(auction.currentPrice)}
+                              startingPrice={Number((auction as { startingPrice?: number | string }).startingPrice ?? 0)}
+                              bidIncrement={Number((auction as { bidIncrement?: number }).bidIncrement ?? 30)}
+                              currency={(auction as { currency?: string }).currency}
+                              hasExistingBid={!!(auction as { highestBidderId?: number | null }).highestBidderId}
+                              isEnded={new Date(auction.endTime) <= new Date() || (auction as { status?: string }).status === "ended"}
+                              createdBy={(auction as { createdBy?: number }).createdBy}
                             />
                           </div>
                         </div>

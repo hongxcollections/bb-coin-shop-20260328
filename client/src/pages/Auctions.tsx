@@ -20,6 +20,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrencySymbol } from "./AdminAuctions";
 import { parseCategories } from "@/lib/categories";
 import { ShareMenu } from "@/components/ShareMenu";
+import { QuickBidPopover } from "@/components/QuickBidPopover";
 import Header from "@/components/Header";
 
 function AuctionImageOverlay({ endTime, sellerName }: { endTime: Date | string; sellerName?: string | null }) {
@@ -569,6 +570,19 @@ export default function Auctions() {
                               currency={a.currency}
                               endTime={auction.endTime}
                               shareTemplate={a.fbShareTemplate}
+                            />
+                          </div>
+                          <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                            <QuickBidPopover
+                              auctionId={auction.id}
+                              title={auction.title}
+                              currentPrice={curPrice}
+                              startingPrice={Number(auction.startingPrice ?? 0)}
+                              bidIncrement={Number(auction.bidIncrement ?? 30)}
+                              currency={a.currency}
+                              hasExistingBid={!!(auction as { highestBidderId?: number | null }).highestBidderId}
+                              isEnded={isEnded}
+                              createdBy={(auction as { createdBy?: number }).createdBy}
                             />
                           </div>
                         </div>
