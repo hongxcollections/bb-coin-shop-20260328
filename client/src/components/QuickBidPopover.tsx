@@ -132,7 +132,14 @@ export function QuickBidPopover({
       <PopoverContent
         align="end"
         sideOffset={6}
-        className="w-64 p-3 rounded-2xl border-orange-300 shadow-xl bg-gradient-to-br from-orange-50 to-amber-100"
+        className="w-64 p-3 bb-quickbid-popover"
+        style={{
+          background: "var(--popup-bg)",
+          borderColor: "var(--popup-border)",
+          boxShadow: "var(--popup-shadow)",
+          borderRadius: "var(--popup-radius)",
+          color: "var(--popup-text)",
+        }}
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
         onPointerDown={(e) => e.stopPropagation()}
       >
