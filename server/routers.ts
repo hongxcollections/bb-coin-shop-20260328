@@ -3976,6 +3976,21 @@ export const appRouter = router({
             images: await getAuctionImages(a.id),
           })));
         }
+        // Lazy sync: align item endTime to session.endAt（一次過修舊資料）
+        try {
+          const sessionEndMs = new Date(session.endAt).getTime();
+          const mismatched = auctionsRows.filter((a: any) => Math.abs(new Date(a.endTime).getTime() - sessionEndMs) > 1000);
+          if (mismatched.length > 0) {
+            const mIds = mismatched.map((a: any) => a.id);
+            await db.update(auctions).set({ endTime: session.endAt })
+              .where(inArray(auctions.id, mIds));
+            for (const a of auctionsRows) {
+              if (Math.abs(new Date(a.endTime).getTime() - sessionEndMs) > 1000) {
+                a.endTime = session.endAt;
+              }
+            }
+          }
+        } catch {}
         const auctionMap = new Map(auctionsRows.map(a => [a.id, a]));
         const merged = items.map(it => ({ ...it, auction: auctionMap.get(it.auctionId) || null }));
         return { session, items: merged };
@@ -4359,6 +4374,21 @@ export const appRouter = router({
             highestBidderName: a.highestBidderIsAnonymous === 1 ? '🕵️ 匿名買家' : (a.highestBidderName ?? null),
             images: await getAuctionImages(a.id),
           })));
+          // Lazy sync: 將任何 endTime 唔等於 session.endAt 嘅 item align 過嚟（一次性修舊資料）
+          try {
+            const sessionEndMs = new Date(session.endAt).getTime();
+            const mismatched = auctionsRows.filter((a: any) => Math.abs(new Date(a.endTime).getTime() - sessionEndMs) > 1000);
+            if (mismatched.length > 0) {
+              const mIds = mismatched.map((a: any) => a.id);
+              await db.update(auctions).set({ endTime: session.endAt })
+                .where(inArray(auctions.id, mIds));
+              for (const a of auctionsRows) {
+                if (Math.abs(new Date(a.endTime).getTime() - sessionEndMs) > 1000) {
+                  a.endTime = session.endAt;
+                }
+              }
+            }
+          } catch {}
         }
         // 攞 merchant 名（從 merchantApplications）
         const merchantApp = await getMerchantApplicationByUser(input.merchantUserId);

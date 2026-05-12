@@ -198,34 +198,39 @@ export default function MerchantSessionEdit() {
           <ChevronLeft className="w-4 h-4" /> 返回專場列表
         </Link>
 
-        <div className="bg-white border border-amber-100 rounded-2xl p-4 mb-4">
+        <div className="bg-gradient-to-br from-amber-500 via-amber-600 to-orange-600 rounded-2xl shadow-lg overflow-hidden mb-5">
           {!editing ? (
             <>
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <h1 className="text-xl font-bold text-amber-900">{session.title}</h1>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                      session.status === "published" ? "bg-green-100 text-green-700"
-                      : session.status === "ended" ? "bg-gray-100 text-gray-600"
-                      : "bg-amber-100 text-amber-700"
-                    }`}>
-                      {session.status === "published" ? "已發佈" : session.status === "ended" ? "已結束" : "草稿"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    結束 {new Date(session.endAt).toLocaleString("zh-HK", { hour12: false })}
-                    {" · "}{session.visibility === "public" ? "公開" : "半私密"}
-                    {" · "}/s/{user?.id}/{session.slug}
-                  </p>
-                  {session.description && <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{session.description}</p>}
-                  {session.coverImage && (
-                    <img src={session.coverImage} alt="cover" className="mt-2 max-h-32 rounded-lg object-cover" />
-                  )}
+              {session.coverImage && (
+                <div className="w-full h-40 sm:h-48 bg-amber-200 overflow-hidden">
+                  <img src={session.coverImage} alt="cover" className="w-full h-full object-cover" />
                 </div>
+              )}
+              <div className="p-5 text-white">
+                <div className="flex items-center gap-2 flex-wrap mb-2">
+                  <h1 className="text-2xl font-bold drop-shadow-sm">{session.title}</h1>
+                  <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-semibold ${
+                    session.status === "published" ? "bg-emerald-100 text-emerald-800"
+                    : session.status === "ended" ? "bg-gray-200 text-gray-700"
+                    : "bg-amber-100 text-amber-900"
+                  }`}>
+                    {session.status === "published" ? "已發佈" : session.status === "ended" ? "已結束" : "草稿"}
+                  </span>
+                  <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-white/20 ${session.visibility === "unlisted" ? "" : ""}`}>
+                    {session.visibility === "public" ? <><Globe className="w-3 h-3" /> 公開</> : <><Lock className="w-3 h-3" /> 半私密</>}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-white/90 mb-2">
+                  <Clock className="w-4 h-4 shrink-0" />
+                  <span>結束 {new Date(session.endAt).toLocaleString("zh-HK", { hour12: false })}</span>
+                </div>
+                <div className="text-[11px] text-white/70 font-mono mb-2 break-all">/s/{user?.id}/{session.slug}</div>
+                {session.description && (
+                  <p className="text-sm text-white/95 mt-2 whitespace-pre-wrap leading-relaxed bg-white/10 rounded-lg p-3">{session.description}</p>
+                )}
               </div>
-              <div className="flex flex-wrap gap-2 mt-3">
-                {!isLocked && <Button size="sm" variant="outline" onClick={startEdit}>編輯資料</Button>}
+              <div className="bg-white/95 backdrop-blur px-4 py-3 flex flex-wrap gap-2 border-t border-amber-200">
+                {!isLocked && <Button size="sm" variant="outline" onClick={startEdit}><Pencil className="w-3.5 h-3.5 mr-1" /> 編輯資料</Button>}
                 {session.status !== "draft" && (
                   <a href={`/s/${user?.id}/${session.slug}`} target="_blank" rel="noopener noreferrer">
                     <Button size="sm" variant="outline"><Eye className="w-3.5 h-3.5 mr-1" /> 查看公開頁</Button>
@@ -257,7 +262,7 @@ export default function MerchantSessionEdit() {
               </div>
             </>
           ) : (
-            <div className="space-y-3">
+            <div className="bg-white p-5 space-y-3">
               <div><Label>專場名稱</Label><Input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} maxLength={200} /></div>
               <div><Label>簡介</Label><Textarea rows={3} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} maxLength={2000} /></div>
               <div>

@@ -269,6 +269,12 @@ export default function MerchantSessionPublic() {
                           <Badge className={`text-[9px] px-1.5 py-0.5 ${!isItemEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
                             {!isItemEnded ? "競拍中" : "已結束"}
                           </Badge>
+                          {!isItemEnded && (
+                            <div className={`inline-flex items-center gap-0.5 text-[10px] font-semibold tabular-nums ${isEndingSoon ? "text-orange-600" : "text-amber-700"}`}>
+                              <Clock className="w-2.5 h-2.5" />
+                              {fmtCountdown(endMs, nowMs)}
+                            </div>
+                          )}
                         </div>
                       </div>
 
