@@ -3976,18 +3976,23 @@ export const appRouter = router({
             images: await getAuctionImages(a.id),
           })));
         }
-        // Lazy sync: align item endTime to session.endAt（一次過修舊資料）
+        // Lazy sync: align item endTime to session.endAt（DB-side copy 避免 JS Date TZ round-trip）
         try {
-          const sessionEndMs = new Date(session.endAt).getTime();
-          const mismatched = auctionsRows.filter((a: any) => Math.abs(new Date(a.endTime).getTime() - sessionEndMs) > 1000);
-          if (mismatched.length > 0) {
-            const mIds = mismatched.map((a: any) => a.id);
-            await db.update(auctions).set({ endTime: session.endAt })
-              .where(inArray(auctions.id, mIds));
+          const idsCsvSync = auctionsRows.map((a: any) => a.id).join(',');
+          if (idsCsvSync.length > 0) {
+            await db.execute(sql.raw(`
+              UPDATE auctions a
+              JOIN merchantAuctionSessions s ON s.id = ${session.id}
+              SET a.endTime = s.endAt
+              WHERE a.id IN (${idsCsvSync}) AND ABS(TIMESTAMPDIFF(SECOND, a.endTime, s.endAt)) > 1
+            `));
+            // Re-read endTime 以反映 DB 真實值（避免 JS Date 轉換）
+            const reread: any = await db.execute(sql.raw(`SELECT id, endTime FROM auctions WHERE id IN (${idsCsvSync})`));
+            const rrRows: any[] = Array.isArray(reread) ? (reread[0] as any[]) : [];
+            const rrMap = new Map(rrRows.map((r: any) => [r.id, r.endTime]));
             for (const a of auctionsRows) {
-              if (Math.abs(new Date(a.endTime).getTime() - sessionEndMs) > 1000) {
-                a.endTime = session.endAt;
-              }
+              const fresh = rrMap.get(a.id);
+              if (fresh) a.endTime = fresh;
             }
           }
         } catch {}
@@ -4072,14 +4077,19 @@ export const appRouter = router({
         let syncedItems = 0;
         if (patch.endAt) {
           try {
-            const { inArray: inArr3 } = await import('drizzle-orm');
             const itemRows = await db.select({ auctionId: merchantAuctionSessionItems.auctionId })
               .from(merchantAuctionSessionItems)
               .where(eq(merchantAuctionSessionItems.sessionId, input.id));
             const itemIds = itemRows.map(r => r.auctionId);
             if (itemIds.length > 0) {
-              await db.update(auctions).set({ endTime: patch.endAt })
-                .where(inArr3(auctions.id, itemIds));
+              const idsCsvUp = itemIds.join(',');
+              // DB-side copy 避免 JS Date TZ round-trip（保證 auctions.endTime === merchantAuctionSessions.endAt）
+              await db.execute(sql.raw(`
+                UPDATE auctions a
+                JOIN merchantAuctionSessions s ON s.id = ${input.id}
+                SET a.endTime = s.endAt
+                WHERE a.id IN (${idsCsvUp})
+              `));
               syncedItems = itemIds.length;
             }
           } catch (e) {
@@ -4374,18 +4384,22 @@ export const appRouter = router({
             highestBidderName: a.highestBidderIsAnonymous === 1 ? '🕵️ 匿名買家' : (a.highestBidderName ?? null),
             images: await getAuctionImages(a.id),
           })));
-          // Lazy sync: 將任何 endTime 唔等於 session.endAt 嘅 item align 過嚟（一次性修舊資料）
+          // Lazy sync: DB-side copy 避免 JS Date TZ round-trip
           try {
-            const sessionEndMs = new Date(session.endAt).getTime();
-            const mismatched = auctionsRows.filter((a: any) => Math.abs(new Date(a.endTime).getTime() - sessionEndMs) > 1000);
-            if (mismatched.length > 0) {
-              const mIds = mismatched.map((a: any) => a.id);
-              await db.update(auctions).set({ endTime: session.endAt })
-                .where(inArray(auctions.id, mIds));
+            const idsCsvSync2 = auctionsRows.map((a: any) => a.id).join(',');
+            if (idsCsvSync2.length > 0) {
+              await db.execute(sql.raw(`
+                UPDATE auctions a
+                JOIN merchantAuctionSessions s ON s.id = ${session.id}
+                SET a.endTime = s.endAt
+                WHERE a.id IN (${idsCsvSync2}) AND ABS(TIMESTAMPDIFF(SECOND, a.endTime, s.endAt)) > 1
+              `));
+              const reread2: any = await db.execute(sql.raw(`SELECT id, endTime FROM auctions WHERE id IN (${idsCsvSync2})`));
+              const rrRows2: any[] = Array.isArray(reread2) ? (reread2[0] as any[]) : [];
+              const rrMap2 = new Map(rrRows2.map((r: any) => [r.id, r.endTime]));
               for (const a of auctionsRows) {
-                if (Math.abs(new Date(a.endTime).getTime() - sessionEndMs) > 1000) {
-                  a.endTime = session.endAt;
-                }
+                const fresh = rrMap2.get(a.id);
+                if (fresh) a.endTime = fresh;
               }
             }
           } catch {}

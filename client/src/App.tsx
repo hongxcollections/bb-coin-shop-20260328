@@ -25,6 +25,7 @@ import AdminArchive from "./pages/AdminArchive";
 import UserProfile from "./pages/UserProfile";
 import AdminNotifications from "./pages/AdminNotifications";
 import AdminUsers from "./pages/AdminUsers";
+import AdminSessions from "./pages/AdminSessions";
 import AdminAnonymousBids from "./pages/AdminAnonymousBids";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminExportBids from "./pages/AdminExportBids";
@@ -173,6 +174,7 @@ function Router() {
       <Route path={"/users/:userId"} component={UserProfile} />
       <Route path={"/admin/notifications"} component={AdminNotifications} />
       <Route path={"/admin/users"} component={AdminUsers} />
+      <Route path={"/admin/sessions"} component={AdminSessions} />
       <Route path={"/admin/anonymous-bids"} component={AdminAnonymousBids} />
       <Route path={"/admin/dashboard"} component={AdminDashboard} />
       <Route path={"/admin/export-bids"} component={AdminExportBids} />
