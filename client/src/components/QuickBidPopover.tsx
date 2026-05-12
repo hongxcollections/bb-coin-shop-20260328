@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Zap } from "lucide-react";
+import { Zap, X } from "lucide-react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { trpc } from "@/lib/trpc";
@@ -140,7 +140,16 @@ export function QuickBidPopover({
           <div className="flex items-center gap-1.5">
             <Zap className="w-3.5 h-3.5 text-amber-500" fill="currentColor" />
             <span className="text-xs font-bold text-amber-900">閃出價</span>
-            <span className="text-[10px] text-gray-400 ml-auto truncate max-w-[120px]" title={title}>{title}</span>
+            <span className="text-[10px] text-gray-400 ml-auto truncate max-w-[100px]" title={title}>{title}</span>
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); }}
+              aria-label="關閉"
+              title="關閉"
+              className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
           <div className="text-[11px] text-gray-500">
             現價 <span className="font-semibold text-amber-700">{symbol}{currentPrice.toLocaleString()}</span>
