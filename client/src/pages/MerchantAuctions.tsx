@@ -964,10 +964,19 @@ export default function MerchantAuctions() {
   const activeAuctions = (myAuctions ?? []).filter((a: AuctionItem) =>
     a.status === "active" && new Date(a.endTime) > now
   ) as AuctionItem[];
+  // 🔴 方案 B：流拍 record 如已被「重新刊登」(任一 draft / active / archived 嘅 relistSourceId 指住佢)，自動隱藏
+  // 商戶若刪咗該 draft，反查 join 失效，流拍 record 會自動「彈返出嚟」喺 tab 內 (self-healing)
+  const relistedSourceIds = new Set<number>();
+  for (const list of [myAuctions ?? [], myDrafts ?? [], myArchived ?? []] as AuctionItem[][]) {
+    for (const a of list) {
+      const src = (a as any).relistSourceId;
+      if (typeof src === "number" && src > 0) relistedSourceIds.add(src);
+    }
+  }
   // 流拍：拍賣已結束（或時間已到）但冇人出價（成交嘅會去「拍賣訂單」tab）
   const endedAuctions = (myAuctions ?? []).filter((a: AuctionItem) => {
     const isEnded = a.status === "ended" || (a.status === "active" && new Date(a.endTime) <= now);
-    return isEnded && !(a as any).highestBidderId;
+    return isEnded && !(a as any).highestBidderId && !relistedSourceIds.has(a.id);
   }) as AuctionItem[];
   const draftAuctions = (myDrafts ?? []) as AuctionItem[];
   const archivedAuctions = (myArchived ?? []) as AuctionItem[];
