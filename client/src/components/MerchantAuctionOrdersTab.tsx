@@ -203,10 +203,26 @@ export function MerchantAuctionOrdersTab() {
                       <span className="text-gray-400">電話</span>
                       <span className="ml-1 font-medium">{o.buyerPhone}</span>
                       <a
-                        href={`https://wa.me/${String(o.buyerPhone).replace(/[^0-9]/g, '')}`}
+                        href={(() => {
+                          const phone = String(o.buyerPhone).replace(/[^0-9]/g, '');
+                          const link = `${window.location.origin}/auctions/${o.auctionId}`;
+                          const endStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+                          const lines = [
+                            `你好 ${o.buyerName ?? ""}，我係大BB錢幣店商戶。`,
+                            ``,
+                            `恭喜你喺以下拍賣中標：`,
+                            `📦 ${o.title}`,
+                            `💰 得標價：${o.currency} $${winningPrice.toLocaleString()}`,
+                            `🕐 結束時間：${endStr}`,
+                            `🔗 ${link}`,
+                            ``,
+                            `想同你約交收時間／地點，麻煩覆我，多謝！`,
+                          ];
+                          return `https://wa.me/${phone}?text=${encodeURIComponent(lines.join('\n'))}`;
+                        })()}
                         target="_blank" rel="noopener noreferrer"
                         className="ml-1"
-                        title="WhatsApp 聯絡買家"
+                        title="WhatsApp 聯絡買家（自動填入中標資料）"
                       >
                         <svg viewBox="0 0 32 32" className="w-4 h-4" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <circle cx="16" cy="16" r="16" fill="#25D366"/>
