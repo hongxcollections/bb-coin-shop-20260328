@@ -146,8 +146,8 @@ export function QuickBidPopover({
         <div className="space-y-2.5">
           <div className="flex items-center gap-1.5">
             <Zap className="w-3.5 h-3.5 text-amber-500" fill="currentColor" />
-            <span className="text-xs font-bold text-amber-900">閃出價</span>
-            <span className="text-[10px] text-gray-400 ml-auto truncate max-w-[100px]" title={title}>{title}</span>
+            <span className="text-xs font-bold" style={{ color: "var(--popup-text)" }}>閃出價</span>
+            <span className="text-[10px] ml-auto truncate max-w-[100px]" style={{ color: "var(--popup-text)" }} title={title}>{title}</span>
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); }}
@@ -158,8 +158,8 @@ export function QuickBidPopover({
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="text-[11px] text-gray-500">
-            現價 <span className="font-semibold text-amber-700">{symbol}{currentPrice.toLocaleString()}</span>
+          <div className="text-[11px]" style={{ color: "var(--popup-text)" }}>
+            現價 <span className="font-semibold">{symbol}{currentPrice.toLocaleString()}</span>
             <span className="mx-1">·</span>
             每口 <span className="font-semibold">{symbol}{bidIncrement}</span>
           </div>
