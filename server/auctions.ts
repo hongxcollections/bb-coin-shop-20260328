@@ -383,7 +383,9 @@ export async function notifyCombinedSessionWon(sessionId: number, origin: string
 
     const sessionUrl = origin ? `${origin}/s/${session.merchantUserId}/${session.slug}` : '';
 
-    byWinner.forEach((g) => {
+    const groups: Group[] = [];
+    byWinner.forEach((g) => groups.push(g));
+    for (const g of groups) {
       const itemsForEmail = g.items.map((it: any) => ({
         title: it.title,
         finalPrice: parseFloat(String(it.currentPrice)) || 0,
@@ -410,7 +412,7 @@ export async function notifyCombinedSessionWon(sessionId: number, origin: string
       } catch (err) {
         console.error(`[Email] Combined session won email failed for ${g.email}:`, err);
       }
-    });
+    }
     console.log(`[Email] Combined session ${sessionId} invoice sent to ${byWinner.size} winner(s) covering ${items.length} item(s)`);
   } catch (err) {
     console.error('[Email] notifyCombinedSessionWon error:', err);
