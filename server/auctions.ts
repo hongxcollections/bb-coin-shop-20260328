@@ -1,7 +1,7 @@
 import { getDb, getAuctionById, getBidHistory, placeBid as dbPlaceBid, getAuctions as dbGetAuctions, getActiveProxiesForAuction, insertProxyBidLog, getNotificationSettings, getBiddersForAuction, getMerchantSettings } from './db';
 import { auctions as auctionsTable, users, merchantApplications } from '../drizzle/schema';
 import { eq, sql } from 'drizzle-orm';
-import { sendOutbidEmail, sendWonEmail, sendEndingSoonEmail, sendMerchantWonEmail } from './email';
+import { sendOutbidEmail, sendWonEmail, sendEndingSoonEmail, sendMerchantWonEmail, sendCombinedSessionWonEmail } from './email';
 import { getUserById } from './db';
 import { sendPushToUser, isSilverOrAbove } from './push';
 
@@ -213,6 +213,23 @@ export async function notifyWon(auctionId: number, origin: string) {
     const db = await getDb();
     if (!db) return;
 
+    // 商戶專場 items 跳過個別 won email — 由 sendSessionCombinedInvoices 一封信總結
+    try {
+      const sessRows: any = await db.execute(sql.raw(`
+        SELECT 1 FROM merchantAuctionSessionItems sit
+        JOIN merchantAuctionSessions s ON s.id = sit.sessionId
+        WHERE sit.auctionId = ${auctionId} AND s.status != 'draft'
+        LIMIT 1
+      `));
+      const found: any[] = Array.isArray(sessRows) ? (sessRows[0] as any[]) : [];
+      if (found.length > 0) {
+        console.log(`[Email] Skip individual won email for auction ${auctionId} — belongs to a 商戶專場, defer to combined invoice`);
+        return;
+      }
+    } catch (e) {
+      console.warn('[Email] Session-membership check failed; falling through to individual won email:', e);
+    }
+
     const userRows = await db.select({ email: users.email, name: users.name, notifyWon: users.notifyWon }).from(users).where(eq(users.id, auction.highestBidderId));
     const winner = userRows[0];
     if (!winner?.email) return;
@@ -303,6 +320,101 @@ export async function notifyMerchantWon(auctionId: number, origin: string) {
     });
   } catch (err) {
     console.error('[Email] Merchant won notification error:', err);
+  }
+}
+
+/**
+ * 商戶專場 combined invoice — 將整個 session 入面同一買家贏到嘅所有 items 合併成一封信。
+ * 喺 session auto-end cron 同手動 end mutation 兩處呼叫；按 winner 分組，每位中標買家收一封。
+ */
+export async function notifyCombinedSessionWon(sessionId: number, origin: string) {
+  try {
+    const settings = await getNotificationSettings();
+    if (!settings) return;
+    const db = await getDb();
+    if (!db) return;
+
+    const { merchantAuctionSessions } = await import('../drizzle/schema');
+    const [session] = await db.select().from(merchantAuctionSessions)
+      .where(eq(merchantAuctionSessions.id, sessionId)).limit(1);
+    if (!session) return;
+
+    const rawRows: any = await db.execute(sql.raw(`
+      SELECT a.id AS auctionId, a.title, a.currentPrice, a.currency, a.highestBidderId,
+        u.email AS winnerEmail, u.name AS winnerName, u.notifyWon AS winnerNotifyWon
+      FROM merchantAuctionSessionItems sit
+      JOIN auctions a ON a.id = sit.auctionId
+      LEFT JOIN users u ON u.id = a.highestBidderId
+      WHERE sit.sessionId = ${sessionId} AND a.highestBidderId IS NOT NULL
+      ORDER BY sit.displayOrder ASC, sit.id ASC
+    `));
+    const items: any[] = Array.isArray(rawRows) ? (rawRows[0] as any[]) : [];
+    if (items.length === 0) return;
+
+    type Group = { email: string; name: string; items: any[] };
+    const byWinner = new Map<number, Group>();
+    for (const it of items) {
+      if (!it.winnerEmail) continue;
+      if (it.winnerNotifyWon === 0 || it.winnerNotifyWon === false) continue;
+      let g = byWinner.get(it.highestBidderId);
+      if (!g) {
+        g = { email: it.winnerEmail, name: it.winnerName ?? `用戶 #${it.highestBidderId}`, items: [] };
+        byWinner.set(it.highestBidderId, g);
+      }
+      g.items.push(it);
+    }
+    if (byWinner.size === 0) return;
+
+    let paymentInstructions: string | null = settings.paymentInstructions ?? null;
+    let deliveryInfo: string | null = settings.deliveryInfo ?? null;
+    let merchantName: string | null = null;
+    let merchantWhatsapp: string | null = null;
+    try {
+      const ms = await getMerchantSettings(session.merchantUserId);
+      if (ms.paymentInstructions) paymentInstructions = ms.paymentInstructions;
+      if (ms.deliveryInfo) deliveryInfo = ms.deliveryInfo;
+      const mApp = await db.select({ merchantName: merchantApplications.merchantName, whatsapp: merchantApplications.whatsapp })
+        .from(merchantApplications).where(eq(merchantApplications.userId, session.merchantUserId)).limit(1);
+      if (mApp[0]) {
+        merchantName = mApp[0].merchantName ?? null;
+        merchantWhatsapp = mApp[0].whatsapp ?? null;
+      }
+    } catch {}
+
+    const sessionUrl = origin ? `${origin}/s/${session.merchantUserId}/${session.slug}` : '';
+
+    for (const [, g] of byWinner) {
+      const itemsForEmail = g.items.map(it => ({
+        title: it.title,
+        finalPrice: parseFloat(String(it.currentPrice)) || 0,
+        currency: it.currency || 'HKD',
+        auctionUrl: origin ? `${origin}/auctions/${it.auctionId}` : '',
+      }));
+      const total = itemsForEmail.reduce((s, x) => s + x.finalPrice, 0);
+      const currency = itemsForEmail[0]?.currency ?? 'HKD';
+      try {
+        await sendCombinedSessionWonEmail({
+          to: g.email,
+          senderName: settings.senderName,
+          senderEmail: settings.senderEmail,
+          userName: g.name,
+          sessionTitle: session.title,
+          sessionUrl,
+          items: itemsForEmail,
+          total,
+          currency,
+          paymentInstructions,
+          deliveryInfo,
+          merchantName,
+          merchantWhatsapp,
+        });
+      } catch (err) {
+        console.error(`[Email] Combined session won email failed for ${g.email}:`, err);
+      }
+    }
+    console.log(`[Email] Combined session ${sessionId} invoice sent to ${byWinner.size} winner(s) covering ${items.length} item(s)`);
+  } catch (err) {
+    console.error('[Email] notifyCombinedSessionWon error:', err);
   }
 }
 

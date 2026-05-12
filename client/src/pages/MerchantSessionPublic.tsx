@@ -98,6 +98,7 @@ export default function MerchantSessionPublic() {
   const auctions = data?.auctions || [];
   const merchantName = data?.merchantName || "商戶";
   const merchantIcon = data?.merchantIcon || null;
+  const summary = data?.summary;
 
   const stats = useMemo(() => {
     const nowMs = Date.now();
@@ -180,26 +181,51 @@ export default function MerchantSessionPublic() {
         </div>
 
         {/* Stats bar */}
-        <div className={`grid ${user?.id ? "grid-cols-4" : "grid-cols-3"} gap-2 mb-4`}>
-          <div className="bg-white border border-amber-100 rounded-xl p-3 text-center">
-            <div className="text-xs text-gray-500">總商品</div>
-            <div className="text-lg font-bold text-amber-900">{stats.total}</div>
-          </div>
-          <div className="bg-white border border-green-100 rounded-xl p-3 text-center">
-            <div className="text-xs text-gray-500">進行中</div>
-            <div className="text-lg font-bold text-green-700">{stats.active}</div>
-          </div>
-          <div className="bg-white border border-gray-100 rounded-xl p-3 text-center">
-            <div className="text-xs text-gray-500">已結束</div>
-            <div className="text-lg font-bold text-gray-600">{stats.ended}</div>
-          </div>
-          {user?.id && (
-            <div className="bg-white border border-emerald-100 rounded-xl p-3 text-center">
-              <div className="text-xs text-gray-500">你領先</div>
-              <div className="text-lg font-bold text-emerald-700">{stats.myLeading}</div>
+        {isEnded && summary ? (
+          <div className="mb-4">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-white border border-emerald-100 rounded-xl p-3 text-center">
+                <div className="text-xs text-gray-500">成交</div>
+                <div className="text-lg font-bold text-emerald-700">{summary.soldCount}</div>
+              </div>
+              <div className="bg-white border border-gray-100 rounded-xl p-3 text-center">
+                <div className="text-xs text-gray-500">流拍</div>
+                <div className="text-lg font-bold text-gray-500">{summary.unsoldCount}</div>
+              </div>
+              <div className="bg-white border border-amber-100 rounded-xl p-3 text-center">
+                <div className="text-xs text-gray-500">總商品</div>
+                <div className="text-lg font-bold text-amber-900">{summary.totalCount}</div>
+              </div>
             </div>
-          )}
-        </div>
+            <div className="mt-2 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center justify-between">
+              <span className="text-xs sm:text-sm text-amber-800 font-semibold">總成交額</span>
+              <span className="text-lg sm:text-xl font-extrabold text-amber-700 tabular-nums">
+                {getCurrencySymbol(summary.currency)}{Math.round(summary.totalGmv).toLocaleString()}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className={`grid ${user?.id ? "grid-cols-4" : "grid-cols-3"} gap-2 mb-4`}>
+            <div className="bg-white border border-amber-100 rounded-xl p-3 text-center">
+              <div className="text-xs text-gray-500">總商品</div>
+              <div className="text-lg font-bold text-amber-900">{stats.total}</div>
+            </div>
+            <div className="bg-white border border-green-100 rounded-xl p-3 text-center">
+              <div className="text-xs text-gray-500">進行中</div>
+              <div className="text-lg font-bold text-green-700">{stats.active}</div>
+            </div>
+            <div className="bg-white border border-gray-100 rounded-xl p-3 text-center">
+              <div className="text-xs text-gray-500">已結束</div>
+              <div className="text-lg font-bold text-gray-600">{stats.ended}</div>
+            </div>
+            {user?.id && (
+              <div className="bg-white border border-emerald-100 rounded-xl p-3 text-center">
+                <div className="text-xs text-gray-500">你領先</div>
+                <div className="text-lg font-bold text-emerald-700">{stats.myLeading}</div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Items list — same auction-list-item style as /auctions */}
         {auctions.length === 0 ? (

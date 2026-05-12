@@ -164,6 +164,98 @@ export async function sendWonEmail(params: WonEmailParams): Promise<boolean> {
   return sendEmail({ to, senderName, senderEmail, subject: `🎉 【恭喜得標】${auctionTitle} — 成交價 ${currency} ${finalPrice.toLocaleString()}`, html: baseLayout("得標通知", body) });
 }
 
+// ─── Email: combined session won (one email per buyer for whole 商戶專場) ───
+
+export interface CombinedWonEmailParams extends EmailOptions {
+  userName: string;
+  sessionTitle: string;
+  sessionUrl: string;
+  items: { title: string; finalPrice: number; currency: string; auctionUrl: string }[];
+  total: number;
+  currency: string;
+  paymentInstructions?: string | null;
+  deliveryInfo?: string | null;
+  merchantName?: string | null;
+  merchantWhatsapp?: string | null;
+}
+
+export async function sendCombinedSessionWonEmail(params: CombinedWonEmailParams): Promise<boolean> {
+  const { to, senderName, senderEmail, userName, sessionTitle, sessionUrl, items, total, currency, paymentInstructions, deliveryInfo, merchantName, merchantWhatsapp } = params;
+  const defaultPayment = '接受付款方式：FPS、八達通、微信支付、支付寶、BOCPay、Visa\n請聯絡 hongxcollections 安排付款。';
+  const defaultDelivery = '建議順豐到付（買家承擔運費），或歡迎來店自取（請提前聯絡預約）。';
+  const paymentHtml = nl2br(paymentInstructions || defaultPayment);
+  const deliveryHtml = nl2br(deliveryInfo || defaultDelivery);
+  const displayMerchantName = merchantName || 'hongxcollections';
+
+  const itemRowsHtml = items.map((it, idx) => `
+    <tr>
+      <td style="padding:10px 8px;border-bottom:1px solid #fde68a;font-size:13px;color:#333;">
+        <div style="font-weight:600;">${idx + 1}. ${it.title}</div>
+        ${it.auctionUrl ? `<a href="${it.auctionUrl}" style="font-size:11px;color:#b45309;text-decoration:none;">查看拍賣 →</a>` : ''}
+      </td>
+      <td style="padding:10px 8px;border-bottom:1px solid #fde68a;font-size:13px;text-align:right;font-weight:600;color:#b45309;white-space:nowrap;">
+        ${it.currency} ${it.finalPrice.toLocaleString()}
+      </td>
+    </tr>
+  `).join('');
+
+  let contactHtml = '';
+  if (merchantWhatsapp) {
+    const waNumber = merchantWhatsapp.replace(/\D/g, '');
+    const waMessage = encodeURIComponent(`您好，我在 hongxcollections 「${sessionTitle}」專場以總額 ${currency}$${total.toLocaleString()} 得標 ${items.length} 件，想查詢付款及交收安排，謝謝！`);
+    const waUrl = `https://wa.me/${waNumber}?text=${waMessage}`;
+    contactHtml = `
+    <div style="margin-top:24px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px 20px;">
+      <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#15803d;">📞 聯絡商戶</p>
+      <p style="margin:0 0 12px;font-size:13px;color:#166534;">如有查詢，歡迎直接聯絡 <strong>${displayMerchantName}</strong></p>
+      <a href="${waUrl}" style="display:inline-block;background:#25d366;color:#fff;text-decoration:none;padding:9px 20px;border-radius:6px;font-size:13px;font-weight:600;">
+        💬 WhatsApp 聯絡商戶
+      </a>
+    </div>`;
+  } else {
+    contactHtml = `<p style="margin-top:20px;font-size:13px;color:#6b7280;">如有任何查詢，請聯絡商戶 <strong>${displayMerchantName}</strong>。</p>`;
+  }
+
+  const body = `
+    <h2>🎉 恭喜您喺專場成功得標 ${items.length} 件！</h2>
+    <p>親愛的 <strong>${userName}</strong>，</p>
+    <p>您喺以下商戶專場成功得標：</p>
+    <div class="highlight">
+      <div class="label">專場名稱</div>
+      <div style="font-size:16px;font-weight:600;color:#333;margin-top:4px;">${sessionTitle}</div>
+    </div>
+
+    <h2 style="margin-top:24px;font-size:16px;color:#92400e;">🛒 得標清單</h2>
+    <table style="width:100%;border-collapse:collapse;margin:8px 0;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;overflow:hidden;">
+      <tbody>${itemRowsHtml}</tbody>
+      <tfoot>
+        <tr>
+          <td style="padding:14px 8px;font-size:14px;font-weight:700;color:#92400e;background:#fef3c7;">共 ${items.length} 件 — 總成交額</td>
+          <td style="padding:14px 8px;font-size:18px;font-weight:800;color:#b45309;text-align:right;background:#fef3c7;white-space:nowrap;">${currency} ${total.toLocaleString()}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <h2 style="margin-top:24px;font-size:16px;color:#92400e;">💳 付款方式</h2>
+    <div style="background:#f0fdf4;border-left:4px solid #16a34a;border-radius:4px;padding:12px 16px;margin:8px 0;font-size:14px;line-height:1.8;">
+      ${paymentHtml}
+    </div>
+
+    <h2 style="margin-top:20px;font-size:16px;color:#92400e;">📦 交收安排</h2>
+    <div style="background:#eff6ff;border-left:4px solid #3b82f6;border-radius:4px;padding:12px 16px;margin:8px 0;font-size:14px;line-height:1.8;">
+      ${deliveryHtml}
+    </div>
+
+    ${contactHtml}
+    ${sessionUrl ? `<a href="${sessionUrl}" class="btn" style="margin-top:20px;">查看專場詳情 →</a>` : ''}
+  `;
+  return sendEmail({
+    to, senderName, senderEmail,
+    subject: `🎉 【專場得標總結】${sessionTitle} — 共 ${items.length} 件，總額 ${currency} ${total.toLocaleString()}`,
+    html: baseLayout("專場得標總結", body),
+  });
+}
+
 // ─── Email: ending soon ───────────────────────────────────────────────────────
 
 export interface EndingSoonEmailParams extends EmailOptions {

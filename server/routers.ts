@@ -115,6 +115,31 @@ async function generateUniqueSessionSlug(merchantUserId: number, source: string)
 }
 
 /**
+ * 商戶專場成交統計：item「已結束」嘅判斷 = session.status==='ended' 或 endTime <= now。
+ * 已結束 + highestBidderId → 成交；已結束 + 冇 bidder → 流拍。
+ */
+function computeSessionSummary(auctionsRows: any[], session: { status: string; endAt: Date | string | null }) {
+  const nowMs = Date.now();
+  const endAtMs = session.endAt ? new Date(session.endAt).getTime() : 0;
+  const sessionEnded = session.status === 'ended' || (endAtMs > 0 && endAtMs <= nowMs);
+  let soldCount = 0, unsoldCount = 0, activeCount = 0, totalGmv = 0;
+  let currency = 'HKD';
+  for (const a of auctionsRows) {
+    if (a.currency) currency = a.currency;
+    const itemEndedByTime = a.endTime ? new Date(a.endTime).getTime() <= nowMs : false;
+    const itemEnded = sessionEnded || a.status === 'ended' || itemEndedByTime;
+    if (!itemEnded) { activeCount++; continue; }
+    if (a.highestBidderId) {
+      soldCount++;
+      totalGmv += parseFloat(String(a.currentPrice)) || 0;
+    } else {
+      unsoldCount++;
+    }
+  }
+  return { totalCount: auctionsRows.length, soldCount, unsoldCount, activeCount, totalGmv, currency, sessionEnded };
+}
+
+/**
  * 解析影片時長（秒）。支援 MP4/MOV（解析 mvhd box）。
  * WebM 暫不支援，返回 null 表示「無法解析」（呼叫方應放行，靠 client-side 兜底）。
  * 解析失敗一律返回 null，避免誤殺合法上傳。
@@ -3997,7 +4022,8 @@ export const appRouter = router({
         }
         const auctionMap = new Map(auctionsRows.map(a => [a.id, a]));
         const merged = items.map(it => ({ ...it, auction: auctionMap.get(it.auctionId) || null }));
-        return { session, items: merged };
+        const summary = computeSessionSummary(auctionsRows, session);
+        return { session, items: merged, summary };
       }),
 
     /** 建立新專場（status=draft） */
@@ -4156,6 +4182,15 @@ export const appRouter = router({
         }
         await db.update(merchantAuctionSessions).set({ status: 'ended' })
           .where(eq(merchantAuctionSessions.id, input.id));
+        // 手動結束 → 即刻發 combined invoice 俾各位中標買家
+        try {
+          const { notifyCombinedSessionWon } = await import('./auctions');
+          const origin = (ctx.req as any)?.headers?.origin || process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
+          notifyCombinedSessionWon(input.id, origin).catch(err =>
+            console.error(`[Email] Manual end combined invoice failed for session ${input.id}:`, err));
+        } catch (err) {
+          console.error('[Email] Manual end combined invoice trigger error:', err);
+        }
         return { ok: true };
       }),
 
@@ -4441,7 +4476,8 @@ export const appRouter = router({
         const merged = items
           .map(it => auctionMap.get(it.auctionId))
           .filter((a): a is typeof auctionsRows[number] => !!a);
-        return { session, auctions: merged, merchantName, merchantIcon };
+        const summary = computeSessionSummary(auctionsRows, session);
+        return { session, auctions: merged, merchantName, merchantIcon, summary };
       }),
 
     /** 公開：列出某商戶嘅所有 published + public sessions */

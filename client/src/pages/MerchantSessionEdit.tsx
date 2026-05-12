@@ -216,6 +216,7 @@ export default function MerchantSessionEdit() {
 
   const session = data?.session;
   const items = data?.items || [];
+  const summary = data?.summary;
   const itemAuctionIds = useMemo(() => new Set(items.map(it => it.auctionId)), [items]);
 
   // 商戶可揀嘅 auction：自己嘅 draft + 流拍（未喺 session 入面）
@@ -462,6 +463,85 @@ export default function MerchantSessionEdit() {
             </div>
           )}
         </div>
+
+        {/* 成交報表（session ended 後顯示） */}
+        {isLocked && summary && (
+          <div className="bg-white border border-amber-200 rounded-2xl p-4 mb-4 shadow-sm">
+            <h2 className="font-semibold text-amber-900 mb-3 flex items-center gap-2">
+              <span>📊 成交報表</span>
+              <span className="text-xs font-normal text-gray-500">（專場已結束）</span>
+            </h2>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center">
+                <div className="text-xs text-gray-600">成交</div>
+                <div className="text-xl font-extrabold text-emerald-700">{summary.soldCount}</div>
+              </div>
+              <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 text-center">
+                <div className="text-xs text-gray-600">流拍</div>
+                <div className="text-xl font-extrabold text-gray-500">{summary.unsoldCount}</div>
+              </div>
+              <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-center">
+                <div className="text-xs text-gray-600">總商品</div>
+                <div className="text-xl font-extrabold text-amber-900">{summary.totalCount}</div>
+              </div>
+            </div>
+            <div className="bg-gradient-to-r from-amber-100 to-orange-100 border border-amber-300 rounded-lg px-4 py-3 flex items-center justify-between mb-4">
+              <span className="text-sm text-amber-900 font-semibold">總成交額</span>
+              <span className="text-2xl font-extrabold text-amber-700 tabular-nums">
+                {getCurrencySymbol(summary.currency)}{Math.round(summary.totalGmv).toLocaleString()}
+              </span>
+            </div>
+
+            {/* 成交明細 table */}
+            {summary.soldCount > 0 ? (
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-amber-50 text-amber-900 text-xs">
+                      <th className="text-left px-3 py-2 font-semibold">#</th>
+                      <th className="text-left px-3 py-2 font-semibold">商品</th>
+                      <th className="text-left px-3 py-2 font-semibold">中標者</th>
+                      <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">成交價</th>
+                      <th className="text-center px-3 py-2 font-semibold whitespace-nowrap">付款</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items
+                      .filter((it: any) => it.auction?.highestBidderId)
+                      .map((it: any, idx: number) => {
+                        const a = it.auction;
+                        const payStatus = a.auctionOrderStatus as string | null | undefined;
+                        const payLabel = payStatus === 'paid' ? { txt: '已付款', cls: 'bg-emerald-100 text-emerald-700' }
+                          : payStatus === 'shipped' ? { txt: '已發貨', cls: 'bg-blue-100 text-blue-700' }
+                          : payStatus === 'completed' ? { txt: '已完成', cls: 'bg-emerald-100 text-emerald-700' }
+                          : payStatus === 'cancelled' ? { txt: '已取消', cls: 'bg-red-100 text-red-700' }
+                          : { txt: '待付款', cls: 'bg-amber-100 text-amber-700' };
+                        return (
+                          <tr key={it.id} className="border-t border-gray-100 hover:bg-amber-50/30">
+                            <td className="px-3 py-2 text-gray-500 tabular-nums">{idx + 1}</td>
+                            <td className="px-3 py-2">
+                              <Link href={`/auctions/${a.id}`} className="text-amber-700 hover:underline font-medium line-clamp-1">
+                                {a.title}
+                              </Link>
+                            </td>
+                            <td className="px-3 py-2 text-gray-700">{a.highestBidderName ?? `用戶 #${a.highestBidderId}`}</td>
+                            <td className="px-3 py-2 text-right font-bold text-amber-700 tabular-nums whitespace-nowrap">
+                              {getCurrencySymbol(a.currency)}{Number(a.currentPrice).toLocaleString()}
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold ${payLabel.cls}`}>{payLabel.txt}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center text-sm text-gray-500 py-4">本場全部商品流拍，未有成交</div>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-amber-900">專場商品 ({items.length})</h2>

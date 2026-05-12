@@ -1639,6 +1639,13 @@ Output ONLY the JSON, nothing else.`;
       const { merchantAuctionSessions } = await import('../../drizzle/schema');
       const { and, eq, lte } = await import('drizzle-orm');
       const db = await getDb();
+      // 先攞要結束嘅 session id list，update 之後逐個發 combined invoice
+      const toEnd = await db.select({ id: merchantAuctionSessions.id })
+        .from(merchantAuctionSessions)
+        .where(and(
+          eq(merchantAuctionSessions.status, 'published'),
+          lte(merchantAuctionSessions.endAt, new Date()),
+        ));
       const result: any = await db.update(merchantAuctionSessions)
         .set({ status: 'ended' })
         .where(and(
@@ -1647,6 +1654,14 @@ Output ONLY the JSON, nothing else.`;
         ));
       const affected = result?.[0]?.affectedRows ?? result?.affectedRows ?? 0;
       if (affected > 0) console.log(`[Scheduler] Auto-ended ${affected} merchant auction session(s)`);
+      if (toEnd.length > 0) {
+        const { notifyCombinedSessionWon } = await import('../auctions');
+        const origin = process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
+        for (const s of toEnd) {
+          notifyCombinedSessionWon(s.id, origin).catch(err =>
+            console.error(`[Scheduler] Combined invoice failed for session ${s.id}:`, err));
+        }
+      }
     } catch (err) {
       console.error('[Scheduler] auto-end sessions error:', err);
     }
