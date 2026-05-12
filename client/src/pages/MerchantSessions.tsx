@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { Plus, Calendar, Eye, Trash2, Send, ChevronLeft, Lock, Globe, Pencil } from "lucide-react";
+import { Plus, Calendar, Eye, Trash2, Send, ChevronLeft, Lock, Globe, Pencil, Layers, Archive } from "lucide-react";
 import { CoverImageUpload } from "@/components/CoverImageUpload";
 import { SessionShareMenu } from "@/components/ShareMenu";
 
@@ -43,6 +43,11 @@ export default function MerchantSessions() {
   const { data: sessions, isLoading, refetch } = trpc.merchantSessions.myList.useQuery(undefined, {
     enabled: !!user,
   });
+
+  const [tab, setTab] = useState<"active" | "ended">("active");
+  const activeSessions = (sessions || []).filter((s: any) => s.status !== "ended");
+  const endedSessions = (sessions || []).filter((s: any) => s.status === "ended");
+  const visibleSessions = tab === "active" ? activeSessions : endedSessions;
 
   const createMut = trpc.merchantSessions.create.useMutation({
     onSuccess: ({ id }) => {
@@ -99,16 +104,50 @@ export default function MerchantSessions() {
           專場 = 你自己嘅小型拍賣會。建立場名 + 結束日，揀齊你嘅拍賣品加入，就會有條公開 URL（<code>/s/你嘅ID/場slug</code>）集中展示。價錢同主站 <code>/auctions/:id</code> 同步。
         </div>
 
+        {/* Tabs：現有 / 已結束 */}
+        <div className="flex items-center gap-1 mb-3 border-b border-amber-200">
+          <button
+            type="button"
+            onClick={() => setTab("active")}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+              tab === "active"
+                ? "border-amber-600 text-amber-900"
+                : "border-transparent text-gray-500 hover:text-amber-700"
+            }`}
+            data-testid="tab-active-sessions"
+          >
+            <Layers className="w-3.5 h-3.5 inline mr-1" />
+            現有 ({activeSessions.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("ended")}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+              tab === "ended"
+                ? "border-amber-600 text-amber-900"
+                : "border-transparent text-gray-500 hover:text-amber-700"
+            }`}
+            data-testid="tab-ended-sessions"
+          >
+            <Archive className="w-3.5 h-3.5 inline mr-1" />
+            已結束 ({endedSessions.length})
+          </button>
+        </div>
+
         {isLoading ? (
           <div className="text-center text-gray-500 py-12">載入中...</div>
-        ) : !sessions || sessions.length === 0 ? (
+        ) : visibleSessions.length === 0 ? (
           <div className="text-center bg-white rounded-2xl border border-amber-100 p-8">
-            <div className="text-5xl mb-3">📦</div>
-            <p className="text-gray-600">仲未有任何專場。撳「新建專場」開始。</p>
+            <div className="text-5xl mb-3">{tab === "active" ? "📦" : "🗂️"}</div>
+            <p className="text-gray-600">
+              {tab === "active"
+                ? (sessions && sessions.length > 0 ? "冇現有專場（全部已結束）" : "仲未有任何專場。撳「新建專場」開始。")
+                : "未有結束嘅專場。"}
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {sessions.map((s) => (
+            {visibleSessions.map((s) => (
               <div key={s.id} className="bg-white border border-amber-100 rounded-2xl p-4">
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="flex-1 min-w-0">

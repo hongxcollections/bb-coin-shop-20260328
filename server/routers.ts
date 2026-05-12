@@ -4286,14 +4286,14 @@ export const appRouter = router({
         const { notifyCombinedSessionWon } = await import('./auctions');
         // Trusted env first — never trust Origin header for outbound email links
         const origin = process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
-        await notifyCombinedSessionWon(input.sessionId, origin, input.winnerUserId ? { onlyWinnerUserId: input.winnerUserId } : undefined);
+        const r = await notifyCombinedSessionWon(input.sessionId, origin, input.winnerUserId ? { onlyWinnerUserId: input.winnerUserId } : undefined);
         // 成功 send 完先更新 audit timestamp（全部重發先寫，單個 winner 重發唔郁全場 sentAt）
-        if (!input.winnerUserId) {
+        if (!input.winnerUserId && r.sent > 0) {
           await db.execute(sql.raw(
             `UPDATE merchantAuctionSessions SET combinedWonEmailSentAt=NOW() WHERE id=${input.sessionId}`
           ));
         }
-        return { ok: true };
+        return { ok: true, sent: r.sent, skipped: r.skipped };
       }),
 
     /** Delete (only draft + 0 items) */

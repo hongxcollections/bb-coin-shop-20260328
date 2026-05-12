@@ -184,8 +184,35 @@ export default function MerchantSessionEdit() {
     { enabled: sessionId > 0 && isEnded }
   );
   const resendMut = trpc.merchantSessions.resendCombinedInvoice.useMutation({
-    onSuccess: (_d, vars) => {
-      toast.success(vars.winnerUserId ? "已重發俾呢位買家" : "已全部重發");
+    onSuccess: (data: any, vars) => {
+      const sent = data?.sent ?? 0;
+      const skipped: any[] = data?.skipped ?? [];
+      const targetName = (vars as any).__targetName as string | undefined;
+      if (sent > 0) {
+        if (vars.winnerUserId && targetName) {
+          toast.success(`已重發俾「${targetName}」（${sent} 封）`);
+        } else if (vars.winnerUserId) {
+          toast.success(`已重發（${sent} 封）`);
+        } else {
+          toast.success(`已重發 ${sent} 封 combined invoice email`);
+        }
+      } else {
+        // 一封都冇發出，俾原因 user 知
+        const reasonMap: Record<string, string> = {
+          no_email: "未綁定 email",
+          opted_out: "已關閉中標通知",
+          send_error: "發送出錯",
+          no_items: "本場冇中標商品",
+          no_settings: "系統未設定發信",
+          session_not_found: "搵唔到呢個專場",
+          no_db: "資料庫未連接",
+          exception: "系統錯誤",
+        };
+        const first = skipped[0];
+        const reason = first ? (reasonMap[first.reason] || first.reason) : "原因不明";
+        const who = first?.name ? `「${first.name}」` : "";
+        toast.error(`未發送：${who}${reason}`, { duration: 6000 });
+      }
       refetchEmailStatus();
     },
     onError: (e) => toast.error(e.message || "重發失敗"),
@@ -199,7 +226,7 @@ export default function MerchantSessionEdit() {
       cancelText: "取消",
     });
     if (!ok) return;
-    resendMut.mutate({ sessionId });
+    resendMut.mutate({ sessionId } as any);
   }
   async function handleResendOne(winnerUserId: number, name: string) {
     const ok = await confirm({
@@ -209,7 +236,7 @@ export default function MerchantSessionEdit() {
       cancelText: "取消",
     });
     if (!ok) return;
-    resendMut.mutate({ sessionId, winnerUserId });
+    resendMut.mutate({ sessionId, winnerUserId, __targetName: name } as any);
   }
 
   // 移除 item 時嘅 3-option dialog（只喺 published session + 該 auction 為 active 時用）

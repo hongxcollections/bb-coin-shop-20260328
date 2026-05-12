@@ -327,17 +327,18 @@ export async function notifyMerchantWon(auctionId: number, origin: string) {
  * 商戶專場 combined invoice — 將整個 session 入面同一買家贏到嘅所有 items 合併成一封信。
  * 喺 session auto-end cron 同手動 end mutation 兩處呼叫；按 winner 分組，每位中標買家收一封。
  */
-export async function notifyCombinedSessionWon(sessionId: number, origin: string, opts?: { onlyWinnerUserId?: number }) {
+export async function notifyCombinedSessionWon(sessionId: number, origin: string, opts?: { onlyWinnerUserId?: number }): Promise<{ sent: number; skipped: { reason: string; userId?: number; name?: string }[] }> {
+  const result: { sent: number; skipped: { reason: string; userId?: number; name?: string }[] } = { sent: 0, skipped: [] };
   try {
     const settings = await getNotificationSettings();
-    if (!settings) return;
+    if (!settings) { result.skipped.push({ reason: 'no_settings' }); return result; }
     const db = await getDb();
-    if (!db) return;
+    if (!db) { result.skipped.push({ reason: 'no_db' }); return result; }
 
     const { merchantAuctionSessions } = await import('../drizzle/schema');
     const [session] = await db.select().from(merchantAuctionSessions)
       .where(eq(merchantAuctionSessions.id, sessionId)).limit(1);
-    if (!session) return;
+    if (!session) { result.skipped.push({ reason: 'session_not_found' }); return result; }
 
     const rawRows: any = await db.execute(sql.raw(`
       SELECT a.id AS auctionId, a.title, a.currentPrice, a.currency, a.highestBidderId,
@@ -349,22 +350,29 @@ export async function notifyCombinedSessionWon(sessionId: number, origin: string
       ORDER BY sit.displayOrder ASC, sit.id ASC
     `));
     const items: any[] = Array.isArray(rawRows) ? (rawRows[0] as any[]) : [];
-    if (items.length === 0) return;
+    if (items.length === 0) { result.skipped.push({ reason: 'no_items' }); return result; }
 
     type Group = { email: string; name: string; items: any[] };
     const byWinner = new Map<number, Group>();
     for (const it of items) {
-      if (!it.winnerEmail) continue;
-      if (it.winnerNotifyWon === 0 || it.winnerNotifyWon === false) continue;
       if (opts?.onlyWinnerUserId && it.highestBidderId !== opts.onlyWinnerUserId) continue;
+      const name = it.winnerName ?? `用戶 #${it.highestBidderId}`;
+      if (!it.winnerEmail) {
+        if (!byWinner.has(it.highestBidderId)) result.skipped.push({ reason: 'no_email', userId: it.highestBidderId, name });
+        continue;
+      }
+      if (it.winnerNotifyWon === 0 || it.winnerNotifyWon === false) {
+        if (!byWinner.has(it.highestBidderId)) result.skipped.push({ reason: 'opted_out', userId: it.highestBidderId, name });
+        continue;
+      }
       let g = byWinner.get(it.highestBidderId);
       if (!g) {
-        g = { email: it.winnerEmail, name: it.winnerName ?? `用戶 #${it.highestBidderId}`, items: [] };
+        g = { email: it.winnerEmail, name, items: [] };
         byWinner.set(it.highestBidderId, g);
       }
       g.items.push(it);
     }
-    if (byWinner.size === 0) return;
+    if (byWinner.size === 0) return result;
 
     let paymentInstructions: string | null = settings.paymentInstructions ?? null;
     let deliveryInfo: string | null = settings.deliveryInfo ?? null;
@@ -410,14 +418,18 @@ export async function notifyCombinedSessionWon(sessionId: number, origin: string
           merchantName,
           merchantWhatsapp,
         });
+        result.sent++;
       } catch (err) {
         console.error(`[Email] Combined session won email failed for ${g.email}:`, err);
+        result.skipped.push({ reason: 'send_error', name: g.name });
       }
     }
-    console.log(`[Email] Combined session ${sessionId} invoice sent to ${byWinner.size} winner(s) covering ${items.length} item(s)`);
+    console.log(`[Email] Combined session ${sessionId} invoice sent to ${result.sent}/${byWinner.size} winner(s) covering ${items.length} item(s)`);
   } catch (err) {
     console.error('[Email] notifyCombinedSessionWon error:', err);
+    result.skipped.push({ reason: 'exception' });
   }
+  return result;
 }
 
 /**
