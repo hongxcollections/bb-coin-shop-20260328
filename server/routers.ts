@@ -3976,7 +3976,7 @@ export const appRouter = router({
             images: await getAuctionImages(a.id),
           })));
         }
-        // Lazy sync: align item endTime to session.endAt（DB-side copy 避免 JS Date TZ round-trip）
+        // Best-effort DB sync 令 /auctions/:id 直連都 align（fail 唔影響 response）
         try {
           const idsCsvSync = auctionsRows.map((a: any) => a.id).join(',');
           if (idsCsvSync.length > 0) {
@@ -3984,18 +3984,15 @@ export const appRouter = router({
               UPDATE auctions a
               JOIN merchantAuctionSessions s ON s.id = ${session.id}
               SET a.endTime = s.endAt
-              WHERE a.id IN (${idsCsvSync}) AND ABS(TIMESTAMPDIFF(SECOND, a.endTime, s.endAt)) > 1
+              WHERE a.id IN (${idsCsvSync})
             `));
-            // Re-read endTime 以反映 DB 真實值（避免 JS Date 轉換）
-            const reread: any = await db.execute(sql.raw(`SELECT id, endTime FROM auctions WHERE id IN (${idsCsvSync})`));
-            const rrRows: any[] = Array.isArray(reread) ? (reread[0] as any[]) : [];
-            const rrMap = new Map(rrRows.map((r: any) => [r.id, r.endTime]));
-            for (const a of auctionsRows) {
-              const fresh = rrMap.get(a.id);
-              if (fresh) a.endTime = fresh;
-            }
           }
         } catch {}
+        // 🔴 Bulletproof: 用 session.endAt 同一個 JS Date object 強制覆蓋，
+        // 完全唔靠 mysql2 對 auctions.endTime 嘅 TZ 解讀，保證 hero 同 item 100% 一致
+        for (const a of auctionsRows) {
+          a.endTime = session.endAt;
+        }
         const auctionMap = new Map(auctionsRows.map(a => [a.id, a]));
         const merged = items.map(it => ({ ...it, auction: auctionMap.get(it.auctionId) || null }));
         return { session, items: merged };
@@ -4415,7 +4412,7 @@ export const appRouter = router({
             highestBidderName: a.highestBidderIsAnonymous === 1 ? '🕵️ 匿名買家' : (a.highestBidderName ?? null),
             images: await getAuctionImages(a.id),
           })));
-          // Lazy sync: DB-side copy 避免 JS Date TZ round-trip
+          // Best-effort DB sync（fail 唔影響 response）
           try {
             const idsCsvSync2 = auctionsRows.map((a: any) => a.id).join(',');
             if (idsCsvSync2.length > 0) {
@@ -4423,17 +4420,14 @@ export const appRouter = router({
                 UPDATE auctions a
                 JOIN merchantAuctionSessions s ON s.id = ${session.id}
                 SET a.endTime = s.endAt
-                WHERE a.id IN (${idsCsvSync2}) AND ABS(TIMESTAMPDIFF(SECOND, a.endTime, s.endAt)) > 1
+                WHERE a.id IN (${idsCsvSync2})
               `));
-              const reread2: any = await db.execute(sql.raw(`SELECT id, endTime FROM auctions WHERE id IN (${idsCsvSync2})`));
-              const rrRows2: any[] = Array.isArray(reread2) ? (reread2[0] as any[]) : [];
-              const rrMap2 = new Map(rrRows2.map((r: any) => [r.id, r.endTime]));
-              for (const a of auctionsRows) {
-                const fresh = rrMap2.get(a.id);
-                if (fresh) a.endTime = fresh;
-              }
             }
           } catch {}
+          // 🔴 Bulletproof: 用 session.endAt JS object 強制覆蓋
+          for (const a of auctionsRows) {
+            a.endTime = session.endAt;
+          }
         }
         // 攞 merchant 名（從 merchantApplications）
         const merchantApp = await getMerchantApplicationByUser(input.merchantUserId);
