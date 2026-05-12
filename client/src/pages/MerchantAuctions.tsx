@@ -620,12 +620,22 @@ export default function MerchantAuctions() {
   });
 
   const deleteMutation = trpc.merchants.deleteAuction.useMutation({
-    onSuccess: () => { toast.success("草稿已刪除"); refetchDrafts(); },
+    onSuccess: () => {
+      toast.success("草稿已刪除");
+      // 🔴 必須一齊 refetch myAuctions：若刪嘅 draft 係由「重新刊登」嚟（有 relistSourceId），
+      //    其原流拍 record 要即時喺 流拍 tab 彈返出嚟（self-healing 靠 relistSourceId 反查）
+      refetchDrafts(); refetchActive(); refetchArchived();
+    },
     onError: (err) => toast.error(err.message || "刪除失敗"),
   });
 
   const merchantDeleteMutation = trpc.auctions.merchantDelete.useMutation({
-    onSuccess: () => { toast.success("拍賣已刪除"); refetchActive(); setActiveDeleteConfirm(null); },
+    onSuccess: () => {
+      toast.success("拍賣已刪除");
+      // 同上：刪 active/ended 都可能係 relist 後嘅複製品，一齊 refresh 三條 list
+      refetchActive(); refetchDrafts(); refetchArchived();
+      setActiveDeleteConfirm(null);
+    },
     onError: (err) => { toast.error(err.message || "刪除失敗"); setActiveDeleteConfirm(null); },
   });
 
