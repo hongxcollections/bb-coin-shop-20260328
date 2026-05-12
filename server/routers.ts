@@ -4051,7 +4051,25 @@ export const appRouter = router({
         if (Object.keys(patch).length === 0) return { ok: true };
         await db.update(merchantAuctionSessions).set(patch)
           .where(eq(merchantAuctionSessions.id, input.id));
-        return { ok: true };
+        // Auto-sync: 改咗專場結束時間 → 同步更新所有掛喺呢場嘅商品 endTime
+        let syncedItems = 0;
+        if (patch.endAt) {
+          try {
+            const { inArray: inArr3 } = await import('drizzle-orm');
+            const itemRows = await db.select({ auctionId: merchantAuctionSessionItems.auctionId })
+              .from(merchantAuctionSessionItems)
+              .where(eq(merchantAuctionSessionItems.sessionId, input.id));
+            const itemIds = itemRows.map(r => r.auctionId);
+            if (itemIds.length > 0) {
+              await db.update(auctions).set({ endTime: patch.endAt })
+                .where(inArr3(auctions.id, itemIds));
+              syncedItems = itemIds.length;
+            }
+          } catch (e) {
+            (ctx.req as any)?.log?.warn?.({ err: e, sessionId: input.id }, 'session update endTime sync failed');
+          }
+        }
+        return { ok: true, syncedItems };
       }),
 
     /** Publish: draft → published */
@@ -4193,6 +4211,14 @@ export const appRouter = router({
         await db.update(merchantAuctionSessions)
           .set({ itemCount: sql`(SELECT COUNT(*) FROM merchantAuctionSessionItems WHERE sessionId = ${input.sessionId})` })
           .where(eq(merchantAuctionSessions.id, input.sessionId));
+        // Auto-sync: 加入專場嘅商品 endTime 一律 align 到 session.endAt（即使已有人出價，純粹延長/縮短結束時間）
+        try {
+          await db.update(auctions)
+            .set({ endTime: session.endAt })
+            .where(inArray(auctions.id, toAdd));
+        } catch (e) {
+          (ctx.req as any)?.log?.warn?.({ err: e, sessionId: input.sessionId, toAdd }, 'addItems endTime sync failed');
+        }
         return { added: toAdd.length, skipped: valid.length - toAdd.length };
       }),
 
