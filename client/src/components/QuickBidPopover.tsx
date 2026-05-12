@@ -153,7 +153,7 @@ export function QuickBidPopover({
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); }}
               aria-label="關閉"
               title="關閉"
-              className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+              className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-500/60 hover:bg-gray-500/90 text-white transition-colors shrink-0"
             >
               <X className="w-3.5 h-3.5" />
             </button>
