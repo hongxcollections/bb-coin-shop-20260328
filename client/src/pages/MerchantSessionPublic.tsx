@@ -269,12 +269,6 @@ export default function MerchantSessionPublic() {
                           <Badge className={`text-[9px] px-1.5 py-0.5 ${!isItemEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
                             {!isItemEnded ? "競拍中" : "已結束"}
                           </Badge>
-                          {!isItemEnded && (
-                            <div className={`inline-flex items-center gap-0.5 text-[10px] font-semibold tabular-nums ${isEndingSoon ? "text-orange-600" : "text-amber-700"}`}>
-                              <Clock className="w-2.5 h-2.5" />
-                              {fmtCountdown(endMs, nowMs)}
-                            </div>
-                          )}
                         </div>
                       </div>
 
@@ -301,12 +295,15 @@ export default function MerchantSessionPublic() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          {Number(a.bidCount ?? 0) > 0 && (
-                            <div className="flex items-center gap-0.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
-                              <Users className="w-2.5 h-2.5" />
-                              <span className="font-semibold">{a.bidCount}</span>
-                            </div>
-                          )}
+                          {(() => {
+                            const bc = Number(a.bidCount ?? 0);
+                            return bc > 0 ? (
+                              <div className="flex items-center gap-0.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
+                                <Users className="w-2.5 h-2.5" />
+                                <span className="font-semibold">{bc}</span>
+                              </div>
+                            ) : null;
+                          })()}
                           <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                             <ShareMenu
                               auctionId={auction.id}

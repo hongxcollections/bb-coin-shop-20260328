@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link, useRoute, useLocation } from "wouter";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
@@ -24,6 +24,43 @@ function fmtDateTimeLocal(d: Date) {
 function fmtEndTime(d: Date | string) {
   const date = new Date(d);
   return date.toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+function ItemCountdownOverlay({ endTime }: { endTime: Date | string }) {
+  const [txt, setTxt] = useState("");
+  const [urgent, setUrgent] = useState(false);
+  useEffect(() => {
+    function update() {
+      const diff = new Date(endTime).getTime() - Date.now();
+      if (diff <= 0) { setTxt("已結束"); setUrgent(false); return; }
+      const totalHours = diff / 3600000;
+      if (totalHours > 12) {
+        const days = Math.floor(diff / 86400000);
+        const remH = Math.floor((diff % 86400000) / 3600000);
+        setTxt(days >= 1 ? (remH > 0 ? `${days}天${remH}h` : `${days}天`) : `${Math.floor(totalHours)}h`);
+        setUrgent(false);
+      } else {
+        const h = Math.floor(totalHours);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        const pad = (n: number) => String(n).padStart(2, "0");
+        setTxt(h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`);
+        setUrgent(diff < 3600000);
+      }
+    }
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [endTime]);
+  if (!txt) return null;
+  const isEnded = txt === "已結束";
+  return (
+    <div className={`absolute bottom-0 left-0 right-0 px-1 py-0.5 flex items-center justify-center gap-0.5 text-[9px] font-bold leading-none ${
+      isEnded ? "bg-gray-700/80 text-white" : urgent ? "bg-red-600 text-white animate-pulse" : "bg-black/55 text-white"
+    }`}>
+      <Clock className="w-2 h-2 shrink-0" />{txt}
+    </div>
+  );
 }
 
 function BidHistoryToggle({ auctionId, bidCount, currency }: { auctionId: number; bidCount: number; currency?: string }) {
@@ -451,6 +488,7 @@ export default function MerchantSessionEdit() {
                     ) : (
                       <span className="text-2xl">🪙</span>
                     )}
+                    <ItemCountdownOverlay endTime={a.endTime} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <Link href={`/auctions/${a.id}`}>
@@ -464,9 +502,12 @@ export default function MerchantSessionEdit() {
                       ) : (
                         <span className="text-gray-400">未有出價</span>
                       )}
-                      {(a.bidCount ?? 0) > 0 && (
-                        <BidHistoryToggle auctionId={a.id} bidCount={a.bidCount} currency={a.currency} />
-                      )}
+                      {(() => {
+                        const bc = Number(a.bidCount ?? 0);
+                        return bc > 0 ? (
+                          <BidHistoryToggle auctionId={a.id} bidCount={bc} currency={a.currency} />
+                        ) : null;
+                      })()}
                     </div>
                     <div className="text-[11px] text-gray-500 mt-0.5 inline-flex items-center gap-1">
                       <Clock className="w-3 h-3" />
