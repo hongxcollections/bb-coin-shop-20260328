@@ -10,7 +10,7 @@ import type { Auction } from "../drizzle/schema";
 import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids, merchantAuctionSessions, merchantAuctionSessionItems } from "../drizzle/schema";
 import { sanitizeUserText } from "./_core/sanitize";
 import { eq, sql } from "drizzle-orm";
-import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon } from "./auctions";
+import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon, checkAndUpdateAuctionStatus } from "./auctions";
 import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, getRecentRegistrations, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, approveOnboardingApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, computeTierSwitchDiff, requestTierChange, listMyTierChangeRequests, listAllTierChangeRequests, reviewTierChangeRequest, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, requestCancelProductOrder, withdrawCancelRequest, respondCancelRequest, deleteBuyerOrder, deleteMerchantOrder, getHiddenProductOrdersByBuyer, getHiddenProductOrdersByMerchant, restoreBuyerOrder, restoreMerchantOrder, countHiddenProductOrdersByBuyer, countHiddenProductOrdersByMerchant, assertBuyerNotLockedFromMerchant, getBuyerLockFromMerchant, setMerchantFailureLock, getMerchantAuctionOrders, confirmMerchantAuctionOrder, cancelMerchantAuctionOrder, countPendingMerchantAuctionOrders, countMerchantAuctionOrdersByStatus, countMerchantProductOrdersByStatus, countBuyerPendingWonAuctions, countBuyerAcceptedOffers, cancelBuyerOffer, hideBuyerOffer, hideMerchantOffer, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS, toggleMessageReaction, listReactionsForRoom, listReactionsForMessage, upsertChatAutoReply, getLastMerchantOrAutoReplyAt, searchChatMessagesInRoom, searchChatMessagesAcrossMyRooms, setMerchantOffersEnabled, setMerchantOfferLimits, createProductOffer, countRecentBuyerOffersForProduct, getProductOfferById, getActiveBuyerOfferForProduct, listOffersForBuyer, listOffersForMerchant, countPendingOffersForMerchant, respondProductOffer, markOfferPurchased, claimAcceptedOffer, releaseClaimedOffer, getUserMemberLevel } from "./db";
 import { storagePut, storageSignPut } from "./storage";
 import {
@@ -579,8 +579,11 @@ export const appRouter = router({
           )
           .map((a: { id: number }) => a.id);
         if (expiredIds.length > 0) {
+          // 用 checkAndUpdateAuctionStatus 而唔係 updateAuction，
+          // 先會正確 init auctionOrderStatus='pending' + 發 won notify + recalc loyalty
+          const origin = process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
           await Promise.all(
-            expiredIds.map((id: number) => updateAuction(id, { status: 'ended' }))
+            expiredIds.map((id: number) => checkAndUpdateAuctionStatus(id, origin))
           );
         }
 
@@ -2746,7 +2749,10 @@ export const appRouter = router({
         .filter((a: { status: string; endTime: Date | string }) => a.status === 'active' && new Date(a.endTime) <= now)
         .map((a: { id: number }) => a.id);
       if (expiredIds.length > 0) {
-        await Promise.all(expiredIds.map((id: number) => updateAuction(id, { status: 'ended' })));
+        // 用 checkAndUpdateAuctionStatus 而唔係 updateAuction，
+        // 先會正確 init auctionOrderStatus='pending' + 發 won notify + recalc loyalty
+        const origin = process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
+        await Promise.all(expiredIds.map((id: number) => checkAndUpdateAuctionStatus(id, origin)));
       }
       const withImages = await Promise.all(list.map(async (a) => ({
         ...a,
@@ -3281,6 +3287,21 @@ export const appRouter = router({
         if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
           console.warn(`[myOrders] FORBIDDEN userId=${ctx.user.id}`);
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        // 🔴 Lazy expiry：商戶若直接入訂單頁未開過拍賣管理頁，過期 auction 仍係 active
+        // 必須 trigger checkAndUpdateAuctionStatus 確保 status='ended' + auctionOrderStatus='pending'
+        try {
+          const list = await getAuctionsByCreator(ctx.user.id);
+          const nowMs = Date.now();
+          const expiredIds = list
+            .filter((a: { status: string; endTime: Date | string }) => a.status === 'active' && new Date(a.endTime).getTime() <= nowMs)
+            .map((a: { id: number }) => a.id);
+          if (expiredIds.length > 0) {
+            const origin = process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
+            await Promise.all(expiredIds.map((id: number) => checkAndUpdateAuctionStatus(id, origin)));
+          }
+        } catch (e) {
+          console.warn('[myOrders] lazy expiry failed:', e);
         }
         const orders = await getWonOrdersByCreator(ctx.user.id);
         // 有得標者但狀態未設定 → 自動設為 pending_payment
@@ -5023,6 +5044,21 @@ export const appRouter = router({
         const app = await getMerchantApplicationByUser(ctx.user.id);
         if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        // 🔴 Lazy expiry：確保過期 auction 已 mark ended + 已 init auctionOrderStatus='pending'
+        // 否則 getMerchantAuctionOrders 嘅 filter `auctionOrderStatus IS NOT NULL` 會隱藏佢
+        try {
+          const list = await getAuctionsByCreator(ctx.user.id);
+          const nowMs = Date.now();
+          const expiredIds = list
+            .filter((a: { status: string; endTime: Date | string }) => a.status === 'active' && new Date(a.endTime).getTime() <= nowMs)
+            .map((a: { id: number }) => a.id);
+          if (expiredIds.length > 0) {
+            const origin = process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
+            await Promise.all(expiredIds.map((id: number) => checkAndUpdateAuctionStatus(id, origin)));
+          }
+        } catch (e) {
+          console.warn('[auctionOrders.myMerchant] lazy expiry failed:', e);
         }
         return getMerchantAuctionOrders(ctx.user.id, input.status);
       }),
