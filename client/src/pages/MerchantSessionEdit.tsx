@@ -334,7 +334,7 @@ export default function MerchantSessionEdit() {
                   <Clock className="w-4 h-4 shrink-0" />
                   <span>結束 {new Date(session.endAt).toLocaleString("zh-HK", { hour12: false })}</span>
                 </div>
-                <div className="text-[11px] text-white/70 font-mono mb-2 break-all">/s/{user?.id}/{session.slug}</div>
+                <div className="text-[11px] text-white/70 font-mono mb-2 break-all">/s/{session.merchantUserId}/{session.slug}</div>
                 {session.description && (
                   <p className="text-sm text-white/95 mt-2 whitespace-pre-wrap leading-relaxed bg-white/10 rounded-lg p-3">{session.description}</p>
                 )}
@@ -342,13 +342,13 @@ export default function MerchantSessionEdit() {
               <div className="bg-white/95 backdrop-blur px-4 py-3 flex flex-wrap gap-2 border-t border-amber-200">
                 {!isLocked && <Button size="sm" variant="outline" onClick={startEdit}><Pencil className="w-3.5 h-3.5 mr-1" /> 編輯資料</Button>}
                 {session.status !== "draft" && (
-                  <a href={`/s/${user?.id}/${session.slug}`} target="_blank" rel="noopener noreferrer">
+                  <a href={`/s/${session.merchantUserId}/${session.slug}`} target="_blank" rel="noopener noreferrer">
                     <Button size="sm" variant="outline"><Eye className="w-3.5 h-3.5 mr-1" /> 查看公開頁</Button>
                   </a>
                 )}
-                {session.status !== "draft" && user?.id && (
+                {session.status !== "draft" && session.merchantUserId && (
                   <SessionShareMenu
-                    merchantUserId={user.id}
+                    merchantUserId={session.merchantUserId}
                     slug={session.slug}
                     title={session.title}
                     endTime={session.endAt}

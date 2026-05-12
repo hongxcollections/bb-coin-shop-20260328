@@ -4213,7 +4213,8 @@ export const appRouter = router({
           const claimAffected = claim?.[0]?.affectedRows ?? claim?.affectedRows ?? 0;
           if (claimAffected > 0) {
             const { notifyCombinedSessionWon } = await import('./auctions');
-            const origin = (ctx.req as any)?.headers?.origin || process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
+            // 用 trusted env 為先，避免被 spoofed Origin header 攻擊（phishing）
+            const origin = process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
             notifyCombinedSessionWon(input.id, origin).catch(err =>
               console.error(`[Email] Manual end combined invoice failed for session ${input.id}:`, err));
           }
@@ -4282,15 +4283,16 @@ export const appRouter = router({
         if (session.status !== 'ended') {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '專場未結束，未可發送中標通知' });
         }
-        // 重發唔需要 atomic claim（因為係 user 主動觸發）。如全部重發就同時更新 sentAt 做 audit。
+        const { notifyCombinedSessionWon } = await import('./auctions');
+        // Trusted env first — never trust Origin header for outbound email links
+        const origin = process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
+        await notifyCombinedSessionWon(input.sessionId, origin, input.winnerUserId ? { onlyWinnerUserId: input.winnerUserId } : undefined);
+        // 成功 send 完先更新 audit timestamp（全部重發先寫，單個 winner 重發唔郁全場 sentAt）
         if (!input.winnerUserId) {
           await db.execute(sql.raw(
             `UPDATE merchantAuctionSessions SET combinedWonEmailSentAt=NOW() WHERE id=${input.sessionId}`
           ));
         }
-        const { notifyCombinedSessionWon } = await import('./auctions');
-        const origin = (ctx.req as any)?.headers?.origin || process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
-        await notifyCombinedSessionWon(input.sessionId, origin, input.winnerUserId ? { onlyWinnerUserId: input.winnerUserId } : undefined);
         return { ok: true };
       }),
 
