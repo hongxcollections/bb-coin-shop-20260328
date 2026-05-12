@@ -3968,7 +3968,7 @@ export const appRouter = router({
               COALESCE((SELECT isAnonymous FROM bids WHERE auctionId = a.id AND userId = a.highestBidderId ORDER BY id DESC LIMIT 1), 0) AS highestBidderIsAnonymous
             FROM auctions a
             LEFT JOIN users u ON u.id = a.highestBidderId
-            LEFT JOIN users seller ON seller.id = a.sellerId
+            LEFT JOIN users seller ON seller.id = a.createdBy
             WHERE a.id IN (${idsCsv})
           `));
           const rows: any[] = Array.isArray(rawRows) ? (rawRows[0] as any[]) : [];
@@ -4407,7 +4407,7 @@ export const appRouter = router({
               COALESCE((SELECT isAnonymous FROM bids WHERE auctionId = a.id AND userId = a.highestBidderId ORDER BY id DESC LIMIT 1), 0) AS highestBidderIsAnonymous
             FROM auctions a
             LEFT JOIN users u ON u.id = a.highestBidderId
-            LEFT JOIN users seller ON seller.id = a.sellerId
+            LEFT JOIN users seller ON seller.id = a.createdBy
             WHERE a.id IN (${idsCsv})
           `));
           const rows: any[] = Array.isArray(rawRows) ? (rawRows[0] as any[]) : [];
