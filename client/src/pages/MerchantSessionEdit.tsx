@@ -100,6 +100,7 @@ export default function MerchantSessionEdit() {
   const [editForm, setEditForm] = useState({
     title: "", description: "", coverImage: "",
     endAt: "", visibility: "public" as "public" | "unlisted",
+    addItemsCutoffMinutes: 30,
   });
   const [showPicker, setShowPicker] = useState(false);
   const [pickedIds, setPickedIds] = useState<Set<number>>(new Set());
@@ -154,6 +155,7 @@ export default function MerchantSessionEdit() {
       coverImage: session.coverImage || "",
       endAt: fmtDateTimeLocal(new Date(session.endAt)),
       visibility: session.visibility,
+      addItemsCutoffMinutes: (session as any).addItemsCutoffMinutes ?? 30,
     });
     setEditing(true);
   }
@@ -168,6 +170,7 @@ export default function MerchantSessionEdit() {
       coverImage: editForm.coverImage.trim() || null,
       endAt,
       visibility: editForm.visibility,
+      addItemsCutoffMinutes: Math.max(0, Math.min(1440, Number(editForm.addItemsCutoffMinutes) || 0)),
     });
   }
 
@@ -259,6 +262,17 @@ export default function MerchantSessionEdit() {
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label>加品截止（結束前 N 分鐘內凍結加入新商品，預設 30）</Label>
+                <Input
+                  type="number" min={0} max={1440}
+                  value={editForm.addItemsCutoffMinutes}
+                  onChange={(e) => setEditForm({ ...editForm, addItemsCutoffMinutes: parseInt(e.target.value || "0", 10) })}
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  避免 bidder 漏睇最後一刻加入嘅商品。設 0 = 隨時可加。
+                </p>
+              </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setEditing(false)}>取消</Button>
                 <Button onClick={saveEdit} disabled={updateMut.isPending} className="bg-amber-600 hover:bg-amber-700">
@@ -271,11 +285,18 @@ export default function MerchantSessionEdit() {
 
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-amber-900">專場商品 ({items.length})</h2>
-          {!isLocked && (
-            <Button size="sm" onClick={() => setShowPicker(true)} className="bg-amber-600 hover:bg-amber-700">
-              <Plus className="w-3.5 h-3.5 mr-1" /> 加入拍賣品
-            </Button>
-          )}
+          {!isLocked && (() => {
+            const cutoffMin = (session as any).addItemsCutoffMinutes ?? 30;
+            const cutoffMs = new Date(session.endAt).getTime() - cutoffMin * 60 * 1000;
+            const past = isPublished && Date.now() >= cutoffMs;
+            return past ? (
+              <span className="text-xs text-rose-600">已過加品截止（結束前 {cutoffMin} 分鐘）</span>
+            ) : (
+              <Button size="sm" onClick={() => setShowPicker(true)} className="bg-amber-600 hover:bg-amber-700">
+                <Plus className="w-3.5 h-3.5 mr-1" /> 加入拍賣品
+              </Button>
+            );
+          })()}
         </div>
 
         {items.length === 0 ? (

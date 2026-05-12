@@ -520,6 +520,12 @@ async function bootstrapMissingColumns() {
       'Added visibility to merchantAuctionSessions'
     );
   }
+  if (!(await check('merchantAuctionSessions', 'addItemsCutoffMinutes'))) {
+    await alter(
+      "ALTER TABLE `merchantAuctionSessions` ADD COLUMN `addItemsCutoffMinutes` int NOT NULL DEFAULT 30",
+      'Added addItemsCutoffMinutes to merchantAuctionSessions'
+    );
+  }
 
   // Seed loyalty config 預設值（只喺 key 未設定先寫入，唔 overwrite admin 改動）
   const LOYALTY_DEFAULTS: Record<string, string> = {

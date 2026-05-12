@@ -4023,6 +4023,7 @@ export const appRouter = router({
         coverImage: z.string().url().optional().nullable(),
         endAt: z.date().optional(),
         visibility: z.enum(['public', 'unlisted']).optional(),
+        addItemsCutoffMinutes: z.number().int().min(0).max(1440).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const db = await getDb();
@@ -4046,6 +4047,7 @@ export const appRouter = router({
           patch.endAt = input.endAt;
         }
         if (input.visibility !== undefined) patch.visibility = input.visibility;
+        if (input.addItemsCutoffMinutes !== undefined) patch.addItemsCutoffMinutes = input.addItemsCutoffMinutes;
         if (Object.keys(patch).length === 0) return { ok: true };
         await db.update(merchantAuctionSessions).set(patch)
           .where(eq(merchantAuctionSessions.id, input.id));
@@ -4153,6 +4155,14 @@ export const appRouter = router({
         }
         if (session.status === 'ended') {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '已結束嘅專場不可加 item' });
+        }
+        // 結束前 N 分鐘 cut-off，避免 bidder 漏睇新加入嘅商品
+        if (session.status === 'published') {
+          const cutoffMin = (session as any).addItemsCutoffMinutes ?? 30;
+          const cutoffMs = new Date(session.endAt).getTime() - cutoffMin * 60 * 1000;
+          if (Date.now() >= cutoffMs) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: `已過加品截止時間（結束前 ${cutoffMin} 分鐘內不可再加入新商品）` });
+          }
         }
         // 驗證 auctions 全部屬於呢個 merchant
         const myAuctions = await db.select({ id: auctions.id }).from(auctions)

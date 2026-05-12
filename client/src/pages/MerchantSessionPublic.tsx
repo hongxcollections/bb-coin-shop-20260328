@@ -235,7 +235,17 @@ export default function MerchantSessionPublic() {
                 : null;
 
               return (
-                <Link key={auction.id} href={`/auctions/${auction.id}`}>
+                <Link
+                  key={auction.id}
+                  href={`/auctions/${auction.id}`}
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem("bb_auction_from_session", JSON.stringify({
+                        merchantUserId, slug, title: session.title, merchantName,
+                      }));
+                    } catch {}
+                  }}
+                >
                   <div className={`auction-list-item flex gap-3 p-3 rounded-xl cursor-pointer transition-all border bg-white ${isEndingSoon ? "border-orange-200 bg-orange-50/40 hover:border-orange-300" : "border-amber-100 hover:border-amber-300 hover:bg-amber-50/50"}`}>
                     <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
                       {auction.images && (auction.images as Array<{ imageUrl: string }>).length > 0 ? (

@@ -51,26 +51,28 @@ function formatDate(date: Date) {
   });
 }
 
-function SessionAwareBack({ auctionId, merchantUserId }: { auctionId: number; merchantUserId: number }) {
-  // 用 document.referrer 判斷：上一頁係 /s/:userId/:slug 先顯示專場 breadcrumb
-  const fromSession = (() => {
-    if (typeof window === "undefined") return false;
+function SessionAwareBack({ auctionId: _auctionId }: { auctionId: number; merchantUserId: number }) {
+  // SPA navigation 唔會 update document.referrer，改用 sessionStorage：
+  // MerchantSessionPublic onClick 時 set；呢度讀完保留（refresh 仍 valid，去其他 page 時清）
+  const [from, setFrom] = useState<{ merchantUserId: number; slug: string; title: string; merchantName?: string } | null>(null);
+  useEffect(() => {
     try {
-      const ref = document.referrer;
-      if (!ref) return false;
-      const u = new URL(ref);
-      if (u.origin !== window.location.origin) return false;
-      return /^\/s\/\d+\/[^/]+\/?$/.test(u.pathname);
-    } catch { return false; }
-  })();
-  const { data } = trpc.merchantSessions.findSessionForAuction.useQuery(
-    { auctionId }, { enabled: auctionId > 0 && fromSession, retry: false, staleTime: 60_000 }
-  );
-  if (fromSession && data) {
+      const raw = sessionStorage.getItem("bb_auction_from_session");
+      if (raw) {
+        setFrom(JSON.parse(raw));
+        sessionStorage.removeItem("bb_auction_from_session"); // 一次性，避免之後從別處入嚟見到舊值
+      }
+    } catch {}
+  }, []);
+  if (from) {
     return (
       <div className="flex items-center gap-2 mb-6 text-sm text-muted-foreground">
-        <Link href={`/s/${merchantUserId}/${data.slug}`} className="flex items-center gap-1 hover:text-amber-700 transition-colors">
-          <ChevronLeft className="w-4 h-4" /> 返回 {data.merchantName ?? '商戶'} 專場 「{data.title}」
+        <Link
+          href={`/s/${from.merchantUserId}/${from.slug}`}
+          className="flex items-center gap-1 hover:text-amber-700 transition-colors"
+          onClick={() => { try { sessionStorage.removeItem("bb_auction_from_session"); } catch {} }}
+        >
+          <ChevronLeft className="w-4 h-4" /> 返回 {from.merchantName ?? '商戶'} 專場 「{from.title}」
         </Link>
       </div>
     );
