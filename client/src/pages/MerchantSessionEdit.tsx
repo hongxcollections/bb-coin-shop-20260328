@@ -320,7 +320,15 @@ export default function MerchantSessionEdit() {
                 )}
                 {session.status === "draft" && (
                   <Button size="sm" className="bg-green-600 hover:bg-green-700"
-                    onClick={() => publishMut.mutate({ id: sessionId })}>
+                    disabled={items.length === 0 || publishMut.isPending}
+                    title={items.length === 0 ? "請先加入至少 1 件拍賣品" : undefined}
+                    onClick={() => {
+                      if (items.length === 0) {
+                        toast.error("請先加入至少 1 件拍賣品先可以發佈專場");
+                        return;
+                      }
+                      publishMut.mutate({ id: sessionId });
+                    }}>
                     <Send className="w-3.5 h-3.5 mr-1" /> 發佈
                   </Button>
                 )}
@@ -422,10 +430,22 @@ export default function MerchantSessionEdit() {
                   <Label className="text-xs text-amber-900 font-semibold">加品截止（結束前 N 分鐘內凍結加入新商品）</Label>
                   <div className="flex items-center gap-2 mt-1.5">
                     <Input
-                      type="number" min={0} max={1440}
+                      type="number" min={0} max={1440} inputMode="numeric"
                       className="border-amber-300 focus-visible:ring-amber-400 w-28"
-                      value={editForm.addItemsCutoffMinutes}
-                      onChange={(e) => setEditForm({ ...editForm, addItemsCutoffMinutes: parseInt(e.target.value || "0", 10) })}
+                      value={editForm.addItemsCutoffMinutes === null || editForm.addItemsCutoffMinutes === undefined ? "" : String(editForm.addItemsCutoffMinutes)}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (raw === "") { setEditForm({ ...editForm, addItemsCutoffMinutes: "" as any }); return; }
+                        const n = parseInt(raw, 10);
+                        if (Number.isNaN(n)) return;
+                        setEditForm({ ...editForm, addItemsCutoffMinutes: Math.max(0, Math.min(1440, n)) });
+                      }}
+                      onBlur={() => {
+                        const v = editForm.addItemsCutoffMinutes;
+                        if (v === "" as any || v === null || v === undefined || Number.isNaN(Number(v))) {
+                          setEditForm({ ...editForm, addItemsCutoffMinutes: 0 });
+                        }
+                      }}
                     />
                     <span className="text-xs text-amber-800">分鐘</span>
                   </div>

@@ -155,10 +155,12 @@ export default function MerchantSessions() {
                   )}
                   {s.status === "draft" && (
                     <Button size="sm" className="bg-green-600 hover:bg-green-700"
-                      onClick={async () => {
+                      disabled={s.itemCount === 0 || publishMut.isPending}
+                      title={s.itemCount === 0 ? "請先加入至少 1 件拍賣品" : undefined}
+                      onClick={() => {
                         if (s.itemCount === 0) {
-                          const ok = await confirm({ title: "未加入任何拍賣品", description: "確定發佈空專場？", confirmText: "繼續", cancelText: "返回加商品" });
-                          if (!ok) return;
+                          toast.error("請先加入至少 1 件拍賣品先可以發佈專場");
+                          return;
                         }
                         publishMut.mutate({ id: s.id });
                       }}
