@@ -125,7 +125,8 @@ export default function MerchantSessionPublic() {
   }
 
   const endAtMs = new Date(session.endAt).getTime();
-  const isEnded = session.status === "ended" || endAtMs <= now;
+  // 僅以時間到為準顯示「已結束」，商戶手動「結束（封盤）」唔影響倒數顯示
+  const isEnded = endAtMs <= now;
   const endingSoonMs = 60 * 60 * 1000; // 1h
 
   return (
