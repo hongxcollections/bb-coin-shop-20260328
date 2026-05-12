@@ -4196,11 +4196,22 @@ export const appRouter = router({
         await db.update(merchantAuctionSessions).set({ status: 'ended' })
           .where(eq(merchantAuctionSessions.id, input.id));
         // 凍結場內所有 active auctions（避免手動 end 後仲俾人出價，搞到 combined email 嘅 winners/totals 失準）
+        // 並初始化 auctionOrderStatus + paymentStatus，確保商戶後台拍賣訂單即時見到記錄
         try {
           await db.execute(sql.raw(
             `UPDATE auctions a JOIN merchantAuctionSessionItems sit ON sit.auctionId=a.id ` +
             `SET a.status='ended', a.endTime=NOW() ` +
             `WHERE sit.sessionId=${input.id} AND a.status='active'`
+          ));
+          await db.execute(sql.raw(
+            `UPDATE auctions a JOIN merchantAuctionSessionItems sit ON sit.auctionId=a.id ` +
+            `SET a.auctionOrderStatus='pending' ` +
+            `WHERE sit.sessionId=${input.id} AND a.status='ended' AND a.highestBidderId IS NOT NULL AND a.auctionOrderStatus IS NULL`
+          ));
+          await db.execute(sql.raw(
+            `UPDATE auctions a JOIN merchantAuctionSessionItems sit ON sit.auctionId=a.id ` +
+            `SET a.paymentStatus='pending_payment' ` +
+            `WHERE sit.sessionId=${input.id} AND a.status='ended' AND a.highestBidderId IS NOT NULL AND a.paymentStatus IS NULL`
           ));
         } catch (e) {
           console.error('[Email] Manual end: freeze auctions failed:', e);

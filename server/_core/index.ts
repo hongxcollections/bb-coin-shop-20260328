@@ -626,6 +626,20 @@ async function bootstrapMissingColumns() {
     await alter(`ALTER TABLE \`auctions\` ADD COLUMN \`auctionOrderFinalPrice\` DECIMAL(12,2) NULL`,
       'Added auctionOrderFinalPrice to auctions');
   }
+  // 🔴 Backfill：之前 cron 只 end 咗 session 而冇 end 場內個別 auction，導致商戶後台拍賣訂單見唔到記錄
+  // 修復：所有屬於 ended session 嘅 active auction 連帶 mark 'ended'
+  try {
+    const [fixSession]: any = await pool.execute(
+      `UPDATE auctions a
+         JOIN merchantAuctionSessionItems sit ON sit.auctionId=a.id
+         JOIN merchantAuctionSessions s ON s.id=sit.sessionId
+       SET a.status='ended', a.endTime=COALESCE(s.endAt, NOW())
+       WHERE s.status='ended' AND a.status='active'`
+    );
+    if (fixSession?.affectedRows) console.log(`[Bootstrap] Fixed ${fixSession.affectedRows} auction(s) stuck active under ended session`);
+  } catch (e: any) {
+    console.warn('[Bootstrap] Backfill session-ended auctions skipped:', e?.message ?? e);
+  }
   // Backfill：所有 status='ended' AND highestBidderId IS NOT NULL AND auctionOrderStatus IS NULL → 'pending'
   try {
     const [bres]: any = await pool.execute(
@@ -634,6 +648,15 @@ async function bootstrapMissingColumns() {
     if (bres?.affectedRows) console.log(`[Bootstrap] Backfilled auctionOrderStatus='pending' on ${bres.affectedRows} ended auctions`);
   } catch (e: any) {
     console.warn('[Bootstrap] Backfill auctionOrderStatus skipped:', e?.message ?? e);
+  }
+  // Backfill：所有 status='ended' AND highestBidderId IS NOT NULL AND paymentStatus IS NULL → 'pending_payment'
+  try {
+    const [pres]: any = await pool.execute(
+      "UPDATE `auctions` SET `paymentStatus` = 'pending_payment' WHERE `status` = 'ended' AND `highestBidderId` IS NOT NULL AND `paymentStatus` IS NULL"
+    );
+    if (pres?.affectedRows) console.log(`[Bootstrap] Backfilled paymentStatus='pending_payment' on ${pres.affectedRows} ended auctions`);
+  } catch (e: any) {
+    console.warn('[Bootstrap] Backfill paymentStatus skipped:', e?.message ?? e);
   }
 
   // 修正 auctions.category 從 ENUM 改為 VARCHAR（支援自定義分類）
@@ -1664,6 +1687,30 @@ Output ONLY the JSON, nothing else.`;
         const { notifyCombinedSessionWon } = await import('../auctions');
         const origin = process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
         const { sql: sqlOp } = await import('drizzle-orm');
+        // 🔴 同 manual end 對齊：每 ended session 都要連帶 end 場內所有 active auctions
+        // 否則 auction.status='active' 一直停留，商戶後台拍賣訂單（filter status='ended'）會見唔到
+        for (const s of toEnd) {
+          try {
+            await db.execute(sqlOp.raw(
+              `UPDATE auctions a JOIN merchantAuctionSessionItems sit ON sit.auctionId=a.id ` +
+              `SET a.status='ended', a.endTime=NOW() ` +
+              `WHERE sit.sessionId=${s.id} AND a.status='active'`
+            ));
+            // 有 highestBidder 嘅 → 初始化 auctionOrderStatus + paymentStatus（兩個訂單系統都覆蓋）
+            await db.execute(sqlOp.raw(
+              `UPDATE auctions a JOIN merchantAuctionSessionItems sit ON sit.auctionId=a.id ` +
+              `SET a.auctionOrderStatus='pending' ` +
+              `WHERE sit.sessionId=${s.id} AND a.status='ended' AND a.highestBidderId IS NOT NULL AND a.auctionOrderStatus IS NULL`
+            ));
+            await db.execute(sqlOp.raw(
+              `UPDATE auctions a JOIN merchantAuctionSessionItems sit ON sit.auctionId=a.id ` +
+              `SET a.paymentStatus='pending_payment' ` +
+              `WHERE sit.sessionId=${s.id} AND a.status='ended' AND a.highestBidderId IS NOT NULL AND a.paymentStatus IS NULL`
+            ));
+          } catch (e) {
+            console.error(`[Scheduler] Failed to end session ${s.id} auctions:`, e);
+          }
+        }
         for (const s of toEnd) {
           // 原子聲明發信權：只有第一個成功 update combinedWonEmailSentAt 嘅 worker 先發信
           try {
