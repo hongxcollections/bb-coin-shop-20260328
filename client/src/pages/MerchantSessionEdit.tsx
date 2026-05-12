@@ -112,8 +112,11 @@ export default function MerchantSessionEdit() {
     onError: (e) => toast.error(e.message || "儲存失敗"),
   });
   const addItemsMut = trpc.merchantSessions.addItems.useMutation({
-    onSuccess: ({ added, skipped }) => {
-      toast.success(`加入 ${added} 件${skipped > 0 ? `（${skipped} 件已存在）` : ""}`);
+    onSuccess: ({ added, skipped, revivedEnded }: any) => {
+      const parts = [`加入 ${added} 件`];
+      if (skipped > 0) parts.push(`${skipped} 件已存在`);
+      if (revivedEnded > 0) parts.push(`其中 ${revivedEnded} 件流拍商品已重新開拍`);
+      toast.success(parts.join(" ｜ "));
       setShowPicker(false); setPickedIds(new Set()); refetch();
     },
     onError: (e) => toast.error(e.message || "加入失敗"),

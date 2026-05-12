@@ -4238,15 +4238,46 @@ export const appRouter = router({
         await db.update(merchantAuctionSessions)
           .set({ itemCount: sql`(SELECT COUNT(*) FROM merchantAuctionSessionItems WHERE sessionId = ${input.sessionId})` })
           .where(eq(merchantAuctionSessions.id, input.sessionId));
-        // Auto-sync: 加入專場嘅商品 endTime 一律 align 到 session.endAt（即使已有人出價，純粹延長/縮短結束時間）
+        // Auto-sync: 加入專場嘅商品 endTime 一律 align 到 session.endAt（DB-side copy 避免 JS Date TZ round-trip）
+        // 同時：流拍商品 (status='ended' && 無中標) 加入後重置 → 視乎 session 狀態變 'active' (published) 或 'draft'，清除舊出價，重置價錢
+        let revivedEnded = 0;
         try {
-          await db.update(auctions)
-            .set({ endTime: session.endAt })
-            .where(inArray(auctions.id, toAdd));
+          const idsCsvAdd = toAdd.join(',');
+          // 1) 一律同步 endTime to session.endAt (DB-side copy)
+          await db.execute(sql.raw(`
+            UPDATE auctions a
+            JOIN merchantAuctionSessions s ON s.id = ${input.sessionId}
+            SET a.endTime = s.endAt
+            WHERE a.id IN (${idsCsvAdd})
+          `));
+          // 2) 揾出流拍商品 (status='ended' && highestBidderId IS NULL)
+          const endedRowsRaw: any = await db.execute(sql.raw(`
+            SELECT id, startingPrice FROM auctions
+            WHERE id IN (${idsCsvAdd}) AND status = 'ended' AND highestBidderId IS NULL
+          `));
+          const endedRows: any[] = Array.isArray(endedRowsRaw) ? (endedRowsRaw[0] as any[]) : [];
+          if (endedRows.length > 0) {
+            const endedIds = endedRows.map(r => r.id);
+            const endedCsv = endedIds.join(',');
+            // 清出價（流拍應該本來就無 bids，但保險起見）
+            try { await db.execute(sql.raw(`DELETE FROM bids WHERE auctionId IN (${endedCsv})`)); } catch {}
+            try { await db.execute(sql.raw(`DELETE FROM proxyBids WHERE auctionId IN (${endedCsv})`)); } catch {}
+            try { await db.execute(sql.raw(`DELETE FROM proxyBidLogs WHERE auctionId IN (${endedCsv})`)); } catch {}
+            // 重置 currentPrice = startingPrice + 重新開放
+            const newStatus = session.status === 'published' ? 'active' : 'draft';
+            await db.execute(sql.raw(`
+              UPDATE auctions
+              SET status = '${newStatus}',
+                  currentPrice = startingPrice,
+                  highestBidderId = NULL
+              WHERE id IN (${endedCsv})
+            `));
+            revivedEnded = endedRows.length;
+          }
         } catch (e) {
-          (ctx.req as any)?.log?.warn?.({ err: e, sessionId: input.sessionId, toAdd }, 'addItems endTime sync failed');
+          (ctx.req as any)?.log?.warn?.({ err: e, sessionId: input.sessionId, toAdd }, 'addItems endTime/revive sync failed');
         }
-        return { added: toAdd.length, skipped: valid.length - toAdd.length };
+        return { added: toAdd.length, skipped: valid.length - toAdd.length, revivedEnded };
       }),
 
     /** 從 session 移除一個 auction（item 本身唔影響 auction 本體；可選擇順便收返做流拍隱藏） */

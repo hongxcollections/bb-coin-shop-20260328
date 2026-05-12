@@ -301,7 +301,7 @@ export default function MerchantSessionPublic() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          {(a.bidCount ?? 0) > 0 && (
+                          {Number(a.bidCount ?? 0) > 0 && (
                             <div className="flex items-center gap-0.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
                               <Users className="w-2.5 h-2.5" />
                               <span className="font-semibold">{a.bidCount}</span>

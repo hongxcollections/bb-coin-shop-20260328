@@ -187,9 +187,11 @@ export default function MerchantSessions() {
       </div>
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>新建拍賣專場</DialogTitle></DialogHeader>
-          <div className="space-y-3">
+        <DialogContent className="max-h-[90vh] flex flex-col gap-0 p-0">
+          <DialogHeader className="px-6 pt-6 pb-3 border-b">
+            <DialogTitle>新建拍賣專場</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 px-6 py-4 overflow-y-auto flex-1">
             <div>
               <Label>專場名稱 *</Label>
               <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="例：6月香港錢幣專拍" maxLength={200} />
@@ -229,7 +231,7 @@ export default function MerchantSessions() {
               </p>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="px-6 py-4 border-t bg-amber-50/40">
             <Button variant="outline" onClick={() => setShowCreate(false)}>取消</Button>
             <Button onClick={handleCreate} disabled={createMut.isPending} className="bg-amber-600 hover:bg-amber-700">
               {createMut.isPending ? "建立中..." : "建立"}
