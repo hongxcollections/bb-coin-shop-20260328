@@ -4,6 +4,7 @@ import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import { Badge } from "@/components/ui/badge";
 import { ShareMenu, SessionShareMenu } from "@/components/ShareMenu";
+import { QuickBidPopover } from "@/components/QuickBidPopover";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Calendar, Clock, Package, Users, Store } from "lucide-react";
@@ -252,7 +253,7 @@ export default function MerchantSessionPublic() {
               const endMs = new Date(auction.endTime).getTime();
               const isItemEnded = endMs <= nowMs;
               const isEndingSoon = !isItemEnded && (endMs - nowMs) <= endingSoonMs;
-              const a = auction as { highestBidderName?: string | null; highestBidderId?: number | null; sellerName?: string | null; bidCount?: number | null; startingPrice?: number | string | null; currency?: string; fbShareTemplate?: string | null };
+              const a = auction as { highestBidderName?: string | null; highestBidderId?: number | null; sellerName?: string | null; bidCount?: number | null; startingPrice?: number | string | null; bidIncrement?: number | null; currency?: string; fbShareTemplate?: string | null; createdBy?: number };
               const curr = getCurrencySymbol(a.currency ?? "HKD");
               const startPrice = a.startingPrice ? Number(a.startingPrice) : null;
               const curPrice = Number(auction.currentPrice);
@@ -351,6 +352,19 @@ export default function MerchantSessionPublic() {
                               currency={a.currency}
                               endTime={auction.endTime}
                               shareTemplate={a.fbShareTemplate}
+                            />
+                          </div>
+                          <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                            <QuickBidPopover
+                              auctionId={auction.id}
+                              title={auction.title}
+                              currentPrice={curPrice}
+                              startingPrice={Number(a.startingPrice ?? 0)}
+                              bidIncrement={Number(a.bidIncrement ?? 30)}
+                              currency={a.currency}
+                              hasExistingBid={!!a.highestBidderId}
+                              isEnded={isItemEnded}
+                              createdBy={a.createdBy}
                             />
                           </div>
                         </div>
