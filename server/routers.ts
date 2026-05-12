@@ -4223,6 +4223,77 @@ export const appRouter = router({
         return { ok: true };
       }),
 
+    /** Combined invoice email status — sentAt + 每位 winner 嘅發信對象/金額 */
+    getEmailStatus: protectedProcedure
+      .input(z.object({ sessionId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [session] = await db.select().from(merchantAuctionSessions)
+          .where(eq(merchantAuctionSessions.id, input.sessionId)).limit(1);
+        if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: '專場不存在' });
+        if (session.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的專場' });
+        }
+        const rawRows: any = await db.execute(sql.raw(`
+          SELECT a.id AS auctionId, a.title, a.currentPrice, a.currency, a.highestBidderId,
+            u.email AS winnerEmail, u.name AS winnerName, u.notifyWon AS winnerNotifyWon
+          FROM merchantAuctionSessionItems sit
+          JOIN auctions a ON a.id = sit.auctionId
+          LEFT JOIN users u ON u.id = a.highestBidderId
+          WHERE sit.sessionId = ${input.sessionId} AND a.highestBidderId IS NOT NULL
+          ORDER BY sit.displayOrder ASC, sit.id ASC
+        `));
+        const items: any[] = Array.isArray(rawRows) ? (rawRows[0] as any[]) : [];
+        const byWinner = new Map<number, any>();
+        for (const it of items) {
+          let g = byWinner.get(it.highestBidderId);
+          if (!g) {
+            g = {
+              userId: it.highestBidderId,
+              email: it.winnerEmail ?? null,
+              name: it.winnerName ?? `用戶 #${it.highestBidderId}`,
+              optedOut: it.winnerNotifyWon === 0 || it.winnerNotifyWon === false,
+              itemCount: 0,
+              totalsByCurrency: {} as Record<string, number>,
+            };
+            byWinner.set(it.highestBidderId, g);
+          }
+          g.itemCount++;
+          const cur = it.currency || 'HKD';
+          const amt = parseFloat(String(it.currentPrice)) || 0;
+          g.totalsByCurrency[cur] = (g.totalsByCurrency[cur] || 0) + amt;
+        }
+        const winners: any[] = [];
+        byWinner.forEach((g) => winners.push(g));
+        return { sentAt: (session as any).combinedWonEmailSentAt ?? null, winners };
+      }),
+
+    /** 重發 combined invoice — winnerUserId 唔填即全部重發 */
+    resendCombinedInvoice: protectedProcedure
+      .input(z.object({ sessionId: z.number().int().positive(), winnerUserId: z.number().int().positive().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [session] = await db.select().from(merchantAuctionSessions)
+          .where(eq(merchantAuctionSessions.id, input.sessionId)).limit(1);
+        if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: '專場不存在' });
+        if (session.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的專場' });
+        }
+        if (session.status !== 'ended') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '專場未結束，未可發送中標通知' });
+        }
+        // 重發唔需要 atomic claim（因為係 user 主動觸發）。如全部重發就同時更新 sentAt 做 audit。
+        if (!input.winnerUserId) {
+          await db.execute(sql.raw(
+            `UPDATE merchantAuctionSessions SET combinedWonEmailSentAt=NOW() WHERE id=${input.sessionId}`
+          ));
+        }
+        const { notifyCombinedSessionWon } = await import('./auctions');
+        const origin = (ctx.req as any)?.headers?.origin || process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
+        await notifyCombinedSessionWon(input.sessionId, origin, input.winnerUserId ? { onlyWinnerUserId: input.winnerUserId } : undefined);
+        return { ok: true };
+      }),
+
     /** Delete (only draft + 0 items) */
     delete: protectedProcedure
       .input(z.object({ id: z.number().int().positive() }))

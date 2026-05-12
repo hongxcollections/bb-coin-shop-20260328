@@ -327,7 +327,7 @@ export async function notifyMerchantWon(auctionId: number, origin: string) {
  * 商戶專場 combined invoice — 將整個 session 入面同一買家贏到嘅所有 items 合併成一封信。
  * 喺 session auto-end cron 同手動 end mutation 兩處呼叫；按 winner 分組，每位中標買家收一封。
  */
-export async function notifyCombinedSessionWon(sessionId: number, origin: string) {
+export async function notifyCombinedSessionWon(sessionId: number, origin: string, opts?: { onlyWinnerUserId?: number }) {
   try {
     const settings = await getNotificationSettings();
     if (!settings) return;
@@ -356,6 +356,7 @@ export async function notifyCombinedSessionWon(sessionId: number, origin: string
     for (const it of items) {
       if (!it.winnerEmail) continue;
       if (it.winnerNotifyWon === 0 || it.winnerNotifyWon === false) continue;
+      if (opts?.onlyWinnerUserId && it.highestBidderId !== opts.onlyWinnerUserId) continue;
       let g = byWinner.get(it.highestBidderId);
       if (!g) {
         g = { email: it.winnerEmail, name: it.winnerName ?? `用戶 #${it.highestBidderId}`, items: [] };

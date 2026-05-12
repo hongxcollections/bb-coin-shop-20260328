@@ -69,6 +69,7 @@ import MerchantProducts from "./pages/MerchantProducts";
 import MerchantSessions from "./pages/MerchantSessions";
 import MerchantSessionEdit from "./pages/MerchantSessionEdit";
 import MerchantSessionPublic from "./pages/MerchantSessionPublic";
+import MerchantSessionPrint from "./pages/MerchantSessionPrint";
 import MerchantStore from "./pages/MerchantStore";
 import MerchantProductDetail from "./pages/MerchantProductDetail";
 import CoinAnalysis from "./pages/CoinAnalysis";
@@ -215,6 +216,8 @@ function Router() {
       <Route path={"/merchant-products/:id"} component={MerchantProductDetail} />
       <Route path={"/merchant-products"} component={MerchantProducts} />
       <Route path={"/merchant/sessions"} component={MerchantSessions} />
+      <Route path={"/merchant/sessions/:id/print/report"} component={MerchantSessionPrint} />
+      <Route path={"/merchant/sessions/:id/print/invoice/:winnerId"} component={MerchantSessionPrint} />
       <Route path={"/merchant/sessions/:id"} component={MerchantSessionEdit} />
       <Route path={"/s/:userId/:slug"} component={MerchantSessionPublic} />
       <Route path={"/coin-analysis"} component={CoinAnalysis} />

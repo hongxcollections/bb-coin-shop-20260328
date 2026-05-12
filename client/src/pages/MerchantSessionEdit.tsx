@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { ChevronLeft, Plus, Trash2, Save, Eye, Send, X, Clock, ChevronUp, ChevronDown, Globe, Lock, Pencil, ShieldAlert, AlertTriangle } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Save, Eye, Send, X, Clock, ChevronUp, ChevronDown, Globe, Lock, Pencil, ShieldAlert, AlertTriangle, Mail, FileText, Download, RefreshCw } from "lucide-react";
 import { CoverImageUpload } from "@/components/CoverImageUpload";
 import { SessionShareMenu } from "@/components/ShareMenu";
 
@@ -176,6 +176,41 @@ export default function MerchantSessionEdit() {
     onSuccess: ({ published }) => { toast.success(published > 0 ? `已上架 ${published} 件商品（endTime 設為場結束時間）` : "冇可上架嘅商品"); refetch(); },
     onError: (e) => toast.error(e.message || "操作失敗"),
   });
+
+  // 中標通知 email 狀態 + 重發
+  const isEnded = (data?.session as any)?.status === 'ended';
+  const { data: emailStatus, refetch: refetchEmailStatus } = trpc.merchantSessions.getEmailStatus.useQuery(
+    { sessionId },
+    { enabled: sessionId > 0 && isEnded }
+  );
+  const resendMut = trpc.merchantSessions.resendCombinedInvoice.useMutation({
+    onSuccess: (_d, vars) => {
+      toast.success(vars.winnerUserId ? "已重發俾呢位買家" : "已全部重發");
+      refetchEmailStatus();
+    },
+    onError: (e) => toast.error(e.message || "重發失敗"),
+  });
+  async function handleResendAll() {
+    if (!session) return;
+    const ok = await confirm({
+      title: "重發中標通知 email？",
+      description: `將會重新將呢場 combined invoice email 發俾所有曾中標而又允許接收通知嘅買家。買家或會收到重複嘅信。`,
+      confirmText: "重發全部",
+      cancelText: "取消",
+    });
+    if (!ok) return;
+    resendMut.mutate({ sessionId });
+  }
+  async function handleResendOne(winnerUserId: number, name: string) {
+    const ok = await confirm({
+      title: `重發俾「${name}」？`,
+      description: `只將呢位買家嘅 combined invoice 重新發出。`,
+      confirmText: "重發",
+      cancelText: "取消",
+    });
+    if (!ok) return;
+    resendMut.mutate({ sessionId, winnerUserId });
+  }
 
   // 移除 item 時嘅 3-option dialog（只喺 published session + 該 auction 為 active 時用）
   const [removeTarget, setRemoveTarget] = useState<{ auctionId: number; title: string } | null>(null);
@@ -467,10 +502,90 @@ export default function MerchantSessionEdit() {
         {/* 成交報表（session ended 後顯示） */}
         {isLocked && summary && (
           <div className="bg-white border border-amber-200 rounded-2xl p-4 mb-4 shadow-sm">
-            <h2 className="font-semibold text-amber-900 mb-3 flex items-center gap-2">
-              <span>📊 成交報表</span>
-              <span className="text-xs font-normal text-gray-500">（專場已結束）</span>
-            </h2>
+            <div className="flex items-start justify-between mb-3 gap-2 flex-wrap">
+              <h2 className="font-semibold text-amber-900 flex items-center gap-2">
+                <span>📊 成交報表</span>
+                <span className="text-xs font-normal text-gray-500">（專場已結束）</span>
+              </h2>
+              <a
+                href={`/merchant/sessions/${sessionId}/print/report`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+                data-testid="btn-download-report-pdf"
+              >
+                <Download className="w-3.5 h-3.5" /> 下載報表 PDF
+              </a>
+            </div>
+
+            {/* 中標通知 email 狀態 + 重發 */}
+            {summary.soldCount > 0 && (
+              <div className="mb-3 border border-amber-200 bg-amber-50/60 rounded-lg p-3">
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="w-4 h-4 text-amber-700" />
+                    <span className="text-amber-900 font-semibold">中標通知 email</span>
+                    {emailStatus?.sentAt ? (
+                      <span className="text-xs text-gray-600">
+                        已發送 · {new Date(emailStatus.sentAt as any).toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-rose-600">未發送</span>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs h-7 border-amber-400 text-amber-800 hover:bg-amber-100"
+                    onClick={handleResendAll}
+                    disabled={resendMut.isPending}
+                    data-testid="btn-resend-all"
+                  >
+                    <RefreshCw className={`w-3 h-3 mr-1 ${resendMut.isPending ? 'animate-spin' : ''}`} />
+                    {emailStatus?.sentAt ? '重發全部' : '立即發送'}
+                  </Button>
+                </div>
+                {emailStatus?.winners && emailStatus.winners.length > 0 && (
+                  <div className="mt-2 grid gap-1.5">
+                    {emailStatus.winners.map((w: any) => (
+                      <div key={w.userId} className="flex items-center justify-between gap-2 text-xs bg-white border border-amber-100 rounded px-2 py-1.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-gray-800 truncate">{w.name}</div>
+                          <div className="text-[11px] text-gray-500 truncate">
+                            {w.email || <span className="text-rose-600">未綁定 email</span>}
+                            {w.optedOut && <span className="ml-1 text-amber-700">· 已關閉中標通知</span>}
+                            <span className="ml-1">· {w.itemCount} 件</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <a
+                            href={`/merchant/sessions/${sessionId}/print/invoice/${w.userId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                            data-testid={`btn-download-invoice-${w.userId}`}
+                          >
+                            <FileText className="w-3 h-3" /> Invoice
+                          </a>
+                          {w.email && !w.optedOut && (
+                            <button
+                              type="button"
+                              onClick={() => handleResendOne(w.userId, w.name)}
+                              disabled={resendMut.isPending}
+                              className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-amber-400 text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                              data-testid={`btn-resend-${w.userId}`}
+                            >
+                              <Send className="w-3 h-3" /> 重發
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-3 gap-2 mb-3">
               <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center">
                 <div className="text-xs text-gray-600">成交</div>

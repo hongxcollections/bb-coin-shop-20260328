@@ -11,7 +11,7 @@ import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
 import {
   ShieldAlert, Search, Eye, Pencil, Calendar, Package, Store,
-  AlertTriangle, Layers, CheckCircle2, FileEdit, XCircle, Lock, Globe, Filter
+  AlertTriangle, Layers, CheckCircle2, FileEdit, XCircle, Lock, Globe, Filter, Download
 } from "lucide-react";
 
 function fmtEnd(d: string | Date): string {
@@ -273,6 +273,17 @@ export default function AdminSessions() {
                             <Pencil className="w-3.5 h-3.5" /> 編輯
                           </Button>
                         </Link>
+                        {s.status === "ended" && (
+                          <a
+                            href={`/merchant/sessions/${s.id}/print/report`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 h-8 px-3 text-xs rounded-md border border-amber-200 text-amber-700 hover:bg-amber-50 font-medium"
+                            data-testid={`btn-admin-pdf-${s.id}`}
+                          >
+                            <Download className="w-3.5 h-3.5" /> 報表 PDF
+                          </a>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
