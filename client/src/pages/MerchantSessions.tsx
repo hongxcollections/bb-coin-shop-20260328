@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { Plus, Calendar, Eye, Trash2, Send, CheckCircle2, ChevronLeft, Lock, Globe, Pencil } from "lucide-react";
 import { CoverImageUpload } from "@/components/CoverImageUpload";
 import { SessionShareMenu } from "@/components/ShareMenu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { HelpCircle } from "lucide-react";
 
 function formatDateTimeLocal(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0");
@@ -169,14 +171,30 @@ export default function MerchantSessions() {
                     </Button>
                   )}
                   {s.status === "published" && (
-                    <Button size="sm" variant="outline" className="text-orange-700 border-orange-300"
-                      onClick={async () => {
-                        const ok = await confirm({ title: "結束專場", description: "結束後唔可以再改、唔可以再加 item。確定？", confirmText: "確定結束", cancelText: "取消" });
-                        if (ok) endMut.mutate({ id: s.id });
-                      }}
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> 結束
-                    </Button>
+                    <TooltipProvider delayDuration={150}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button size="sm" variant="outline" className="text-orange-700 border-orange-300"
+                            onClick={async () => {
+                              const ok = await confirm({
+                                title: "結束專場（封盤）",
+                                description: "「結束」即係封盤：你之後唔可以再加入或移除商品，亦唔可以再改場資料。\n\n但場入面嘅商品仍然會繼續拍賣到自己嘅結束時間，買家照樣可以出價。\n\n確定要封盤？",
+                                confirmText: "確定封盤",
+                                cancelText: "取消",
+                              });
+                              if (ok) endMut.mutate({ id: s.id });
+                            }}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> 結束
+                            <HelpCircle className="w-3 h-3 ml-1 opacity-60" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+                          封盤：之後唔可以再加品 / 拆品 / 改場資料。
+                          場內商品照常拍賣到自己嘅結束時間。
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   )}
                   {(s.status === "draft" || s.itemCount === 0) && (
                     <Button size="sm" variant="outline" className="text-rose-700 border-rose-300"
