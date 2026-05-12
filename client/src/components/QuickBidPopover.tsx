@@ -189,7 +189,7 @@ export function QuickBidPopover({
               onChange={(e) => setCustomAmount(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCustom(); } }}
               placeholder={`自訂 ≥ ${symbol}${minBid.toLocaleString()}`}
-              className="flex-1 min-w-0 px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-300"
+              className="flex-1 min-w-0 px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-300 text-red-600 placeholder:text-red-500"
               disabled={placeBid.isPending}
             />
             <button
