@@ -4439,6 +4439,109 @@ export const appRouter = router({
         const merchantApp = await getMerchantApplicationByUser(s.merchantUserId);
         return { ...s, merchantName: merchantApp?.merchantName || '商戶' };
       }),
+
+    /**
+     * Admin: 完整拆除整個商戶專場
+     * - 清除所有 merchantAuctionSessionItems
+     * - 刪除 session 本身
+     * - 對每件 auction:
+     *   • status='draft' → 維持 'draft'（回原狀）
+     *   • status='ended' && 無中標者 → 維持 'ended'（流拍）
+     *   • 其他（active 或 ended-with-winner）→ status='active'，endTime 延長至 NOW + 7 日
+     * - 一律清除 bids / proxyBids / proxyBidLogs（即「會員中拍紀錄」）
+     * - 一律 reset currentPrice = startingPrice，highestBidderId = NULL
+     */
+    adminTeardown: adminProcedure
+      .input(z.object({
+        sessionId: z.number().int().positive(),
+        confirmTitle: z.string().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const { inArray } = await import('drizzle-orm');
+        const [session] = await db.select().from(merchantAuctionSessions)
+          .where(eq(merchantAuctionSessions.id, input.sessionId)).limit(1);
+        if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: '專場不存在' });
+        if (input.confirmTitle.trim() !== session.title.trim()) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `請輸入完整專場名稱「${session.title}」確認拆除` });
+        }
+        const items = await db.select().from(merchantAuctionSessionItems)
+          .where(eq(merchantAuctionSessionItems.sessionId, input.sessionId));
+        const auctionIds = items.map(it => it.auctionId);
+
+        let restoredDraft = 0, restoredEnded = 0, restoredActive = 0, bidsCleared = 0;
+        if (auctionIds.length > 0) {
+          const aucs = await db.select().from(auctions).where(inArray(auctions.id, auctionIds));
+          // 清除 bids / proxyBids / proxyBidLogs
+          const placeholders = auctionIds.map(() => '?').join(',');
+          try {
+            const r: any = await db.execute(sql.raw(`DELETE FROM bids WHERE auctionId IN (${auctionIds.join(',')})`));
+            bidsCleared = Array.isArray(r) ? (r[0] as any)?.affectedRows || 0 : 0;
+          } catch (e) { (ctx.req as any)?.log?.warn?.({ err: e }, 'adminTeardown: clear bids failed'); }
+          try { await db.execute(sql.raw(`DELETE FROM proxyBids WHERE auctionId IN (${auctionIds.join(',')})`)); } catch {}
+          try { await db.execute(sql.raw(`DELETE FROM proxyBidLogs WHERE auctionId IN (${auctionIds.join(',')})`)); } catch {}
+
+          // 逐件 reset 狀態 + currentPrice + highestBidderId
+          const sevenDaysLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          for (const a of aucs) {
+            const hasWinner = !!a.highestBidderId;
+            let targetStatus: 'draft' | 'active' | 'ended' = 'active';
+            let newEndTime = a.endTime;
+            if (a.status === 'draft') {
+              targetStatus = 'draft';
+              restoredDraft++;
+            } else if (a.status === 'ended' && !hasWinner) {
+              targetStatus = 'ended'; // 流拍維持
+              restoredEnded++;
+            } else {
+              targetStatus = 'active';
+              newEndTime = sevenDaysLater;
+              restoredActive++;
+            }
+            await db.update(auctions).set({
+              status: targetStatus,
+              endTime: newEndTime,
+              currentPrice: a.startingPrice,
+              highestBidderId: null,
+            }).where(eq(auctions.id, a.id));
+          }
+        }
+
+        // 拆除 session 本身
+        await db.delete(merchantAuctionSessionItems)
+          .where(eq(merchantAuctionSessionItems.sessionId, input.sessionId));
+        await db.delete(merchantAuctionSessions)
+          .where(eq(merchantAuctionSessions.id, input.sessionId));
+
+        (ctx.req as any)?.log?.info?.({
+          sessionId: input.sessionId, title: session.title, merchantUserId: session.merchantUserId,
+          itemCount: items.length, restoredDraft, restoredEnded, restoredActive, bidsCleared,
+          adminId: ctx.user.id,
+        }, 'merchantSession.adminTeardown executed');
+
+        return { ok: true, itemCount: items.length, restoredDraft, restoredEnded, restoredActive, bidsCleared };
+      }),
+
+    /** Admin: 列出所有商戶專場（俾管理後台揀邊個拆除） */
+    adminListAll: adminProcedure
+      .input(z.object({ merchantUserId: z.number().int().positive().optional() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        const { desc, and } = await import('drizzle-orm');
+        const where = input.merchantUserId
+          ? and(eq(merchantAuctionSessions.merchantUserId, input.merchantUserId))
+          : undefined;
+        const rows = await db.select().from(merchantAuctionSessions)
+          .where(where as any)
+          .orderBy(desc(merchantAuctionSessions.createdAt))
+          .limit(200);
+        // 加 merchantName
+        const result = await Promise.all(rows.map(async (s) => {
+          const app = await getMerchantApplicationByUser(s.merchantUserId);
+          return { ...s, merchantName: app?.merchantName || `User#${s.merchantUserId}` };
+        }));
+        return result;
+      }),
   }),
 
   // 商品訂單

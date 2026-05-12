@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useRoute } from "wouter";
+import { Link, useRoute, useLocation } from "wouter";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import { trpc } from "@/lib/trpc";
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { ChevronLeft, Plus, Trash2, Save, Eye, Send, X, Clock, ChevronUp, ChevronDown, Globe, Lock, Pencil } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Save, Eye, Send, X, Clock, ChevronUp, ChevronDown, Globe, Lock, Pencil, ShieldAlert, AlertTriangle } from "lucide-react";
 import { CoverImageUpload } from "@/components/CoverImageUpload";
 import { SessionShareMenu } from "@/components/ShareMenu";
 
@@ -140,6 +140,40 @@ export default function MerchantSessionEdit() {
   // 移除 item 時嘅 3-option dialog（只喺 published session + 該 auction 為 active 時用）
   const [removeTarget, setRemoveTarget] = useState<{ auctionId: number; title: string } | null>(null);
 
+  // Admin 拆除整個專場（3 步確認 + 輸入專場名）
+  const [, navigate] = useLocation();
+  const [teardownOpen, setTeardownOpen] = useState(false);
+  const [teardownTitle, setTeardownTitle] = useState("");
+  const isAdmin = user?.role === "admin";
+  const adminTeardownMut = trpc.merchantSessions.adminTeardown.useMutation({
+    onSuccess: (r: any) => {
+      toast.success(`已拆除專場（${r.itemCount} 件商品已還原 / ${r.bidsCleared} 條出價已清除）`);
+      setTeardownOpen(false); setTeardownTitle("");
+      navigate("/merchant/sessions");
+    },
+    onError: (e) => toast.error(e.message || "拆除失敗"),
+  });
+  async function handleAdminTeardownClick() {
+    if (!session) return;
+    const ok1 = await confirm({
+      title: "拆除整個商戶專場？",
+      description: `將會永久拆除「${session.title}」呢個專場。\n\n• 專場本身會被刪除\n• 所有商品會回到原狀（草稿／流拍／重新拍賣）\n• 所有會員出價／中拍紀錄全部清除\n• 動作無法復原`,
+      tone: "danger",
+      confirmText: "繼續",
+      cancelText: "取消",
+    });
+    if (!ok1) return;
+    const ok2 = await confirm({
+      title: "再次確認",
+      description: `你確定要清除呢場所有競拍紀錄？\n所有出價過嘅會員會睇到 bid history 消失。\n${items.length} 件商品會 reset 為起拍價並回到主站。`,
+      tone: "danger",
+      confirmText: "我明白，繼續",
+      cancelText: "取消",
+    });
+    if (!ok2) return;
+    setTeardownOpen(true);
+  }
+
   const session = data?.session;
   const items = data?.items || [];
   const itemAuctionIds = useMemo(() => new Set(items.map(it => it.auctionId)), [items]);
@@ -259,42 +293,110 @@ export default function MerchantSessionEdit() {
                     一鍵上架 {needPublishCount} 件
                   </Button>
                 )}
+                {isAdmin && (
+                  <Button size="sm" variant="outline" className="border-rose-400 text-rose-700 hover:bg-rose-50 ml-auto"
+                    onClick={handleAdminTeardownClick}
+                    disabled={adminTeardownMut.isPending}
+                  >
+                    <ShieldAlert className="w-3.5 h-3.5 mr-1" />
+                    {adminTeardownMut.isPending ? "處理中..." : "Admin: 拆除整個專場"}
+                  </Button>
+                )}
               </div>
             </>
           ) : (
-            <div className="bg-white p-5 space-y-3">
-              <div><Label>專場名稱</Label><Input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} maxLength={200} /></div>
-              <div><Label>簡介</Label><Textarea rows={3} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} maxLength={2000} /></div>
-              <div>
-                <Label>封面圖</Label>
-                <CoverImageUpload value={editForm.coverImage} onChange={(url) => setEditForm({ ...editForm, coverImage: url })} />
-              </div>
-              <div><Label>結束時間</Label><Input type="datetime-local" value={editForm.endAt} onChange={(e) => setEditForm({ ...editForm, endAt: e.target.value })} /></div>
-              <div>
-                <Label>公開設定</Label>
-                <Select value={editForm.visibility} onValueChange={(v) => setEditForm({ ...editForm, visibility: v as any })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="public">公開</SelectItem>
-                    <SelectItem value="unlisted">半私密（只 URL 入到）</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>加品截止（結束前 N 分鐘內凍結加入新商品，預設 30）</Label>
-                <Input
-                  type="number" min={0} max={1440}
-                  value={editForm.addItemsCutoffMinutes}
-                  onChange={(e) => setEditForm({ ...editForm, addItemsCutoffMinutes: parseInt(e.target.value || "0", 10) })}
-                />
-                <p className="text-[11px] text-gray-500 mt-1">
-                  避免 bidder 漏睇最後一刻加入嘅商品。設 0 = 隨時可加。
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setEditing(false)}>取消</Button>
-                <Button onClick={saveEdit} disabled={updateMut.isPending} className="bg-amber-600 hover:bg-amber-700">
-                  <Save className="w-3.5 h-3.5 mr-1" /> 儲存
+            <div className="bg-white p-5 space-y-5">
+              {/* Section 1: 基本資料 */}
+              <section className="space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b border-amber-100">
+                  <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center"><Pencil className="w-3.5 h-3.5" /></div>
+                  <h3 className="text-sm font-semibold text-amber-900">基本資料</h3>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-600">專場名稱 <span className="text-rose-500">*</span></Label>
+                  <Input
+                    className="mt-1 border-amber-200 focus-visible:ring-amber-400"
+                    placeholder="例：2026 春季精品專場"
+                    value={editForm.title}
+                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                    maxLength={200}
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1 text-right tabular-nums">{editForm.title.length}/200</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-600">簡介</Label>
+                  <Textarea
+                    className="mt-1 border-amber-200 focus-visible:ring-amber-400"
+                    placeholder="一段簡單介紹，會喺公開頁顯示"
+                    rows={3}
+                    value={editForm.description}
+                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    maxLength={2000}
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1 text-right tabular-nums">{editForm.description.length}/2000</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-600">封面圖</Label>
+                  <div className="mt-1">
+                    <CoverImageUpload value={editForm.coverImage} onChange={(url) => setEditForm({ ...editForm, coverImage: url })} />
+                  </div>
+                  <p className="text-[10px] text-gray-500 mt-1">建議用 1200×630 橫向圖，FB／WhatsApp 分享會用呢張做預覽</p>
+                </div>
+              </section>
+
+              {/* Section 2: 顯示設定 */}
+              <section className="space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b border-amber-100">
+                  <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center"><Globe className="w-3.5 h-3.5" /></div>
+                  <h3 className="text-sm font-semibold text-amber-900">顯示設定</h3>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-600">公開設定</Label>
+                  <Select value={editForm.visibility} onValueChange={(v) => setEditForm({ ...editForm, visibility: v as any })}>
+                    <SelectTrigger className="mt-1 border-amber-200 focus:ring-amber-400"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="public">公開（搜尋／分享都搵到）</SelectItem>
+                      <SelectItem value="unlisted">半私密（只有知道 URL 嘅人入到）</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </section>
+
+              {/* Section 3: 時間設定 */}
+              <section className="space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b border-amber-100">
+                  <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center"><Clock className="w-3.5 h-3.5" /></div>
+                  <h3 className="text-sm font-semibold text-amber-900">時間設定</h3>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-600">結束時間 <span className="text-rose-500">*</span></Label>
+                  <Input
+                    type="datetime-local"
+                    className="mt-1 border-amber-200 focus-visible:ring-amber-400"
+                    value={editForm.endAt}
+                    onChange={(e) => setEditForm({ ...editForm, endAt: e.target.value })}
+                  />
+                  <p className="text-[10px] text-gray-500 mt-1">所有商品 endTime 會自動同步到呢個時間</p>
+                </div>
+                <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-3">
+                  <Label className="text-xs text-amber-900 font-semibold">加品截止（結束前 N 分鐘內凍結加入新商品）</Label>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <Input
+                      type="number" min={0} max={1440}
+                      className="border-amber-300 focus-visible:ring-amber-400 w-28"
+                      value={editForm.addItemsCutoffMinutes}
+                      onChange={(e) => setEditForm({ ...editForm, addItemsCutoffMinutes: parseInt(e.target.value || "0", 10) })}
+                    />
+                    <span className="text-xs text-amber-800">分鐘</span>
+                  </div>
+                  <p className="text-[11px] text-amber-700 mt-1.5">避免 bidder 漏睇最後一刻加入嘅商品。設 0 = 隨時可加，預設 30。</p>
+                </div>
+              </section>
+
+              <div className="flex gap-2 pt-3 border-t border-amber-100">
+                <Button variant="outline" onClick={() => setEditing(false)} className="flex-1 sm:flex-initial">取消</Button>
+                <Button onClick={saveEdit} disabled={updateMut.isPending} className="bg-amber-600 hover:bg-amber-700 flex-1 sm:flex-initial">
+                  <Save className="w-3.5 h-3.5 mr-1" /> {updateMut.isPending ? "儲存中..." : "儲存修改"}
                 </Button>
               </div>
             </div>
@@ -478,6 +580,48 @@ export default function MerchantSessionEdit() {
                 setRemoveTarget(null);
               }}>
               繼續喺主站賣
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin: 拆除確認 dialog（第 3 步：輸入專場名） */}
+      <Dialog open={teardownOpen} onOpenChange={(o) => { if (!o) { setTeardownOpen(false); setTeardownTitle(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-rose-700 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" /> 最後確認：拆除整個專場
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 text-rose-800 text-xs leading-relaxed">
+              呢個動作會：
+              <ul className="list-disc ml-4 mt-1 space-y-0.5">
+                <li>刪除「{session?.title}」呢個專場 + 所有 {items.length} 件商品連結</li>
+                <li>清除所有出價／中拍紀錄（bids / proxyBids）</li>
+                <li>商品：草稿回草稿、流拍維持流拍、其他全部 reset 為起拍價，回主站拍賣中（endTime +7 日）</li>
+                <li><b>無法復原</b></li>
+              </ul>
+            </div>
+            <div>
+              <Label className="text-xs text-gray-700">請輸入專場完整名稱「<span className="font-semibold text-rose-700">{session?.title}</span>」確認：</Label>
+              <Input
+                className="mt-1.5 border-rose-300 focus-visible:ring-rose-400"
+                value={teardownTitle}
+                onChange={(e) => setTeardownTitle(e.target.value)}
+                placeholder={session?.title}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setTeardownOpen(false); setTeardownTitle(""); }}>取消</Button>
+            <Button
+              className="bg-rose-600 hover:bg-rose-700"
+              disabled={teardownTitle.trim() !== (session?.title || "").trim() || adminTeardownMut.isPending}
+              onClick={() => adminTeardownMut.mutate({ sessionId, confirmTitle: teardownTitle.trim() })}
+            >
+              {adminTeardownMut.isPending ? "拆除中..." : "確認拆除"}
             </Button>
           </DialogFooter>
         </DialogContent>
