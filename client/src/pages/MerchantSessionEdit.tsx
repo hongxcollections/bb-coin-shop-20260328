@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
 import { ChevronLeft, Plus, Trash2, Save, Eye, Send, X, Clock, ChevronUp, ChevronDown } from "lucide-react";
+import { CoverImageUpload } from "@/components/CoverImageUpload";
+import { SessionShareMenu } from "@/components/ShareMenu";
 
 function fmtDateTimeLocal(d: Date) {
   const pad = (n: number) => n.toString().padStart(2, "0");
@@ -229,6 +231,14 @@ export default function MerchantSessionEdit() {
                     <Button size="sm" variant="outline"><Eye className="w-3.5 h-3.5 mr-1" /> 查看公開頁</Button>
                   </a>
                 )}
+                {session.status !== "draft" && user?.id && (
+                  <SessionShareMenu
+                    merchantUserId={user.id}
+                    slug={session.slug}
+                    title={session.title}
+                    endTime={session.endAt}
+                  />
+                )}
                 {session.status === "draft" && (
                   <Button size="sm" className="bg-green-600 hover:bg-green-700"
                     onClick={() => publishMut.mutate({ id: sessionId })}>
@@ -250,7 +260,10 @@ export default function MerchantSessionEdit() {
             <div className="space-y-3">
               <div><Label>專場名稱</Label><Input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} maxLength={200} /></div>
               <div><Label>簡介</Label><Textarea rows={3} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} maxLength={2000} /></div>
-              <div><Label>封面圖 URL</Label><Input value={editForm.coverImage} onChange={(e) => setEditForm({ ...editForm, coverImage: e.target.value })} /></div>
+              <div>
+                <Label>封面圖</Label>
+                <CoverImageUpload value={editForm.coverImage} onChange={(url) => setEditForm({ ...editForm, coverImage: url })} />
+              </div>
               <div><Label>結束時間</Label><Input type="datetime-local" value={editForm.endAt} onChange={(e) => setEditForm({ ...editForm, endAt: e.target.value })} /></div>
               <div>
                 <Label>公開設定</Label>

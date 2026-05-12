@@ -12,7 +12,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { Plus, Calendar, Eye, Trash2, Send, CheckCircle2, ChevronLeft, Lock, Globe, Pencil, Copy } from "lucide-react";
+import { Plus, Calendar, Eye, Trash2, Send, CheckCircle2, ChevronLeft, Lock, Globe, Pencil } from "lucide-react";
+import { CoverImageUpload } from "@/components/CoverImageUpload";
+import { SessionShareMenu } from "@/components/ShareMenu";
 
 function formatDateTimeLocal(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0");
@@ -145,14 +147,13 @@ export default function MerchantSessions() {
                       <Button size="sm" variant="outline"><Eye className="w-3.5 h-3.5 mr-1" /> 查看公開頁</Button>
                     </a>
                   )}
-                  {s.status !== "draft" && (
-                    <Button size="sm" variant="outline" onClick={async () => {
-                      const url = `${window.location.origin}/s/${user?.id}/${s.slug}`;
-                      try { await navigator.clipboard.writeText(url); toast.success("URL 已複製"); }
-                      catch { toast.error("複製失敗"); }
-                    }}>
-                      <Copy className="w-3.5 h-3.5 mr-1" /> 複製 URL
-                    </Button>
+                  {s.status !== "draft" && user?.id && (
+                    <SessionShareMenu
+                      merchantUserId={user.id}
+                      slug={s.slug}
+                      title={s.title}
+                      endTime={s.endAt}
+                    />
                   )}
                   {s.status === "draft" && (
                     <Button size="sm" className="bg-green-600 hover:bg-green-700"
@@ -210,9 +211,9 @@ export default function MerchantSessions() {
               <Textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} maxLength={2000} />
             </div>
             <div>
-              <Label>封面圖 URL（選填）</Label>
-              <Input value={form.coverImage} onChange={(e) => setForm({ ...form, coverImage: e.target.value })} placeholder="https://... (建議 1200×630)" />
-              <p className="text-xs text-gray-400 mt-1">用於 Facebook 分享預覽</p>
+              <Label>封面圖（選填）</Label>
+              <CoverImageUpload value={form.coverImage} onChange={(url) => setForm({ ...form, coverImage: url })} />
+              <p className="text-xs text-gray-400 mt-1">用於 Facebook 分享預覽，建議 1200×630</p>
             </div>
             <div>
               <Label>結束日期時間 *</Label>

@@ -3,11 +3,10 @@ import { Link, useRoute } from "wouter";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import { Badge } from "@/components/ui/badge";
-import { ShareMenu } from "@/components/ShareMenu";
+import { ShareMenu, SessionShareMenu } from "@/components/ShareMenu";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { toast } from "sonner";
-import { Calendar, Clock, Package, Users, Link2, Store } from "lucide-react";
+import { Calendar, Clock, Package, Users, Store } from "lucide-react";
 
 function getCurrencySymbol(c?: string) {
   switch (c) {
@@ -108,18 +107,6 @@ export default function MerchantSessionPublic() {
     return { total: auctions.length, active, ended, myLeading };
   }, [auctions, user?.id]);
 
-  const handleCopyUrl = async () => {
-    if (!session) return;
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    const msg = `🎪 ${session.title}\n${merchantName} 拍賣專場\n\n${url}`;
-    try {
-      await navigator.clipboard.writeText(msg);
-      toast.success(`已複製：${url}`, { duration: 4000 });
-    } catch {
-      toast.error("複製失敗，請長按連結手動複製");
-    }
-  };
-
   if (isLoading) {
     return <div className="min-h-screen bg-amber-50/30"><Header /><div className="text-center py-12">載入中...</div><BottomNav /></div>;
   }
@@ -179,14 +166,15 @@ export default function MerchantSessionPublic() {
                 <Package className="w-4 h-4" /> {stats.total} 件
               </div>
             </div>
-            {/* Copy URL action */}
-            <button
-              onClick={handleCopyUrl}
-              className="inline-flex items-center gap-1.5 bg-white text-amber-800 hover:bg-amber-50 text-xs font-bold px-3 py-1.5 rounded-full transition shadow-sm"
-            >
-              <Link2 className="w-3.5 h-3.5" />
-              複製專場連結
-            </button>
+            {/* Share action */}
+            <SessionShareMenu
+              merchantUserId={merchantUserId}
+              slug={slug}
+              title={session.title}
+              merchantName={merchantName}
+              endTime={session.endAt}
+              variant="light"
+            />
           </div>
         </div>
 
