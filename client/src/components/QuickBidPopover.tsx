@@ -132,7 +132,7 @@ export function QuickBidPopover({
       <PopoverContent
         align="end"
         sideOffset={6}
-        className="w-64 p-3 rounded-2xl border-amber-200 shadow-xl"
+        className="w-64 p-3 rounded-2xl border-orange-300 shadow-xl bg-gradient-to-br from-orange-50 to-amber-100"
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
         onPointerDown={(e) => e.stopPropagation()}
       >
