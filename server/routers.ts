@@ -3990,6 +3990,7 @@ export const appRouter = router({
         coverImage: z.string().url().optional(),
         endAt: z.date(),
         visibility: z.enum(['public', 'unlisted']).default('public'),
+        addItemsCutoffMinutes: z.number().int().min(0).max(1440).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const app = await getMerchantApplicationByUser(ctx.user.id);
@@ -4010,6 +4011,7 @@ export const appRouter = router({
           endAt: input.endAt,
           visibility: input.visibility,
           status: 'draft',
+          ...(input.addItemsCutoffMinutes !== undefined ? { addItemsCutoffMinutes: input.addItemsCutoffMinutes } : {}),
         });
         return { id: result.insertId, slug };
       }),

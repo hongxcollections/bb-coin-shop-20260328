@@ -12,11 +12,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { Plus, Calendar, Eye, Trash2, Send, CheckCircle2, ChevronLeft, Lock, Globe, Pencil } from "lucide-react";
+import { Plus, Calendar, Eye, Trash2, Send, ChevronLeft, Lock, Globe, Pencil } from "lucide-react";
 import { CoverImageUpload } from "@/components/CoverImageUpload";
 import { SessionShareMenu } from "@/components/ShareMenu";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { HelpCircle } from "lucide-react";
 
 function formatDateTimeLocal(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0");
@@ -39,6 +37,7 @@ export default function MerchantSessions() {
     coverImage: "",
     endAt: formatDateTimeLocal(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
     visibility: "public" as "public" | "unlisted",
+    addItemsCutoffMinutes: 30,
   });
 
   const { data: sessions, isLoading, refetch } = trpc.merchantSessions.myList.useQuery(undefined, {
@@ -61,10 +60,6 @@ export default function MerchantSessions() {
     },
     onError: (e) => toast.error(e.message || "發佈失敗"),
   });
-  const endMut = trpc.merchantSessions.end.useMutation({
-    onSuccess: () => { toast.success("已結束"); refetch(); },
-    onError: (e) => toast.error(e.message || "操作失敗"),
-  });
   const deleteMut = trpc.merchantSessions.delete.useMutation({
     onSuccess: () => { toast.success("已刪除"); refetch(); },
     onError: (e) => toast.error(e.message || "刪除失敗"),
@@ -82,6 +77,7 @@ export default function MerchantSessions() {
       coverImage: form.coverImage.trim() || undefined,
       endAt,
       visibility: form.visibility,
+      addItemsCutoffMinutes: form.addItemsCutoffMinutes,
     });
   }
 
@@ -170,32 +166,6 @@ export default function MerchantSessions() {
                       <Send className="w-3.5 h-3.5 mr-1" /> 發佈
                     </Button>
                   )}
-                  {s.status === "published" && (
-                    <TooltipProvider delayDuration={150}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button size="sm" variant="outline" className="text-orange-700 border-orange-300"
-                            onClick={async () => {
-                              const ok = await confirm({
-                                title: "結束專場（封盤）",
-                                description: "「結束」即係封盤：你之後唔可以再加入或移除商品，亦唔可以再改場資料。\n\n但場入面嘅商品仍然會繼續拍賣到自己嘅結束時間，買家照樣可以出價。\n\n確定要封盤？",
-                                confirmText: "確定封盤",
-                                cancelText: "取消",
-                              });
-                              if (ok) endMut.mutate({ id: s.id });
-                            }}
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> 結束
-                            <HelpCircle className="w-3 h-3 ml-1 opacity-60" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-                          封盤：之後唔可以再加品 / 拆品 / 改場資料。
-                          場內商品照常拍賣到自己嘅結束時間。
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
                   {(s.status === "draft" || s.itemCount === 0) && (
                     <Button size="sm" variant="outline" className="text-rose-700 border-rose-300"
                       onClick={async () => {
@@ -246,6 +216,17 @@ export default function MerchantSessions() {
                   <SelectItem value="unlisted">半私密 — 只可以由直接 URL 入</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>加品截止（結束前 N 分鐘內凍結加入新商品）</Label>
+              <Input
+                type="number" min={0} max={1440}
+                value={form.addItemsCutoffMinutes}
+                onChange={(e) => setForm({ ...form, addItemsCutoffMinutes: parseInt(e.target.value || "0", 10) })}
+              />
+              <p className="text-[11px] text-gray-500 mt-1">
+                預設 30 分鐘。避免 bidder 漏睇最後一刻新加入嘅商品。設 0 = 隨時可加。事後可以喺專場內再改。
+              </p>
             </div>
           </div>
           <DialogFooter>
