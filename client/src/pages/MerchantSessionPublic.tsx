@@ -86,7 +86,13 @@ export default function MerchantSessionPublic() {
 
   const { data, isLoading, error } = trpc.merchantSessions.getPublic.useQuery(
     { merchantUserId, slug },
-    { enabled: merchantUserId > 0 && !!slug, retry: false }
+    {
+      enabled: merchantUserId > 0 && !!slug,
+      retry: false,
+      // 每 15 秒 refetch，價錢／最高出價者實時更新
+      refetchInterval: 15000,
+      refetchOnWindowFocus: true,
+    }
   );
 
   const session = data?.session;

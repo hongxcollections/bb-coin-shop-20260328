@@ -46,7 +46,13 @@ export default function MerchantSessionEdit() {
   const sessionId = params ? parseInt(params.id, 10) : 0;
 
   const { data, isLoading, refetch } = trpc.merchantSessions.getMine.useQuery(
-    { id: sessionId }, { enabled: sessionId > 0 }
+    { id: sessionId },
+    {
+      enabled: sessionId > 0,
+      // 每 15 秒 refetch，價錢／最高出價者實時更新
+      refetchInterval: 15000,
+      refetchOnWindowFocus: true,
+    }
   );
   const { data: myEligible } = trpc.merchantSessions.myEligibleAuctions.useQuery(undefined, { enabled: !!user });
 
@@ -278,8 +284,13 @@ export default function MerchantSessionEdit() {
                   {!isLocked && (
                     <Button size="sm" variant="ghost" className="text-rose-600 shrink-0"
                       onClick={async () => {
+                        // 已有人出價 → 直接拒絕拆除
+                        if (a.highestBidderId) {
+                          toast.error("此商品已有人出價，不得從專場拆除");
+                          return;
+                        }
                         // Published session + auction 已 active → 彈 3-option dialog
-                        if (isPublished && a.status === "active" && !a.highestBidderId) {
+                        if (isPublished && a.status === "active") {
                           setRemoveTarget({ auctionId: it.auctionId, title: a.title });
                           return;
                         }

@@ -3959,9 +3959,20 @@ export const appRouter = router({
         let auctionsRows: any[] = [];
         if (items.length > 0) {
           const ids = items.map(it => it.auctionId);
-          auctionsRows = await db.select().from(auctions).where(inArray(auctions.id, ids));
-          auctionsRows = await Promise.all(auctionsRows.map(async (a: any) => ({
+          // 用 raw SQL JOIN users + bidCount subquery，確保 currentPrice / highestBidderName / bidCount fresh
+          const idsCsv = ids.join(',');
+          const rawRows: any = await db.execute(sql.raw(`
+            SELECT a.*, u.name AS highestBidderName,
+              (SELECT COUNT(*) FROM bids WHERE bids.auctionId = a.id) AS bidCount,
+              COALESCE((SELECT isAnonymous FROM bids WHERE auctionId = a.id AND userId = a.highestBidderId ORDER BY id DESC LIMIT 1), 0) AS highestBidderIsAnonymous
+            FROM auctions a
+            LEFT JOIN users u ON u.id = a.highestBidderId
+            WHERE a.id IN (${idsCsv})
+          `));
+          const rows: any[] = Array.isArray(rawRows) ? (rawRows[0] as any[]) : [];
+          auctionsRows = await Promise.all(rows.map(async (a: any) => ({
             ...a,
+            highestBidderName: a.highestBidderIsAnonymous === 1 ? '🕵️ 匿名買家' : (a.highestBidderName ?? null),
             images: await getAuctionImages(a.id),
           })));
         }
@@ -4192,6 +4203,11 @@ export const appRouter = router({
         if (session.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的專場' });
         }
+        // 已有人出價嘅 auction 唔可以拆除（保護 bidder 權益）
+        const [auc0] = await db.select().from(auctions).where(eq(auctions.id, input.auctionId)).limit(1);
+        if (auc0 && auc0.highestBidderId) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '此商品已有人出價，不得從專場拆除。如要結束，請等 endTime 自然結算。' });
+        }
         await db.delete(merchantAuctionSessionItems).where(and(
           eq(merchantAuctionSessionItems.sessionId, input.sessionId),
           eq(merchantAuctionSessionItems.auctionId, input.auctionId),
@@ -4289,19 +4305,22 @@ export const appRouter = router({
         let auctionsRows: any[] = [];
         if (items.length > 0) {
           const ids = items.map(it => it.auctionId);
-          auctionsRows = await db.select().from(auctions).where(inArray(auctions.id, ids));
-          // Enrich with images + handle anonymous bidder display
-          auctionsRows = await Promise.all(auctionsRows.map(async (a: any) => {
-            let highestBidderName = a.highestBidderName ?? null;
-            if (a.highestBidderIsAnonymous === 1) {
-              highestBidderName = '🕵️ 匿名買家';
-            }
-            return {
-              ...a,
-              highestBidderName,
-              images: await getAuctionImages(a.id),
-            };
-          }));
+          // JOIN users + bidCount subquery，攞 fresh currentPrice / highestBidderName / bidCount
+          const idsCsv = ids.join(',');
+          const rawRows: any = await db.execute(sql.raw(`
+            SELECT a.*, u.name AS highestBidderName,
+              (SELECT COUNT(*) FROM bids WHERE bids.auctionId = a.id) AS bidCount,
+              COALESCE((SELECT isAnonymous FROM bids WHERE auctionId = a.id AND userId = a.highestBidderId ORDER BY id DESC LIMIT 1), 0) AS highestBidderIsAnonymous
+            FROM auctions a
+            LEFT JOIN users u ON u.id = a.highestBidderId
+            WHERE a.id IN (${idsCsv})
+          `));
+          const rows: any[] = Array.isArray(rawRows) ? (rawRows[0] as any[]) : [];
+          auctionsRows = await Promise.all(rows.map(async (a: any) => ({
+            ...a,
+            highestBidderName: a.highestBidderIsAnonymous === 1 ? '🕵️ 匿名買家' : (a.highestBidderName ?? null),
+            images: await getAuctionImages(a.id),
+          })));
         }
         // 攞 merchant 名（從 merchantApplications）
         const merchantApp = await getMerchantApplicationByUser(input.merchantUserId);
