@@ -5057,6 +5057,16 @@ export const appRouter = router({
             const origin = process.env.PUBLIC_BASE_URL || 'https://hongxcollections.com';
             await Promise.all(expiredIds.map((id: number) => checkAndUpdateAuctionStatus(id, origin)));
           }
+          // 🔴 安全網：對「已 ended 但 auctionOrderStatus 仍 NULL」嘅孤兒 row 做即時 backfill
+          // （checkAndUpdateAuctionStatus 只處理 active→ended；歷史孤兒只能靠 bootstrap，
+          //   依家加埋呢層 self-heal 確保唔使等 server restart）
+          const { getRawPool } = await import('./db');
+          const pool = await getRawPool();
+          await pool.execute(
+            `UPDATE auctions SET auctionOrderStatus='pending'
+             WHERE createdBy=? AND status='ended' AND highestBidderId IS NOT NULL AND auctionOrderStatus IS NULL`,
+            [ctx.user.id]
+          );
         } catch (e) {
           console.warn('[auctionOrders.myMerchant] lazy expiry failed:', e);
         }
