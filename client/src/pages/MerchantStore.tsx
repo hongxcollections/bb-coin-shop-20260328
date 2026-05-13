@@ -631,6 +631,10 @@ export default function MerchantStore() {
                                   hasExistingBid={!!a.highestBidderId}
                                   isEnded={isEnded}
                                   createdBy={(a as { createdBy?: number }).createdBy}
+                                  endTime={a.endTime}
+                                  antiSnipeEnabled={(a as { antiSnipeEnabled?: number }).antiSnipeEnabled}
+                                  antiSnipeMinutes={(a as { antiSnipeMinutes?: number }).antiSnipeMinutes}
+                                  extendMinutes={(a as { extendMinutes?: number }).extendMinutes}
                                 />
                               </div>
                             </div>

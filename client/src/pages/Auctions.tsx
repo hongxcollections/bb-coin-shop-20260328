@@ -583,6 +583,10 @@ export default function Auctions() {
                               hasExistingBid={!!(auction as { highestBidderId?: number | null }).highestBidderId}
                               isEnded={isEnded}
                               createdBy={(auction as { createdBy?: number }).createdBy}
+                              endTime={auction.endTime}
+                              antiSnipeEnabled={(auction as { antiSnipeEnabled?: number }).antiSnipeEnabled}
+                              antiSnipeMinutes={(auction as { antiSnipeMinutes?: number }).antiSnipeMinutes}
+                              extendMinutes={(auction as { extendMinutes?: number }).extendMinutes}
                             />
                           </div>
                         </div>

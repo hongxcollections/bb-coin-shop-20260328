@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Zap, X } from "lucide-react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -16,6 +16,30 @@ interface QuickBidPopoverProps {
   hasExistingBid: boolean;
   isEnded: boolean;
   createdBy?: number;
+  endTime?: Date | string | number;
+  antiSnipeEnabled?: number | null;
+  antiSnipeMinutes?: number | null;
+  extendMinutes?: number | null;
+}
+
+function MiniCountdown({ endTime }: { endTime: Date }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const diff = endTime.getTime() - now.getTime();
+  if (diff <= 0) return <span className="font-semibold text-red-600">已結束</span>;
+  const days = Math.floor(diff / 86400000);
+  const hrs = Math.floor((diff % 86400000) / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  const secs = Math.floor((diff % 60000) / 1000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    <span className="font-semibold text-amber-700 tabular-nums">
+      {days > 0 ? `${days}日 ` : ""}{pad(hrs)}:{pad(mins)}:{pad(secs)}
+    </span>
+  );
 }
 
 export function QuickBidPopover({
@@ -28,6 +52,10 @@ export function QuickBidPopover({
   hasExistingBid,
   isEnded,
   createdBy,
+  endTime,
+  antiSnipeEnabled,
+  antiSnipeMinutes,
+  extendMinutes,
 }: QuickBidPopoverProps) {
   const { user, isAuthenticated } = useAuth();
   const utils = trpc.useUtils();
@@ -162,6 +190,29 @@ export function QuickBidPopover({
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
+          {endTime && (() => {
+            const asEnabled = (antiSnipeEnabled ?? 1) === 1 && (antiSnipeMinutes ?? 3) > 0;
+            return (
+              <div style={{ marginTop: 5, marginBottom: 5 }} className="!mt-[5px] !mb-[5px] space-y-1 text-[11px] leading-snug">
+                <div className="flex items-center gap-1.5" style={{ color: "var(--popup-text)" }}>
+                  <span className="text-amber-600">⏰</span>
+                  <span className="text-muted-foreground">倒數</span>
+                  <MiniCountdown endTime={new Date(endTime)} />
+                </div>
+                {asEnabled ? (
+                  <div className="flex items-start gap-1.5 text-amber-700">
+                    <span className="leading-none mt-0.5">🛡️</span>
+                    <span>結束前 {antiSnipeMinutes ?? 3} 分鐘內有出價，自動延長 {extendMinutes ?? 3} 分鐘</span>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-1.5 text-gray-600">
+                    <span className="leading-none mt-0.5">⏱️</span>
+                    <span>出價沒有加時，到結束時間即停止出價</span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           <div className="text-[11px]" style={{ color: "var(--popup-text)" }}>
             現價 <span className="font-semibold">{symbol}{currentPrice.toLocaleString()}</span>
             <span className="mx-1">·</span>

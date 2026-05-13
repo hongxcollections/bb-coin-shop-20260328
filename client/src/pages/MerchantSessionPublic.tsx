@@ -365,6 +365,10 @@ export default function MerchantSessionPublic() {
                               hasExistingBid={!!a.highestBidderId}
                               isEnded={isItemEnded}
                               createdBy={a.createdBy}
+                              endTime={auction.endTime}
+                              antiSnipeEnabled={(a as { antiSnipeEnabled?: number }).antiSnipeEnabled}
+                              antiSnipeMinutes={(a as { antiSnipeMinutes?: number }).antiSnipeMinutes}
+                              extendMinutes={(a as { extendMinutes?: number }).extendMinutes}
                             />
                           </div>
                         </div>
