@@ -5,7 +5,8 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, TrendingUp, Trophy, ChevronDown, ChevronUp, ShoppingBag, Trash2, Tag, RotateCcw } from "lucide-react";
+import { Clock, TrendingUp, Trophy, ChevronDown, ChevronUp, ShoppingBag, Trash2, Tag, RotateCcw, MessageCircle } from "lucide-react";
+import { buildWhatsAppUrl } from "@/lib/utils";
 import MyOffersDialog from "@/components/MyOffersDialog";
 import { toast } from "sonner";
 import { ShareMenu } from "@/components/ShareMenu";
@@ -115,6 +116,8 @@ type ProductOrderItem = {
   confirmedAt?: string | null;
   cancelledAt?: string | null;
   merchantName?: string | null;
+  merchantWhatsapp?: string | null;
+  merchantFacebook?: string | null;
   cancelRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
   cancelRequestReason?: string | null;
   cancelRequestedAt?: string | null;
@@ -169,7 +172,12 @@ function ProductOrderCard({ order, onCancel, isHidden = false }: { order: Produc
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-medium truncate leading-snug">{order.title}</p>
+            <Link
+              href={`/merchant-products/${order.productId}?from=orders`}
+              className="text-sm font-medium truncate leading-snug text-gray-800 hover:text-amber-600 hover:underline transition-colors min-w-0"
+            >
+              {order.title}
+            </Link>
             <p className="text-sm font-bold text-amber-700 flex-shrink-0">{order.currency}${displayPrice.toLocaleString()}</p>
           </div>
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -189,6 +197,59 @@ function ProductOrderCard({ order, onCancel, isHidden = false }: { order: Produc
           )}
           {order.cancelReason && (
             <p className="text-xs text-red-400 mt-1">取消原因：{order.cancelReason}</p>
+          )}
+          {(order.merchantWhatsapp || order.merchantFacebook) && (
+            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+              <span className="text-[0.65rem] text-muted-foreground">聯絡商戶：</span>
+              {order.merchantWhatsapp && (() => {
+                const waUrl = buildWhatsAppUrl(
+                  order.merchantWhatsapp,
+                  `您好，我喺 hongxcollections 落咗訂單「${order.title}」（訂單 #${order.id}），想查詢付款及交收安排，謝謝！`
+                );
+                if (!waUrl) return null;
+                return (
+                  <a
+                    href={waUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[0.65rem] px-1.5 py-0.5 rounded-full border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+                  >
+                    <MessageCircle className="w-3 h-3" />WhatsApp
+                  </a>
+                );
+              })()}
+              {order.merchantFacebook && (() => {
+                const fbRaw = order.merchantFacebook.trim();
+                const messengerLink = fbRaw.startsWith("http") ? fbRaw : `https://m.me/${fbRaw}`;
+                const msg = `您好，我喺 hongxcollections 落咗訂單「${order.title}」（訂單 #${order.id}），想查詢付款及交收安排，謝謝！`;
+                const handleClick = async (e: React.MouseEvent) => {
+                  e.preventDefault();
+                  try {
+                    await navigator.clipboard.writeText(msg);
+                    toast.success("訊息已複製，請喺 Messenger 貼上");
+                  } catch {
+                    const ta = document.createElement('textarea');
+                    ta.value = msg;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    try { document.execCommand('copy'); toast.success("訊息已複製，請喺 Messenger 貼上"); } catch {}
+                    document.body.removeChild(ta);
+                  }
+                  window.open(messengerLink, "_blank", "noopener,noreferrer");
+                };
+                return (
+                  <a
+                    href={messengerLink}
+                    onClick={handleClick}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[0.65rem] px-1.5 py-0.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                  >
+                    <MessageCircle className="w-3 h-3" />Messenger
+                  </a>
+                );
+              })()}
+            </div>
           )}
         </div>
       </div>

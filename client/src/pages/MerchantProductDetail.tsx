@@ -294,9 +294,14 @@ export default function MerchantProductDetail() {
 
       <div className="container max-w-lg mx-auto pt-4 space-y-4">
         {/* 返回 */}
-        <button onClick={() => history.back()} className="flex items-center gap-1 text-sm text-gray-500 hover:text-amber-600 transition-colors">
-          <ChevronLeft className="w-4 h-4" />返回
-        </button>
+        {(() => {
+          const fromOrders = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('from') === 'orders';
+          return (
+            <button onClick={() => history.back()} className="flex items-center gap-1 text-sm text-gray-500 hover:text-amber-600 transition-colors">
+              <ChevronLeft className="w-4 h-4" />{fromOrders ? '返回訂單管理' : '返回'}
+            </button>
+          );
+        })()}
 
         {isLoading ? (
           <div className="bg-white rounded-2xl border border-amber-100 p-5 animate-pulse space-y-3">

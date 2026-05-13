@@ -5089,7 +5089,7 @@ export async function getProductOrdersByBuyer(buyerId: number): Promise<any[]> {
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
   const rows = await db.execute(sql`
-    SELECT o.*, ma.merchantName
+    SELECT o.*, ma.merchantName, ma.whatsapp AS merchantWhatsapp, ma.facebook AS merchantFacebook
     FROM productOrders o
     LEFT JOIN merchantApplications ma ON ma.userId = o.merchantId AND ma.status = 'approved'
     WHERE o.buyerId = ${buyerId} AND COALESCE(o.hiddenForBuyer, 0) = 0
