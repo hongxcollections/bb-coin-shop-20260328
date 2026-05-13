@@ -60,6 +60,8 @@ export function QuickBidPopover({
       setCustomAmount("");
       utils.auctions.list.invalidate();
       utils.auctions.detail.invalidate({ id: auctionId });
+      utils.merchants.getMerchantAuctions.invalidate();
+      utils.merchantSessions.getPublic.invalidate();
     },
     onError: (err) => {
       const msg = err.message || "出價失敗";
@@ -74,6 +76,8 @@ export function QuickBidPopover({
       // 同步價格
       utils.auctions.list.invalidate();
       utils.auctions.detail.invalidate({ id: auctionId });
+      utils.merchants.getMerchantAuctions.invalidate();
+      utils.merchantSessions.getPublic.invalidate();
     },
   });
 
