@@ -737,7 +737,7 @@ export default function AuctionDetail() {
                 </div>
 
                 {/* Countdown + 問商戶 icon */}
-                <div className="flex items-center mb-4" style={{ gap: "20px" }}>
+                <div className="flex items-center mb-2" style={{ gap: "20px" }}>
                   <div className="inline-flex flex-col" style={{ gap: "3px" }}>
                     <CountdownTimer endTime={new Date(auction.endTime)} />
                     <span className="text-[0.68rem] text-muted-foreground leading-tight self-end">
@@ -755,6 +755,40 @@ export default function AuctionDetail() {
                     </div>
                   )}
                 </div>
+
+                {/* 反狙擊延時提示 */}
+                {(() => {
+                  const a = auction as typeof auction & {
+                    antiSnipeEnabled?: number | null;
+                    antiSnipeMinutes?: number | null;
+                    extendMinutes?: number | null;
+                  };
+                  const enabled = (a.antiSnipeEnabled ?? 1) === 1 && (a.antiSnipeMinutes ?? 3) > 0;
+                  if (enabled) {
+                    return (
+                      <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-md bg-amber-50 border border-amber-200">
+                        <span className="text-base leading-none mt-0.5">🛡️</span>
+                        <div className="text-xs leading-snug">
+                          <span className="font-semibold text-amber-700">反狙擊延時已啟用</span>
+                          <span className="text-amber-700/90">
+                            ：結束前 {a.antiSnipeMinutes ?? 3} 分鐘內有出價，自動延長 {a.extendMinutes ?? 3} 分鐘
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-md bg-gray-100 border border-gray-300">
+                      <span className="text-base leading-none mt-0.5">⏱️</span>
+                      <div className="text-xs leading-snug">
+                        <span className="font-semibold text-gray-700">出價沒有加時</span>
+                        <span className="text-gray-600">
+                          ：到結束時間即停止出價，無延時保護
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Ended Notice */}
                 {!isActive && (
