@@ -769,10 +769,10 @@ export default function AuctionDetail() {
                       <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-md bg-amber-50 border border-amber-200">
                         <span className="text-base leading-none mt-0.5">🛡️</span>
                         <div className="text-xs leading-snug">
-                          <span className="font-semibold text-amber-700">反狙擊延時已啟用</span>
-                          <span className="text-amber-700/90">
-                            ：結束前 {a.antiSnipeMinutes ?? 3} 分鐘內有出價，自動延長 {a.extendMinutes ?? 3} 分鐘
-                          </span>
+                          <div className="font-semibold text-amber-700">反狙擊延時已啟用</div>
+                          <div className="text-amber-700/90 mt-0.5 pl-1">
+                            結束前 {a.antiSnipeMinutes ?? 3} 分鐘內有出價，自動延長 {a.extendMinutes ?? 3} 分鐘
+                          </div>
                         </div>
                       </div>
                     );
@@ -781,10 +781,10 @@ export default function AuctionDetail() {
                     <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-md bg-gray-100 border border-gray-300">
                       <span className="text-base leading-none mt-0.5">⏱️</span>
                       <div className="text-xs leading-snug">
-                        <span className="font-semibold text-gray-700">出價沒有加時</span>
-                        <span className="text-gray-600">
-                          ：到結束時間即停止出價，無延時保護
-                        </span>
+                        <div className="font-semibold text-gray-700">出價沒有加時</div>
+                        <div className="text-gray-600 mt-0.5 pl-1">
+                          到結束時間即停止出價，無延時保護
+                        </div>
                       </div>
                     </div>
                   );
