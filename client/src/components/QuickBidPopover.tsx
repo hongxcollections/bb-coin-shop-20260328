@@ -29,14 +29,14 @@ function MiniCountdown({ endTime }: { endTime: Date }) {
     return () => clearInterval(t);
   }, []);
   const diff = endTime.getTime() - now.getTime();
-  if (diff <= 0) return <span className="font-semibold text-red-600">已結束</span>;
+  if (diff <= 0) return <span className="font-extrabold text-white tabular-nums" style={{ textShadow: "0 1px 2px rgba(0,0,0,0.45)" }}>已結束</span>;
   const days = Math.floor(diff / 86400000);
   const hrs = Math.floor((diff % 86400000) / 3600000);
   const mins = Math.floor((diff % 3600000) / 60000);
   const secs = Math.floor((diff % 60000) / 1000);
   const pad = (n: number) => String(n).padStart(2, "0");
   return (
-    <span className="font-semibold text-amber-700 tabular-nums">
+    <span className="font-extrabold text-white tabular-nums" style={{ textShadow: "0 1px 2px rgba(0,0,0,0.45)" }}>
       {days > 0 ? `${days}日 ` : ""}{pad(hrs)}:{pad(mins)}:{pad(secs)}
     </span>
   );
@@ -192,20 +192,21 @@ export function QuickBidPopover({
           </div>
           {endTime && (() => {
             const asEnabled = (antiSnipeEnabled ?? 1) === 1 && (antiSnipeMinutes ?? 3) > 0;
+            const brightShadow = { textShadow: "0 1px 2px rgba(0,0,0,0.45)" } as const;
             return (
               <div style={{ marginTop: 5, marginBottom: 5 }} className="!mt-[5px] !mb-[5px] space-y-1 text-[11px] leading-snug">
-                <div className="flex items-center gap-1.5" style={{ color: "var(--popup-text)" }}>
-                  <span className="text-amber-600">⏰</span>
-                  <span className="text-muted-foreground">倒數</span>
+                <div className="flex items-center gap-1.5">
+                  <span>⏰</span>
+                  <span className="text-white font-semibold" style={brightShadow}>倒數</span>
                   <MiniCountdown endTime={new Date(endTime)} />
                 </div>
                 {asEnabled ? (
-                  <div className="flex items-start gap-1.5 text-amber-700">
+                  <div className="flex items-start gap-1.5 text-white font-semibold" style={brightShadow}>
                     <span className="leading-none mt-0.5">🛡️</span>
                     <span>結束前 {antiSnipeMinutes ?? 3} 分鐘內有出價，自動延長 {extendMinutes ?? 3} 分鐘</span>
                   </div>
                 ) : (
-                  <div className="flex items-start gap-1.5 text-gray-600">
+                  <div className="flex items-start gap-1.5 text-white font-semibold" style={brightShadow}>
                     <span className="leading-none mt-0.5">⏱️</span>
                     <span>出價沒有加時，到結束時間即停止出價</span>
                   </div>

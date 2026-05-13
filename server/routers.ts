@@ -3666,6 +3666,9 @@ export const appRouter = router({
             highestBidderId: auctions.highestBidderId,
             highestBidderName: usersTable.name,
             highestBidderIsAnonymous: drizzleSql<number>`COALESCE((SELECT isAnonymous FROM bids WHERE auctionId = ${auctions.id} AND userId = ${auctions.highestBidderId} ORDER BY id DESC LIMIT 1), 0)`,
+            antiSnipeEnabled: auctions.antiSnipeEnabled,
+            antiSnipeMinutes: auctions.antiSnipeMinutes,
+            extendMinutes: auctions.extendMinutes,
           }).from(auctions)
             .leftJoin(usersTable, eq(auctions.highestBidderId, usersTable.id))
             .where(drizzleAnd(

@@ -165,6 +165,9 @@ export async function getAuctions(limit = 20, offset = 0, category?: string) {
         createdAt: auctions.createdAt,
         updatedAt: auctions.updatedAt,
         videoUrl: auctions.videoUrl,
+        antiSnipeEnabled: auctions.antiSnipeEnabled,
+        antiSnipeMinutes: auctions.antiSnipeMinutes,
+        extendMinutes: auctions.extendMinutes,
         fbShareTemplate: sql<string | null>`(SELECT fbShareTemplate FROM merchant_settings WHERE userId = ${auctions.createdBy} LIMIT 1)`,
       })
       .from(auctions)
