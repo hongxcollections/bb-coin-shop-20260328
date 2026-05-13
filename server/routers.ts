@@ -4082,21 +4082,26 @@ export const appRouter = router({
           })));
         }
         // Best-effort DB sync 令 /auctions/:id 直連都 align（fail 唔影響 response）
+        // 🔴 用 GREATEST 保留 anti-snipe 已經延長嘅 endTime（個別 auction 觸發延長 > session.endAt 時要尊重）
         try {
           const idsCsvSync = auctionsRows.map((a: any) => a.id).join(',');
           if (idsCsvSync.length > 0) {
             await db.execute(sql.raw(`
               UPDATE auctions a
               JOIN merchantAuctionSessions s ON s.id = ${session.id}
-              SET a.endTime = s.endAt
+              SET a.endTime = GREATEST(s.endAt, a.endTime)
               WHERE a.id IN (${idsCsvSync})
             `));
           }
         } catch {}
-        // 🔴 Bulletproof: 用 session.endAt 同一個 JS Date object 強制覆蓋，
-        // 完全唔靠 mysql2 對 auctions.endTime 嘅 TZ 解讀，保證 hero 同 item 100% 一致
-        for (const a of auctionsRows) {
-          a.endTime = session.endAt;
+        // 🔴 Bulletproof: 用 max(session.endAt, auction.endTime) 強制覆蓋，
+        // 保證 hero 同 item 一致；同時尊重 anti-snipe 對個別 auction 嘅延長
+        {
+          const sEndMs = new Date(session.endAt).getTime();
+          for (const a of auctionsRows) {
+            const aEndMs = a.endTime ? new Date(a.endTime).getTime() : 0;
+            a.endTime = aEndMs > sEndMs ? a.endTime : session.endAt;
+          }
         }
         const auctionMap = new Map(auctionsRows.map(a => [a.id, a]));
         const merged = items.map(it => ({ ...it, auction: auctionMap.get(it.auctionId) || null }));
@@ -4630,20 +4635,25 @@ export const appRouter = router({
             images: await getAuctionImages(a.id),
           })));
           // Best-effort DB sync（fail 唔影響 response）
+          // 🔴 用 GREATEST 保留 anti-snipe 已經延長嘅 endTime
           try {
             const idsCsvSync2 = auctionsRows.map((a: any) => a.id).join(',');
             if (idsCsvSync2.length > 0) {
               await db.execute(sql.raw(`
                 UPDATE auctions a
                 JOIN merchantAuctionSessions s ON s.id = ${session.id}
-                SET a.endTime = s.endAt
+                SET a.endTime = GREATEST(s.endAt, a.endTime)
                 WHERE a.id IN (${idsCsvSync2})
               `));
             }
           } catch {}
-          // 🔴 Bulletproof: 用 session.endAt JS object 強制覆蓋
-          for (const a of auctionsRows) {
-            a.endTime = session.endAt;
+          // 🔴 用 max(session.endAt, auction.endTime) 強制覆蓋，尊重 anti-snipe 延長
+          {
+            const sEndMs = new Date(session.endAt).getTime();
+            for (const a of auctionsRows) {
+              const aEndMs = a.endTime ? new Date(a.endTime).getTime() : 0;
+              a.endTime = aEndMs > sEndMs ? a.endTime : session.endAt;
+            }
           }
         }
         // 攞 merchant 名（從 merchantApplications）
