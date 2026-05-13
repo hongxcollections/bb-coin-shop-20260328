@@ -6,6 +6,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { ShareMenu, ProductShareMenu } from "@/components/ShareMenu";
+import { QuickBidPopover } from "@/components/QuickBidPopover";
 import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag, Share2 } from "lucide-react";
 import { buildWhatsAppUrl, sanitizeUserText, parseCategories } from "@/lib/utils";
 import { getCurrencySymbol } from "./AdminAuctions";
@@ -618,6 +619,19 @@ export default function MerchantStore() {
                                   endTime={a.endTime}
                                   shareTemplate={null}
                                   iconOnly
+                                />
+                              </div>
+                              <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                                <QuickBidPopover
+                                  auctionId={a.id}
+                                  title={a.title}
+                                  currentPrice={Number(a.currentPrice ?? a.startingPrice ?? 0)}
+                                  startingPrice={Number(a.startingPrice ?? 0)}
+                                  bidIncrement={Number((a as { bidIncrement?: number }).bidIncrement ?? 30)}
+                                  currency={currency}
+                                  hasExistingBid={!!a.highestBidderId}
+                                  isEnded={isEnded}
+                                  createdBy={(a as { createdBy?: number }).createdBy}
                                 />
                               </div>
                             </div>
