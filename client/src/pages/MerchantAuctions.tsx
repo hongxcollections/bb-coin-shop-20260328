@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
 import { parseCategories } from "@/lib/categories";
 import {
@@ -233,7 +234,7 @@ function ImageUploadZone({
 // ─── Auction Card ─────────────────────────────────────────────────────────────
 function AuctionCard({
   auction, tab, selected, onToggleSelect,
-  onEdit, onDelete, onPublish, onArchive, onRestore, onRelist, onActiveEdit, onActiveDelete,
+  onEdit, onDelete, onPublish, onArchive, onRestore, onRelist, onActiveEdit, onActiveDelete, onPermanentDelete,
   fbRefreshEnabled,
 }: {
   auction: AuctionItem;
@@ -248,6 +249,7 @@ function AuctionCard({
   onRelist: (id: number) => void;
   onActiveEdit: (a: AuctionItem) => void;
   onActiveDelete?: (id: number, title: string) => void;
+  onPermanentDelete?: (id: number, title: string) => void;
   fbRefreshEnabled?: boolean;
 }) {
   const img = auction.images?.[0]?.imageUrl;
@@ -386,6 +388,11 @@ function AuctionCard({
               <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => onRelist(auction.id)}>
                 <RotateCcw className="w-2.5 h-2.5" />重刊
               </Button>
+              {!auction.highestBidderId && onPermanentDelete && (
+                <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-red-300 text-red-600 hover:bg-red-50" onClick={() => onPermanentDelete(auction.id, auction.title)}>
+                  <Trash2 className="w-2.5 h-2.5" />永久刪除
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -689,6 +696,21 @@ export default function MerchantAuctions() {
     },
     onError: (err) => toast.error(err.message || "重新刊登失敗"),
   });
+
+  const confirm = useConfirm();
+  const permanentDeleteMutation = trpc.merchants.permanentDeleteAuction.useMutation({
+    onSuccess: () => { toast.success("已永久刪除"); refetchArchived(); refetchActive(); refetchDrafts(); },
+    onError: (err) => toast.error(err.message || "永久刪除失敗"),
+  });
+  const handlePermanentDelete = async (id: number, title: string) => {
+    const ok = await confirm({
+      title: "永久刪除呢個拍賣？",
+      description: `「${title}」會連同所有出價紀錄一齊刪走，無法還原。確定？`,
+      confirmText: "確定永久刪除",
+      cancelText: "取消",
+    });
+    if (ok) permanentDeleteMutation.mutate({ id });
+  };
 
   const updateActiveAuctionMutation = trpc.merchants.updateActiveAuction.useMutation({
     onSuccess: async () => {
@@ -1143,6 +1165,7 @@ export default function MerchantAuctions() {
                 onRelist={(id) => relistMutation.mutate({ id })}
                 onActiveEdit={openActiveEdit}
                 onActiveDelete={(id, title) => setActiveDeleteConfirm({ id, title })}
+                onPermanentDelete={handlePermanentDelete}
                 fbRefreshEnabled={false /* FB 預覽功能暫時停用 */}
               />
             ))}

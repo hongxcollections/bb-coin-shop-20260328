@@ -3026,6 +3026,27 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    /** 商戶永久刪除已封存嘅拍賣（流拍 → 封存 → 永久刪除） */
+    permanentDeleteAuction: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const auction = await getAuctionById(input.id);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只能刪除自己的拍賣' });
+        }
+        // 必須係已封存
+        if ((auction as { archived?: number | null }).archived !== 1) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只有已封存嘅拍賣先可以永久刪除' });
+        }
+        // 有買家（成交）唔畀刪，保留訂單記錄
+        if (auction.highestBidderId) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '已成交嘅拍賣唔可以永久刪除' });
+        }
+        await deleteAuction(input.id);
+        return { success: true };
+      }),
+
     /** 商戶查看自己的草稿 */
     myDrafts: protectedProcedure
       .query(async ({ ctx }) => {
