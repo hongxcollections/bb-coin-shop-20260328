@@ -852,6 +852,7 @@ export default function MerchantAuctions() {
   const handleSubmitActiveEdit = () => {
     if (!activeEditTarget) return;
     if (!activeEditForm.title.trim()) { toast.error("請填寫標題"); return; }
+    if (activeEditForm.categories.length === 0) { toast.error("請至少選擇一個商品分類"); return; }
     if (isActiveEditUploading) { toast.error("圖片上載中，請稍後再提交"); return; }
     const hasBids = !!activeEditTarget.highestBidderId;
     const sp = parseFloat(activeEditForm.startingPrice);
