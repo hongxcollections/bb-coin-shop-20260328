@@ -464,7 +464,7 @@ export default function MerchantAuctions() {
   // Active auction limited edit dialog
   const [activeEditOpen, setActiveEditOpen] = useState(false);
   const [activeEditTarget, setActiveEditTarget] = useState<AuctionItem | null>(null);
-  const [activeEditForm, setActiveEditForm] = useState({ title: "", description: "", categories: [] as string[], videoUrl: "" });
+  const [activeEditForm, setActiveEditForm] = useState({ title: "", description: "", categories: [] as string[], videoUrl: "", startingPrice: "", bidIncrement: 30, currency: "HKD" });
   const activeEditVideoFileRef = useRef<HTMLInputElement>(null);
   const [activeEditUploadingVideo, setActiveEditUploadingVideo] = useState(false);
   const handleActiveEditVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -816,6 +816,9 @@ export default function MerchantAuctions() {
         return a.category.trim() ? [a.category.trim()] : [];
       })(),
       videoUrl: aVideoUrl,
+      startingPrice: String(a.startingPrice),
+      bidIncrement: a.bidIncrement ?? 30,
+      currency: a.currency ?? "HKD",
     });
     setActiveEditUploaded((a.images ?? []).map(img => ({ url: img.imageUrl, displayOrder: img.displayOrder, imageId: img.id })));
     setActiveEditPending([]);
@@ -850,12 +853,20 @@ export default function MerchantAuctions() {
     if (!activeEditTarget) return;
     if (!activeEditForm.title.trim()) { toast.error("請填寫標題"); return; }
     if (isActiveEditUploading) { toast.error("圖片上載中，請稍後再提交"); return; }
+    const hasBids = !!activeEditTarget.highestBidderId;
+    const sp = parseFloat(activeEditForm.startingPrice);
+    if (!hasBids && (isNaN(sp) || sp < 0)) { toast.error("請填寫有效起拍價"); return; }
     updateActiveAuctionMutation.mutate({
       id: activeEditTarget.id,
       title: activeEditForm.title,
       description: activeEditForm.description,
       category: activeEditForm.categories.join("|"),
       videoUrl: activeEditForm.videoUrl || null,
+      ...(hasBids ? {} : {
+        startingPrice: sp,
+        bidIncrement: activeEditForm.bidIncrement,
+        currency: activeEditForm.currency as never,
+      }),
     });
   };
 
@@ -2006,6 +2017,45 @@ export default function MerchantAuctions() {
                 ))}
               </div>
             </div>
+            {(() => {
+              const hasBids = !!activeEditTarget?.highestBidderId;
+              return (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-sm font-medium">起拍價 <span className="text-red-500">*</span></Label>
+                    <div className="flex mt-1">
+                      <Select value={activeEditForm.currency} onValueChange={(v) => setActiveEditForm((f) => ({ ...f, currency: v }))} disabled={hasBids}>
+                        <SelectTrigger className="w-[68px] rounded-r-none border-r-0 px-1.5 shrink-0 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {CURRENCY_OPTIONS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={activeEditForm.startingPrice}
+                        onChange={(e) => setActiveEditForm((f) => ({ ...f, startingPrice: e.target.value }))}
+                        placeholder="0"
+                        disabled={hasBids}
+                        className="rounded-l-none flex-1 min-w-0"
+                      />
+                    </div>
+                    {hasBids
+                      ? <p className="text-xs text-red-400 mt-1">已有出價記錄，不可修改起拍價</p>
+                      : <p className="text-xs text-emerald-600 mt-1">✓ 未有出價，可修改起拍價</p>}
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">每口加幅</Label>
+                    <Select value={String(activeEditForm.bidIncrement)} onValueChange={(v) => setActiveEditForm((f) => ({ ...f, bidIncrement: Number(v) }))} disabled={hasBids}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {BID_INCREMENT_OPTIONS.map((v) => <SelectItem key={v} value={String(v)}>{activeEditForm.currency}${v}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              );
+            })()}
             <div className="flex gap-2 justify-end pt-1">
               <Button variant="outline" onClick={() => {
                 setActiveEditOpen(false);

@@ -2983,7 +2983,7 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    /** 商戶修改進行中拍賣（有限度：只允許標題/詳情/分類，不可改價格/時間/競標設定） */
+    /** 商戶修改進行中拍賣（標題/詳情/分類；起拍價/加幅/貨幣只可喺未有出價時改） */
     updateActiveAuction: protectedProcedure
       .input(z.object({
         id: z.number().int().positive(),
@@ -2991,6 +2991,9 @@ export const appRouter = router({
         description: z.string().optional(),
         category: z.string().optional(),
         videoUrl: z.string().nullable().optional(),
+        startingPrice: z.number().min(0).optional(),
+        bidIncrement: z.number().int().min(30).max(5000).optional(),
+        currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const auction = await getAuctionById(input.id);
@@ -3001,11 +3004,28 @@ export const appRouter = router({
         if (auction.status !== 'active') {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '此功能只適用於進行中的拍賣' });
         }
+        // 改價格 / 加幅 / 貨幣 必須未有出價
+        const priceFieldsTouched =
+          input.startingPrice !== undefined ||
+          input.bidIncrement !== undefined ||
+          input.currency !== undefined;
+        if (priceFieldsTouched) {
+          const bidHistory = await getBidHistory(input.id);
+          if (bidHistory.length > 0) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: '已有出價記錄，不可修改起拍價／加幅／貨幣' });
+          }
+        }
         const updateData: Record<string, unknown> = {};
         if (input.title !== undefined) updateData.title = input.title;
         if (input.description !== undefined) updateData.description = input.description;
         if (input.category !== undefined) updateData.category = input.category;
         if (input.videoUrl !== undefined) updateData.videoUrl = input.videoUrl;
+        if (input.startingPrice !== undefined) {
+          updateData.startingPrice = String(input.startingPrice);
+          updateData.currentPrice = String(input.startingPrice);
+        }
+        if (input.bidIncrement !== undefined) updateData.bidIncrement = input.bidIncrement;
+        if (input.currency !== undefined) updateData.currency = input.currency;
         await updateAuction(input.id, updateData);
         return { success: true };
       }),
