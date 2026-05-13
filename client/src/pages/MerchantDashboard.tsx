@@ -525,7 +525,7 @@ export default function MerchantDashboard() {
               </span>
               <button
                 onClick={() => {
-                  const url = `https://hongxcollections.com/merchants/${myApp.userId}`;
+                  const url = `https://share.hongxcollections.com/merchants/${myApp.userId}`;
                   if (navigator.clipboard?.writeText) {
                     navigator.clipboard.writeText(url).then(() => toast.success("商店連結已複製！"));
                   } else {

@@ -14,7 +14,7 @@ import { getCurrencySymbol } from "./AdminAuctions";
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
 
 function buildProductMsg(title: string, price?: number, id?: number) {
-  const productUrl = id ? `${window.location.origin}/merchant-products/${id}` : "";
+  const productUrl = id ? `https://share.hongxcollections.com/merchant-products/${id}` : "";
   return `你好，我想查詢以下商品：\n商品：${title}${price !== undefined ? `\n價錢：HK$${price.toLocaleString()}` : ""}${productUrl ? `\n連結：${productUrl}` : ""}`;
 }
 
@@ -447,7 +447,7 @@ export default function MerchantStore() {
           </Link>
           <button
             onClick={() => {
-              const url = `https://hongxcollections.com/merchants/${userId}`;
+              const url = `https://share.hongxcollections.com/merchants/${userId}`;
               if (navigator.clipboard?.writeText) {
                 navigator.clipboard.writeText(url).then(() => toast.success("商店連結已複製！"));
               } else {
@@ -501,7 +501,7 @@ export default function MerchantStore() {
               </div>
             </div>
             {(() => {
-              const merchantUrl = `${window.location.origin}/merchants/${userId}`;
+              const merchantUrl = `https://share.hongxcollections.com/merchants/${userId}`;
               const contactMsg = `${merchantContactPreset}\n${merchantUrl}`;
               const waLink = merchant.whatsapp ? buildWhatsAppUrl(merchant.whatsapp, contactMsg) : "";
               if (!waLink && !messengerLink) return null;

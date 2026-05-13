@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Share2, Copy, Check, X, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
+import { SHARE_ORIGIN } from "@/lib/shareUrl";
 
 interface SessionShareMenuProps {
   merchantUserId: number;
@@ -19,7 +20,7 @@ export function SessionShareMenu({ merchantUserId, slug, title, merchantName, en
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  const sessionUrl = `${window.location.origin}/s/${merchantUserId}/${slug}`;
+  const sessionUrl = `${SHARE_ORIGIN}/s/${merchantUserId}/${slug}`;
   let endStr = "";
   if (endTime) {
     const d = new Date(endTime);
@@ -280,7 +281,7 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  const productUrl = `${window.location.origin}/merchant-products/${productId}`;
+  const productUrl = `${SHARE_ORIGIN}/merchant-products/${productId}`;
   const currSymbol = getCurrSymbol(currency ?? "HKD");
   const shareText = `${title}\n價錢：${currSymbol}${price.toLocaleString()}\n${productUrl}`;
 
@@ -444,7 +445,7 @@ export function CollectionShareMenu({ postId, title, iconOnly }: CollectionShare
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  const postUrl = `${window.location.origin}/collection-square/${postId}`;
+  const postUrl = `${SHARE_ORIGIN}/collection-square/${postId}`;
   const shareText = `${title}\n${postUrl}`;
 
   const calcPosition = useCallback(() => {
@@ -590,7 +591,7 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  const auctionUrl = `${window.location.origin}/auctions/${auctionId}`;
+  const auctionUrl = `${SHARE_ORIGIN}/auctions/${auctionId}`;
   const curr = currency ?? "HKD";
   const currSymbol = getCurrSymbol(curr);
 

@@ -349,7 +349,7 @@ function AuctionCard({
                   className="h-6 px-1.5 text-xs gap-0.5 border-blue-300 text-blue-700 hover:bg-blue-50"
                   title="開 FB Sharing Debugger 強制重新抓取 OG meta（每次去 FB 群組分享前撳一下，最多撳 2-3 次直至顯示正確圖+標題）"
                   onClick={() => {
-                    const url = `${window.location.origin}/auctions/${auction.id}`;
+                    const url = `https://share.hongxcollections.com/auctions/${auction.id}`;
                     window.open(`https://developers.facebook.com/tools/debug/?q=${encodeURIComponent(url)}`, "_blank", "noopener");
                   }}
                 >
@@ -1401,7 +1401,7 @@ export default function MerchantAuctions() {
                 const period = h < 6 ? "凌晨" : h < 12 ? "上午" : h === 12 ? "中午" : h < 18 ? "下午" : "晚上";
                 const dh = h < 12 ? h : h === 12 ? 12 : h - 12;
                 const endStr = `${mo}月${dy}日(${wd}) ${period}${dh}:${mi}`;
-                return `${a.title}\n目前出價 ${sym}${currentBid.toLocaleString()}\n結標時間：${endStr}\n快來競拍！\nhttps://hongxcollections.com/auctions/${a.id}`;
+                return `${a.title}\n目前出價 ${sym}${currentBid.toLocaleString()}\n結標時間：${endStr}\n快來競拍！\nhttps://share.hongxcollections.com/auctions/${a.id}`;
               }).join("\n\n---\n\n");
               await navigator.clipboard.writeText(allText);
               setCopiedAll(true);
@@ -1515,7 +1515,7 @@ export default function MerchantAuctions() {
               })();
               const aiText = aiCopyMap[a.id];
               const shareText = aiText || tplText;
-              const auctionUrl = `${window.location.origin}/auctions/${a.id}`;
+              const auctionUrl = `https://share.hongxcollections.com/auctions/${a.id}`;
               const img = a.images?.[0]?.imageUrl;
               const isCopied = copiedIds.has(a.id);
               const aiCopyLoading = aiCopyLoadingId === a.id;
@@ -1690,7 +1690,7 @@ export default function MerchantAuctions() {
                 .replace(/\{endTime\}/g, endStr);
             })();
             const aiText = aiCopyMap[auction.id];
-            const auctionUrl = `${window.location.origin}/auctions/${auction.id}`;
+            const auctionUrl = `https://share.hongxcollections.com/auctions/${auction.id}`;
             const shareTextOnly = aiText || tplText; // 唔包連結
             const shareText = `${shareTextOnly}\n${auctionUrl}`; // 預覽用（顯示完整內容）
             const img = auction.images?.[0]?.imageUrl;

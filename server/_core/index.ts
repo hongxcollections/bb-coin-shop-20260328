@@ -938,6 +938,22 @@ async function startServer() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+  // share.hongxcollections.com 唔經 CF zone（DNS-only CNAME 直指 Railway）。
+  // 用嚟畀 FB / Twitter / WhatsApp / Threads scraper bypass CF edge block。
+  // 真人 browser 訪問 → 302 redirect 返主站（保持靚 URL + 原 session cookie）。
+  // Bot UA → fall through，正常出 og inject HTML（og:url 自動係 share.* host）。
+  app.use((req, res, next) => {
+    const host = (req.get("host") || "").toLowerCase();
+    if (host === "share.hongxcollections.com") {
+      const ua = String(req.headers["user-agent"] ?? "");
+      const isBot = /facebookexternalhit|meta-externalagent|facebot|Twitterbot|LinkedInBot|WhatsApp|TelegramBot|Slackbot|Discordbot|Pinterest|Threads|googlebot|bingbot|applebot|yandex|baidu|duckduck|crawler|spider|preview/i.test(ua);
+      if (!isBot) {
+        return res.redirect(302, `https://hongxcollections.com${req.originalUrl}`);
+      }
+    }
+    next();
+  });
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
 
