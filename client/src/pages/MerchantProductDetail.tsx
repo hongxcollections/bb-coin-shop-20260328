@@ -192,12 +192,12 @@ function AuctionImageOverlay({ endTime }: { endTime: Date | string }) {
   }, [endTime]);
   if (!txt) return null;
   return (
-    <div className="absolute bottom-0 left-0 right-0 bg-black/30 backdrop-blur-sm px-1.5 py-1">
+    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1 pointer-events-none">
       {urgent
         ? <div className="flex items-center gap-0.5 text-[10px] font-black leading-none animate-pulse bg-red-600 text-white px-1 py-0.5 rounded self-start inline-flex">
             <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
           </div>
-        : <div className="flex items-center gap-0.5 text-[10px] font-bold leading-none text-white/90">
+        : <div className="flex items-center gap-0.5 text-[10px] font-bold leading-none text-white">
             <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
           </div>
       }
@@ -941,8 +941,16 @@ export default function MerchantProductDetail() {
                           {/* 右：內容 + 分享 + 閃出價 */}
                           <div className="flex-1 flex flex-col justify-between min-w-0">
                             <div className="flex items-start justify-between gap-2">
-                              <h3 className="font-semibold text-sm line-clamp-1 text-amber-900">{a.title}</h3>
-                              <Badge className={`text-[9px] px-1.5 py-0.5 ${!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-sm line-clamp-1 text-amber-900">{a.title}</h3>
+                                {(merchantDetail?.merchantName ?? product?.merchantName) && (
+                                  <div className="flex items-center gap-0.5 mt-0.5">
+                                    <Store className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                                    <span className="text-[10px] text-amber-600 truncate">{merchantDetail?.merchantName ?? product?.merchantName}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <Badge className={`text-[9px] px-1.5 py-0.5 shrink-0 ${!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
                                 {!isEnded ? "競拍中" : "已結束"}
                               </Badge>
                             </div>
