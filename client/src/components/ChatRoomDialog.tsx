@@ -30,6 +30,8 @@ interface ChatRoomDialogProps {
   onOpenChange: (open: boolean) => void;
   embedded?: boolean;
   onBack?: () => void;
+  /** 新對話時預填嘅初始訊息文字（用戶仍可編輯後再發） */
+  initialMessage?: string;
 }
 
 const EMOJI_OPTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "👏"];
@@ -62,10 +64,10 @@ function highlight(text: string, query: string) {
   );
 }
 
-export default function ChatRoomDialog({ roomId, open, onOpenChange, embedded, onBack }: ChatRoomDialogProps) {
+export default function ChatRoomDialog({ roomId, open, onOpenChange, embedded, onBack, initialMessage }: ChatRoomDialogProps) {
   const { user, isAuthenticated } = useAuth();
   const utils = trpc.useUtils();
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialMessage ?? "");
   const [messages, setMessages] = useState<Message[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [uploading, setUploading] = useState(false);

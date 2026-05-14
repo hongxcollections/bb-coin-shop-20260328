@@ -29,8 +29,16 @@ export default function ChatButton({ auctionId, merchantId, auctionEnded, compac
   const isAdmin = user?.role === "admin";
   const isQualified = isAdmin || ["silver", "gold", "vip"].includes(memberLevel);
 
+  const [initialMessage, setInitialMessage] = useState<string | undefined>(undefined);
+
   const openRoom = trpc.chat.openRoom.useMutation({
-    onSuccess: ({ roomId }) => {
+    onSuccess: ({ roomId, isNew }) => {
+      if (isNew) {
+        const origin = typeof window !== "undefined" ? window.location.origin : "https://hongxcollections.com";
+        setInitialMessage(`我想查詢呢件拍賣品：\n${origin}/auctions/${auctionId}`);
+      } else {
+        setInitialMessage(undefined);
+      }
       setOpenRoomId(roomId);
       setOpening(false);
     },
@@ -98,9 +106,11 @@ export default function ChatButton({ auctionId, merchantId, auctionEnded, compac
         <ChatRoomDialog
           roomId={openRoomId}
           open={openRoomId !== null}
+          initialMessage={initialMessage}
           onOpenChange={(o) => {
             if (!o) {
               setOpenRoomId(null);
+              setInitialMessage(undefined);
               utils.chat.unreadTotal.invalidate();
               utils.chat.listMyRooms.invalidate();
             }

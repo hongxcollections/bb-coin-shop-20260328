@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useChatWebSocket } from "@/hooks/useChatWebSocket";
-import { MessageCircle, Image as ImageIcon, Megaphone, Loader2, X } from "lucide-react";
+import { MessageCircle, Image as ImageIcon, Megaphone, Loader2, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import ChatRoomDialog from "@/components/ChatRoomDialog";
+import { useConfirm } from "@/components/ui/confirm-provider";
+import { toast } from "sonner";
 
 interface MessagesListDialogProps {
   open: boolean;
@@ -29,12 +31,30 @@ function formatTime(d: Date | string): string {
 export default function MessagesListDialog({ open, onOpenChange }: MessagesListDialogProps) {
   const { isAuthenticated } = useAuth();
   const utils = trpc.useUtils();
+  const confirm = useConfirm();
   const [openRoomId, setOpenRoomId] = useState<number | null>(null);
-  const [dismissed, setDismissed] = useState<Set<number>>(new Set());
 
-  function dismissRoom(e: React.MouseEvent, roomId: number) {
+  const deleteRoom = trpc.chat.deleteRoom.useMutation({
+    onSuccess: () => {
+      utils.chat.listMyRooms.invalidate();
+      utils.chat.unreadTotal.invalidate();
+      toast.success("對話已拆除", { duration: 2500 });
+    },
+    onError: (err) => {
+      toast.error(err.message, { className: "bb-toast-err" });
+    },
+  });
+
+  async function handleDelete(e: React.MouseEvent, roomId: number) {
     e.stopPropagation();
-    setDismissed(prev => new Set(prev).add(roomId));
+    const ok = await confirm({
+      title: "拆除對話",
+      description: "確定要拆除呢個對話？拆除後唔可以恢復。",
+      confirmText: "拆除",
+      cancelText: "取消",
+    });
+    if (!ok) return;
+    deleteRoom.mutate({ roomId });
   }
 
   const { data: rooms, isLoading: roomsLoading, refetch } = trpc.chat.listMyRooms.useQuery(undefined, {
@@ -122,7 +142,7 @@ export default function MessagesListDialog({ open, onOpenChange }: MessagesListD
                 </Card>
               ) : (
                 <div className="space-y-2">
-                  {rooms.filter(r => !dismissed.has(r.id)).map((r) => {
+                  {rooms.map((r) => {
                     const isBroadcast = r.lastMessagePreview?.startsWith("[廣播]");
                     const isImage = r.lastMessagePreview === "[圖片]";
                     return (
@@ -179,14 +199,15 @@ export default function MessagesListDialog({ open, onOpenChange }: MessagesListD
                             </div>
                           </Card>
                         </button>
-                        {/* Dismiss button */}
+                        {/* 拆除按鈕 */}
                         <button
                           type="button"
-                          onClick={(e) => dismissRoom(e, r.id)}
-                          className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors opacity-0 group-hover:opacity-100"
-                          aria-label="拆除"
+                          onClick={(e) => handleDelete(e, r.id)}
+                          disabled={deleteRoom.isPending}
+                          className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                          aria-label="拆除對話"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     );

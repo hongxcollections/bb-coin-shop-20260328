@@ -7380,6 +7380,16 @@ ${kb}`;
         return { sent: result.sent };
       }),
 
+    /** 用戶拆除（軟刪除）自己嘅對話室，從列表消失 */
+    deleteRoom: protectedProcedure
+      .input(z.object({ roomId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const { archiveChatRoom } = await import('./db');
+        const ok = await archiveChatRoom(input.roomId, ctx.user.id);
+        if (!ok) throw new TRPCError({ code: 'FORBIDDEN', message: '找唔到對話，或者你冇權刪除' });
+        return { success: true };
+      }),
+
     /** Admin: 取得 chat 設定 (公開讀取) */
     getRetentionDays: publicProcedure.query(async () => {
       const v = await getSiteSetting('chat.retentionDays');
