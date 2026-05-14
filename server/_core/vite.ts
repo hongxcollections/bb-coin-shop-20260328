@@ -225,7 +225,7 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
     const titleForOg = rawTitle.length > 25 ? rawTitle.slice(0, 25) + "…" : rawTitle;
     const endDate = new Date(auction.endTime);
     const endMonthDay = `${endDate.getMonth() + 1}月${endDate.getDate()}日`;
-    const ogTitle = `${titleForOg} | 起拍${currSymbol}${startPrice} | 目前${currSymbol}${currPrice} | 結標${endMonthDay} | hongxcollections`;
+    const ogTitle = `${titleForOg} | 起拍${currSymbol}${startPrice} | 目前${currSymbol}${currPrice} | 結標${endMonthDay} | hongxcollections.com`;
     const ogDesc = `${rawTitle} | 起拍 ${currSymbol}${startPrice} | 目前出價 ${currSymbol}${currPrice} | 結標 ${endTimeStr} | 香港錢幣拍賣 hongxcollections`;
     const fullUrl = `${protocol}://${host}${reqPath}`;
 
