@@ -4,6 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, TrendingUp, Calendar, ArrowLeft, Sparkles, Heart, Bookmark, ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { MemberBadge } from "@/components/MemberBadge";
+import Header from "@/components/Header";
 
 const PAGE_SIZE = 10;
 
@@ -61,6 +62,7 @@ export default function UserProfile() {
   if (isLoading) {
     return (
       <div className="min-h-screen hero-bg">
+        <Header />
         <div className="container max-w-2xl pb-20">
           <div className="h-36 bg-amber-100 animate-pulse" />
           <div className="px-4 space-y-3 mt-4">
@@ -78,15 +80,18 @@ export default function UserProfile() {
 
   if (error || !profile) {
     return (
-      <div className="min-h-screen hero-bg flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <p className="text-muted-foreground">找不到此用戶</p>
-          <Link href="/collection-square">
-            <span className="inline-flex items-center gap-1.5 text-sm text-amber-600 hover:text-amber-800 cursor-pointer">
-              <ArrowLeft className="w-4 h-4" />
-              返回藏品社區
-            </span>
-          </Link>
+      <div className="min-h-screen hero-bg">
+        <Header />
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center space-y-3">
+            <p className="text-muted-foreground">找不到此用戶</p>
+            <Link href="/collection-square">
+              <span className="inline-flex items-center gap-1.5 text-sm text-amber-600 hover:text-amber-800 cursor-pointer">
+                <ArrowLeft className="w-4 h-4" />
+                返回藏品社區
+              </span>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -106,13 +111,15 @@ export default function UserProfile() {
 
   return (
     <div className="min-h-screen hero-bg pb-20">
-      {/* Hero Banner */}
-      <div className="relative bg-gradient-to-br from-amber-800 via-amber-700 to-amber-500 h-32 sm:h-40">
+      <Header />
+
+      {/* Hero Banner — avatar sits inside at bottom */}
+      <div className="relative bg-gradient-to-br from-amber-800 via-amber-700 to-amber-500">
         <div className="absolute inset-0 opacity-20"
           style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)", backgroundSize: "40px 40px" }}
         />
         {/* Back link */}
-        <div className="absolute top-3 left-4">
+        <div className="relative px-4 pt-3">
           <Link href={backHref}>
             <span className="inline-flex items-center gap-1 text-sm text-white/80 hover:text-white cursor-pointer transition-colors">
               <ArrowLeft className="w-4 h-4" />
@@ -120,12 +127,9 @@ export default function UserProfile() {
             </span>
           </Link>
         </div>
-      </div>
-
-      <div className="container max-w-2xl px-4">
-        {/* Avatar — overlaps banner */}
-        <div className="flex items-end justify-between -mt-10 mb-3">
-          <div className="w-20 h-20 rounded-full border-4 border-white shadow-lg overflow-hidden flex-shrink-0 bg-gradient-to-br from-amber-400 to-amber-600">
+        {/* Avatar row inside banner */}
+        <div className="relative px-4 pt-3 pb-4 flex items-end justify-between">
+          <div className="w-20 h-20 rounded-full border-4 border-white/30 shadow-lg overflow-hidden flex-shrink-0 bg-gradient-to-br from-amber-400 to-amber-600">
             {photo ? (
               <img src={photo} alt={profile.name ?? ''} className="w-full h-full object-cover"
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
@@ -136,12 +140,14 @@ export default function UserProfile() {
             )}
           </div>
           {winRate !== null && (
-            <Badge variant="outline" className="border-amber-300 text-amber-700 bg-amber-50 px-3 py-1 text-sm mb-1">
+            <Badge className="bg-white/20 border-white/40 text-white px-3 py-1 text-sm backdrop-blur-sm">
               得標率 {winRate}%
             </Badge>
           )}
         </div>
+      </div>
 
+      <div className="container max-w-2xl px-4 mt-3">
         {/* Name + Meta */}
         <div className="mb-4">
           <div className="flex items-center gap-2 mb-1">
