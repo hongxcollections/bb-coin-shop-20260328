@@ -51,6 +51,29 @@ function formatDateLabel(d: Date | string): string {
   return date.toLocaleDateString("zh-HK", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+
+/** 將訊息文字中的 URL 轉成可點連結，保留換行 */
+function renderMessageContent(text: string, linkClass: string) {
+  const parts = text.split(URL_REGEX);
+  return parts.map((part, i) =>
+    URL_REGEX.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className={linkClass}
+      >
+        {part}
+      </a>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
+}
+
 function highlight(text: string, query: string) {
   if (!query) return text;
   const idx = text.toLowerCase().indexOf(query.toLowerCase());
@@ -464,8 +487,15 @@ export default function ChatRoomDialog({ roomId, open, onOpenChange, embedded, o
                           {m.messageType === "image" && m.imageUrl ? (
                             <img src={m.imageUrl} alt="" className="max-w-[220px] max-h-[280px] object-contain rounded-xl block" />
                           ) : (
-                            <span className="whitespace-pre-wrap">
-                              {searchQuery.trim() ? highlight(m.content ?? "", searchQuery.trim()) : m.content}
+                            <span className="whitespace-pre-wrap break-all">
+                              {searchQuery.trim()
+                                ? highlight(m.content ?? "", searchQuery.trim())
+                                : renderMessageContent(
+                                    m.content ?? "",
+                                    mine
+                                      ? "underline text-white/90 hover:text-white break-all"
+                                      : "underline text-amber-600 hover:text-amber-800 break-all"
+                                  )}
                             </span>
                           )}
                         </button>

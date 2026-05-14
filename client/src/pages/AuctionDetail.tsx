@@ -750,6 +750,7 @@ export default function AuctionDetail() {
                         auctionId={auctionId}
                         merchantId={auction.createdBy}
                         auctionEnded={!isActive}
+                        auctionTitle={auction.title}
                         compact
                       />
                     </div>

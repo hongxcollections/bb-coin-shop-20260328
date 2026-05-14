@@ -15,9 +15,11 @@ interface ChatButtonProps {
   compact?: boolean;
   /** 用於檢查同自己嘅 auction 唔可以 chat */
   className?: string;
+  /** 商品名稱 — 新對話時加入初始訊息 */
+  auctionTitle?: string;
 }
 
-export default function ChatButton({ auctionId, merchantId, auctionEnded, compact, className }: ChatButtonProps) {
+export default function ChatButton({ auctionId, merchantId, auctionEnded, compact, className, auctionTitle }: ChatButtonProps) {
   const { user, isAuthenticated } = useAuth();
   const [opening, setOpening] = useState(false);
   const [openRoomId, setOpenRoomId] = useState<number | null>(null);
@@ -35,7 +37,8 @@ export default function ChatButton({ auctionId, merchantId, auctionEnded, compac
     onSuccess: ({ roomId, isNew }) => {
       if (isNew) {
         const origin = typeof window !== "undefined" ? window.location.origin : "https://hongxcollections.com";
-        setInitialMessage(`我想查詢呢件拍賣品：\n${origin}/auctions/${auctionId}`);
+        const titleLine = auctionTitle ? `【${auctionTitle}】\n` : "";
+        setInitialMessage(`我想查詢呢件拍賣品：\n${titleLine}${origin}/auctions/${auctionId}`);
       } else {
         setInitialMessage(undefined);
       }
