@@ -8767,6 +8767,99 @@ async function fetchAndExtractFromUrl(targetUrl: string): Promise<{
   images: string[];
   videos: string[];
 }> {
+  // 優先：Jina Reader (r.jina.ai) — 專為 LLM 抓 web 嘅 service，繞過 Yahoo / Cloudflare 之類 datacenter IP block
+  // 失敗才 fallback 直接 fetch HTML
+  try {
+    const jinaUrl = `https://r.jina.ai/${targetUrl}`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30_000);
+    let jinaResp: Response;
+    try {
+      jinaResp = await fetch(jinaUrl, {
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "hongxcollections/1.0",
+          "X-Return-Format": "markdown",
+        },
+        signal: ctrl.signal,
+      });
+    } finally { clearTimeout(timer); }
+    if (jinaResp.ok) {
+      const j: any = await jinaResp.json();
+      if (j?.data) {
+        const d = j.data;
+        const title = String(d.title || "").trim().slice(0, 250);
+        const description = String(d.description || "").trim();
+        const content = String(d.content || "");
+        // 從 markdown content 抽 image URLs `![alt](url)` + d.images object
+        const imgs = new Set<string>();
+        const mdImg = /!\[[^\]]*\]\(([^)\s]+)/g;
+        let m: RegExpExecArray | null;
+        while ((m = mdImg.exec(content)) !== null) {
+          const u = m[1];
+          if (/^https?:\/\//i.test(u) && !/\.svg(\?|#|$)/i.test(u) && !/\.gif(\?|#|$)/i.test(u)) {
+            imgs.add(u);
+          }
+        }
+        if (d.images && typeof d.images === "object") {
+          for (const v of Object.values(d.images)) {
+            if (typeof v === "string" && /^https?:\/\//i.test(v) && !/\.svg(\?|#|$)/i.test(v)) imgs.add(v);
+          }
+        }
+        // Video URLs (YouTube/Vimeo/Bilibili) from links + content
+        const vids = new Set<string>();
+        const vidRe = /https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/watch\?[^\s)]+|youtu\.be\/[\w-]+|vimeo\.com\/\d+|bilibili\.com\/video\/[\w-]+)/gi;
+        let vm: RegExpExecArray | null;
+        while ((vm = vidRe.exec(content)) !== null) vids.add(vm[0]);
+        if (d.links && typeof d.links === "object") {
+          for (const v of Object.values(d.links)) {
+            if (typeof v === "string" && /(?:youtube\.com|youtu\.be|vimeo\.com|bilibili\.com)/i.test(v)) vids.add(v);
+          }
+        }
+        // 清理 markdown body：去 image / link syntax，留純文字
+        const cleanBody = (description ? description + "\n\n" : "") + content
+          .replace(/!\[[^\]]*\]\([^)]*\)/g, "")               // images
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")             // [text](url) → text
+          .replace(/^[*\-+]\s+/gm, "")                         // list markers
+          .replace(/^#{1,6}\s+/gm, "")                         // headings
+          .replace(/`{1,3}[^`]*`{1,3}/g, "")                   // code
+          .replace(/\n{3,}/g, "\n\n")
+          .trim();
+
+        // 圖片 mirror 落 S3（最多 6 張）
+        const candidates = Array.from(imgs).slice(0, 12);
+        const safeStem = (() => { try { return new URL(targetUrl).hostname.replace(/[^a-zA-Z0-9\-]/g, "_").slice(0, 40); } catch { return "url"; } })();
+        const mirrored = await Promise.all(candidates.map(async (u, idx) => {
+          try {
+            const { buf, contentType } = await fetchWithLimit(u, { timeoutMs: 12_000, maxBytes: 8_000_000 });
+            const ct = contentType.split(";")[0].trim().toLowerCase();
+            if (!["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(ct)) return null;
+            if (buf.length < 5_000) return null;
+            const ext = ct === "image/png" ? "png" : ct === "image/webp" ? "webp" : "jpg";
+            const key = `community-seeder/url-${Date.now()}-${idx}-${safeStem}.${ext}`;
+            const ctNorm = ct === "image/jpg" ? "image/jpeg" : ct;
+            const { url } = await storagePut(key, buf, ctNorm);
+            return url;
+          } catch { return null; }
+        }));
+        const images = mirrored.filter((u): u is string => !!u).slice(0, 6);
+
+        if (title || cleanBody) {
+          return {
+            title,
+            body: cleanBody.slice(0, 4900),
+            tags: [],
+            images,
+            videos: Array.from(vids).slice(0, 5),
+          };
+        }
+      }
+    }
+    // 如 Jina 返 non-200 或冇 data，落 fallback
+  } catch {
+    // Jina 失敗（timeout / network），落 fallback
+  }
+
   let html = "";
   try {
     const { buf, contentType, status } = await fetchWithLimit(targetUrl, {
@@ -8777,7 +8870,7 @@ async function fetchAndExtractFromUrl(targetUrl: string): Promise<{
     html = buf.toString("utf8");
   } catch (e: any) {
     if (e instanceof TRPCError) throw e;
-    throw new TRPCError({ code: "BAD_REQUEST", message: `抓取失敗：${e?.message || String(e)}` });
+    throw new TRPCError({ code: "BAD_REQUEST", message: `抓取失敗：${e?.message || String(e)}（已試 Jina Reader + 直接抓兩種方法）` });
   }
 
   const base = (() => { try { return new URL(targetUrl); } catch { return null; } })();
