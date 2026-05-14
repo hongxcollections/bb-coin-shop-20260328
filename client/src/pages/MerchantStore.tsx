@@ -662,7 +662,15 @@ export default function MerchantStore() {
                         {/* 右：內容 */}
                         <div className="flex-1 flex flex-col justify-between min-w-0">
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="font-semibold text-sm line-clamp-1 text-amber-900">{a.title}</h3>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-sm line-clamp-1 text-amber-900">{a.title}</h3>
+                              {merchant?.merchantName && (
+                                <div className="flex items-center gap-0.5 mt-0.5">
+                                  <Store className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                                  <span className="text-[10px] text-amber-600 truncate">{sanitizeUserText(merchant.merchantName)}</span>
+                                </div>
+                              )}
+                            </div>
                             <div className="flex flex-col items-end gap-1 shrink-0">
                               <Badge className={`text-[9px] px-1.5 py-0.5 ${!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
                                 {!isEnded ? "競拍中" : "已結束"}
