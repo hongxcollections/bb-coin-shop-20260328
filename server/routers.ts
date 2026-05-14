@@ -8723,19 +8723,6 @@ async function getDbTheme(db: any, id: string): Promise<{ id: string; label: str
   return { id: String(list[0].id), label: String(list[0].label), hint: String(list[0].hint) };
 }
 
-// 注：保留 hardcoded 預設題材淨係用作 prompt hint fallback；正常 read/write 全部走 DB
-const COMMUNITY_SEEDER_THEMES_FALLBACK: Array<{ id: string; label: string; hint: string }> = [
-  { id: 'hk-banknote', label: '香港鈔票', hint: '殖民地時期、回歸後紀念鈔、各銀行版本、塑膠鈔' },
-  { id: 'cn-commemorative-note', label: '中國紀念鈔', hint: '建國 50 週年、奧運、航天、人民幣 70 週年' },
-  { id: 'cn-precious-metal-coin', label: '中國金銀幣', hint: '熊貓金幣、生肖金銀、紀念章、發行量' },
-  { id: 'hk-coin', label: '港幣硬幣', hint: '英女皇、洋紫荊、新版、稀有年份' },
-  { id: 'world-banknote', label: '世界錢幣', hint: '東南亞、歐洲、非洲特色鈔票' },
-  { id: 'ancient-coin', label: '古錢幣', hint: '清朝、民國、銅錢、銀元' },
-  { id: 'collecting-tips', label: '收藏入門', hint: '新手點開始、保存、評級、入手渠道' },
-  { id: 'authentication', label: '鑑定真偽', hint: '常見假鈔／偽幣特徵、真假對比、UV 燈、水印' },
-  { id: 'url-import', label: '網絡轉載', hint: '從外部連結抓取文章 + 圖片自動生成草稿' },
-];
-
 async function getDefaultShopOwnerUserId(db: any): Promise<number | null> {
   const openId = ENV.ownerOpenId;
   if (!openId) return null;
