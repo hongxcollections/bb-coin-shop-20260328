@@ -904,7 +904,7 @@ export default function MerchantProductDetail() {
                   <h2 className="font-semibold text-sm text-gray-800">拍賣商品</h2>
                   <span className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full ml-auto">{(auctionItems as any[]).length} 件</span>
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-[2px]">
                   {(auctionItems as any[]).map((a: any) => {
                     const isEnded = new Date(a.endTime).getTime() <= Date.now();
                     const currency = a.currency ?? "HKD";
