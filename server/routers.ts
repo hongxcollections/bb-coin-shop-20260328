@@ -8861,16 +8861,58 @@ async function fetchAndExtractFromUrl(targetUrl: string): Promise<{
   }
 
   let html = "";
+  const fetchErrors: string[] = [];
+
+  // Fallback 2：Wayback Machine — 適用於 Yahoo HK 之類連 Jina 都被 451 嘅 site
+  // 用 `id_` flag 攞 raw cached HTML（冇 wayback toolbar）
   try {
-    const { buf, contentType, status } = await fetchWithLimit(targetUrl, {
-      timeoutMs: 15_000, maxBytes: 5_000_000, accept: "text/html,application/xhtml+xml",
-    });
-    if (status < 200 || status >= 300) throw new Error(`HTTP ${status}`);
-    if (!contentType.includes("html") && !contentType.includes("xml")) throw new Error(`Not HTML (${contentType})`);
-    html = buf.toString("utf8");
+    const wbUrl = `https://web.archive.org/web/2id_/${targetUrl}`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 25_000);
+    let wbResp: Response;
+    try {
+      wbResp = await fetch(wbUrl, {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" },
+        redirect: "follow",
+        signal: ctrl.signal,
+      });
+    } finally { clearTimeout(timer); }
+    if (wbResp.ok) {
+      const ct = (wbResp.headers.get("content-type") || "").toLowerCase();
+      if (ct.includes("html") || ct.includes("xml") || ct === "") {
+        const ab = await wbResp.arrayBuffer();
+        const buf = Buffer.from(ab);
+        if (buf.length > 1000) html = buf.toString("utf8");
+      } else {
+        fetchErrors.push(`Wayback non-HTML (${ct})`);
+      }
+    } else {
+      fetchErrors.push(`Wayback HTTP ${wbResp.status}`);
+    }
   } catch (e: any) {
-    if (e instanceof TRPCError) throw e;
-    throw new TRPCError({ code: "BAD_REQUEST", message: `抓取失敗：${e?.message || String(e)}（已試 Jina Reader + 直接抓兩種方法）` });
+    fetchErrors.push(`Wayback: ${e?.message || String(e)}`);
+  }
+
+  // Fallback 3：直接抓 — Wayback 都 fail 先嚟（多數係新文章未被 archive，或 article 太新）
+  if (!html) {
+    try {
+      const { buf, contentType, status } = await fetchWithLimit(targetUrl, {
+        timeoutMs: 15_000, maxBytes: 5_000_000, accept: "text/html,application/xhtml+xml",
+      });
+      if (status < 200 || status >= 300) throw new Error(`HTTP ${status}`);
+      if (!contentType.includes("html") && !contentType.includes("xml")) throw new Error(`Not HTML (${contentType})`);
+      html = buf.toString("utf8");
+    } catch (e: any) {
+      if (e instanceof TRPCError) throw e;
+      fetchErrors.push(`直接抓: ${e?.message || String(e)}`);
+    }
+  }
+
+  if (!html) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `抓取失敗（Jina Reader / Wayback / 直接抓 都唔得）：${fetchErrors.join(" | ")}`,
+    });
   }
 
   const base = (() => { try { return new URL(targetUrl); } catch { return null; } })();
