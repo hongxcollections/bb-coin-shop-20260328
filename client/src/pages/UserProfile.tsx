@@ -127,20 +127,34 @@ export default function UserProfile() {
             </span>
           </Link>
         </div>
-        {/* Avatar row inside banner */}
-        <div className="relative px-4 pt-3 pb-4 flex items-end justify-between">
-          <div className="w-20 h-20 rounded-full border-4 border-white/30 shadow-lg overflow-hidden flex-shrink-0 bg-gradient-to-br from-amber-400 to-amber-600">
-            {photo ? (
-              <img src={photo} alt={profile.name ?? ''} className="w-full h-full object-cover"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <span className="text-3xl font-bold text-white">{profile.name?.charAt(0)?.toUpperCase() ?? "?"}</span>
+        {/* Avatar + Name row inside banner */}
+        <div className="relative px-4 pt-3 pb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-16 h-16 rounded-full border-3 border-white/40 shadow-lg overflow-hidden flex-shrink-0 bg-gradient-to-br from-amber-400 to-amber-600">
+              {photo ? (
+                <img src={photo} alt={profile.name ?? ''} className="w-full h-full object-cover"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <span className="text-2xl font-bold text-white">{profile.name?.charAt(0)?.toUpperCase() ?? "?"}</span>
+                </div>
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg font-bold text-white leading-tight">{profile.name}</h1>
+                {memberLevel && memberLevel !== "bronze" && (
+                  <MemberBadge level={memberLevel} variant="icon" size="sm" />
+                )}
               </div>
-            )}
+              <div className="flex items-center gap-1 text-xs text-white/70 mt-0.5">
+                <Calendar className="w-3 h-3" />
+                <span>加入於 {joinedDate}</span>
+              </div>
+            </div>
           </div>
           {winRate !== null && (
-            <Badge className="bg-white/20 border-white/40 text-white px-3 py-1 text-sm backdrop-blur-sm">
+            <Badge className="bg-white/20 border-white/40 text-white px-2.5 py-1 text-xs backdrop-blur-sm flex-shrink-0">
               得標率 {winRate}%
             </Badge>
           )}
@@ -148,19 +162,7 @@ export default function UserProfile() {
       </div>
 
       <div className="container max-w-2xl px-4 mt-3">
-        {/* Name + Meta */}
-        <div className="mb-4">
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-xl font-bold text-amber-900">{profile.name}</h1>
-            {memberLevel && memberLevel !== "bronze" && (
-              <MemberBadge level={memberLevel} variant="icon" size="sm" />
-            )}
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Calendar className="w-3.5 h-3.5" />
-            <span>加入於 {joinedDate}</span>
-          </div>
-        </div>
+        {/* spacer — name already in banner */}
 
         {/* Stats row */}
         <div className="grid grid-cols-2 gap-3 mb-4">
