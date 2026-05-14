@@ -7755,6 +7755,52 @@ ${kb}`;
         return { ok: true };
       }),
 
+    // 作者／admin 可以編輯自己嘅藏品社區帖文
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        title: z.string().min(2).max(255).optional(),
+        body: z.string().max(5000).optional(),
+        tags: z.array(z.string().max(40)).max(10).optional(),
+        imageUrls: z.array(z.string().url()).max(9).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const rows: any = await db.execute(sql`SELECT id, userId FROM collectionPosts WHERE id = ${input.id} LIMIT 1`);
+        const list = Array.isArray(rows) ? (rows[0] as any[]) : [];
+        if (!list || list.length === 0) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "帖文不存在" });
+        }
+        const existing = list[0];
+        const isAdmin = ctx.user.role === "admin";
+        if (Number(existing.userId) !== ctx.user.id && !isAdmin) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "只可以改自己嘅帖文" });
+        }
+        const newTitle = input.title !== undefined ? sanitizeUserText(input.title).trim() : null;
+        const newBody = input.body !== undefined ? sanitizeUserText(input.body).trim() : null;
+        const newTagsJson = input.tags !== undefined
+          ? JSON.stringify(input.tags.map(t => sanitizeUserText(t).trim()).filter(Boolean))
+          : null;
+        await db.transaction(async (tx) => {
+          if (newTitle !== null || newBody !== null || newTagsJson !== null) {
+            await tx.execute(sql`
+              UPDATE collectionPosts SET
+                title = COALESCE(${newTitle}, title),
+                body = COALESCE(${newBody}, body),
+                tagsJson = COALESCE(${newTagsJson}, tagsJson)
+              WHERE id = ${input.id}
+            `);
+          }
+          if (input.imageUrls !== undefined) {
+            await tx.execute(sql`DELETE FROM collectionPostImages WHERE postId = ${input.id}`);
+            for (let i = 0; i < input.imageUrls.length; i++) {
+              await tx.execute(sql`INSERT INTO collectionPostImages (postId, imageUrl, displayOrder) VALUES (${input.id}, ${input.imageUrls[i]}, ${i})`);
+            }
+          }
+        });
+        return { ok: true };
+      }),
+
     listComments: publicProcedure
       .input(z.object({ postId: z.number().int().positive() }))
       .query(async ({ input, ctx }) => {
@@ -8423,6 +8469,40 @@ EXAMPLE OUTPUT (exact format):
         return { images: urls.map(u => ({ url: u, source: 'commons' as const })) };
       }),
 
+    /** 從外部 URL 抓取文章 + 圖 + 視頻 → 自動生成 1 個 draft */
+    generateFromUrl: adminProcedure
+      .input(z.object({ url: z.string().url() }))
+      .mutation(async ({ input, ctx }) => {
+        const rl = aiRateLimit(ctx.user.id, 'communitySeeder.generateFromUrl', 12);
+        if (!rl.ok) throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: rl.message! });
+        const extracted = await fetchAndExtractFromUrl(input.url);
+        if (!extracted.title && !extracted.body) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '無法從呢個連結抓取內容（可能 page 需要登入或被 block）' });
+        }
+        const theme = COMMUNITY_SEEDER_THEMES.find(t => t.id === 'url-import')!;
+        const batchId = `url-${Date.now()}`;
+        const images = extracted.images.map(u => ({ url: u, source: 'manual' as const }));
+        const tags = extracted.tags.slice(0, 8);
+        const db = await getDb();
+        const [r]: any = await db.insert(communitySeederDrafts).values({
+          themeId: theme.id, themeLabel: theme.label, batchId,
+          title: sanitizeUserText(extracted.title || '（未命名 — 請編輯標題）').slice(0, 250),
+          body: sanitizeUserText(extracted.body || '（內容空白，請手動補充）').slice(0, 5000),
+          tagsJson: JSON.stringify(tags),
+          imagesJson: JSON.stringify(images),
+          authorUserId: null, status: 'draft', generatedBy: ctx.user.id,
+        });
+        return {
+          ok: true,
+          draftId: Number(r.insertId),
+          title: extracted.title,
+          imageCount: images.length,
+          videoCount: extracted.videos.length,
+          videoUrls: extracted.videos,
+          sourceUrl: input.url,
+        };
+      }),
+
     /** 發布 draft 去 collectionPosts (作者 default = 店主 大BB錢幣店；可指定其他 user) */
     publishDraft: adminProcedure
       .input(z.object({
@@ -8500,6 +8580,7 @@ const COMMUNITY_SEEDER_THEMES: Array<{ id: string; label: string; hint: string }
   { id: 'ancient-coin', label: '古錢幣', hint: '清朝、民國、銅錢、銀元' },
   { id: 'collecting-tips', label: '收藏入門', hint: '新手點開始、保存、評級、入手渠道' },
   { id: 'authentication', label: '鑑定真偽', hint: '常見假鈔／偽幣特徵、真假對比、UV 燈、水印' },
+  { id: 'url-import', label: '網絡轉載', hint: '從外部連結抓取文章 + 圖片自動生成草稿' },
 ];
 
 async function getDefaultShopOwnerUserId(db: any): Promise<number | null> {
@@ -8567,6 +8648,142 @@ async function fetchAndMirrorCommunityImages(query: string, targetCount = 2): Pr
     } catch { return null; }
   }));
   return results.filter((u): u is string => !!u).slice(0, targetCount);
+}
+
+// ─── 從外部 URL 抓 article + 圖 + 視頻（畀 admin 一鍵轉藏品社區草稿用）────────
+async function fetchAndExtractFromUrl(targetUrl: string): Promise<{
+  title: string;
+  body: string;
+  tags: string[];
+  images: string[];
+  videos: string[];
+}> {
+  let html = "";
+  try {
+    const r = await fetch(targetUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; hongxcollections-bot/1.0; +https://hongxcollections.com)",
+        "Accept": "text/html,application/xhtml+xml",
+      },
+      redirect: "follow",
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const ct = (r.headers.get("content-type") || "").toLowerCase();
+    if (!ct.includes("html")) throw new Error(`Not HTML (${ct})`);
+    html = await r.text();
+  } catch (e: any) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: `抓取失敗：${e?.message || String(e)}` });
+  }
+
+  const base = (() => { try { return new URL(targetUrl); } catch { return null; } })();
+  const resolveUrl = (u: string): string | null => {
+    if (!u) return null;
+    try { return new URL(u, base ?? undefined).toString(); } catch { return null; }
+  };
+  const decodeEntities = (s: string) => s
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+
+  const metaContent = (re: RegExp): string => {
+    const m = html.match(re);
+    return m ? decodeEntities(m[1]).trim() : "";
+  };
+
+  // ── Title
+  let title = metaContent(/<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']/i)
+           || metaContent(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:title["']/i)
+           || metaContent(/<meta\s+name=["']twitter:title["']\s+content=["']([^"']+)["']/i)
+           || metaContent(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  title = title.replace(/\s+/g, " ").slice(0, 250);
+
+  // ── Body：優先 og:description / description；再嘗試 <article> / <main> / 第一段 <p>
+  let body = metaContent(/<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']/i)
+          || metaContent(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i)
+          || metaContent(/<meta\s+name=["']twitter:description["']\s+content=["']([^"']+)["']/i)
+          || "";
+
+  const stripTags = (s: string) => decodeEntities(
+    s.replace(/<script[\s\S]*?<\/script>/gi, "")
+     .replace(/<style[\s\S]*?<\/style>/gi, "")
+     .replace(/<[^>]+>/g, " ")
+     .replace(/\s+/g, " ")
+  ).trim();
+
+  const articleMatch = html.match(/<article[\s\S]*?<\/article>/i)
+                    || html.match(/<main[\s\S]*?<\/main>/i)
+                    || html.match(/<div[^>]+(?:class|id)=["'][^"']*(?:article|content|post|entry)[^"']*["'][\s\S]*?<\/div>/i);
+  if (articleMatch) {
+    const articleText = stripTags(articleMatch[0]);
+    if (articleText.length > body.length) body = articleText;
+  }
+  body = body.replace(/\s+/g, " ").slice(0, 4900);
+
+  // ── 圖片：og:image + 所有 <img src>
+  const imgSet = new Set<string>();
+  const og = html.match(/<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']/gi);
+  if (og) for (const tag of og) {
+    const m = tag.match(/content=["']([^"']+)["']/i);
+    if (m) { const u = resolveUrl(decodeEntities(m[1])); if (u) imgSet.add(u); }
+  }
+  const imgRe = /<img[^>]+src=["']([^"']+)["']/gi;
+  let im: RegExpExecArray | null;
+  while ((im = imgRe.exec(html)) !== null) {
+    const u = resolveUrl(decodeEntities(im[1]));
+    if (u && !/\.svg(\?|#|$)/i.test(u)) imgSet.add(u);
+  }
+  // data-src / data-original (lazy load)
+  const lazyRe = /<img[^>]+data-(?:src|original|lazy-src)=["']([^"']+)["']/gi;
+  while ((im = lazyRe.exec(html)) !== null) {
+    const u = resolveUrl(decodeEntities(im[1]));
+    if (u && !/\.svg(\?|#|$)/i.test(u)) imgSet.add(u);
+  }
+
+  // ── 視頻：<video src> / <source src> / iframe (YouTube / Vimeo)
+  const videoSet = new Set<string>();
+  const vidRe = /<(?:video|source)[^>]+src=["']([^"']+)["']/gi;
+  while ((im = vidRe.exec(html)) !== null) {
+    const u = resolveUrl(decodeEntities(im[1]));
+    if (u) videoSet.add(u);
+  }
+  const iframeRe = /<iframe[^>]+src=["']([^"']+)["']/gi;
+  while ((im = iframeRe.exec(html)) !== null) {
+    const u = resolveUrl(decodeEntities(im[1]));
+    if (u && /(youtube\.com|youtu\.be|vimeo\.com|bilibili\.com)/i.test(u)) videoSet.add(u);
+  }
+
+  // ── Tags：meta keywords
+  const tags: string[] = [];
+  const kw = metaContent(/<meta\s+name=["']keywords["']\s+content=["']([^"']+)["']/i);
+  if (kw) {
+    for (const t of kw.split(/[,，;|]/).map(s => s.trim()).filter(Boolean)) {
+      if (t.length <= 40) tags.push(t);
+      if (tags.length >= 8) break;
+    }
+  }
+
+  // ── Mirror 圖片去 S3（最多 6 張，過濾太細／太大／非 jpeg/png/webp）
+  const candidates = Array.from(imgSet).slice(0, 12);
+  const safeStem = (base?.hostname || "url").replace(/[^a-zA-Z0-9\-]/g, "_").slice(0, 40);
+  const mirrored = await Promise.all(candidates.map(async (u, idx) => {
+    try {
+      const ir = await fetch(u, { headers: { "User-Agent": "hongxcollections/1.0 (https://hongxcollections.com)" } });
+      if (!ir.ok) return null;
+      const ct = (ir.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+      if (!["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(ct)) return null;
+      const ab = await ir.arrayBuffer();
+      const buf = Buffer.from(ab);
+      if (buf.length < 5_000 || buf.length > 8_000_000) return null;
+      const ext = ct === "image/png" ? "png" : ct === "image/webp" ? "webp" : "jpg";
+      const key = `community-seeder/url-${Date.now()}-${idx}-${safeStem}.${ext}`;
+      const ctNorm = ct === "image/jpg" ? "image/jpeg" : ct;
+      const { url } = await storagePut(key, buf, ctNorm);
+      return url;
+    } catch { return null; }
+  }));
+  const images = mirrored.filter((u): u is string => !!u).slice(0, 6);
+
+  return { title, body, tags, images, videos: Array.from(videoSet).slice(0, 5) };
 }
 
 // ─── Wikimedia Commons 圖片搜尋 + S3 mirror（畀每日挑戰 AI 生成用）────────────

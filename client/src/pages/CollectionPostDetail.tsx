@@ -10,7 +10,8 @@ import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import ImageLightbox from "@/components/ImageLightbox";
 import { CollectionShareMenu } from "@/components/ShareMenu";
-import { Heart, Bookmark, MessageCircle, Eye, ChevronLeft, Trash2, Store, ShoppingBag, AlertTriangle, ChevronRight } from "lucide-react";
+import { Heart, Bookmark, MessageCircle, Eye, ChevronLeft, Trash2, Store, ShoppingBag, AlertTriangle, ChevronRight, Pencil, X, Upload, Save, XCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { MemberBadge } from "@/components/MemberBadge";
 
 function intentBadge(intent: string) {
@@ -48,6 +49,13 @@ export default function CollectionPostDetail() {
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [commentText, setCommentText] = useState("");
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [editTags, setEditTags] = useState("");
+  const [editImages, setEditImages] = useState<string[]>([]);
+  const [editUploading, setEditUploading] = useState(false);
+  const editFileRef = useRef<HTMLInputElement>(null);
   const touchStartXRef = useRef(0);
   const touchStartYRef = useRef(0);
   const touchOpenedLightboxRef = useRef(false);
@@ -70,6 +78,15 @@ export default function CollectionPostDetail() {
   const deletePost = trpc.community.delete.useMutation({
     onSuccess: () => navigate("/collection-square"),
   });
+  const updatePost = trpc.community.update.useMutation({
+    onSuccess: () => {
+      showToast({ icon: "✅", title: "已更新" });
+      setIsEditing(false);
+      utils.community.get.invalidate({ id });
+    },
+    onError: (e) => showToast({ icon: "⚠️", title: "更新失敗", desc: e.message, durationMs: 4000 }),
+  });
+  const uploadImageEdit = trpc.community.uploadImage.useMutation();
   const adminSetHidden = trpc.community.adminSetHidden.useMutation({
     onSuccess: () => utils.community.get.invalidate({ id }),
   });
@@ -127,6 +144,58 @@ export default function CollectionPostDetail() {
     const ok = await confirm({ title: "刪除帖文？", description: "此動作不可還原。", confirmText: "刪除", cancelText: "取消" });
     if (!ok) return;
     await deletePost.mutateAsync({ id });
+  }
+
+  function startEditing() {
+    if (!post) return;
+    setEditTitle(post.title || "");
+    setEditBody((post as any).body || "");
+    setEditTags(((post as any).tags || []).join(", "));
+    setEditImages(((post as any).images || []).map((im: any) => im.imageUrl));
+    setIsEditing(true);
+  }
+
+  async function handleEditUpload(file: File) {
+    if (file.size > 8 * 1024 * 1024) {
+      showToast({ icon: "⚠️", title: "圖片唔可以超過 8MB", durationMs: 3000 });
+      return;
+    }
+    if (editImages.length >= 9) {
+      showToast({ icon: "⚠️", title: "最多 9 張圖片", durationMs: 3000 });
+      return;
+    }
+    setEditUploading(true);
+    try {
+      const reader = new FileReader();
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const base64 = dataUrl.split(",")[1] ?? "";
+      const r: any = await uploadImageEdit.mutateAsync({
+        imageData: base64,
+        fileName: file.name || "image.jpg",
+        mimeType: file.type || "image/jpeg",
+      });
+      const url: string = r?.url || r?.imageUrl;
+      if (url) setEditImages((arr) => [...arr, url].slice(0, 9));
+    } catch (e: any) {
+      showToast({ icon: "⚠️", title: "上載失敗", desc: e?.message ?? String(e), durationMs: 3500 });
+    } finally {
+      setEditUploading(false);
+    }
+  }
+
+  function handleSaveEdit() {
+    const tags = editTags.split(",").map(t => t.trim()).filter(Boolean).slice(0, 10);
+    updatePost.mutate({
+      id,
+      title: editTitle.trim(),
+      body: editBody,
+      tags,
+      imageUrls: editImages,
+    });
   }
 
   async function handleSubmitComment() {
@@ -256,12 +325,87 @@ export default function CollectionPostDetail() {
                 <div className="flex items-center gap-2 mb-1">{intentBadge(post.intent)}</div>
                 <h1 className="text-xl font-bold text-gray-900">{post.title}</h1>
               </div>
-              {(isOwner || isAdmin) && (
-                <Button size="sm" variant="ghost" onClick={handleDelete} className="text-red-600">
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+              {(isOwner || isAdmin) && !isEditing && (
+                <div className="flex gap-1 shrink-0">
+                  <Button size="sm" variant="ghost" onClick={startEditing} className="text-gray-600">
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={handleDelete} className="text-red-600">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               )}
             </div>
+
+            {isEditing && (isOwner || isAdmin) && (
+              <div className="space-y-3 border rounded-lg p-3 bg-amber-50/40">
+                <div className="flex items-center gap-2 text-sm font-semibold text-amber-700">
+                  <Pencil className="w-4 h-4" /> 編輯帖文
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">標題</label>
+                  <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} maxLength={255} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">內容</label>
+                  <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={6} maxLength={5000} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">標籤（用逗號分隔）</label>
+                  <Input value={editTags} onChange={(e) => setEditTags(e.target.value)} placeholder="標籤 1, 標籤 2" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 mb-2 block">圖片（{editImages.length}/9）</label>
+                  {editImages.length > 0 && (
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-2">
+                      {editImages.map((url, i) => (
+                        <div key={i} className="relative group aspect-square bg-white rounded border overflow-hidden">
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setEditImages(arr => arr.filter((_, idx) => idx !== i))}
+                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 shadow opacity-90 hover:opacity-100 hover:scale-110 transition"
+                            aria-label="移除"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <input
+                    ref={editFileRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/gif"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleEditUpload(f);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => editFileRef.current?.click()}
+                    disabled={editUploading || editImages.length >= 9}
+                    className="bg-white"
+                  >
+                    <Upload className="w-3.5 h-3.5 mr-1" />
+                    {editUploading ? "上載中..." : "上載圖片"}
+                  </Button>
+                </div>
+                <div className="flex gap-2 justify-end pt-2 border-t">
+                  <Button size="sm" variant="outline" onClick={() => setIsEditing(false)}>
+                    <XCircle className="w-4 h-4 mr-1" /> 取消
+                  </Button>
+                  <Button size="sm" onClick={handleSaveEdit} disabled={updatePost.isPending || editTitle.trim().length < 2}>
+                    <Save className="w-4 h-4 mr-1" /> {updatePost.isPending ? "儲存中..." : "儲存"}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* author */}
             <div className="flex items-center gap-2 text-sm">

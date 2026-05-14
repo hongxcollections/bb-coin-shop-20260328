@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { trpc } from "@/lib/trpc";
-import { Sparkles, Trash2, Send, Search, Plus, X, RefreshCw, Pencil, ExternalLink, Upload, Image as ImageIcon } from "lucide-react";
+import { Sparkles, Trash2, Send, Search, Plus, X, RefreshCw, Pencil, ExternalLink, Upload, Image as ImageIcon, Link2, Video } from "lucide-react";
 
 type DraftImage = { url: string; source: "commons" | "manual" };
 
@@ -32,6 +32,7 @@ export default function AdminCommunitySeeder() {
   const [searchQ, setSearchQ] = useState("");
   const [manualUrl, setManualUrl] = useState("");
   const [searching, setSearching] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const themes = trpc.adminCommunitySeeder.listThemes.useQuery();
@@ -70,6 +71,23 @@ export default function AdminCommunitySeeder() {
   });
   const searchImages = trpc.adminCommunitySeeder.searchImages.useMutation();
   const uploadImage = trpc.adminCommunitySeeder.uploadImage.useMutation();
+  const generateFromUrl = trpc.adminCommunitySeeder.generateFromUrl.useMutation({
+    onSuccess: (r) => {
+      const parts: string[] = [];
+      if (r.title) parts.push(`「${r.title.slice(0, 30)}」`);
+      parts.push(`${r.imageCount} 張圖`);
+      if (r.videoCount > 0) parts.push(`${r.videoCount} 個視頻連結（已存入內文，請手動編輯）`);
+      showToast({ icon: "🔗", title: "已從連結生成草稿", desc: parts.join("｜"), durationMs: 5000 });
+      setImportUrl("");
+      setStatusFilter("draft");
+      utils.adminCommunitySeeder.listDrafts.invalidate();
+      // 自動進入編輯模式：refetch 之後揾返新 draft
+      setTimeout(() => {
+        utils.adminCommunitySeeder.listDrafts.invalidate();
+      }, 100);
+    },
+    onError: (e) => showToast({ icon: "⚠️", title: "抓取失敗", desc: e.message, durationMs: 5000 }),
+  });
 
   const startEdit = (d: any) => {
     setEditingId(d.id);
@@ -204,6 +222,38 @@ export default function AdminCommunitySeeder() {
             </Button>
           </div>
           <p className="text-xs text-gray-500 mt-2">每次需時約 20-40 秒（AI 生成 + Wikimedia Commons 圖片庫）</p>
+        </Card>
+
+        <Card className="p-5 mb-6 bg-gradient-to-br from-sky-50 to-cyan-50 border-sky-200">
+          <h2 className="font-semibold mb-1 flex items-center gap-2"><Link2 className="w-4 h-4 text-sky-600" /> 從連結抓取（網絡轉載）</h2>
+          <p className="text-xs text-gray-600 mb-3">貼一條外部文章 URL，系統會自動抓取標題、內文、圖片同視頻連結，生成 1 個 draft 等你修改。</p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              className="bg-white"
+              placeholder="https://example.com/article"
+              value={importUrl}
+              onChange={e => setImportUrl(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && importUrl.trim() && !generateFromUrl.isPending) {
+                  e.preventDefault();
+                  generateFromUrl.mutate({ url: importUrl.trim() });
+                }
+              }}
+              disabled={generateFromUrl.isPending}
+            />
+            <Button
+              onClick={() => generateFromUrl.mutate({ url: importUrl.trim() })}
+              disabled={!importUrl.trim() || generateFromUrl.isPending}
+              className="bg-sky-600 hover:bg-sky-700"
+            >
+              {generateFromUrl.isPending
+                ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> 抓取中...</>
+                : <><Link2 className="w-4 h-4 mr-2" /> 從連結生成</>}
+            </Button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2 flex items-start gap-1">
+            <Video className="w-3.5 h-3.5 mt-0.5 shrink-0" /> 視頻（YouTube / Vimeo 等）會以連結形式附入內文，唔會自動 embed；圖片會 mirror 落 S3。
+          </p>
         </Card>
 
         <div className="flex gap-2 mb-4 items-center flex-wrap">
