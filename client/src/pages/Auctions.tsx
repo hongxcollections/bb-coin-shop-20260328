@@ -23,7 +23,7 @@ import { ShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
 import Header from "@/components/Header";
 
-function AuctionImageOverlay({ endTime, sellerName }: { endTime: Date | string; sellerName?: string | null }) {
+function AuctionImageOverlay({ endTime }: { endTime: Date | string }) {
   const [txt, setTxt] = useState("");
   const [urgent, setUrgent] = useState(false);
   useEffect(() => {
@@ -49,19 +49,17 @@ function AuctionImageOverlay({ endTime, sellerName }: { endTime: Date | string; 
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
   }, [endTime]);
-  if (!txt && !sellerName) return null;
+  if (!txt) return null;
   return (
-    <div className="absolute bottom-0 left-0 right-0 bg-black/30 backdrop-blur-sm px-1.5 py-1 flex flex-col gap-0.5">
-      {sellerName && <div className="text-[10px] text-white/85 font-medium leading-none truncate">{sellerName}</div>}
-      {txt && (
-        urgent
-          ? <div className="flex items-center gap-0.5 text-[10px] font-black leading-none animate-pulse bg-red-600 text-white px-1 py-0.5 rounded self-start">
-              <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
-            </div>
-          : <div className="flex items-center gap-0.5 text-[10px] font-bold leading-none text-white/90">
-              <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
-            </div>
-      )}
+    <div className="absolute bottom-0 left-0 right-0 bg-black/30 backdrop-blur-sm px-1.5 py-1">
+      {urgent
+        ? <div className="flex items-center gap-0.5 text-[10px] font-black leading-none animate-pulse bg-red-600 text-white px-1 py-0.5 rounded self-start inline-flex">
+            <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
+          </div>
+        : <div className="flex items-center gap-0.5 text-[10px] font-bold leading-none text-white/90">
+            <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
+          </div>
+      }
     </div>
   );
 }
@@ -495,10 +493,7 @@ export default function Auctions() {
                       ) : (
                         <span className="text-3xl">🪙</span>
                       )}
-                      <AuctionImageOverlay
-                        endTime={auction.endTime}
-                        sellerName={a.sellerName}
-                      />
+                      <AuctionImageOverlay endTime={auction.endTime} />
                     </div>
 
                     {/* Right: Content */}
