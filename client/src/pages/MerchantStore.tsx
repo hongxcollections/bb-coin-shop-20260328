@@ -89,7 +89,12 @@ function ContactBtns({ whatsapp, messengerLink, title, price, id, size = "md" }:
   );
 }
 
-function ProductsList({ products, layout, whatsapp, messengerLink }: { products: any[]; layout: LayoutMode; whatsapp: string; messengerLink: string }) {
+function ProductsList({ products, layout, whatsapp, messengerLink, merchantName }: { products: any[]; layout: LayoutMode; whatsapp: string; messengerLink: string; merchantName: string }) {
+  const nameOverlay = merchantName ? (
+    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-0.5 text-white text-[10px] font-medium leading-tight truncate pointer-events-none">
+      {sanitizeUserText(merchantName)}
+    </div>
+  ) : null;
   if (products.length === 0) return <p className="text-center text-gray-400 text-sm py-6">暫無出售商品</p>;
 
   if (layout === "list") {
@@ -112,6 +117,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
                   </div>
                 )}
                 {isSold && <div className="absolute inset-0 bg-gray-500/30 rounded-lg flex items-center justify-center"><span className="text-white text-[9px] font-bold bg-gray-600/80 px-1 py-0.5 rounded">已售出</span></div>}
+                {nameOverlay}
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className={`text-sm font-semibold line-clamp-1 ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
@@ -152,6 +158,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
                   </div>
                 )}
                 {isSold && <div className="absolute inset-0 bg-gray-500/30 flex items-center justify-center"><span className="text-white text-sm font-bold bg-gray-600/80 px-3 py-1 rounded-full">已售出</span></div>}
+                {nameOverlay}
               </div>
               {imgs.length > 1 && (
                 <div className="flex gap-1.5 px-3 pt-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
@@ -204,6 +211,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
                   </div>
                 )}
                 {isSold && <div className="absolute inset-0 bg-gray-500/30 flex items-center justify-center"><span className="text-white text-[9px] font-bold bg-gray-600/80 px-1 py-0.5 rounded">已售出</span></div>}
+                {nameOverlay}
               </div>
               <div className="p-1.5 flex flex-col gap-0.5 flex-1">
                 <h3 className={`text-[10px] font-semibold line-clamp-2 leading-tight ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
@@ -249,6 +257,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
                 </div>
               )}
               {isSold && <div className="absolute inset-0 bg-gray-500/30 flex items-center justify-center"><span className="text-white text-xs font-bold bg-gray-600/80 px-2 py-0.5 rounded-full">已售出</span></div>}
+              {nameOverlay}
             </div>
             <div className="p-2.5 flex flex-col gap-1 flex-1">
               <div className="flex items-start justify-between gap-1">
@@ -761,6 +770,7 @@ export default function MerchantStore() {
                   layout={merchantLayout}
                   whatsapp={merchant?.whatsapp ?? ""}
                   messengerLink={messengerLink}
+                  merchantName={merchant?.merchantName ?? ""}
                 />
                 {soldProducts.length > 0 && (merchantInfo?.showSoldProducts ?? 1) !== 0 && (
                   <div className="mt-3">
