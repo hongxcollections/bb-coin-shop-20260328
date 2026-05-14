@@ -768,7 +768,7 @@ export default function MerchantProductDetail() {
 
                 {/* list：橫排 */}
                 {layout === "list" && (
-                  <div className="space-y-[2px]">
+                  <div className="flex flex-col gap-[2px]">
                     {paginatedOthers.map((p: any) => {
                       const d = mkData(p);
                       return (
@@ -794,7 +794,7 @@ export default function MerchantProductDetail() {
 
                 {/* big：大圖 */}
                 {layout === "big" && (
-                  <div className="space-y-[2px]">
+                  <div className="flex flex-col gap-[2px]">
                     {paginatedOthers.map((p: any) => {
                       const d = mkData(p);
                       return (

@@ -247,7 +247,7 @@ export default function MerchantSessionPublic() {
             專場仲未加入商品
           </div>
         ) : (
-          <div className="space-y-[2px]">
+          <div className="flex flex-col gap-[2px]">
             {auctions.map((auction: any) => {
               const nowMs = Date.now();
               const endMs = new Date(auction.endTime).getTime();
