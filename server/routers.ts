@@ -8329,7 +8329,10 @@ EXAMPLE OUTPUT (exact format):
             responseFormat: { type: 'json_object' },
           });
           const content = result.choices?.[0]?.message?.content;
-          const text = typeof content === 'string' ? content : (Array.isArray(content) ? content.map((c: any) => c.text || '').join('') : '');
+          const rawText = typeof content === 'string' ? content : (Array.isArray(content) ? content.map((c: any) => c.text || '').join('') : '');
+          // 部分 model（即使開咗 json_object）會返 markdown fence ```json ... ```，先剝走
+          const fenceMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+          const text = (fenceMatch ? fenceMatch[1] : rawText).trim();
           const jsonMatch = text.match(/\{[\s\S]*\}/);
           parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
         } catch (e: any) {
