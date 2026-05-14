@@ -907,7 +907,19 @@ export default function MerchantProductDetail() {
                               </Badge>
                             </div>
                             <div className="mt-1">
-                              <div className="text-xs text-muted-foreground">目前出價</div>
+                              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                目前出價
+                                {(() => {
+                                  if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
+                                    return <span className="text-[9px] text-emerald-600 font-bold">(我本人✓)</span>;
+                                  } else if (a.highestBidderName) {
+                                    return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;
+                                  } else if (!a.highestBidderId) {
+                                    return <span className="text-[9px] text-gray-500 font-normal">(未有出價)</span>;
+                                  }
+                                  return null;
+                                })()}
+                              </div>
                               <div className="text-sm font-bold text-amber-600">
                                 {getCurrencySymbol(currency)}{Number(a.currentPrice ?? a.startingPrice ?? 0).toLocaleString()}
                               </div>

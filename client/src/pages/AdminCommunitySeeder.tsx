@@ -38,15 +38,15 @@ export default function AdminCommunitySeeder() {
   // 題材管理
   const [showThemeMgr, setShowThemeMgr] = useState(false);
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
-  const [themeForm, setThemeForm] = useState<{ id: string; label: string; hint: string; sortOrder: number }>({
-    id: "", label: "", hint: "", sortOrder: 100,
+  const [themeForm, setThemeForm] = useState<{ id: string; label: string; hint: string; sortOrder: string }>({
+    id: "", label: "", hint: "", sortOrder: "100",
   });
 
   const themes = trpc.adminCommunitySeeder.listThemes.useQuery();
   const createTheme = trpc.adminCommunitySeeder.createTheme.useMutation({
     onSuccess: () => {
       showToast({ icon: "✅", title: "已新增題材" });
-      setThemeForm({ id: "", label: "", hint: "", sortOrder: 100 });
+      setThemeForm({ id: "", label: "", hint: "", sortOrder: "100" });
       utils.adminCommunitySeeder.listThemes.invalidate();
     },
     onError: (e) => showToast({ icon: "⚠️", title: "新增失敗", desc: e.message }),
@@ -261,10 +261,10 @@ export default function AdminCommunitySeeder() {
                     <Textarea value={themeForm.hint} onChange={e => setThemeForm({ ...themeForm, hint: e.target.value })} placeholder="提示（用作 AI prompt + 揀題材時嘅描述）" rows={2} className="bg-white" />
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-gray-600">排序：</span>
-                      <Input type="number" value={themeForm.sortOrder} onChange={e => setThemeForm({ ...themeForm, sortOrder: Number(e.target.value) || 0 })} className="bg-white w-24" />
+                      <Input type="number" inputMode="numeric" value={themeForm.sortOrder} onChange={e => setThemeForm({ ...themeForm, sortOrder: e.target.value })} className="bg-white w-24" />
                       <div className="flex-1" />
                       <Button size="sm" variant="ghost" onClick={() => setEditingThemeId(null)}>取消</Button>
-                      <Button size="sm" onClick={() => updateTheme.mutate({ id: t.id, label: themeForm.label, hint: themeForm.hint, sortOrder: themeForm.sortOrder })} disabled={updateTheme.isPending}>儲存</Button>
+                      <Button size="sm" onClick={() => updateTheme.mutate({ id: t.id, label: themeForm.label, hint: themeForm.hint, sortOrder: parseInt(themeForm.sortOrder, 10) || 100 })} disabled={updateTheme.isPending}>儲存</Button>
                     </div>
                   </div>
                 ) : (
@@ -279,7 +279,7 @@ export default function AdminCommunitySeeder() {
                       <div className="text-xs text-gray-600 mt-0.5 break-words">{t.hint}</div>
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      <Button size="sm" variant="ghost" onClick={() => { setEditingThemeId(t.id); setThemeForm({ id: t.id, label: t.label, hint: t.hint, sortOrder: t.sortOrder }); }}>
+                      <Button size="sm" variant="ghost" onClick={() => { setEditingThemeId(t.id); setThemeForm({ id: t.id, label: t.label, hint: t.hint, sortOrder: String(t.sortOrder) }); }}>
                         <Pencil className="w-3.5 h-3.5" />
                       </Button>
                       {!t.isSystem && (
@@ -305,9 +305,9 @@ export default function AdminCommunitySeeder() {
                 <Textarea value={themeForm.hint} onChange={e => setThemeForm({ ...themeForm, hint: e.target.value })} placeholder="提示（俾 AI 知道呢個題材包括啲咩）" rows={2} className="bg-white" />
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-600">排序：</span>
-                  <Input type="number" value={themeForm.sortOrder} onChange={e => setThemeForm({ ...themeForm, sortOrder: Number(e.target.value) || 100 })} className="bg-white w-24" />
+                  <Input type="number" inputMode="numeric" value={themeForm.sortOrder} onChange={e => setThemeForm({ ...themeForm, sortOrder: e.target.value })} className="bg-white w-24" />
                   <div className="flex-1" />
-                  <Button size="sm" onClick={() => createTheme.mutate({ id: themeForm.id.trim(), label: themeForm.label.trim(), hint: themeForm.hint.trim(), sortOrder: themeForm.sortOrder })} disabled={!themeForm.id.trim() || !themeForm.label.trim() || !themeForm.hint.trim() || createTheme.isPending}>
+                  <Button size="sm" onClick={() => createTheme.mutate({ id: themeForm.id.trim(), label: themeForm.label.trim(), hint: themeForm.hint.trim(), sortOrder: parseInt(themeForm.sortOrder, 10) || 100 })} disabled={!themeForm.id.trim() || !themeForm.label.trim() || !themeForm.hint.trim() || createTheme.isPending}>
                     <Plus className="w-3.5 h-3.5 mr-1" /> 新增
                   </Button>
                 </div>
