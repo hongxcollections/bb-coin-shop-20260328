@@ -61,6 +61,7 @@ import AdminBackup from "./pages/AdminBackup";
 import AdminSystemTest from "./pages/AdminSystemTest";
 import AdminFeaturedListings from "./pages/AdminFeaturedListings";
 import AdminAds from "./pages/AdminAds";
+import AdminPm001Scraper from "./pages/AdminPm001Scraper";
 import AdBanner from "./components/AdBanner";
 import AdminPendingNotice from "./components/AdminPendingNotice";
 import AdminRecentSignupsAutoPopup from "./components/AdminRecentSignupsAutoPopup";
@@ -212,6 +213,7 @@ function Router() {
       <Route path={"/admin/system-test"} component={AdminSystemTest} />
       <Route path={"/admin/featured-listings"} component={AdminFeaturedListings} />
       <Route path={"/admin/ads"} component={AdminAds} />
+      <Route path={"/admin/pm001-scraper"} component={AdminPm001Scraper} />
       <Route path={"/records"} component={AuctionSearch} />
       <Route path={"/merchants"} component={Merchants} />
       <Route path={"/merchants/:userId"} component={MerchantStore} />

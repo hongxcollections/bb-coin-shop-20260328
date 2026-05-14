@@ -42,6 +42,7 @@ export default function AdminHeader() {
     { href: "/admin/ads", label: "📢 廣告管理", bg: "bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100" },
     { href: "/admin/backup", label: "🗄️ 資料庫備份", bg: "bg-green-50 text-green-700 border-green-200 hover:bg-green-100" },
     { href: "/admin/system-test", label: "🛠️ 系統測試", bg: "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100" },
+    { href: "/admin/pm001-scraper", label: "🔍 pm001 錢幣搜索", bg: "bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100" },
     { href: "/profile", label: "👤 " + (user?.name ?? "個人資料"), bg: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" },
   ];
 

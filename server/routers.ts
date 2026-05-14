@@ -8723,6 +8723,76 @@ EXAMPLE OUTPUT (exact format):
         return out;
       }),
   }),
+
+  // ─── pm001.net 爬蟲工具 ──────────────────────────────────────────────────
+  pm001: router({
+    /** 讀取已儲存的分類列表 */
+    getCategories: adminProcedure.query(async () => {
+      const v = await getSiteSetting('pm001.categories');
+      if (!v) return [] as { id: string; name: string; url: string }[];
+      try { return JSON.parse(v) as { id: string; name: string; url: string }[]; }
+      catch { return [] as { id: string; name: string; url: string }[]; }
+    }),
+
+    /** 儲存分類列表 */
+    saveCategories: adminProcedure
+      .input(z.array(z.object({ id: z.string(), name: z.string().min(1), url: z.string().min(1) })))
+      .mutation(async ({ input }) => {
+        await setSiteSetting('pm001.categories', JSON.stringify(input));
+        return { success: true };
+      }),
+
+    /** 爬取指定版塊 URL，過濾含 keyword 的帖子 */
+    scrape: adminProcedure
+      .input(z.object({
+        url: z.string().min(1),
+        keyword: z.string().min(1).max(100),
+        pages: z.number().int().min(1).max(10).default(3),
+      }))
+      .mutation(async ({ input }) => {
+        const iconv = await import('iconv-lite');
+        const results: { title: string; postUrl: string; id: string }[] = [];
+        const seen = new Set<string>();
+        const kw = input.keyword.toLowerCase();
+
+        for (let page = 1; page <= input.pages; page++) {
+          try {
+            // pm001 pagination: append &page=N (or ?page=N if no existing params)
+            const sep = input.url.includes('?') ? '&' : '?';
+            const pageUrl = page === 1 ? input.url : `${input.url}${sep}page=${page}`;
+            const resp = await fetch(pageUrl, {
+              signal: AbortSignal.timeout(12000),
+              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+            });
+            if (!resp.ok) break;
+            const buf = Buffer.from(await resp.arrayBuffer());
+            const html = iconv.decode(buf, 'gb2312');
+
+            // Extract post links + titles: pattern href="dispbbs.asp?boardID=XX&ID=YY...">TITLE</a>
+            const regex = /dispbbs\.asp\?boardID=(\d+)&(?:amp;)?ID=(\d+)[^"<\s]*"[^>]*>([^<]{2,120})<\/a>/gi;
+            let m: RegExpExecArray | null;
+            while ((m = regex.exec(html)) !== null) {
+              const [, boardId, id, rawTitle] = m;
+              const title = rawTitle.trim();
+              // skip timestamp entries and duplicates
+              if (!title || /^\d{4}\/\d/.test(title) || seen.has(id)) continue;
+              seen.add(id);
+              if (title.toLowerCase().includes(kw)) {
+                results.push({
+                  title,
+                  postUrl: `http://www.pm001.net/dispbbs.asp?boardID=${boardId}&ID=${id}&page=1`,
+                  id,
+                });
+              }
+            }
+          } catch (e: any) {
+            console.error('[pm001 scrape] page', page, e?.message);
+            break;
+          }
+        }
+        return { results, total: results.length, pagesScraped: input.pages };
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
 
