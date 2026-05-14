@@ -54,8 +54,9 @@ export default function AdminCommunitySeeder() {
     onError: (e) => showToast({ icon: "⚠️", title: "儲存失敗", desc: e.message }),
   });
   const publishDraft = trpc.adminCommunitySeeder.publishDraft.useMutation({
-    onSuccess: () => {
-      showToast({ icon: "🚀", title: "已發布到藏品社區" });
+    onSuccess: (r) => {
+      showToast({ icon: "🚀", title: "已發布到藏品社區", desc: r.title ? `「${r.title.slice(0, 40)}」` : undefined });
+      setStatusFilter("published");
       utils.adminCommunitySeeder.listDrafts.invalidate();
     },
     onError: (e) => showToast({ icon: "⚠️", title: "發布失敗", desc: e.message }),
@@ -142,10 +143,11 @@ export default function AdminCommunitySeeder() {
   const handlePublish = async (d: any) => {
     const authorLabel = d.authorUserId
       ? (authors.data?.find(a => a.id === d.authorUserId)?.label || `User #${d.authorUserId}`)
-      : "預設管理員（大BB錢幣店）";
+      : "預設（大BB錢幣店）";
+    const titlePreview = (d.title || "").slice(0, 60);
     const ok = await confirm({
-      title: "確認發布到藏品社區？",
-      description: `將以「${authorLabel}」身份發布`,
+      title: "確認發布呢個草稿？",
+      description: `「${titlePreview}」\n作者：${authorLabel}`,
       confirmText: "發布",
     });
     if (!ok) return;
@@ -288,7 +290,7 @@ export default function AdminCommunitySeeder() {
                           >
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="default">預設（大BB錢幣店管理員）</SelectItem>
+                              <SelectItem value="default">預設（大BB錢幣店）</SelectItem>
                               {authorsList.map(a => (
                                 <SelectItem key={a.id} value={String(a.id)}>{a.label}</SelectItem>
                               ))}

@@ -8423,24 +8423,29 @@ EXAMPLE OUTPUT (exact format):
         return { images: urls.map(u => ({ url: u, source: 'commons' as const })) };
       }),
 
-    /** 發布 draft 去 collectionPosts (作者 default OWNER / 大BB錢幣店；可指定其他 user) */
+    /** 發布 draft 去 collectionPosts (作者 default = 店主 大BB錢幣店；可指定其他 user) */
     publishDraft: adminProcedure
       .input(z.object({
         id: z.number().int().positive(),
         authorUserId: z.number().int().positive().nullable().optional(),
       }))
-      .mutation(async ({ input, ctx }) => {
+      .mutation(async ({ input }) => {
         const db = await getDb();
         const [d] = await db.select().from(communitySeederDrafts).where(eq(communitySeederDrafts.id, input.id)).limit(1);
         if (!d) throw new TRPCError({ code: 'NOT_FOUND', message: 'Draft 不存在' });
         if (d.status === 'published' && d.publishedPostId) {
-          return { ok: true, alreadyPublished: true, postId: d.publishedPostId };
+          return { ok: true, alreadyPublished: true, postId: d.publishedPostId, draftId: d.id, title: d.title };
         }
         const images = d.imagesJson ? safeJson<Array<{ url: string }>>(d.imagesJson, []) : [];
-        if (images.length < 1) throw new TRPCError({ code: 'BAD_REQUEST', message: '至少要 1 張圖片先可以發布' });
 
-        const authorUserId = input.authorUserId ?? d.authorUserId ?? ctx.user.id;
-        if (authorUserId !== ctx.user.id) {
+        // 作者優先順序：明示指定 → draft 已選 → 店主 (大BB錢幣店)
+        let authorUserId: number | null = input.authorUserId ?? d.authorUserId ?? null;
+        if (authorUserId === null) {
+          authorUserId = await getDefaultShopOwnerUserId(db);
+          if (!authorUserId) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '揾唔到店主帳號（OWNER_OPEN_ID 未設定 / 帳號不存在），請喺作者 dropdown 揀返一個' });
+          }
+        } else {
           await assertEligibleAuthor(db, authorUserId);
         }
 
@@ -8459,7 +8464,7 @@ EXAMPLE OUTPUT (exact format):
             .where(eq(communitySeederDrafts.id, input.id));
           return pid;
         });
-        return { ok: true, postId };
+        return { ok: true, postId, draftId: d.id, title: d.title };
       }),
 
     /** 拆除 draft (如已 published 同時刪除 collectionPosts 帖) */
@@ -8496,6 +8501,15 @@ const COMMUNITY_SEEDER_THEMES: Array<{ id: string; label: string; hint: string }
   { id: 'collecting-tips', label: '收藏入門', hint: '新手點開始、保存、評級、入手渠道' },
   { id: 'authentication', label: '鑑定真偽', hint: '常見假鈔／偽幣特徵、真假對比、UV 燈、水印' },
 ];
+
+async function getDefaultShopOwnerUserId(db: any): Promise<number | null> {
+  const openId = ENV.ownerOpenId;
+  if (!openId) return null;
+  const rows: any = await db.execute(sql`SELECT id FROM users WHERE openId = ${openId} LIMIT 1`);
+  const list = Array.isArray(rows) ? (rows[0] as any[]) : [];
+  if (!list || list.length === 0) return null;
+  return Number(list[0].id);
+}
 
 async function assertEligibleAuthor(db: any, userId: number): Promise<void> {
   const rows: any = await db.execute(sql`
