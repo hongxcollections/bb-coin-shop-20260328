@@ -8358,32 +8358,36 @@ EXAMPLE OUTPUT (exact format):
         const db = await getDb();
         const [d] = await db.select().from(communitySeederDrafts).where(eq(communitySeederDrafts.id, input.id)).limit(1);
         if (!d) throw new TRPCError({ code: 'NOT_FOUND', message: 'Draft 不存在' });
+        if (input.authorUserId !== undefined && input.authorUserId !== null) {
+          await assertEligibleAuthor(db, input.authorUserId);
+        }
         const patch: any = {};
         if (input.title !== undefined) patch.title = sanitizeUserText(input.title);
         if (input.body !== undefined) patch.body = sanitizeUserText(input.body);
         if (input.tags !== undefined) patch.tagsJson = JSON.stringify(input.tags);
         if (input.images !== undefined) patch.imagesJson = JSON.stringify(input.images);
         if (input.authorUserId !== undefined) patch.authorUserId = input.authorUserId;
-        if (Object.keys(patch).length > 0) {
-          await db.update(communitySeederDrafts).set(patch).where(eq(communitySeederDrafts.id, input.id));
-        }
-        // 同步 published post
-        if (d.status === 'published' && d.publishedPostId) {
-          const newTitle = patch.title ?? d.title;
-          const newBody = patch.body ?? d.body;
-          const newTagsJson = patch.tagsJson ?? d.tagsJson;
-          await db.execute(sql`UPDATE collectionPosts SET title = ${newTitle}, body = ${newBody}, tagsJson = ${newTagsJson} WHERE id = ${d.publishedPostId}`);
-          if (input.images !== undefined) {
-            await db.execute(sql`DELETE FROM collectionPostImages WHERE postId = ${d.publishedPostId}`);
-            const finalImages = input.images;
-            for (let i = 0; i < finalImages.length; i++) {
-              await db.execute(sql`INSERT INTO collectionPostImages (postId, imageUrl, displayOrder) VALUES (${d.publishedPostId}, ${finalImages[i].url}, ${i})`);
+
+        await db.transaction(async (tx) => {
+          if (Object.keys(patch).length > 0) {
+            await tx.update(communitySeederDrafts).set(patch).where(eq(communitySeederDrafts.id, input.id));
+          }
+          if (d.status === 'published' && d.publishedPostId) {
+            const newTitle = patch.title ?? d.title;
+            const newBody = patch.body ?? d.body;
+            const newTagsJson = patch.tagsJson ?? d.tagsJson;
+            await tx.execute(sql`UPDATE collectionPosts SET title = ${newTitle}, body = ${newBody}, tagsJson = ${newTagsJson} WHERE id = ${d.publishedPostId}`);
+            if (input.images !== undefined) {
+              await tx.execute(sql`DELETE FROM collectionPostImages WHERE postId = ${d.publishedPostId}`);
+              for (let i = 0; i < input.images.length; i++) {
+                await tx.execute(sql`INSERT INTO collectionPostImages (postId, imageUrl, displayOrder) VALUES (${d.publishedPostId}, ${input.images[i].url}, ${i})`);
+              }
+            }
+            if (input.authorUserId !== undefined && input.authorUserId !== null) {
+              await tx.execute(sql`UPDATE collectionPosts SET userId = ${input.authorUserId} WHERE id = ${d.publishedPostId}`);
             }
           }
-          if (input.authorUserId !== undefined && input.authorUserId !== null) {
-            await db.execute(sql`UPDATE collectionPosts SET userId = ${input.authorUserId} WHERE id = ${d.publishedPostId}`);
-          }
-        }
+        });
         return { ok: true };
       }),
 
@@ -8429,18 +8433,25 @@ EXAMPLE OUTPUT (exact format):
         if (images.length < 1) throw new TRPCError({ code: 'BAD_REQUEST', message: '至少要 1 張圖片先可以發布' });
 
         const authorUserId = input.authorUserId ?? d.authorUserId ?? ctx.user.id;
-        const [r]: any = await db.execute(sql`
-          INSERT INTO collectionPosts (userId, title, body, intent, tagsJson, isMerchantPost)
-          VALUES (${authorUserId}, ${d.title}, ${d.body}, 'display', ${d.tagsJson}, 0)
-        `);
-        const postId = Number(r?.insertId ?? (Array.isArray(r) ? (r[0] as any)?.insertId : 0));
-        if (!postId) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '發布失敗' });
-        for (let i = 0; i < images.length; i++) {
-          await db.execute(sql`INSERT INTO collectionPostImages (postId, imageUrl, displayOrder) VALUES (${postId}, ${images[i].url}, ${i})`);
+        if (authorUserId !== ctx.user.id) {
+          await assertEligibleAuthor(db, authorUserId);
         }
-        await db.update(communitySeederDrafts)
-          .set({ status: 'published', publishedPostId: postId, authorUserId })
-          .where(eq(communitySeederDrafts.id, input.id));
+
+        const postId = await db.transaction(async (tx) => {
+          const [r]: any = await tx.execute(sql`
+            INSERT INTO collectionPosts (userId, title, body, intent, tagsJson, isMerchantPost)
+            VALUES (${authorUserId}, ${d.title}, ${d.body}, 'display', ${d.tagsJson}, 0)
+          `);
+          const pid = Number(r?.insertId ?? (Array.isArray(r) ? (r[0] as any)?.insertId : 0));
+          if (!pid) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '發布失敗' });
+          for (let i = 0; i < images.length; i++) {
+            await tx.execute(sql`INSERT INTO collectionPostImages (postId, imageUrl, displayOrder) VALUES (${pid}, ${images[i].url}, ${i})`);
+          }
+          await tx.update(communitySeederDrafts)
+            .set({ status: 'published', publishedPostId: pid, authorUserId })
+            .where(eq(communitySeederDrafts.id, input.id));
+          return pid;
+        });
         return { ok: true, postId };
       }),
 
@@ -8451,16 +8462,16 @@ EXAMPLE OUTPUT (exact format):
         const db = await getDb();
         const [d] = await db.select().from(communitySeederDrafts).where(eq(communitySeederDrafts.id, input.id)).limit(1);
         if (!d) throw new TRPCError({ code: 'NOT_FOUND', message: 'Draft 不存在' });
-        if (d.status === 'published' && d.publishedPostId && input.alsoDeletePost) {
-          try {
-            await db.execute(sql`DELETE FROM collectionPostImages WHERE postId = ${d.publishedPostId}`);
-            await db.execute(sql`DELETE FROM collectionPostLikes WHERE postId = ${d.publishedPostId}`);
-            await db.execute(sql`DELETE FROM collectionPostComments WHERE postId = ${d.publishedPostId}`);
-            await db.execute(sql`DELETE FROM collectionPostSaves WHERE postId = ${d.publishedPostId}`);
-            await db.execute(sql`DELETE FROM collectionPosts WHERE id = ${d.publishedPostId}`);
-          } catch {}
-        }
-        await db.delete(communitySeederDrafts).where(eq(communitySeederDrafts.id, input.id));
+        await db.transaction(async (tx) => {
+          if (d.status === 'published' && d.publishedPostId && input.alsoDeletePost) {
+            await tx.execute(sql`DELETE FROM collectionPostImages WHERE postId = ${d.publishedPostId}`);
+            await tx.execute(sql`DELETE FROM collectionPostLikes WHERE postId = ${d.publishedPostId}`);
+            await tx.execute(sql`DELETE FROM collectionPostComments WHERE postId = ${d.publishedPostId}`);
+            await tx.execute(sql`DELETE FROM collectionPostSaves WHERE postId = ${d.publishedPostId}`);
+            await tx.execute(sql`DELETE FROM collectionPosts WHERE id = ${d.publishedPostId}`);
+          }
+          await tx.delete(communitySeederDrafts).where(eq(communitySeederDrafts.id, input.id));
+        });
         return { ok: true };
       }),
   }),
@@ -8478,6 +8489,19 @@ const COMMUNITY_SEEDER_THEMES: Array<{ id: string; label: string; hint: string }
   { id: 'collecting-tips', label: '收藏入門', hint: '新手點開始、保存、評級、入手渠道' },
   { id: 'authentication', label: '鑑定真偽', hint: '常見假鈔／偽幣特徵、真假對比、UV 燈、水印' },
 ];
+
+async function assertEligibleAuthor(db: any, userId: number): Promise<void> {
+  const rows: any = await db.execute(sql`
+    SELECT u.id FROM users u
+    WHERE u.id = ${userId}
+      AND (u.role = 'admin' OR EXISTS (SELECT 1 FROM merchantApplications ma WHERE ma.userId = u.id AND ma.status = 'approved'))
+    LIMIT 1
+  `);
+  const list = Array.isArray(rows) ? (rows[0] as any[]) : [];
+  if (!list || list.length === 0) {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: '指定嘅作者唔係 admin 或已批核商戶' });
+  }
+}
 
 function safeJson<T>(s: string | null | undefined, fallback: T): T {
   if (!s) return fallback;
