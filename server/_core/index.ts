@@ -277,6 +277,8 @@ async function bootstrapMissingColumns() {
     INDEX \`idx_chatroom_auction\` (\`auctionId\`),
     INDEX \`idx_chatroom_lastmsg\` (\`lastMessageAt\`)
   )`, 'Ensured auctionChatRooms table');
+  await alter(`ALTER TABLE \`auctionChatRooms\` ADD COLUMN \`bidderDeleted\` int NOT NULL DEFAULT 0`, 'Ensured auctionChatRooms.bidderDeleted column');
+  await alter(`ALTER TABLE \`auctionChatRooms\` ADD COLUMN \`merchantDeleted\` int NOT NULL DEFAULT 0`, 'Ensured auctionChatRooms.merchantDeleted column');
 
   await alter(`CREATE TABLE IF NOT EXISTS \`auctionChatMessages\` (
     \`id\` int AUTO_INCREMENT NOT NULL,

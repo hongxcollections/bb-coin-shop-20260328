@@ -6244,10 +6244,13 @@ export async function listMyChatRooms(userId: number): Promise<Array<{
        JOIN auctions a ON a.id = r.auctionId
        LEFT JOIN users u ON u.id = (CASE WHEN r.bidderId = ? THEN r.merchantId ELSE r.bidderId END)
        WHERE (r.bidderId = ? OR r.merchantId = ?)
-         AND r.isArchived = 0
+         AND (
+           (r.bidderId = ? AND r.bidderDeleted = 0) OR
+           (r.merchantId = ? AND r.merchantDeleted = 0)
+         )
          AND EXISTS (SELECT 1 FROM auctionChatMessages m WHERE m.roomId = r.id)
        ORDER BY r.lastMessageAt DESC`,
-      [userId, userId, userId, userId],
+      [userId, userId, userId, userId, userId, userId],
     );
     const now = Date.now();
     return rows.map((r: any) => {
@@ -6918,14 +6921,18 @@ export async function expireStaleOffers(): Promise<{ pendingExpired: number; acc
   return { pendingExpired: Number(r1?.affectedRows ?? 0), acceptedExpired: Number(r2?.affectedRows ?? 0) };
 }
 
-/** 軟刪除對話室：把 isArchived 設為 1（只有 bidder 或 merchant 自己可以刪）。 */
+/** 軟刪除對話室：per-user — 只影響自己的列表，對方仍可見。 */
 export async function archiveChatRoom(roomId: number, userId: number): Promise<boolean> {
   try {
     const pool = await getRawPool();
     if (!pool) return false;
+    // 判斷 user 係 bidder 定 merchant，分別 set 不同欄位
     const [result]: any = await pool.execute(
-      `UPDATE auctionChatRooms SET isArchived = 1 WHERE id = ? AND (bidderId = ? OR merchantId = ?)`,
-      [roomId, userId, userId],
+      `UPDATE auctionChatRooms
+       SET bidderDeleted   = CASE WHEN bidderId   = ? THEN 1 ELSE bidderDeleted END,
+           merchantDeleted = CASE WHEN merchantId = ? THEN 1 ELSE merchantDeleted END
+       WHERE id = ? AND (bidderId = ? OR merchantId = ?)`,
+      [userId, userId, roomId, userId, userId],
     );
     return (result?.affectedRows ?? 0) > 0;
   } catch (e) {
