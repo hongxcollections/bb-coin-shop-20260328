@@ -7,7 +7,9 @@ import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { ShareMenu, ProductShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
-import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag, Share2 } from "lucide-react";
+import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag, Share2, QrCode } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { buildWhatsAppUrl, sanitizeUserText, parseCategories } from "@/lib/utils";
 import { getCurrencySymbol } from "./AdminAuctions";
 
@@ -92,7 +94,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
 
   if (layout === "list") {
     return (
-      <div className="space-y-2">
+      <div className="space-y-[3px]">
         {products.map((p: any) => {
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
@@ -132,7 +134,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
 
   if (layout === "big") {
     return (
-      <div className="space-y-4">
+      <div className="space-y-[3px]">
         {products.map((p: any) => {
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
@@ -184,7 +186,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
 
   if (layout === "grid3") {
     return (
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-[3px]">
         {products.map((p: any) => {
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
@@ -227,7 +229,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
 
   // grid2 (default)
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-[3px]">
       {products.map((p: any) => {
         const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
         const price = parseFloat(p.price ?? "0");
@@ -410,6 +412,7 @@ export default function MerchantStore() {
   const [auctionPage, setAuctionPage] = useState(0);
   const [productPage, setProductPage] = useState(0);
   const [soldOpen, setSoldOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
 
   const activeProducts = (products as any[]).filter((p: any) => p.status === "active" && p.stock > 0);
   const soldProducts = (products as any[]).filter((p: any) => p.status === "sold");
@@ -445,23 +448,48 @@ export default function MerchantStore() {
           <Link href="/merchants" className="flex items-center gap-1 text-sm text-gray-500 hover:text-amber-600 transition-colors">
             <ChevronLeft className="w-4 h-4" />返回商戶市集
           </Link>
-          <button
-            onClick={() => {
-              const url = `https://share.hongxcollections.com/merchants/${userId}`;
-              if (navigator.clipboard?.writeText) {
-                navigator.clipboard.writeText(url).then(() => toast.success("商店連結已複製！"));
-              } else {
-                const ta = document.createElement("textarea");
-                ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0";
-                document.body.appendChild(ta); ta.select(); document.execCommand("copy");
-                document.body.removeChild(ta); toast.success("商店連結已複製！");
-              }
-            }}
-            className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-full transition-colors"
-          >
-            <Share2 className="w-3.5 h-3.5" />分享此商店
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => {
+                const url = `https://share.hongxcollections.com/merchants/${userId}`;
+                if (navigator.clipboard?.writeText) {
+                  navigator.clipboard.writeText(url).then(() => toast.success("商店連結已複製！"));
+                } else {
+                  const ta = document.createElement("textarea");
+                  ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0";
+                  document.body.appendChild(ta); ta.select(); document.execCommand("copy");
+                  document.body.removeChild(ta); toast.success("商店連結已複製！");
+                }
+              }}
+              className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-full transition-colors"
+            >
+              <Share2 className="w-3.5 h-3.5" />分享此商店
+            </button>
+            <button
+              onClick={() => setQrOpen(true)}
+              aria-label="顯示商店 QR Code"
+              className="flex items-center justify-center text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 w-7 h-7 rounded-full transition-colors"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
+
+        {/* QR Code Dialog */}
+        <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+          <DialogContent className="max-w-xs">
+            <DialogHeader>
+              <DialogTitle className="text-center text-sm">{merchant?.merchantName ? `「${sanitizeUserText(merchant.merchantName)}」商店 QR Code` : "商店 QR Code"}</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col items-center gap-3 py-2">
+              <div className="bg-white p-3 rounded-lg border border-gray-200">
+                <QRCodeSVG value={`https://share.hongxcollections.com/merchants/${userId}`} size={200} level="M" />
+              </div>
+              <p className="text-[11px] text-gray-500 text-center break-all px-2">https://share.hongxcollections.com/merchants/{userId}</p>
+              <p className="text-xs text-gray-600 text-center">用手機掃 QR Code 即可開店</p>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* 商戶資料卡 */}
         {loadingMerchant ? (
