@@ -331,12 +331,10 @@ async function injectProductOgMeta(html: string, reqPath: string, protocol: stri
     const price = Number((product as { price: string | number }).price).toLocaleString();
     const merchantName = (product as { merchantName?: string }).merchantName ?? "";
 
-    // og:title 短 + 純品名，避免 Facebook parser silently drop tag。
-    // 出售價／商戶名放入 og:description。
     const stripHtml = (s: string) => s.replace(/<[^>]*>?/g, "").replace(/&lt;[^&]*?&gt;/gi, "");
     const rawTitle = stripHtml(product.title).replace(/\s+/g, " ").trim();
-    const titleForOg = rawTitle.length > 55 ? rawTitle.slice(0, 55) + "…" : rawTitle;
-    const ogTitle = `${titleForOg} | hongxcollections`;
+    const titleForOg = rawTitle.length > 25 ? rawTitle.slice(0, 25) + "…" : rawTitle;
+    const ogTitle = `${titleForOg} | ${currSymbol}${price} | hongxcollections.com`;
     const rawDesc = stripHtml((product as { description?: string | null }).description?.toString() ?? "").replace(/\s+/g, " ").trim();
     const shortDesc = rawDesc.length > 100 ? rawDesc.slice(0, 100) + "…" : rawDesc;
     const ogDesc = `${rawTitle} | 出售價 ${currSymbol}${price}${merchantName ? ` | ${merchantName}` : ""}${shortDesc ? ` | ${shortDesc}` : " | 歡迎查詢"} | hongxcollections`;
