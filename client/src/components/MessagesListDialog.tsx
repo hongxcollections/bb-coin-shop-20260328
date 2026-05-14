@@ -199,12 +199,12 @@ export default function MessagesListDialog({ open, onOpenChange }: MessagesListD
                             </div>
                           </Card>
                         </button>
-                        {/* 拆除按鈕 */}
+                        {/* 拆除按鈕 — 永遠可見（手機沒有 hover） */}
                         <button
                           type="button"
                           onClick={(e) => handleDelete(e, r.id)}
                           disabled={deleteRoom.isPending}
-                          className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                          className="absolute top-1/2 -translate-y-1/2 right-2 w-7 h-7 flex items-center justify-center rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 active:text-red-500 active:bg-red-50 transition-colors"
                           aria-label="拆除對話"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
