@@ -503,9 +503,9 @@ export default function Profile() {
               </div>
             </div>
             <div className="max-w-md mx-auto mt-5">
-              <Link href="/collection-square" className="block">
+              <Link href={user?.id ? `/users/${user.id}?from=community` : "/collection-square"} className="block">
                 <Button variant="outline" className="w-full border-sky-200 text-sky-700 hover:bg-sky-50 hover:text-sky-800">
-                  去藏品社區 →
+                  睇我嘅藏品社區頁 →
                 </Button>
               </Link>
             </div>

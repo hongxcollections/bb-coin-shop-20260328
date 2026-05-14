@@ -1,4 +1,4 @@
-import { decimal, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { boolean, decimal, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 import { relations } from "drizzle-orm";
 
 /**
@@ -725,3 +725,14 @@ export const communitySeederDrafts = mysqlTable("communitySeederDrafts", {
 });
 export type CommunitySeederDraft = typeof communitySeederDrafts.$inferSelect;
 export type InsertCommunitySeederDraft = typeof communitySeederDrafts.$inferInsert;
+
+export const communitySeederThemes = mysqlTable("communitySeederThemes", {
+  id: varchar("id", { length: 60 }).primaryKey(),
+  label: varchar("label", { length: 120 }).notNull(),
+  hint: text("hint").notNull(),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  isSystem: boolean("isSystem").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CommunitySeederTheme = typeof communitySeederThemes.$inferSelect;

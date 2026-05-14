@@ -8275,8 +8275,70 @@ EXAMPLE OUTPUT (exact format):
 
   // ── 藏品社區 AI 助手 (admin only) ─────────────────────────────────────────
   adminCommunitySeeder: router({
-    /** 列出可用題材 */
-    listThemes: adminProcedure.query(() => COMMUNITY_SEEDER_THEMES),
+    /** 列出可用題材（由 DB 讀取，admin 可改） */
+    listThemes: adminProcedure.query(async () => {
+      const db = await getDb();
+      return await getDbThemes(db);
+    }),
+
+    /** 新增題材 */
+    createTheme: adminProcedure
+      .input(z.object({
+        id: z.string().min(2).max(60).regex(/^[a-z0-9][a-z0-9-]*$/, '只可以用細楷英文 / 數字 / dash'),
+        label: z.string().min(1).max(120),
+        hint: z.string().min(1).max(2000),
+        sortOrder: z.number().int().min(0).max(9999).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        const exist: any = await db.execute(sql`SELECT id FROM communitySeederThemes WHERE id = ${input.id} LIMIT 1`);
+        const list = Array.isArray(exist) ? (exist[0] as any[]) : [];
+        if (list && list.length > 0) throw new TRPCError({ code: 'BAD_REQUEST', message: '呢個 ID 已存在' });
+        await db.execute(sql`
+          INSERT INTO communitySeederThemes (id, label, hint, sortOrder, isSystem)
+          VALUES (${input.id}, ${input.label}, ${input.hint}, ${input.sortOrder ?? 100}, false)
+        `);
+        return { ok: true };
+      }),
+
+    /** 改題材（label / hint / sortOrder） — id 同 isSystem 唔可改 */
+    updateTheme: adminProcedure
+      .input(z.object({
+        id: z.string().min(2).max(60),
+        label: z.string().min(1).max(120).optional(),
+        hint: z.string().min(1).max(2000).optional(),
+        sortOrder: z.number().int().min(0).max(9999).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        const sets: any[] = [];
+        if (input.label !== undefined) sets.push(sql`label = ${input.label}`);
+        if (input.hint !== undefined) sets.push(sql`hint = ${input.hint}`);
+        if (input.sortOrder !== undefined) sets.push(sql`sortOrder = ${input.sortOrder}`);
+        if (sets.length === 0) return { ok: true };
+        const setClause = sql.join(sets, sql`, `);
+        await db.execute(sql`UPDATE communitySeederThemes SET ${setClause} WHERE id = ${input.id}`);
+        return { ok: true };
+      }),
+
+    /** 刪題材 — system theme（例如 url-import）唔可刪 */
+    deleteTheme: adminProcedure
+      .input(z.object({ id: z.string().min(2).max(60) }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        const rows: any = await db.execute(sql`SELECT isSystem FROM communitySeederThemes WHERE id = ${input.id} LIMIT 1`);
+        const list = Array.isArray(rows) ? (rows[0] as any[]) : [];
+        if (!list || list.length === 0) throw new TRPCError({ code: 'NOT_FOUND', message: '揾唔到呢個題材' });
+        if (Number(list[0].isSystem) === 1) throw new TRPCError({ code: 'BAD_REQUEST', message: '系統題材唔可以刪除' });
+        // 唔可以刪有 draft 用緊嘅題材
+        const used: any = await db.execute(sql`SELECT COUNT(*) as c FROM communitySeederDrafts WHERE themeId = ${input.id}`);
+        const usedList = Array.isArray(used) ? (used[0] as any[]) : [];
+        if (usedList && Number(usedList[0]?.c || 0) > 0) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `仲有 ${usedList[0].c} 個 draft 用緊呢個題材，唔可以刪` });
+        }
+        await db.execute(sql`DELETE FROM communitySeederThemes WHERE id = ${input.id}`);
+        return { ok: true };
+      }),
 
     /** 列出可作者選擇嘅 user (admin + approved merchants) */
     listEligibleAuthors: adminProcedure.query(async () => {
@@ -8306,7 +8368,8 @@ EXAMPLE OUTPUT (exact format):
         const rl = aiRateLimit(ctx.user.id, 'communitySeeder.generate', 6);
         if (!rl.ok) throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: rl.message! });
 
-        const theme = COMMUNITY_SEEDER_THEMES.find(t => t.id === input.themeId);
+        const db0 = await getDb();
+        const theme = await getDbTheme(db0, input.themeId);
         if (!theme) throw new TRPCError({ code: 'BAD_REQUEST', message: '無效題材' });
 
         const prompt = `你係香港資深錢幣／鈔票收藏家，以「真實藏家口吻」（廣東話 + 少量行內術語）寫 3 個獨立、唔重複嘅藏品社區分享帖，題材：「${theme.label}」。
@@ -8418,7 +8481,7 @@ EXAMPLE OUTPUT (exact format):
         if (input.images !== undefined) patch.imagesJson = JSON.stringify(input.images);
         if (input.authorUserId !== undefined) patch.authorUserId = input.authorUserId;
         if (input.themeId !== undefined) {
-          const t = COMMUNITY_SEEDER_THEMES.find(x => x.id === input.themeId);
+          const t = await getDbTheme(db, input.themeId);
           if (!t) throw new TRPCError({ code: 'BAD_REQUEST', message: '無效題材' });
           patch.themeId = t.id;
           patch.themeLabel = t.label;
@@ -8482,7 +8545,8 @@ EXAMPLE OUTPUT (exact format):
         if (!extracted.title && !extracted.body) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '無法從呢個連結抓取內容（可能 page 需要登入或被 block）' });
         }
-        const theme = COMMUNITY_SEEDER_THEMES.find(t => t.id === 'url-import')!;
+        const dbForTheme = await getDb();
+        const theme = (await getDbTheme(dbForTheme, 'url-import')) ?? { id: 'url-import', label: '網絡轉載' };
         const batchId = `url-${Date.now()}`;
         const images = extracted.images.map(u => ({ url: u, source: 'manual' as const }));
         const tags = extracted.tags.slice(0, 8);
@@ -8641,7 +8705,26 @@ EXAMPLE OUTPUT (exact format):
 export type AppRouter = typeof appRouter;
 
 // ─── 藏品社區 AI 助手 helpers ─────────────────────────────────────────
-const COMMUNITY_SEEDER_THEMES: Array<{ id: string; label: string; hint: string }> = [
+async function getDbThemes(db: any): Promise<Array<{ id: string; label: string; hint: string; sortOrder: number; isSystem: boolean }>> {
+  const rows: any = await db.execute(sql`SELECT id, label, hint, sortOrder, isSystem FROM communitySeederThemes ORDER BY sortOrder ASC, id ASC`);
+  const list = Array.isArray(rows) ? (rows[0] as any[]) : [];
+  return list.map((r: any) => ({
+    id: String(r.id),
+    label: String(r.label),
+    hint: String(r.hint),
+    sortOrder: Number(r.sortOrder ?? 0),
+    isSystem: Number(r.isSystem ?? 0) === 1,
+  }));
+}
+async function getDbTheme(db: any, id: string): Promise<{ id: string; label: string; hint: string } | null> {
+  const rows: any = await db.execute(sql`SELECT id, label, hint FROM communitySeederThemes WHERE id = ${id} LIMIT 1`);
+  const list = Array.isArray(rows) ? (rows[0] as any[]) : [];
+  if (!list || list.length === 0) return null;
+  return { id: String(list[0].id), label: String(list[0].label), hint: String(list[0].hint) };
+}
+
+// 注：保留 hardcoded 預設題材淨係用作 prompt hint fallback；正常 read/write 全部走 DB
+const COMMUNITY_SEEDER_THEMES_FALLBACK: Array<{ id: string; label: string; hint: string }> = [
   { id: 'hk-banknote', label: '香港鈔票', hint: '殖民地時期、回歸後紀念鈔、各銀行版本、塑膠鈔' },
   { id: 'cn-commemorative-note', label: '中國紀念鈔', hint: '建國 50 週年、奧運、航天、人民幣 70 週年' },
   { id: 'cn-precious-metal-coin', label: '中國金銀幣', hint: '熊貓金幣、生肖金銀、紀念章、發行量' },

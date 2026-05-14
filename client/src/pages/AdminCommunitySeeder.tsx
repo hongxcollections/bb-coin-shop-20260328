@@ -35,7 +35,37 @@ export default function AdminCommunitySeeder() {
   const [importUrl, setImportUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 題材管理
+  const [showThemeMgr, setShowThemeMgr] = useState(false);
+  const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
+  const [themeForm, setThemeForm] = useState<{ id: string; label: string; hint: string; sortOrder: number }>({
+    id: "", label: "", hint: "", sortOrder: 100,
+  });
+
   const themes = trpc.adminCommunitySeeder.listThemes.useQuery();
+  const createTheme = trpc.adminCommunitySeeder.createTheme.useMutation({
+    onSuccess: () => {
+      showToast({ icon: "✅", title: "已新增題材" });
+      setThemeForm({ id: "", label: "", hint: "", sortOrder: 100 });
+      utils.adminCommunitySeeder.listThemes.invalidate();
+    },
+    onError: (e) => showToast({ icon: "⚠️", title: "新增失敗", desc: e.message }),
+  });
+  const updateTheme = trpc.adminCommunitySeeder.updateTheme.useMutation({
+    onSuccess: () => {
+      showToast({ icon: "✅", title: "已更新" });
+      setEditingThemeId(null);
+      utils.adminCommunitySeeder.listThemes.invalidate();
+    },
+    onError: (e) => showToast({ icon: "⚠️", title: "更新失敗", desc: e.message }),
+  });
+  const deleteTheme = trpc.adminCommunitySeeder.deleteTheme.useMutation({
+    onSuccess: () => {
+      showToast({ icon: "🗑️", title: "已刪除" });
+      utils.adminCommunitySeeder.listThemes.invalidate();
+    },
+    onError: (e) => showToast({ icon: "⚠️", title: "刪除失敗", desc: e.message }),
+  });
   const drafts = trpc.adminCommunitySeeder.listDrafts.useQuery({ status: statusFilter });
   const authors = trpc.adminCommunitySeeder.listEligibleAuthors.useQuery();
 
@@ -210,7 +240,81 @@ export default function AdminCommunitySeeder() {
         <p className="text-gray-600 text-sm mb-6">揀題材 → AI 即場生成 3 個草稿 → 編輯後發布到藏品社區</p>
 
         <Card className="p-5 mb-6 bg-gradient-to-br from-violet-50 to-blue-50 border-violet-200">
-          <h2 className="font-semibold mb-3 flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-600" /> 選題材生成</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-600" /> 選題材生成</h2>
+            <Button size="sm" variant="outline" onClick={() => setShowThemeMgr(v => !v)}>
+              {showThemeMgr ? <><X className="w-3.5 h-3.5 mr-1" /> 收起管理</> : <><Pencil className="w-3.5 h-3.5 mr-1" /> 管理題材</>}
+            </Button>
+          </div>
+
+          {showThemeMgr && (
+            <div className="mb-4 p-3 bg-white rounded-lg border border-violet-200 space-y-3">
+              <div className="text-xs text-gray-600 font-medium">已有題材（{themesList.length}）</div>
+              <div className="space-y-2">
+                {themesList.map(t => editingThemeId === t.id ? (
+                  <div key={t.id} className="p-3 bg-violet-50 rounded border border-violet-300 space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <code className="bg-white px-1.5 py-0.5 rounded">{t.id}</code>
+                      {t.isSystem && <Badge variant="outline" className="text-xs">系統</Badge>}
+                    </div>
+                    <Input value={themeForm.label} onChange={e => setThemeForm({ ...themeForm, label: e.target.value })} placeholder="名稱" className="bg-white" />
+                    <Textarea value={themeForm.hint} onChange={e => setThemeForm({ ...themeForm, hint: e.target.value })} placeholder="提示（用作 AI prompt + 揀題材時嘅描述）" rows={2} className="bg-white" />
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-600">排序：</span>
+                      <Input type="number" value={themeForm.sortOrder} onChange={e => setThemeForm({ ...themeForm, sortOrder: Number(e.target.value) || 0 })} className="bg-white w-24" />
+                      <div className="flex-1" />
+                      <Button size="sm" variant="ghost" onClick={() => setEditingThemeId(null)}>取消</Button>
+                      <Button size="sm" onClick={() => updateTheme.mutate({ id: t.id, label: themeForm.label, hint: themeForm.hint, sortOrder: themeForm.sortOrder })} disabled={updateTheme.isPending}>儲存</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={t.id} className="flex items-start gap-2 p-2 bg-gray-50 rounded text-sm">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{t.label}</span>
+                        <code className="text-xs text-gray-500 bg-white px-1 rounded">{t.id}</code>
+                        {t.isSystem && <Badge variant="outline" className="text-xs">系統</Badge>}
+                        <span className="text-xs text-gray-400 ml-auto">#{t.sortOrder}</span>
+                      </div>
+                      <div className="text-xs text-gray-600 mt-0.5 break-words">{t.hint}</div>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button size="sm" variant="ghost" onClick={() => { setEditingThemeId(t.id); setThemeForm({ id: t.id, label: t.label, hint: t.hint, sortOrder: t.sortOrder }); }}>
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      {!t.isSystem && (
+                        <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700" onClick={async () => {
+                          if (await confirm({ title: "刪除題材？", description: `「${t.label}」會即刻消失。如果有 draft 用緊呢個題材，會 block 刪除。`, confirmText: "刪除", tone: "danger" })) {
+                            deleteTheme.mutate({ id: t.id });
+                          }
+                        }} disabled={deleteTheme.isPending}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t pt-3 mt-3 space-y-2">
+                <div className="text-xs text-gray-600 font-medium">+ 新增題材</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <Input value={themeForm.id} onChange={e => setThemeForm({ ...themeForm, id: e.target.value })} placeholder="ID（細楷英文/數字/dash，例：rare-stamps）" className="bg-white" />
+                  <Input value={themeForm.label} onChange={e => setThemeForm({ ...themeForm, label: e.target.value })} placeholder="名稱（中文，例：稀有郵票）" className="bg-white" />
+                </div>
+                <Textarea value={themeForm.hint} onChange={e => setThemeForm({ ...themeForm, hint: e.target.value })} placeholder="提示（俾 AI 知道呢個題材包括啲咩）" rows={2} className="bg-white" />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600">排序：</span>
+                  <Input type="number" value={themeForm.sortOrder} onChange={e => setThemeForm({ ...themeForm, sortOrder: Number(e.target.value) || 100 })} className="bg-white w-24" />
+                  <div className="flex-1" />
+                  <Button size="sm" onClick={() => createTheme.mutate({ id: themeForm.id.trim(), label: themeForm.label.trim(), hint: themeForm.hint.trim(), sortOrder: themeForm.sortOrder })} disabled={!themeForm.id.trim() || !themeForm.label.trim() || !themeForm.hint.trim() || createTheme.isPending}>
+                    <Plus className="w-3.5 h-3.5 mr-1" /> 新增
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row gap-3">
             <Select value={selectedTheme} onValueChange={setSelectedTheme}>
               <SelectTrigger className="bg-white"><SelectValue placeholder="揀一個題材" /></SelectTrigger>

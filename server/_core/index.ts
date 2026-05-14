@@ -827,6 +827,36 @@ async function bootstrapMissingColumns() {
   await addIndex('idx_communitySeederDrafts_status', 'CREATE INDEX `idx_communitySeederDrafts_status` ON `communitySeederDrafts` (`status`)');
   await addIndex('idx_communitySeederDrafts_batchId', 'CREATE INDEX `idx_communitySeederDrafts_batchId` ON `communitySeederDrafts` (`batchId`)');
 
+  // ── 藏品社區 AI 助手題材表（admin 可改）───────────────────────────────
+  await alter(`CREATE TABLE IF NOT EXISTS \`communitySeederThemes\` (
+    \`id\` varchar(60) NOT NULL,
+    \`label\` varchar(120) NOT NULL,
+    \`hint\` text NOT NULL,
+    \`sortOrder\` int NOT NULL DEFAULT 0,
+    \`isSystem\` boolean NOT NULL DEFAULT false,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT \`communitySeederThemes_id\` PRIMARY KEY(\`id\`)
+  )`, 'Ensured communitySeederThemes table');
+  // INSERT IGNORE 預設 9 個題材（admin 改完之後唔會再覆蓋，因為主鍵 conflict 會 ignore）
+  const seedThemes: Array<[string, string, string, number, number]> = [
+    ['hk-banknote', '香港鈔票', '殖民地時期、回歸後紀念鈔、各銀行版本、塑膠鈔', 10, 0],
+    ['cn-commemorative-note', '中國紀念鈔', '建國 50 週年、奧運、航天、人民幣 70 週年', 20, 0],
+    ['cn-precious-metal-coin', '中國金銀幣', '熊貓金幣、生肖金銀、紀念章、發行量', 30, 0],
+    ['hk-coin', '港幣硬幣', '英女皇、洋紫荊、新版、稀有年份', 40, 0],
+    ['world-banknote', '世界錢幣', '東南亞、歐洲、非洲特色鈔票', 50, 0],
+    ['ancient-coin', '古錢幣', '清朝、民國、銅錢、銀元', 60, 0],
+    ['collecting-tips', '收藏入門', '新手點開始、保存、評級、入手渠道', 70, 0],
+    ['authentication', '鑑定真偽', '常見假鈔／偽幣特徵、真假對比、UV 燈、水印', 80, 0],
+    ['url-import', '網絡轉載', '從外部連結抓取文章 + 圖片自動生成草稿', 999, 1],
+  ];
+  for (const [id, label, hint, sortOrder, isSystem] of seedThemes) {
+    await alter(
+      `INSERT IGNORE INTO \`communitySeederThemes\` (id,label,hint,sortOrder,isSystem) VALUES ('${id}', '${label.replace(/'/g, "''")}', '${hint.replace(/'/g, "''")}', ${sortOrder}, ${isSystem})`,
+      `Seeded theme ${id}`,
+    );
+  }
+
   // ── 每日一幣挑戰 — Phase 1 表 ──────────────────────────────────────────────
   await alter(`CREATE TABLE IF NOT EXISTS \`dailyChallenges\` (
     \`id\` int AUTO_INCREMENT NOT NULL,
