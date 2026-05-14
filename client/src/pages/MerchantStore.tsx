@@ -634,7 +634,7 @@ export default function MerchantStore() {
             ) : allAuctions.length === 0 ? (
               <p className="text-center text-gray-400 text-sm py-8">暫無拍賣商品</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-[2px]">
                 {paginatedAuctions.map((a: any) => {
                   const isEnded = new Date(a.endTime).getTime() <= Date.now();
                   const currency = a.currency ?? "HKD";

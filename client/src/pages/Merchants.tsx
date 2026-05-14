@@ -265,7 +265,7 @@ export default function Merchants() {
 
                   {/* 縮圖列（拍賣優先，不足補商品，最多5張，可點擊跳到商品頁） */}
                   {(m.auctionThumbnails as Thumb[])?.length > 0 && (
-                    <div className="flex gap-1.5 px-3 pb-3">
+                    <div className="flex gap-[2px] px-3 pb-3">
                       {(m.auctionThumbnails as Thumb[]).map((t, i: number) => (
                         <a
                           key={i}
