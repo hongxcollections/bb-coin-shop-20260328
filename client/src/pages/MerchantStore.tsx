@@ -94,7 +94,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
 
   if (layout === "list") {
     return (
-      <div className="flex flex-col gap-[2px]">
+      <div className="flex flex-col gap-[3px]">
         {products.map((p: any) => {
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
@@ -134,7 +134,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
 
   if (layout === "big") {
     return (
-      <div className="flex flex-col gap-[2px]">
+      <div className="flex flex-col gap-[3px]">
         {products.map((p: any) => {
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
@@ -186,7 +186,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
 
   if (layout === "grid3") {
     return (
-      <div className="grid grid-cols-3 gap-[2px]">
+      <div className="grid grid-cols-3 gap-[3px]">
         {products.map((p: any) => {
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
@@ -229,7 +229,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
 
   // grid2 (default)
   return (
-    <div className="grid grid-cols-2 gap-[2px]">
+    <div className="grid grid-cols-2 gap-[3px]">
       {products.map((p: any) => {
         const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
         const price = parseFloat(p.price ?? "0");
@@ -634,7 +634,7 @@ export default function MerchantStore() {
             ) : allAuctions.length === 0 ? (
               <p className="text-center text-gray-400 text-sm py-8">暫無拍賣商品</p>
             ) : (
-              <div className="flex flex-col gap-[2px]">
+              <div className="flex flex-col gap-[3px]">
                 {paginatedAuctions.map((a: any) => {
                   const isEnded = new Date(a.endTime).getTime() <= Date.now();
                   const currency = a.currency ?? "HKD";
