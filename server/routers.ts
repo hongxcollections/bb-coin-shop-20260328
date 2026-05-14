@@ -8573,6 +8573,66 @@ EXAMPLE OUTPUT (exact format):
         });
         return { ok: true };
       }),
+
+    /** 🔧 Debug: 直接喺 Railway server 試 3 路 fetch，返每一步嘅實際結果 */
+    testFetchUrl: adminProcedure
+      .input(z.object({ url: z.string().url().max(2000) }))
+      .mutation(async ({ input }) => {
+        const url = input.url;
+        const out: any = { url, jina: null, wayback: null, direct: null };
+
+        // Jina
+        try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 30_000);
+          const r = await fetch(`https://r.jina.ai/${url}`, {
+            headers: { Accept: "application/json", "User-Agent": "hongxcollections/1.0", "X-Return-Format": "markdown" },
+            signal: ctrl.signal,
+          });
+          clearTimeout(timer);
+          if (r.ok) {
+            const j: any = await r.json();
+            out.jina = { ok: true, status: r.status, title: j?.data?.title || null, contentLen: (j?.data?.content || "").length };
+          } else {
+            out.jina = { ok: false, status: r.status, body: (await r.text()).slice(0, 300) };
+          }
+        } catch (e: any) { out.jina = { ok: false, err: e?.message || String(e) }; }
+
+        // Wayback
+        try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 25_000);
+          const r = await fetch(`https://web.archive.org/web/2id_/${url}`, {
+            headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" },
+            redirect: "follow", signal: ctrl.signal,
+          });
+          clearTimeout(timer);
+          if (r.ok) {
+            const buf = Buffer.from(await r.arrayBuffer());
+            out.wayback = { ok: true, status: r.status, htmlLen: buf.length, titleHint: buf.toString("utf8").match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.slice(0, 100) || null };
+          } else {
+            out.wayback = { ok: false, status: r.status };
+          }
+        } catch (e: any) { out.wayback = { ok: false, err: e?.message || String(e) }; }
+
+        // Direct
+        try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 15_000);
+          const r = await fetch(url, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+              "Accept-Language": "zh-HK,zh;q=0.9,zh-TW;q=0.8,en;q=0.7",
+            },
+            redirect: "follow", signal: ctrl.signal,
+          });
+          clearTimeout(timer);
+          out.direct = { ok: r.ok, status: r.status, ctype: r.headers.get("content-type") };
+        } catch (e: any) { out.direct = { ok: false, err: e?.message || String(e) }; }
+
+        return out;
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;

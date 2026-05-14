@@ -71,6 +71,18 @@ export default function AdminCommunitySeeder() {
   });
   const searchImages = trpc.adminCommunitySeeder.searchImages.useMutation();
   const uploadImage = trpc.adminCommunitySeeder.uploadImage.useMutation();
+  const testFetchUrl = trpc.adminCommunitySeeder.testFetchUrl.useMutation({
+    onSuccess: (r: any) => {
+      const fmt = (n: string, x: any) => {
+        if (!x) return `${n}: -`;
+        if (x.ok) return `${n}: ✅ ${x.title || x.titleHint || x.status || x.htmlLen || ""}`.trim();
+        return `${n}: ❌ ${x.status ? "HTTP " + x.status : ""}${x.err ? " " + x.err : ""}`.trim();
+      };
+      const desc = [fmt("Jina", r.jina), fmt("Wayback", r.wayback), fmt("Direct", r.direct)].join("\n");
+      showToast({ icon: "🔧", title: "Railway 抓取診斷", desc, durationMs: 12000 });
+    },
+    onError: (e) => showToast({ icon: "⚠️", title: "診斷 RPC 失敗", desc: e.message }),
+  });
   const generateFromUrl = trpc.adminCommunitySeeder.generateFromUrl.useMutation({
     onSuccess: (r) => {
       const parts: string[] = [];
@@ -249,6 +261,14 @@ export default function AdminCommunitySeeder() {
               {generateFromUrl.isPending
                 ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> 抓取中...</>
                 : <><Link2 className="w-4 h-4 mr-2" /> 從連結生成</>}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => testFetchUrl.mutate({ url: importUrl.trim() })}
+              disabled={!importUrl.trim() || testFetchUrl.isPending}
+              title="淨係診斷 Railway 邊一路 fetch fail，唔會生成 draft"
+            >
+              {testFetchUrl.isPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : "🔧 診斷"}
             </Button>
           </div>
           <p className="text-xs text-gray-500 mt-2 flex items-start gap-1">
