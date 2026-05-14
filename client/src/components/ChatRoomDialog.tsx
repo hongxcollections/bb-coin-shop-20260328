@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useChatWebSocket, type ChatWSMessage, type ChatReactionEvent } from "@/hooks/useChatWebSocket";
-import { Send, Image as ImageIcon, Megaphone, Loader2, Lock, Search, X, SmilePlus } from "lucide-react";
+import { Send, Image as ImageIcon, Megaphone, Loader2, Lock, Search, X, SmilePlus, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -28,6 +28,8 @@ interface ChatRoomDialogProps {
   roomId: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  embedded?: boolean;
+  onBack?: () => void;
 }
 
 const EMOJI_OPTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "👏"];
@@ -60,7 +62,7 @@ function highlight(text: string, query: string) {
   );
 }
 
-export default function ChatRoomDialog({ roomId, open, onOpenChange }: ChatRoomDialogProps) {
+export default function ChatRoomDialog({ roomId, open, onOpenChange, embedded, onBack }: ChatRoomDialogProps) {
   const { user, isAuthenticated } = useAuth();
   const utils = trpc.useUtils();
   const [text, setText] = useState("");
@@ -278,14 +280,20 @@ export default function ChatRoomDialog({ roomId, open, onOpenChange }: ChatRoomD
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="p-0 gap-0 w-[95vw] max-w-md sm:max-w-lg h-[80vh] sm:h-[600px] max-h-[80vh] flex flex-col overflow-hidden"
-        showCloseButton={false}
-      >
+  const innerContent = (
+    <>
         {/* 頂部 header */}
         <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-200 bg-white flex-shrink-0">
+          {embedded && onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="p-1.5 -ml-1 text-gray-500 hover:text-amber-600 flex items-center gap-1 text-sm"
+              aria-label="返回"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
           {data?.other?.photoUrl ? (
             <img src={data.other.photoUrl} alt="" className="w-9 h-9 rounded-full object-cover" />
           ) : (
@@ -314,14 +322,16 @@ export default function ChatRoomDialog({ roomId, open, onOpenChange }: ChatRoomD
           >
             <Search className="w-4 h-4" />
           </button>
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="p-2 -mr-1 text-gray-500 hover:text-amber-600 text-lg leading-none"
-            aria-label="關閉"
-          >
-            ✕
-          </button>
+          {!embedded && (
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="p-2 -mr-1 text-gray-500 hover:text-amber-600 text-lg leading-none"
+              aria-label="關閉"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         {/* 搜尋欄 */}
@@ -579,6 +589,20 @@ export default function ChatRoomDialog({ roomId, open, onOpenChange }: ChatRoomD
         {lightboxImg && (
           <ImageLightbox images={[lightboxImg]} onClose={() => setLightboxImg(null)} />
         )}
+    </>
+  );
+
+  if (embedded) {
+    return <div className="flex flex-col h-full overflow-hidden">{innerContent}</div>;
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="p-0 gap-0 w-[95vw] max-w-md sm:max-w-lg h-[80vh] sm:h-[600px] max-h-[80vh] flex flex-col overflow-hidden"
+        showCloseButton={false}
+      >
+        {innerContent}
       </DialogContent>
     </Dialog>
   );
