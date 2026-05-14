@@ -25,9 +25,9 @@ export default function AdminCommunitySeeder() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<{
     title: string; body: string; tags: string; images: DraftImage[];
-    authorUserId: number | null; themeId: string;
+    authorUserId: number | null; displayAuthor: string; themeId: string;
   }>({
-    title: "", body: "", tags: "", images: [], authorUserId: null, themeId: "",
+    title: "", body: "", tags: "", images: [], authorUserId: null, displayAuthor: "", themeId: "",
   });
   const [searchQ, setSearchQ] = useState("");
   const [manualUrl, setManualUrl] = useState("");
@@ -139,15 +139,18 @@ export default function AdminCommunitySeeder() {
       tags: (d.tags || []).join(", "),
       images: d.images || [],
       authorUserId: d.authorUserId ?? null,
+      displayAuthor: d.displayAuthor ?? "",
       themeId: d.themeId || "",
     });
   };
 
   const handleSaveEdit = (id: number) => {
     const tags = editForm.tags.split(",").map(t => t.trim()).filter(Boolean).slice(0, 8);
+    const trimmedDisplay = editForm.displayAuthor.trim();
     updateDraft.mutate({
       id, title: editForm.title, body: editForm.body, tags,
       images: editForm.images, authorUserId: editForm.authorUserId,
+      displayAuthor: trimmedDisplay ? trimmedDisplay.slice(0, 80) : null,
       themeId: editForm.themeId || undefined,
     });
   };
@@ -473,6 +476,17 @@ export default function AdminCommunitySeeder() {
                         </div>
                       </div>
 
+                      <div>
+                        <label className="text-xs font-medium text-gray-700 mb-1 block">
+                          顯示作者名（override，留空 = 用上面身份嘅 display name）
+                        </label>
+                        <Input
+                          value={editForm.displayAuthor}
+                          onChange={e => setEditForm(f => ({ ...f, displayAuthor: e.target.value }))}
+                          placeholder="例如：明報專欄組 / 香港 01 經濟"
+                          maxLength={80}
+                        />
+                      </div>
                       <div>
                         <label className="text-xs font-medium text-gray-700 mb-1 block">標題</label>
                         <Input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} maxLength={250} />

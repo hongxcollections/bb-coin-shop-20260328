@@ -94,7 +94,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
 
   if (layout === "list") {
     return (
-      <div className="space-y-[3px]">
+      <div className="space-y-[2px]">
         {products.map((p: any) => {
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
@@ -134,7 +134,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
 
   if (layout === "big") {
     return (
-      <div className="space-y-[3px]">
+      <div className="space-y-[2px]">
         {products.map((p: any) => {
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
@@ -186,7 +186,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
 
   if (layout === "grid3") {
     return (
-      <div className="grid grid-cols-3 gap-[3px]">
+      <div className="grid grid-cols-3 gap-[2px]">
         {products.map((p: any) => {
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
@@ -229,7 +229,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink }: { products:
 
   // grid2 (default)
   return (
-    <div className="grid grid-cols-2 gap-[3px]">
+    <div className="grid grid-cols-2 gap-[2px]">
       {products.map((p: any) => {
         const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
         const price = parseFloat(p.price ?? "0");
@@ -482,11 +482,51 @@ export default function MerchantStore() {
               <DialogTitle className="text-center text-sm">{merchant?.merchantName ? `「${sanitizeUserText(merchant.merchantName)}」商店 QR Code` : "商店 QR Code"}</DialogTitle>
             </DialogHeader>
             <div className="flex flex-col items-center gap-3 py-2">
-              <div className="bg-white p-3 rounded-lg border border-gray-200">
+              <div id="merchant-qr-svg-wrap" className="bg-white p-3 rounded-lg border border-gray-200">
                 <QRCodeSVG value={`https://share.hongxcollections.com/merchants/${userId}`} size={200} level="M" />
               </div>
               <p className="text-[11px] text-gray-500 text-center break-all px-2">https://share.hongxcollections.com/merchants/{userId}</p>
               <p className="text-xs text-gray-600 text-center">用手機掃 QR Code 即可開店</p>
+              <button
+                type="button"
+                onClick={() => {
+                  const wrap = document.getElementById("merchant-qr-svg-wrap");
+                  const svg = wrap?.querySelector("svg");
+                  if (!svg) return;
+                  const xml = new XMLSerializer().serializeToString(svg);
+                  const svg64 = btoa(unescape(encodeURIComponent(xml)));
+                  const dataUrl = `data:image/svg+xml;base64,${svg64}`;
+                  const img = new Image();
+                  img.onload = () => {
+                    const scale = 3;
+                    const size = 200 * scale;
+                    const pad = 24 * scale;
+                    const canvas = document.createElement("canvas");
+                    canvas.width = size + pad * 2;
+                    canvas.height = size + pad * 2;
+                    const ctx = canvas.getContext("2d");
+                    if (!ctx) return;
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, pad, pad, size, size);
+                    canvas.toBlob((blob) => {
+                      if (!blob) return;
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `merchant-${userId}-qr.png`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    }, "image/png");
+                  };
+                  img.src = dataUrl;
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition-colors"
+              >
+                下載 QR 圖片
+              </button>
             </div>
           </DialogContent>
         </Dialog>

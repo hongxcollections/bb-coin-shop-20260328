@@ -197,6 +197,7 @@ export async function listCollectionPosts(input: {
       cp.isHidden, cp.isFlagged, cp.flagReason,
       cp.likeCount, cp.commentCount, cp.viewCount,
       cp.isMerchantPost, cp.merchantProductId,
+      cp.displayAuthor,
       cp.createdAt,
       u.name AS authorName,
       COALESCE(NULLIF(TRIM(u.photoUrl),''), NULLIF(TRIM((SELECT ma2.merchantIcon FROM merchantApplications ma2 WHERE ma2.userId = cp.userId AND ma2.status = 'approved' ORDER BY ma2.id DESC LIMIT 1)),'')) AS authorPhoto,

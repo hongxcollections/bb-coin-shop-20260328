@@ -8465,6 +8465,7 @@ EXAMPLE OUTPUT (exact format):
         tags: z.array(z.string().max(40)).max(8).optional(),
         images: z.array(z.object({ url: z.string().url(), source: z.enum(['commons', 'manual']).default('manual') })).max(10).optional(),
         authorUserId: z.number().int().positive().nullable().optional(),
+        displayAuthor: z.string().max(80).nullable().optional(),
         themeId: z.string().min(1).max(60).optional(),
       }))
       .mutation(async ({ input }) => {
@@ -8480,6 +8481,9 @@ EXAMPLE OUTPUT (exact format):
         if (input.tags !== undefined) patch.tagsJson = JSON.stringify(input.tags);
         if (input.images !== undefined) patch.imagesJson = JSON.stringify(input.images);
         if (input.authorUserId !== undefined) patch.authorUserId = input.authorUserId;
+        if (input.displayAuthor !== undefined) {
+          patch.displayAuthor = input.displayAuthor === null ? null : sanitizeUserText(input.displayAuthor).slice(0, 80) || null;
+        }
         if (input.themeId !== undefined) {
           const t = await getDbTheme(db, input.themeId);
           if (!t) throw new TRPCError({ code: 'BAD_REQUEST', message: '無效題材' });
@@ -8504,6 +8508,10 @@ EXAMPLE OUTPUT (exact format):
             }
             if (input.authorUserId !== undefined && input.authorUserId !== null) {
               await tx.execute(sql`UPDATE collectionPosts SET userId = ${input.authorUserId} WHERE id = ${d.publishedPostId}`);
+            }
+            if (input.displayAuthor !== undefined) {
+              const newDisplay = patch.displayAuthor ?? null;
+              await tx.execute(sql`UPDATE collectionPosts SET displayAuthor = ${newDisplay} WHERE id = ${d.publishedPostId}`);
             }
           }
         });
@@ -8564,12 +8572,16 @@ EXAMPLE OUTPUT (exact format):
           body: finalBody,
           tagsJson: JSON.stringify(tags),
           imagesJson: JSON.stringify(images),
-          authorUserId: null, status: 'draft', generatedBy: ctx.user.id,
+          authorUserId: null,
+          displayAuthor: extracted.author ? sanitizeUserText(extracted.author).slice(0, 80) : null,
+          sourceUrl: input.url.slice(0, 500),
+          status: 'draft', generatedBy: ctx.user.id,
         });
         return {
           ok: true,
           draftId: Number(r.insertId),
           title: extracted.title,
+          author: extracted.author || null,
           imageCount: images.length,
           videoCount: extracted.videos.length,
           videoUrls: extracted.videos,
@@ -8605,8 +8617,8 @@ EXAMPLE OUTPUT (exact format):
 
         const postId = await db.transaction(async (tx) => {
           const [r]: any = await tx.execute(sql`
-            INSERT INTO collectionPosts (userId, title, body, intent, tagsJson, isMerchantPost)
-            VALUES (${authorUserId}, ${d.title}, ${d.body}, 'display', ${d.tagsJson}, 0)
+            INSERT INTO collectionPosts (userId, title, body, intent, tagsJson, isMerchantPost, displayAuthor)
+            VALUES (${authorUserId}, ${d.title}, ${d.body}, 'display', ${d.tagsJson}, 0, ${d.displayAuthor ?? null})
           `);
           const pid = Number(r?.insertId ?? (Array.isArray(r) ? (r[0] as any)?.insertId : 0));
           if (!pid) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '發布失敗' });
@@ -8899,6 +8911,7 @@ async function fetchAndExtractFromUrl(targetUrl: string): Promise<{
   tags: string[];
   images: string[];
   videos: string[];
+  author: string;
 }> {
   // 優先：Jina Reader (r.jina.ai) — 專為 LLM 抓 web 嘅 service，繞過 Yahoo / Cloudflare 之類 datacenter IP block
   // 失敗才 fallback 直接 fetch HTML
@@ -8924,6 +8937,19 @@ async function fetchAndExtractFromUrl(targetUrl: string): Promise<{
         const title = String(d.title || "").trim().slice(0, 250);
         const description = String(d.description || "").trim();
         const content = String(d.content || "");
+        // 抽 author：Jina 有時 publish d.author，亦可能喺 metadata / publishedTime 附近
+        let author = "";
+        const candAuthor = (d.author || d.byline || d?.metadata?.author || d?.metadata?.byline || "");
+        if (typeof candAuthor === "string") author = candAuthor.trim().slice(0, 80);
+        if (!author && content) {
+          // markdown 常見格式：「作者：XXX」「By XXX」「文/XXX」
+          const am = content.match(/(?:^|\n)\s*(?:作者|撰文|文)\s*[：:\/]\s*([^\n]+)/);
+          if (am) author = am[1].trim().slice(0, 80);
+          if (!author) {
+            const bm = content.match(/(?:^|\n)\s*By\s+([A-Za-z][A-Za-z0-9 .'\-]{1,60})/);
+            if (bm) author = bm[1].trim().slice(0, 80);
+          }
+        }
         // 從 markdown content 抽 image URLs `![alt](url)` + d.images object
         const imgs = new Set<string>();
         const mdImg = /!\[[^\]]*\]\(([^)\s]+)/g;
@@ -8984,6 +9010,7 @@ async function fetchAndExtractFromUrl(targetUrl: string): Promise<{
             tags: [],
             images,
             videos: Array.from(vids).slice(0, 5),
+            author,
           };
         }
       }
@@ -9153,7 +9180,17 @@ async function fetchAndExtractFromUrl(targetUrl: string): Promise<{
   }));
   const images = mirrored.filter((u): u is string => !!u).slice(0, 6);
 
-  return { title, body, tags, images, videos: Array.from(videoSet).slice(0, 5) };
+  // ── Author：og:author / article:author / meta name=author / itemprop=author / "byline" rel
+  let author = "";
+  {
+    const cand = metaContent(/<meta\s+(?:property|name)=["'](?:og:author|article:author|author|byline)["']\s+content=["']([^"']+)["']/i)
+              || metaContent(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["'](?:og:author|article:author|author|byline)["']/i)
+              || metaContent(/<meta\s+itemprop=["']author["']\s+content=["']([^"']+)["']/i)
+              || metaContent(/<a[^>]+rel=["']author["'][^>]*>([^<]+)<\/a>/i)
+              || metaContent(/<span[^>]+class=["'][^"']*\b(?:author|byline)\b[^"']*["'][^>]*>([^<]+)<\/span>/i);
+    if (cand) author = decodeEntities(cand).trim().slice(0, 80);
+  }
+  return { title, body, tags, images, videos: Array.from(videoSet).slice(0, 5), author };
 }
 
 // ─── Wikimedia Commons 圖片搜尋 + S3 mirror（畀每日挑戰 AI 生成用）────────────

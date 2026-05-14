@@ -426,7 +426,7 @@ export default function Auctions() {
             ))}
           </div>
         ) : paginated.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-[2px]">
             {paginated.map((auction, rowIdx) => {
               const now = Date.now();
               const endMs = new Date(auction.endTime).getTime();

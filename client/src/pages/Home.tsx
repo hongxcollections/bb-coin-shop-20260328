@@ -1565,7 +1565,7 @@ export default function Home() {
               ))}
             </div>
           ) : paginated.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-[2px]">
               {paginated.map((auction) => (
                 <Link key={auction.id} href={`/auctions/${auction.id}`}>
                   <div className="auction-list-item flex gap-3 p-3 border border-amber-100 rounded-lg hover:border-amber-300 hover:bg-amber-50/50 cursor-pointer transition-all">

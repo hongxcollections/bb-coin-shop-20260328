@@ -595,6 +595,8 @@ export const collectionPosts = mysqlTable("collectionPosts", {
   // 方案 B：商戶上架帖文標識 + 引用商戶商品
   isMerchantPost: int("isMerchantPost").default(0).notNull(),
   merchantProductId: int("merchantProductId"),
+  // 從 URL 抓取轉載：原文章嘅作者名（覆蓋顯示，唔覆蓋 userId）
+  displayAuthor: varchar("displayAuthor", { length: 80 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -717,6 +719,9 @@ export const communitySeederDrafts = mysqlTable("communitySeederDrafts", {
   tagsJson: text("tagsJson"),
   imagesJson: text("imagesJson"),
   authorUserId: int("authorUserId"),
+  // 從 URL 抓取轉載：原作者名（publish 時 sync 落 collectionPosts.displayAuthor）
+  displayAuthor: varchar("displayAuthor", { length: 80 }),
+  sourceUrl: varchar("sourceUrl", { length: 500 }),
   status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
   publishedPostId: int("publishedPostId"),
   generatedBy: int("generatedBy").notNull(),

@@ -333,7 +333,7 @@ export default function CollectionSquare() {
                   ) : (
                     <div className="w-5 h-5 rounded-full bg-gradient-to-br from-sky-100 to-sky-200" />
                   )}
-                  <span className="truncate flex-1 text-gray-600">{post.authorName ?? "匿名"}</span>
+                  <span className="truncate flex-1 text-gray-600">{(post as any).displayAuthor || post.authorName || "匿名"}</span>
                   {post.authorMemberLevel && post.authorMemberLevel !== "bronze" && (
                     <MemberBadge level={post.authorMemberLevel} variant="icon" size="sm" />
                   )}

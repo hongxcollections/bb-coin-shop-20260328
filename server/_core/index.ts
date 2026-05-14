@@ -799,6 +799,9 @@ async function bootstrapMissingColumns() {
   // 方案 B：商戶上架帖文 — 加 columns + index
   await alter('ALTER TABLE `collectionPosts` ADD COLUMN `isMerchantPost` int NOT NULL DEFAULT 0', 'Ensured collectionPosts.isMerchantPost column');
   await alter('ALTER TABLE `collectionPosts` ADD COLUMN `merchantProductId` int NULL', 'Ensured collectionPosts.merchantProductId column');
+  if (!(await check('collectionPosts', 'displayAuthor'))) {
+    await alter('ALTER TABLE `collectionPosts` ADD COLUMN `displayAuthor` varchar(80) NULL', 'Added displayAuthor to collectionPosts');
+  }
   await addIndex('idx_collectionPosts_merchant', 'CREATE INDEX `idx_collectionPosts_merchant` ON `collectionPosts` (`isMerchantPost`)');
   await addIndex('idx_collectionPostComments_postId', 'CREATE INDEX `idx_collectionPostComments_postId` ON `collectionPostComments` (`postId`)');
   await addIndex('idx_collectionPostImages_postId', 'CREATE INDEX `idx_collectionPostImages_postId` ON `collectionPostImages` (`postId`)');
@@ -826,6 +829,12 @@ async function bootstrapMissingColumns() {
   )`, 'Ensured communitySeederDrafts table');
   await addIndex('idx_communitySeederDrafts_status', 'CREATE INDEX `idx_communitySeederDrafts_status` ON `communitySeederDrafts` (`status`)');
   await addIndex('idx_communitySeederDrafts_batchId', 'CREATE INDEX `idx_communitySeederDrafts_batchId` ON `communitySeederDrafts` (`batchId`)');
+  if (!(await check('communitySeederDrafts', 'displayAuthor'))) {
+    await alter('ALTER TABLE `communitySeederDrafts` ADD COLUMN `displayAuthor` varchar(80) NULL', 'Added displayAuthor to communitySeederDrafts');
+  }
+  if (!(await check('communitySeederDrafts', 'sourceUrl'))) {
+    await alter('ALTER TABLE `communitySeederDrafts` ADD COLUMN `sourceUrl` varchar(500) NULL', 'Added sourceUrl to communitySeederDrafts');
+  }
 
   // ── 藏品社區 AI 助手題材表（admin 可改）───────────────────────────────
   await alter(`CREATE TABLE IF NOT EXISTS \`communitySeederThemes\` (

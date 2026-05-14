@@ -768,7 +768,7 @@ export default function MerchantProductDetail() {
 
                 {/* list：橫排 */}
                 {layout === "list" && (
-                  <div className="space-y-2">
+                  <div className="space-y-[2px]">
                     {paginatedOthers.map((p: any) => {
                       const d = mkData(p);
                       return (
@@ -794,7 +794,7 @@ export default function MerchantProductDetail() {
 
                 {/* big：大圖 */}
                 {layout === "big" && (
-                  <div className="space-y-4">
+                  <div className="space-y-[2px]">
                     {paginatedOthers.map((p: any) => {
                       const d = mkData(p);
                       return (
@@ -825,7 +825,7 @@ export default function MerchantProductDetail() {
 
                 {/* grid3：三欄 */}
                 {layout === "grid3" && (
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-[2px]">
                     {paginatedOthers.map((p: any) => {
                       const d = mkData(p);
                       return (
@@ -850,7 +850,7 @@ export default function MerchantProductDetail() {
 
                 {/* grid2（預設，包含任何未知值）*/}
                 {layout !== "list" && layout !== "big" && layout !== "grid3" && (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-[2px]">
                     {paginatedOthers.map((p: any) => {
                       const d = mkData(p);
                       return (

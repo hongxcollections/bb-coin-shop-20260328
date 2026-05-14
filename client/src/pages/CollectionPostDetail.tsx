@@ -414,7 +414,7 @@ export default function CollectionPostDetail() {
               ) : (
                 <div className="w-7 h-7 rounded-full bg-gray-200" />
               )}
-              <span className="text-gray-700">{(post as any).author?.name ?? "匿名"}</span>
+              <span className="text-gray-700">{(post as any).displayAuthor || (post as any).author?.name || "匿名"}</span>
               {(post as any).author?.memberLevel && (post as any).author.memberLevel !== "bronze" && (
                 <MemberBadge level={(post as any).author.memberLevel} variant="icon" size="sm" />
               )}
