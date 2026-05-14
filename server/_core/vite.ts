@@ -220,14 +220,17 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
     const currPrice = Number(auction.currentPrice).toLocaleString();
     const endTimeStr = formatEndTime(new Date(auction.endTime));
 
-    // og:title 必須保持「短 + 純品名」，否則 Facebook OG parser 會 silently drop
-    // 個 tag（實測超過 60 字符或含過多特殊符號 ｜ : 等都會中招），令 share preview
-    // 退化成 fallback「hongxcollections.com」。所有起拍價／結標時間搬入 og:description。
-    // 防護：商戶 paste HTML / og 標籤入 title 會令 og 標籤穿崩 leak 入 body。
     const stripHtmlA = (s: string) => s.replace(/<[^>]*>?/g, "").replace(/&lt;[^&]*?&gt;/gi, "");
     const rawTitle = stripHtmlA(auction.title).replace(/\s+/g, " ").trim();
-    const titleForOg = rawTitle.length > 55 ? rawTitle.slice(0, 55) + "…" : rawTitle;
-    const ogTitle = `${titleForOg} | hongxcollections`;
+    const titleForOg = rawTitle.length > 40 ? rawTitle.slice(0, 40) + "…" : rawTitle;
+    const auctionSellerName = (auction as { sellerName?: string | null }).sellerName ?? "";
+    const ogTitle = [
+      titleForOg,
+      `起拍${currSymbol}${startPrice}`,
+      endTimeStr,
+      ...(auctionSellerName ? [auctionSellerName] : []),
+      "hongxcollections.com",
+    ].join(" | ");
     const ogDesc = `${rawTitle} | 起拍 ${currSymbol}${startPrice} | 目前出價 ${currSymbol}${currPrice} | 結標 ${endTimeStr} | 香港錢幣拍賣 hongxcollections`;
     const fullUrl = `${protocol}://${host}${reqPath}`;
 
@@ -333,13 +336,15 @@ async function injectProductOgMeta(html: string, reqPath: string, protocol: stri
     const price = Number((product as { price: string | number }).price).toLocaleString();
     const merchantName = (product as { merchantName?: string }).merchantName ?? "";
 
-    // 同 auction injectOgMeta() 一致：og:title 短 + 純品名（避 Facebook parser drop tag），
-    // 出售價／商戶／詳細描述全部搬入 og:description。
-    // 防護：商戶有時會 paste HTML / og 標籤入 title / description，會令 og 標籤穿崩 leak 入 body。
     const stripHtml = (s: string) => s.replace(/<[^>]*>?/g, "").replace(/&lt;[^&]*?&gt;/gi, "");
     const rawTitle = stripHtml(product.title).replace(/\s+/g, " ").trim();
-    const titleForOg = rawTitle.length > 55 ? rawTitle.slice(0, 55) + "…" : rawTitle;
-    const ogTitle = `${titleForOg} | hongxcollections`;
+    const titleForOg = rawTitle.length > 40 ? rawTitle.slice(0, 40) + "…" : rawTitle;
+    const ogTitle = [
+      titleForOg,
+      `出售價${currSymbol}${price}`,
+      ...(merchantName ? [merchantName] : []),
+      "hongxcollections.com",
+    ].join(" | ");
     const rawDesc = stripHtml((product as { description?: string | null }).description?.toString() ?? "").replace(/\s+/g, " ").trim();
     const shortDesc = rawDesc.length > 100 ? rawDesc.slice(0, 100) + "…" : rawDesc;
     const ogDesc = `${rawTitle} | 出售價 ${currSymbol}${price}${merchantName ? ` | ${merchantName}` : ""}${shortDesc ? ` | ${shortDesc}` : " | 歡迎查詢"} | hongxcollections`;
