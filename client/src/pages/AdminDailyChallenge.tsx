@@ -2,6 +2,7 @@ import { useState, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import AdminHeader from "@/components/AdminHeader";
+import CommunityAdminTabs from "@/components/CommunityAdminTabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -314,6 +315,7 @@ export default function AdminDailyChallenge() {
   return (
     <div className="min-h-screen bg-stone-50">
       <AdminHeader />
+      <CommunityAdminTabs />
       <div className="container max-w-6xl py-6 md:py-10">
         <div className="flex items-center justify-between mb-6">
           <div>

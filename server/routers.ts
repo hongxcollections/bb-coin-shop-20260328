@@ -8263,7 +8263,7 @@ EXAMPLE OUTPUT (exact format):
         const theme = COMMUNITY_SEEDER_THEMES.find(t => t.id === input.themeId);
         if (!theme) throw new TRPCError({ code: 'BAD_REQUEST', message: '無效題材' });
 
-        const prompt = `你係香港資深錢幣／鈔票收藏家，以「真實藏家口吻」（廣東話 + 少量行內術語）寫 3 個獨立、唔重複嘅藏家天地分享帖，題材：「${theme.label}」。
+        const prompt = `你係香港資深錢幣／鈔票收藏家，以「真實藏家口吻」（廣東話 + 少量行內術語）寫 3 個獨立、唔重複嘅藏品社區分享帖，題材：「${theme.label}」。
 
 要求：
 - 每帖 title 30-60 字，吸引但唔誇張、唔標題黨
@@ -8353,6 +8353,7 @@ EXAMPLE OUTPUT (exact format):
         tags: z.array(z.string().max(40)).max(8).optional(),
         images: z.array(z.object({ url: z.string().url(), source: z.enum(['commons', 'manual']).default('manual') })).max(10).optional(),
         authorUserId: z.number().int().positive().nullable().optional(),
+        themeId: z.string().min(1).max(60).optional(),
       }))
       .mutation(async ({ input }) => {
         const db = await getDb();
@@ -8367,6 +8368,12 @@ EXAMPLE OUTPUT (exact format):
         if (input.tags !== undefined) patch.tagsJson = JSON.stringify(input.tags);
         if (input.images !== undefined) patch.imagesJson = JSON.stringify(input.images);
         if (input.authorUserId !== undefined) patch.authorUserId = input.authorUserId;
+        if (input.themeId !== undefined) {
+          const t = COMMUNITY_SEEDER_THEMES.find(x => x.id === input.themeId);
+          if (!t) throw new TRPCError({ code: 'BAD_REQUEST', message: '無效題材' });
+          patch.themeId = t.id;
+          patch.themeLabel = t.label;
+        }
 
         await db.transaction(async (tx) => {
           if (Object.keys(patch).length > 0) {
