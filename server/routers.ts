@@ -7,7 +7,7 @@ import { z } from "zod";
 import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner, saveCoinAnalysisHistory, getUserCoinAnalysisHistory, deleteCoinAnalysisHistory, searchRelatedAuctions, setMerchantPageSizes } from "./db";
 import type { AdTargetType } from "./db";
 import type { Auction } from "../drizzle/schema";
-import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids, merchantAuctionSessions, merchantAuctionSessionItems } from "../drizzle/schema";
+import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids, merchantAuctionSessions, merchantAuctionSessionItems, communitySeederDrafts } from "../drizzle/schema";
 import { sanitizeUserText } from "./_core/sanitize";
 import { eq, sql } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon, checkAndUpdateAuctionStatus } from "./auctions";
@@ -8226,8 +8226,303 @@ EXAMPLE OUTPUT (exact format):
         }
       }),
   }),
+
+  // ── 藏品社區 AI 助手 (admin only) ─────────────────────────────────────────
+  adminCommunitySeeder: router({
+    /** 列出可用題材 */
+    listThemes: adminProcedure.query(() => COMMUNITY_SEEDER_THEMES),
+
+    /** 列出可作者選擇嘅 user (admin + approved merchants) */
+    listEligibleAuthors: adminProcedure.query(async () => {
+      const db = await getDb();
+      const rows: any = await db.execute(sql.raw(`
+        SELECT u.id, u.name, u.role,
+          (SELECT ma.merchantName FROM merchantApplications ma WHERE ma.userId = u.id AND ma.status = 'approved' LIMIT 1) AS merchantName
+        FROM users u
+        WHERE u.role = 'admin'
+          OR EXISTS (SELECT 1 FROM merchantApplications ma WHERE ma.userId = u.id AND ma.status = 'approved')
+        ORDER BY u.role DESC, u.id ASC
+      `));
+      const list = Array.isArray(rows) ? (rows[0] as any[]) : [];
+      return list.map(r => ({
+        id: Number(r.id),
+        name: String(r.name || ''),
+        role: String(r.role || ''),
+        merchantName: r.merchantName ? String(r.merchantName) : null,
+        label: r.merchantName ? `${r.merchantName}（${r.name}）` : `${r.name}${r.role === 'admin' ? '（管理員）' : ''}`,
+      }));
+    }),
+
+    /** 揀題材 → AI 生成 3 個 draft + 自動 Wikimedia 搵圖 mirror 落 S3 */
+    generateBatch: adminProcedure
+      .input(z.object({ themeId: z.string().min(1).max(60) }))
+      .mutation(async ({ input, ctx }) => {
+        const rl = aiRateLimit(ctx.user.id, 'communitySeeder.generate', 6);
+        if (!rl.ok) throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: rl.message! });
+
+        const theme = COMMUNITY_SEEDER_THEMES.find(t => t.id === input.themeId);
+        if (!theme) throw new TRPCError({ code: 'BAD_REQUEST', message: '無效題材' });
+
+        const prompt = `你係香港資深錢幣／鈔票收藏家，以「真實藏家口吻」（廣東話 + 少量行內術語）寫 3 個獨立、唔重複嘅藏家天地分享帖，題材：「${theme.label}」。
+
+要求：
+- 每帖 title 30-60 字，吸引但唔誇張、唔標題黨
+- 每帖 body 250-450 字，分 2-4 段，可有 emoji 但唔過多，內容要有歷史背景／鑑別重點／個人收藏感受其中一兩項
+- 每帖提供 3-5 個中文 tag（單詞或短語，例如 "香港殖民鈔"、"伊利沙伯二世"）
+- 每帖提供 3 條英文 image search query（用於 Wikimedia Commons 圖片搜尋，要具體例如 "Hong Kong 1972 50 dollar banknote" 而唔係 "Hong Kong banknote"）
+- 三個帖嘅角度要明顯不同（例如：1 個歷史科普、1 個鑑別／真偽、1 個個人收藏經驗或市場觀察）
+
+返回 strict JSON：
+{"posts":[{"title":"...","body":"...","tags":["..","..","..."],"imageQueries":["en query 1","en query 2","en query 3"]},{...},{...}]}`;
+
+        let parsed: any;
+        try {
+          const result = await invokeLLMSafe({
+            messages: [{ role: 'user', content: prompt }],
+            maxTokens: 4096,
+            responseFormat: { type: 'json_object' },
+          });
+          const content = result.choices?.[0]?.message?.content;
+          const text = typeof content === 'string' ? content : (Array.isArray(content) ? content.map((c: any) => c.text || '').join('') : '');
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+        } catch (e: any) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `AI 生成失敗：${e?.message ?? e}` });
+        }
+        const posts: any[] = Array.isArray(parsed?.posts) ? parsed.posts.slice(0, 3) : [];
+        if (posts.length === 0) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'AI 冇返 posts' });
+
+        const batchId = `b-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const db = await getDb();
+        const created: any[] = [];
+        for (const p of posts) {
+          const title = String(p.title || '').slice(0, 250).trim();
+          const body = String(p.body || '').slice(0, 5000).trim();
+          if (!title || !body) continue;
+          const tags = Array.isArray(p.tags) ? p.tags.slice(0, 8).map((t: any) => String(t).slice(0, 40)) : [];
+          const queries: string[] = Array.isArray(p.imageQueries) ? p.imageQueries.slice(0, 3).map((q: any) => String(q).slice(0, 120)) : [];
+
+          // 並行為呢個帖搵 2 張圖
+          const imgsArr = await Promise.all(queries.map(q => fetchAndMirrorCommunityImages(q, 2)));
+          const seen = new Set<string>();
+          const images: Array<{ url: string; source: 'commons' }> = [];
+          for (const arr of imgsArr) {
+            for (const url of arr) {
+              if (seen.has(url)) continue;
+              seen.add(url);
+              images.push({ url, source: 'commons' });
+              if (images.length >= 4) break;
+            }
+            if (images.length >= 4) break;
+          }
+
+          const [r]: any = await db.insert(communitySeederDrafts).values({
+            themeId: theme.id, themeLabel: theme.label, batchId,
+            title: sanitizeUserText(title), body: sanitizeUserText(body),
+            tagsJson: JSON.stringify(tags), imagesJson: JSON.stringify(images),
+            authorUserId: null, status: 'draft', generatedBy: ctx.user.id,
+          });
+          created.push({ id: r.insertId, title, body, tags, images });
+        }
+        return { batchId, count: created.length, drafts: created };
+      }),
+
+    /** 列 drafts (默認 status=draft) */
+    listDrafts: adminProcedure
+      .input(z.object({ status: z.enum(['draft', 'published', 'archived', 'all']).default('draft') }).optional())
+      .query(async ({ input }) => {
+        const db = await getDb();
+        const { desc } = await import('drizzle-orm');
+        const status = input?.status ?? 'draft';
+        const rows = status === 'all'
+          ? await db.select().from(communitySeederDrafts).orderBy(desc(communitySeederDrafts.createdAt)).limit(200)
+          : await db.select().from(communitySeederDrafts).where(eq(communitySeederDrafts.status, status)).orderBy(desc(communitySeederDrafts.createdAt)).limit(200);
+        return rows.map(r => ({
+          ...r,
+          tags: r.tagsJson ? safeJson(r.tagsJson, []) : [],
+          images: r.imagesJson ? safeJson(r.imagesJson, []) : [],
+        }));
+      }),
+
+    /** 編輯 draft (publish 後一樣可以改：status=published 時會同步 update 到 collectionPosts) */
+    updateDraft: adminProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        title: z.string().min(2).max(250).optional(),
+        body: z.string().min(2).max(5000).optional(),
+        tags: z.array(z.string().max(40)).max(8).optional(),
+        images: z.array(z.object({ url: z.string().url(), source: z.enum(['commons', 'manual']).default('manual') })).max(10).optional(),
+        authorUserId: z.number().int().positive().nullable().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        const [d] = await db.select().from(communitySeederDrafts).where(eq(communitySeederDrafts.id, input.id)).limit(1);
+        if (!d) throw new TRPCError({ code: 'NOT_FOUND', message: 'Draft 不存在' });
+        const patch: any = {};
+        if (input.title !== undefined) patch.title = sanitizeUserText(input.title);
+        if (input.body !== undefined) patch.body = sanitizeUserText(input.body);
+        if (input.tags !== undefined) patch.tagsJson = JSON.stringify(input.tags);
+        if (input.images !== undefined) patch.imagesJson = JSON.stringify(input.images);
+        if (input.authorUserId !== undefined) patch.authorUserId = input.authorUserId;
+        if (Object.keys(patch).length > 0) {
+          await db.update(communitySeederDrafts).set(patch).where(eq(communitySeederDrafts.id, input.id));
+        }
+        // 同步 published post
+        if (d.status === 'published' && d.publishedPostId) {
+          const newTitle = patch.title ?? d.title;
+          const newBody = patch.body ?? d.body;
+          const newTagsJson = patch.tagsJson ?? d.tagsJson;
+          await db.execute(sql`UPDATE collectionPosts SET title = ${newTitle}, body = ${newBody}, tagsJson = ${newTagsJson} WHERE id = ${d.publishedPostId}`);
+          if (input.images !== undefined) {
+            await db.execute(sql`DELETE FROM collectionPostImages WHERE postId = ${d.publishedPostId}`);
+            const finalImages = input.images;
+            for (let i = 0; i < finalImages.length; i++) {
+              await db.execute(sql`INSERT INTO collectionPostImages (postId, imageUrl, displayOrder) VALUES (${d.publishedPostId}, ${finalImages[i].url}, ${i})`);
+            }
+          }
+          if (input.authorUserId !== undefined && input.authorUserId !== null) {
+            await db.execute(sql`UPDATE collectionPosts SET userId = ${input.authorUserId} WHERE id = ${d.publishedPostId}`);
+          }
+        }
+        return { ok: true };
+      }),
+
+    /** 上載一張本機圖片到 S3，回傳 URL（畀 draft 編輯器加圖用） */
+    uploadImage: adminProcedure
+      .input(z.object({
+        imageData: z.string().min(10),
+        mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']).default('image/jpeg'),
+      }))
+      .mutation(async ({ input }) => {
+        const b64 = input.imageData.includes(',') ? input.imageData.split(',')[1] : input.imageData;
+        const buf = Buffer.from(b64, 'base64');
+        if (buf.length < 1_000) throw new TRPCError({ code: 'BAD_REQUEST', message: '圖片太細' });
+        if (buf.length > 5 * 1024 * 1024) throw new TRPCError({ code: 'BAD_REQUEST', message: '圖片超過 5MB' });
+        const ext = input.mimeType === 'image/png' ? 'png' : input.mimeType === 'image/webp' ? 'webp' : 'jpg';
+        const key = `community-seeder/manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { url } = await storagePut(key, buf, input.mimeType);
+        return { url };
+      }),
+
+    /** 為 draft 搵更多圖片 (admin 揀 query 揾建議) */
+    searchImages: adminProcedure
+      .input(z.object({ query: z.string().min(2).max(120), limit: z.number().int().min(1).max(8).default(4) }))
+      .mutation(async ({ input }) => {
+        const urls = await fetchAndMirrorCommunityImages(input.query, input.limit);
+        return { images: urls.map(u => ({ url: u, source: 'commons' as const })) };
+      }),
+
+    /** 發布 draft 去 collectionPosts (作者 default OWNER / 大BB錢幣店；可指定其他 user) */
+    publishDraft: adminProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        authorUserId: z.number().int().positive().nullable().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [d] = await db.select().from(communitySeederDrafts).where(eq(communitySeederDrafts.id, input.id)).limit(1);
+        if (!d) throw new TRPCError({ code: 'NOT_FOUND', message: 'Draft 不存在' });
+        if (d.status === 'published' && d.publishedPostId) {
+          return { ok: true, alreadyPublished: true, postId: d.publishedPostId };
+        }
+        const images = d.imagesJson ? safeJson<Array<{ url: string }>>(d.imagesJson, []) : [];
+        if (images.length < 1) throw new TRPCError({ code: 'BAD_REQUEST', message: '至少要 1 張圖片先可以發布' });
+
+        const authorUserId = input.authorUserId ?? d.authorUserId ?? ctx.user.id;
+        const [r]: any = await db.execute(sql`
+          INSERT INTO collectionPosts (userId, title, body, intent, tagsJson, isMerchantPost)
+          VALUES (${authorUserId}, ${d.title}, ${d.body}, 'display', ${d.tagsJson}, 0)
+        `);
+        const postId = Number(r?.insertId ?? (Array.isArray(r) ? (r[0] as any)?.insertId : 0));
+        if (!postId) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '發布失敗' });
+        for (let i = 0; i < images.length; i++) {
+          await db.execute(sql`INSERT INTO collectionPostImages (postId, imageUrl, displayOrder) VALUES (${postId}, ${images[i].url}, ${i})`);
+        }
+        await db.update(communitySeederDrafts)
+          .set({ status: 'published', publishedPostId: postId, authorUserId })
+          .where(eq(communitySeederDrafts.id, input.id));
+        return { ok: true, postId };
+      }),
+
+    /** 拆除 draft (如已 published 同時刪除 collectionPosts 帖) */
+    deleteDraft: adminProcedure
+      .input(z.object({ id: z.number().int().positive(), alsoDeletePost: z.boolean().default(true) }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        const [d] = await db.select().from(communitySeederDrafts).where(eq(communitySeederDrafts.id, input.id)).limit(1);
+        if (!d) throw new TRPCError({ code: 'NOT_FOUND', message: 'Draft 不存在' });
+        if (d.status === 'published' && d.publishedPostId && input.alsoDeletePost) {
+          try {
+            await db.execute(sql`DELETE FROM collectionPostImages WHERE postId = ${d.publishedPostId}`);
+            await db.execute(sql`DELETE FROM collectionPostLikes WHERE postId = ${d.publishedPostId}`);
+            await db.execute(sql`DELETE FROM collectionPostComments WHERE postId = ${d.publishedPostId}`);
+            await db.execute(sql`DELETE FROM collectionPostSaves WHERE postId = ${d.publishedPostId}`);
+            await db.execute(sql`DELETE FROM collectionPosts WHERE id = ${d.publishedPostId}`);
+          } catch {}
+        }
+        await db.delete(communitySeederDrafts).where(eq(communitySeederDrafts.id, input.id));
+        return { ok: true };
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
+
+// ─── 藏品社區 AI 助手 helpers ─────────────────────────────────────────
+const COMMUNITY_SEEDER_THEMES: Array<{ id: string; label: string; hint: string }> = [
+  { id: 'hk-banknote', label: '香港鈔票', hint: '殖民地時期、回歸後紀念鈔、各銀行版本、塑膠鈔' },
+  { id: 'cn-commemorative-note', label: '中國紀念鈔', hint: '建國 50 週年、奧運、航天、人民幣 70 週年' },
+  { id: 'cn-precious-metal-coin', label: '中國金銀幣', hint: '熊貓金幣、生肖金銀、紀念章、發行量' },
+  { id: 'hk-coin', label: '港幣硬幣', hint: '英女皇、洋紫荊、新版、稀有年份' },
+  { id: 'world-banknote', label: '世界錢幣', hint: '東南亞、歐洲、非洲特色鈔票' },
+  { id: 'ancient-coin', label: '古錢幣', hint: '清朝、民國、銅錢、銀元' },
+  { id: 'collecting-tips', label: '收藏入門', hint: '新手點開始、保存、評級、入手渠道' },
+  { id: 'authentication', label: '鑑定真偽', hint: '常見假鈔／偽幣特徵、真假對比、UV 燈、水印' },
+];
+
+function safeJson<T>(s: string | null | undefined, fallback: T): T {
+  if (!s) return fallback;
+  try { return JSON.parse(s) as T; } catch { return fallback; }
+}
+
+async function fetchAndMirrorCommunityImages(query: string, targetCount = 2): Promise<string[]> {
+  const seen = new Set<string>();
+  const candidates: Array<{ url: string; mime: string }> = [];
+  try {
+    const apiUrl = `https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(query + " filetype:bitmap")}&gsrlimit=10&prop=imageinfo&iiprop=url|mime|size&iiurlwidth=900&origin=*`;
+    const r = await fetch(apiUrl, { headers: { "User-Agent": "hongxcollections/1.0 (https://hongxcollections.com)" } });
+    if (r.ok) {
+      const j: any = await r.json();
+      const pages = j?.query?.pages;
+      if (pages) for (const k of Object.keys(pages)) {
+        const ii = pages[k]?.imageinfo?.[0];
+        if (!ii) continue;
+        const mime = String(ii.mime || "").toLowerCase();
+        if (!["image/jpeg", "image/png", "image/webp"].includes(mime)) continue;
+        const url = ii.thumburl || ii.url;
+        if (!url || seen.has(url)) continue;
+        seen.add(url);
+        candidates.push({ url, mime });
+      }
+    }
+  } catch {}
+  const safeStem = query.replace(/[^a-zA-Z0-9\-]/g, "_").slice(0, 40);
+  const results = await Promise.all(candidates.slice(0, targetCount * 2).map(async (c, idx) => {
+    try {
+      const imgResp = await fetch(c.url, { headers: { "User-Agent": "hongxcollections/1.0 (https://hongxcollections.com)" } });
+      if (!imgResp.ok) return null;
+      const ct = (imgResp.headers.get("content-type") || c.mime).split(";")[0].trim().toLowerCase();
+      if (!["image/jpeg", "image/png", "image/webp"].includes(ct)) return null;
+      const ab = await imgResp.arrayBuffer();
+      const buf = Buffer.from(ab);
+      if (buf.length < 5_000 || buf.length > 5_000_000) return null;
+      const ext = ct === "image/png" ? "png" : ct === "image/webp" ? "webp" : "jpg";
+      const key = `community-seeder/ai-${Date.now()}-${idx}-${safeStem}.${ext}`;
+      const { url } = await storagePut(key, buf, ct);
+      return url;
+    } catch { return null; }
+  }));
+  return results.filter((u): u is string => !!u).slice(0, targetCount);
+}
 
 // ─── Wikimedia Commons 圖片搜尋 + S3 mirror（畀每日挑戰 AI 生成用）────────────
 // 為每條建議揾 2-5 張候選圖片，mirror 落 S3 畀 admin 揀

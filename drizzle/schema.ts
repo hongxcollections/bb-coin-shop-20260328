@@ -703,3 +703,25 @@ export const merchantAuctionSessionItems = mysqlTable("merchantAuctionSessionIte
 });
 export type MerchantAuctionSessionItem = typeof merchantAuctionSessionItems.$inferSelect;
 export type InsertMerchantAuctionSessionItem = typeof merchantAuctionSessionItems.$inferInsert;
+
+/**
+ * 藏品社區 AI 助手 — admin 揀題材生成 3 個 draft，可編輯、刪除、發布去 collectionPosts
+ */
+export const communitySeederDrafts = mysqlTable("communitySeederDrafts", {
+  id: int("id").autoincrement().primaryKey(),
+  themeId: varchar("themeId", { length: 60 }).notNull(),
+  themeLabel: varchar("themeLabel", { length: 120 }).notNull(),
+  batchId: varchar("batchId", { length: 40 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body").notNull(),
+  tagsJson: text("tagsJson"),
+  imagesJson: text("imagesJson"),
+  authorUserId: int("authorUserId"),
+  status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
+  publishedPostId: int("publishedPostId"),
+  generatedBy: int("generatedBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CommunitySeederDraft = typeof communitySeederDrafts.$inferSelect;
+export type InsertCommunitySeederDraft = typeof communitySeederDrafts.$inferInsert;

@@ -37,6 +37,7 @@ import AdminSubscriptions from "./pages/AdminSubscriptions";
 import AdminMerchantCenter from "./pages/AdminMerchantCenter";
 import AdminLoyalty from "./pages/AdminLoyalty";
 import AdminDailyChallenge from "./pages/AdminDailyChallenge";
+import AdminCommunitySeeder from "./pages/AdminCommunitySeeder";
 import DailyChallenge from "./pages/DailyChallenge";
 import SubscriptionPlans from "./pages/SubscriptionPlans";
 import Login from "./pages/Login";
@@ -193,6 +194,7 @@ function Router() {
       <Route path={"/admin/merchant-center"} component={AdminMerchantCenter} />
       <Route path={"/admin/loyalty"} component={AdminLoyalty} />
       <Route path={"/admin/daily-challenge"} component={AdminDailyChallenge} />
+      <Route path={"/admin/community-seeder"} component={AdminCommunitySeeder} />
       <Route path={"/daily-challenge"} component={DailyChallenge} />
       <Route path={"/subscriptions"} component={SubscriptionPlans} />
       <Route path={"/login"} component={Login} />

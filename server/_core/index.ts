@@ -806,6 +806,27 @@ async function bootstrapMissingColumns() {
   await addIndex('idx_collectionPostLikes_createdAt_postId', 'CREATE INDEX `idx_collectionPostLikes_createdAt_postId` ON `collectionPostLikes` (`createdAt`, `postId`)');
   await addIndex('idx_collectionPostSaves_postId', 'CREATE INDEX `idx_collectionPostSaves_postId` ON `collectionPostSaves` (`postId`)');
 
+  // ── 藏品社區 AI 助手 — admin 揀題材生成 draft ──────────────────────────────
+  await alter(`CREATE TABLE IF NOT EXISTS \`communitySeederDrafts\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`themeId\` varchar(60) NOT NULL,
+    \`themeLabel\` varchar(120) NOT NULL,
+    \`batchId\` varchar(40) NOT NULL,
+    \`title\` varchar(255) NOT NULL,
+    \`body\` text NOT NULL,
+    \`tagsJson\` text,
+    \`imagesJson\` text,
+    \`authorUserId\` int NULL,
+    \`status\` enum('draft','published','archived') NOT NULL DEFAULT 'draft',
+    \`publishedPostId\` int NULL,
+    \`generatedBy\` int NOT NULL,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT \`communitySeederDrafts_id\` PRIMARY KEY(\`id\`)
+  )`, 'Ensured communitySeederDrafts table');
+  await addIndex('idx_communitySeederDrafts_status', 'CREATE INDEX `idx_communitySeederDrafts_status` ON `communitySeederDrafts` (`status`)');
+  await addIndex('idx_communitySeederDrafts_batchId', 'CREATE INDEX `idx_communitySeederDrafts_batchId` ON `communitySeederDrafts` (`batchId`)');
+
   // ── 每日一幣挑戰 — Phase 1 表 ──────────────────────────────────────────────
   await alter(`CREATE TABLE IF NOT EXISTS \`dailyChallenges\` (
     \`id\` int AUTO_INCREMENT NOT NULL,
