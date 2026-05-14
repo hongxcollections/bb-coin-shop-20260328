@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, Link, useLocation } from "wouter";
 import ImageLightbox from "@/components/ImageLightbox";
-import { ProductShareMenu } from "@/components/ShareMenu";
+import { ProductShareMenu, ShareMenu } from "@/components/ShareMenu";
+import { QuickBidPopover } from "@/components/QuickBidPopover";
+import { Badge } from "@/components/ui/badge";
+import { getCurrencySymbol } from "./AdminAuctions";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import OfferButton from "@/components/OfferButton";
@@ -161,6 +164,47 @@ function AuctionCountdown({ endTime }: { endTime: string | Date }) {
   return <span className="text-red-500 text-[10px] font-semibold">{m}分鐘</span>;
 }
 
+function AuctionImageOverlay({ endTime }: { endTime: Date | string }) {
+  const [txt, setTxt] = useState("");
+  const [urgent, setUrgent] = useState(false);
+  useEffect(() => {
+    function update() {
+      const diff = new Date(endTime).getTime() - Date.now();
+      if (diff <= 0) { setTxt(""); return; }
+      const totalHours = diff / 3600000;
+      if (totalHours > 12) {
+        const days = Math.floor(diff / 86400000);
+        const remH = Math.floor((diff % 86400000) / 3600000);
+        setTxt(days >= 1 ? (remH > 0 ? `${days}天${remH}h後` : `${days}天後`) : `${Math.floor(totalHours)}h後`);
+        setUrgent(false);
+      } else {
+        const h = Math.floor(totalHours);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        const pad = (n: number) => String(n).padStart(2, "0");
+        setTxt(h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`);
+        setUrgent(diff < 3600000);
+      }
+    }
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [endTime]);
+  if (!txt) return null;
+  return (
+    <div className="absolute bottom-0 left-0 right-0 bg-black/30 backdrop-blur-sm px-1.5 py-1">
+      {urgent
+        ? <div className="flex items-center gap-0.5 text-[10px] font-black leading-none animate-pulse bg-red-600 text-white px-1 py-0.5 rounded self-start inline-flex">
+            <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
+          </div>
+        : <div className="flex items-center gap-0.5 text-[10px] font-bold leading-none text-white/90">
+            <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
+          </div>
+      }
+    </div>
+  );
+}
+
 export default function MerchantProductDetail() {
   const params = useParams<{ id: string }>();
   const productId = parseInt(params.id ?? "0", 10);
@@ -296,9 +340,24 @@ export default function MerchantProductDetail() {
         {/* 返回 */}
         {(() => {
           const fromOrders = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('from') === 'orders';
+          if (fromOrders) {
+            return (
+              <button onClick={() => history.back()} className="flex items-center gap-1 text-sm text-gray-500 hover:text-amber-600 transition-colors">
+                <ChevronLeft className="w-4 h-4" />返回訂單管理
+              </button>
+            );
+          }
+          if (product?.merchantId) {
+            const name = product?.merchantName || '商戶';
+            return (
+              <Link href={`/merchants/${product.merchantId}`} className="flex items-center gap-1 text-sm text-gray-500 hover:text-amber-600 transition-colors">
+                <ChevronLeft className="w-4 h-4" />返回 {name} 嘅市集
+              </Link>
+            );
+          }
           return (
             <button onClick={() => history.back()} className="flex items-center gap-1 text-sm text-gray-500 hover:text-amber-600 transition-colors">
-              <ChevronLeft className="w-4 h-4" />{fromOrders ? '返回訂單管理' : '返回'}
+              <ChevronLeft className="w-4 h-4" />返回
             </button>
           );
         })()}
@@ -825,28 +884,62 @@ export default function MerchantProductDetail() {
                 </div>
                 <div className="flex flex-col gap-2">
                   {(auctionItems as any[]).map((a: any) => {
-                    const aPrice = parseFloat(a.currentPrice ?? a.startingPrice ?? "0");
+                    const isEnded = new Date(a.endTime).getTime() <= Date.now();
+                    const currency = a.currency ?? "HKD";
                     return (
                       <Link key={a.id} href={`/auctions/${a.id}`}>
-                        <div className="bg-white rounded-xl border border-purple-100 shadow-sm flex gap-3 items-start p-3 cursor-pointer hover:border-purple-300 transition-colors">
-                          {a.coverImage ? (
-                            <div className="w-16 h-16 rounded-lg overflow-hidden bg-purple-50 shrink-0">
+                        <div className="flex gap-3 p-3 bg-white border border-amber-100 rounded-lg hover:border-amber-300 hover:bg-amber-50/50 cursor-pointer transition-all">
+                          {/* 左：封面圖（倒數 overlay 喺底部） */}
+                          <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
+                            {a.coverImage ? (
                               <img src={a.coverImage} alt={a.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-3xl">🪙</span>
+                            )}
+                            {!isEnded && <AuctionImageOverlay endTime={a.endTime} />}
+                          </div>
+                          {/* 右：內容 + 分享 + 閃出價 */}
+                          <div className="flex-1 flex flex-col justify-between min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <h3 className="font-semibold text-sm line-clamp-1 text-amber-900">{a.title}</h3>
+                              <Badge className={`text-[9px] px-1.5 py-0.5 ${!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
+                                {!isEnded ? "競拍中" : "已結束"}
+                              </Badge>
                             </div>
-                          ) : (
-                            <div className="w-16 h-16 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
-                              <Gavel className="w-6 h-6 text-purple-200" />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                            <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 leading-snug">{a.title}</h3>
-                            {a.category && <span className="text-[10px] text-purple-500">{a.category}</span>}
-                            <div className="flex items-center justify-between mt-1">
-                              <span className="font-bold text-amber-600 text-sm">{a.currency ?? "HKD"} ${aPrice.toLocaleString()}</span>
-                              <span className="flex items-center gap-0.5 text-[11px] text-gray-400">
-                                <Clock className="w-3 h-3" />
-                                <AuctionCountdown endTime={a.endTime} />
-                              </span>
+                            <div className="mt-1">
+                              <div className="text-xs text-muted-foreground">目前出價</div>
+                              <div className="text-sm font-bold text-amber-600">
+                                {getCurrencySymbol(currency)}{Number(a.currentPrice ?? a.startingPrice ?? 0).toLocaleString()}
+                              </div>
+                              <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                                <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                                  <ShareMenu
+                                    auctionId={a.id}
+                                    title={a.title}
+                                    latestBid={Number(a.currentPrice ?? a.startingPrice ?? 0)}
+                                    currency={currency}
+                                    endTime={a.endTime}
+                                    shareTemplate={null}
+                                  />
+                                </div>
+                                <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                                  <QuickBidPopover
+                                    auctionId={a.id}
+                                    title={a.title}
+                                    currentPrice={Number(a.currentPrice ?? a.startingPrice ?? 0)}
+                                    startingPrice={Number(a.startingPrice ?? 0)}
+                                    bidIncrement={Number((a as { bidIncrement?: number }).bidIncrement ?? 30)}
+                                    currency={currency}
+                                    hasExistingBid={!!a.highestBidderId}
+                                    isEnded={isEnded}
+                                    createdBy={(a as { createdBy?: number }).createdBy}
+                                    endTime={a.endTime}
+                                    antiSnipeEnabled={(a as { antiSnipeEnabled?: number }).antiSnipeEnabled}
+                                    antiSnipeMinutes={(a as { antiSnipeMinutes?: number }).antiSnipeMinutes}
+                                    extendMinutes={(a as { extendMinutes?: number }).extendMinutes}
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
