@@ -220,13 +220,12 @@ async function injectOgMeta(html: string, reqPath: string, protocol: string, hos
     const currPrice = Number(auction.currentPrice).toLocaleString();
     const endTimeStr = formatEndTime(new Date(auction.endTime));
 
-    // og:title 必須保持「短 + 純品名」，否則 Facebook OG parser 會 silently drop
-    // 個 tag，令 share preview 退化成 fallback「hongxcollections.com」。
-    // 詳細資料（起拍價／結標時間）放入 og:description，唔可以放 og:title。
     const stripHtmlA = (s: string) => s.replace(/<[^>]*>?/g, "").replace(/&lt;[^&]*?&gt;/gi, "");
     const rawTitle = stripHtmlA(auction.title).replace(/\s+/g, " ").trim();
-    const titleForOg = rawTitle.length > 55 ? rawTitle.slice(0, 55) + "…" : rawTitle;
-    const ogTitle = `${titleForOg} | hongxcollections`;
+    const titleForOg = rawTitle.length > 25 ? rawTitle.slice(0, 25) + "…" : rawTitle;
+    const endDate = new Date(auction.endTime);
+    const endMonthDay = `${endDate.getMonth() + 1}月${endDate.getDate()}日`;
+    const ogTitle = `${titleForOg} | 起拍${currSymbol}${startPrice} | 目前${currSymbol}${currPrice} | 結標${endMonthDay} | hongxcollections`;
     const ogDesc = `${rawTitle} | 起拍 ${currSymbol}${startPrice} | 目前出價 ${currSymbol}${currPrice} | 結標 ${endTimeStr} | 香港錢幣拍賣 hongxcollections`;
     const fullUrl = `${protocol}://${host}${reqPath}`;
 
