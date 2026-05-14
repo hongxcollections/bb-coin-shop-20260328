@@ -8483,11 +8483,18 @@ EXAMPLE OUTPUT (exact format):
         const batchId = `url-${Date.now()}`;
         const images = extracted.images.map(u => ({ url: u, source: 'manual' as const }));
         const tags = extracted.tags.slice(0, 8);
+        // 視頻連結 append 入 body 末尾（collectionPosts schema 唔 store videos）
+        let bodyWithVideos = extracted.body || '';
+        if (extracted.videos.length > 0) {
+          bodyWithVideos = (bodyWithVideos + "\n\n相關影片：\n" + extracted.videos.map(v => `- ${v}`).join("\n")).trim();
+        }
+        const sourceLine = `\n\n（轉載自：${input.url}）`;
+        const finalBody = sanitizeUserText((bodyWithVideos || '（內容空白，請手動補充）') + sourceLine).slice(0, 5000);
         const db = await getDb();
         const [r]: any = await db.insert(communitySeederDrafts).values({
           themeId: theme.id, themeLabel: theme.label, batchId,
           title: sanitizeUserText(extracted.title || '（未命名 — 請編輯標題）').slice(0, 250),
-          body: sanitizeUserText(extracted.body || '（內容空白，請手動補充）').slice(0, 5000),
+          body: finalBody,
           tagsJson: JSON.stringify(tags),
           imagesJson: JSON.stringify(images),
           authorUserId: null, status: 'draft', generatedBy: ctx.user.id,
@@ -8651,6 +8658,108 @@ async function fetchAndMirrorCommunityImages(query: string, targetCount = 2): Pr
 }
 
 // ─── 從外部 URL 抓 article + 圖 + 視頻（畀 admin 一鍵轉藏品社區草稿用）────────
+// SSRF guard：只准 http/https + 公網 IP，blocked private/loopback/link-local
+function isPrivateIp(ip: string): boolean {
+  // IPv4
+  const v4 = ip.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (v4) {
+    const [a, b] = [parseInt(v4[1]), parseInt(v4[2])];
+    if (a === 10) return true;
+    if (a === 127) return true;
+    if (a === 0) return true;
+    if (a === 169 && b === 254) return true; // link-local
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+    if (a >= 224) return true; // multicast / reserved
+    return false;
+  }
+  // IPv6 (粗略 — block ::1, fc00::/7, fe80::/10, ::ffff:private)
+  const lower = ip.toLowerCase();
+  if (lower === "::1" || lower === "::") return true;
+  if (lower.startsWith("fc") || lower.startsWith("fd")) return true;
+  if (lower.startsWith("fe8") || lower.startsWith("fe9") || lower.startsWith("fea") || lower.startsWith("feb")) return true;
+  return false;
+}
+
+async function assertPublicHost(urlStr: string): Promise<void> {
+  let u: URL;
+  try { u = new URL(urlStr); } catch { throw new TRPCError({ code: "BAD_REQUEST", message: "無效 URL" }); }
+  if (u.protocol !== "http:" && u.protocol !== "https:") {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "只支援 http / https" });
+  }
+  const host = u.hostname.replace(/^\[|\]$/g, "");
+  // 直接 IP literal 即時檢查
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(":")) {
+    if (isPrivateIp(host)) throw new TRPCError({ code: "BAD_REQUEST", message: "唔可以抓取內部地址" });
+    return;
+  }
+  if (host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "唔可以抓取內部地址" });
+  }
+  // DNS resolve
+  try {
+    const dns = await import("node:dns/promises");
+    const addrs = await dns.lookup(host, { all: true });
+    for (const a of addrs) {
+      if (isPrivateIp(a.address)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "目標域名指向內部 IP，已拒絕" });
+      }
+    }
+  } catch (e) {
+    if (e instanceof TRPCError) throw e;
+    throw new TRPCError({ code: "BAD_REQUEST", message: "無法解析域名" });
+  }
+}
+
+async function fetchWithLimit(url: string, opts: { timeoutMs: number; maxBytes: number; accept?: string }): Promise<{ buf: Buffer; contentType: string; status: number }> {
+  await assertPublicHost(url);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs);
+  try {
+    const r = await fetch(url, {
+      headers: {
+        // 用真實瀏覽器 UA — 部分新聞 site (Yahoo / 蘋果等) 會 block 包含 "bot" 嘅 UA
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": opts.accept || "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "zh-HK,zh;q=0.9,zh-TW;q=0.8,en;q=0.7",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+      },
+      redirect: "follow",
+      signal: ctrl.signal,
+    });
+    const contentType = (r.headers.get("content-type") || "").toLowerCase();
+    const cl = r.headers.get("content-length");
+    if (cl && Number(cl) > opts.maxBytes) {
+      throw new Error(`回應太大 (${cl} bytes)`);
+    }
+    const reader = r.body?.getReader();
+    if (!reader) {
+      const ab = await r.arrayBuffer();
+      const buf = Buffer.from(ab);
+      if (buf.length > opts.maxBytes) throw new Error("回應太大");
+      return { buf, contentType, status: r.status };
+    }
+    const chunks: Buffer[] = [];
+    let total = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > opts.maxBytes) {
+        try { await reader.cancel(); } catch {}
+        throw new Error("回應太大");
+      }
+      chunks.push(Buffer.from(value));
+    }
+    return { buf: Buffer.concat(chunks), contentType, status: r.status };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchAndExtractFromUrl(targetUrl: string): Promise<{
   title: string;
   body: string;
@@ -8660,18 +8769,14 @@ async function fetchAndExtractFromUrl(targetUrl: string): Promise<{
 }> {
   let html = "";
   try {
-    const r = await fetch(targetUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; hongxcollections-bot/1.0; +https://hongxcollections.com)",
-        "Accept": "text/html,application/xhtml+xml",
-      },
-      redirect: "follow",
+    const { buf, contentType, status } = await fetchWithLimit(targetUrl, {
+      timeoutMs: 15_000, maxBytes: 5_000_000, accept: "text/html,application/xhtml+xml",
     });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const ct = (r.headers.get("content-type") || "").toLowerCase();
-    if (!ct.includes("html")) throw new Error(`Not HTML (${ct})`);
-    html = await r.text();
+    if (status < 200 || status >= 300) throw new Error(`HTTP ${status}`);
+    if (!contentType.includes("html") && !contentType.includes("xml")) throw new Error(`Not HTML (${contentType})`);
+    html = buf.toString("utf8");
   } catch (e: any) {
+    if (e instanceof TRPCError) throw e;
     throw new TRPCError({ code: "BAD_REQUEST", message: `抓取失敗：${e?.message || String(e)}` });
   }
 
@@ -8767,13 +8872,10 @@ async function fetchAndExtractFromUrl(targetUrl: string): Promise<{
   const safeStem = (base?.hostname || "url").replace(/[^a-zA-Z0-9\-]/g, "_").slice(0, 40);
   const mirrored = await Promise.all(candidates.map(async (u, idx) => {
     try {
-      const ir = await fetch(u, { headers: { "User-Agent": "hongxcollections/1.0 (https://hongxcollections.com)" } });
-      if (!ir.ok) return null;
-      const ct = (ir.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+      const { buf, contentType } = await fetchWithLimit(u, { timeoutMs: 12_000, maxBytes: 8_000_000 });
+      const ct = contentType.split(";")[0].trim().toLowerCase();
       if (!["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(ct)) return null;
-      const ab = await ir.arrayBuffer();
-      const buf = Buffer.from(ab);
-      if (buf.length < 5_000 || buf.length > 8_000_000) return null;
+      if (buf.length < 5_000) return null;
       const ext = ct === "image/png" ? "png" : ct === "image/webp" ? "webp" : "jpg";
       const key = `community-seeder/url-${Date.now()}-${idx}-${safeStem}.${ext}`;
       const ctNorm = ct === "image/jpg" ? "image/jpeg" : ct;

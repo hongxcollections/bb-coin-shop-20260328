@@ -76,7 +76,7 @@ export default function AdminCommunitySeeder() {
       const parts: string[] = [];
       if (r.title) parts.push(`「${r.title.slice(0, 30)}」`);
       parts.push(`${r.imageCount} 張圖`);
-      if (r.videoCount > 0) parts.push(`${r.videoCount} 個視頻連結（已存入內文，請手動編輯）`);
+      if (r.videoCount > 0) parts.push(`${r.videoCount} 個視頻連結（已附入內文末尾）`);
       showToast({ icon: "🔗", title: "已從連結生成草稿", desc: parts.join("｜"), durationMs: 5000 });
       setImportUrl("");
       setStatusFilter("draft");
@@ -288,7 +288,7 @@ export default function AdminCommunitySeeder() {
                     </Badge>
                     <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200 shrink-0">{d.themeLabel}</Badge>
                     {d.publishedPostId && (
-                      <Link href={`/community/${d.publishedPostId}`}>
+                      <Link href={`/collection-square/${d.publishedPostId}`}>
                         <button className="text-xs text-blue-600 hover:underline flex items-center gap-1">
                           <ExternalLink className="w-3 h-3" /> 睇貼文
                         </button>
