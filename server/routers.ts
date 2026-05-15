@@ -4672,7 +4672,7 @@ export const appRouter = router({
     listAllActivePublic: publicProcedure
       .query(async () => {
         const db = await getDb();
-        const { and, gt } = await import('drizzle-orm');
+        const { and, gt, asc } = await import('drizzle-orm');
         const nowDate = new Date();
         const rows = await db.select({
           id: merchantAuctionSessions.id,
@@ -4681,12 +4681,14 @@ export const appRouter = router({
           title: merchantAuctionSessions.title,
           endAt: merchantAuctionSessions.endAt,
           coverImage: merchantAuctionSessions.coverImage,
+          itemCount: merchantAuctionSessions.itemCount,
         }).from(merchantAuctionSessions)
           .where(and(
             eq(merchantAuctionSessions.status, 'published'),
             eq(merchantAuctionSessions.visibility, 'public'),
             gt(merchantAuctionSessions.endAt, nowDate),
-          ));
+          ))
+          .orderBy(asc(merchantAuctionSessions.endAt));
         return rows;
       }),
 
