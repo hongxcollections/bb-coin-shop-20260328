@@ -8751,45 +8751,89 @@ EXAMPLE OUTPUT (exact format):
       }))
       .mutation(async ({ input }) => {
         const iconv = await import('iconv-lite');
-        const results: { title: string; postUrl: string; id: string }[] = [];
-        const seen = new Set<string>();
         const kw = input.keyword.toLowerCase();
+        const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+
+        // ── Phase 1: collect all unique posts from board pages ────────────────
+        type RawPost = { boardId: string; id: string; title: string };
+        const allPosts: RawPost[] = [];
+        const seen = new Set<string>();
 
         for (let page = 1; page <= input.pages; page++) {
           try {
-            // pm001 pagination: append &page=N (or ?page=N if no existing params)
             const sep = input.url.includes('?') ? '&' : '?';
             const pageUrl = page === 1 ? input.url : `${input.url}${sep}page=${page}`;
             const resp = await fetch(pageUrl, {
               signal: AbortSignal.timeout(12000),
-              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+              headers: { 'User-Agent': UA },
             });
             if (!resp.ok) break;
             const buf = Buffer.from(await resp.arrayBuffer());
             const html = iconv.decode(buf, 'gb2312');
-
-            // Extract post links + titles: pattern href="dispbbs.asp?boardID=XX&ID=YY...">TITLE</a>
             const regex = /dispbbs\.asp\?boardID=(\d+)&(?:amp;)?ID=(\d+)[^"<\s]*"[^>]*>([^<]{2,120})<\/a>/gi;
             let m: RegExpExecArray | null;
             while ((m = regex.exec(html)) !== null) {
               const [, boardId, id, rawTitle] = m;
               const title = rawTitle.trim();
-              // skip timestamp entries and duplicates
               if (!title || /^\d{4}\/\d/.test(title) || seen.has(id)) continue;
               seen.add(id);
-              if (title.toLowerCase().includes(kw)) {
-                results.push({
-                  title,
-                  postUrl: `http://www.pm001.net/dispbbs.asp?boardID=${boardId}&ID=${id}&page=1`,
-                  id,
-                });
-              }
+              allPosts.push({ boardId, id, title });
             }
           } catch (e: any) {
-            console.error('[pm001 scrape] page', page, e?.message);
+            console.error('[pm001 scrape] listing page', page, e?.message);
             break;
           }
         }
+
+        // ── Phase 2: title matches (instant) ─────────────────────────────────
+        type Result = { title: string; postUrl: string; id: string; matchSource: 'title' | 'content' };
+        const results: Result[] = [];
+        const titleMatchIds = new Set<string>();
+
+        for (const p of allPosts) {
+          if (p.title.toLowerCase().includes(kw)) {
+            titleMatchIds.add(p.id);
+            results.push({
+              title: p.title,
+              postUrl: `http://www.pm001.net/dispbbs.asp?boardID=${p.boardId}&ID=${p.id}&page=1`,
+              id: p.id,
+              matchSource: 'title',
+            });
+          }
+        }
+
+        // ── Phase 3: fetch post content for non-title-matching posts ──────────
+        const remaining = allPosts.filter(p => !titleMatchIds.has(p.id));
+        const BATCH = 6;
+        for (let i = 0; i < remaining.length; i += BATCH) {
+          const batch = remaining.slice(i, i + BATCH);
+          const fetched = await Promise.allSettled(batch.map(async (p) => {
+            const postUrl = `http://www.pm001.net/dispbbs.asp?boardID=${p.boardId}&ID=${p.id}&page=1`;
+            const resp = await fetch(postUrl, {
+              signal: AbortSignal.timeout(8000),
+              headers: { 'User-Agent': UA },
+              redirect: 'follow',
+            });
+            // If redirected to error page or not OK, content inaccessible
+            const finalUrl = resp.url ?? '';
+            if (!resp.ok || finalUrl.includes('showerr') || finalUrl.includes('login')) return null;
+            const buf = Buffer.from(await resp.arrayBuffer());
+            const content = iconv.decode(buf, 'gb2312').toLowerCase();
+            return { p, matched: content.includes(kw) };
+          }));
+          for (const r of fetched) {
+            if (r.status === 'fulfilled' && r.value?.matched) {
+              const { p } = r.value;
+              results.push({
+                title: p.title,
+                postUrl: `http://www.pm001.net/dispbbs.asp?boardID=${p.boardId}&ID=${p.id}&page=1`,
+                id: p.id,
+                matchSource: 'content',
+              });
+            }
+          }
+        }
+
         return { results, total: results.length, pagesScraped: input.pages };
       }),
   }),

@@ -7,12 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Trash2, Save, Search, ExternalLink, Globe, ChevronLeft } from "lucide-react";
+import { Loader2, Plus, Trash2, Save, Search, Globe, ChevronLeft, X } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "wouter";
 
 type Category = { id: string; name: string; url: string };
-type ScrapeResult = { title: string; postUrl: string; id: string };
+type ScrapeResult = { title: string; postUrl: string; id: string; matchSource: "title" | "content" };
 
 function genId() {
   return Math.random().toString(36).slice(2, 10);
@@ -33,11 +33,11 @@ export default function AdminPm001Scraper() {
 
   const saveCategories = trpc.pm001.saveCategories.useMutation({
     onSuccess: () => {
-      toast.success("分類已儲存");
+      toast.success("分類已儲存", { position: "top-center" });
       setCats(null);
       refetchCats();
     },
-    onError: (e) => toast.error(e.message, { className: "bb-toast-err" }),
+    onError: (e) => toast.error(e.message, { position: "top-center" }),
   });
 
   function handleCatChange(id: string, field: keyof Category, value: string) {
@@ -66,35 +66,43 @@ export default function AdminPm001Scraper() {
   const [keyword, setKeyword] = useState("");
   const [pages, setPages] = useState("3");
   const [results, setResults] = useState<ScrapeResult[] | null>(null);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [scraping, setScraping] = useState(false);
   const [pagesScraped, setPagesScraped] = useState(0);
 
   const scrape = trpc.pm001.scrape.useMutation({
     onSuccess: (data) => {
-      setResults(data.results);
+      setResults(data.results as ScrapeResult[]);
+      setDismissed(new Set());
       setPagesScraped(data.pagesScraped);
       if (data.results.length === 0) {
-        toast.info(`爬取完成，未找到含「${keyword}」的帖子`);
+        toast.info(`爬取完成，未找到含「${keyword}」的帖子`, { position: "top-center" });
       } else {
-        toast.success(`找到 ${data.results.length} 個相關帖子`);
+        toast.success(`找到 ${data.results.length} 個相關帖子`, { position: "top-center" });
       }
     },
-    onError: (e) => toast.error(e.message, { className: "bb-toast-err" }),
+    onError: (e) => toast.error(e.message, { position: "top-center" }),
     onSettled: () => setScraping(false),
   });
 
   const selectedCat = workingCats.find((c) => c.id === selectedCatId);
+  const visibleResults = (results ?? []).filter((r) => !dismissed.has(r.id));
 
   async function handleScrape() {
-    if (!selectedCat) { toast.error("請先選擇分類"); return; }
-    if (!keyword.trim()) { toast.error("請輸入搜索關鍵字"); return; }
+    if (!selectedCat) { toast.error("請先選擇分類", { position: "top-center" }); return; }
+    if (!keyword.trim()) { toast.error("請輸入搜索關鍵字", { position: "top-center" }); return; }
     setScraping(true);
     setResults(null);
+    setDismissed(new Set());
     scrape.mutate({
       url: selectedCat.url,
       keyword: keyword.trim(),
       pages: Math.min(10, Math.max(1, parseInt(pages) || 3)),
     });
+  }
+
+  function handleDismiss(id: string) {
+    setDismissed((prev) => new Set([...prev, id]));
   }
 
   if (!isAdmin) {
@@ -120,7 +128,7 @@ export default function AdminPm001Scraper() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-amber-900">pm001.net 錢幣搜索</h1>
-            <p className="text-sm text-muted-foreground">爬取 pm001.net 版塊，按關鍵字篩選帖子</p>
+            <p className="text-sm text-muted-foreground">爬取 pm001.net 版塊，按關鍵字篩選帖子（標題 + 內文）</p>
           </div>
         </div>
 
@@ -144,13 +152,13 @@ export default function AdminPm001Scraper() {
                     <Input
                       value={c.name}
                       onChange={(e) => handleCatChange(c.id, "name", e.target.value)}
-                      placeholder="分類名稱（如：香港硬幣）"
-                      className="w-36 flex-shrink-0 text-sm"
+                      placeholder="分類名稱"
+                      className="w-32 flex-shrink-0 text-sm"
                     />
                     <Input
                       value={c.url}
                       onChange={(e) => handleCatChange(c.id, "url", e.target.value)}
-                      placeholder="版塊 URL（如：http://www.pm001.net/index.asp?boardID=XX）"
+                      placeholder="http://www.pm001.net/index.asp?boardID=XX"
                       className="flex-1 text-sm font-mono"
                     />
                     <button
@@ -195,7 +203,7 @@ export default function AdminPm001Scraper() {
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
               <div className="sm:col-span-1">
-                <Label className="text-xs text-muted-foreground mb-1 block">選擇版塊分類</Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">版塊分類</Label>
                 <select
                   value={selectedCatId}
                   onChange={(e) => setSelectedCatId(e.target.value)}
@@ -219,19 +227,16 @@ export default function AdminPm001Scraper() {
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">爬取頁數（1–10）</Label>
                 <Input
-                  type="number"
                   value={pages}
                   onChange={(e) => setPages(e.target.value)}
-                  min={1}
-                  max={10}
-                  className="w-full"
+                  placeholder="3"
                 />
               </div>
             </div>
 
             {selectedCat && (
               <p className="text-xs text-muted-foreground mb-3 font-mono break-all">
-                URL：{selectedCat.url}
+                {selectedCat.url}
               </p>
             )}
 
@@ -241,8 +246,13 @@ export default function AdminPm001Scraper() {
               className="gap-2 gold-gradient text-white border-0 w-full sm:w-auto"
             >
               {scraping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              {scraping ? "爬取中，請稍候..." : "開始搜索"}
+              {scraping ? "爬取中（標題 + 內文），請稍候..." : "開始搜索"}
             </Button>
+            {scraping && (
+              <p className="text-xs text-muted-foreground mt-2">
+                正在掃描版塊列表並讀取帖子內容，時間視乎帖子數量，請耐心等候…
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -250,20 +260,20 @@ export default function AdminPm001Scraper() {
         {results !== null && (
           <Card className="border-amber-100">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2 justify-between">
-                <span className="flex items-center gap-2">
-                  <ExternalLink className="w-4 h-4 text-amber-600" />
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Search className="w-4 h-4 text-amber-600" />
                   搜索結果
-                </span>
+                </CardTitle>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-amber-700 border-amber-300">
-                    共 {results.length} 條
+                    顯示 {visibleResults.length} / {results.length} 條
                   </Badge>
                   <Badge variant="outline" className="text-gray-500 border-gray-200 text-xs">
                     掃描 {pagesScraped} 頁
                   </Badge>
                 </div>
-              </CardTitle>
+              </div>
             </CardHeader>
             <CardContent>
               {results.length === 0 ? (
@@ -272,29 +282,49 @@ export default function AdminPm001Scraper() {
                   <p className="text-sm text-muted-foreground">未找到含「{keyword}」的帖子</p>
                   <p className="text-xs text-gray-400 mt-1">可嘗試增加爬取頁數或換其他關鍵字</p>
                 </div>
+              ) : visibleResults.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-sm text-muted-foreground">所有結果已拆除</p>
+                </div>
               ) : (
                 <div className="space-y-2">
-                  {results.map((r, i) => (
+                  {visibleResults.map((r, i) => (
                     <div
                       key={r.id}
-                      className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:bg-amber-50/50 transition-colors"
+                      className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-amber-50/50 transition-colors group"
                     >
-                      <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs flex items-center justify-center font-bold flex-shrink-0 mt-0.5">
+                      <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs flex items-center justify-center font-bold flex-shrink-0">
                         {i + 1}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 leading-snug break-words">{r.title}</p>
-                        <p className="text-xs text-gray-400 mt-0.5 font-mono break-all">{r.postUrl}</p>
+                        <a
+                          href={r.postUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium text-amber-800 hover:text-amber-600 hover:underline leading-snug break-words"
+                        >
+                          {r.title}
+                        </a>
+                        <div className="mt-0.5">
+                          {r.matchSource === "content" ? (
+                            <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100">
+                              內文匹配
+                            </span>
+                          ) : (
+                            <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100">
+                              標題匹配
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <a
-                        href={r.postUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-shrink-0 p-1.5 rounded-md text-amber-600 hover:bg-amber-100 transition-colors"
-                        title="在新分頁開啟"
+                      <button
+                        type="button"
+                        onClick={() => handleDismiss(r.id)}
+                        title="拆除此條"
+                        className="flex-shrink-0 p-1.5 rounded-md text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
                       >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                   ))}
                 </div>
