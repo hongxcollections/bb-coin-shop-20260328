@@ -8729,14 +8729,19 @@ EXAMPLE OUTPUT (exact format):
     /** 讀取已儲存的分類列表 */
     getCategories: adminProcedure.query(async () => {
       const v = await getSiteSetting('pm001.categories');
-      if (!v) return [] as { id: string; name: string; url: string }[];
-      try { return JSON.parse(v) as { id: string; name: string; url: string }[]; }
-      catch { return [] as { id: string; name: string; url: string }[]; }
+      if (!v) return [] as { id: string; name: string; url: string; type?: string }[];
+      try { return JSON.parse(v) as { id: string; name: string; url: string; type?: string }[]; }
+      catch { return [] as { id: string; name: string; url: string; type?: string }[]; }
     }),
 
     /** 儲存分類列表 */
     saveCategories: adminProcedure
-      .input(z.array(z.object({ id: z.string(), name: z.string().min(1), url: z.string().min(1) })))
+      .input(z.array(z.object({
+        id: z.string(),
+        name: z.string().min(1),
+        url: z.string().min(1),
+        type: z.enum(['auction', 'sale', 'other']).optional(),
+      })))
       .mutation(async ({ input }) => {
         await setSiteSetting('pm001.categories', JSON.stringify(input));
         return { success: true };
