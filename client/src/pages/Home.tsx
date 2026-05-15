@@ -31,6 +31,7 @@ import {
   Gavel,
   ShoppingCart,
   Store,
+  Users,
   Loader2,
   X,
   CheckCircle2,
@@ -1628,10 +1629,17 @@ export default function Home() {
 
                     {/* Right: Content */}
                     <div className="flex-1 flex flex-col justify-between min-w-0">
-                      {/* Title & Status */}
+                      {/* Title & Badges */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-sm line-clamp-1 text-amber-900">{auction.title}</h3>
+                          {/* 商戶名標籤 */}
+                          {(auction as { sellerName?: string | null }).sellerName && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Store className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                              <span className="text-[10px] text-amber-600 truncate">{(auction as { sellerName?: string | null }).sellerName}</span>
+                            </div>
+                          )}
                         </div>
                         <div className="flex flex-col items-end gap-1 shrink-0">
                           {(() => {
@@ -1654,26 +1662,38 @@ export default function Home() {
                         </div>
                       </div>
 
-                      {/* Price & Bidder & Timer */}
-                      <div className="mt-1">
-                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                          目前出價
+                      {/* Price row：左邊出價＋bidder，右邊 bidcount + ShareMenu + 閃出價（同 Auctions 主站對齊） */}
+                      <div className="mt-1 flex items-end justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-muted-foreground">目前出價</span>
+                            {(() => {
+                              const a = auction as { highestBidderName?: string | null; highestBidderId?: number | null };
+                              if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
+                                return <span className="text-[9px] text-emerald-600 font-bold">(我本人✓)</span>;
+                              } else if (a.highestBidderName) {
+                                return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;
+                              } else if (!a.highestBidderId) {
+                                return <span className="text-[9px] text-gray-400">(未有出價)</span>;
+                              }
+                              return null;
+                            })()}
+                          </div>
+                          <div className="text-sm font-bold text-amber-600">
+                            {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* 出價人數 */}
                           {(() => {
-                            const a = auction as { highestBidderName?: string | null; highestBidderId?: number | null };
-                            if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
-                              return <span className="text-[9px] text-emerald-600 font-bold">(我本人✓)</span>;
-                            } else if (a.highestBidderName) {
-                              return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;
-                            } else if (!a.highestBidderId) {
-                              return <span className="text-[9px] text-gray-500 font-normal">(未有出價)</span>;
-                            }
-                            return null;
+                            const bc = Number((auction as { bidCount?: number }).bidCount ?? 0);
+                            return bc > 0 ? (
+                              <div className="flex items-center gap-0.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
+                                <Users className="w-2.5 h-2.5" />
+                                <span className="font-semibold">{bc}</span>
+                              </div>
+                            ) : null;
                           })()}
-                        </div>
-                        <div className="text-sm font-bold text-amber-600">
-                          {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
-                        </div>
-                        <div className="flex items-center justify-end gap-1.5 mt-0.5">
                           <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                             <ShareMenu
                               auctionId={auction.id}
