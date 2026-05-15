@@ -17,7 +17,7 @@ import { parseCategories } from "@/lib/categories";
 import {
   Plus, Pencil, Trash2, Archive, RotateCcw, Upload, X,
   ImageIcon, CheckCircle2, AlertCircle, AlertTriangle, Loader2, ChevronLeft,
-  RefreshCw, Eye, Send, CheckSquare, Square, CreditCard, Facebook, Copy, Check, Sparkles, Mic,
+  RefreshCw, Eye, Send, CheckSquare, Square, CreditCard, Facebook, Copy, Check, Sparkles, Mic, Share2,
   Megaphone, ShoppingBag, Gavel,
 } from "lucide-react";
 import MerchantBroadcastDialog from "@/components/MerchantBroadcastDialog";
@@ -1628,28 +1628,26 @@ export default function MerchantAuctions() {
                   <div className="flex gap-1.5 px-2.5 pb-2.5">
                     <Button
                       size="sm"
-                      className="flex-1 h-7 text-xs gap-1 bg-[#1877F2] hover:bg-[#1560c8] text-white border-0"
+                      className="flex-1 h-7 text-xs gap-1 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border-0"
                       onClick={async () => {
-                        // Use navigator.share() on mobile so users can pick Facebook GROUP
-                        // (sharer.php only goes to personal timeline, not groups)
                         if (navigator.share) {
                           try {
-                            await navigator.clipboard.writeText(shareText).catch(() => {});
                             await navigator.share({ title: a.title, text: shareText, url: auctionUrl });
                           } catch (err: unknown) {
                             if (err instanceof Error && err.name !== "AbortError") {
-                              window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}`, "_blank", "noopener,noreferrer");
+                              try { await navigator.clipboard.writeText(`${shareText}\n${auctionUrl}`); } catch {}
+                              toast.error("系統分享失敗，已複製文字＋連結");
                             }
                           }
                         } else {
-                          window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}`, "_blank", "noopener,noreferrer");
-                          try { await navigator.clipboard.writeText(shareText); } catch {}
-                          toast.success("拍賣文字已複製！在 Facebook 貼文框長按「貼上」即可", { duration: 5000 });
+                          try { await navigator.clipboard.writeText(`${shareText}\n${auctionUrl}`); } catch {}
+                          toast.info("此瀏覽器不支援系統分享，已複製文字＋連結");
                         }
                       }}
+                      title="叫出手機系統分享 sheet（FB／FB 群組／WhatsApp／Telegram／Messenger…任選）"
                     >
-                      <Facebook className="w-3 h-3" />
-                      分享
+                      <Share2 className="w-3 h-3" />
+                      系統分享
                     </Button>
                     <Button
                       size="sm"
