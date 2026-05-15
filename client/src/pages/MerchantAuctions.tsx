@@ -443,6 +443,7 @@ export default function MerchantAuctions() {
   const [batchShareOpen, setBatchShareOpen] = useState(false);
   const [copiedIds, setCopiedIds] = useState<Set<number>>(new Set());
   const [copiedAll, setCopiedAll] = useState(false);
+  const [selectedShareIds, setSelectedShareIds] = useState<Set<number>>(new Set());
   const [aiCopyMap, setAiCopyMap] = useState<Record<number, string>>({});
   const [aiCopyLoadingId, setAiCopyLoadingId] = useState<number | null>(null);
   const [aiScriptDialog, setAiScriptDialog] = useState<{ id: number; title: string; text: string } | null>(null);
@@ -1105,7 +1106,10 @@ export default function MerchantAuctions() {
             <Button
               size="sm"
               className="h-7 px-2.5 text-xs gap-1.5 bg-[#1877F2] hover:bg-[#1560c8] text-white border-0"
-              onClick={() => setBatchShareOpen(true)}
+              onClick={() => {
+                setSelectedShareIds(new Set(activeAuctions.map((a) => a.id)));
+                setBatchShareOpen(true);
+              }}
             >
               <Facebook className="w-3 h-3" />
               批量分享（{activeAuctions.length}）
@@ -1408,7 +1412,7 @@ export default function MerchantAuctions() {
       </Dialog>
 
       {/* ── 批量分享 Facebook Dialog ── */}
-      <Dialog open={batchShareOpen} onOpenChange={(v) => { if (!v) { setBatchShareOpen(false); setCopiedIds(new Set()); setCopiedAll(false); } }}>
+      <Dialog open={batchShareOpen} onOpenChange={(v) => { if (!v) { setBatchShareOpen(false); setCopiedIds(new Set()); setCopiedAll(false); setSelectedShareIds(new Set()); } }}>
         <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[#1877F2]">
@@ -1420,13 +1424,38 @@ export default function MerchantAuctions() {
             <p>• <b>分享</b>：彈出系統分享選單，可選擇 Facebook 群組、WhatsApp 等</p>
             <p>• <b>複製文字</b>：複製格式化文字+連結，手動貼入任何平台</p>
           </div>
+          {/* 揀邊啲商品分享 toolbar */}
+          <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50/40 px-2.5 py-1.5">
+            <span className="text-xs text-amber-800">
+              已選 <b>{selectedShareIds.size}</b> / {activeAuctions.length} 件
+            </span>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setSelectedShareIds(new Set(activeAuctions.map((a) => a.id)))}
+                className="text-[11px] px-2 py-0.5 rounded border border-amber-300 text-amber-700 hover:bg-amber-100"
+              >
+                全選
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedShareIds(new Set())}
+                className="text-[11px] px-2 py-0.5 rounded border border-amber-300 text-amber-700 hover:bg-amber-100"
+              >
+                全部取消
+              </button>
+            </div>
+          </div>
           {/* 複製全部按鈕 */}
           <Button
             size="sm"
             variant="outline"
+            disabled={selectedShareIds.size === 0}
             className={`h-7 text-xs gap-1.5 border-dashed ${copiedAll ? "border-green-400 text-green-600" : "border-amber-400 text-amber-700 hover:bg-amber-50"}`}
             onClick={async () => {
-              const allText = activeAuctions.map((a) => {
+              const picked = activeAuctions.filter((a) => selectedShareIds.has(a.id));
+              if (picked.length === 0) { toast.error("請先剔選最少 1 件拍品"); return; }
+              const allText = picked.map((a) => {
                 const sym = getCurrencySymbol(a.currency ?? "HKD");
                 const currentBid = Number(a.currentPrice);
                 const endDate = new Date(a.endTime);
@@ -1440,12 +1469,13 @@ export default function MerchantAuctions() {
               }).join("\n\n---\n\n");
               await navigator.clipboard.writeText(allText);
               setCopiedAll(true);
-              toast.success("已複製全部拍賣文字！貼入 Facebook 群組即可");
+              const preview = allText.length > 180 ? allText.slice(0, 180) + "…" : allText;
+              toast.success(`已複製 ${picked.length} 件拍賣文字！貼入 Facebook 群組即可`, { description: preview, duration: 5000 });
               setTimeout(() => setCopiedAll(false), 3000);
             }}
           >
             {copiedAll ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-            {copiedAll ? "已複製全部！" : `一鍵複製全部（${activeAuctions.length}）個拍賣文字`}
+            {copiedAll ? "已複製全部！" : `一鍵複製揀咗嘅（${selectedShareIds.size}）件拍賣文字`}
           </Button>
 
           {/* ── 順序分享到預設群組 — admin 可關閉 ── */}
@@ -1498,16 +1528,17 @@ export default function MerchantAuctions() {
                 <Button
                   size="sm"
                   className="w-full h-8 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white border-0"
-                  disabled={selectedGroupIdxs.size === 0 || activeAuctions.length === 0}
+                  disabled={selectedGroupIdxs.size === 0 || selectedShareIds.size === 0}
                   onClick={() => {
                     const groups = Array.from(selectedGroupIdxs).sort((a, b) => a - b);
+                    const pickedAuctions = activeAuctions.filter((a) => selectedShareIds.has(a.id));
                     const queue: Array<{ auctionId: number; groupIdx: number }> = [];
-                    for (const a of activeAuctions) {
+                    for (const a of pickedAuctions) {
                       for (const gi of groups) {
                         queue.push({ auctionId: a.id, groupIdx: gi });
                       }
                     }
-                    if (queue.length === 0) { toast.error("冇商品或冇選擇群組"); return; }
+                    if (queue.length === 0) { toast.error("請先剔選拍品同埋群組"); return; }
                     setSeqQueue(queue);
                     setSeqIndex(0);
                     setSeqStepCopied(false); setSeqLinkCopied(false);
@@ -1516,7 +1547,7 @@ export default function MerchantAuctions() {
                   }}
                 >
                   <Send className="w-3 h-3" />
-                  開始順序分享（{activeAuctions.length} 件 × {selectedGroupIdxs.size} 群組 = {activeAuctions.length * selectedGroupIdxs.size} 步）
+                  開始順序分享（{selectedShareIds.size} 件 × {selectedGroupIdxs.size} 群組 = {selectedShareIds.size * selectedGroupIdxs.size} 步）
                 </Button>
               </>
             )}
@@ -1555,9 +1586,23 @@ export default function MerchantAuctions() {
               const isCopied = copiedIds.has(a.id);
               const aiCopyLoading = aiCopyLoadingId === a.id;
               const aiScriptLoading = aiScriptLoadingId === a.id;
+              const isShareSelected = selectedShareIds.has(a.id);
               return (
-                <div key={a.id} className="rounded-lg border border-amber-100 bg-amber-50/40 overflow-hidden">
+                <div key={a.id} className={`rounded-lg border overflow-hidden transition-colors ${isShareSelected ? "border-amber-300 bg-amber-50/60" : "border-gray-200 bg-gray-50/40 opacity-70"}`}>
                   <div className="flex items-center gap-2.5 p-2.5">
+                    <input
+                      type="checkbox"
+                      checked={isShareSelected}
+                      onChange={() => {
+                        setSelectedShareIds((prev) => {
+                          const n = new Set(prev);
+                          if (n.has(a.id)) n.delete(a.id); else n.add(a.id);
+                          return n;
+                        });
+                      }}
+                      className="w-4 h-4 accent-amber-500 cursor-pointer flex-shrink-0"
+                      title={isShareSelected ? "取消選擇" : "剔選分享"}
+                    />
                     <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
                       {img
                         ? <img src={img} alt="" className="w-full h-full object-cover" />
@@ -1654,9 +1699,11 @@ export default function MerchantAuctions() {
                       variant="outline"
                       className={`flex-1 h-7 text-xs gap-1 ${isCopied ? "border-green-400 text-green-600 bg-green-50" : "border-amber-300 text-amber-700 hover:bg-amber-50"}`}
                       onClick={async () => {
-                        await navigator.clipboard.writeText(`${shareText}\n${auctionUrl}`);
+                        const fullText = `${shareText}\n${auctionUrl}`;
+                        await navigator.clipboard.writeText(fullText);
                         setCopiedIds(prev => new Set([...prev, a.id]));
-                        toast.success("已複製！貼入群組帖子即可");
+                        const preview = fullText.length > 180 ? fullText.slice(0, 180) + "…" : fullText;
+                        toast.success("已複製！貼入群組帖子即可", { description: preview, duration: 5000 });
                         setTimeout(() => setCopiedIds(prev => { const n = new Set(prev); n.delete(a.id); return n; }), 3000);
                       }}
                     >

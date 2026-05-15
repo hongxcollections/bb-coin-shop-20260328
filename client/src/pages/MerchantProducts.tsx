@@ -811,6 +811,7 @@ export default function MerchantProducts() {
   const [productTab, setProductTab] = useState<"active" | "hidden" | "sold">("active");
   const [productBatchShareOpen, setProductBatchShareOpen] = useState(false);
   const [productCopiedIds, setProductCopiedIds] = useState<Set<number>>(new Set());
+  const [productSelectedShareIds, setProductSelectedShareIds] = useState<Set<number>>(new Set());
   const [aiCopyMap, setAiCopyMap] = useState<Record<number, string>>({});
   const [aiCopyLoadingId, setAiCopyLoadingId] = useState<number | null>(null);
   const [aiScriptDialog, setAiScriptDialog] = useState<{ id: number; title: string; text: string } | null>(null);
@@ -1347,7 +1348,10 @@ export default function MerchantProducts() {
             <Button
               size="sm"
               className="h-7 px-2.5 text-xs gap-1.5 bg-[#1877F2] hover:bg-[#1560c8] text-white border-0"
-              onClick={() => setProductBatchShareOpen(true)}
+              onClick={() => {
+                setProductSelectedShareIds(new Set(activeProducts.map((p: any) => p.id)));
+                setProductBatchShareOpen(true);
+              }}
             >
               <Facebook className="w-3 h-3" />
               批量分享（{activeProducts.length}）
@@ -1970,7 +1974,7 @@ export default function MerchantProducts() {
       )}
 
       {/* ── 批量分享 Facebook Dialog ── */}
-      <Dialog open={productBatchShareOpen} onOpenChange={(v) => { if (!v) { setProductBatchShareOpen(false); setProductCopiedIds(new Set()); setProductCopiedAll(false); } }}>
+      <Dialog open={productBatchShareOpen} onOpenChange={(v) => { if (!v) { setProductBatchShareOpen(false); setProductCopiedIds(new Set()); setProductCopiedAll(false); setProductSelectedShareIds(new Set()); } }}>
         <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[#1877F2]">
@@ -1982,12 +1986,37 @@ export default function MerchantProducts() {
             <p>• <b>分享</b>：彈出系統分享選單，可選擇 Facebook 群組、WhatsApp 等</p>
             <p>• <b>複製文字</b>：複製格式化文字＋連結，手動貼入任何平台</p>
           </div>
+          {/* 揀邊啲商品分享 toolbar */}
+          <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50/40 px-2.5 py-1.5">
+            <span className="text-xs text-amber-800">
+              已選 <b>{productSelectedShareIds.size}</b> / {activeProducts.length} 件
+            </span>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setProductSelectedShareIds(new Set(activeProducts.map((p: any) => p.id)))}
+                className="text-[11px] px-2 py-0.5 rounded border border-amber-300 text-amber-700 hover:bg-amber-100"
+              >
+                全選
+              </button>
+              <button
+                type="button"
+                onClick={() => setProductSelectedShareIds(new Set())}
+                className="text-[11px] px-2 py-0.5 rounded border border-amber-300 text-amber-700 hover:bg-amber-100"
+              >
+                全部取消
+              </button>
+            </div>
+          </div>
           <Button
             size="sm"
             variant="outline"
+            disabled={productSelectedShareIds.size === 0}
             className={`h-7 text-xs gap-1.5 border-dashed ${productCopiedAll ? "border-green-400 text-green-600" : "border-amber-400 text-amber-700 hover:bg-amber-50"}`}
             onClick={async () => {
-              const allText = activeProducts.map((p: any) => {
+              const picked = activeProducts.filter((p: any) => productSelectedShareIds.has(p.id));
+              if (picked.length === 0) { toast.error("請先剔選最少 1 件商品"); return; }
+              const allText = picked.map((p: any) => {
                 const price = parseFloat(p.price ?? "0");
                 const currency = p.currency ?? "HKD";
                 const productUrl = `${window.location.origin}/merchant-products/${p.id}`;
@@ -1995,12 +2024,13 @@ export default function MerchantProducts() {
               }).join("\n\n---\n\n");
               await navigator.clipboard.writeText(allText);
               setProductCopiedAll(true);
-              toast.success("已複製全部商品文字！貼入 Facebook 群組即可");
+              const preview = allText.length > 180 ? allText.slice(0, 180) + "…" : allText;
+              toast.success(`已複製 ${picked.length} 件商品文字！貼入 Facebook 群組即可`, { description: preview, duration: 5000 });
               setTimeout(() => setProductCopiedAll(false), 3000);
             }}
           >
             {productCopiedAll ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-            {productCopiedAll ? "已複製全部！" : `一鍵複製全部（${activeProducts.length}）件商品文字`}
+            {productCopiedAll ? "已複製全部！" : `一鍵複製揀咗嘅（${productSelectedShareIds.size}）件商品文字`}
           </Button>
           <div className="overflow-y-auto flex-1 space-y-2 pr-1">
             {activeProducts.map((p: any) => {
@@ -2019,9 +2049,23 @@ export default function MerchantProducts() {
               const isCopied = productCopiedIds.has(p.id);
               const aiCopyLoading = aiCopyLoadingId === p.id;
               const aiScriptLoading = aiScriptLoadingId === p.id;
+              const isShareSelected = productSelectedShareIds.has(p.id);
               return (
-                <div key={p.id} className="rounded-lg border border-amber-100 bg-amber-50/40 overflow-hidden">
+                <div key={p.id} className={`rounded-lg border overflow-hidden transition-colors ${isShareSelected ? "border-amber-300 bg-amber-50/60" : "border-gray-200 bg-gray-50/40 opacity-70"}`}>
                   <div className="flex items-center gap-2.5 p-2.5">
+                    <input
+                      type="checkbox"
+                      checked={isShareSelected}
+                      onChange={() => {
+                        setProductSelectedShareIds((prev) => {
+                          const n = new Set(prev);
+                          if (n.has(p.id)) n.delete(p.id); else n.add(p.id);
+                          return n;
+                        });
+                      }}
+                      className="w-4 h-4 accent-amber-500 cursor-pointer flex-shrink-0"
+                      title={isShareSelected ? "取消選擇" : "剔選分享"}
+                    />
                     <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
                       {imgs[0]
                         ? <img src={imgs[0]} alt="" className="w-full h-full object-cover" />
@@ -2118,9 +2162,11 @@ export default function MerchantProducts() {
                       variant="outline"
                       className={`flex-1 h-7 text-xs gap-1 ${isCopied ? "border-green-400 text-green-600 bg-green-50" : "border-amber-300 text-amber-700 hover:bg-amber-50"}`}
                       onClick={async () => {
-                        await navigator.clipboard.writeText(`${shareText}\n${productUrl}`);
+                        const fullText = `${shareText}\n${productUrl}`;
+                        await navigator.clipboard.writeText(fullText);
                         setProductCopiedIds(prev => new Set([...prev, p.id]));
-                        toast.success("已複製！貼入群組帖子即可");
+                        const preview = fullText.length > 180 ? fullText.slice(0, 180) + "…" : fullText;
+                        toast.success("已複製！貼入群組帖子即可", { description: preview, duration: 5000 });
                         setTimeout(() => setProductCopiedIds(prev => { const n = new Set(prev); n.delete(p.id); return n; }), 3000);
                       }}
                     >
