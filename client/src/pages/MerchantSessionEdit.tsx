@@ -307,6 +307,7 @@ export default function MerchantSessionEdit() {
     if (!sessionId) return;
     const endAt = new Date(editForm.endAt);
     if (isNaN(endAt.getTime())) { toast.error("結束時間格式錯誤"); return; }
+    if (!editForm.coverImage.trim()) { toast.error("請上載至少一張封面圖片"); return; }
     updateMut.mutate({
       id: sessionId,
       title: editForm.title.trim(),
@@ -393,6 +394,10 @@ export default function MerchantSessionEdit() {
                     onClick={() => {
                       if (items.length === 0) {
                         toast.error("請先加入至少 1 件拍賣品先可以發佈專場");
+                        return;
+                      }
+                      if (!session.coverImage) {
+                        toast.error("請先上載至少一張封面圖片先可以發佈專場");
                         return;
                       }
                       publishMut.mutate({ id: sessionId });

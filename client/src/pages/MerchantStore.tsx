@@ -7,7 +7,7 @@ import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { ShareMenu, ProductShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
-import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag, Share2, QrCode } from "lucide-react";
+import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag, Share2, QrCode, CalendarClock } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { buildWhatsAppUrl, sanitizeUserText, parseCategories } from "@/lib/utils";
@@ -413,6 +413,11 @@ export default function MerchantStore() {
     : "";
 
   const { data: allMerchants = [] } = trpc.merchants.listApprovedMerchants.useQuery();
+  const { data: merchantSessions = [] } = trpc.merchantSessions.listPublicByMerchant.useQuery(
+    { merchantUserId: userId },
+    { enabled: userId > 0 }
+  );
+  const activeSessions = (merchantSessions as any[]).filter((s) => s.status === "published" && new Date(s.endAt).getTime() > Date.now());
   const merchantInfo = (allMerchants as any[]).find((m: any) => m.userId === userId);
   const merchantLayout = merchantInfo?.listingLayout as LayoutMode ?? "grid2";
   const auctionsPerPage = merchantInfo?.auctionsPerPage ?? 10;
@@ -600,6 +605,30 @@ export default function MerchantStore() {
                 )}
               </div>
             </div>
+
+            {/* 進行中專場（每個專場一行：cover 20x20 + 名 + 件數） */}
+            {activeSessions.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center gap-1 text-[11px] font-semibold text-amber-700">
+                  <CalendarClock className="w-3 h-3" /> 進行中專場
+                </div>
+                {activeSessions.map((s: any) => (
+                  <Link key={s.id} href={`/s/${userId}/${s.slug}`}>
+                    <a className="flex items-center gap-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg px-2 py-1.5 transition-colors">
+                      {s.coverImage ? (
+                        <img src={s.coverImage} alt="" className="w-5 h-5 rounded object-cover border border-amber-200 shrink-0" />
+                      ) : (
+                        <div className="w-5 h-5 rounded bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
+                          <CalendarClock className="w-3 h-3 text-amber-500" />
+                        </div>
+                      )}
+                      <span className="text-xs font-semibold text-amber-800 truncate flex-1 min-w-0">{sanitizeUserText(s.title)}</span>
+                      <span className="text-[11px] text-amber-700 shrink-0">{s.itemCount ?? 0} 件</span>
+                    </a>
+                  </Link>
+                ))}
+              </div>
+            )}
             {(() => {
               const merchantUrl = `https://share.hongxcollections.com/merchants/${userId}`;
               const contactMsg = `${merchantContactPreset}\n${merchantUrl}`;
