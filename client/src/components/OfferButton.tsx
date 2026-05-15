@@ -27,15 +27,19 @@ export default function OfferButton({ product, className }: OfferButtonProps) {
   const isOwn = user != null && product.merchantId === user.id;
   const allowed = Number(product.allowOffers ?? 1) === 1;
 
-  if (isOwn || !allowed) return null;
+  if (!allowed) return null;
 
   async function handleClick() {
     if (!isAuthenticated) {
-      toast.error("請先登入");
+      toast.error("請先登入", { className: "bb-toast-err", duration: 3500 });
+      return;
+    }
+    if (isOwn) {
+      toast.error("商戶自己的商品，禁止排價 🚫", { className: "bb-toast-err", duration: 3500 });
       return;
     }
     if (!["silver", "gold", "vip"].includes(lvl) && role !== "admin") {
-      toast.error("銀牌或以上會員先可以排價");
+      toast.error("銀牌或以上會員先可以排價", { className: "bb-toast-err", duration: 4000 });
       return;
     }
     try {

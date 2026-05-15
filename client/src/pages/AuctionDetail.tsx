@@ -752,17 +752,15 @@ export default function AuctionDetail() {
                       結束：{formatDate(new Date(auction.endTime))}
                     </span>
                   </div>
-                  {auction.createdBy !== user?.id && (
-                    <div className="-rotate-[18deg] origin-center transition-transform hover:-rotate-[8deg] hover:scale-105">
-                      <ChatButton
-                        auctionId={auctionId}
-                        merchantId={auction.createdBy}
-                        auctionEnded={!isActive}
-                        auctionTitle={auction.title}
-                        compact
-                      />
-                    </div>
-                  )}
+                  <div className="-rotate-[18deg] origin-center transition-transform hover:-rotate-[8deg] hover:scale-105">
+                    <ChatButton
+                      auctionId={auctionId}
+                      merchantId={auction.createdBy}
+                      auctionEnded={!isActive}
+                      auctionTitle={auction.title}
+                      compact
+                    />
+                  </div>
                 </div>
 
                 {/* 反狙擊延時提示 */}

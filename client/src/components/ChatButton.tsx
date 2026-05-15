@@ -51,13 +51,13 @@ export default function ChatButton({ auctionId, merchantId, auctionEnded, compac
     },
   });
 
-  if (isMerchantSelf) {
-    return null;
-  }
-
   const handleClick = () => {
     if (!isAuthenticated) {
       toast.info("請先登入會員先可以同商戶對話 🔐", { duration: 3500, className: "bb-toast-err" });
+      return;
+    }
+    if (isMerchantSelf) {
+      toast.error("商戶自己的商品，唔可以同自己對話 🚫", { duration: 3500, className: "bb-toast-err" });
       return;
     }
     if (auctionEnded) {
