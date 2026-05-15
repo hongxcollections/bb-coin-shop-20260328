@@ -6,12 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Plus, Trash2, Save, Search, Globe, ChevronLeft, Bookmark, BookmarkCheck, ExternalLink, FolderOpen, ChevronDown, ChevronRight, ChevronUp, Gavel, Tag } from "lucide-react";
+import { Loader2, Plus, Trash2, Save, Search, Globe, ChevronLeft, Bookmark, BookmarkCheck, ExternalLink, FolderOpen, ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "wouter";
 
-type CatType = "auction" | "sale" | "other";
-type Category = { id: string; name: string; url: string; type?: CatType };
+type Category = { id: string; name: string; url: string };
 type ScrapeResult = {
   title: string;
   postUrl: string;
@@ -25,12 +24,6 @@ type SearchPhase = "idle" | "listing" | "fetching" | "done";
 
 const LS_SAVED_KEY = "pm001_saved_posts";
 const UNCATEGORIZED = "未分類";
-
-const TYPE_LABEL: Record<CatType, string> = {
-  auction: "拍賣",
-  sale: "出售",
-  other: "其他",
-};
 
 function loadSavedPosts(): SavedPost[] {
   try {
@@ -71,7 +64,7 @@ export default function AdminPm001Scraper() {
   const [catsSaving, setCatsSaving] = useState(false);
   const [catsCollapsed, setCatsCollapsed] = useState(true);
   const [savedCollapsed, setSavedCollapsed] = useState(true);
-  const workingCats: Category[] = cats ?? (savedCats as Category[] ?? []);
+  const workingCats: Category[] = cats ?? (savedCats ?? []);
 
   const saveCategories = trpc.pm001.saveCategories.useMutation({
     onSuccess: () => {
@@ -84,16 +77,16 @@ export default function AdminPm001Scraper() {
 
   function handleCatChange(id: string, field: keyof Category, value: string) {
     setCats((prev) =>
-      ((prev ?? savedCats ?? []) as Category[]).map((c) => c.id === id ? { ...c, [field]: value } : c)
+      (prev ?? savedCats ?? []).map((c) => c.id === id ? { ...c, [field]: value } : c)
     );
   }
 
   function handleAddCat() {
-    setCats([...((cats ?? savedCats ?? []) as Category[]), { id: genId(), name: "", url: "", type: "other" }]);
+    setCats([...(cats ?? savedCats ?? []), { id: genId(), name: "", url: "" }]);
   }
 
   function handleDeleteCat(id: string) {
-    setCats((prev) => ((prev ?? savedCats ?? []) as Category[]).filter((c) => c.id !== id));
+    setCats((prev) => (prev ?? savedCats ?? []).filter((c) => c.id !== id));
   }
 
   function handleMoveCat(id: string, dir: -1 | 1) {
@@ -109,9 +102,7 @@ export default function AdminPm001Scraper() {
   }
 
   async function handleSaveCats() {
-    const toSave = workingCats
-      .filter((c) => c.name.trim() && c.url.trim())
-      .map((c) => ({ ...c, type: (c.type ?? "other") as CatType }));
+    const toSave = workingCats.filter((c) => c.name.trim() && c.url.trim());
     setCatsSaving(true);
     try { await saveCategories.mutateAsync(toSave); }
     finally { setCatsSaving(false); }
@@ -141,18 +132,6 @@ export default function AdminPm001Scraper() {
   const selectedCat = workingCats.find((c) => c.id === selectedCatId);
   const savedIdSet = new Set(savedPosts.map(s => s.id));
 
-  // group categories by type for the dropdown
-  const catsByType = useMemo(() => {
-    const groups: Record<CatType, Category[]> = { auction: [], sale: [], other: [] };
-    for (const c of workingCats) {
-      if (!c.name || !c.url) continue;
-      const t = (c.type ?? "other") as CatType;
-      groups[t].push(c);
-    }
-    return groups;
-  }, [workingCats]);
-
-  // group saved posts by category
   const savedByCategory = useMemo(() => {
     const map = new Map<string, SavedPost[]>();
     for (const s of savedPosts) {
@@ -329,7 +308,7 @@ export default function AdminPm001Scraper() {
           </div>
         </div>
 
-        {/* ── 分類管理（可摺疊） ── */}
+        {/* ── 分類管理（可摺疊 + 可排序） ── */}
         <Card className="border-amber-100 mb-6">
           <button
             type="button"
@@ -373,20 +352,11 @@ export default function AdminPm001Scraper() {
                           <ChevronDown className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                      <select
-                        value={c.type ?? "other"}
-                        onChange={(e) => handleCatChange(c.id, "type", e.target.value)}
-                        className="w-20 flex-shrink-0 border border-input rounded-md px-2 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-amber-400"
-                      >
-                        <option value="auction">拍賣</option>
-                        <option value="sale">出售</option>
-                        <option value="other">其他</option>
-                      </select>
                       <Input
                         value={c.name}
                         onChange={(e) => handleCatChange(c.id, "name", e.target.value)}
                         placeholder="分類名稱"
-                        className="w-28 flex-shrink-0 text-sm"
+                        className="w-32 flex-shrink-0 text-sm"
                       />
                       <Input
                         value={c.url}
@@ -444,14 +414,8 @@ export default function AdminPm001Scraper() {
                   className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-amber-400"
                 >
                   <option value="">-- 選擇分類 --</option>
-                  {(["auction", "sale", "other"] as CatType[]).map((t) => (
-                    catsByType[t].length > 0 && (
-                      <optgroup key={t} label={`【${TYPE_LABEL[t]}】`}>
-                        {catsByType[t].map((c) => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </optgroup>
-                    )
+                  {workingCats.filter(c => c.name && c.url).map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
               </div>
@@ -501,17 +465,9 @@ export default function AdminPm001Scraper() {
             </div>
 
             {selectedCat && (
-              <div className="text-xs mb-3 flex items-center gap-2 flex-wrap">
-                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-medium ${
-                  selectedCat.type === "auction" ? "bg-purple-50 text-purple-700 border border-purple-200" :
-                  selectedCat.type === "sale" ? "bg-cyan-50 text-cyan-700 border border-cyan-200" :
-                  "bg-gray-50 text-gray-600 border border-gray-200"
-                }`}>
-                  {selectedCat.type === "auction" ? <Gavel className="w-3 h-3" /> : selectedCat.type === "sale" ? <Tag className="w-3 h-3" /> : null}
-                  {TYPE_LABEL[(selectedCat.type ?? "other") as CatType]}
-                </span>
-                <span className="text-muted-foreground font-mono break-all">{selectedCat.url}</span>
-              </div>
+              <p className="text-xs text-muted-foreground mb-3 font-mono break-all">
+                {selectedCat.url}
+              </p>
             )}
 
             <div className="flex flex-wrap gap-2 items-center">
@@ -654,14 +610,7 @@ export default function AdminPm001Scraper() {
                   <Search className="w-4 h-4 text-amber-600" />
                   搜索結果
                   {selectedCat && (
-                    <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                      selectedCat.type === "auction" ? "bg-purple-50 text-purple-700 border border-purple-200" :
-                      selectedCat.type === "sale" ? "bg-cyan-50 text-cyan-700 border border-cyan-200" :
-                      "bg-gray-50 text-gray-600 border border-gray-200"
-                    }`}>
-                      {selectedCat.type === "auction" ? <Gavel className="w-2.5 h-2.5" /> : selectedCat.type === "sale" ? <Tag className="w-2.5 h-2.5" /> : null}
-                      {TYPE_LABEL[(selectedCat.type ?? "other") as CatType]} · {selectedCat.name}
-                    </span>
+                    <span className="text-xs font-normal text-amber-600">· {selectedCat.name}</span>
                   )}
                 </CardTitle>
                 <div className="flex items-center gap-2 flex-wrap">
