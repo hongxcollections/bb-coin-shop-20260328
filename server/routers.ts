@@ -8904,6 +8904,131 @@ EXAMPLE OUTPUT (exact format):
 
         return { results, total: results.length, pagesScraped: input.pages };
       }),
+
+    /** Phase 1 only: collect posts from board pages with title-match flag */
+    listPosts: adminProcedure
+      .input(z.object({
+        url: z.string().min(1),
+        keyword: z.string().min(1).max(100),
+        pages: z.number().int().min(1).max(10).default(3),
+        dateFilter: z.number().int().min(0).max(365).default(7),
+      }))
+      .mutation(async ({ input }) => {
+        const [iconv, chineseConv] = await Promise.all([
+          import('iconv-lite'),
+          import('chinese-conv'),
+        ]);
+        const kwSC = (chineseConv as any).sify(input.keyword);
+        const kwTC = (chineseConv as any).tify(input.keyword);
+        const kwVariants = [...new Set([input.keyword, kwSC, kwTC])].map(k => k.toLowerCase());
+        const matchesKw = (text: string) => {
+          const t = text.toLowerCase();
+          return kwVariants.some(kw => t.includes(kw));
+        };
+        const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+        const cutoff = input.dateFilter > 0
+          ? new Date(Date.now() - input.dateFilter * 24 * 60 * 60 * 1000)
+          : null;
+
+        type PostInfo = { boardId: string; id: string; title: string; postedAt: string | null; titleMatched: boolean };
+        const posts: PostInfo[] = [];
+        const seen = new Set<string>();
+        let pagesScraped = 0;
+
+        for (let page = 1; page <= input.pages; page++) {
+          try {
+            const sep = input.url.includes('?') ? '&' : '?';
+            const pageUrl = page === 1 ? input.url : `${input.url}${sep}page=${page}`;
+            const resp = await fetch(pageUrl, { signal: AbortSignal.timeout(12000), headers: { 'User-Agent': UA } });
+            if (!resp.ok) break;
+            const buf = Buffer.from(await resp.arrayBuffer());
+            const html = iconv.decode(buf, 'gb2312');
+            pagesScraped++;
+
+            const dateMap = new Map<string, Date>();
+            const dateRegex = /ID=(\d+)[^"]*"[^>]*?发表于[：:](\d{4}\/\d+\/\d+)/gi;
+            let dm: RegExpExecArray | null;
+            while ((dm = dateRegex.exec(html)) !== null) {
+              const [, id, ds] = dm;
+              if (!dateMap.has(id)) {
+                const [y, mo, d] = ds.split('/').map(Number);
+                dateMap.set(id, new Date(y, mo - 1, d));
+              }
+            }
+
+            const titleRegex = /dispbbs\.asp\?boardID=(\d+)&(?:amp;)?ID=(\d+)[^"<\s]*"[^>]*>([^<]{2,120})<\/a>/gi;
+            let m: RegExpExecArray | null;
+            while ((m = titleRegex.exec(html)) !== null) {
+              const [, boardId, id, rawTitle] = m;
+              const title = rawTitle.trim();
+              if (!title || /^\d{4}\/\d/.test(title) || seen.has(id)) continue;
+              seen.add(id);
+              const postedAt = dateMap.get(id) ?? null;
+              if (cutoff && postedAt && postedAt < cutoff) continue;
+              posts.push({ boardId, id, title, postedAt: postedAt ? postedAt.toISOString().slice(0, 10) : null, titleMatched: matchesKw(title) });
+            }
+          } catch (e: any) {
+            console.error('[pm001 listPosts] page', page, e?.message);
+            break;
+          }
+        }
+        return { posts, pagesScraped };
+      }),
+
+    /** Phase 2: check content of a batch of posts for keyword match (strips author signature) */
+    fetchPostBatch: adminProcedure
+      .input(z.object({
+        posts: z.array(z.object({ boardId: z.string(), id: z.string() })).min(1).max(20),
+        keyword: z.string().min(1).max(100),
+      }))
+      .mutation(async ({ input }) => {
+        const [iconv, chineseConv] = await Promise.all([
+          import('iconv-lite'),
+          import('chinese-conv'),
+        ]);
+        const kwSC = (chineseConv as any).sify(input.keyword);
+        const kwTC = (chineseConv as any).tify(input.keyword);
+        const kwVariants = [...new Set([input.keyword, kwSC, kwTC])].map(k => k.toLowerCase());
+        const matchesKw = (text: string) => {
+          const t = text.toLowerCase();
+          return kwVariants.some(kw => t.includes(kw));
+        };
+        const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+
+        function extractPostBody(rawHtml: string): string {
+          const signPatterns = [
+            /class=["']sign["']/i,
+            /class=["']t_sign["']/i,
+            /id=["']userinfo["']/i,
+            /class=["'][^"']*pstatus[^"']*["']/i,
+            /class=["']postbottom["']/i,
+            /<!--\s*签名\s*-->/i,
+          ];
+          let cutAt = rawHtml.length;
+          for (const pat of signPatterns) {
+            const idx = rawHtml.search(pat);
+            if (idx > 100 && idx < cutAt) cutAt = idx;
+          }
+          return rawHtml.slice(0, cutAt).replace(/<[^>]+>/g, ' ');
+        }
+
+        const fetched = await Promise.allSettled(input.posts.map(async (p) => {
+          const postUrl = `http://www.pm001.net/dispbbs.asp?boardID=${p.boardId}&ID=${p.id}&page=1`;
+          const resp = await fetch(postUrl, { signal: AbortSignal.timeout(8000), headers: { 'User-Agent': UA }, redirect: 'follow' });
+          const finalUrl = resp.url ?? '';
+          if (!resp.ok || finalUrl.includes('showerr') || finalUrl.includes('login')) return null;
+          const buf = Buffer.from(await resp.arrayBuffer());
+          const fullHtml = iconv.decode(buf, 'gb2312');
+          const body = extractPostBody(fullHtml);
+          return { id: p.id, matched: matchesKw(body) };
+        }));
+
+        const matchedIds: string[] = [];
+        for (const r of fetched) {
+          if (r.status === 'fulfilled' && r.value?.matched) matchedIds.push(r.value.id);
+        }
+        return { matchedIds };
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;

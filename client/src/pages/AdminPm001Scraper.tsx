@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import AdminHeader from "@/components/AdminHeader";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -6,17 +6,39 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Trash2, Save, Search, Globe, ChevronLeft, X } from "lucide-react";
+import { Loader2, Plus, Trash2, Save, Search, Globe, ChevronLeft, X, RotateCcw, Database } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "wouter";
 
 type Category = { id: string; name: string; url: string };
 type ScrapeResult = { title: string; postUrl: string; id: string; matchSource: "title" | "content"; postedAt: string | null };
+type PostInfo = { boardId: string; id: string; title: string; postedAt: string | null; titleMatched: boolean };
+type SearchPhase = "idle" | "listing" | "fetching" | "done";
+
+const LS_KEY = "pm001_search_results";
+type SavedState = {
+  results: ScrapeResult[];
+  dismissedIds: string[];
+  keyword: string;
+  catName: string;
+  savedAt: number;
+};
 
 function genId() {
   return Math.random().toString(36).slice(2, 10);
 }
+
+function loadSaved(): SavedState | null {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw) as SavedState;
+    if (Date.now() - s.savedAt > 7 * 24 * 60 * 60 * 1000) return null;
+    return s;
+  } catch { return null; }
+}
+
+const BATCH_SIZE = 6;
 
 export default function AdminPm001Scraper() {
   const { user, isAuthenticated } = useAuth();
@@ -28,7 +50,6 @@ export default function AdminPm001Scraper() {
 
   const [cats, setCats] = useState<Category[] | null>(null);
   const [catsSaving, setCatsSaving] = useState(false);
-
   const workingCats: Category[] = cats ?? (savedCats ?? []);
 
   const saveCategories = trpc.pm001.saveCategories.useMutation({
@@ -61,52 +82,193 @@ export default function AdminPm001Scraper() {
     finally { setCatsSaving(false); }
   }
 
-  // ── Scraper state ──────────────────────────────────────────────────────────
+  // ── Scraper state ─────────────────────────────────────────────────────────
   const [selectedCatId, setSelectedCatId] = useState("");
   const [keyword, setKeyword] = useState("");
   const [pages, setPages] = useState("3");
   const [dateFilter, setDateFilter] = useState("7");
   const [searchScope, setSearchScope] = useState<"title" | "content" | "both">("both");
-  const [results, setResults] = useState<ScrapeResult[] | null>(null);
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  const [scraping, setScraping] = useState(false);
-  const [pagesScraped, setPagesScraped] = useState(0);
 
-  const scrape = trpc.pm001.scrape.useMutation({
-    onSuccess: (data) => {
-      setResults(data.results as ScrapeResult[]);
-      setDismissed(new Set());
-      setPagesScraped(data.pagesScraped);
-      if (data.results.length === 0) {
-        toast.info(`爬取完成，未找到含「${keyword}」的帖子`, { position: "top-center" });
-      } else {
-        toast.success(`找到 ${data.results.length} 個相關帖子`, { position: "top-center" });
-      }
-    },
-    onError: (e) => toast.error(e.message, { position: "top-center" }),
-    onSettled: () => setScraping(false),
-  });
+  const [phase, setPhase] = useState<SearchPhase>("idle");
+  const [progress, setProgress] = useState({ checked: 0, total: 0, listed: 0 });
+  const [results, setResults] = useState<ScrapeResult[]>([]);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [lastSearch, setLastSearch] = useState<{ keyword: string; catName: string } | null>(null);
+  const [pagesScraped, setPagesScraped] = useState(0);
+  const abortRef = useRef(false);
+  const isBusy = phase === "listing" || phase === "fetching";
+
+  const listPostsMutation = trpc.pm001.listPosts.useMutation();
+  const fetchPostBatchMutation = trpc.pm001.fetchPostBatch.useMutation();
+
+  // ── localStorage load on mount ─────────────────────────────────────────────
+  useEffect(() => {
+    const saved = loadSaved();
+    if (saved && saved.results.length > 0) {
+      setResults(saved.results);
+      setDismissed(new Set(saved.dismissedIds));
+      setLastSearch({ keyword: saved.keyword, catName: saved.catName });
+      setPhase("done");
+    }
+  }, []);
+
+  // ── localStorage auto-save on result/dismissed change ─────────────────────
+  useEffect(() => {
+    if (results.length > 0 && lastSearch) {
+      const state: SavedState = {
+        results,
+        dismissedIds: [...dismissed],
+        keyword: lastSearch.keyword,
+        catName: lastSearch.catName,
+        savedAt: Date.now(),
+      };
+      localStorage.setItem(LS_KEY, JSON.stringify(state));
+    }
+  }, [results, dismissed, lastSearch]);
 
   const selectedCat = workingCats.find((c) => c.id === selectedCatId);
-  const visibleResults = (results ?? []).filter((r) => !dismissed.has(r.id));
+  const visibleResults = results.filter((r) => !dismissed.has(r.id));
+  const dismissedCount = dismissed.size;
 
   async function handleScrape() {
     if (!selectedCat) { toast.error("請先選擇分類", { position: "top-center" }); return; }
     if (!keyword.trim()) { toast.error("請輸入搜索關鍵字", { position: "top-center" }); return; }
-    setScraping(true);
-    setResults(null);
+
+    abortRef.current = false;
+    setPhase("listing");
+    setResults([]);
     setDismissed(new Set());
-    scrape.mutate({
-      url: selectedCat.url,
-      keyword: keyword.trim(),
-      pages: Math.min(10, Math.max(1, parseInt(pages) || 3)),
-      dateFilter: parseInt(dateFilter) || 0,
-      searchScope,
-    });
+    setProgress({ checked: 0, total: 0, listed: 0 });
+    setPagesScraped(0);
+    setLastSearch({ keyword: keyword.trim(), catName: selectedCat.name });
+    localStorage.removeItem(LS_KEY);
+
+    // ── Phase 1: get post list from board pages ──────────────────────────────
+    let posts: PostInfo[] = [];
+    try {
+      const res = await listPostsMutation.mutateAsync({
+        url: selectedCat.url,
+        keyword: keyword.trim(),
+        pages: Math.min(10, Math.max(1, parseInt(pages) || 3)),
+        dateFilter: parseInt(dateFilter) || 0,
+      });
+      posts = res.posts as PostInfo[];
+      setPagesScraped(res.pagesScraped);
+      setProgress(p => ({ ...p, listed: posts.length }));
+    } catch (e: any) {
+      toast.error(e.message || "爬取失敗", { position: "top-center" });
+      setPhase("idle");
+      return;
+    }
+
+    if (abortRef.current) { setPhase("idle"); return; }
+
+    // ── Title-only scope: done immediately ───────────────────────────────────
+    if (searchScope === "title") {
+      const titleResults: ScrapeResult[] = posts
+        .filter(p => p.titleMatched)
+        .map(p => ({
+          title: p.title,
+          postUrl: `http://www.pm001.net/dispbbs.asp?boardID=${p.boardId}&ID=${p.id}&page=1`,
+          id: p.id,
+          matchSource: "title" as const,
+          postedAt: p.postedAt,
+        }));
+      setResults(titleResults);
+      setPhase("done");
+      if (titleResults.length === 0) {
+        toast.info(`未找到含「${keyword.trim()}」的帖子`, { position: "top-center" });
+      } else {
+        toast.success(`找到 ${titleResults.length} 個相關帖子`, { position: "top-center" });
+      }
+      return;
+    }
+
+    // ── scope = content or both ──────────────────────────────────────────────
+    // For "both": add title-matched results immediately
+    const titleMatchedMap = new Map<string, PostInfo>(
+      posts.filter(p => p.titleMatched).map(p => [p.id, p])
+    );
+    const titleResults: ScrapeResult[] = searchScope === "both"
+      ? [...titleMatchedMap.values()].map(p => ({
+          title: p.title,
+          postUrl: `http://www.pm001.net/dispbbs.asp?boardID=${p.boardId}&ID=${p.id}&page=1`,
+          id: p.id,
+          matchSource: "title" as const,
+          postedAt: p.postedAt,
+        }))
+      : [];
+
+    if (titleResults.length > 0) setResults(titleResults);
+
+    // Which posts to content-check?
+    const toCheck = searchScope === "content"
+      ? posts
+      : posts.filter(p => !titleMatchedMap.has(p.id));
+
+    setPhase("fetching");
+    setProgress({ checked: 0, total: toCheck.length, listed: posts.length });
+
+    const contentResults: ScrapeResult[] = [];
+    for (let i = 0; i < toCheck.length; i += BATCH_SIZE) {
+      if (abortRef.current) break;
+      const batch = toCheck.slice(i, i + BATCH_SIZE);
+      try {
+        const res = await fetchPostBatchMutation.mutateAsync({
+          posts: batch.map(p => ({ boardId: p.boardId, id: p.id })),
+          keyword: keyword.trim(),
+        });
+        for (const id of res.matchedIds) {
+          const p = batch.find(x => x.id === id);
+          if (p) {
+            contentResults.push({
+              title: p.title,
+              postUrl: `http://www.pm001.net/dispbbs.asp?boardID=${p.boardId}&ID=${p.id}&page=1`,
+              id: p.id,
+              matchSource: "content",
+              postedAt: p.postedAt,
+            });
+          }
+        }
+      } catch (e: any) {
+        console.warn("[pm001 fetchPostBatch] batch failed", e?.message);
+      }
+      const checked = Math.min(i + BATCH_SIZE, toCheck.length);
+      setProgress({ checked, total: toCheck.length, listed: posts.length });
+      setResults([...titleResults, ...contentResults]);
+    }
+
+    setPhase("done");
+    const total = titleResults.length + contentResults.length;
+    if (total === 0) {
+      toast.info(`未找到含「${keyword.trim()}」的帖子`, { position: "top-center" });
+    } else {
+      const parts: string[] = [];
+      if (titleResults.length > 0) parts.push(`標題 ${titleResults.length}`);
+      if (contentResults.length > 0) parts.push(`內文 ${contentResults.length}`);
+      toast.success(`找到 ${total} 個相關帖子（${parts.join(" / ")}）`, { position: "top-center" });
+    }
+  }
+
+  function handleStop() {
+    abortRef.current = true;
+    setPhase("done");
   }
 
   function handleDismiss(id: string) {
     setDismissed((prev) => new Set([...prev, id]));
+  }
+
+  function handleRestoreAll() {
+    setDismissed(new Set());
+  }
+
+  function handleClearAll() {
+    setResults([]);
+    setDismissed(new Set());
+    setPhase("idle");
+    setLastSearch(null);
+    localStorage.removeItem(LS_KEY);
   }
 
   if (!isAdmin) {
@@ -132,7 +294,7 @@ export default function AdminPm001Scraper() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-amber-900">pm001.net 錢幣搜索</h1>
-            <p className="text-sm text-muted-foreground">爬取 pm001.net 版塊，按關鍵字篩選帖子（標題 + 內文）</p>
+            <p className="text-sm text-muted-foreground">爬取 pm001.net 版塊，按關鍵字篩選帖子（支援繁簡、標題 / 內文）</p>
           </div>
         </div>
 
@@ -225,7 +387,7 @@ export default function AdminPm001Scraper() {
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   placeholder="如：光緒、龙凤、香港"
-                  onKeyDown={(e) => e.key === "Enter" && handleScrape()}
+                  onKeyDown={(e) => e.key === "Enter" && !isBusy && handleScrape()}
                 />
               </div>
               <div>
@@ -270,40 +432,97 @@ export default function AdminPm001Scraper() {
               </p>
             )}
 
-            <Button
-              onClick={handleScrape}
-              disabled={scraping || !selectedCatId || !keyword.trim()}
-              className="gap-2 gold-gradient text-white border-0 w-full sm:w-auto"
-            >
-              {scraping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              {scraping
-                ? `爬取中（${searchScope === "title" ? "標題" : searchScope === "content" ? "內文" : "標題+內文"}），請稍候...`
-                : "開始搜索"}
-            </Button>
-            {scraping && searchScope !== "title" && (
-              <p className="text-xs text-muted-foreground mt-2">
-                正在讀取帖子內文（已過濾作者簽名），時間視乎帖子數量，請耐心等候…
-              </p>
+            <div className="flex flex-wrap gap-2 items-center">
+              <Button
+                onClick={handleScrape}
+                disabled={isBusy || !selectedCatId || !keyword.trim()}
+                className="gap-2 gold-gradient text-white border-0"
+              >
+                {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                {isBusy ? "搜索中..." : "開始搜索"}
+              </Button>
+              {isBusy && (
+                <Button variant="outline" size="sm" onClick={handleStop} className="text-red-600 border-red-200 hover:bg-red-50">
+                  停止
+                </Button>
+              )}
+            </div>
+
+            {/* ── 進度顯示 ── */}
+            {phase === "listing" && (
+              <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                <div className="flex items-center gap-2 text-sm text-amber-800">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  正在爬取版塊帖子列表…
+                </div>
+              </div>
+            )}
+            {phase === "fetching" && (
+              <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-sm text-amber-800">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    正在讀取帖子內文（已過濾簽名）
+                  </div>
+                  <span className="text-sm font-mono font-semibold text-amber-900">
+                    {progress.checked} / {progress.total}
+                  </span>
+                </div>
+                <div className="w-full bg-amber-100 rounded-full h-1.5">
+                  <div
+                    className="bg-amber-500 h-1.5 rounded-full transition-all duration-300"
+                    style={{ width: progress.total > 0 ? `${(progress.checked / progress.total) * 100}%` : "0%" }}
+                  />
+                </div>
+                {results.length > 0 && (
+                  <p className="text-xs text-amber-600 mt-1.5">目前已找到 {results.length} 條相關帖子</p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
 
         {/* ── 結果 ── */}
-        {results !== null && (
+        {(results.length > 0 || phase === "done") && (
           <Card className="border-amber-100">
             <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Search className="w-4 h-4 text-amber-600" />
                   搜索結果
+                  {lastSearch && (
+                    <span className="text-xs font-normal text-muted-foreground">
+                      「{lastSearch.keyword}」· {lastSearch.catName}
+                    </span>
+                  )}
                 </CardTitle>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-amber-700 border-amber-300">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {pagesScraped > 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded border border-gray-200 text-gray-500">
+                      掃描 {pagesScraped} 頁
+                    </span>
+                  )}
+                  <span className="text-xs px-2 py-0.5 rounded border border-amber-200 text-amber-700">
                     顯示 {visibleResults.length} / {results.length} 條
-                  </Badge>
-                  <Badge variant="outline" className="text-gray-500 border-gray-200 text-xs">
-                    掃描 {pagesScraped} 頁
-                  </Badge>
+                  </span>
+                  {dismissedCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleRestoreAll}
+                      className="flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      恢復 {dismissedCount} 條
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleClearAll}
+                    className="flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-gray-200 text-gray-400 hover:text-red-400 hover:border-red-200 hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    清除
+                  </button>
                 </div>
               </div>
             </CardHeader>
@@ -311,12 +530,20 @@ export default function AdminPm001Scraper() {
               {results.length === 0 ? (
                 <div className="text-center py-8">
                   <Search className="w-10 h-10 mx-auto text-gray-300 mb-3" />
-                  <p className="text-sm text-muted-foreground">未找到含「{keyword}」的帖子</p>
+                  <p className="text-sm text-muted-foreground">未找到含「{lastSearch?.keyword}」的帖子</p>
                   <p className="text-xs text-gray-400 mt-1">可嘗試增加爬取頁數或換其他關鍵字</p>
                 </div>
               ) : visibleResults.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-sm text-muted-foreground">所有結果已拆除</p>
+                  <button
+                    type="button"
+                    onClick={handleRestoreAll}
+                    className="mt-2 flex items-center gap-1.5 mx-auto text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    恢復全部 ({dismissedCount} 條)
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -362,6 +589,14 @@ export default function AdminPm001Scraper() {
                       </button>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* localStorage indicator */}
+              {phase === "done" && results.length > 0 && (
+                <div className="mt-3 flex items-center gap-1.5 text-[11px] text-gray-400">
+                  <Database className="w-3 h-3" />
+                  結果已自動儲存，7 日內重開頁面仍可查閱
                 </div>
               )}
             </CardContent>
