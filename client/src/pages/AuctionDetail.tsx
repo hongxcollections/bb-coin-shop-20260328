@@ -320,9 +320,13 @@ export default function AuctionDetail() {
   const notLoggedInBidText = _ss.notLoggedInBidText ?? "登入後出價";
 
   const handleProxyBid = () => {
+    if (auction && user && (auction as { createdBy?: number }).createdBy === user.id) {
+      toast.error("商戶自己的商品，禁止出價 🚫", { className: "bb-toast-err", duration: 4000 });
+      return;
+    }
     const amount = parseFloat(proxyAmount);
     if (isNaN(amount) || amount <= 0) {
-      toast.error("請輸入有效的代理出價上限");
+      toast.error("請輸入有效的代理出價上限", { className: "bb-toast-err", duration: 4000 });
       return;
     }
     // 顯示確認彈窗
@@ -369,6 +373,10 @@ export default function AuctionDetail() {
   });
 
   const handleBid = async () => {
+    if (auction && user && (auction as { createdBy?: number }).createdBy === user.id) {
+      toast.error("商戶自己的商品，禁止出價 🚫", { className: "bb-toast-err", duration: 4000 });
+      return;
+    }
     const amount = parseFloat(bidAmount);
     if (isNaN(amount) || amount <= 0) {
       toast.error("請輸入有效的出價金額", { className: "bb-toast-err", duration: 5000 });
@@ -861,15 +869,9 @@ export default function AuctionDetail() {
                   </div>
                 )}
 
-                {/* Bid Input */}
+                {/* Bid Input — 商戶自己嘅商品都展示，按下時先 check */}
                 {isActive && (
                   isAuthenticated ? (
-                    auction.createdBy === user?.id ? (
-                      <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200">
-                        <span className="text-amber-600 text-lg">🚫</span>
-                        <span className="text-sm text-amber-700 font-medium">商戶自己的商品, 禁止出價</span>
-                      </div>
-                    ) : (
                     <div className="space-y-3">
                       {/* Active proxy bid banner */}
                       {myProxy?.isActive && (
@@ -1072,7 +1074,6 @@ export default function AuctionDetail() {
                         </>
                       )}
                     </div>
-                    )
                   ) : (
                     <a href={`/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`}>
                       <Button className="w-full gold-gradient text-white border-0 shadow-md hover:opacity-90">

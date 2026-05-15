@@ -109,8 +109,7 @@ export function QuickBidPopover({
     },
   });
 
-  // 自己嘅拍賣 / 已結束 → 唔顯示
-  if (createdBy && user?.id === createdBy) return null;
+  // 已結束 → 唔顯示（自己嘅拍賣仍展示，按下時先提示）
   if (isEnded) return null;
 
   const handleClick = (e: React.MouseEvent) => {
@@ -118,6 +117,10 @@ export function QuickBidPopover({
     e.stopPropagation();
     if (!isAuthenticated) {
       toast.info("請先登入會員先可以出價 🔐", { duration: 3500, className: "bb-toast-err" });
+      return;
+    }
+    if (createdBy && user?.id === createdBy) {
+      toast.error("商戶自己的商品，禁止出價 🚫", { duration: 3500, className: "bb-toast-err" });
       return;
     }
     setOpen((v) => !v);
