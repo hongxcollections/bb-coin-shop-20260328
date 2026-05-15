@@ -8742,20 +8742,36 @@ EXAMPLE OUTPUT (exact format):
         return { success: true };
       }),
 
-    /** 爬取指定版塊 URL，過濾含 keyword 的帖子 */
+    /** 爬取指定版塊 URL，過濾含 keyword 的帖子（繁簡兩用 + 日期過濾） */
     scrape: adminProcedure
       .input(z.object({
         url: z.string().min(1),
         keyword: z.string().min(1).max(100),
         pages: z.number().int().min(1).max(10).default(3),
+        dateFilter: z.number().int().min(0).max(365).default(7), // 0 = no limit
       }))
       .mutation(async ({ input }) => {
-        const iconv = await import('iconv-lite');
-        const kw = input.keyword.toLowerCase();
+        const [iconv, chineseConv] = await Promise.all([
+          import('iconv-lite'),
+          import('chinese-conv'),
+        ]);
+
+        // keyword variants: original + TC↔SC conversion (deduplicated)
+        const kwSC = (chineseConv as any).sify(input.keyword);
+        const kwTC = (chineseConv as any).tify(input.keyword);
+        const kwVariants = [...new Set([input.keyword, kwSC, kwTC])].map(k => k.toLowerCase());
+        const matchesKw = (text: string) => {
+          const t = text.toLowerCase();
+          return kwVariants.some(kw => t.includes(kw));
+        };
+
         const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+        const cutoff = input.dateFilter > 0
+          ? new Date(Date.now() - input.dateFilter * 24 * 60 * 60 * 1000)
+          : null;
 
         // ── Phase 1: collect all unique posts from board pages ────────────────
-        type RawPost = { boardId: string; id: string; title: string };
+        type RawPost = { boardId: string; id: string; title: string; postedAt: Date | null };
         const allPosts: RawPost[] = [];
         const seen = new Set<string>();
 
@@ -8770,14 +8786,32 @@ EXAMPLE OUTPUT (exact format):
             if (!resp.ok) break;
             const buf = Buffer.from(await resp.arrayBuffer());
             const html = iconv.decode(buf, 'gb2312');
-            const regex = /dispbbs\.asp\?boardID=(\d+)&(?:amp;)?ID=(\d+)[^"<\s]*"[^>]*>([^<]{2,120})<\/a>/gi;
+
+            // Pass A: build date map — extract post creation date from title attributes
+            // Pattern: ID=XXXXX..."  title="...发表于：YYYY/M/D...">
+            const dateMap = new Map<string, Date>();
+            const dateRegex = /ID=(\d+)[^"]*"[^>]*?发表于[：:](\d{4}\/\d+\/\d+)/gi;
+            let dm: RegExpExecArray | null;
+            while ((dm = dateRegex.exec(html)) !== null) {
+              const [, id, ds] = dm;
+              if (!dateMap.has(id)) {
+                const [y, mo, d] = ds.split('/').map(Number);
+                dateMap.set(id, new Date(y, mo - 1, d));
+              }
+            }
+
+            // Pass B: extract post titles
+            const titleRegex = /dispbbs\.asp\?boardID=(\d+)&(?:amp;)?ID=(\d+)[^"<\s]*"[^>]*>([^<]{2,120})<\/a>/gi;
             let m: RegExpExecArray | null;
-            while ((m = regex.exec(html)) !== null) {
+            while ((m = titleRegex.exec(html)) !== null) {
               const [, boardId, id, rawTitle] = m;
               const title = rawTitle.trim();
               if (!title || /^\d{4}\/\d/.test(title) || seen.has(id)) continue;
               seen.add(id);
-              allPosts.push({ boardId, id, title });
+              const postedAt = dateMap.get(id) ?? null;
+              // Date filter: if cutoff set and we know the date, apply filter
+              if (cutoff && postedAt && postedAt < cutoff) continue;
+              allPosts.push({ boardId, id, title, postedAt });
             }
           } catch (e: any) {
             console.error('[pm001 scrape] listing page', page, e?.message);
@@ -8786,18 +8820,19 @@ EXAMPLE OUTPUT (exact format):
         }
 
         // ── Phase 2: title matches (instant) ─────────────────────────────────
-        type Result = { title: string; postUrl: string; id: string; matchSource: 'title' | 'content' };
+        type Result = { title: string; postUrl: string; id: string; matchSource: 'title' | 'content'; postedAt: string | null };
         const results: Result[] = [];
         const titleMatchIds = new Set<string>();
 
         for (const p of allPosts) {
-          if (p.title.toLowerCase().includes(kw)) {
+          if (matchesKw(p.title)) {
             titleMatchIds.add(p.id);
             results.push({
               title: p.title,
               postUrl: `http://www.pm001.net/dispbbs.asp?boardID=${p.boardId}&ID=${p.id}&page=1`,
               id: p.id,
               matchSource: 'title',
+              postedAt: p.postedAt ? p.postedAt.toISOString().slice(0, 10) : null,
             });
           }
         }
@@ -8814,12 +8849,11 @@ EXAMPLE OUTPUT (exact format):
               headers: { 'User-Agent': UA },
               redirect: 'follow',
             });
-            // If redirected to error page or not OK, content inaccessible
             const finalUrl = resp.url ?? '';
             if (!resp.ok || finalUrl.includes('showerr') || finalUrl.includes('login')) return null;
             const buf = Buffer.from(await resp.arrayBuffer());
-            const content = iconv.decode(buf, 'gb2312').toLowerCase();
-            return { p, matched: content.includes(kw) };
+            const content = iconv.decode(buf, 'gb2312');
+            return { p, matched: matchesKw(content) };
           }));
           for (const r of fetched) {
             if (r.status === 'fulfilled' && r.value?.matched) {
@@ -8829,6 +8863,7 @@ EXAMPLE OUTPUT (exact format):
                 postUrl: `http://www.pm001.net/dispbbs.asp?boardID=${p.boardId}&ID=${p.id}&page=1`,
                 id: p.id,
                 matchSource: 'content',
+                postedAt: p.postedAt ? p.postedAt.toISOString().slice(0, 10) : null,
               });
             }
           }

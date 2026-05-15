@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { Link } from "wouter";
 
 type Category = { id: string; name: string; url: string };
-type ScrapeResult = { title: string; postUrl: string; id: string; matchSource: "title" | "content" };
+type ScrapeResult = { title: string; postUrl: string; id: string; matchSource: "title" | "content"; postedAt: string | null };
 
 function genId() {
   return Math.random().toString(36).slice(2, 10);
@@ -65,6 +65,7 @@ export default function AdminPm001Scraper() {
   const [selectedCatId, setSelectedCatId] = useState("");
   const [keyword, setKeyword] = useState("");
   const [pages, setPages] = useState("3");
+  const [dateFilter, setDateFilter] = useState("7");
   const [results, setResults] = useState<ScrapeResult[] | null>(null);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [scraping, setScraping] = useState(false);
@@ -98,6 +99,7 @@ export default function AdminPm001Scraper() {
       url: selectedCat.url,
       keyword: keyword.trim(),
       pages: Math.min(10, Math.max(1, parseInt(pages) || 3)),
+      dateFilter: parseInt(dateFilter) || 0,
     });
   }
 
@@ -201,8 +203,8 @@ export default function AdminPm001Scraper() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-              <div className="sm:col-span-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="col-span-2 sm:col-span-1">
                 <Label className="text-xs text-muted-foreground mb-1 block">版塊分類</Label>
                 <select
                   value={selectedCatId}
@@ -215,14 +217,28 @@ export default function AdminPm001Scraper() {
                   ))}
                 </select>
               </div>
-              <div className="sm:col-span-1">
-                <Label className="text-xs text-muted-foreground mb-1 block">關鍵字</Label>
+              <div className="col-span-2 sm:col-span-1">
+                <Label className="text-xs text-muted-foreground mb-1 block">關鍵字（繁簡均可）</Label>
                 <Input
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
-                  placeholder="如：光緒、民國、香港"
+                  placeholder="如：光緒、龙凤、香港"
                   onKeyDown={(e) => e.key === "Enter" && handleScrape()}
                 />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">發帖日期範圍</Label>
+                <select
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-amber-400"
+                >
+                  <option value="1">最近 1 日</option>
+                  <option value="3">最近 3 日</option>
+                  <option value="7">最近 7 日</option>
+                  <option value="30">最近 30 日</option>
+                  <option value="0">不限（全部）</option>
+                </select>
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">爬取頁數（1–10）</Label>
@@ -305,7 +321,7 @@ export default function AdminPm001Scraper() {
                         >
                           {r.title}
                         </a>
-                        <div className="mt-0.5">
+                        <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
                           {r.matchSource === "content" ? (
                             <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100">
                               內文匹配
@@ -314,6 +330,9 @@ export default function AdminPm001Scraper() {
                             <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100">
                               標題匹配
                             </span>
+                          )}
+                          {r.postedAt && (
+                            <span className="text-[10px] text-gray-400">{r.postedAt}</span>
                           )}
                         </div>
                       </div>
