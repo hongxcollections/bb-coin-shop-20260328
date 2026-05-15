@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { sanitizeUserText, parseCategories } from "@/lib/utils";
 import Header from "@/components/Header";
 import ImageLightbox from "@/components/ImageLightbox";
-import { Store, ChevronRight, Gavel, Package, Search, X, MessageCircle } from "lucide-react";
+import { Store, ChevronRight, Gavel, Package, Search, X, MessageCircle, CalendarClock } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 type Thumb = { url: string; type: string; id: number };
@@ -37,6 +37,16 @@ function getCategoryClass(cat: string) {
 
 export default function Merchants() {
   const { data: merchants = [], isLoading } = trpc.merchants.listApprovedMerchants.useQuery();
+  const { data: activeSessions = [] } = trpc.merchantSessions.listAllActivePublic.useQuery();
+  const sessionByMerchant = useMemo(() => {
+    const map = new Map<number, { slug: string; title: string; endAt: string | Date }>();
+    (activeSessions as any[]).forEach((s) => {
+      if (!map.has(s.merchantUserId)) {
+        map.set(s.merchantUserId, { slug: s.slug, title: s.title, endAt: s.endAt });
+      }
+    });
+    return map;
+  }, [activeSessions]);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [, navigate] = useLocation();
@@ -247,6 +257,20 @@ export default function Merchants() {
                           <Package className="w-3 h-3 shrink-0" />
                           <span>{m.productCount ?? 0} 商品</span>
                         </div>
+                        {sessionByMerchant.get(m.userId) && (() => {
+                          const s = sessionByMerchant.get(m.userId)!;
+                          return (
+                            <a
+                              href={`/s/${m.userId}/${s.slug}`}
+                              onClick={(e) => { e.stopPropagation(); window.scrollTo(0, 0); }}
+                              title={`進行中專場：${sanitizeUserText(s.title)}`}
+                              className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full transition-colors shrink-0"
+                            >
+                              <CalendarClock className="w-3 h-3 shrink-0" />
+                              <span>專場進行中</span>
+                            </a>
+                          );
+                        })()}
                         {m.whatsapp && (
                           <a
                             href={`https://wa.me/${buildWaNumber(m.whatsapp as string)}`}

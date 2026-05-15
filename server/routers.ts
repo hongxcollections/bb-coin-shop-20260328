@@ -4668,6 +4668,28 @@ export const appRouter = router({
         return { session, auctions: merged, merchantName, merchantIcon, summary };
       }),
 
+    /** 公開：列出全站所有「已發佈 + public + 仲未結束」嘅 sessions（俾商戶 directory 加 icon） */
+    listAllActivePublic: publicProcedure
+      .query(async () => {
+        const db = await getDb();
+        const { and, gt } = await import('drizzle-orm');
+        const nowDate = new Date();
+        const rows = await db.select({
+          id: merchantAuctionSessions.id,
+          merchantUserId: merchantAuctionSessions.merchantUserId,
+          slug: merchantAuctionSessions.slug,
+          title: merchantAuctionSessions.title,
+          endAt: merchantAuctionSessions.endAt,
+          coverImage: merchantAuctionSessions.coverImage,
+        }).from(merchantAuctionSessions)
+          .where(and(
+            eq(merchantAuctionSessions.status, 'published'),
+            eq(merchantAuctionSessions.visibility, 'public'),
+            gt(merchantAuctionSessions.endAt, nowDate),
+          ));
+        return rows;
+      }),
+
     /** 公開：列出某商戶嘅所有 published + public sessions */
     listPublicByMerchant: publicProcedure
       .input(z.object({ merchantUserId: z.number().int().positive() }))

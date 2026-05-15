@@ -7,7 +7,10 @@ import { ShareMenu, SessionShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Calendar, Clock, Package, Users, Store } from "lucide-react";
+import { Calendar, Clock, Package, Users, Store, QrCode } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { QRCodeSVG } from "qrcode.react";
+import { sanitizeUserText } from "@/lib/utils";
 
 function getCurrencySymbol(c?: string) {
   switch (c) {
@@ -80,6 +83,7 @@ export default function MerchantSessionPublic() {
   const merchantUserId = params ? parseInt(params.userId, 10) : 0;
   const slug = params?.slug || "";
   const now = useNow();
+  const [qrOpen, setQrOpen] = useState(false);
   const { user } = useAuth();
 
   const { data, isLoading, error } = trpc.merchantSessions.getPublic.useQuery(
@@ -167,17 +171,107 @@ export default function MerchantSessionPublic() {
                 <Package className="w-4 h-4" /> {stats.total} 件
               </div>
             </div>
-            {/* Share action */}
-            <SessionShareMenu
-              merchantUserId={merchantUserId}
-              slug={slug}
-              title={session.title}
-              merchantName={merchantName}
-              endTime={session.endAt}
-              variant="light"
-            />
+            {/* Share action + QR */}
+            <div className="flex items-center gap-2">
+              <SessionShareMenu
+                merchantUserId={merchantUserId}
+                slug={slug}
+                title={session.title}
+                merchantName={merchantName}
+                endTime={session.endAt}
+                variant="light"
+              />
+              <button
+                type="button"
+                onClick={() => setQrOpen(true)}
+                aria-label="顯示專場 QR Code"
+                title="專場 QR Code"
+                className="flex items-center justify-center w-9 h-9 text-amber-800 bg-white hover:bg-amber-50 rounded-full transition-colors shadow-sm"
+              >
+                <QrCode className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* QR Code Dialog（沿用 MerchantStore 同款 pattern） */}
+        <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+          <DialogContent className="max-w-xs">
+            <DialogHeader>
+              <DialogTitle className="text-center text-sm">{`「${sanitizeUserText(session.title)}」專場 QR Code`}</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col items-center gap-3 py-2">
+              <div id="session-qr-svg-wrap" className="bg-white p-3 rounded-lg border border-gray-200">
+                <QRCodeSVG value={`https://hongxcollections.com/s/${merchantUserId}/${slug}`} size={200} level="M" />
+              </div>
+              <p className="text-[11px] text-gray-500 text-center break-all px-2">https://hongxcollections.com/s/{merchantUserId}/{slug}</p>
+              <p className="text-xs text-gray-600 text-center">用手機掃 QR Code 即可入場</p>
+              <button
+                type="button"
+                onClick={() => {
+                  const wrap = document.getElementById("session-qr-svg-wrap");
+                  const svg = wrap?.querySelector("svg");
+                  if (!svg) return;
+                  const xml = new XMLSerializer().serializeToString(svg);
+                  const svg64 = btoa(unescape(encodeURIComponent(xml)));
+                  const dataUrl = `data:image/svg+xml;base64,${svg64}`;
+                  const img = new Image();
+                  img.onload = () => {
+                    const scale = 3;
+                    const size = 200 * scale;
+                    const pad = 24 * scale;
+                    const nameH = 22 * scale;
+                    const poweredH = 8 * scale;
+                    const gapAfterQR = 8 * scale;
+                    const gapBetween = 3 * scale;
+                    const canvas = document.createElement("canvas");
+                    canvas.width = size + pad * 2;
+                    canvas.height = pad + size + gapAfterQR + nameH + gapBetween + poweredH + pad;
+                    const ctx = canvas.getContext("2d");
+                    if (!ctx) return;
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, pad, pad, size, size);
+                    const titleText = sanitizeUserText(session.title) || "專場";
+                    const rightX = pad + size;
+                    const nameY = pad + size + gapAfterQR + nameH / 2;
+                    const poweredY = pad + size + gapAfterQR + nameH + gapBetween + poweredH / 2;
+                    const makeGoldGradient = (y: number) => {
+                      const g = ctx.createLinearGradient(0, y - 8 * scale, 0, y + 8 * scale);
+                      g.addColorStop(0, "#f59e0b");
+                      g.addColorStop(0.5, "#d97706");
+                      g.addColorStop(1, "#92400e");
+                      return g;
+                    };
+                    ctx.textAlign = "right";
+                    ctx.textBaseline = "middle";
+                    ctx.font = `bold ${18 * scale}px -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif`;
+                    ctx.fillStyle = makeGoldGradient(nameY);
+                    ctx.fillText(titleText, rightX, nameY);
+                    ctx.font = `${3 * scale}px -apple-system, BlinkMacSystemFont, sans-serif`;
+                    ctx.fillStyle = makeGoldGradient(poweredY);
+                    ctx.fillText("Powered by hongxcollections.com", rightX, poweredY);
+                    canvas.toBlob((blob) => {
+                      if (!blob) return;
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `session-${merchantUserId}-${slug}-qr.png`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    }, "image/png");
+                  };
+                  img.src = dataUrl;
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition-colors"
+              >
+                下載 QR 圖片
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Stats bar */}
         {isEnded && summary ? (
