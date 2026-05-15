@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import AdminHeader from "@/components/AdminHeader";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -6,26 +6,44 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Plus, Trash2, Save, Search, Globe, ChevronLeft, X, Bookmark, BookmarkCheck } from "lucide-react";
+import { Loader2, Plus, Trash2, Save, Search, Globe, ChevronLeft, Bookmark, BookmarkCheck, ExternalLink, FolderOpen, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "wouter";
 
 type Category = { id: string; name: string; url: string };
-type ScrapeResult = { title: string; postUrl: string; id: string; matchSource: "title" | "content"; postedAt: string | null };
+type ScrapeResult = {
+  title: string;
+  postUrl: string;
+  id: string;
+  matchSource: "title" | "content";
+  postedAt: string | null;
+};
+type SavedPost = ScrapeResult & { category: string; savedAt: number };
 type PostInfo = { boardId: string; id: string; title: string; postedAt: string | null; titleMatched: boolean };
 type SearchPhase = "idle" | "listing" | "fetching" | "done";
 
 const LS_SAVED_KEY = "pm001_saved_posts";
+const UNCATEGORIZED = "未分類";
 
-function loadSavedPosts(): ScrapeResult[] {
+function loadSavedPosts(): SavedPost[] {
   try {
     const raw = localStorage.getItem(LS_SAVED_KEY);
     if (!raw) return [];
-    return JSON.parse(raw) as ScrapeResult[];
+    const arr = JSON.parse(raw) as any[];
+    // migrate old entries without category
+    return arr.map((s) => ({
+      title: s.title,
+      postUrl: s.postUrl,
+      id: s.id,
+      matchSource: s.matchSource ?? "title",
+      postedAt: s.postedAt ?? null,
+      category: s.category ?? UNCATEGORIZED,
+      savedAt: s.savedAt ?? Date.now(),
+    }));
   } catch { return []; }
 }
 
-function persistSavedPosts(list: ScrapeResult[]) {
+function persistSavedPosts(list: SavedPost[]) {
   try {
     localStorage.setItem(LS_SAVED_KEY, JSON.stringify(list));
   } catch {}
@@ -89,9 +107,9 @@ export default function AdminPm001Scraper() {
   const [phase, setPhase] = useState<SearchPhase>("idle");
   const [progress, setProgress] = useState({ checked: 0, total: 0, listed: 0 });
   const [results, setResults] = useState<ScrapeResult[]>([]);
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  const [savedPosts, setSavedPosts] = useState<ScrapeResult[]>(() => loadSavedPosts());
+  const [savedPosts, setSavedPosts] = useState<SavedPost[]>(() => loadSavedPosts());
   const [pagesScraped, setPagesScraped] = useState(0);
+  const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
   const abortRef = useRef(false);
   const isBusy = phase === "listing" || phase === "fetching";
 
@@ -104,8 +122,23 @@ export default function AdminPm001Scraper() {
   }, [savedPosts]);
 
   const selectedCat = workingCats.find((c) => c.id === selectedCatId);
-  const visibleResults = results.filter((r) => !dismissed.has(r.id));
   const savedIdSet = new Set(savedPosts.map(s => s.id));
+
+  // group saved posts by category
+  const savedByCategory = useMemo(() => {
+    const map = new Map<string, SavedPost[]>();
+    for (const s of savedPosts) {
+      const cat = s.category || UNCATEGORIZED;
+      if (!map.has(cat)) map.set(cat, []);
+      map.get(cat)!.push(s);
+    }
+    // sort each group: newest first
+    for (const arr of map.values()) {
+      arr.sort((a, b) => b.savedAt - a.savedAt);
+    }
+    // return as sorted entries
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], "zh-Hant"));
+  }, [savedPosts]);
 
   async function handleScrape() {
     if (!selectedCat) { toast.error("請先選擇分類", { position: "top-center" }); return; }
@@ -114,7 +147,6 @@ export default function AdminPm001Scraper() {
     abortRef.current = false;
     setPhase("listing");
     setResults([]);
-    setDismissed(new Set());
     setProgress({ checked: 0, total: 0, listed: 0 });
     setPagesScraped(0);
 
@@ -137,7 +169,6 @@ export default function AdminPm001Scraper() {
 
     if (abortRef.current) { setPhase("idle"); return; }
 
-    // Title-only scope: done immediately
     if (searchScope === "title") {
       const titleResults: ScrapeResult[] = posts
         .filter(p => p.titleMatched)
@@ -158,7 +189,6 @@ export default function AdminPm001Scraper() {
       return;
     }
 
-    // scope = content or both
     const titleMatchedMap = new Map<string, PostInfo>(
       posts.filter(p => p.titleMatched).map(p => [p.id, p])
     );
@@ -227,20 +257,25 @@ export default function AdminPm001Scraper() {
     setPhase("done");
   }
 
-  function handleDismiss(id: string) {
-    setDismissed((prev) => new Set([...prev, id]));
-  }
-
   function handleSavePost(r: ScrapeResult) {
+    const cat = selectedCat?.name?.trim() || UNCATEGORIZED;
     setSavedPosts((prev) => {
       if (prev.some(x => x.id === r.id)) return prev;
-      return [...prev, r];
+      return [...prev, { ...r, category: cat, savedAt: Date.now() }];
     });
-    toast.success("已儲存", { position: "top-center", duration: 1500 });
+    toast.success(`已儲存到「${cat}」`, { position: "top-center", duration: 1500 });
   }
 
   function handleUnsavePost(id: string) {
     setSavedPosts((prev) => prev.filter(s => s.id !== id));
+  }
+
+  function toggleCatCollapse(cat: string) {
+    setCollapsedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
   }
 
   if (!isAdmin) {
@@ -453,48 +488,75 @@ export default function AdminPm001Scraper() {
           </CardContent>
         </Card>
 
-        {/* ── 已儲存帖子（永久保存） ── */}
+        {/* ── 已儲存帖子（按分類分組） ── */}
         {savedPosts.length > 0 && (
-          <Card className="border-emerald-200 mb-6">
+          <Card className="border-emerald-200 mb-6 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
                 <BookmarkCheck className="w-4 h-4 text-emerald-600" />
                 已儲存帖子（{savedPosts.length}）
+                <span className="text-xs font-normal text-muted-foreground ml-auto">
+                  共 {savedByCategory.length} 個分類
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {savedPosts.map((s, i) => (
-                  <div
-                    key={s.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border border-emerald-100 bg-emerald-50/30 group"
-                  >
-                    <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs flex items-center justify-center font-bold flex-shrink-0">
-                      {i + 1}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <a
-                        href={s.postUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium text-emerald-800 hover:text-emerald-600 hover:underline leading-snug break-words"
+              <div className="space-y-3">
+                {savedByCategory.map(([cat, posts]) => {
+                  const collapsed = collapsedCats.has(cat);
+                  return (
+                    <div key={cat} className="border border-emerald-100 rounded-lg overflow-hidden bg-white">
+                      <button
+                        type="button"
+                        onClick={() => toggleCatCollapse(cat)}
+                        className="w-full flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-emerald-50 to-emerald-100/40 hover:from-emerald-100 hover:to-emerald-200/40 transition-colors"
                       >
-                        {s.title}
-                      </a>
-                      {s.postedAt && (
-                        <div className="text-[10px] text-gray-400 mt-0.5">{s.postedAt}</div>
+                        {collapsed ? <ChevronRight className="w-4 h-4 text-emerald-700" /> : <ChevronDown className="w-4 h-4 text-emerald-700" />}
+                        <FolderOpen className="w-4 h-4 text-emerald-600" />
+                        <span className="text-sm font-semibold text-emerald-900">{cat}</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-200/60 text-emerald-800 font-medium">
+                          {posts.length}
+                        </span>
+                      </button>
+                      {!collapsed && (
+                        <div className="divide-y divide-emerald-50">
+                          {posts.map((s, i) => (
+                            <div
+                              key={s.id}
+                              className="flex items-center gap-3 px-3 py-2.5 hover:bg-emerald-50/40 transition-colors"
+                            >
+                              <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] flex items-center justify-center font-bold flex-shrink-0">
+                                {i + 1}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <a
+                                  href={s.postUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm font-medium text-gray-800 hover:text-emerald-700 hover:underline leading-snug break-words inline-flex items-center gap-1"
+                                >
+                                  {s.title}
+                                  <ExternalLink className="w-3 h-3 opacity-50 flex-shrink-0" />
+                                </a>
+                                {s.postedAt && (
+                                  <div className="text-[10px] text-gray-400 mt-0.5">{s.postedAt}</div>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleUnsavePost(s.id)}
+                                title="移除收藏"
+                                className="flex-shrink-0 p-1.5 rounded-md text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleUnsavePost(s.id)}
-                      title="移除收藏"
-                      className="flex-shrink-0 p-1.5 rounded-md text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -502,21 +564,24 @@ export default function AdminPm001Scraper() {
 
         {/* ── 搜尋結果 ── */}
         {(results.length > 0 || phase === "done") && (
-          <Card className="border-amber-100">
+          <Card className="border-amber-100 shadow-sm">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Search className="w-4 h-4 text-amber-600" />
                   搜索結果
+                  {selectedCat && (
+                    <span className="text-xs font-normal text-amber-600">· {selectedCat.name}</span>
+                  )}
                 </CardTitle>
                 <div className="flex items-center gap-2 flex-wrap">
                   {pagesScraped > 0 && (
-                    <span className="text-xs px-2 py-0.5 rounded border border-gray-200 text-gray-500">
+                    <span className="text-xs px-2 py-0.5 rounded-full border border-gray-200 text-gray-500">
                       掃描 {pagesScraped} 頁
                     </span>
                   )}
-                  <span className="text-xs px-2 py-0.5 rounded border border-amber-200 text-amber-700">
-                    顯示 {visibleResults.length} / {results.length} 條
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">
+                    {results.length} 條結果
                   </span>
                 </div>
               </div>
@@ -528,20 +593,24 @@ export default function AdminPm001Scraper() {
                   <p className="text-sm text-muted-foreground">未找到相關帖子</p>
                   <p className="text-xs text-gray-400 mt-1">可嘗試增加爬取頁數或換其他關鍵字</p>
                 </div>
-              ) : visibleResults.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-sm text-muted-foreground">所有結果已拆除</p>
-                </div>
               ) : (
                 <div className="space-y-2">
-                  {visibleResults.map((r, i) => {
+                  {results.map((r, i) => {
                     const isSaved = savedIdSet.has(r.id);
                     return (
                       <div
                         key={r.id}
-                        className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-amber-50/50 transition-colors"
+                        className={`group flex items-start gap-3 p-3 rounded-xl border transition-all ${
+                          isSaved
+                            ? "border-emerald-200 bg-emerald-50/40 hover:bg-emerald-50/70"
+                            : "border-gray-100 bg-white hover:border-amber-200 hover:bg-amber-50/40 hover:shadow-sm"
+                        }`}
                       >
-                        <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs flex items-center justify-center font-bold flex-shrink-0">
+                        <span className={`w-7 h-7 rounded-lg text-xs flex items-center justify-center font-bold flex-shrink-0 mt-0.5 ${
+                          isSaved
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-gradient-to-br from-amber-100 to-amber-200 text-amber-800"
+                        }`}>
                           {i + 1}
                         </span>
                         <div className="flex-1 min-w-0">
@@ -549,17 +618,18 @@ export default function AdminPm001Scraper() {
                             href={r.postUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm font-medium text-amber-800 hover:text-amber-600 hover:underline leading-snug break-words"
+                            className="text-sm font-medium text-gray-800 hover:text-amber-700 hover:underline leading-snug break-words inline-flex items-start gap-1"
                           >
-                            {r.title}
+                            <span>{r.title}</span>
+                            <ExternalLink className="w-3 h-3 opacity-40 flex-shrink-0 mt-0.5 group-hover:opacity-80" />
                           </a>
-                          <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
+                          <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
                             {r.matchSource === "content" ? (
                               <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100">
                                 內文匹配
                               </span>
                             ) : (
-                              <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100">
+                              <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100">
                                 標題匹配
                               </span>
                             )}
@@ -568,30 +638,19 @@ export default function AdminPm001Scraper() {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => isSaved ? handleUnsavePost(r.id) : handleSavePost(r)}
-                            title={isSaved ? "已儲存（按一下取消）" : "儲存此帖"}
-                            className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md border transition-colors ${
-                              isSaved
-                                ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                                : "border-gray-200 text-gray-500 hover:text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50"
-                            }`}
-                          >
-                            {isSaved ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
-                            {isSaved ? "已儲存" : "儲存"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDismiss(r.id)}
-                            title="拆除（從此次結果隱藏）"
-                            className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md border border-gray-200 text-gray-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                            拆除
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => isSaved ? handleUnsavePost(r.id) : handleSavePost(r)}
+                          title={isSaved ? "已儲存（按一下取消）" : "儲存此帖"}
+                          className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border font-medium transition-all flex-shrink-0 ${
+                            isSaved
+                              ? "bg-emerald-100 border-emerald-300 text-emerald-800 hover:bg-emerald-200"
+                              : "border-gray-200 text-gray-600 hover:text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50"
+                          }`}
+                        >
+                          {isSaved ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+                          {isSaved ? "已儲存" : "儲存"}
+                        </button>
                       </div>
                     );
                   })}
