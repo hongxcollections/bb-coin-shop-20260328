@@ -66,6 +66,7 @@ export default function AdminPm001Scraper() {
   const [keyword, setKeyword] = useState("");
   const [pages, setPages] = useState("3");
   const [dateFilter, setDateFilter] = useState("7");
+  const [searchScope, setSearchScope] = useState<"title" | "content" | "both">("both");
   const [results, setResults] = useState<ScrapeResult[] | null>(null);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [scraping, setScraping] = useState(false);
@@ -100,6 +101,7 @@ export default function AdminPm001Scraper() {
       keyword: keyword.trim(),
       pages: Math.min(10, Math.max(1, parseInt(pages) || 3)),
       dateFilter: parseInt(dateFilter) || 0,
+      searchScope,
     });
   }
 
@@ -203,7 +205,7 @@ export default function AdminPm001Scraper() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
               <div className="col-span-2 sm:col-span-1">
                 <Label className="text-xs text-muted-foreground mb-1 block">版塊分類</Label>
                 <select
@@ -225,6 +227,18 @@ export default function AdminPm001Scraper() {
                   placeholder="如：光緒、龙凤、香港"
                   onKeyDown={(e) => e.key === "Enter" && handleScrape()}
                 />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">搜尋範圍</Label>
+                <select
+                  value={searchScope}
+                  onChange={(e) => setSearchScope(e.target.value as "title" | "content" | "both")}
+                  className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-amber-400"
+                >
+                  <option value="title">僅標題</option>
+                  <option value="content">僅內文</option>
+                  <option value="both">標題 + 內文</option>
+                </select>
               </div>
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">發帖日期範圍</Label>
@@ -262,11 +276,13 @@ export default function AdminPm001Scraper() {
               className="gap-2 gold-gradient text-white border-0 w-full sm:w-auto"
             >
               {scraping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              {scraping ? "爬取中（標題 + 內文），請稍候..." : "開始搜索"}
+              {scraping
+                ? `爬取中（${searchScope === "title" ? "標題" : searchScope === "content" ? "內文" : "標題+內文"}），請稍候...`
+                : "開始搜索"}
             </Button>
-            {scraping && (
+            {scraping && searchScope !== "title" && (
               <p className="text-xs text-muted-foreground mt-2">
-                正在掃描版塊列表並讀取帖子內容，時間視乎帖子數量，請耐心等候…
+                正在讀取帖子內文（已過濾作者簽名），時間視乎帖子數量，請耐心等候…
               </p>
             )}
           </CardContent>

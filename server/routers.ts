@@ -8749,6 +8749,7 @@ EXAMPLE OUTPUT (exact format):
         keyword: z.string().min(1).max(100),
         pages: z.number().int().min(1).max(10).default(3),
         dateFilter: z.number().int().min(0).max(365).default(7), // 0 = no limit
+        searchScope: z.enum(['title', 'content', 'both']).default('both'),
       }))
       .mutation(async ({ input }) => {
         const [iconv, chineseConv] = await Promise.all([
@@ -8819,52 +8820,84 @@ EXAMPLE OUTPUT (exact format):
           }
         }
 
-        // ── Phase 2: title matches (instant) ─────────────────────────────────
+        // helper: strip dvbbs author signature/profile from post HTML before searching
+        function extractPostBody(rawHtml: string): string {
+          // Cut at first occurrence of any known signature/userinfo marker
+          const signPatterns = [
+            /class=["']sign["']/i,
+            /class=["']t_sign["']/i,
+            /id=["']userinfo["']/i,
+            /class=["'][^"']*pstatus[^"']*["']/i,
+            /class=["']postbottom["']/i,
+            /<!--\s*签名\s*-->/i,
+          ];
+          let cutAt = rawHtml.length;
+          for (const pat of signPatterns) {
+            const idx = rawHtml.search(pat);
+            if (idx > 100 && idx < cutAt) cutAt = idx;
+          }
+          return rawHtml.slice(0, cutAt).replace(/<[^>]+>/g, ' ');
+        }
+
+        // ── Phase 2: title matches (skip if scope=content) ───────────────────
         type Result = { title: string; postUrl: string; id: string; matchSource: 'title' | 'content'; postedAt: string | null };
         const results: Result[] = [];
         const titleMatchIds = new Set<string>();
 
-        for (const p of allPosts) {
-          if (matchesKw(p.title)) {
-            titleMatchIds.add(p.id);
-            results.push({
-              title: p.title,
-              postUrl: `http://www.pm001.net/dispbbs.asp?boardID=${p.boardId}&ID=${p.id}&page=1`,
-              id: p.id,
-              matchSource: 'title',
-              postedAt: p.postedAt ? p.postedAt.toISOString().slice(0, 10) : null,
-            });
-          }
-        }
-
-        // ── Phase 3: fetch post content for non-title-matching posts ──────────
-        const remaining = allPosts.filter(p => !titleMatchIds.has(p.id));
-        const BATCH = 6;
-        for (let i = 0; i < remaining.length; i += BATCH) {
-          const batch = remaining.slice(i, i + BATCH);
-          const fetched = await Promise.allSettled(batch.map(async (p) => {
-            const postUrl = `http://www.pm001.net/dispbbs.asp?boardID=${p.boardId}&ID=${p.id}&page=1`;
-            const resp = await fetch(postUrl, {
-              signal: AbortSignal.timeout(8000),
-              headers: { 'User-Agent': UA },
-              redirect: 'follow',
-            });
-            const finalUrl = resp.url ?? '';
-            if (!resp.ok || finalUrl.includes('showerr') || finalUrl.includes('login')) return null;
-            const buf = Buffer.from(await resp.arrayBuffer());
-            const content = iconv.decode(buf, 'gb2312');
-            return { p, matched: matchesKw(content) };
-          }));
-          for (const r of fetched) {
-            if (r.status === 'fulfilled' && r.value?.matched) {
-              const { p } = r.value;
+        if (input.searchScope !== 'content') {
+          for (const p of allPosts) {
+            if (matchesKw(p.title)) {
+              titleMatchIds.add(p.id);
               results.push({
                 title: p.title,
                 postUrl: `http://www.pm001.net/dispbbs.asp?boardID=${p.boardId}&ID=${p.id}&page=1`,
                 id: p.id,
-                matchSource: 'content',
+                matchSource: 'title',
                 postedAt: p.postedAt ? p.postedAt.toISOString().slice(0, 10) : null,
               });
+            }
+          }
+        }
+
+        // ── Phase 3: fetch post content (skip if scope=title) ────────────────
+        if (input.searchScope !== 'title') {
+          // scope=content → fetch ALL posts; scope=both → fetch only non-title-matched
+          const toFetch = input.searchScope === 'content'
+            ? allPosts
+            : allPosts.filter(p => !titleMatchIds.has(p.id));
+
+          const BATCH = 6;
+          for (let i = 0; i < toFetch.length; i += BATCH) {
+            const batch = toFetch.slice(i, i + BATCH);
+            const fetched = await Promise.allSettled(batch.map(async (p) => {
+              const postUrl = `http://www.pm001.net/dispbbs.asp?boardID=${p.boardId}&ID=${p.id}&page=1`;
+              const resp = await fetch(postUrl, {
+                signal: AbortSignal.timeout(8000),
+                headers: { 'User-Agent': UA },
+                redirect: 'follow',
+              });
+              const finalUrl = resp.url ?? '';
+              if (!resp.ok || finalUrl.includes('showerr') || finalUrl.includes('login')) return null;
+              const buf = Buffer.from(await resp.arrayBuffer());
+              const fullHtml = iconv.decode(buf, 'gb2312');
+              // Strip signature / author profile area before searching
+              const body = extractPostBody(fullHtml);
+              return { p, matched: matchesKw(body) };
+            }));
+            for (const r of fetched) {
+              if (r.status === 'fulfilled' && r.value?.matched) {
+                const { p } = r.value;
+                // avoid duplicate if somehow title also matched
+                if (!titleMatchIds.has(p.id)) {
+                  results.push({
+                    title: p.title,
+                    postUrl: `http://www.pm001.net/dispbbs.asp?boardID=${p.boardId}&ID=${p.id}&page=1`,
+                    id: p.id,
+                    matchSource: 'content',
+                    postedAt: p.postedAt ? p.postedAt.toISOString().slice(0, 10) : null,
+                  });
+                }
+              }
             }
           }
         }
