@@ -92,7 +92,7 @@ export default function Merchants() {
       <div className="container max-w-2xl mx-auto pt-2 pb-0 flex justify-end">
         <button
           onClick={() => setShowMerchantFlow(true)}
-          className="inline-flex items-center gap-1.5 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow transition-colors cursor-pointer select-none"
+          className="inline-flex items-center gap-1.5 bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm shadow-amber-200 transition-all cursor-pointer select-none"
         >
           📋 商戶申請流程
         </button>
@@ -131,7 +131,12 @@ export default function Merchants() {
                 className="w-full pl-7 pr-7 py-1.5 text-xs rounded-full border border-gray-200 bg-white focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all"
               />
               {search && (
-                <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2">
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  aria-label="清除搜尋"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-100 rounded-full"
+                >
                   <X className="w-3 h-3 text-gray-400" />
                 </button>
               )}
@@ -190,13 +195,34 @@ export default function Merchants() {
             return (
               <div
                 key={m.userId}
-                className={`group relative bg-white rounded-2xl border shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer overflow-hidden ${
+                role="button"
+                tabIndex={0}
+                aria-label={`進入商戶 ${sanitizeUserText(m.merchantName)}`}
+                className={`group relative bg-white rounded-2xl border shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer overflow-hidden focus:outline-none focus:ring-2 focus:ring-amber-300 ${
                   isTop ? "border-amber-200 ring-1 ring-amber-100" : "border-gray-100"
                 }`}
                 onClick={() => { navigate(`/merchants/${m.userId}`); window.scrollTo(0, 0); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    navigate(`/merchants/${m.userId}`);
+                    window.scrollTo(0, 0);
+                  }
+                }}
               >
+                {/* 左側狀態色條（amber 強：有拍賣；amber 中：有商品；灰：無 listing） */}
+                <div
+                  aria-hidden="true"
+                  className={`absolute left-0 top-0 bottom-0 w-1 ${
+                    hasAuctions
+                      ? "bg-gradient-to-b from-amber-500 to-amber-700"
+                      : hasProducts
+                      ? "bg-gradient-to-b from-amber-300 to-amber-500"
+                      : "bg-gradient-to-b from-gray-200 to-gray-300"
+                  }`}
+                />
                 {/* 頂部資料區 */}
-                <div className="flex items-start gap-3 p-3.5">
+                <div className="flex items-start gap-3 p-3.5 pl-4">
                   {/* 頭像 + 排名徽章 */}
                   <div className="relative shrink-0">
                     {m.merchantIcon ? (
