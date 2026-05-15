@@ -587,16 +587,16 @@ export default function MerchantStore() {
             </div>
 
             <div className="px-4 pt-0 pb-4 space-y-3">
-              {/* 頭像浮起在 banner 之上 */}
-              <div className="flex items-end gap-3 -mt-9">
+              {/* 頭像浮起在 banner 之上（只有頭像 -mt-9，文字留喺 banner 下面唔被擋） */}
+              <div className="flex items-start gap-3 pt-2">
                 {merchant.merchantIcon ? (
-                  <img src={merchant.merchantIcon} alt={merchant.merchantName} className="w-[72px] h-[72px] rounded-2xl object-cover border-[3px] border-white shadow-md ring-1 ring-amber-200 flex-shrink-0" />
+                  <img src={merchant.merchantIcon} alt={merchant.merchantName} className="w-[72px] h-[72px] -mt-11 rounded-2xl object-cover border-[3px] border-white shadow-md ring-1 ring-amber-200 flex-shrink-0" />
                 ) : (
-                  <div className="w-[72px] h-[72px] rounded-2xl bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center border-[3px] border-white shadow-md ring-1 ring-amber-200 flex-shrink-0">
+                  <div className="w-[72px] h-[72px] -mt-11 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center border-[3px] border-white shadow-md ring-1 ring-amber-200 flex-shrink-0">
                     <Store className="w-8 h-8 text-amber-500" />
                   </div>
                 )}
-                <div className="flex-1 min-w-0 pb-1">
+                <div className="flex-1 min-w-0">
                   <h1 className="font-bold text-gray-900 text-base leading-tight truncate">{sanitizeUserText(merchant.merchantName)}</h1>
                   <div className="flex items-center gap-2 mt-0.5 text-[11px] font-semibold text-amber-700">
                     <span className="inline-flex items-center gap-0.5"><Gavel className="w-3 h-3" />{allAuctions.length}</span>
