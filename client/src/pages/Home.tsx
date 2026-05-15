@@ -240,12 +240,11 @@ function HeroCarousel({ auctions }: { auctions: any[] }) {
 }
 
 // ── 精選商品 Hero 輪播 ──
-function ProductHeroSlide({ product, onBuy, currentUserId }: { product: any; onBuy: (p: any) => void; currentUserId?: number | null }) {
+function ProductHeroSlide({ product, onBuy }: { product: any; onBuy: (p: any) => void; currentUserId?: number | null }) {
   const imgs = parseProductImages(product.images);
   const thumb = imgs[0] ?? null;
   const currSymbol = getCurrencySymbol(product.currency ?? "HKD");
   const price = parseFloat(product.price ?? "0");
-  const isOwn = currentUserId != null && product.merchantId === currentUserId;
 
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden group">
@@ -277,19 +276,13 @@ function ProductHeroSlide({ product, onBuy, currentUserId }: { product: any; onB
           {currSymbol}{price.toLocaleString()}
         </p>
         <div className="flex items-end justify-end gap-2">
-          {isOwn ? (
-            <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white/60 bg-white/20 cursor-not-allowed select-none">
-              🚫 自己商品
-            </span>
-          ) : (
-            <button
-              onClick={() => onBuy(product)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white shadow-lg transition-transform group-hover:scale-105"
-              style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
-            >
-              <ShoppingCart className="w-3.5 h-3.5" />立即落單
-            </button>
-          )}
+          <button
+            onClick={() => onBuy(product)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white shadow-lg transition-transform group-hover:scale-105"
+            style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
+          >
+            <ShoppingCart className="w-3.5 h-3.5" />立即落單
+          </button>
           <Link
             href={`/merchant-products/${product.id}`}
             className="flex items-center gap-1 px-3 py-2 rounded-full text-sm font-bold text-white/90 bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-sm"
@@ -530,7 +523,6 @@ function FeaturedProductSideCard({ products, onBuy, currentUserId }: { products:
   const thumb = imgs[0] ?? null;
   const price = parseFloat(product?.price ?? "0");
   const curr = getCurrencySymbol(product?.currency ?? "HKD");
-  const isOwn = currentUserId != null && product?.merchantId === currentUserId;
 
   const CARD_W = 220;
   const CARD_H = 173;
@@ -689,19 +681,13 @@ function FeaturedProductSideCard({ products, onBuy, currentUserId }: { products:
             {curr}{price.toLocaleString()}
           </p>
           <div className="flex items-center justify-end gap-1">
-            {isOwn ? (
-              <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white/50 bg-white/20 cursor-not-allowed select-none">
-                🚫 自己
-              </span>
-            ) : (
-              <button
-                onClick={e => { e.stopPropagation(); onBuy(product); }}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white shadow"
-                style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
-              >
-                <ShoppingCart className="w-2.5 h-2.5" />落單
-              </button>
-            )}
+            <button
+              onClick={e => { e.stopPropagation(); onBuy(product); }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white shadow"
+              style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
+            >
+              <ShoppingCart className="w-2.5 h-2.5" />落單
+            </button>
             <Link
               href={`/merchant-products/${product.id}`}
               onClick={e => e.stopPropagation()}
@@ -1102,6 +1088,10 @@ export default function Home() {
   const handleBuy = async (product: any) => {
     if (!isAuthenticated) {
       navigate(`/login?from=${encodeURIComponent(`/merchant-products/${product.id}`)}`);
+      return;
+    }
+    if (user && product.merchantId === user.id) {
+      toast.error("商戶自己的商品，禁止落單 🚫", { className: "bb-toast-err", duration: 3500 });
       return;
     }
     try {

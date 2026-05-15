@@ -228,6 +228,10 @@ export default function MerchantProductDetail() {
   const utilsLock = trpc.useUtils();
   const handleBuy = async (p: any) => {
     if (!user) { setBuyingProduct(p); return; }
+    if (p.merchantId === user.id) {
+      toast.error("商戶自己的商品，禁止落單 🚫", { className: "bb-toast-err", duration: 3500 });
+      return;
+    }
     try {
       const lock = await utilsLock.merchants.myLockStatusForMerchant.fetch({ merchantId: p.merchantId });
       if (lock?.enabled && lock.locked && lock.lockedUntil) {
@@ -657,21 +661,12 @@ export default function MerchantProductDetail() {
 
                 {/* 落單按鈕 */}
                 {product.status === 'active' && product.stock > 0 && (
-                  (() => {
-                    const isOwn = user != null && product.merchantId === user.id;
-                    return isOwn ? (
-                      <div className="flex items-center justify-center gap-2 py-3 bg-gray-100 rounded-xl text-sm font-semibold text-gray-400 cursor-not-allowed select-none">
-                        🚫 此商品屬於你的商戶帳號，不能自行落單
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleBuy(product)}
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
-                      >
-                        <ShoppingCart className="w-4 h-4" />立即落單
-                      </button>
-                    );
-                  })()
+                  <button
+                    onClick={() => handleBuy(product)}
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+                  >
+                    <ShoppingCart className="w-4 h-4" />立即落單
+                  </button>
                 )}
 
                 {/* 聯絡按鈕（無論售出與否都顯示） */}
@@ -732,14 +727,10 @@ export default function MerchantProductDetail() {
 
               const renderBtns = (p: any, d: ReturnType<typeof mkData>, pill: string, icon: string) => (
                 <div className="flex flex-wrap gap-1 mt-1" onClick={e => e.stopPropagation()}>
-                  {p.merchantId === user?.id ? (
-                    <span className={`${pill} bg-gray-100 text-gray-400 cursor-not-allowed`}>🚫 自己</span>
-                  ) : (
-                    <button onClick={e => { e.preventDefault(); e.stopPropagation(); handleBuy(p); }}
-                      className={`${pill} bg-amber-500 hover:bg-amber-600 text-white`}>
-                      <ShoppingCart className={icon} />落單
-                    </button>
-                  )}
+                  <button onClick={e => { e.preventDefault(); e.stopPropagation(); handleBuy(p); }}
+                    className={`${pill} bg-amber-500 hover:bg-amber-600 text-white`}>
+                    <ShoppingCart className={icon} />落單
+                  </button>
                   {d.pWaLink && (
                     <a href={d.pWaLink} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp 聯絡"
                       className={`${pill} text-[#25D366] bg-[#25D366]/10 hover:bg-[#25D366]/20`}>
