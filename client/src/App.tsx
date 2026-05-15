@@ -247,6 +247,9 @@ function App() {
                 classNames: {
                   error: 'bb-toast-err',
                   success: 'bb-toast-success',
+                  info: 'bb-toast-info',
+                  warning: 'bb-toast-info',
+                  default: 'bb-toast-info',
                 },
               }}
             />

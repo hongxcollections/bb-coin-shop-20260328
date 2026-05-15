@@ -395,7 +395,7 @@ function CombinedHeroCarousel({
     }
     if (isApprovedMerchant) {
       e.preventDefault();
-      toast.info("你已經係商戶啦，去「我的商戶」管理你嘅商店");
+      toast.info("你已經係商戶啦，去「商戶後台」管理你嘅商店");
       return;
     }
     if (myMerchantApp?.status === "pending") {
