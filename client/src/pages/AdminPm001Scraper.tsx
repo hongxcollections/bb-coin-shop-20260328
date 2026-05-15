@@ -16,6 +16,7 @@ type PostInfo = { boardId: string; id: string; title: string; postedAt: string |
 type SearchPhase = "idle" | "listing" | "fetching" | "done";
 
 const LS_KEY = "pm001_search_results";
+const LS_DISMISSED_KEY = "pm001_permanent_dismissed";
 type SavedState = {
   results: ScrapeResult[];
   dismissedIds: string[];
@@ -23,6 +24,21 @@ type SavedState = {
   catName: string;
   savedAt: number;
 };
+
+function loadPermanentDismissed(): Set<string> {
+  try {
+    const raw = localStorage.getItem(LS_DISMISSED_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw) as string[];
+    return new Set(arr);
+  } catch { return new Set(); }
+}
+
+function savePermanentDismissed(ids: Set<string>) {
+  try {
+    localStorage.setItem(LS_DISMISSED_KEY, JSON.stringify([...ids]));
+  } catch {}
+}
 
 function genId() {
   return Math.random().toString(36).slice(2, 10);
@@ -86,13 +102,13 @@ export default function AdminPm001Scraper() {
   const [selectedCatId, setSelectedCatId] = useState("");
   const [keyword, setKeyword] = useState("");
   const [pages, setPages] = useState("3");
-  const [dateFilter, setDateFilter] = useState("7");
+  const [dateFilter, setDateFilter] = useState("1");
   const [searchScope, setSearchScope] = useState<"title" | "content" | "both">("both");
 
   const [phase, setPhase] = useState<SearchPhase>("idle");
   const [progress, setProgress] = useState({ checked: 0, total: 0, listed: 0 });
   const [results, setResults] = useState<ScrapeResult[]>([]);
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [dismissed, setDismissed] = useState<Set<string>>(() => loadPermanentDismissed());
   const [lastSearch, setLastSearch] = useState<{ keyword: string; catName: string } | null>(null);
   const [pagesScraped, setPagesScraped] = useState(0);
   const abortRef = useRef(false);
@@ -101,30 +117,34 @@ export default function AdminPm001Scraper() {
   const listPostsMutation = trpc.pm001.listPosts.useMutation();
   const fetchPostBatchMutation = trpc.pm001.fetchPostBatch.useMutation();
 
-  // ── localStorage load on mount ─────────────────────────────────────────────
+  // ── localStorage load last search on mount ────────────────────────────────
   useEffect(() => {
     const saved = loadSaved();
     if (saved && saved.results.length > 0) {
       setResults(saved.results);
-      setDismissed(new Set(saved.dismissedIds));
       setLastSearch({ keyword: saved.keyword, catName: saved.catName });
       setPhase("done");
     }
   }, []);
 
-  // ── localStorage auto-save on result/dismissed change ─────────────────────
+  // ── localStorage auto-save last search ────────────────────────────────────
   useEffect(() => {
     if (results.length > 0 && lastSearch) {
       const state: SavedState = {
         results,
-        dismissedIds: [...dismissed],
+        dismissedIds: [],
         keyword: lastSearch.keyword,
         catName: lastSearch.catName,
         savedAt: Date.now(),
       };
       localStorage.setItem(LS_KEY, JSON.stringify(state));
     }
-  }, [results, dismissed, lastSearch]);
+  }, [results, lastSearch]);
+
+  // ── localStorage auto-save permanent dismissed ────────────────────────────
+  useEffect(() => {
+    savePermanentDismissed(dismissed);
+  }, [dismissed]);
 
   const selectedCat = workingCats.find((c) => c.id === selectedCatId);
   const visibleResults = results.filter((r) => !dismissed.has(r.id));
@@ -137,7 +157,6 @@ export default function AdminPm001Scraper() {
     abortRef.current = false;
     setPhase("listing");
     setResults([]);
-    setDismissed(new Set());
     setProgress({ checked: 0, total: 0, listed: 0 });
     setPagesScraped(0);
     setLastSearch({ keyword: keyword.trim(), catName: selectedCat.name });
@@ -260,15 +279,17 @@ export default function AdminPm001Scraper() {
   }
 
   function handleRestoreAll() {
+    if (dismissed.size === 0) return;
     setDismissed(new Set());
+    toast.success(`已恢復 ${dismissed.size} 條永久拆除嘅帖子`, { position: "top-center" });
   }
 
   function handleClearAll() {
     setResults([]);
-    setDismissed(new Set());
     setPhase("idle");
     setLastSearch(null);
     localStorage.removeItem(LS_KEY);
+    // 注意：永久拆除清單唔會被清除
   }
 
   if (!isAdmin) {
@@ -509,10 +530,11 @@ export default function AdminPm001Scraper() {
                     <button
                       type="button"
                       onClick={handleRestoreAll}
+                      title="已永久拆除嘅帖子（跨搜尋）"
                       className="flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors"
                     >
                       <RotateCcw className="w-3 h-3" />
-                      恢復 {dismissedCount} 條
+                      永久拆除清單 {dismissedCount}
                     </button>
                   )}
                   <button
@@ -582,7 +604,7 @@ export default function AdminPm001Scraper() {
                       <button
                         type="button"
                         onClick={() => handleDismiss(r.id)}
-                        title="拆除此條"
+                        title="永久拆除（將來搜尋亦唔會再出現）"
                         className="flex-shrink-0 p-1.5 rounded-md text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
                       >
                         <X className="w-4 h-4" />
