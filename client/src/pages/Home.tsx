@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
 import { Link, useLocation } from "wouter";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -366,12 +367,42 @@ function CombinedHeroCarousel({
   auctions,
   onBuy,
   currentUserId,
+  isAuthenticated,
 }: {
   products: any[];
   auctions: any[];
   onBuy: (p: any) => void;
   currentUserId?: number | null;
+  isAuthenticated?: boolean;
 }) {
+  const { data: myMerchantApp } = trpc.merchants.myApplication.useQuery(undefined, {
+    enabled: !!isAuthenticated,
+    staleTime: 60_000,
+  });
+  const isApprovedMerchant = myMerchantApp?.status === "approved";
+
+  const handleRegisterClick = (e: React.MouseEvent) => {
+    if (isAuthenticated) {
+      e.preventDefault();
+      toast.info("你已經係會員啦，無需重新註冊");
+    }
+  };
+  const handleMerchantClick = (e: React.MouseEvent) => {
+    if (!isAuthenticated) {
+      e.preventDefault();
+      toast.info("請先登入會員，再申請開通商戶");
+      return;
+    }
+    if (isApprovedMerchant) {
+      e.preventDefault();
+      toast.info("你已經係商戶啦，去「我的商戶」管理你嘅商店");
+      return;
+    }
+    if (myMerchantApp?.status === "pending") {
+      e.preventDefault();
+      toast.info("你嘅商戶申請正在審核中，請耐心等候");
+    }
+  };
   const hasProducts = products.length > 0;
   const hasAuctions = auctions.length > 0;
   const bothExist = hasProducts && hasAuctions;
@@ -436,11 +467,11 @@ function CombinedHeroCarousel({
             </span>
           </p>
           <div className="flex items-end gap-3">
-            <Link href="/login?tab=register" className="flex flex-col items-center text-amber-700 hover:text-amber-900 active:scale-95 transition-all">
+            <Link href="/login?tab=register" onClick={handleRegisterClick} className="flex flex-col items-center text-amber-700 hover:text-amber-900 active:scale-95 transition-all">
               <UserPlus size={20} strokeWidth={2.2} />
               <span className="text-[10px] font-semibold leading-none mt-0.5">會員註冊</span>
             </Link>
-            <Link href="/merchant-apply" className="flex flex-col items-center text-orange-700 hover:text-orange-900 active:scale-95 transition-all">
+            <Link href="/merchant-apply" onClick={handleMerchantClick} className="flex flex-col items-center text-orange-700 hover:text-orange-900 active:scale-95 transition-all">
               <Store size={20} strokeWidth={2.2} />
               <span className="text-[10px] font-semibold leading-none mt-0.5">開通商戶</span>
             </Link>
@@ -1358,6 +1389,7 @@ export default function Home() {
           auctions={heroAuctions}
           onBuy={handleBuy}
           currentUserId={user?.id}
+          isAuthenticated={isAuthenticated}
         />
       )}
 

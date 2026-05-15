@@ -510,14 +510,25 @@ export default function MerchantStore() {
                     const scale = 3;
                     const size = 200 * scale;
                     const pad = 24 * scale;
+                    const nameH = 28 * scale;
+                    const poweredH = 14 * scale;
                     const canvas = document.createElement("canvas");
                     canvas.width = size + pad * 2;
-                    canvas.height = size + pad * 2;
+                    canvas.height = size + pad * 2 + nameH + poweredH;
                     const ctx = canvas.getContext("2d");
                     if (!ctx) return;
                     ctx.fillStyle = "#ffffff";
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     ctx.drawImage(img, pad, pad, size, size);
+                    const merchantName = merchant?.merchantName ? sanitizeUserText(merchant.merchantName) : "商戶";
+                    ctx.fillStyle = "#111827";
+                    ctx.font = `bold ${16 * scale}px -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif`;
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(merchantName, canvas.width / 2, size + pad * 2 + nameH / 2);
+                    ctx.fillStyle = "#9ca3af";
+                    ctx.font = `${3 * scale}px -apple-system, BlinkMacSystemFont, sans-serif`;
+                    ctx.fillText("Powered by hongxcollections.com", canvas.width / 2, size + pad * 2 + nameH + poweredH / 2);
                     canvas.toBlob((blob) => {
                       if (!blob) return;
                       const url = URL.createObjectURL(blob);
