@@ -511,11 +511,12 @@ export default function MerchantStore() {
                     const size = 200 * scale;
                     const pad = 24 * scale;
                     const nameH = 22 * scale;
-                    const poweredH = 10 * scale;
+                    const poweredH = 8 * scale;
                     const gapAfterQR = 8 * scale;
+                    const gapBetween = 3 * scale;
                     const canvas = document.createElement("canvas");
                     canvas.width = size + pad * 2;
-                    canvas.height = pad + size + gapAfterQR + nameH + poweredH + pad;
+                    canvas.height = pad + size + gapAfterQR + nameH + gapBetween + poweredH + pad;
                     const ctx = canvas.getContext("2d");
                     if (!ctx) return;
                     ctx.fillStyle = "#ffffff";
@@ -524,7 +525,7 @@ export default function MerchantStore() {
                     const merchantName = merchant?.merchantName ? sanitizeUserText(merchant.merchantName) : "商戶";
                     const rightX = pad + size;
                     const nameY = pad + size + gapAfterQR + nameH / 2;
-                    const poweredY = pad + size + gapAfterQR + nameH + poweredH / 2;
+                    const poweredY = pad + size + gapAfterQR + nameH + gapBetween + poweredH / 2;
                     const makeGoldGradient = (y: number) => {
                       const g = ctx.createLinearGradient(0, y - 8 * scale, 0, y + 8 * scale);
                       g.addColorStop(0, "#f59e0b");
@@ -534,10 +535,10 @@ export default function MerchantStore() {
                     };
                     ctx.textAlign = "right";
                     ctx.textBaseline = "middle";
-                    ctx.font = `bold ${15 * scale}px -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif`;
+                    ctx.font = `bold ${18 * scale}px -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif`;
                     ctx.fillStyle = makeGoldGradient(nameY);
                     ctx.fillText(merchantName, rightX, nameY);
-                    ctx.font = `${5 * scale}px -apple-system, BlinkMacSystemFont, sans-serif`;
+                    ctx.font = `${3 * scale}px -apple-system, BlinkMacSystemFont, sans-serif`;
                     ctx.fillStyle = makeGoldGradient(poweredY);
                     ctx.fillText("Powered by hongxcollections.com", rightX, poweredY);
                     canvas.toBlob((blob) => {
