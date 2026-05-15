@@ -7,7 +7,6 @@ import { getLoginUrl } from "@/const";
 import { Link, useLocation } from "wouter";
 import { useState, useEffect, useRef, useMemo } from "react";
 import ImageLightbox from "@/components/ImageLightbox";
-import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,

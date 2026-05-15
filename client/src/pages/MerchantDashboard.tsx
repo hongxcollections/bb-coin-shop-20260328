@@ -380,6 +380,10 @@ export default function MerchantDashboard() {
     enabled: isAuthenticated && myApp?.status === "approved",
   });
 
+  const { data: availablePlans } = trpc.subscriptions.getPlans.useQuery(undefined, {
+    enabled: isAuthenticated && myApp?.status === "approved",
+  });
+
   const { data: mySubHistory, refetch: refetchSubHistory } = trpc.subscriptions.myHistory.useQuery(undefined, {
     enabled: isAuthenticated && myApp?.status === "approved",
   });
@@ -1298,6 +1302,23 @@ export default function MerchantDashboard() {
               <div className="flex justify-between"><span className="text-gray-500">計劃</span><span className="font-medium">{mySubscription?.planName ?? "—"}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">週期</span><span className="font-medium">{mySubscription?.billingCycle === "yearly" ? "年繳" : "月繳"}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">現有到期</span><span className="font-medium">{fmtDate(mySubscription?.endDate ?? null)}</span></div>
+              {(() => {
+                const plan = (availablePlans as Array<{ id: number; monthlyPrice: string | number; yearlyPrice: string | number }> | undefined)?.find(
+                  p => p.id === mySubscription?.planId
+                );
+                if (!plan) return null;
+                const isYearly = mySubscription?.billingCycle === "yearly";
+                const price = Number(isYearly ? plan.yearlyPrice : plan.monthlyPrice);
+                return (
+                  <div className="flex justify-between items-baseline pt-1.5 mt-1.5 border-t border-purple-200">
+                    <span className="text-gray-500">應付金額</span>
+                    <span className="font-bold text-base text-purple-700">
+                      HKD${price.toLocaleString()}
+                      <span className="text-[10px] text-gray-500 font-normal ml-1">/{isYearly ? "年" : "月"}</span>
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
             <p className="text-xs text-amber-600">⚠️ 管理員批核後，新訂閱將從現有到期日接續延長，限額會在現有結餘耗盡後自動啟用。</p>
 
