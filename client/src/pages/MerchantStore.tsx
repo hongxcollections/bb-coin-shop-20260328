@@ -492,9 +492,9 @@ export default function MerchantStore() {
             </DialogHeader>
             <div className="flex flex-col items-center gap-3 py-2">
               <div id="merchant-qr-svg-wrap" className="bg-white p-3 rounded-lg border border-gray-200">
-                <QRCodeSVG value={`https://share.hongxcollections.com/merchants/${userId}`} size={200} level="M" />
+                <QRCodeSVG value={`https://hongxcollections.com/merchants/${userId}`} size={200} level="M" />
               </div>
-              <p className="text-[11px] text-gray-500 text-center break-all px-2">https://share.hongxcollections.com/merchants/{userId}</p>
+              <p className="text-[11px] text-gray-500 text-center break-all px-2">https://hongxcollections.com/merchants/{userId}</p>
               <p className="text-xs text-gray-600 text-center">用手機掃 QR Code 即可開店</p>
               <button
                 type="button"

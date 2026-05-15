@@ -35,6 +35,7 @@ import {
   CheckCircle2,
   Sparkles,
   ArrowRight,
+  UserPlus,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -428,11 +429,23 @@ function CombinedHeroCarousel({
   return (
     <section className="pt-1 pb-1">
       <div className="container">
-        <p className="text-xs font-semibold mb-1.5 pl-1" style={{ filter: "drop-shadow(0 1px 3px rgba(251,191,36,0.7))", minHeight: 16 }}>
-          <span style={gradientText}>
-            {mode === "products" ? "🏪 精選出售商品" : "🔨 精選拍品"}
-          </span>
-        </p>
+        <div className="flex items-end justify-between mb-1.5 pl-1 pr-1" style={{ paddingTop: 5, paddingBottom: 5 }}>
+          <p className="text-xs font-semibold" style={{ filter: "drop-shadow(0 1px 3px rgba(251,191,36,0.7))", minHeight: 16 }}>
+            <span style={gradientText}>
+              {mode === "products" ? "🏪 精選出售商品" : "🔨 精選拍品"}
+            </span>
+          </p>
+          <div className="flex items-end gap-3">
+            <Link href="/login?tab=register" className="flex flex-col items-center text-amber-700 hover:text-amber-900 active:scale-95 transition-all">
+              <UserPlus size={20} strokeWidth={2.2} />
+              <span className="text-[10px] font-semibold leading-none mt-0.5">會員註冊</span>
+            </Link>
+            <Link href="/merchant-apply" className="flex flex-col items-center text-orange-700 hover:text-orange-900 active:scale-95 transition-all">
+              <Store size={20} strokeWidth={2.2} />
+              <span className="text-[10px] font-semibold leading-none mt-0.5">開通商戶</span>
+            </Link>
+          </div>
+        </div>
         <div
           style={{
             opacity: visible ? 1 : 0,

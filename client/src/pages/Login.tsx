@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Eye, EyeOff, Mail, Phone, Lock, User, ShieldCheck, ChevronDown, Bell, Bot, Shield, BadgeCheck, Clock, CheckCircle2, Lightbulb, X } from "lucide-react";
+import { Eye, EyeOff, Mail, Phone, Lock, User, ShieldCheck, ChevronDown, Bell, Bot, Shield, BadgeCheck, Clock, CheckCircle2, Lightbulb, X, ArrowRight } from "lucide-react";
 import ImageLightbox from "@/components/ImageLightbox";
 import Header from "@/components/Header";
 import { useToast } from "@/contexts/ToastContext";
@@ -966,24 +966,35 @@ export default function Login() {
 
                 {/* Register method toggle — 早鳥入口會鎖死電話，只顯示提示 + Dialog 按鈕 */}
                 {phoneOnly ? (
-                  <div className="rounded-xl border px-3 py-2.5 flex items-center justify-between gap-2"
-                       style={{ background: "#FFF7ED", borderColor: "#FED7AA" }}>
-                    <div className="flex items-center gap-2 text-xs" style={{ color: "#9A3412" }}>
-                      <Phone size={14} />
-                      <span>🎁 早鳥名額僅限<span className="font-semibold">手機註冊</span>領取</span>
+                  <div
+                    className="rounded-xl border-2 px-3 py-3 flex flex-col gap-2.5 shadow-sm"
+                    style={{
+                      background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)",
+                      borderColor: "#FB923C",
+                      boxShadow: "0 2px 8px rgba(251,146,60,0.18)",
+                    }}
+                  >
+                    <div className="flex items-center gap-2" style={{ color: "#9A3412" }}>
+                      <span className="text-base">🎁</span>
+                      <Phone size={16} style={{ color: "#EA580C" }} />
+                      <span className="text-sm font-bold leading-tight">
+                        早鳥名額僅限<span className="px-1 py-0.5 rounded mx-0.5" style={{ background: "#FB923C", color: "#fff" }}>手機註冊</span>領取
+                      </span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowSilverPerks(true)}
-                      className="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold shrink-0 transition-colors"
+                      className="flex items-center justify-center gap-1.5 rounded-lg w-full py-2 text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
                       style={{
-                        background: "#FFFBEB",
-                        color: "#92400E",
-                        border: "1px solid #FCD34D",
+                        background: "linear-gradient(135deg, #FCD34D 0%, #F59E0B 100%)",
+                        color: "#78350F",
+                        border: "1.5px solid #D97706",
+                        boxShadow: "0 2px 6px rgba(245,158,11,0.35)",
                       }}
                     >
-                      <Lightbulb size={11} style={{ color: "#F59E0B" }} />
+                      <Lightbulb size={15} style={{ color: "#78350F" }} />
                       銀牌有咩特別？
+                      <ArrowRight size={13} />
                     </button>
                   </div>
                 ) : EMAIL_FEATURE_ENABLED ? (
