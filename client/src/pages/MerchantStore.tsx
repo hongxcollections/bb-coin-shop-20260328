@@ -453,14 +453,14 @@ export default function MerchantStore() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-gradient-to-b from-amber-50/40 via-background to-background pb-24">
       <Header />
 
-      <div className="container max-w-lg mx-auto pt-4 space-y-4">
+      <div className="container max-w-lg mx-auto pt-3 space-y-3">
         {/* 返回 + 分享 */}
         <div className="flex items-center justify-between">
-          <Link href="/merchants" className="flex items-center gap-1 text-sm text-gray-500 hover:text-amber-600 transition-colors">
-            <ChevronLeft className="w-4 h-4" />返回商戶市集
+          <Link href="/merchants" className="flex items-center gap-1 text-xs text-gray-500 hover:text-amber-600 transition-colors font-medium">
+            <ChevronLeft className="w-3.5 h-3.5" />返回商戶市集
           </Link>
           <div className="flex items-center gap-1.5">
             <button
@@ -475,14 +475,14 @@ export default function MerchantStore() {
                   document.body.removeChild(ta); toast.success("商店連結已複製！");
                 }
               }}
-              className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-full transition-colors"
+              className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-full transition-colors"
             >
               <Share2 className="w-3.5 h-3.5" />分享此商店
             </button>
             <button
               onClick={() => setQrOpen(true)}
               aria-label="顯示商店 QR Code"
-              className="flex items-center justify-center text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 w-7 h-7 rounded-full transition-colors"
+              className="flex items-center justify-center text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 w-7 h-7 rounded-full transition-colors"
             >
               <QrCode className="w-3.5 h-3.5" />
             </button>
@@ -560,7 +560,7 @@ export default function MerchantStore() {
                   };
                   img.src = dataUrl;
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2 bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-lg text-sm font-semibold transition-all shadow-sm shadow-amber-200"
               >
                 下載 QR 圖片
               </button>
@@ -580,55 +580,76 @@ export default function MerchantStore() {
             </div>
           </div>
         ) : merchant ? (
-          <div className="bg-white rounded-2xl border border-amber-100 shadow-sm p-4 space-y-3">
-            <div className="flex items-start gap-3">
-              {merchant.merchantIcon ? (
-                <img src={merchant.merchantIcon} alt={merchant.merchantName} className="w-14 h-14 rounded-full object-cover border-2 border-amber-200 flex-shrink-0" />
-              ) : (
-                <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                  <Store className="w-6 h-6 text-amber-500" />
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <h1 className="font-bold text-gray-900 text-base leading-tight">{sanitizeUserText(merchant.merchantName)}</h1>
-                {merchant.selfIntro && (
-                  <p className="text-xs text-gray-500 mt-1 leading-relaxed whitespace-pre-line">{sanitizeUserText(merchant.selfIntro)}</p>
-                )}
-                {categories.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {categories.map((cat: string) => (
-                      <span key={cat} className="flex items-center gap-0.5 text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full">
-                        <Tag className="w-2.5 h-2.5" />{cat}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+          <div className="bg-white rounded-2xl border border-amber-100 shadow-sm overflow-hidden">
+            {/* 金漸變 banner */}
+            <div className="relative h-14 bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 overflow-hidden">
+              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_50%,white_0%,transparent_60%)]" />
             </div>
 
-            {/* 進行中專場（每個專場一行：cover 20x20 + 名 + 件數） */}
-            {activeSessions.length > 0 && (
-              <div className="space-y-1.5 pt-1">
-                <div className="flex items-center gap-1 text-[11px] font-semibold text-amber-700">
-                  <CalendarClock className="w-3 h-3" /> 進行中專場
+            <div className="px-4 pt-0 pb-4 space-y-3">
+              {/* 頭像浮起在 banner 之上 */}
+              <div className="flex items-end gap-3 -mt-9">
+                {merchant.merchantIcon ? (
+                  <img src={merchant.merchantIcon} alt={merchant.merchantName} className="w-[72px] h-[72px] rounded-2xl object-cover border-[3px] border-white shadow-md ring-1 ring-amber-200 flex-shrink-0" />
+                ) : (
+                  <div className="w-[72px] h-[72px] rounded-2xl bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center border-[3px] border-white shadow-md ring-1 ring-amber-200 flex-shrink-0">
+                    <Store className="w-8 h-8 text-amber-500" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0 pb-1">
+                  <h1 className="font-bold text-gray-900 text-base leading-tight truncate">{sanitizeUserText(merchant.merchantName)}</h1>
+                  <div className="flex items-center gap-2 mt-0.5 text-[11px] font-semibold text-amber-700">
+                    <span className="inline-flex items-center gap-0.5"><Gavel className="w-3 h-3" />{allAuctions.length}</span>
+                    <span className="text-amber-200">|</span>
+                    <span className="inline-flex items-center gap-0.5"><Package className="w-3 h-3" />{activeProducts.length}</span>
+                    {activeSessions.length > 0 && (
+                      <>
+                        <span className="text-amber-200">|</span>
+                        <span className="inline-flex items-center gap-0.5"><CalendarClock className="w-3 h-3" />{activeSessions.length} 專場</span>
+                      </>
+                    )}
+                  </div>
                 </div>
-                {activeSessions.map((s: any) => (
-                  <Link key={s.id} href={`/s/${userId}/${s.slug}`}>
-                    <a className="flex items-center gap-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg px-2 py-1.5 transition-colors">
-                      {s.coverImage ? (
-                        <img src={s.coverImage} alt="" className="w-5 h-5 rounded object-cover border border-amber-200 shrink-0" />
-                      ) : (
-                        <div className="w-5 h-5 rounded bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
-                          <CalendarClock className="w-3 h-3 text-amber-500" />
-                        </div>
-                      )}
-                      <span className="text-xs font-semibold text-amber-800 truncate flex-1 min-w-0">{sanitizeUserText(s.title)}</span>
-                      <span className="text-[11px] text-amber-700 shrink-0">{s.itemCount ?? 0} 件</span>
-                    </a>
-                  </Link>
-                ))}
               </div>
-            )}
+
+              {merchant.selfIntro && (
+                <p className="text-xs text-gray-500 leading-relaxed whitespace-pre-line">{sanitizeUserText(merchant.selfIntro)}</p>
+              )}
+
+              {categories.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {categories.map((cat: string) => (
+                    <span key={cat} className="flex items-center gap-0.5 text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                      <Tag className="w-2.5 h-2.5" />{cat}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* 進行中專場（每個專場一行：cover 20x20 + 名 + 件數） */}
+              {activeSessions.length > 0 && (
+                <div className="border-t border-dashed border-amber-200 pt-2.5 space-y-1.5">
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-amber-700 uppercase tracking-wider">
+                    <CalendarClock className="w-2.5 h-2.5" /> 進行中專場
+                  </div>
+                  {activeSessions.map((s: any) => (
+                    <Link key={s.id} href={`/s/${userId}/${s.slug}`}>
+                      <a className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-amber-50/50 hover:from-amber-100 hover:to-amber-100/70 border border-amber-200 rounded-lg px-2.5 py-1.5 transition-all group">
+                        {s.coverImage ? (
+                          <img src={s.coverImage} alt="" className="w-6 h-6 rounded object-cover border border-amber-200 shrink-0" />
+                        ) : (
+                          <div className="w-6 h-6 rounded bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
+                            <CalendarClock className="w-3 h-3 text-amber-500" />
+                          </div>
+                        )}
+                        <span className="text-xs font-semibold text-amber-800 truncate flex-1 min-w-0">{sanitizeUserText(s.title)}</span>
+                        <span className="text-[10px] font-semibold text-amber-700 bg-white/70 px-1.5 py-px rounded border border-amber-200/60 shrink-0">{s.itemCount ?? 0} 件</span>
+                        <ChevronLeft className="w-3 h-3 text-amber-500 shrink-0 rotate-180 group-hover:-translate-x-[-2px] transition-transform" />
+                      </a>
+                    </Link>
+                  ))}
+                </div>
+              )}
             {(() => {
               const merchantUrl = `https://share.hongxcollections.com/merchants/${userId}`;
               const contactMsg = `${merchantContactPreset}\n${merchantUrl}`;
@@ -656,35 +677,36 @@ export default function MerchantStore() {
                 window.open(messengerLink, "_blank", "noopener,noreferrer");
               };
               return (
-                <div className={`flex gap-2 ${waLink && messengerLink ? "flex-row" : ""}`}>
+                <div className={`flex gap-2 pt-1 ${waLink && messengerLink ? "flex-row" : ""}`}>
                   {waLink && (
                     <a href={waLink} target="_blank" rel="noopener noreferrer"
-                      className={`flex items-center justify-center gap-2 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-colors ${messengerLink ? "flex-1" : "w-full"}`}>
+                      className={`flex items-center justify-center gap-2 py-2.5 bg-gradient-to-br from-[#25D366] to-[#1DA851] hover:from-[#1DA851] hover:to-[#179440] text-white rounded-xl text-sm font-semibold transition-all shadow-sm ${messengerLink ? "flex-1" : "w-full"}`}>
                       <MessageCircle className="w-4 h-4" />WhatsApp
                     </a>
                   )}
                   {messengerLink && (
                     <a href={messengerLink} onClick={handleMessenger} target="_blank" rel="noopener noreferrer"
-                      className={`flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors ${waLink ? "flex-1" : "w-full"}`}>
+                      className={`flex items-center justify-center gap-2 py-2.5 bg-gradient-to-br from-[#0084FF] to-[#0066CC] hover:from-[#0066CC] hover:to-[#004D99] text-white rounded-xl text-sm font-semibold transition-all shadow-sm ${waLink ? "flex-1" : "w-full"}`}>
                       <MessageCircle className="w-4 h-4" />Messenger
                     </a>
                   )}
                 </div>
               );
             })()}
+            </div>
           </div>
         ) : null}
 
         {/* ── 拍賣商品（優先展示） ── */}
-        <div className="rounded-2xl bg-gradient-to-b from-purple-50 to-white border border-purple-100 shadow-sm overflow-hidden">
+        <div className="rounded-2xl bg-gradient-to-b from-amber-50/70 to-white border border-amber-200 shadow-sm overflow-hidden">
           {/* 區域標題列 */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-purple-100 bg-purple-50/80">
-            <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-purple-100">
-              <Gavel className="w-4 h-4 text-purple-600" />
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-amber-200 bg-gradient-to-r from-amber-100/80 to-amber-50/40">
+            <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 shadow-sm shadow-amber-200">
+              <Gavel className="w-4 h-4 text-white" />
             </div>
-            <h2 className="font-bold text-sm text-purple-900">拍賣商品</h2>
+            <h2 className="font-bold text-sm text-amber-900">拍賣商品</h2>
             {!loadingAuctions && (
-              <span className="ml-auto text-xs font-semibold text-purple-600 bg-purple-100 px-2.5 py-0.5 rounded-full">
+              <span className="ml-auto text-xs font-semibold text-amber-700 bg-white/80 border border-amber-200 px-2.5 py-0.5 rounded-full">
                 {(auctionItems as any[]).length} 件
               </span>
             )}
@@ -701,7 +723,7 @@ export default function MerchantStore() {
                   const currency = a.currency ?? "HKD";
                   return (
                     <Link key={a.id} href={`/auctions/${a.id}`}>
-                      <div className="auction-list-item flex gap-3 p-3 bg-white border border-amber-100 rounded-lg hover:border-amber-300 hover:bg-amber-50/50 cursor-pointer transition-all">
+                      <div className="auction-list-item flex gap-3 p-3 bg-white border border-amber-100 rounded-xl hover:border-amber-300 hover:shadow-sm hover:bg-amber-50/30 cursor-pointer transition-all">
                         {/* 左：封面圖 */}
                         <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
                           {a.coverImage ? (
@@ -786,19 +808,19 @@ export default function MerchantStore() {
           </div>
           {/* 拍賣分頁控制 */}
           {totalAuctionPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-2 border-t border-purple-100 bg-purple-50/60">
+            <div className="flex items-center justify-between px-4 py-2 border-t border-amber-200 bg-amber-50/60">
               <button
                 onClick={() => setAuctionPage(p => Math.max(0, p - 1))}
                 disabled={auctionPage === 0}
-                className="flex items-center gap-1 text-xs font-semibold text-purple-700 disabled:opacity-30 hover:text-purple-900 transition-colors"
+                className="flex items-center gap-1 text-xs font-semibold text-amber-700 disabled:opacity-30 hover:text-amber-900 transition-colors"
               >
                 ‹ 上頁
               </button>
-              <span className="text-xs text-purple-600">{auctionPage + 1} / {totalAuctionPages}</span>
+              <span className="text-xs text-amber-600">{auctionPage + 1} / {totalAuctionPages}</span>
               <button
                 onClick={() => setAuctionPage(p => Math.min(totalAuctionPages - 1, p + 1))}
                 disabled={auctionPage >= totalAuctionPages - 1}
-                className="flex items-center gap-1 text-xs font-semibold text-purple-700 disabled:opacity-30 hover:text-purple-900 transition-colors"
+                className="flex items-center gap-1 text-xs font-semibold text-amber-700 disabled:opacity-30 hover:text-amber-900 transition-colors"
               >
                 下頁 ›
               </button>
@@ -807,15 +829,15 @@ export default function MerchantStore() {
         </div>
 
         {/* ── 出售商品 ── */}
-        <div className="rounded-2xl bg-gradient-to-b from-amber-50 to-white border border-amber-100 shadow-sm overflow-hidden">
+        <div className="rounded-2xl bg-gradient-to-b from-amber-50/40 to-white border border-amber-100 shadow-sm overflow-hidden">
           {/* 區域標題列 */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-amber-100 bg-amber-50/80">
-            <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-100">
-              <Package className="w-4 h-4 text-amber-600" />
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-amber-50/30">
+            <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-amber-300 to-amber-500 shadow-sm shadow-amber-100">
+              <Package className="w-4 h-4 text-white" />
             </div>
             <h2 className="font-bold text-sm text-amber-900">出售商品</h2>
             {!loadingProducts && (
-              <span className="ml-auto text-xs font-semibold text-amber-600 bg-amber-100 px-2.5 py-0.5 rounded-full">
+              <span className="ml-auto text-xs font-semibold text-amber-700 bg-white/80 border border-amber-200 px-2.5 py-0.5 rounded-full">
                 {activeProducts.length} 件
               </span>
             )}
