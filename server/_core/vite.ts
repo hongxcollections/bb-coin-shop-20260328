@@ -103,7 +103,7 @@ function injectStaticPageMeta(html: string, reqPath: string, base: string): stri
   // /merchants/:userId — 商戶店鋪頁（WeChat / 瀏覽器 tab title 用）
   if (!page && /^\/merchants\/\d+\/?$/.test(reqPath)) {
     page = {
-      title: "錢幣 · 競投 · 即時成交",
+      title: "hongxcollections｜錢幣 · 競投 · 即時成交",
       description: "香港錢幣商戶店鋪 — 古幣、紀念幣、評級幣、舊紙幣，即時競投，安全交收。",
       canonical: `${base}${reqPath.replace(/\/$/, "")}`,
     };
