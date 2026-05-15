@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { ChevronLeft, Plus, Trash2, Save, Eye, Send, X, Clock, ChevronUp, ChevronDown, Globe, Lock, Pencil, ShieldAlert, AlertTriangle, Mail, FileText, Download, RefreshCw } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Save, Eye, Send, X, Clock, ChevronUp, ChevronDown, Globe, Lock, Pencil, ShieldAlert, AlertTriangle, Mail, FileText, Download, RefreshCw, Share2, Copy, Check, ImageIcon, Sparkles } from "lucide-react";
 import { CoverImageUpload } from "@/components/CoverImageUpload";
 import { SessionShareMenu } from "@/components/ShareMenu";
 
@@ -143,6 +143,11 @@ export default function MerchantSessionEdit() {
   });
   const [showPicker, setShowPicker] = useState(false);
   const [pickedIds, setPickedIds] = useState<Set<number>>(new Set());
+  // 批量分享 state
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareSelectedIds, setShareSelectedIds] = useState<Set<number>>(new Set());
+  const [shareCopiedIds, setShareCopiedIds] = useState<Set<number>>(new Set());
+  const [shareCopiedAll, setShareCopiedAll] = useState(false);
 
   const updateMut = trpc.merchantSessions.update.useMutation({
     onSuccess: () => { toast.success("已儲存"); setEditing(false); refetch(); },
@@ -696,20 +701,35 @@ export default function MerchantSessionEdit() {
           </div>
         )}
 
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
           <h2 className="font-semibold text-amber-900">專場商品 ({items.length})</h2>
-          {!isLocked && (() => {
-            const cutoffMin = (session as any).addItemsCutoffMinutes ?? 30;
-            const cutoffMs = new Date(session.endAt).getTime() - cutoffMin * 60 * 1000;
-            const past = isPublished && Date.now() >= cutoffMs;
-            return past ? (
-              <span className="text-xs text-rose-600">已過加品截止（結束前 {cutoffMin} 分鐘）</span>
-            ) : (
-              <Button size="sm" onClick={() => setShowPicker(true)} className="bg-amber-600 hover:bg-amber-700">
-                <Plus className="w-3.5 h-3.5 mr-1" /> 加入拍賣品
+          <div className="flex items-center gap-2 flex-wrap">
+            {items.filter(it => it.auction).length > 0 && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  const allIds = items.filter(it => it.auction).map(it => it.auctionId);
+                  setShareSelectedIds(new Set(allIds));
+                  setShareOpen(true);
+                }}
+                className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border-0 shadow-sm"
+              >
+                <Share2 className="w-3.5 h-3.5 mr-1" /> 批量分享（{items.filter(it => it.auction).length}）
               </Button>
-            );
-          })()}
+            )}
+            {!isLocked && (() => {
+              const cutoffMin = (session as any).addItemsCutoffMinutes ?? 30;
+              const cutoffMs = new Date(session.endAt).getTime() - cutoffMin * 60 * 1000;
+              const past = isPublished && Date.now() >= cutoffMs;
+              return past ? (
+                <span className="text-xs text-rose-600">已過加品截止（結束前 {cutoffMin} 分鐘）</span>
+              ) : (
+                <Button size="sm" onClick={() => setShowPicker(true)} className="bg-amber-600 hover:bg-amber-700">
+                  <Plus className="w-3.5 h-3.5 mr-1" /> 加入拍賣品
+                </Button>
+              );
+            })()}
+          </div>
         </div>
 
         {items.length === 0 ? (
@@ -923,6 +943,187 @@ export default function MerchantSessionEdit() {
               {adminTeardownMut.isPending ? "拆除中..." : "確認拆除"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── 批量分享 Dialog（同 MerchantProducts/MerchantAuctions 一樣 UX） ── */}
+      <Dialog open={shareOpen} onOpenChange={(v) => { if (!v) { setShareOpen(false); setShareSelectedIds(new Set()); setShareCopiedIds(new Set()); setShareCopiedAll(false); } }}>
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+          {/* Gradient header */}
+          <div className="bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 px-5 py-4 text-white">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2.5 text-white text-lg drop-shadow">
+                <div className="w-9 h-9 rounded-full bg-white/25 backdrop-blur flex items-center justify-center shadow-inner">
+                  <Share2 className="w-5 h-5" />
+                </div>
+                批量分享專場拍品
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-xs text-white/90 mt-2 leading-relaxed pl-1">
+              ✨ 剔選想分享嘅拍品，可以一鍵複製全部、或者每件單獨彈系統分享 sheet
+            </p>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 flex flex-col overflow-hidden p-4 gap-3 bg-gradient-to-b from-amber-50/40 to-white">
+            {/* Selection toolbar */}
+            <div className="flex items-center justify-between gap-2 rounded-xl bg-white border border-amber-200 px-3 py-2 shadow-sm">
+              <span className="text-sm text-amber-900">
+                已選 <b className="text-orange-600 text-base mx-0.5">{shareSelectedIds.size}</b>
+                <span className="text-gray-400">/</span> {items.filter(it => it.auction).length} 件
+              </span>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShareSelectedIds(new Set(items.filter(it => it.auction).map(it => it.auctionId)))}
+                  className="text-[11px] px-2.5 py-1 rounded-full border border-amber-300 text-amber-700 hover:bg-amber-50 font-medium"
+                >
+                  全選
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShareSelectedIds(new Set())}
+                  className="text-[11px] px-2.5 py-1 rounded-full border border-gray-300 text-gray-600 hover:bg-gray-50 font-medium"
+                >
+                  全部取消
+                </button>
+              </div>
+            </div>
+
+            {/* Bulk copy CTA */}
+            <Button
+              size="sm"
+              disabled={shareSelectedIds.size === 0}
+              className={`h-10 text-sm gap-2 shadow-md transition-all ${
+                shareCopiedAll
+                  ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-500 hover:to-emerald-500 text-white"
+                  : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+              }`}
+              onClick={async () => {
+                const picked = items.filter(it => it.auction && shareSelectedIds.has(it.auctionId));
+                if (picked.length === 0) { toast.error("請先剔選最少 1 件拍品"); return; }
+                const allText = picked.map((it) => {
+                  const a = it.auction as any;
+                  const sym = getCurrencySymbol(a.currency ?? "HKD");
+                  const currentBid = Number(a.currentPrice);
+                  const endDate = new Date(a.endTime);
+                  const weekdays = ["日","一","二","三","四","五","六"];
+                  const mo = endDate.getMonth()+1, dy = endDate.getDate(), wd = weekdays[endDate.getDay()];
+                  const h = endDate.getHours(), mi = String(endDate.getMinutes()).padStart(2,"0");
+                  const period = h < 6 ? "凌晨" : h < 12 ? "上午" : h === 12 ? "中午" : h < 18 ? "下午" : "晚上";
+                  const dh = h < 12 ? h : h === 12 ? 12 : h - 12;
+                  const endStr = `${mo}月${dy}日(${wd}) ${period}${dh}:${mi}`;
+                  return `${a.title}\n目前出價 ${sym}${currentBid.toLocaleString()}\n結標時間：${endStr}\n快來競拍！\nhttps://share.hongxcollections.com/auctions/${a.id}`;
+                }).join("\n\n---\n\n");
+                await navigator.clipboard.writeText(allText);
+                setShareCopiedAll(true);
+                const preview = allText.length > 180 ? allText.slice(0, 180) + "…" : allText;
+                toast.success(`已複製 ${picked.length} 件拍品文字！貼入 Facebook 群組即可`, { description: preview, duration: 5000 });
+                setTimeout(() => setShareCopiedAll(false), 3000);
+              }}
+            >
+              {shareCopiedAll ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {shareCopiedAll ? "已複製全部！" : `一鍵複製揀咗嘅（${shareSelectedIds.size}）件拍品文字`}
+            </Button>
+
+            {/* Items list */}
+            <div className="overflow-y-auto flex-1 space-y-2.5 pr-1 -mr-1">
+              {items.filter(it => it.auction).map((it) => {
+                const a = it.auction as any;
+                const sym = getCurrencySymbol(a.currency ?? "HKD");
+                const currentBid = Number(a.currentPrice);
+                const endDate = new Date(a.endTime);
+                const weekdays = ["日","一","二","三","四","五","六"];
+                const mo = endDate.getMonth()+1, dy = endDate.getDate(), wd = weekdays[endDate.getDay()];
+                const h = endDate.getHours(), mi = String(endDate.getMinutes()).padStart(2,"0");
+                const period = h < 6 ? "凌晨" : h < 12 ? "上午" : h === 12 ? "中午" : h < 18 ? "下午" : "晚上";
+                const dh = h < 12 ? h : h === 12 ? 12 : h - 12;
+                const endStr = `${mo}月${dy}日(${wd}) ${period}${dh}:${mi}`;
+                const shareText = `${a.title}\n目前出價 ${sym}${currentBid.toLocaleString()}\n結標時間：${endStr}\n快來競拍！`;
+                const auctionUrl = `https://share.hongxcollections.com/auctions/${a.id}`;
+                const img = a.images?.[0]?.imageUrl;
+                const isCopied = shareCopiedIds.has(a.id);
+                const isSelected = shareSelectedIds.has(a.id);
+                return (
+                  <div
+                    key={a.id}
+                    className={`rounded-xl border-2 overflow-hidden transition-all ${
+                      isSelected
+                        ? "border-amber-300 bg-white shadow-sm"
+                        : "border-gray-200 bg-gray-50/60 opacity-60"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 p-3">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {
+                          setShareSelectedIds((prev) => {
+                            const n = new Set(prev);
+                            if (n.has(a.id)) n.delete(a.id); else n.add(a.id);
+                            return n;
+                          });
+                        }}
+                        className="w-5 h-5 accent-orange-500 cursor-pointer flex-shrink-0"
+                        title={isSelected ? "取消選擇" : "剔選分享"}
+                      />
+                      <div className="w-14 h-14 rounded-lg overflow-hidden bg-amber-100 flex-shrink-0 ring-1 ring-amber-200">
+                        {img
+                          ? <img src={img} alt="" className="w-full h-full object-cover" />
+                          : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-5 h-5 text-amber-300" /></div>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate text-amber-900">{a.title}</p>
+                        <p className="text-xs text-orange-600 font-medium mt-0.5">{sym}{currentBid.toLocaleString()}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">結標 {endStr}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5 px-3 pb-3">
+                      <Button
+                        size="sm"
+                        className="flex-1 h-8 text-xs gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border-0 shadow-sm"
+                        onClick={async () => {
+                          if (navigator.share) {
+                            try {
+                              await navigator.share({ title: a.title, text: shareText, url: auctionUrl });
+                            } catch (err: unknown) {
+                              if (err instanceof Error && err.name !== "AbortError") {
+                                try { await navigator.clipboard.writeText(`${shareText}\n${auctionUrl}`); } catch {}
+                                toast.error("系統分享失敗，已複製文字＋連結");
+                              }
+                            }
+                          } else {
+                            try { await navigator.clipboard.writeText(`${shareText}\n${auctionUrl}`); } catch {}
+                            toast.info("此瀏覽器不支援系統分享，已複製文字＋連結");
+                          }
+                        }}
+                        title="叫出手機系統分享 sheet（FB／FB 群組／WhatsApp／Telegram／Messenger…任選）"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        系統分享
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={`flex-1 h-8 text-xs gap-1.5 ${isCopied ? "border-green-400 text-green-600 bg-green-50" : "border-amber-300 text-amber-700 hover:bg-amber-50"}`}
+                        onClick={async () => {
+                          const fullText = `${shareText}\n${auctionUrl}`;
+                          await navigator.clipboard.writeText(fullText);
+                          setShareCopiedIds(prev => new Set([...prev, a.id]));
+                          const preview = fullText.length > 180 ? fullText.slice(0, 180) + "…" : fullText;
+                          toast.success("已複製！貼入群組帖子即可", { description: preview, duration: 5000 });
+                          setTimeout(() => setShareCopiedIds(prev => { const n = new Set(prev); n.delete(a.id); return n; }), 3000);
+                        }}
+                      >
+                        {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        {isCopied ? "已複製！" : "複製文字"}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

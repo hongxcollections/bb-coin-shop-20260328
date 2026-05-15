@@ -1975,64 +1975,76 @@ export default function MerchantProducts() {
 
       {/* ── 批量分享 Facebook Dialog ── */}
       <Dialog open={productBatchShareOpen} onOpenChange={(v) => { if (!v) { setProductBatchShareOpen(false); setProductCopiedIds(new Set()); setProductCopiedAll(false); setProductSelectedShareIds(new Set()); } }}>
-        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-[#1877F2]">
-              <Facebook className="w-5 h-5" />
-              批量分享商品
-            </DialogTitle>
-          </DialogHeader>
-          <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700 space-y-0.5 -mt-1">
-            <p>• <b>分享</b>：彈出系統分享選單，可選擇 Facebook 群組、WhatsApp 等</p>
-            <p>• <b>複製文字</b>：複製格式化文字＋連結，手動貼入任何平台</p>
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+          {/* Gradient header */}
+          <div className="bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 px-5 py-4 text-white">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2.5 text-white text-lg drop-shadow">
+                <div className="w-9 h-9 rounded-full bg-white/25 backdrop-blur flex items-center justify-center shadow-inner">
+                  <Share2 className="w-5 h-5" />
+                </div>
+                批量分享商品
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-xs text-white/90 mt-2 leading-relaxed pl-1">
+              ✨ 剔選想分享嘅商品，可以一鍵複製全部、或者每件單獨彈系統分享 sheet
+            </p>
           </div>
-          {/* 揀邊啲商品分享 toolbar */}
-          <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50/40 px-2.5 py-1.5">
-            <span className="text-xs text-amber-800">
-              已選 <b>{productSelectedShareIds.size}</b> / {activeProducts.length} 件
-            </span>
-            <div className="flex gap-1.5">
-              <button
-                type="button"
-                onClick={() => setProductSelectedShareIds(new Set(activeProducts.map((p: any) => p.id)))}
-                className="text-[11px] px-2 py-0.5 rounded border border-amber-300 text-amber-700 hover:bg-amber-100"
-              >
-                全選
-              </button>
-              <button
-                type="button"
-                onClick={() => setProductSelectedShareIds(new Set())}
-                className="text-[11px] px-2 py-0.5 rounded border border-amber-300 text-amber-700 hover:bg-amber-100"
-              >
-                全部取消
-              </button>
+
+          {/* Body */}
+          <div className="flex-1 flex flex-col overflow-hidden p-4 gap-3 bg-gradient-to-b from-amber-50/40 to-white">
+            {/* Selection toolbar */}
+            <div className="flex items-center justify-between gap-2 rounded-xl bg-white border border-amber-200 px-3 py-2 shadow-sm">
+              <span className="text-sm text-amber-900">
+                已選 <b className="text-orange-600 text-base mx-0.5">{productSelectedShareIds.size}</b>
+                <span className="text-gray-400">/</span> {activeProducts.length} 件
+              </span>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setProductSelectedShareIds(new Set(activeProducts.map((p: any) => p.id)))}
+                  className="text-[11px] px-2.5 py-1 rounded-full border border-amber-300 text-amber-700 hover:bg-amber-50 font-medium"
+                >
+                  全選
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProductSelectedShareIds(new Set())}
+                  className="text-[11px] px-2.5 py-1 rounded-full border border-gray-300 text-gray-600 hover:bg-gray-50 font-medium"
+                >
+                  全部取消
+                </button>
+              </div>
             </div>
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={productSelectedShareIds.size === 0}
-            className={`h-7 text-xs gap-1.5 border-dashed ${productCopiedAll ? "border-green-400 text-green-600" : "border-amber-400 text-amber-700 hover:bg-amber-50"}`}
-            onClick={async () => {
-              const picked = activeProducts.filter((p: any) => productSelectedShareIds.has(p.id));
-              if (picked.length === 0) { toast.error("請先剔選最少 1 件商品"); return; }
-              const allText = picked.map((p: any) => {
-                const price = parseFloat(p.price ?? "0");
-                const currency = p.currency ?? "HKD";
-                const productUrl = `${window.location.origin}/merchant-products/${p.id}`;
-                return `${p.title}\n出售價格：${currency} $${price.toLocaleString()}\n${productUrl}`;
-              }).join("\n\n---\n\n");
-              await navigator.clipboard.writeText(allText);
-              setProductCopiedAll(true);
-              const preview = allText.length > 180 ? allText.slice(0, 180) + "…" : allText;
-              toast.success(`已複製 ${picked.length} 件商品文字！貼入 Facebook 群組即可`, { description: preview, duration: 5000 });
-              setTimeout(() => setProductCopiedAll(false), 3000);
-            }}
-          >
-            {productCopiedAll ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-            {productCopiedAll ? "已複製全部！" : `一鍵複製揀咗嘅（${productSelectedShareIds.size}）件商品文字`}
-          </Button>
-          <div className="overflow-y-auto flex-1 space-y-2 pr-1">
+
+            <Button
+              size="sm"
+              disabled={productSelectedShareIds.size === 0}
+              className={`h-10 text-sm gap-2 shadow-md transition-all ${
+                productCopiedAll
+                  ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-500 hover:to-emerald-500 text-white"
+                  : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+              }`}
+              onClick={async () => {
+                const picked = activeProducts.filter((p: any) => productSelectedShareIds.has(p.id));
+                if (picked.length === 0) { toast.error("請先剔選最少 1 件商品"); return; }
+                const allText = picked.map((p: any) => {
+                  const price = parseFloat(p.price ?? "0");
+                  const currency = p.currency ?? "HKD";
+                  const productUrl = `${window.location.origin}/merchant-products/${p.id}`;
+                  return `${p.title}\n出售價格：${currency} $${price.toLocaleString()}\n${productUrl}`;
+                }).join("\n\n---\n\n");
+                await navigator.clipboard.writeText(allText);
+                setProductCopiedAll(true);
+                const preview = allText.length > 180 ? allText.slice(0, 180) + "…" : allText;
+                toast.success(`已複製 ${picked.length} 件商品文字！貼入 Facebook 群組即可`, { description: preview, duration: 5000 });
+                setTimeout(() => setProductCopiedAll(false), 3000);
+              }}
+            >
+              {productCopiedAll ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {productCopiedAll ? "已複製全部！" : `一鍵複製揀咗嘅（${productSelectedShareIds.size}）件商品文字`}
+            </Button>
+          <div className="overflow-y-auto flex-1 space-y-2.5 pr-1 -mr-1">
             {activeProducts.map((p: any) => {
               const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
               const price = parseFloat(p.price ?? "0");
@@ -2051,8 +2063,15 @@ export default function MerchantProducts() {
               const aiScriptLoading = aiScriptLoadingId === p.id;
               const isShareSelected = productSelectedShareIds.has(p.id);
               return (
-                <div key={p.id} className={`rounded-lg border overflow-hidden transition-colors ${isShareSelected ? "border-amber-300 bg-amber-50/60" : "border-gray-200 bg-gray-50/40 opacity-70"}`}>
-                  <div className="flex items-center gap-2.5 p-2.5">
+                <div
+                  key={p.id}
+                  className={`rounded-xl border-2 overflow-hidden transition-all ${
+                    isShareSelected
+                      ? "border-amber-300 bg-white shadow-sm"
+                      : "border-gray-200 bg-gray-50/60 opacity-60"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 p-3">
                     <input
                       type="checkbox"
                       checked={isShareSelected}
@@ -2063,17 +2082,17 @@ export default function MerchantProducts() {
                           return n;
                         });
                       }}
-                      className="w-4 h-4 accent-amber-500 cursor-pointer flex-shrink-0"
+                      className="w-5 h-5 accent-orange-500 cursor-pointer flex-shrink-0"
                       title={isShareSelected ? "取消選擇" : "剔選分享"}
                     />
-                    <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                    <div className="w-14 h-14 rounded-lg overflow-hidden bg-amber-100 flex-shrink-0 ring-1 ring-amber-200">
                       {imgs[0]
                         ? <img src={imgs[0]} alt="" className="w-full h-full object-cover" />
-                        : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground/40" /></div>}
+                        : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-5 h-5 text-amber-300" /></div>}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{p.title}</p>
-                      <p className="text-xs text-muted-foreground">{currency} ${price.toLocaleString()}</p>
+                      <p className="text-sm font-semibold truncate text-amber-900">{p.title}</p>
+                      <p className="text-xs text-orange-600 font-medium mt-0.5">{sym}{price.toLocaleString()}</p>
                     </div>
                   </div>
                   {aiText && (
@@ -2177,6 +2196,7 @@ export default function MerchantProducts() {
                 </div>
               );
             })}
+          </div>
           </div>
         </DialogContent>
       </Dialog>
