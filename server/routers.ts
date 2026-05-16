@@ -3314,6 +3314,8 @@ export const appRouter = router({
         for (const img of originalImages) {
           await addAuctionImage({ auctionId: newAuction.id, imageUrl: img.imageUrl, displayOrder: img.displayOrder });
         }
+        // 原件 archive，避免佢繼續出現喺 eligible list（與 relist 並列造成視覺重複）
+        await updateAuction(input.id, { archived: 1, archivedAt: new Date() });
         return { success: true, newAuctionId: newAuction.id };
       }),
 
@@ -4427,10 +4429,21 @@ export const appRouter = router({
             throw new TRPCError({ code: 'BAD_REQUEST', message: `已過加品截止時間（結束前 ${cutoffMin} 分鐘內不可再加入新商品）` });
           }
         }
-        // 驗證 auctions 全部屬於呢個 merchant
-        const myAuctions = await db.select({ id: auctions.id }).from(auctions)
+        // 驗證 auctions 全部屬於呢個 merchant，且非 archived
+        const myAuctions = await db.select({ id: auctions.id, status: auctions.status, archived: auctions.archived, highestBidderId: auctions.highestBidderId }).from(auctions)
           .where(and(inArray(auctions.id, input.auctionIds), eq(auctions.createdBy, session.merchantUserId)));
-        const myIds = new Set(myAuctions.map(a => a.id));
+        // Server-side filter: 只接受 draft 或 (ended + 無人贏)，拒絕 archived
+        const myIds = new Set(
+          myAuctions
+            .filter((a: any) => {
+              if (a.archived === 1) return false; // 已 archive 唔可加入
+              if (a.status === 'draft') return true;
+              if (a.status === 'ended' && !a.highestBidderId) return true;
+              // active / sold / 其他：唔出現喺 eligible list 但仍可加入（endTime sync only）
+              return true;
+            })
+            .map((a: any) => a.id)
+        );
         const valid = input.auctionIds.filter(id => myIds.has(id));
         if (valid.length === 0) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '所有 auction 都不屬於你' });
@@ -4595,6 +4608,8 @@ export const appRouter = router({
           eq(auctions.status, 'draft' as any),
           and(eq(auctions.status, 'ended' as any), isNull(auctions.highestBidderId))
         ),
+        // 排除已 archive 嘅 auction（removeItem archiveAuction=true 或手動 archive）
+        sql`(${auctions.archived} = 0 OR ${auctions.archived} IS NULL)`,
       );
       const where = inActiveSessionIds.length > 0
         ? and(baseWhere, notInArray(auctions.id, inActiveSessionIds))
