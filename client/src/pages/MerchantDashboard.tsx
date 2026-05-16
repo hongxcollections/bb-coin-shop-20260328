@@ -11,6 +11,7 @@ import {
   LayoutList, LayoutGrid, Grid3X3, Maximize2, Link2, Copy, Tag, QrCode,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { sanitizeUserText } from "@/lib/utils";
 import MerchantOffersDialog from "@/components/MerchantOffersDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -1514,21 +1515,17 @@ export default function MerchantDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* 商店 QR Code Dialog */}
+      {/* 商店 QR Code Dialog — 同 MerchantStore 完全一致 */}
       <Dialog open={qrOpen} onOpenChange={setQrOpen}>
         <DialogContent className="max-w-xs">
           <DialogHeader>
-            <DialogTitle className="text-center text-sm">
-              {myApp?.merchantName ? `「${myApp.merchantName}」商店 QR Code` : "商店 QR Code"}
-            </DialogTitle>
+            <DialogTitle className="text-center text-sm">{myApp?.merchantName ? `「${sanitizeUserText(myApp.merchantName)}」商店 QR Code` : "商店 QR Code"}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col items-center gap-3 py-2">
             <div id="dash-qr-svg-wrap" className="bg-white p-3 rounded-lg border border-gray-200">
               <QRCodeSVG value={`https://hongxcollections.com/merchants/${myApp?.userId}`} size={200} level="M" />
             </div>
-            <p className="text-[11px] text-gray-500 text-center break-all px-2">
-              hongxcollections.com/merchants/{myApp?.userId}
-            </p>
+            <p className="text-[11px] text-gray-500 text-center break-all px-2">https://hongxcollections.com/merchants/{myApp?.userId}</p>
             <p className="text-xs text-gray-600 text-center">用手機掃 QR Code 即可開店</p>
             <button
               type="button"
@@ -1542,27 +1539,56 @@ export default function MerchantDashboard() {
                 const img = new Image();
                 img.onload = () => {
                   const scale = 3;
+                  const size = 200 * scale;
+                  const pad = 24 * scale;
+                  const nameH = 22 * scale;
+                  const poweredH = 8 * scale;
+                  const gapAfterQR = 8 * scale;
+                  const gapBetween = 3 * scale;
                   const canvas = document.createElement("canvas");
-                  canvas.width = img.width * scale;
-                  canvas.height = img.height * scale;
-                  const ctx2d = canvas.getContext("2d");
-                  if (!ctx2d) return;
-                  ctx2d.drawImage(img, 0, 0, canvas.width, canvas.height);
+                  canvas.width = size + pad * 2;
+                  canvas.height = pad + size + gapAfterQR + nameH + gapBetween + poweredH + pad;
+                  const ctx = canvas.getContext("2d");
+                  if (!ctx) return;
+                  ctx.fillStyle = "#ffffff";
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                  ctx.drawImage(img, pad, pad, size, size);
+                  const merchantName = myApp?.merchantName ? sanitizeUserText(myApp.merchantName) : "商戶";
+                  const rightX = pad + size;
+                  const nameY = pad + size + gapAfterQR + nameH / 2;
+                  const poweredY = pad + size + gapAfterQR + nameH + gapBetween + poweredH / 2;
+                  const makeGoldGradient = (y: number) => {
+                    const g = ctx.createLinearGradient(0, y - 8 * scale, 0, y + 8 * scale);
+                    g.addColorStop(0, "#f59e0b");
+                    g.addColorStop(0.5, "#d97706");
+                    g.addColorStop(1, "#92400e");
+                    return g;
+                  };
+                  ctx.textAlign = "right";
+                  ctx.textBaseline = "middle";
+                  ctx.font = `bold ${18 * scale}px -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif`;
+                  ctx.fillStyle = makeGoldGradient(nameY);
+                  ctx.fillText(merchantName, rightX, nameY);
+                  ctx.font = `${3 * scale}px -apple-system, BlinkMacSystemFont, sans-serif`;
+                  ctx.fillStyle = makeGoldGradient(poweredY);
+                  ctx.fillText("Powered by hongxcollections.com", rightX, poweredY);
                   canvas.toBlob((blob) => {
                     if (!blob) return;
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
-                    a.download = `shop-qr-${myApp?.userId ?? "merchant"}.png`;
+                    a.download = `merchant-${myApp?.userId}-qr.png`;
+                    document.body.appendChild(a);
                     a.click();
-                    URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
                   }, "image/png");
                 };
                 img.src = dataUrl;
               }}
-              className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg transition-colors"
+              className="w-full flex items-center justify-center gap-2 py-2 bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-lg text-sm font-semibold transition-all shadow-sm shadow-amber-200"
             >
-              <ImageIcon className="w-3.5 h-3.5" />下載圖片
+              下載 QR 圖片
             </button>
           </div>
         </DialogContent>
