@@ -910,6 +910,31 @@ async function bootstrapMissingColumns() {
   await addIndex('idx_dailyChallengeAnswers_userId', 'CREATE INDEX `idx_dailyChallengeAnswers_userId` ON `dailyChallengeAnswers` (`userId`)');
   await addIndex('idx_dailyChallengeAnswers_challengeId', 'CREATE INDEX `idx_dailyChallengeAnswers_challengeId` ON `dailyChallengeAnswers` (`challengeId`)');
 
+  // ── One-time data fix: archive 重複嘅原件 ──────────────────────────────────
+  // relistAuction 舊邏輯冇 archive 原件，造成 eligible list 重複出現同款商品。
+  // 凡有 relist 版本存在（relistSourceId = original.id）且 relist 本身未 archive，
+  // 則將原件設 archived=1，令佢唔再出現喺 eligible list。
+  try {
+    const [dup]: any = await pool.execute(
+      `UPDATE auctions orig
+       SET orig.archived = 1, orig.archivedAt = NOW()
+       WHERE orig.status = 'ended'
+         AND orig.highestBidderId IS NULL
+         AND (orig.archived = 0 OR orig.archived IS NULL)
+         AND EXISTS (
+           SELECT 1 FROM (SELECT id, relistSourceId, archived FROM auctions) relist
+           WHERE relist.relistSourceId = orig.id
+             AND (relist.archived = 0 OR relist.archived IS NULL)
+         )`
+    );
+    const affected = dup?.affectedRows ?? 0;
+    if (affected > 0) {
+      console.log(`[Bootstrap] Archived ${affected} duplicate original auction(s) that had been relisted`);
+    }
+  } catch (e) {
+    console.warn('[Bootstrap] Relist dedup cleanup failed (non-fatal):', (e as Error).message);
+  }
+
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
 }
