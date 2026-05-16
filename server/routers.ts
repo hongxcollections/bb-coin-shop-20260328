@@ -4577,15 +4577,30 @@ export const appRouter = router({
     /** 商戶：列出自己可加入專場嘅 auctions — 只計 draft（未發佈）+ 流拍（已結束無人贏） */
     myEligibleAuctions: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
-      const { desc, and, or, isNull } = await import('drizzle-orm');
+      const { desc, and, or, isNull, notInArray } = await import('drizzle-orm');
+      // 揾出已喺任何 draft/published 專場入面嘅 auctionId，唔再給加入新專場
+      const inActiveSessionRaw: any = await db.execute(
+        sql`SELECT DISTINCT si.auctionId FROM merchantAuctionSessionItems si
+            JOIN merchantAuctionSessions s ON s.id = si.sessionId
+            WHERE s.merchantUserId = ${ctx.user.id}
+              AND s.status IN ('draft','published')`
+      );
+      const inActiveSessionIds: number[] = (
+        Array.isArray(inActiveSessionRaw) ? (inActiveSessionRaw[0] as any[]) : []
+      ).map((r: any) => Number(r.auctionId));
+
+      const baseWhere = and(
+        eq(auctions.createdBy, ctx.user.id),
+        or(
+          eq(auctions.status, 'draft' as any),
+          and(eq(auctions.status, 'ended' as any), isNull(auctions.highestBidderId))
+        ),
+      );
+      const where = inActiveSessionIds.length > 0
+        ? and(baseWhere, notInArray(auctions.id, inActiveSessionIds))
+        : baseWhere;
       const rows = await db.select().from(auctions)
-        .where(and(
-          eq(auctions.createdBy, ctx.user.id),
-          or(
-            eq(auctions.status, 'draft' as any),
-            and(eq(auctions.status, 'ended' as any), isNull(auctions.highestBidderId))
-          ),
-        ))
+        .where(where)
         .orderBy(desc(auctions.createdAt));
       const enriched = await Promise.all(rows.map(async (a: any) => ({
         ...a,
