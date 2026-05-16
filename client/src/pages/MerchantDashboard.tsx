@@ -8,8 +8,9 @@ import {
   AlertCircle, ArrowUpRight, ArrowDownLeft, ShoppingBag, Settings,
   RotateCcw, Layers, CreditCard, PlusCircle, Send, ChevronDown, Loader2,
   Upload, X, ImageIcon, Printer, Search, HelpCircle, Package,
-  LayoutList, LayoutGrid, Grid3X3, Maximize2, Link2, Copy, Tag,
+  LayoutList, LayoutGrid, Grid3X3, Maximize2, Link2, Copy, Tag, QrCode,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import MerchantOffersDialog from "@/components/MerchantOffersDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -262,6 +263,7 @@ export default function MerchantDashboard() {
 
   // ── 續期一鍵延長 state ──
   const [renewDialogOpen, setRenewDialogOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const [renewPaymentMethod, setRenewPaymentMethod] = useState("");
   const [renewPaymentRef, setRenewPaymentRef] = useState("");
   const [renewProofUrl, setRenewProofUrl] = useState("");
@@ -521,6 +523,13 @@ export default function MerchantDashboard() {
             <div className="flex items-center gap-2">
               <Link2 className="w-4 h-4 text-blue-500" />
               <span className="text-sm font-semibold text-gray-700">我的商店連結</span>
+              <button
+                onClick={() => setQrOpen(true)}
+                aria-label="顯示商店 QR Code"
+                className="flex items-center justify-center text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 w-6 h-6 rounded-full transition-colors ml-auto"
+              >
+                <QrCode className="w-3 h-3" />
+              </button>
             </div>
             <p className="text-xs text-gray-400">分享此連結給客戶，讓他們直接進入你的商店瀏覽商品及拍賣。</p>
             <div className="flex items-center gap-2 bg-blue-50 rounded-xl px-3 py-2 border border-blue-100">
@@ -1502,6 +1511,60 @@ export default function MerchantDashboard() {
               }
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 商店 QR Code Dialog */}
+      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-center text-sm">
+              {myApp?.merchantName ? `「${myApp.merchantName}」商店 QR Code` : "商店 QR Code"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-3 py-2">
+            <div id="dash-qr-svg-wrap" className="bg-white p-3 rounded-lg border border-gray-200">
+              <QRCodeSVG value={`https://hongxcollections.com/merchants/${myApp?.userId}`} size={200} level="M" />
+            </div>
+            <p className="text-[11px] text-gray-500 text-center break-all px-2">
+              hongxcollections.com/merchants/{myApp?.userId}
+            </p>
+            <p className="text-xs text-gray-600 text-center">用手機掃 QR Code 即可開店</p>
+            <button
+              type="button"
+              onClick={() => {
+                const wrap = document.getElementById("dash-qr-svg-wrap");
+                const svg = wrap?.querySelector("svg");
+                if (!svg) return;
+                const xml = new XMLSerializer().serializeToString(svg);
+                const svg64 = btoa(unescape(encodeURIComponent(xml)));
+                const dataUrl = `data:image/svg+xml;base64,${svg64}`;
+                const img = new Image();
+                img.onload = () => {
+                  const scale = 3;
+                  const canvas = document.createElement("canvas");
+                  canvas.width = img.width * scale;
+                  canvas.height = img.height * scale;
+                  const ctx2d = canvas.getContext("2d");
+                  if (!ctx2d) return;
+                  ctx2d.drawImage(img, 0, 0, canvas.width, canvas.height);
+                  canvas.toBlob((blob) => {
+                    if (!blob) return;
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `shop-qr-${myApp?.userId ?? "merchant"}.png`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }, "image/png");
+                };
+                img.src = dataUrl;
+              }}
+              className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <ImageIcon className="w-3.5 h-3.5" />下載圖片
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

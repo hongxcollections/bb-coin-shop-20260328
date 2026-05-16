@@ -4577,14 +4577,14 @@ export const appRouter = router({
     /** 商戶：列出自己可加入專場嘅 auctions — 只計 draft（未發佈）+ 流拍（已結束無人贏） */
     myEligibleAuctions: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
-      const { desc, and, or, isNull, inArray: inArr } = await import('drizzle-orm');
+      const { desc, and, or, isNull } = await import('drizzle-orm');
       const rows = await db.select().from(auctions)
         .where(and(
           eq(auctions.createdBy, ctx.user.id),
           or(
             eq(auctions.status, 'draft' as any),
-            and(inArr(auctions.status, ['ended', 'archived'] as any), isNull(auctions.highestBidderId))
-          )!,
+            and(eq(auctions.status, 'ended' as any), isNull(auctions.highestBidderId))
+          ),
         ))
         .orderBy(desc(auctions.createdAt));
       const enriched = await Promise.all(rows.map(async (a: any) => ({
