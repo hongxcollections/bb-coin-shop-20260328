@@ -3306,6 +3306,7 @@ export const appRouter = router({
           status: 'draft',
           bidIncrement: original.bidIncrement,
           currency: original.currency,
+          category: (original as any).category ?? undefined,
           createdBy: ctx.user.id,
           relistSourceId: input.id,
         });

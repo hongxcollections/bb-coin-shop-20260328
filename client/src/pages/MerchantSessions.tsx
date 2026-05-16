@@ -72,6 +72,7 @@ export default function MerchantSessions() {
 
   function handleCreate() {
     if (!form.title.trim()) { toast.error("請輸入專場名稱"); return; }
+    if (!form.coverImage.trim()) { toast.error("請上載至少一幅封面圖片"); return; }
     const endAt = new Date(form.endAt);
     if (isNaN(endAt.getTime()) || endAt.getTime() < Date.now() + 5 * 60 * 1000) {
       toast.error("結束時間至少要 5 分鐘後"); return;

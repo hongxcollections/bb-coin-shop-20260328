@@ -581,22 +581,26 @@ export default function MerchantStore() {
           </div>
         ) : merchant ? (
           <div className="bg-white rounded-2xl border border-amber-100 shadow-sm overflow-hidden">
-            {/* 金漸變 banner */}
-            <div className="relative h-14 bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 overflow-hidden">
+            {/* 金漸變 banner — 頭像用 absolute 定位 half-in half-out */}
+            <div className="relative h-14 bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600">
               <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_50%,white_0%,transparent_60%)]" />
-            </div>
-
-            <div className="px-4 pt-0 pb-4 space-y-3">
-              {/* 頭像浮起在 banner 之上（只有頭像 -mt-9，文字留喺 banner 下面唔被擋） */}
-              <div className="flex items-start gap-3 pt-2">
+              {/* 頭像：bottom-0 translate-y-1/2 → 上半喺 banner、下半喺白底 */}
+              <div className="absolute bottom-0 left-4 translate-y-1/2 z-10">
                 {merchant.merchantIcon ? (
-                  <img src={merchant.merchantIcon} alt={merchant.merchantName} className="w-[72px] h-[72px] -mt-11 rounded-2xl object-cover border-[3px] border-white shadow-md ring-1 ring-amber-200 flex-shrink-0" />
+                  <img src={merchant.merchantIcon} alt={merchant.merchantName} className="w-[72px] h-[72px] rounded-2xl object-cover border-[3px] border-white shadow-md ring-1 ring-amber-200" />
                 ) : (
-                  <div className="w-[72px] h-[72px] -mt-11 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center border-[3px] border-white shadow-md ring-1 ring-amber-200 flex-shrink-0">
+                  <div className="w-[72px] h-[72px] rounded-2xl bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center border-[3px] border-white shadow-md ring-1 ring-amber-200">
                     <Store className="w-8 h-8 text-amber-500" />
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
+              </div>
+            </div>
+
+            <div className="px-4 pt-0 pb-4 space-y-3">
+              {/* 名稱 row：左側 spacer 留位畀浮起嘅頭像（36px 下半 + 8px gap = pt-11），右側名稱同 stats */}
+              <div className="flex items-end gap-3 pt-11">
+                <div className="w-[72px] shrink-0" />
+                <div className="flex-1 min-w-0 pb-0.5">
                   <h1 className="font-bold text-gray-900 text-base leading-tight truncate">{sanitizeUserText(merchant.merchantName)}</h1>
                   <div className="flex items-center gap-2 mt-0.5 text-[11px] font-semibold text-amber-700">
                     <span className="inline-flex items-center gap-0.5"><Gavel className="w-3 h-3" />{allAuctions.length}</span>
