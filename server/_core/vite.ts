@@ -158,12 +158,16 @@ async function injectSessionOgMeta(html: string, reqPath: string, protocol: stri
 
     const stripHtml = (s: string) => s.replace(/<[^>]*>?/g, "").replace(/&lt;[^&]*?&gt;/gi, "");
     const rawTitle = stripHtml(session.title).replace(/\s+/g, " ").trim();
-    const titleForOg = rawTitle.length > 55 ? rawTitle.slice(0, 55) + "…" : rawTitle;
-    const ogTitle = `${titleForOg} | hongxcollections`;
-    const endStr = formatEndTime(new Date(session.endAt));
-    const ogDesc = `專場拍賣 | ${rawTitle} | ${session.itemCount} 件商品 | 結束 ${endStr} | 香港錢幣拍賣 hongxcollections`;
+    // 同 auction/product 保持一致：title 截 25 字，避免過長被 FB parser drop
+    const titleForOg = rawTitle.length > 25 ? rawTitle.slice(0, 25) + "…" : rawTitle;
+    const ogTitle = `${titleForOg} | hongxcollections.com`;
+    // 結束時間只用 M月D日（唔用 formatEndTime，避免括號+中文時間詞觸發 FB silent drop）
+    const endD = new Date(session.endAt);
+    const endStr = `${endD.getMonth() + 1}月${endD.getDate()}日`;
+    const ogDesc = `專場拍賣 | ${rawTitle} | ${session.itemCount ?? 0} 件商品 | 結束 ${endStr} | 香港錢幣拍賣`;
     const fullUrl = `${protocol}://${host}${reqPath}`;
     const ogImageUrl = (session.coverImage || "").trim();
+    const imgMime = "image/jpeg";
     const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
     const ogMeta = [
@@ -175,6 +179,9 @@ async function injectSessionOgMeta(html: string, reqPath: string, protocol: stri
       `<meta property="og:locale" content="zh_HK" />`,
       ogImageUrl ? `<meta property="og:image" content="${esc(ogImageUrl)}" />` : "",
       ogImageUrl ? `<meta property="og:image:secure_url" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:type" content="${imgMime}" />` : "",
+      ogImageUrl ? `<meta property="og:image:width" content="1200" />` : "",
+      ogImageUrl ? `<meta property="og:image:height" content="630" />` : "",
       `<meta name="twitter:card" content="${ogImageUrl ? "summary_large_image" : "summary"}" />`,
       `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
       `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
