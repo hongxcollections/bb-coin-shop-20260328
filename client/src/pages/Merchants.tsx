@@ -45,10 +45,10 @@ export default function Merchants() {
   const { data: merchants = [], isLoading } = trpc.merchants.listApprovedMerchants.useQuery();
   const { data: activeSessions = [] } = trpc.merchantSessions.listAllActivePublic.useQuery();
   const sessionsByMerchant = useMemo(() => {
-    const map = new Map<number, Array<{ slug: string; title: string; endAt: string | Date; itemCount: number }>>();
+    const map = new Map<number, Array<{ slug: string; title: string; endAt: string | Date; itemCount: number; coverImage?: string | null }>>();
     (activeSessions as any[]).forEach((s) => {
       const list = map.get(s.merchantUserId) ?? [];
-      list.push({ slug: s.slug, title: s.title, endAt: s.endAt, itemCount: s.itemCount ?? 0 });
+      list.push({ slug: s.slug, title: s.title, endAt: s.endAt, itemCount: s.itemCount ?? 0, coverImage: s.coverImage });
       map.set(s.merchantUserId, list);
     });
     return map;
@@ -302,23 +302,68 @@ export default function Merchants() {
 
                 {/* 進行中專場 */}
                 {sessions.length > 0 && (
-                  <div className="px-3.5 pb-2.5 -mt-0.5">
-                    <div className="border-t border-dashed border-amber-200 pt-2 space-y-1">
-                      <div className="flex items-center gap-1 text-[10px] font-bold text-amber-700 uppercase tracking-wider">
-                        <CalendarClock className="w-2.5 h-2.5" />進行中專場
+                  <div className="px-3 pb-3 -mt-1">
+                    <div className="rounded-xl border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-amber-50/60 shadow-sm overflow-hidden">
+                      {/* 標題列 */}
+                      <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-amber-500 to-amber-600">
+                        <span className="relative flex h-2 w-2 shrink-0">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                        </span>
+                        <CalendarClock className="w-3 h-3 text-white/90 shrink-0" />
+                        <span className="text-[11px] font-bold text-white tracking-wide">進行中專場</span>
+                        {sessions.length > 1 && (
+                          <span className="ml-auto text-[10px] font-bold bg-white/25 text-white px-1.5 py-px rounded-full">{sessions.length} 場</span>
+                        )}
                       </div>
-                      {sessions.map((s) => (
-                        <a
-                          key={s.slug}
-                          href={`/s/${m.userId}/${s.slug}`}
-                          onClick={(e) => { e.stopPropagation(); window.scrollTo(0, 0); }}
-                          className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-amber-50/50 hover:from-amber-100 hover:to-amber-100/70 border border-amber-200 rounded-lg px-2.5 py-1.5 transition-all group/s"
-                        >
-                          <span className="text-xs font-semibold text-amber-800 truncate flex-1 min-w-0">{sanitizeUserText(s.title)}</span>
-                          <span className="text-[10px] font-semibold text-amber-700 bg-white/70 px-1.5 py-px rounded border border-amber-200/60 shrink-0">{s.itemCount} 件</span>
-                          <ChevronRight className="w-3 h-3 text-amber-500 shrink-0 group-hover/s:translate-x-0.5 transition-transform" />
-                        </a>
-                      ))}
+                      {/* 專場卡片 */}
+                      <div className="divide-y divide-amber-100">
+                        {sessions.map((s) => {
+                          const endMs = new Date(s.endAt).getTime();
+                          const diffMs = endMs - Date.now();
+                          const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+                          const diffD = Math.floor(diffH / 24);
+                          const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                          const isUrgent = diffMs > 0 && diffH < 3;
+                          const remaining = diffMs <= 0 ? "即將結束"
+                            : diffD >= 1 ? `還剩 ${diffD} 日`
+                            : diffH >= 1 ? `還剩 ${diffH} 小時`
+                            : `還剩 ${diffM} 分鐘`;
+                          return (
+                            <a
+                              key={s.slug}
+                              href={`/s/${m.userId}/${s.slug}`}
+                              onClick={(e) => { e.stopPropagation(); window.scrollTo(0, 0); }}
+                              className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-amber-50 transition-colors group/s"
+                            >
+                              {/* 封面縮圖 */}
+                              {s.coverImage ? (
+                                <img src={s.coverImage} alt="" className="w-11 h-11 rounded-lg object-cover border border-amber-200 shrink-0 shadow-sm" />
+                              ) : (
+                                <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-amber-300 to-amber-500 flex items-center justify-center shrink-0 shadow-sm">
+                                  <CalendarClock className="w-5 h-5 text-white" />
+                                </div>
+                              )}
+                              {/* 文字資訊 */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[13px] font-bold text-amber-900 truncate leading-tight">{sanitizeUserText(s.title)}</p>
+                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-px rounded-full ${
+                                    isUrgent
+                                      ? "bg-red-100 text-red-700 border border-red-200"
+                                      : "bg-amber-100 text-amber-700 border border-amber-200"
+                                  }`}>
+                                    {isUrgent && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />}
+                                    {remaining}
+                                  </span>
+                                  <span className="text-[10px] text-gray-500 font-medium">{s.itemCount} 件商品</span>
+                                </div>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-amber-500 shrink-0 group-hover/s:translate-x-0.5 transition-transform" />
+                            </a>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 )}
