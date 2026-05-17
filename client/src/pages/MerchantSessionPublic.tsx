@@ -91,8 +91,14 @@ export default function MerchantSessionPublic() {
     {
       enabled: merchantUserId > 0 && !!slug,
       retry: false,
-      // 每 15 秒 refetch，價錢／最高出價者實時更新
-      refetchInterval: 8000,
+      // 已結束唔洗高頻 refetch；進行中每 8 秒更新
+      refetchInterval: (d: any) => {
+        const s = d?.session;
+        if (!s) return 8000;
+        if (s.status === 'ended') return false;
+        const eMs = new Date(s.endAt).getTime();
+        return eMs <= Date.now() ? false : 8000;
+      },
       refetchOnWindowFocus: true,
     }
   );
@@ -129,8 +135,8 @@ export default function MerchantSessionPublic() {
   }
 
   const endAtMs = new Date(session.endAt).getTime();
-  // 僅以時間到為準顯示「已結束」，商戶手動「結束（封盤）」唔影響倒數顯示
-  const isEnded = endAtMs <= now;
+  // 時間到 或 商戶手動封盤 均視作已結束
+  const isEnded = endAtMs <= now || session.status === 'ended';
   const endingSoonMs = 60 * 60 * 1000; // 1h
 
   return (
@@ -193,6 +199,17 @@ export default function MerchantSessionPublic() {
             </div>
           </div>
         </div>
+
+        {/* 已結束 banner */}
+        {isEnded && (
+          <div className="bg-gray-800 text-white rounded-2xl px-4 py-3 mb-4 flex items-center gap-3">
+            <span className="text-2xl">🏁</span>
+            <div>
+              <div className="font-bold text-sm">此場已結束</div>
+              <div className="text-xs text-gray-300">以下為各拍品最終成交紀錄，僅供瀏覽</div>
+            </div>
+          </div>
+        )}
 
         {/* QR Code Dialog（沿用 MerchantStore 同款 pattern） */}
         <Dialog open={qrOpen} onOpenChange={setQrOpen}>
@@ -416,14 +433,16 @@ export default function MerchantSessionPublic() {
                       <div className="mt-1 flex items-end justify-between gap-2">
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] text-muted-foreground">目前出價</span>
+                            <span className="text-[10px] text-muted-foreground">{isItemEnded ? "成交價" : "目前出價"}</span>
                             {(() => {
                               if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
-                                return <span className="text-[9px] text-emerald-600 font-bold">(我本人✓)</span>;
+                                return <span className="text-[9px] text-emerald-600 font-bold">{isItemEnded ? "(我得標了✓)" : "(我本人✓)"}</span>;
+                              } else if (a.highestBidderName && isItemEnded && isEnded) {
+                                return <span className="text-[9px] text-gray-500">(已有人得標)</span>;
                               } else if (a.highestBidderName) {
                                 return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;
                               } else if (!a.highestBidderId) {
-                                return <span className="text-[9px] text-gray-400">(未有出價)</span>;
+                                return <span className="text-[9px] text-gray-400">{isItemEnded ? "(流拍)" : "(未有出價)"}</span>;
                               }
                               return null;
                             })()}
