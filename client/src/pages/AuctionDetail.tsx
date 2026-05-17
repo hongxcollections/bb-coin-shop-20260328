@@ -343,8 +343,8 @@ export default function AuctionDetail() {
     onSuccess: (data) => {
       const auctionTitle = (auction as { title?: string })?.title ?? '';
       const extNote = data.extended ? ` · 已延長 ${data.extendMinutes ?? 3} 分鐘` : '';
-      toast.success(auctionTitle || '出價成功', {
-        description: `${currencySymbol}${pendingBidAmount.toLocaleString()}${extNote}`,
+      toast.success(`商品名稱 - ${auctionTitle}`, {
+        description: `確認出價 - ${currencySymbol}${pendingBidAmount.toLocaleString()}${extNote}`,
         className: "bb-toast-success",
         duration: 5000,
       });

@@ -84,8 +84,8 @@ export function QuickBidPopover({
   const placeBid = trpc.auctions.placeBid.useMutation({
     onSuccess: (data) => {
       const extNote = data?.extended ? ` · 已延長 ${data.extendMinutes ?? 3} 分鐘` : '';
-      toast.success(title, {
-        description: `${symbol}${lastAmountRef.current.toLocaleString()}${extNote}`,
+      toast.success(`商品名稱 - ${title}`, {
+        description: `確認出價 - ${symbol}${lastAmountRef.current.toLocaleString()}${extNote}`,
         className: "bb-toast-success",
         duration: 4000,
       });
