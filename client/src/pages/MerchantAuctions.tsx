@@ -84,17 +84,18 @@ const compressImage = (file: File, maxPx = 1280, quality = 0.78): Promise<File> 
     img.src = objUrl;
   });
 
-// Generate a 1200×630 collage from 2–6+ previewUrls (blob: URLs, no CORS issue)
+// Generate a 1080×1080 square collage from 2–6+ previewUrls (blob: URLs, no CORS issue)
+// Square format matches the aspect-square containers used throughout the app.
 async function generateCollage(previewUrls: string[]): Promise<Blob | null> {
   const n = Math.min(previewUrls.length, 6);
   if (n < 2) return null;
-  const W = 1200, H = 630, GAP = 4;
+  const S = 1080, GAP = 6;
   const canvas = document.createElement('canvas');
-  canvas.width = W; canvas.height = H;
+  canvas.width = S; canvas.height = S;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-  ctx.fillStyle = '#1a1a1a';
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, S, S);
 
   const loadImg = (url: string): Promise<HTMLImageElement> =>
     new Promise((res, rej) => {
@@ -117,46 +118,49 @@ async function generateCollage(previewUrls: string[]): Promise<Blob | null> {
   const imgs = await Promise.all(previewUrls.slice(0, n).map(loadImg));
 
   if (n === 2) {
-    const w = Math.floor((W - GAP) / 2);
-    cover(imgs[0], 0, 0, w, H);
-    cover(imgs[1], w + GAP, 0, W - w - GAP, H);
+    // Left | Right
+    const w = Math.floor((S - GAP) / 2);
+    cover(imgs[0], 0, 0, w, S);
+    cover(imgs[1], w + GAP, 0, S - w - GAP, S);
   } else if (n === 3) {
-    const lw = Math.round(W * 0.55), rw = W - lw - GAP;
-    const rh = Math.floor((H - GAP) / 2);
-    cover(imgs[0], 0, 0, lw, H);
+    // Big left + two stacked right
+    const lw = Math.round(S * 0.55), rw = S - lw - GAP;
+    const rh = Math.floor((S - GAP) / 2);
+    cover(imgs[0], 0, 0, lw, S);
     cover(imgs[1], lw + GAP, 0, rw, rh);
-    cover(imgs[2], lw + GAP, rh + GAP, rw, H - rh - GAP);
+    cover(imgs[2], lw + GAP, rh + GAP, rw, S - rh - GAP);
   } else if (n === 4) {
-    const cw = Math.floor((W - GAP) / 2), ch = Math.floor((H - GAP) / 2);
-    cover(imgs[0], 0, 0, cw, ch);
-    cover(imgs[1], cw + GAP, 0, W - cw - GAP, ch);
-    cover(imgs[2], 0, ch + GAP, cw, H - ch - GAP);
-    cover(imgs[3], cw + GAP, ch + GAP, W - cw - GAP, H - ch - GAP);
+    // 2×2 grid
+    const half = Math.floor((S - GAP) / 2);
+    cover(imgs[0], 0, 0, half, half);
+    cover(imgs[1], half + GAP, 0, S - half - GAP, half);
+    cover(imgs[2], 0, half + GAP, half, S - half - GAP);
+    cover(imgs[3], half + GAP, half + GAP, S - half - GAP, S - half - GAP);
   } else {
     // 5–6+: top row 2 equal + bottom row up to 3
-    const topH = Math.round(H * 0.5), botH = H - Math.round(H * 0.5) - GAP;
-    const tw = Math.floor((W - GAP) / 2);
+    const topH = Math.round(S * 0.5), botH = S - topH - GAP;
+    const tw = Math.floor((S - GAP) / 2);
     cover(imgs[0], 0, 0, tw, topH);
-    cover(imgs[1], tw + GAP, 0, W - tw - GAP, topH);
+    cover(imgs[1], tw + GAP, 0, S - tw - GAP, topH);
     const botN = Math.min(n - 2, 3);
-    const bw = Math.floor((W - GAP * (botN - 1)) / botN);
+    const bw = Math.floor((S - GAP * (botN - 1)) / botN);
     for (let i = 0; i < botN; i++) {
       const bx = i * (bw + GAP);
-      cover(imgs[i + 2], bx, topH + GAP, i === botN - 1 ? W - bx : bw, botH);
+      cover(imgs[i + 2], bx, topH + GAP, i === botN - 1 ? S - bx : bw, botH);
     }
     if (previewUrls.length > 6) {
       const lastX = (botN - 1) * (bw + GAP);
-      ctx.fillStyle = 'rgba(0,0,0,0.52)';
-      ctx.fillRect(lastX, topH + GAP, W - lastX, botH);
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = 'rgba(0,0,0,0.48)';
+      ctx.fillRect(lastX, topH + GAP, S - lastX, botH);
+      ctx.fillStyle = '#ffffff';
       ctx.font = `bold ${Math.round(botH * 0.38)}px sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(`+${previewUrls.length - 5}`, lastX + (W - lastX) / 2, topH + GAP + botH / 2);
+      ctx.fillText(`+${previewUrls.length - 5}`, lastX + (S - lastX) / 2, topH + GAP + botH / 2);
     }
   }
 
   return new Promise<Blob>((res, rej) =>
-    canvas.toBlob(b => b ? res(b) : rej(new Error('toBlob failed')), 'image/jpeg', 0.88)
+    canvas.toBlob(b => b ? res(b) : rej(new Error('toBlob failed')), 'image/jpeg', 0.92)
   );
 }
 
