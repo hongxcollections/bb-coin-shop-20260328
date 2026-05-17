@@ -142,7 +142,11 @@ function injectStaticPageMeta(html: string, reqPath: string, base: string): stri
 }
 
 async function injectSessionOgMeta(html: string, reqPath: string, protocol: string, host: string): Promise<string | null> {
-  const m = reqPath.match(/^\/s\/(\d+)\/([A-Za-z0-9\-_\u4e00-\u9fa5]{1,80})$/);
+  // req.path 喺 Express 係原始 URL-encoded 路徑（唔自動 decode）。
+  // 含中文 slug 時 %E5%A4%A7bb... 唔 match \u4e00-\u9fa5，必須先 decode。
+  let decodedPath = reqPath;
+  try { decodedPath = decodeURIComponent(reqPath); } catch { /* malformed encoding，保留原 path */ }
+  const m = decodedPath.match(/^\/s\/(\d+)\/([A-Za-z0-9\-_\u4e00-\u9fa5]{1,80})$/);
   if (!m) return null;
   try {
     const merchantUserId = parseInt(m[1], 10);
