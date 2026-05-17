@@ -1219,7 +1219,7 @@ export default function AuctionDetail() {
                 </div>
               )}
             </div>
-            <p className="text-xs text-muted-foreground text-center">出價後不可撤销，請確認金額正確。</p>
+            <p className="text-xs font-semibold text-rose-600 text-center">⚠️ 嚴重警告：惡意亂出價一經商戶或系統核實，將永久停用帳號。</p>
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowBidConfirm(false)} className="flex-1">取消</Button>

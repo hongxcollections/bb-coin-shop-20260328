@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getCurrencySymbol } from "@/pages/AdminAuctions";
+import { useConfirm } from "@/components/ui/confirm-provider";
 
 interface QuickBidPopoverProps {
   auctionId: number;
@@ -58,6 +59,7 @@ export function QuickBidPopover({
   extendMinutes,
 }: QuickBidPopoverProps) {
   const { user, isAuthenticated } = useAuth();
+  const confirm = useConfirm();
   const utils = trpc.useUtils();
   const [open, setOpen] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
@@ -146,8 +148,16 @@ export function QuickBidPopover({
     );
   };
 
-  const handleCustom = () => {
+  const handleCustom = async () => {
     const n = parseFloat(customAmount);
+    if (!Number.isFinite(n) || n <= 0) { submit(n); return; }
+    const ok = await confirm({
+      title: "確認自訂出價",
+      description: `出價金額：${symbol}${n.toLocaleString()}\n\n⚠️ 嚴重警告：惡意亂出價一經商戶或系統核實，將永久停用帳號。`,
+      confirmText: `確認出價 ${symbol}${n.toLocaleString()}`,
+      cancelText: "取消",
+    });
+    if (!ok) return;
     submit(n);
   };
 
