@@ -220,23 +220,25 @@ export default function MerchantSessionPublic() {
                     const scale = 3;
                     const size = 200 * scale;
                     const pad = 24 * scale;
-                    const titleH = 22 * scale;
+                    const merchantH = 22 * scale;
+                    const titleH = 18 * scale;
                     const poweredH = 8 * scale;
                     const gapAfterQR = 8 * scale;
-                    const gapBetween = 3 * scale;
+                    const gapLine = 4 * scale;
                     const canvas = document.createElement("canvas");
                     canvas.width = size + pad * 2;
-                    canvas.height = pad + size + gapAfterQR + titleH + gapBetween + poweredH + pad;
+                    canvas.height = pad + size + gapAfterQR + merchantH + gapLine + titleH + gapLine + poweredH + pad;
                     const ctx = canvas.getContext("2d");
                     if (!ctx) return;
                     ctx.fillStyle = "#ffffff";
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     ctx.drawImage(img, pad, pad, size, size);
-                    const titleText = sanitizeUserText(session.title) || "專場";
                     const merchantText = sanitizeUserText(merchantName) || "商戶";
+                    const titleText = sanitizeUserText(session.title) || "專場";
                     const rightX = pad + size;
-                    const titleY = pad + size + gapAfterQR + titleH / 2;
-                    const poweredY = pad + size + gapAfterQR + titleH + gapBetween + poweredH / 2;
+                    const merchantY = pad + size + gapAfterQR + merchantH / 2;
+                    const titleY = pad + size + gapAfterQR + merchantH + gapLine + titleH / 2;
+                    const poweredY = pad + size + gapAfterQR + merchantH + gapLine + titleH + gapLine + poweredH / 2;
                     const makeGoldGradient = (y: number) => {
                       const g = ctx.createLinearGradient(0, y - 10 * scale, 0, y + 10 * scale);
                       g.addColorStop(0, "#f59e0b");
@@ -245,25 +247,16 @@ export default function MerchantSessionPublic() {
                       return g;
                     };
                     ctx.textBaseline = "middle";
-                    // 右拍齊：由右至左畫 [專場名 15px] + " - " + [商戶名 18px]
                     ctx.textAlign = "right";
-                    let cursorX = rightX;
-                    const sessionFont = `bold ${15 * scale}px -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif`;
-                    const sepFont = `bold ${15 * scale}px -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif`;
-                    const merchantFont = `bold ${18 * scale}px -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif`;
+                    // 第一行：商戶名稱
+                    ctx.font = `bold ${18 * scale}px -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif`;
+                    ctx.fillStyle = makeGoldGradient(merchantY);
+                    ctx.fillText(merchantText, rightX, merchantY);
+                    // 第二行：專場名稱
+                    ctx.font = `bold ${15 * scale}px -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif`;
                     ctx.fillStyle = makeGoldGradient(titleY);
-                    ctx.font = sessionFont;
-                    ctx.fillText(titleText, cursorX, titleY);
-                    cursorX -= ctx.measureText(titleText).width;
-                    const sep = " - ";
-                    ctx.font = sepFont;
-                    ctx.fillStyle = makeGoldGradient(titleY);
-                    ctx.fillText(sep, cursorX, titleY);
-                    cursorX -= ctx.measureText(sep).width;
-                    ctx.font = merchantFont;
-                    ctx.fillStyle = makeGoldGradient(titleY);
-                    ctx.fillText(merchantText, cursorX, titleY);
-                    ctx.textAlign = "right";
+                    ctx.fillText(titleText, rightX, titleY);
+                    // 第三行：Powered by
                     ctx.font = `${3 * scale}px -apple-system, BlinkMacSystemFont, sans-serif`;
                     ctx.fillStyle = makeGoldGradient(poweredY);
                     ctx.fillText("Powered by hongxcollections.com", rightX, poweredY);

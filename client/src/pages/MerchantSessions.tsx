@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
@@ -26,6 +26,14 @@ function fmtEnd(s: string | Date): string {
   return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
+function computeDefaultEndAt(offsetDays: number, endTime: string): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const [hh, mm] = endTime.split(":");
+  d.setHours(parseInt(hh, 10), parseInt(mm, 10), 0, 0);
+  return formatDateTimeLocal(d);
+}
+
 export default function MerchantSessions() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -39,6 +47,16 @@ export default function MerchantSessions() {
     visibility: "public" as "public" | "unlisted",
     addItemsCutoffMinutes: 30,
   });
+
+  const { data: merchantSettings } = trpc.merchants.getSettings.useQuery(undefined, { enabled: !!user });
+
+  useEffect(() => {
+    if (!merchantSettings) return;
+    setForm(f => ({
+      ...f,
+      endAt: computeDefaultEndAt(merchantSettings.defaultEndDayOffset ?? 7, merchantSettings.defaultEndTime ?? "23:00"),
+    }));
+  }, [merchantSettings]);
 
   const { data: sessions, isLoading, refetch } = trpc.merchantSessions.myList.useQuery(undefined, {
     enabled: !!user,
