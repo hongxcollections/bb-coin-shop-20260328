@@ -428,7 +428,7 @@ export default function MerchantStore() {
   const [productPage, setProductPage] = useState(0);
   const [soldOpen, setSoldOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
-  const [showEndedSessions, setShowEndedSessions] = useState(false);
+  const [sessionTab, setSessionTab] = useState<"active" | "ended">("active");
 
   const activeProducts = (products as any[]).filter((p: any) => p.status === "active" && p.stock > 0);
   const soldProducts = (products as any[]).filter((p: any) => p.status === "sold");
@@ -632,46 +632,59 @@ export default function MerchantStore() {
                 </div>
               )}
 
-              {/* 進行中專場（每個專場一行：cover 20x20 + 名 + 件數） */}
-              {activeSessions.length > 0 && (
-                <div className="border-t border-dashed border-amber-200 pt-2.5 space-y-1.5">
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-amber-700 uppercase tracking-wider">
-                    <CalendarClock className="w-2.5 h-2.5" /> 進行中專場
+              {/* 專場 tabs — 進行中 / 往屆（永遠顯示兩個 tab） */}
+              {(activeSessions.length > 0 || endedSessions.length > 0) && (
+                <div className="border-t border-dashed border-amber-200 pt-2.5">
+                  {/* Tab bar */}
+                  <div className="flex rounded-lg overflow-hidden border border-amber-200 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => setSessionTab("active")}
+                      className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] font-bold transition-colors ${sessionTab === "active" ? "bg-amber-500 text-white" : "bg-white text-amber-600 hover:bg-amber-50"}`}
+                    >
+                      <CalendarClock className="w-2.5 h-2.5" />
+                      進行中專場{activeSessions.length > 0 ? `（${activeSessions.length}）` : ""}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSessionTab("ended")}
+                      className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] font-bold transition-colors border-l border-amber-200 ${sessionTab === "ended" ? "bg-gray-600 text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}
+                    >
+                      <Clock className="w-2.5 h-2.5" />
+                      往屆專場{endedSessions.length > 0 ? `（${endedSessions.length}）` : ""}
+                    </button>
                   </div>
-                  {activeSessions.map((s: any) => (
-                    <Link key={s.id} href={`/s/${userId}/${s.slug}`}>
-                      <a className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-amber-50/50 hover:from-amber-100 hover:to-amber-100/70 border border-amber-200 rounded-lg px-2.5 py-1.5 transition-all group">
-                        {s.coverImage ? (
-                          <img src={s.coverImage} alt="" className="w-6 h-6 rounded object-cover border border-amber-200 shrink-0" />
-                        ) : (
-                          <div className="w-6 h-6 rounded bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
-                            <CalendarClock className="w-3 h-3 text-amber-500" />
-                          </div>
-                        )}
-                        <span className="text-xs font-semibold text-amber-800 truncate flex-1 min-w-0">{sanitizeUserText(s.title)}</span>
-                        <span className="text-[10px] font-semibold text-amber-700 bg-white/70 px-1.5 py-px rounded border border-amber-200/60 shrink-0">{s.itemCount ?? 0} 件</span>
-                        <ChevronLeft className="w-3 h-3 text-amber-500 shrink-0 rotate-180 group-hover:-translate-x-[-2px] transition-transform" />
-                      </a>
-                    </Link>
-                  ))}
-                </div>
-              )}
 
-              {/* 往屆專場（摺疊） */}
-              {endedSessions.length > 0 && (
-                <div className="border-t border-dashed border-gray-200 pt-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setShowEndedSessions((v) => !v)}
-                    className="flex items-center gap-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider w-full hover:text-gray-700 transition-colors"
-                  >
-                    <Clock className="w-2.5 h-2.5" />
-                    往屆專場（{endedSessions.length}）
-                    <ChevronDown className={`w-3 h-3 ml-auto transition-transform duration-200 ${showEndedSessions ? "rotate-180" : ""}`} />
-                  </button>
-                  {showEndedSessions && (
-                    <div className="mt-1.5 space-y-1.5">
-                      {endedSessions.map((s: any) => (
+                  {/* 進行中 tab */}
+                  {sessionTab === "active" && (
+                    <div className="space-y-1.5">
+                      {activeSessions.length === 0 ? (
+                        <p className="text-[11px] text-center text-gray-400 py-3">暫無進行中專場</p>
+                      ) : activeSessions.map((s: any) => (
+                        <Link key={s.id} href={`/s/${userId}/${s.slug}`}>
+                          <a className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-amber-50/50 hover:from-amber-100 hover:to-amber-100/70 border border-amber-200 rounded-lg px-2.5 py-1.5 transition-all group">
+                            {s.coverImage ? (
+                              <img src={s.coverImage} alt="" className="w-6 h-6 rounded object-cover border border-amber-200 shrink-0" />
+                            ) : (
+                              <div className="w-6 h-6 rounded bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
+                                <CalendarClock className="w-3 h-3 text-amber-500" />
+                              </div>
+                            )}
+                            <span className="text-xs font-semibold text-amber-800 truncate flex-1 min-w-0">{sanitizeUserText(s.title)}</span>
+                            <span className="text-[10px] font-semibold text-amber-700 bg-white/70 px-1.5 py-px rounded border border-amber-200/60 shrink-0">{s.itemCount ?? 0} 件</span>
+                            <ChevronLeft className="w-3 h-3 text-amber-500 shrink-0 rotate-180" />
+                          </a>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 往屆 tab */}
+                  {sessionTab === "ended" && (
+                    <div className="space-y-1.5">
+                      {endedSessions.length === 0 ? (
+                        <p className="text-[11px] text-center text-gray-400 py-3">暫無往屆專場紀錄</p>
+                      ) : endedSessions.map((s: any) => (
                         <Link key={s.id} href={`/s/${userId}/${s.slug}`}>
                           <a className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1.5 transition-all group">
                             {s.coverImage ? (

@@ -434,8 +434,8 @@ export default function MerchantSessionPublic() {
 
                       <div className="mt-1 flex items-end justify-between gap-2">
                         <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] text-muted-foreground">{isItemEnded ? "成交價" : "目前出價"}</span>
+                          <div className="flex items-center gap-1.5 flex-nowrap whitespace-nowrap">
+                            <span className="text-[10px] text-muted-foreground shrink-0">{isItemEnded ? "成交價" : "目前出價"}</span>
                             {(() => {
                               if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
                                 return <span className="text-[9px] text-emerald-600 font-bold">{isItemEnded ? "(我得標了✓)" : "(我本人✓)"}</span>;
