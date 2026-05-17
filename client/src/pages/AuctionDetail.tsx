@@ -1143,18 +1143,22 @@ export default function AuctionDetail() {
                   {historyTab === "bids" ? (
                     bids.length > 0 ? (
                       <div className="space-y-2 max-h-60 overflow-y-auto scrollbar-thin pr-1">
-                        {bids.map((bid, i) => (
-                          <div key={bid.id} className={`flex items-center justify-between py-2 px-3 rounded-lg text-sm ${i === 0 ? "bg-amber-50 border border-amber-200" : "bg-muted/30"}`}>
-                            <div className="flex items-center gap-2">
-                              <User className="w-3.5 h-3.5 text-muted-foreground" />
-                              <span className="text-muted-foreground">{displayName(bid, user?.id)}</span>
-                              {i === 0 && <Badge className="bg-amber-500 text-white text-xs py-0">最高</Badge>}
+                        {bids.map((bid, i) => {
+                          // 已結束：只顯示中標者（i===0）真實名字，其他出價者隱藏
+                          const shownName = (!isActive && i > 0) ? "出價者" : displayName(bid, user?.id);
+                          return (
+                            <div key={bid.id} className={`flex items-center justify-between py-2 px-3 rounded-lg text-sm ${i === 0 ? "bg-amber-50 border border-amber-200" : "bg-muted/30"}`}>
+                              <div className="flex items-center gap-2">
+                                <User className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span className="text-muted-foreground">{shownName}</span>
+                                {i === 0 && <Badge className="bg-amber-500 text-white text-xs py-0">最高</Badge>}
+                              </div>
+                              <div className="font-bold text-amber-700 price-tag">
+                                {currencySymbol}{Number(bid.bidAmount).toLocaleString()}
+                              </div>
                             </div>
-                            <div className="font-bold text-amber-700 price-tag">
-                              {currencySymbol}{Number(bid.bidAmount).toLocaleString()}
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="text-center py-6 text-muted-foreground text-sm">
@@ -1172,12 +1176,12 @@ export default function AuctionDetail() {
                               <span className="text-muted-foreground">{new Date(log.createdAt).toLocaleString("zh-HK", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
                             </div>
                             <div className="flex items-center gap-1 text-muted-foreground">
-                              <span className="font-medium text-foreground">{log.proxyUserName}</span>
+                              <span className="font-medium text-foreground">{isActive ? log.proxyUserName : "出價者"}</span>
                               <span>的代理自動出價</span>
                               <span className="font-bold text-blue-600">{currencySymbol}{log.proxyAmount.toLocaleString()}</span>
                             </div>
                             <div className="text-muted-foreground mt-0.5">
-                              觸發者：{log.triggerUserName}（{currencySymbol}{log.triggerAmount.toLocaleString()}）
+                              觸發者：{isActive ? log.triggerUserName : "出價者"}（{currencySymbol}{log.triggerAmount.toLocaleString()}）
                             </div>
                           </div>
                         ))}
