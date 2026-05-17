@@ -341,10 +341,13 @@ export default function AuctionDetail() {
 
   const placeBid = trpc.auctions.placeBid.useMutation({
     onSuccess: (data) => {
-      const text = data.extended
-        ? bidSuccessExtendedMessage.replace("{minutes}", String(data.extendMinutes ?? 3))
-        : bidSuccessMessage;
-      toast.success(text, { className: "bb-toast-success", duration: 5000 });
+      const auctionTitle = (auction as { title?: string })?.title ?? '';
+      const extNote = data.extended ? ` · 已延長 ${data.extendMinutes ?? 3} 分鐘` : '';
+      toast.success(auctionTitle || '出價成功', {
+        description: `${currencySymbol}${pendingBidAmount.toLocaleString()}${extNote}`,
+        className: "bb-toast-success",
+        duration: 5000,
+      });
       setBidAmount("");
       setPriceUpdated(false);
       // 出價成功後立即刷新所有相關 query，確保自己的頁面也即時更新
@@ -1201,6 +1204,7 @@ export default function AuctionDetail() {
               <AlertCircle className="w-5 h-5 text-amber-500" />
               確認出價
             </DialogTitle>
+            <p className="text-sm font-semibold text-amber-800 pt-1 truncate">{(auction as { title?: string })?.title ?? ''}</p>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
@@ -1242,6 +1246,7 @@ export default function AuctionDetail() {
               <Bot className="w-5 h-5 text-blue-500" />
               確認代理出價
             </DialogTitle>
+            <p className="text-sm font-semibold text-blue-800 pt-1 truncate">{(auction as { title?: string })?.title ?? ''}</p>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">

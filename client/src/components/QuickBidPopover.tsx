@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Zap, X } from "lucide-react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -63,6 +63,7 @@ export function QuickBidPopover({
   const utils = trpc.useUtils();
   const [open, setOpen] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
+  const lastAmountRef = useRef(0);
 
   const symbol = getCurrencySymbol(currency ?? "HKD");
   const minBid = hasExistingBid
@@ -82,10 +83,12 @@ export function QuickBidPopover({
 
   const placeBid = trpc.auctions.placeBid.useMutation({
     onSuccess: (data) => {
-      const text = data?.extended
-        ? `出價成功！結束時間延長 ${data.extendMinutes ?? 3} 分鐘`
-        : "出價成功！";
-      toast.success(text, { className: "bb-toast-success", duration: 4000 });
+      const extNote = data?.extended ? ` · 已延長 ${data.extendMinutes ?? 3} 分鐘` : '';
+      toast.success(title, {
+        description: `${symbol}${lastAmountRef.current.toLocaleString()}${extNote}`,
+        className: "bb-toast-success",
+        duration: 4000,
+      });
       setOpen(false);
       setCustomAmount("");
       utils.auctions.list.invalidate();
@@ -141,6 +144,7 @@ export function QuickBidPopover({
       });
       return;
     }
+    lastAmountRef.current = amount;
     toast.loading("出價處理中…", { id: `qb-${auctionId}`, className: "bb-toast-success", duration: 30000 });
     placeBid.mutate(
       { auctionId, bidAmount: amount, isAnonymous: 0 },
@@ -152,7 +156,7 @@ export function QuickBidPopover({
     const n = parseFloat(customAmount);
     if (!Number.isFinite(n) || n <= 0) { submit(n); return; }
     const ok = await confirm({
-      title: "確認自訂出價",
+      title: title,
       description: `出價金額：${symbol}${n.toLocaleString()}\n\n⚠️ 嚴重警告：惡意亂出價一經商戶或系統核實，將永久停用帳號。`,
       confirmText: `確認出價 ${symbol}${n.toLocaleString()}`,
       cancelText: "取消",
