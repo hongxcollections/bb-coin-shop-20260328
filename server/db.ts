@@ -1,7 +1,7 @@
 import { eq, ne, desc, asc, and, or, gte, lte, gt, sql, inArray, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, depositTierChangeRequests, merchantProducts, MerchantProduct, featuredListings, FeaturedListing, auctionChatRooms, auctionChatMessages, AuctionChatRoom, AuctionChatMessage, auctionChatMessageReactions, AuctionChatMessageReaction } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, depositTierChangeRequests, merchantProducts, MerchantProduct, featuredListings, FeaturedListing, auctionChatRooms, auctionChatMessages, AuctionChatRoom, AuctionChatMessage, auctionChatMessageReactions, AuctionChatMessageReaction, merchantAuctionSessions } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { pingAuctionOg, pingProductOg } from './_core/facebook-og-refresh';
 
@@ -6954,6 +6954,23 @@ export async function getMessageRoomId(messageId: number): Promise<number | null
     return rows[0]?.roomId ?? null;
   } catch (e) {
     console.error('[chat] getMessageRoomId error:', e);
+    return null;
+  }
+}
+
+/** Helper: 攞專場 cover image URL（供 og-image-session proxy 用）。 */
+export async function getSessionCoverImage(sessionId: number): Promise<{ coverImage: string | null; status: string } | null> {
+  try {
+    const db = await getDb();
+    if (!db) return null;
+    const rows = await db
+      .select({ coverImage: merchantAuctionSessions.coverImage, status: merchantAuctionSessions.status })
+      .from(merchantAuctionSessions)
+      .where(eq(merchantAuctionSessions.id, sessionId))
+      .limit(1);
+    return rows[0] ?? null;
+  } catch (e) {
+    console.error('[db] getSessionCoverImage error:', e);
     return null;
   }
 }

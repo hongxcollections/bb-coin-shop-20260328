@@ -1586,11 +1586,8 @@ Output ONLY the JSON, nothing else.`;
     try {
       const sessionId = parseInt(req.params.sessionId, 10);
       if (isNaN(sessionId) || sessionId <= 0) { res.status(400).send('Invalid session ID'); return; }
-      const db = await getDb();
-      const { merchantAuctionSessions } = await import('../../drizzle/schema');
-      const { eq } = await import('drizzle-orm');
-      const [session] = await db.select({ coverImage: merchantAuctionSessions.coverImage, status: merchantAuctionSessions.status })
-        .from(merchantAuctionSessions).where(eq(merchantAuctionSessions.id, sessionId)).limit(1);
+      const { getSessionCoverImage } = await import('../db');
+      const session = await getSessionCoverImage(sessionId);
       if (!session || !session.coverImage || session.status === 'draft') {
         res.status(404).send('No image'); return;
       }
