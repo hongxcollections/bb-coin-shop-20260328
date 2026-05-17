@@ -137,6 +137,8 @@ export default function MerchantSessionPublic() {
   const endAtMs = new Date(session.endAt).getTime();
   // 時間到 或 商戶手動封盤 均視作已結束
   const isEnded = endAtMs <= now || session.status === 'ended';
+  // 專場擁有者或管理員可睇完整真實紀錄
+  const isPrivileged = user?.role === "admin" || user?.id === merchantUserId;
   const endingSoonMs = 60 * 60 * 1000; // 1h
 
   return (
@@ -437,7 +439,7 @@ export default function MerchantSessionPublic() {
                             {(() => {
                               if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
                                 return <span className="text-[9px] text-emerald-600 font-bold">{isItemEnded ? "(我得標了✓)" : "(我本人✓)"}</span>;
-                              } else if (a.highestBidderName && isItemEnded && isEnded) {
+                              } else if (a.highestBidderName && isItemEnded && isEnded && !isPrivileged) {
                                 return <span className="text-[9px] text-gray-500">(已有人得標)</span>;
                               } else if (a.highestBidderName) {
                                 return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;

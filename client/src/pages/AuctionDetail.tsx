@@ -490,6 +490,8 @@ export default function AuctionDetail() {
     return bid.username ?? `用戶 #${bid.userId}`;
   };
   const isActive = auction.status === "active" && new Date() < new Date(auction.endTime);
+  // 商戶擁有者或管理員可睇完整真實紀錄
+  const isPrivileged = user?.role === "admin" || user?.id === (auction as { createdBy?: number }).createdBy;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 via-yellow-50/40 to-white overflow-x-hidden">
@@ -1144,8 +1146,8 @@ export default function AuctionDetail() {
                     bids.length > 0 ? (
                       <div className="space-y-2 max-h-60 overflow-y-auto scrollbar-thin pr-1">
                         {bids.map((bid, i) => {
-                          // 已結束：只顯示中標者（i===0）真實名字，其他出價者隱藏
-                          const shownName = (!isActive && i > 0) ? "出價者" : displayName(bid, user?.id);
+                          // 已結束且非特權用戶：只顯示中標者（i===0）真實名字，其他出價者隱藏
+                          const shownName = (!isActive && !isPrivileged && i > 0) ? "出價者" : displayName(bid, user?.id);
                           return (
                             <div key={bid.id} className={`flex items-center justify-between py-2 px-3 rounded-lg text-sm ${i === 0 ? "bg-amber-50 border border-amber-200" : "bg-muted/30"}`}>
                               <div className="flex items-center gap-2">
@@ -1176,12 +1178,12 @@ export default function AuctionDetail() {
                               <span className="text-muted-foreground">{new Date(log.createdAt).toLocaleString("zh-HK", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
                             </div>
                             <div className="flex items-center gap-1 text-muted-foreground">
-                              <span className="font-medium text-foreground">{isActive ? log.proxyUserName : "出價者"}</span>
+                              <span className="font-medium text-foreground">{(isActive || isPrivileged) ? log.proxyUserName : "出價者"}</span>
                               <span>的代理自動出價</span>
                               <span className="font-bold text-blue-600">{currencySymbol}{log.proxyAmount.toLocaleString()}</span>
                             </div>
                             <div className="text-muted-foreground mt-0.5">
-                              觸發者：{isActive ? log.triggerUserName : "出價者"}（{currencySymbol}{log.triggerAmount.toLocaleString()}）
+                              觸發者：{(isActive || isPrivileged) ? log.triggerUserName : "出價者"}（{currencySymbol}{log.triggerAmount.toLocaleString()}）
                             </div>
                           </div>
                         ))}
