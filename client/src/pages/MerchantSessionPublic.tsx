@@ -440,7 +440,7 @@ export default function MerchantSessionPublic() {
                               if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
                                 return <span className="text-[9px] text-emerald-600 font-bold">{isItemEnded ? "(我得標了✓)" : "(我本人✓)"}</span>;
                               } else if (a.highestBidderName && isItemEnded && isEnded && !isPrivileged) {
-                                return <span className="text-[9px] text-gray-500">(已有人得標)</span>;
+                                return <span className="text-[9px] text-gray-500">(得標者 ***)</span>;
                               } else if (a.highestBidderName) {
                                 return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;
                               } else if (!a.highestBidderId) {

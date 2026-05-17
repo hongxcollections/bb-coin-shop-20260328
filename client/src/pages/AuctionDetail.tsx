@@ -713,22 +713,35 @@ export default function AuctionDetail() {
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5">
-                      {!isActive && bids.length === 0
-                        ? <span className="text-gray-400 font-medium">流拍－未有出價</span>
-                        : !isActive && bids.length > 0
-                          ? "成交價"
-                          : <>
-                              當前最高出價
-                              {bids.length === 0 && (
-                                <span className="text-[9px] text-black font-normal">(未有出價)</span>
-                              )}
-                            </>
-                      }
-                      {bids.length > 0 && bids[0].userId === user?.id && bids[0].isAnonymous !== 1 ? (
-                        <span className="text-emerald-600 font-bold" style={{ fontSize: "15px" }}>(我本人✓)</span>
-                      ) : bids.length > 0 && (
-                        <span className="text-red-500 font-semibold" style={{ fontSize: "15px" }}>({displayName(bids[0], user?.id)})</span>
+                    <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5 flex-wrap">
+                      {!isActive && bids.length === 0 ? (
+                        <span className="text-gray-400 font-medium">流拍－未有出價</span>
+                      ) : !isActive && bids.length > 0 ? (
+                        <>
+                          成交價
+                          {(() => {
+                            const isWinner = bids[0].userId === user?.id;
+                            const canSee = isPrivileged || isWinner;
+                            const name = canSee ? displayName(bids[0], user?.id) : "***";
+                            return (
+                              <span className={`font-semibold ${isWinner ? "text-emerald-600" : canSee ? "text-red-500" : "text-gray-500"}`} style={{ fontSize: "15px" }}>
+                                (得標者 {name}{isWinner ? " ✓" : ""})
+                              </span>
+                            );
+                          })()}
+                        </>
+                      ) : (
+                        <>
+                          當前最高出價
+                          {bids.length === 0 && (
+                            <span className="text-[9px] text-black font-normal">(未有出價)</span>
+                          )}
+                          {bids.length > 0 && bids[0].userId === user?.id && bids[0].isAnonymous !== 1 ? (
+                            <span className="text-emerald-600 font-bold" style={{ fontSize: "15px" }}>(我本人✓)</span>
+                          ) : bids.length > 0 && (
+                            <span className="text-red-500 font-semibold" style={{ fontSize: "15px" }}>({displayName(bids[0], user?.id)})</span>
+                          )}
+                        </>
                       )}
                     </div>
                     <div className="text-3xl font-extrabold text-amber-600 price-tag">
@@ -1153,8 +1166,15 @@ export default function AuctionDetail() {
                     bids.length > 0 ? (
                       <div className="space-y-2 max-h-60 overflow-y-auto scrollbar-thin pr-1">
                         {bids.map((bid, i) => {
-                          // 已結束且非特權用戶：只顯示中標者（i===0）真實名字，其他出價者隱藏
-                          const shownName = (!isActive && !isPrivileged && i > 0) ? "出價者" : displayName(bid, user?.id);
+                          // 已結束：得標者（i===0）只有本人/商戶/admin 見真名，其餘見「得標者 ***」；其他出價者一律「出價者」
+                          const isWinnerRow = i === 0 && !isActive;
+                          const isCurrentUserWinner = bid.userId === user?.id;
+                          const canSeeWinner = isPrivileged || isCurrentUserWinner;
+                          const shownName = !isActive && i > 0
+                            ? "出價者"
+                            : isWinnerRow && !canSeeWinner
+                              ? "得標者 ***"
+                              : displayName(bid, user?.id);
                           return (
                             <div key={bid.id} className={`flex items-center justify-between py-2 px-3 rounded-lg text-sm ${i === 0 ? "bg-amber-50 border border-amber-200" : "bg-muted/30"}`}>
                               <div className="flex items-center gap-2">
