@@ -418,6 +418,7 @@ export default function MerchantStore() {
     { enabled: userId > 0 }
   );
   const activeSessions = (merchantSessions as any[]).filter((s) => s.status === "published" && new Date(s.endAt).getTime() > Date.now());
+  const endedSessions = (merchantSessions as any[]).filter((s) => s.status === "ended" || (s.status === "published" && new Date(s.endAt).getTime() <= Date.now()));
   const merchantInfo = (allMerchants as any[]).find((m: any) => m.userId === userId);
   const merchantLayout = merchantInfo?.listingLayout as LayoutMode ?? "grid2";
   const auctionsPerPage = merchantInfo?.auctionsPerPage ?? 10;
@@ -427,6 +428,7 @@ export default function MerchantStore() {
   const [productPage, setProductPage] = useState(0);
   const [soldOpen, setSoldOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const [showEndedSessions, setShowEndedSessions] = useState(false);
 
   const activeProducts = (products as any[]).filter((p: any) => p.status === "active" && p.stock > 0);
   const soldProducts = (products as any[]).filter((p: any) => p.status === "sold");
@@ -652,6 +654,41 @@ export default function MerchantStore() {
                       </a>
                     </Link>
                   ))}
+                </div>
+              )}
+
+              {/* 往屆專場（摺疊） */}
+              {endedSessions.length > 0 && (
+                <div className="border-t border-dashed border-gray-200 pt-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowEndedSessions((v) => !v)}
+                    className="flex items-center gap-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider w-full hover:text-gray-700 transition-colors"
+                  >
+                    <Clock className="w-2.5 h-2.5" />
+                    往屆專場（{endedSessions.length}）
+                    <ChevronDown className={`w-3 h-3 ml-auto transition-transform duration-200 ${showEndedSessions ? "rotate-180" : ""}`} />
+                  </button>
+                  {showEndedSessions && (
+                    <div className="mt-1.5 space-y-1.5">
+                      {endedSessions.map((s: any) => (
+                        <Link key={s.id} href={`/s/${userId}/${s.slug}`}>
+                          <a className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1.5 transition-all group">
+                            {s.coverImage ? (
+                              <img src={s.coverImage} alt="" className="w-6 h-6 rounded object-cover border border-gray-200 shrink-0 grayscale opacity-70" />
+                            ) : (
+                              <div className="w-6 h-6 rounded bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0">
+                                <Clock className="w-3 h-3 text-gray-400" />
+                              </div>
+                            )}
+                            <span className="text-xs font-medium text-gray-500 truncate flex-1 min-w-0">{sanitizeUserText(s.title)}</span>
+                            <span className="text-[10px] text-gray-400 bg-white px-1.5 py-px rounded border border-gray-200 shrink-0">{s.itemCount ?? 0} 件</span>
+                            <ChevronLeft className="w-3 h-3 text-gray-400 shrink-0 rotate-180" />
+                          </a>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             {(() => {
