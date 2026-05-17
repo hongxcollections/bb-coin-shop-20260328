@@ -77,6 +77,80 @@ const EMPTY_FORM: ProductForm = {
 const MAX_VIDEO_SIZE = 30 * 1024 * 1024;
 const VIDEO_MIME_ALLOW = ['video/mp4', 'video/webm', 'video/quicktime'];
 
+async function generateCollage(previewUrls: string[]): Promise<Blob | null> {
+  const n = Math.min(previewUrls.length, 6);
+  if (n < 2) return null;
+  const S = 1080, GAP = 6;
+  const canvas = document.createElement('canvas');
+  canvas.width = S; canvas.height = S;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, S, S);
+
+  const loadImg = (url: string): Promise<HTMLImageElement> =>
+    new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = () => rej(new Error(`load: ${url}`));
+      img.src = url;
+    });
+
+  const cover = (img: HTMLImageElement, x: number, y: number, w: number, h: number) => {
+    const scale = Math.max(w / img.width, h / img.height);
+    const sw = w / scale, sh = h / scale;
+    const sx = (img.width - sw) / 2, sy = (img.height - sh) / 2;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+    ctx.restore();
+  };
+
+  const imgs = await Promise.all(previewUrls.slice(0, n).map(loadImg));
+
+  if (n === 2) {
+    const w = Math.floor((S - GAP) / 2);
+    cover(imgs[0], 0, 0, w, S);
+    cover(imgs[1], w + GAP, 0, S - w - GAP, S);
+  } else if (n === 3) {
+    const lw = Math.round(S * 0.55), rw = S - lw - GAP;
+    const rh = Math.floor((S - GAP) / 2);
+    cover(imgs[0], 0, 0, lw, S);
+    cover(imgs[1], lw + GAP, 0, rw, rh);
+    cover(imgs[2], lw + GAP, rh + GAP, rw, S - rh - GAP);
+  } else if (n === 4) {
+    const half = Math.floor((S - GAP) / 2);
+    cover(imgs[0], 0, 0, half, half);
+    cover(imgs[1], half + GAP, 0, S - half - GAP, half);
+    cover(imgs[2], 0, half + GAP, half, S - half - GAP);
+    cover(imgs[3], half + GAP, half + GAP, S - half - GAP, S - half - GAP);
+  } else {
+    const topH = Math.round(S * 0.5), botH = S - topH - GAP;
+    const tw = Math.floor((S - GAP) / 2);
+    cover(imgs[0], 0, 0, tw, topH);
+    cover(imgs[1], tw + GAP, 0, S - tw - GAP, topH);
+    const botN = Math.min(n - 2, 3);
+    const bw = Math.floor((S - GAP * (botN - 1)) / botN);
+    for (let i = 0; i < botN; i++) {
+      const bx = i * (bw + GAP);
+      cover(imgs[i + 2], bx, topH + GAP, i === botN - 1 ? S - bx : bw, botH);
+    }
+    if (previewUrls.length > 6) {
+      const lastX = (botN - 1) * (bw + GAP);
+      ctx.fillStyle = 'rgba(0,0,0,0.48)';
+      ctx.fillRect(lastX, topH + GAP, S - lastX, botH);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${Math.round(botH * 0.38)}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(`+${previewUrls.length - 5}`, lastX + (S - lastX) / 2, topH + GAP + botH / 2);
+    }
+  }
+
+  return new Promise<Blob>((res, rej) =>
+    canvas.toBlob(b => b ? res(b) : rej(new Error('toBlob failed')), 'image/jpeg', 0.92)
+  );
+}
+
 const CURRENCY_OPTIONS = [
   { value: "HKD", label: "🇭🇰 港幣 HKD" },
   { value: "USD", label: "🇺🇸 美元 USD" },
@@ -803,6 +877,9 @@ export default function MerchantProducts() {
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [generatingCollage, setGeneratingCollage] = useState(false);
+  const pendingCollageRef = useRef<string | null>(null);
+  const newImagePreviewUrlsRef = useRef<Map<string, string>>(new Map());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string; img?: string; price?: number; currency?: string } | null>(null);
   const [layout, setLayout] = useState<LayoutMode>(() => {
@@ -912,6 +989,8 @@ export default function MerchantProducts() {
     setShowForm(false);
     setEditingId(null);
     setForm(EMPTY_FORM);
+    pendingCollageRef.current = null;
+    newImagePreviewUrlsRef.current.clear();
   }
 
   function startEdit(p: any) {
@@ -955,6 +1034,8 @@ export default function MerchantProducts() {
         toUpload.map(async (file) => {
           // 永遠壓縮（1280px / q=0.78），減少上載 payload
           const processed = await compressImage(file);
+          // 記錄 blob URL 供 collage 生成用
+          const blobUrl = URL.createObjectURL(processed);
           // 嘗試 presigned 直傳 S3；冇水印商戶會用 direct mode 跳過 server proxy
           try {
             const signed = await signUpload.mutateAsync({
@@ -969,6 +1050,7 @@ export default function MerchantProducts() {
                 body: processed,
               });
               if (!putRes.ok) throw new Error(`S3 直傳失敗 ${putRes.status}`);
+              newImagePreviewUrlsRef.current.set(signed.finalUrl, blobUrl);
               return signed.finalUrl;
             }
           } catch (e) {
@@ -982,6 +1064,7 @@ export default function MerchantProducts() {
             reader.readAsDataURL(processed);
           });
           const { url } = await uploadImage.mutateAsync({ imageData: base64, fileName: processed.name, mimeType: processed.type || "image/jpeg" });
+          newImagePreviewUrlsRef.current.set(url, blobUrl);
           return url;
         })
       );
@@ -1030,7 +1113,7 @@ export default function MerchantProducts() {
     }
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!form.title.trim()) return toast.error("請輸入商品名稱");
     const price = parseFloat(form.price);
     if (isNaN(price) || price <= 0) return toast.error("請輸入有效售價");
@@ -1038,11 +1121,53 @@ export default function MerchantProducts() {
     if (isNaN(stock) || stock < 0) return toast.error("請輸入有效庫存量");
     if (form.images.length === 0) return toast.error("請最少上傳一幅商品圖片");
     if (form.categories.length === 0) return toast.error("請至少選擇一個商品分類");
+
+    // 自動生成商品封面 collage（設定開啟 + 有 2+ 張新上傳圖片）
+    const newPreviewUrls = form.images
+      .filter(url => newImagePreviewUrlsRef.current.has(url))
+      .map(url => newImagePreviewUrlsRef.current.get(url)!);
+    if (Number((merchantSettings as any)?.autoGenerateProductCover ?? 0) === 1 && newPreviewUrls.length >= 2) {
+      try {
+        setGeneratingCollage(true);
+        const blob = await generateCollage(newPreviewUrls);
+        if (blob) {
+          const collageFile = new File([blob], 'collage.jpg', { type: 'image/jpeg' });
+          // 嘗試 presigned 直傳，失敗 fallback base64
+          let collageUrl = '';
+          try {
+            const signed = await signUpload.mutateAsync({ kind: 'product', mimeType: 'image/jpeg', fileName: 'collage.jpg' });
+            if (signed.mode === 'direct') {
+              const putRes = await fetch(signed.uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: collageFile });
+              if (!putRes.ok) throw new Error(`S3 直傳失敗 ${putRes.status}`);
+              collageUrl = signed.finalUrl;
+            }
+          } catch {
+            const base64 = await new Promise<string>((res, rej) => {
+              const r = new FileReader();
+              r.onload = () => res((r.result as string).split(',')[1]);
+              r.onerror = rej;
+              r.readAsDataURL(collageFile);
+            });
+            const { url } = await uploadImage.mutateAsync({ imageData: base64, fileName: 'collage.jpg', mimeType: 'image/jpeg' });
+            collageUrl = url;
+          }
+          if (collageUrl) pendingCollageRef.current = collageUrl;
+        }
+      } catch (e) {
+        console.warn('[collage] generation failed, skipping', e);
+      } finally {
+        setGeneratingCollage(false);
+      }
+    }
+
     // 編輯時直接提交，新增時才顯示確認彈窗
     if (editingId) { doSubmit(); } else { setConfirmOpen(true); }
   }
 
   async function doSubmit() {
+    const collageUrl = pendingCollageRef.current;
+    pendingCollageRef.current = null;
+    const finalImages = collageUrl ? [collageUrl, ...form.images] : form.images;
     const price = parseFloat(form.price);
     const stock = parseInt(form.stock);
     const payload = {
@@ -1051,7 +1176,7 @@ export default function MerchantProducts() {
       price,
       currency: form.currency,
       category: form.categories.length > 0 ? form.categories.join("|") : undefined,
-      images: form.images.length > 0 ? JSON.stringify(form.images) : undefined,
+      images: finalImages.length > 0 ? JSON.stringify(finalImages) : undefined,
       videoUrl: form.videoUrl ? form.videoUrl : null,
       stock,
       allowOffers: form.allowOffers ? 1 : 0,
@@ -1309,8 +1434,9 @@ export default function MerchantProducts() {
 
             <div className="flex gap-2 pt-1">
               <Button variant="outline" className="flex-1" onClick={resetForm} disabled={saving || uploading}>取消</Button>
-              <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={handleSubmit} disabled={saving || uploading}>
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingId ? "儲存修改" : "確認上架")}
+              <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={handleSubmit} disabled={saving || uploading || generatingCollage}>
+                {(saving || generatingCollage) ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                {generatingCollage ? "生成封面中..." : saving ? "儲存中..." : (editingId ? "儲存修改" : "確認上架")}
               </Button>
             </div>
           </div>

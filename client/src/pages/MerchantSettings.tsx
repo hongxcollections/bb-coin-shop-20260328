@@ -1279,10 +1279,27 @@ export default function MerchantSettings() {
                   <span className="text-orange-500">🖼️</span> 自動生成拍賣封面圖
                 </h3>
                 <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                  開啟後，上載 2 張或以上圖片時，系統會自動將圖片合成一張 1200×630 封面圖，置於圖片列表首位。
+                  開啟後，上載 2 張或以上圖片時，系統會自動將圖片合成一張 1080×1080 正方形封面圖，置於圖片列表首位。
                 </p>
               </div>
               <AutoGenerateCoverToggle settings={settings} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 自動生成商品封面 collage */}
+        <Card className="rounded-2xl border-orange-100">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                  <span className="text-orange-500">🛍️</span> 自動生成商品出售封面圖
+                </h3>
+                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                  開啟後，上架商品上載 2 張或以上圖片時，系統會自動將圖片合成一張 1080×1080 正方形封面圖，置於圖片列表首位。
+                </p>
+              </div>
+              <AutoGenerateProductCoverToggle settings={settings} />
             </div>
           </CardContent>
         </Card>
@@ -1333,6 +1350,26 @@ function AutoGenerateCoverToggle({ settings }: { settings: any }) {
         type="checkbox"
         className="sr-only peer"
         checked={Number((settings as any)?.autoGenerateCover ?? 0) === 1}
+        disabled={!settings || m.isPending}
+        onChange={(e) => m.mutate({ enabled: e.target.checked })}
+      />
+      <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-orange-500 transition-colors relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:w-5 after:h-5 after:transition-transform peer-checked:after:translate-x-5"></div>
+    </label>
+  );
+}
+
+function AutoGenerateProductCoverToggle({ settings }: { settings: any }) {
+  const utils = trpc.useUtils();
+  const m = trpc.merchants.setAutoGenerateProductCover.useMutation({
+    onSuccess: () => utils.merchants.getSettings.invalidate(),
+    onError: (err) => toast.error(err.message || "更新失敗"),
+  });
+  return (
+    <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+      <input
+        type="checkbox"
+        className="sr-only peer"
+        checked={Number((settings as any)?.autoGenerateProductCover ?? 0) === 1}
         disabled={!settings || m.isPending}
         onChange={(e) => m.mutate({ enabled: e.target.checked })}
       />
