@@ -1132,8 +1132,8 @@ export default function MerchantProducts() {
         const blob = await generateCollage(newPreviewUrls);
         if (blob) {
           const collageFile = new File([blob], 'collage.jpg', { type: 'image/jpeg' });
-          // 嘗試 presigned 直傳，失敗 fallback base64
           let collageUrl = '';
+          // 先試 presigned 直傳 S3
           try {
             const signed = await signUpload.mutateAsync({ kind: 'product', mimeType: 'image/jpeg', fileName: 'collage.jpg' });
             if (signed.mode === 'direct') {
@@ -1142,6 +1142,10 @@ export default function MerchantProducts() {
               collageUrl = signed.finalUrl;
             }
           } catch {
+            // presigned 失敗，繼續用 base64 fallback
+          }
+          // 唔論 presigned mode 係咪 direct，只要 collageUrl 未設定就用 base64
+          if (!collageUrl) {
             const base64 = await new Promise<string>((res, rej) => {
               const r = new FileReader();
               r.onload = () => res((r.result as string).split(',')[1]);
