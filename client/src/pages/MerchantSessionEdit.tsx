@@ -408,10 +408,10 @@ export default function MerchantSessionEdit() {
                 {isPublished && needPublishCount > 0 && (
                   <Button size="sm" variant="outline" className="border-blue-300 text-blue-700"
                     onClick={async () => {
-                      const ok = await confirm({ title: `批量上架 ${needPublishCount} 件商品`, description: "將呢場入面所有未上架（草稿／流拍）商品變成競拍中，endTime 設為場結束時間。", confirmText: "全部上架", cancelText: "取消" });
+                      const ok = await confirm({ title: `一鍵公佈上架 ${needPublishCount} 件商品`, description: "將呢場入面所有未上架（草稿／流拍）商品變成競拍中，endTime 設為場結束時間。", confirmText: "全部公佈上架", cancelText: "取消" });
                       if (ok) bulkPublishMut.mutate({ sessionId });
                     }}>
-                    一鍵上架 {needPublishCount} 件
+                    一鍵公佈上架 {needPublishCount} 件
                   </Button>
                 )}
                 {isAdmin && (
