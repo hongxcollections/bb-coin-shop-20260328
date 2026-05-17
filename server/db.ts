@@ -3395,6 +3395,7 @@ async function ensureMerchantSettingsTable() {
       ['offersGloballyEnabled', 'TINYINT NOT NULL DEFAULT 1'],
       ['offerWindowDays', 'INT NOT NULL DEFAULT 7'],
       ['offerMaxPerWindow', 'INT NOT NULL DEFAULT 3'],
+      ['autoGenerateCover', 'TINYINT NOT NULL DEFAULT 0'],
     ] as [string, string][]) {
       const chk = await db.execute(sql`
         SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
@@ -3446,13 +3447,14 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   failureLockThreshold: 3,
   failureLockDays: 3,
   failureLockEnabled: 0,
+  autoGenerateCover: 0,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, offersGloballyEnabled, offerWindowDays, offerMaxPerWindow, failureLockThreshold, failureLockDays, failureLockEnabled FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, offersGloballyEnabled, offerWindowDays, offerMaxPerWindow, failureLockThreshold, failureLockDays, failureLockEnabled, autoGenerateCover FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -3493,6 +3495,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         failureLockThreshold: Number(row.failureLockThreshold ?? 3),
         failureLockDays: Number(row.failureLockDays ?? 3),
         failureLockEnabled: Number(row.failureLockEnabled ?? 0),
+        autoGenerateCover: Number(row.autoGenerateCover ?? 0),
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -3550,6 +3553,17 @@ export async function setMerchantListingLayout(userId: number, listingLayout: st
     INSERT INTO merchant_settings (userId, listingLayout)
     VALUES (${userId}, ${listingLayout})
     ON DUPLICATE KEY UPDATE listingLayout = ${listingLayout}, updatedAt = CURRENT_TIMESTAMP
+  `);
+}
+
+export async function setAutoGenerateCover(userId: number, enabled: number): Promise<void> {
+  await ensureMerchantSettingsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  await db.execute(sql`
+    INSERT INTO merchant_settings (userId, autoGenerateCover)
+    VALUES (${userId}, ${enabled})
+    ON DUPLICATE KEY UPDATE autoGenerateCover = ${enabled}, updatedAt = CURRENT_TIMESTAMP
   `);
 }
 

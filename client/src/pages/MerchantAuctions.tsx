@@ -84,6 +84,82 @@ const compressImage = (file: File, maxPx = 1280, quality = 0.78): Promise<File> 
     img.src = objUrl;
   });
 
+// Generate a 1200×630 collage from 2–6+ previewUrls (blob: URLs, no CORS issue)
+async function generateCollage(previewUrls: string[]): Promise<Blob | null> {
+  const n = Math.min(previewUrls.length, 6);
+  if (n < 2) return null;
+  const W = 1200, H = 630, GAP = 4;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, W, H);
+
+  const loadImg = (url: string): Promise<HTMLImageElement> =>
+    new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = () => rej(new Error(`load: ${url}`));
+      img.src = url;
+    });
+
+  const cover = (img: HTMLImageElement, x: number, y: number, w: number, h: number) => {
+    const scale = Math.max(w / img.width, h / img.height);
+    const sw = w / scale, sh = h / scale;
+    const sx = (img.width - sw) / 2, sy = (img.height - sh) / 2;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+    ctx.restore();
+  };
+
+  const imgs = await Promise.all(previewUrls.slice(0, n).map(loadImg));
+
+  if (n === 2) {
+    const w = Math.floor((W - GAP) / 2);
+    cover(imgs[0], 0, 0, w, H);
+    cover(imgs[1], w + GAP, 0, W - w - GAP, H);
+  } else if (n === 3) {
+    const lw = Math.round(W * 0.55), rw = W - lw - GAP;
+    const rh = Math.floor((H - GAP) / 2);
+    cover(imgs[0], 0, 0, lw, H);
+    cover(imgs[1], lw + GAP, 0, rw, rh);
+    cover(imgs[2], lw + GAP, rh + GAP, rw, H - rh - GAP);
+  } else if (n === 4) {
+    const cw = Math.floor((W - GAP) / 2), ch = Math.floor((H - GAP) / 2);
+    cover(imgs[0], 0, 0, cw, ch);
+    cover(imgs[1], cw + GAP, 0, W - cw - GAP, ch);
+    cover(imgs[2], 0, ch + GAP, cw, H - ch - GAP);
+    cover(imgs[3], cw + GAP, ch + GAP, W - cw - GAP, H - ch - GAP);
+  } else {
+    // 5–6+: top row 2 equal + bottom row up to 3
+    const topH = Math.round(H * 0.5), botH = H - Math.round(H * 0.5) - GAP;
+    const tw = Math.floor((W - GAP) / 2);
+    cover(imgs[0], 0, 0, tw, topH);
+    cover(imgs[1], tw + GAP, 0, W - tw - GAP, topH);
+    const botN = Math.min(n - 2, 3);
+    const bw = Math.floor((W - GAP * (botN - 1)) / botN);
+    for (let i = 0; i < botN; i++) {
+      const bx = i * (bw + GAP);
+      cover(imgs[i + 2], bx, topH + GAP, i === botN - 1 ? W - bx : bw, botH);
+    }
+    if (previewUrls.length > 6) {
+      const lastX = (botN - 1) * (bw + GAP);
+      ctx.fillStyle = 'rgba(0,0,0,0.52)';
+      ctx.fillRect(lastX, topH + GAP, W - lastX, botH);
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.round(botH * 0.38)}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(`+${previewUrls.length - 5}`, lastX + (W - lastX) / 2, topH + GAP + botH / 2);
+    }
+  }
+
+  return new Promise<Blob>((res, rej) =>
+    canvas.toBlob(b => b ? res(b) : rej(new Error('toBlob failed')), 'image/jpeg', 0.88)
+  );
+}
+
 interface UploadedImage {
   url: string;
   displayOrder: number;
@@ -421,6 +497,8 @@ export default function MerchantAuctions() {
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const isUploading = pendingImages.some(p => p.status === "compressing" || p.status === "uploading");
+  const [generatingCollage, setGeneratingCollage] = useState(false);
+  const pendingCollageRef = useRef<string | null>(null);
 
   // Single publish dialog
   const [publishOpen, setPublishOpen] = useState(false);
@@ -593,14 +671,18 @@ export default function MerchantAuctions() {
     });
 
   // Attach pre-uploaded images to an auction (images already on S3)
+  // If pendingCollageRef.current is set, it is prepended as the first image.
   const attachPreSavedImages = async (auctionId: number, baseOrder: number): Promise<number> => {
     const ready = pendingImages.filter(p => p.status === "success" && p.tempUrl);
-    if (ready.length === 0) return 0;
-    await registerImagesMutation.mutateAsync({
-      auctionId,
-      images: ready.map((p, i) => ({ url: p.tempUrl!, displayOrder: baseOrder + i })),
-    });
-    return ready.length;
+    const collageUrl = pendingCollageRef.current;
+    pendingCollageRef.current = null;
+    const images = [
+      ...(collageUrl ? [{ url: collageUrl, displayOrder: baseOrder }] : []),
+      ...ready.map((p, i) => ({ url: p.tempUrl!, displayOrder: baseOrder + (collageUrl ? 1 : 0) + i })),
+    ];
+    if (images.length === 0) return 0;
+    await registerImagesMutation.mutateAsync({ auctionId, images });
+    return images.length;
   };
 
   const createMutation = trpc.merchants.createAuction.useMutation({
@@ -872,7 +954,7 @@ export default function MerchantAuctions() {
     });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.title.trim() || !form.startingPrice) { toast.error("請填寫標題和起拍價"); return; }
     if (form.categories.length === 0) { toast.error("請至少選擇一個商品分類"); return; }
     const stillUploading = pendingImages.filter(p => p.status === "compressing" || p.status === "uploading");
@@ -883,6 +965,25 @@ export default function MerchantAuctions() {
     const antiSnipeMinutes = isNaN(form.antiSnipeMinutes) ? 0 : form.antiSnipeMinutes;
     const extendMinutes = isNaN(form.extendMinutes) || form.extendMinutes < 1 ? 1 : form.extendMinutes;
     const category = form.categories.join("|");
+
+    // Auto-generate collage cover if setting is ON and 2+ new images
+    const readyImages = pendingImages.filter(p => p.status === "success");
+    if (Number(merchantSettingsData?.autoGenerateCover ?? 0) === 1 && readyImages.length >= 2) {
+      try {
+        setGeneratingCollage(true);
+        const blob = await generateCollage(readyImages.map(p => p.previewUrl));
+        if (blob) {
+          const collageFile = new File([blob], 'collage.jpg', { type: 'image/jpeg' });
+          const { url } = await uploadPreSaveImage(collageFile);
+          pendingCollageRef.current = url;
+        }
+      } catch (e) {
+        console.warn('[collage] generation failed, skipping', e);
+      } finally {
+        setGeneratingCollage(false);
+      }
+    }
+
     if (editId) {
       updateMutation.mutate({ id: editId, title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, category, videoUrl: form.videoUrl || null });
     } else {
@@ -1035,7 +1136,7 @@ export default function MerchantAuctions() {
 
   const currentList = tab === "進行中" ? activeAuctions : tab === "草稿" ? draftAuctions : tab === "已結束" ? endedAuctions : archivedAuctions;
   const isLoading = tab === "進行中" ? loadingActive : tab === "草稿" ? loadingDrafts : tab === "已結束" ? loadingActive : loadingArchived;
-  const isMutating = createMutation.isPending || updateMutation.isPending || isUploading;
+  const isMutating = createMutation.isPending || updateMutation.isPending || isUploading || generatingCollage;
 
   const allDraftSelected = draftAuctions.length > 0 && selectedDrafts.size === draftAuctions.length;
   const someDraftSelected = selectedDrafts.size > 0;
@@ -1349,7 +1450,7 @@ export default function MerchantAuctions() {
               <Button variant="outline" onClick={closeForm}>取消</Button>
               <Button onClick={handleSubmit} disabled={isMutating} className="gold-gradient text-white border-0">
                 {isMutating ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : null}
-                {editId ? "儲存更改" : "建立草稿"}
+                {generatingCollage ? "生成封面中..." : editId ? "儲存更改" : "建立草稿"}
               </Button>
             </div>
           </div>
