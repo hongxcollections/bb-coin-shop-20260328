@@ -166,7 +166,9 @@ async function injectSessionOgMeta(html: string, reqPath: string, protocol: stri
     const endStr = `${endD.getMonth() + 1}月${endD.getDate()}日`;
     const ogDesc = `專場拍賣 | ${rawTitle} | ${session.itemCount ?? 0} 件商品 | 結束 ${endStr} | 香港錢幣拍賣`;
     const fullUrl = `${protocol}://${host}${reqPath}`;
-    const ogImageUrl = (session.coverImage || "").trim();
+    // 同 auction / product / community 一樣：用 server proxy 繞過 S3 IP 封鎖
+    // 直接用 session.coverImage（S3 URL）會令 FB 爬蟲拿到 403，無法顯示圖片
+    const ogImageUrl = session.coverImage ? `${protocol}://${host}/api/og-image-session/${session.id}` : "";
     const imgMime = "image/jpeg";
     const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 

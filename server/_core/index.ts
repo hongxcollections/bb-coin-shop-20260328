@@ -1581,6 +1581,29 @@ Output ONLY the JSON, nothing else.`;
     }
   });
 
+  // ── OG 圖片代理（商戶專場）：對應 merchantAuctionSessions.coverImage ──
+  app.get('/api/og-image-session/:sessionId', async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.sessionId, 10);
+      if (isNaN(sessionId) || sessionId <= 0) { res.status(400).send('Invalid session ID'); return; }
+      const db = await getDb();
+      const { merchantAuctionSessions } = await import('../../drizzle/schema');
+      const { eq } = await import('drizzle-orm');
+      const [session] = await db.select({ coverImage: merchantAuctionSessions.coverImage, status: merchantAuctionSessions.status })
+        .from(merchantAuctionSessions).where(eq(merchantAuctionSessions.id, sessionId)).limit(1);
+      if (!session || !session.coverImage || session.status === 'draft') {
+        res.status(404).send('No image'); return;
+      }
+      const result = await fetchAllowlistedImage(session.coverImage);
+      if (!result.ok) { res.status(result.status).send(result.reason); return; }
+      const cropped = await cropToOgSize(result.buf);
+      sendImageResponse(res, 'image/jpeg', cropped);
+    } catch (err) {
+      console.error('[OG Image Session Proxy] Error:', err);
+      res.status(500).send('Error');
+    }
+  });
+
   // ── OG 圖片代理（藏品社區）：對應 collectionPostImages ──
   app.get('/api/og-image-community/:postId', async (req, res) => {
     try {
