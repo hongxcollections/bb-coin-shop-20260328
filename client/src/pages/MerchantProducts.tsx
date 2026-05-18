@@ -23,6 +23,7 @@ import {
   Facebook, Copy, Check, CreditCard, Sparkles, Mic, Share2,
 } from "lucide-react";
 import { parseCategories } from "@/lib/categories";
+import { ProductShareMenu } from "@/components/ShareMenu";
 
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
 const STATUS_LABELS: Record<string, string> = { active: "上架中", sold: "已售出", hidden: "已下架" };
@@ -1635,10 +1636,13 @@ export default function MerchantProducts() {
                             <Sparkles className="w-3 h-3" />分享去藏品社區
                           </a>
                         )}
-                        {/* 刪除 */}
+                        {/* 刪除 + 分享 */}
                         <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors font-medium ml-auto">
                           <Trash2 className="w-3 h-3" />刪除
                         </button>
+                        <div onClick={e => e.stopPropagation()}>
+                          <ProductShareMenu productId={p.id} title={p.title} price={parseFloat(p.price ?? "0")} currency={p.currency} iconOnly />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1721,6 +1725,9 @@ export default function MerchantProducts() {
                       <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />刪除
                       </button>
+                      <div onClick={e => e.stopPropagation()}>
+                        <ProductShareMenu productId={p.id} title={p.title} price={parseFloat(p.price ?? "0")} currency={p.currency} iconOnly />
+                      </div>
                       {p.status === "active" && (
                         <a
                           href={`/collection-square/new?productId=${p.id}`}
@@ -1798,6 +1805,9 @@ export default function MerchantProducts() {
                       <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="text-[10px] px-1.5 py-1 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
                         <Trash2 className="w-3 h-3" />
                       </button>
+                      <div onClick={e => e.stopPropagation()}>
+                        <ProductShareMenu productId={p.id} title={p.title} price={parseFloat(p.price ?? "0")} currency={p.currency} iconOnly />
+                      </div>
                       {p.status === "active" && (
                         <a href={`/collection-square/new?productId=${p.id}`} title="分享去藏品社區" className="text-[10px] px-1.5 py-1 bg-sky-50 text-sky-600 rounded-lg hover:bg-sky-100 transition-colors">
                           <Sparkles className="w-3 h-3" />
