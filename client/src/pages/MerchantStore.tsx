@@ -965,8 +965,14 @@ export default function MerchantStore() {
             ) : (
               <div className="flex flex-col gap-[3px]">
                 {paginatedAuctions.map((a: any) => {
-                  const isEnded = new Date(a.endTime).getTime() <= Date.now();
+                  const nowMs = Date.now();
+                  const endMs = new Date(a.endTime).getTime();
+                  const isEnded = endMs <= nowMs;
                   const currency = a.currency ?? "HKD";
+                  const totalDuration = a.createdAt ? endMs - new Date(a.createdAt).getTime() : null;
+                  const elapsed = a.createdAt ? nowMs - new Date(a.createdAt).getTime() : null;
+                  const timeProgress = (totalDuration && elapsed && totalDuration > 0)
+                    ? Math.min(Math.max(elapsed / totalDuration, 0), 1) : null;
                   return (
                     <AuctionCard
                       key={a.id}
@@ -988,6 +994,7 @@ export default function MerchantStore() {
                       antiSnipeMinutes={(a as { antiSnipeMinutes?: number }).antiSnipeMinutes}
                       extendMinutes={(a as { extendMinutes?: number }).extendMinutes}
                       createdBy={(a as { createdBy?: number }).createdBy}
+                      timeProgress={timeProgress}
                     />
                   );
                 })}
