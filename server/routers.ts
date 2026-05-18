@@ -275,7 +275,7 @@ export const appRouter = router({
         description: z.string(),
         startingPrice: z.number().min(0),
         endTime: z.date(),
-        bidIncrement: z.number().int().min(30).max(5000).default(30),
+        bidIncrement: z.number().int().min(10).max(5000).default(30),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).default('HKD'),
         antiSnipeEnabled: z.number().int().min(0).max(1).default(1),
         antiSnipeMinutes: z.number().int().min(0).max(60).default(3),
@@ -446,7 +446,7 @@ export const appRouter = router({
         description: z.string().optional(),
         startingPrice: z.number().min(0).optional(),
         endTime: z.date().optional(),
-        bidIncrement: z.number().int().min(30).max(5000).optional(),
+        bidIncrement: z.number().int().min(10).max(5000).optional(),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).optional(),
         antiSnipeEnabled: z.number().int().min(0).max(1).optional(),
         antiSnipeMinutes: z.number().int().min(0).max(60).optional(),
@@ -631,7 +631,7 @@ export const appRouter = router({
         description: z.string().optional(),
         startingPrice: z.number().min(0).optional(),
         endTime: z.date(),
-        bidIncrement: z.number().int().min(30).max(5000).optional(),
+        bidIncrement: z.number().int().min(10).max(5000).optional(),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
@@ -2806,7 +2806,7 @@ export const appRouter = router({
         title: z.string().min(1).max(255),
         description: z.string().default(''),
         startingPrice: z.number().min(0),
-        bidIncrement: z.number().int().min(30).max(5000).default(30),
+        bidIncrement: z.number().int().min(10).max(5000).default(30),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).default('HKD'),
         antiSnipeEnabled: z.number().int().min(0).max(1).default(1),
         antiSnipeMinutes: z.number().int().min(0).max(60).default(3),
@@ -2948,7 +2948,7 @@ export const appRouter = router({
         title: z.string().min(1).max(255).optional(),
         description: z.string().optional(),
         startingPrice: z.number().min(0).optional(),
-        bidIncrement: z.number().int().min(30).max(5000).optional(),
+        bidIncrement: z.number().int().min(10).max(5000).optional(),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).optional(),
         antiSnipeEnabled: z.number().int().min(0).max(1).optional(),
         antiSnipeMinutes: z.number().int().min(0).max(60).optional(),
@@ -2992,7 +2992,7 @@ export const appRouter = router({
         category: z.string().optional(),
         videoUrl: z.string().nullable().optional(),
         startingPrice: z.number().min(0).optional(),
-        bidIncrement: z.number().int().min(30).max(5000).optional(),
+        bidIncrement: z.number().int().min(10).max(5000).optional(),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
@@ -3091,7 +3091,7 @@ export const appRouter = router({
         title: z.string().min(1).optional(),
         description: z.string().optional(),
         startingPrice: z.number().min(0).optional(),
-        bidIncrement: z.number().int().min(30).max(5000).optional(),
+        bidIncrement: z.number().int().min(10).max(5000).optional(),
         currency: z.enum(['HKD', 'USD', 'CNY', 'GBP', 'EUR', 'JPY']).optional(),
       }))
       .mutation(async ({ input, ctx }) => {

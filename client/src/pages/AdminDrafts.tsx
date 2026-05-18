@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { getCurrencySymbol } from "./AdminAuctions";
 
-const BID_INCREMENT_OPTIONS = [30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
+const BID_INCREMENT_OPTIONS = [10, 20, 30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
 const CURRENCY_OPTIONS = ["HKD", "USD", "CNY", "GBP", "EUR", "JPY"] as const;
 type Currency = typeof CURRENCY_OPTIONS[number];
 

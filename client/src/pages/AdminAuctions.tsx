@@ -19,7 +19,7 @@ const MAX_IMAGES = 10;
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 // 每口加幅預設選項（HK$）
-const BID_INCREMENT_OPTIONS = [30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
+const BID_INCREMENT_OPTIONS = [10, 20, 30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
 
 // 貨幣選項
 const CURRENCY_OPTIONS = [
@@ -496,8 +496,8 @@ export default function AdminAuctions() {
       toast.error("請填寫所有必填欄位");
       return;
     }
-    if (form.bidIncrement < 30 || form.bidIncrement > 5000) {
-      toast.error("每口加幅必須介於 HK$30 至 HK$5000 之間");
+    if (form.bidIncrement < 10 || form.bidIncrement > 5000) {
+      toast.error("每口加幅必須介於 HK$10 至 HK$5000 之間");
       return;
     }
     if (editId) {
