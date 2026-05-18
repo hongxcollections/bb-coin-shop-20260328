@@ -1706,6 +1706,7 @@ export default function Home() {
                               latestBid={Number(auction.currentPrice)}
                               currency={(auction as { currency?: string }).currency}
                               endTime={auction.endTime}
+                              iconOnly
                             />
                           </div>
                           <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>

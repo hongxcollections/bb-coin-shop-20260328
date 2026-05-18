@@ -1018,6 +1018,7 @@ export default function MerchantStore() {
                                   currency={currency}
                                   endTime={a.endTime}
                                   shareTemplate={null}
+                                  iconOnly
                                 />
                               </div>
                               <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>

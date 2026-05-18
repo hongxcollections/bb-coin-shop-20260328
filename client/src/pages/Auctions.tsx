@@ -556,6 +556,7 @@ export default function Auctions() {
                               currency={a.currency}
                               endTime={auction.endTime}
                               shareTemplate={a.fbShareTemplate}
+                              iconOnly
                             />
                           </div>
                           <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>

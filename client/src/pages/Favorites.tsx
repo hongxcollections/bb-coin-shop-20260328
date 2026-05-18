@@ -129,6 +129,7 @@ export default function Favorites() {
                           latestBid={Number(item.currentPrice)}
                           currency={item.currency}
                           endTime={item.endTime}
+                          iconOnly
                         />
                         <Link href={`/auctions/${item.id}`}>
                           <Button size="sm" variant="outline" className="border-amber-200 text-amber-700 hover:bg-amber-50 gap-1">

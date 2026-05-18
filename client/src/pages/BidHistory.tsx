@@ -737,6 +737,7 @@ export default function BidHistory() {
                                 latestBid={group.latestBid}
                                 currency={group.auctionCurrency}
                                 endTime={group.auctionEndTime}
+                                iconOnly
                               />
                               <button
                                 type="button"
