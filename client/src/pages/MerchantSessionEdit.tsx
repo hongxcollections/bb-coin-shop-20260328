@@ -143,6 +143,7 @@ export default function MerchantSessionEdit() {
   });
   const [showPicker, setShowPicker] = useState(false);
   const [pickedIds, setPickedIds] = useState<Set<number>>(new Set());
+  const [pickerTab, setPickerTab] = useState<"draft" | "flop">("draft");
   // 批量分享 state
   const [shareOpen, setShareOpen] = useState(false);
   const [shareSelectedIds, setShareSelectedIds] = useState<Set<number>>(new Set());
@@ -729,7 +730,7 @@ export default function MerchantSessionEdit() {
               return past ? (
                 <span className="text-xs text-rose-600">已過加品截止（結束前 {cutoffMin} 分鐘）</span>
               ) : (
-                <Button size="sm" onClick={() => setShowPicker(true)} className="bg-amber-600 hover:bg-amber-700">
+                <Button size="sm" onClick={() => { setPickerTab("draft"); setPickedIds(new Set()); setShowPicker(true); }} className="bg-amber-600 hover:bg-amber-700">
                   <Plus className="w-3.5 h-3.5 mr-1" /> 加入拍賣品
                 </Button>
               );
@@ -828,12 +829,34 @@ export default function MerchantSessionEdit() {
       <Dialog open={showPicker} onOpenChange={setShowPicker}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>揀拍賣品加入專場</DialogTitle></DialogHeader>
-          <div className="text-xs text-gray-500 mb-2">只顯示你嘅<b>草稿（未發佈）</b>同<b>流拍（已結束無人贏）</b>auction。已結標／競拍中嘅唔可以加入。</div>
-          {allEligible.length === 0 ? (
-            <div className="text-center text-gray-500 py-8 text-sm">冇可加入嘅 auction。請先去「拍賣管理」建立草稿。</div>
-          ) : (
-            <div className="max-h-96 overflow-y-auto space-y-1">
-              {allEligible.map((a: any) => {
+          {/* Tabs */}
+          <div className="flex gap-1 border-b border-gray-200 -mt-1 mb-2">
+            {(["draft", "flop"] as const).map((tab) => {
+              const count = allEligible.filter((a: any) =>
+                tab === "draft" ? a.status === "draft" : (a.status === "ended" || a.status === "archived") && !a.highestBidderId
+              ).length;
+              return (
+                <button key={tab} type="button"
+                  onClick={() => setPickerTab(tab)}
+                  className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${pickerTab === tab ? "border-amber-500 text-amber-700" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
+                  {tab === "draft" ? "草稿" : "流拍"}
+                  <span className={`ml-1.5 text-[11px] px-1.5 py-0.5 rounded-full ${pickerTab === tab ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+          {(() => {
+            const filtered = allEligible.filter((a: any) =>
+              pickerTab === "draft" ? a.status === "draft" : (a.status === "ended" || a.status === "archived") && !a.highestBidderId
+            );
+            if (filtered.length === 0) return (
+              <div className="text-center text-gray-500 py-8 text-sm">
+                {pickerTab === "draft" ? "冇草稿可加入。請先去「拍賣管理」建立草稿。" : "冇流拍商品可加入。"}
+              </div>
+            );
+            return (
+              <div className="max-h-96 overflow-y-auto space-y-1">
+                {filtered.map((a: any) => {
                 const checked = pickedIds.has(a.id);
                 const firstImg = (a.images && a.images.length > 0) ? a.images[0].imageUrl : null;
                 const sl = statusLabel(a.status, !!a.highestBidderId);
@@ -860,9 +883,10 @@ export default function MerchantSessionEdit() {
                     </div>
                   </label>
                 );
-              })}
-            </div>
-          )}
+                })}
+              </div>
+            );
+          })()}
           <DialogFooter>
             <span className="text-xs text-gray-500 mr-auto self-center">已揀 {pickedIds.size} 件</span>
             <Button variant="outline" onClick={() => { setShowPicker(false); setPickedIds(new Set()); }}><X className="w-3.5 h-3.5 mr-1" /> 取消</Button>
