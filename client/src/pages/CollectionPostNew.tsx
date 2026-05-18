@@ -35,6 +35,23 @@ export default function CollectionPostNew() {
   const [submitting, setSubmitting] = useState(false);
   const [merchantProductId, setMerchantProductId] = useState<number | null>(productIdFromQuery);
 
+  // AI 鑑定分享 prefill（從 sessionStorage 讀取）
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("fromAiAnalysis") !== "1") return;
+    try {
+      const raw = sessionStorage.getItem("aiAnalysisPrefill");
+      if (!raw) return;
+      sessionStorage.removeItem("aiAnalysisPrefill");
+      const prefill = JSON.parse(raw) as { title?: string; body?: string; imageUrls?: string[]; tags?: string[] };
+      if (prefill.title) setTitle(prefill.title);
+      if (prefill.body) setBody(prefill.body);
+      if (Array.isArray(prefill.imageUrls) && prefill.imageUrls.length > 0) setImageUrls(prefill.imageUrls.slice(0, 9));
+      if (Array.isArray(prefill.tags) && prefill.tags.length > 0) setSelectedTags(prefill.tags.slice(0, 5));
+    } catch {}
+  }, []);
+
   const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60_000 });
   const allCategories = parseCategories(siteSettings as Record<string, string> | undefined);
 

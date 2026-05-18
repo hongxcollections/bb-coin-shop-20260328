@@ -6098,19 +6098,22 @@ async function ensureCoinAnalysisHistoryTable(): Promise<void> {
       )
     `);
   } catch { /* already exists */ }
+  try {
+    await db.execute(sql`ALTER TABLE coinAnalysisHistory ADD COLUMN imageUrl VARCHAR(1024) NULL`);
+  } catch { /* column already exists */ }
 }
 
 export async function saveCoinAnalysisHistory(
   userId: number,
-  data: { coinName?: string; coinType?: string; coinCountry?: string; analysisData: string }
+  data: { coinName?: string; coinType?: string; coinCountry?: string; analysisData: string; imageUrl?: string }
 ): Promise<number | null> {
   await ensureCoinAnalysisHistoryTable();
   const db = await getDb();
   if (!db) return null;
   try {
     const result = await db.execute(sql`
-      INSERT INTO coinAnalysisHistory (userId, coinName, coinType, coinCountry, analysisData)
-      VALUES (${userId}, ${data.coinName ?? null}, ${data.coinType ?? null}, ${data.coinCountry ?? null}, ${data.analysisData})
+      INSERT INTO coinAnalysisHistory (userId, coinName, coinType, coinCountry, analysisData, imageUrl)
+      VALUES (${userId}, ${data.coinName ?? null}, ${data.coinType ?? null}, ${data.coinCountry ?? null}, ${data.analysisData}, ${data.imageUrl ?? null})
     `);
     return (result[0] as any).insertId ?? null;
   } catch (e) {
@@ -6119,13 +6122,22 @@ export async function saveCoinAnalysisHistory(
   }
 }
 
+export async function updateCoinAnalysisHistoryImage(id: number, userId: number, imageUrl: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  try {
+    await db.execute(sql`UPDATE coinAnalysisHistory SET imageUrl = ${imageUrl} WHERE id = ${id} AND userId = ${userId}`);
+    return true;
+  } catch { return false; }
+}
+
 export async function getUserCoinAnalysisHistory(userId: number, limit = 20): Promise<any[]> {
   await ensureCoinAnalysisHistoryTable();
   const db = await getDb();
   if (!db) return [];
   try {
     const rows = await db.execute(sql`
-      SELECT id, userId, coinName, coinType, coinCountry, analysisData, createdAt
+      SELECT id, userId, coinName, coinType, coinCountry, analysisData, imageUrl, createdAt
       FROM coinAnalysisHistory
       WHERE userId = ${userId}
       ORDER BY createdAt DESC
@@ -6137,6 +6149,7 @@ export async function getUserCoinAnalysisHistory(userId: number, limit = 20): Pr
       coinType: r.coinType,
       coinCountry: r.coinCountry,
       analysisData: r.analysisData,
+      imageUrl: r.imageUrl ?? null,
       createdAt: r.createdAt,
     }));
   } catch { return []; }

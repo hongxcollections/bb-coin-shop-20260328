@@ -4,7 +4,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure, adminProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner, saveCoinAnalysisHistory, getUserCoinAnalysisHistory, deleteCoinAnalysisHistory, searchRelatedAuctions, setMerchantPageSizes } from "./db";
+import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner, saveCoinAnalysisHistory, getUserCoinAnalysisHistory, deleteCoinAnalysisHistory, updateCoinAnalysisHistoryImage, searchRelatedAuctions, setMerchantPageSizes } from "./db";
 import type { AdTargetType } from "./db";
 import type { Auction } from "../drizzle/schema";
 import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids, merchantAuctionSessions, merchantAuctionSessionItems, communitySeederDrafts } from "../drizzle/schema";
@@ -6865,16 +6865,17 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
               : "AI 未能分析此圖片，請嘗試更清晰的圖片",
           });
         }
-        // 自動儲存鑑定歷史（不阻塞）
+        // 自動儲存鑑定歷史（await 以取得 historyId）
+        let historyId: number | null = null;
         if (ctx.user?.id) {
-          saveCoinAnalysisHistory(ctx.user.id, {
+          historyId = await saveCoinAnalysisHistory(ctx.user.id, {
             coinName: data.name ?? data.Name,
             coinType: data.type ?? data.Type,
             coinCountry: data.country ?? data.Country,
             analysisData: JSON.stringify(data),
-          }).catch(() => {});
+          }).catch(() => null);
         }
-        return { success: true, data, modelUsed };
+        return { success: true, data, modelUsed, historyId };
       }),
 
     // 生成藝術插畫
@@ -6899,6 +6900,20 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         return { success: true, imageUrl: result.url };
       }),
 
+    // 上載鑑定圖片到 S3
+    uploadImage: protectedProcedure
+      .input(z.object({
+        imageBase64: z.string(),
+        mimeType: z.string().default("image/jpeg"),
+      }))
+      .mutation(async ({ input }) => {
+        const buf = Buffer.from(input.imageBase64, "base64");
+        const ext = input.mimeType.includes("png") ? "png" : "jpg";
+        const key = `coin-analysis/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const result = await storagePut(key, buf, input.mimeType);
+        return { url: result.url };
+      }),
+
     // 搜尋相關拍賣
     searchRelated: publicProcedure
       .input(z.object({
@@ -6918,6 +6933,7 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
           return rows.map(r => ({
             ...r,
             analysisData: (() => { try { return JSON.parse(r.analysisData); } catch { return {}; } })(),
+            imageUrl: r.imageUrl ?? null,
           }));
         }),
 
@@ -6925,6 +6941,13 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         .input(z.object({ id: z.number() }))
         .mutation(async ({ input, ctx }) => {
           const ok = await deleteCoinAnalysisHistory(input.id, ctx.user.id);
+          return { success: ok };
+        }),
+
+      updateImage: protectedProcedure
+        .input(z.object({ id: z.number(), imageUrl: z.string().url() }))
+        .mutation(async ({ input, ctx }) => {
+          const ok = await updateCoinAnalysisHistoryImage(input.id, ctx.user.id, input.imageUrl);
           return { success: ok };
         }),
     }),

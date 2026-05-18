@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
   Upload, Sparkles, Loader2, ImageIcon, ChevronRight,
   Info, X, ZoomIn, Share2, History, FlaskConical,
-  Trash2, Clock,
+  Trash2, Clock, BookmarkPlus, CheckCircle2, Users, Eraser,
 } from "lucide-react";
 import ImageLightbox from "@/components/ImageLightbox";
 import {
@@ -56,6 +56,7 @@ type HistoryItem = {
   coinType: string | null;
   coinCountry: string | null;
   analysisData: AnalysisData;
+  imageUrl: string | null;
   createdAt: string;
 };
 
@@ -373,8 +374,11 @@ function HistoryCard({ item, onDelete, onExpand, t }: {
     <>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="flex items-center gap-3 px-3 py-2.5">
-          <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-            <Sparkles className="w-4 h-4 text-amber-500" />
+          <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0 overflow-hidden">
+            {item.imageUrl
+              ? <img src={item.imageUrl} alt={name} className="w-full h-full object-cover" />
+              : <Sparkles className="w-4 h-4 text-amber-500" />
+            }
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-800 truncate">{name}</p>
@@ -547,7 +551,15 @@ export default function CoinAnalysis() {
   const [loadingRelated, setLoadingRelated] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [historyId, setHistoryId] = useState<number | null>(null);
+  const [savedImageUrl, setSavedImageUrl] = useState<string | null>(null);
+  const [isSavingImage, setIsSavingImage] = useState(false);
+  const [imageSaved, setImageSaved] = useState(false);
+  const [isSharingCommunity, setIsSharingCommunity] = useState(false);
+
   const analyzeMutation = trpc.coinAnalysis.analyze.useMutation();
+  const uploadImageMutation = trpc.coinAnalysis.uploadImage.useMutation();
+  const updateImageMutation = trpc.coinAnalysis.history.updateImage.useMutation();
 
   const historyQuery = trpc.coinAnalysis.history.list.useQuery(
     { limit: 30 },
@@ -599,6 +611,9 @@ export default function CoinAnalysis() {
     setAnalysisData(null);
     setModelUsed("");
     setRelatedAuctions([]);
+    setHistoryId(null);
+    setSavedImageUrl(null);
+    setImageSaved(false);
     try {
       // 60 秒客戶端硬超時，避免無限 hage
       const timeoutPromise = new Promise<never>((_, reject) =>
@@ -612,6 +627,7 @@ export default function CoinAnalysis() {
         const data = res.data as AnalysisData;
         setAnalysisData(data);
         setModelUsed(res.modelUsed ?? "");
+        setHistoryId(res.historyId ?? null);
         // 搜尋相關拍賣
         const keywords = [
           getField(data, "name", "Name"),
@@ -654,6 +670,9 @@ export default function CoinAnalysis() {
     setAnalysisData(data);
     setImagePreview(null);
     setRelatedAuctions([]);
+    setHistoryId(null);
+    setSavedImageUrl(null);
+    setImageSaved(false);
     setLoadingRelated(true);
     const keywords = [
       getField(data, "name", "Name"),
@@ -664,6 +683,77 @@ export default function CoinAnalysis() {
     setTab("analyze");
   };
 
+  const handleClear = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setImageBase64("");
+    setAnalysisData(null);
+    setRelatedAuctions([]);
+    setModelUsed("");
+    setHistoryId(null);
+    setSavedImageUrl(null);
+    setImageSaved(false);
+  };
+
+  const handleSave = async () => {
+    if (!user) { toast.error("請先登入才可儲存"); return; }
+    if (!imageBase64 || !historyId) { toast.error("請先完成鑑定再儲存"); return; }
+    if (imageSaved && savedImageUrl) { toast.info("已儲存過圖片"); return; }
+    setIsSavingImage(true);
+    try {
+      const { url } = await uploadImageMutation.mutateAsync({ imageBase64, mimeType });
+      await updateImageMutation.mutateAsync({ id: historyId, imageUrl: url });
+      setSavedImageUrl(url);
+      setImageSaved(true);
+      historyQuery.refetch();
+      toast.success("已儲存到歷史記錄（連圖片）");
+    } catch {
+      toast.error("儲存失敗，請重試");
+    } finally {
+      setIsSavingImage(false);
+    }
+  };
+
+  const handleShareCommunity = async () => {
+    if (!analysisData) return;
+    setIsSharingCommunity(true);
+    try {
+      let imageUrl = savedImageUrl;
+      if (!imageUrl && imageBase64) {
+        const res = await uploadImageMutation.mutateAsync({ imageBase64, mimeType });
+        imageUrl = res.url;
+        setSavedImageUrl(imageUrl);
+        if (historyId) {
+          updateImageMutation.mutateAsync({ id: historyId, imageUrl }).catch(() => {});
+          setImageSaved(true);
+          historyQuery.refetch();
+        }
+      }
+      const coinName = getField(analysisData, "name", "Name") || "AI 鑑定藏品";
+      const coinType = getField(analysisData, "type", "Type");
+      const country = getField(analysisData, "country", "Country");
+      const year = getField(analysisData, "year", "Year");
+      const condition = getField(analysisData, "condition", "Condition");
+      const rarity = getField(analysisData, "rarity", "Rarity");
+      const value = getField(analysisData, "estimatedValue", "Estimated Market Value");
+      const hist = getField(analysisData, "historicalBackground", "Historical Background");
+      const title = coinName.length > 50 ? coinName.slice(0, 48) + "…" : coinName;
+      const bodyParts: string[] = [];
+      if (country || year) bodyParts.push(`發行地區：${[country, year].filter(Boolean).join("　年份：")}`);
+      if (condition) bodyParts.push(`品相：${condition}`);
+      if (rarity) bodyParts.push(`稀有程度：${rarity}`);
+      if (value) bodyParts.push(`估計市值：${value}`);
+      if (hist) bodyParts.push(`\n${hist}`);
+      const body = bodyParts.join("\n");
+      const tags = [coinType, country].filter(Boolean).slice(0, 3) as string[];
+      const prefill = { title, body, imageUrls: imageUrl ? [imageUrl] : [], tags };
+      sessionStorage.setItem("aiAnalysisPrefill", JSON.stringify(prefill));
+      window.location.href = "/collection-square/new?fromAiAnalysis=1";
+    } catch {
+      toast.error("分享失敗，請重試");
+      setIsSharingCommunity(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -758,16 +848,62 @@ export default function CoinAnalysis() {
 
             {/* 分析按鈕 */}
             {imageBase64 && (
-              <button
-                onClick={handleAnalyze}
-                disabled={analyzeMutation.isPending}
-                className="w-full py-3 rounded-xl font-bold text-white transition-colors flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60"
-              >
-                {analyzeMutation.isPending
-                  ? <><Loader2 className="w-4 h-4 animate-spin" />{t.analyzing}</>
-                  : <><Info className="w-4 h-4" />{analysisData ? t.reanalyze : t.analyze}</>
-                }
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAnalyze}
+                  disabled={analyzeMutation.isPending}
+                  className="flex-1 py-3 rounded-xl font-bold text-white transition-colors flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60"
+                >
+                  {analyzeMutation.isPending
+                    ? <><Loader2 className="w-4 h-4 animate-spin" />{t.analyzing}</>
+                    : <><Info className="w-4 h-4" />{analysisData ? t.reanalyze : t.analyze}</>
+                  }
+                </button>
+                {analysisData && (
+                  <button
+                    onClick={handleClear}
+                    title="拆除（清除所有結果）"
+                    className="px-3 py-3 rounded-xl font-semibold text-gray-500 border border-gray-200 bg-white hover:bg-gray-50 hover:text-gray-700 transition-colors flex items-center gap-1.5"
+                  >
+                    <Eraser className="w-4 h-4" />
+                    <span className="text-xs">拆除</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* 儲存 + 分享去藏品社區 */}
+            {analysisData && (
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSave}
+                  disabled={isSavingImage || !imageBase64}
+                  title={imageSaved ? "圖片已儲存到歷史記錄" : "將鑑定結果（連圖片）儲存到歷史記錄"}
+                  className={`flex-1 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors border ${
+                    imageSaved
+                      ? "bg-green-50 border-green-200 text-green-700"
+                      : "bg-white border-amber-200 text-amber-700 hover:bg-amber-50"
+                  } disabled:opacity-50`}
+                >
+                  {isSavingImage
+                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />儲存中…</>
+                    : imageSaved
+                      ? <><CheckCircle2 className="w-3.5 h-3.5" />已儲存</>
+                      : <><BookmarkPlus className="w-3.5 h-3.5" />儲存</>
+                  }
+                </button>
+                <button
+                  onClick={handleShareCommunity}
+                  disabled={isSharingCommunity}
+                  title="分享去藏品社區"
+                  className="flex-1 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-sky-50 border border-sky-200 text-sky-700 hover:bg-sky-100 transition-colors disabled:opacity-50"
+                >
+                  {isSharingCommunity
+                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />準備中…</>
+                    : <><Users className="w-3.5 h-3.5" />分享去藏品社區</>
+                  }
+                </button>
+              </div>
             )}
 
             {/* 結果 + 相關拍賣 */}
