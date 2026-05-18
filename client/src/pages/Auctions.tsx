@@ -497,95 +497,87 @@ export default function Auctions() {
                     </div>
 
                     {/* Right: Content */}
-                    <div className="flex-1 flex flex-col justify-between min-w-0">
-                      {/* Title & Badges */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-sm line-clamp-1 text-amber-900">{auction.title}</h3>
-                          {/* 商戶名標籤 */}
-                          {a.sellerName && (
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <Store className="w-2.5 h-2.5 text-amber-400 shrink-0" />
-                              <span className="text-[10px] text-amber-600 truncate">{a.sellerName}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          {isEndingSoon && (
-                            <Badge className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 animate-pulse">
-                              {endingSoonText}
-                            </Badge>
-                          )}
-                          <Badge className={`text-[9px] px-1.5 py-0.5 ${!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
-                            {!isEnded ? "競拍中" : "已結束"}
+                    <div className="flex-1 flex flex-col gap-1 min-w-0">
+                      {/* Row 1: 商品名稱 + 狀態 badge 同一行 */}
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <h3 className="font-semibold text-[15px] line-clamp-1 text-amber-900 flex-1 min-w-0">{auction.title}</h3>
+                        {isEndingSoon && (
+                          <Badge className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 animate-pulse shrink-0">
+                            {endingSoonText}
                           </Badge>
-                        </div>
+                        )}
+                        <Badge className={`text-[9px] px-1.5 py-0.5 shrink-0 ${!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
+                          {!isEnded ? "競拍中" : "已結束"}
+                        </Badge>
                       </div>
 
-                      {/* Price row */}
-                      <div className="mt-1 flex items-end justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] text-muted-foreground">目前出價</span>
-                            {(() => {
-                              if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
-                                return <span className="text-[9px] text-emerald-600 font-bold">(我本人✓)</span>;
-                              } else if (a.highestBidderName) {
-                                return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;
-                              } else if (!a.highestBidderId) {
-                                return <span className="text-[9px] text-gray-400">(未有出價)</span>;
-                              }
-                              return null;
-                            })()}
-                          </div>
-                          <div className="flex items-baseline gap-1.5">
-                            <span className="text-sm font-bold text-amber-600">{curr}{curPrice.toLocaleString()}</span>
-                          </div>
+                      {/* 商戶名 */}
+                      {a.sellerName && (
+                        <div className="flex items-center gap-1">
+                          <Store className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                          <span className="text-[10px] text-amber-600 truncate">{a.sellerName}</span>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {/* 出價人數 */}
-                          {(() => {
-                            const bc = Number(a.bidCount ?? 0);
-                            return bc > 0 ? (
-                              <div className="flex items-center gap-0.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
-                                <Users className="w-2.5 h-2.5" />
-                                <span className="font-semibold">{bc}</span>
-                              </div>
-                            ) : null;
-                          })()}
-                          <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                            <ShareMenu
-                              auctionId={auction.id}
-                              title={auction.title}
-                              latestBid={curPrice}
-                              currency={a.currency}
-                              endTime={auction.endTime}
-                              shareTemplate={a.fbShareTemplate}
-                            />
-                          </div>
-                          <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                            <QuickBidPopover
-                              auctionId={auction.id}
-                              title={auction.title}
-                              currentPrice={curPrice}
-                              startingPrice={Number(auction.startingPrice ?? 0)}
-                              bidIncrement={Number(auction.bidIncrement ?? 30)}
-                              currency={a.currency}
-                              hasExistingBid={!!(auction as { highestBidderId?: number | null }).highestBidderId}
-                              isEnded={isEnded}
-                              createdBy={(auction as { createdBy?: number }).createdBy}
-                              endTime={auction.endTime}
-                              antiSnipeEnabled={(auction as { antiSnipeEnabled?: number }).antiSnipeEnabled}
-                              antiSnipeMinutes={(auction as { antiSnipeMinutes?: number }).antiSnipeMinutes}
-                              extendMinutes={(auction as { extendMinutes?: number }).extendMinutes}
-                            />
-                          </div>
+                      )}
+
+                      {/* Row 2: 目前出價 + 出價者 + 出價紀錄數目 獨立一行 */}
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-muted-foreground">目前出價</span>
+                        {(() => {
+                          if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
+                            return <span className="text-[9px] text-emerald-600 font-bold">(我本人✓)</span>;
+                          } else if (a.highestBidderName) {
+                            return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;
+                          } else if (!a.highestBidderId) {
+                            return <span className="text-[9px] text-gray-400">(未有出價)</span>;
+                          }
+                          return null;
+                        })()}
+                        {(() => {
+                          const bc = Number(a.bidCount ?? 0);
+                          return bc > 0 ? (
+                            <div className="flex items-center gap-0.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
+                              <Users className="w-2.5 h-2.5" />
+                              <span className="font-semibold">{bc}</span>
+                            </div>
+                          ) : null;
+                        })()}
+                      </div>
+
+                      {/* Row 3: 價錢 + 分享 + 閃出價 同一行 */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-base font-bold text-amber-600 flex-1">{curr}{curPrice.toLocaleString()}</span>
+                        <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                          <ShareMenu
+                            auctionId={auction.id}
+                            title={auction.title}
+                            latestBid={curPrice}
+                            currency={a.currency}
+                            endTime={auction.endTime}
+                            shareTemplate={a.fbShareTemplate}
+                          />
+                        </div>
+                        <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                          <QuickBidPopover
+                            auctionId={auction.id}
+                            title={auction.title}
+                            currentPrice={curPrice}
+                            startingPrice={Number(auction.startingPrice ?? 0)}
+                            bidIncrement={Number(auction.bidIncrement ?? 30)}
+                            currency={a.currency}
+                            hasExistingBid={!!(auction as { highestBidderId?: number | null }).highestBidderId}
+                            isEnded={isEnded}
+                            createdBy={(auction as { createdBy?: number }).createdBy}
+                            endTime={auction.endTime}
+                            antiSnipeEnabled={(auction as { antiSnipeEnabled?: number }).antiSnipeEnabled}
+                            antiSnipeMinutes={(auction as { antiSnipeMinutes?: number }).antiSnipeMinutes}
+                            extendMinutes={(auction as { extendMinutes?: number }).extendMinutes}
+                          />
                         </div>
                       </div>
 
                       {/* 倒計時進度條 */}
                       {timeProgress !== null && !isEnded && (
-                        <div className="mt-1.5">
+                        <div className="mt-0.5">
                           <div className="h-1 rounded-full bg-amber-100 overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all ${timeProgress > 0.8 ? "bg-red-400" : timeProgress > 0.5 ? "bg-orange-400" : "bg-amber-400"}`}
