@@ -968,37 +968,33 @@ export default function MerchantStore() {
                   const currency = a.currency ?? "HKD";
                   return (
                     <Link key={a.id} href={`/auctions/${a.id}`}>
-                      <div className="auction-list-item flex gap-3 p-3 bg-white border border-amber-100 rounded-xl hover:border-amber-300 hover:shadow-sm hover:bg-amber-50/30 cursor-pointer transition-all">
-                        {/* 左：封面圖 */}
-                        <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
-                          {a.coverImage ? (
-                            <img src={a.coverImage} alt={a.title} className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-3xl">🪙</span>
-                          )}
-                          {!isEnded && <AuctionImageOverlay endTime={a.endTime} />}
+                      <div className="auction-list-item flex flex-col gap-2 p-3 bg-white border border-amber-100 rounded-xl hover:border-amber-300 hover:shadow-sm hover:bg-amber-50/30 cursor-pointer transition-all">
+                        {/* Row 1: 商品名稱 + 狀態 badge 全寬 */}
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <h3 className="font-semibold text-[15px] line-clamp-1 text-amber-900 flex-1 min-w-0">{a.title}</h3>
+                          <Badge className={`text-[9px] px-1.5 py-0.5 shrink-0 ${!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
+                            {!isEnded ? "競拍中" : "已結束"}
+                          </Badge>
                         </div>
-                        {/* 右：內容 */}
-                        <div className="flex-1 flex flex-col justify-between min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-sm line-clamp-1 text-amber-900">{a.title}</h3>
-                              {merchant?.merchantName && (
-                                <div className="flex items-center gap-0.5 mt-0.5">
-                                  <Store className="w-2.5 h-2.5 text-amber-400 shrink-0" />
-                                  <span className="text-[10px] text-amber-600 truncate">{sanitizeUserText(merchant.merchantName)}</span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex flex-col items-end gap-1 shrink-0">
-                              <Badge className={`text-[9px] px-1.5 py-0.5 ${!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
-                                {!isEnded ? "競拍中" : "已結束"}
-                              </Badge>
-                            </div>
+                        {/* Row 2: 圖片 + 資料 */}
+                        <div className="flex gap-3">
+                          <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
+                            {a.coverImage ? (
+                              <img src={a.coverImage} alt={a.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-3xl">🪙</span>
+                            )}
+                            {!isEnded && <AuctionImageOverlay endTime={a.endTime} />}
                           </div>
-                          <div className="mt-1">
-                            <div className="text-xs text-muted-foreground flex items-center gap-1">
-                              目前出價
+                          <div className="flex-1 flex flex-col justify-between gap-1 min-w-0">
+                            {merchant?.merchantName && (
+                              <div className="flex items-center gap-0.5">
+                                <Store className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                                <span className="text-[10px] text-amber-600 truncate">{sanitizeUserText(merchant.merchantName)}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-muted-foreground">目前出價</span>
                               {(() => {
                                 if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
                                   return <span className="text-[9px] text-emerald-600 font-bold">(我本人✓)</span>;
@@ -1010,10 +1006,10 @@ export default function MerchantStore() {
                                 return null;
                               })()}
                             </div>
-                            <div className="text-sm font-bold text-amber-600">
-                              {getCurrencySymbol(currency)}{Number(a.currentPrice ?? a.startingPrice ?? 0).toLocaleString()}
-                            </div>
-                            <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl font-bold text-amber-600 flex-1">
+                                {getCurrencySymbol(currency)}{Number(a.currentPrice ?? a.startingPrice ?? 0).toLocaleString()}
+                              </span>
                               <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                                 <ShareMenu
                                   auctionId={a.id}

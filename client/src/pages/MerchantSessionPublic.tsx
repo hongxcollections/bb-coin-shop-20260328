@@ -395,68 +395,55 @@ export default function MerchantSessionPublic() {
                     } catch {}
                   }}
                 >
-                  <div className={`auction-list-item flex gap-3 p-3 rounded-xl cursor-pointer transition-all border bg-white ${isEndingSoon ? "border-orange-200 bg-orange-50/40 hover:border-orange-300" : "border-amber-100 hover:border-amber-300 hover:bg-amber-50/50"}`}>
-                    <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
-                      {auction.images && (auction.images as Array<{ imageUrl: string }>).length > 0 ? (
-                        <img
-                          src={(auction.images as Array<{ imageUrl: string }>)[0].imageUrl}
-                          alt={auction.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-3xl">🪙</span>
+                  <div className={`auction-list-item flex flex-col gap-2 p-3 rounded-xl cursor-pointer transition-all border bg-white ${isEndingSoon ? "border-orange-200 bg-orange-50/40 hover:border-orange-300" : "border-amber-100 hover:border-amber-300 hover:bg-amber-50/50"}`}>
+                    {/* Row 1: 商品名稱 + badges 全寬 */}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <h3 className="font-semibold text-[15px] line-clamp-1 text-amber-900 flex-1 min-w-0">{auction.title}</h3>
+                      {isEndingSoon && (
+                        <Badge className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 animate-pulse shrink-0">
+                          即將結束
+                        </Badge>
                       )}
-                      <AuctionImageOverlay endTime={auction.endTime} />
+                      <Badge className={`text-[9px] px-1.5 py-0.5 shrink-0 ${!isItemEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
+                        {!isItemEnded ? "競拍中" : "已結束"}
+                      </Badge>
                     </div>
-
-                    <div className="flex-1 flex flex-col justify-between min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-sm line-clamp-1 text-amber-900">{auction.title}</h3>
-                          {a.sellerName && (
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <Store className="w-2.5 h-2.5 text-amber-400 shrink-0" />
-                              <span className="text-[10px] text-amber-600 truncate">{a.sellerName}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          {isEndingSoon && (
-                            <Badge className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 animate-pulse">
-                              即將結束
-                            </Badge>
-                          )}
-                          <Badge className={`text-[9px] px-1.5 py-0.5 ${!isItemEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
-                            {!isItemEnded ? "競拍中" : "已結束"}
-                          </Badge>
-                        </div>
+                    {/* Row 2: 圖片 + 資料 */}
+                    <div className="flex gap-3">
+                      <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
+                        {auction.images && (auction.images as Array<{ imageUrl: string }>).length > 0 ? (
+                          <img
+                            src={(auction.images as Array<{ imageUrl: string }>)[0].imageUrl}
+                            alt={auction.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-3xl">🪙</span>
+                        )}
+                        <AuctionImageOverlay endTime={auction.endTime} />
                       </div>
-
-                      <div className="mt-1 flex items-end justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-1.5 flex-nowrap whitespace-nowrap">
-                            <span className="text-[10px] text-muted-foreground shrink-0">{isItemEnded ? "成交價" : "目前出價"}</span>
-                            {(() => {
-                              if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
-                                return <span className="text-[9px] text-emerald-600 font-bold">{isItemEnded ? "(我得標了✓)" : "(我本人✓)"}</span>;
-                              } else if (a.highestBidderName && isItemEnded && isEnded && !isPrivileged) {
-                                return <span className="text-[9px] text-gray-500">(得標者 ***)</span>;
-                              } else if (a.highestBidderName) {
-                                return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;
-                              } else if (!a.highestBidderId) {
-                                return <span className="text-[9px] text-gray-400">{isItemEnded ? "(流拍)" : "(未有出價)"}</span>;
-                              }
-                              return null;
-                            })()}
+                      <div className="flex-1 flex flex-col justify-between gap-1 min-w-0">
+                        {a.sellerName && (
+                          <div className="flex items-center gap-1">
+                            <Store className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                            <span className="text-[10px] text-amber-600 truncate">{a.sellerName}</span>
                           </div>
-                          <div className="flex items-baseline gap-1.5">
-                            <span className="text-sm font-bold text-amber-600">{curr}{curPrice.toLocaleString()}</span>
-                            {startPrice != null && startPrice > 0 && curPrice > 0 && startPrice !== curPrice && (
-                              <span className="text-[10px] text-gray-400 line-through">起{curr}{startPrice.toLocaleString()}</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        )}
+                        {/* 出價資訊行 */}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-muted-foreground shrink-0">{isItemEnded ? "成交價" : "目前出價"}</span>
+                          {(() => {
+                            if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
+                              return <span className="text-[9px] text-emerald-600 font-bold">{isItemEnded ? "(我得標了✓)" : "(我本人✓)"}</span>;
+                            } else if (a.highestBidderName && isItemEnded && isEnded && !isPrivileged) {
+                              return <span className="text-[9px] text-gray-500">(得標者 ***)</span>;
+                            } else if (a.highestBidderName) {
+                              return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;
+                            } else if (!a.highestBidderId) {
+                              return <span className="text-[9px] text-gray-400">{isItemEnded ? "(流拍)" : "(未有出價)"}</span>;
+                            }
+                            return null;
+                          })()}
                           {(() => {
                             const bc = Number(a.bidCount ?? 0);
                             return bc > 0 ? (
@@ -466,6 +453,10 @@ export default function MerchantSessionPublic() {
                               </div>
                             ) : null;
                           })()}
+                        </div>
+                        {/* 價錢 + 分享 + 閃出價 */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl font-bold text-amber-600 flex-1">{curr}{curPrice.toLocaleString()}</span>
                           <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                             <ShareMenu
                               auctionId={auction.id}
@@ -494,18 +485,18 @@ export default function MerchantSessionPublic() {
                             />
                           </div>
                         </div>
-                      </div>
-
-                      {timeProgress !== null && !isItemEnded && (
-                        <div className="mt-1.5">
-                          <div className="h-1 rounded-full bg-amber-100 overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${timeProgress > 0.8 ? "bg-red-400" : timeProgress > 0.5 ? "bg-orange-400" : "bg-amber-400"}`}
-                              style={{ width: `${timeProgress * 100}%` }}
-                            />
+                        {/* 倒計時進度條 */}
+                        {timeProgress !== null && !isItemEnded && (
+                          <div>
+                            <div className="h-1 rounded-full bg-amber-100 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${timeProgress > 0.8 ? "bg-red-400" : timeProgress > 0.5 ? "bg-orange-400" : "bg-amber-400"}`}
+                                style={{ width: `${timeProgress * 100}%` }}
+                              />
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
                 </Link>
