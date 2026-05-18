@@ -1,9 +1,12 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 import { sanitizeUserText, parseCategories } from "@/lib/utils";
 import Header from "@/components/Header";
 import ImageLightbox from "@/components/ImageLightbox";
-import { Store, ChevronRight, Gavel, Package, Search, X, CalendarClock } from "lucide-react";
+import ChatRoomDialog from "@/components/ChatRoomDialog";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { Store, ChevronRight, Gavel, Package, Search, X, CalendarClock, MessageCircle } from "lucide-react";
 import { useLocation } from "wouter";
 
 type Thumb = { url: string; type: string; id: number };
@@ -53,10 +56,24 @@ export default function Merchants() {
     });
     return map;
   }, [activeSessions]);
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [, navigate] = useLocation();
   const [showMerchantFlow, setShowMerchantFlow] = useState(false);
+  const [chatRoomId, setChatRoomId] = useState<number | null>(null);
+  const [chatOpeningFor, setChatOpeningFor] = useState<number | null>(null);
+  const chatUtils = trpc.useUtils();
+  const merchantChat = trpc.chat.openOrCreateRoom.useMutation({
+    onSuccess: (roomId) => { setChatRoomId(roomId); setChatOpeningFor(null); },
+    onError: (err) => { toast.error(err.message, { className: "bb-toast-err" }); setChatOpeningFor(null); },
+  });
+  const handleMerchantChat = (e: React.MouseEvent, merchantUserId: number) => {
+    e.stopPropagation();
+    if (!user) { toast.info("請先登入後才可以使用站內訊息", { className: "bb-toast-info" }); return; }
+    setChatOpeningFor(merchantUserId);
+    merchantChat.mutate({ merchantId: merchantUserId, productTitle: "" });
+  };
 
   const allCategories = useMemo(() => {
     const set = new Set<string>();
@@ -284,17 +301,16 @@ export default function Merchants() {
                           <Package className="w-3 h-3" />{m.productCount ?? 0}
                         </span>
                       </div>
-                      {m.whatsapp && (
-                        <a
-                          href={`https://wa.me/${buildWaNumber(m.whatsapp as string)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex items-center gap-1 text-[11px] font-semibold text-[#25D366] bg-[#25D366]/10 hover:bg-[#25D366]/20 px-2 py-0.5 rounded-md transition-colors shrink-0 border border-[#25D366]/20"
+                      {user?.id !== m.userId && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleMerchantChat(e, m.userId)}
+                          disabled={chatOpeningFor === m.userId}
+                          className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded-md transition-colors shrink-0 border border-amber-200 disabled:opacity-60"
                         >
-                          <WhatsAppIcon />
-                          聯絡
-                        </a>
+                          <MessageCircle className="w-3 h-3" />
+                          {chatOpeningFor === m.userId ? "..." : "站內訊息"}
+                        </button>
                       )}
                     </div>
                   </div>
@@ -402,6 +418,15 @@ export default function Merchants() {
           })
         )}
       </div>
+      {chatRoomId !== null && (
+        <ChatRoomDialog
+          roomId={chatRoomId}
+          open={chatRoomId !== null}
+          onOpenChange={(o) => {
+            if (!o) { setChatRoomId(null); chatUtils.chat.unreadTotal.invalidate(); chatUtils.chat.listMyRooms.invalidate(); }
+          }}
+        />
+      )}
     </div>
   );
 }

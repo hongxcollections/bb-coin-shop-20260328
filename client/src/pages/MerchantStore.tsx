@@ -589,6 +589,20 @@ export default function MerchantStore() {
   const [soldOpen, setSoldOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [sessionTab, setSessionTab] = useState<"active" | "ended">("active");
+  const [storeRoomId, setStoreRoomId] = useState<number | null>(null);
+  const [storeOpening, setStoreOpening] = useState(false);
+  const storeUtils = trpc.useUtils();
+  const storeOpenRoom = trpc.chat.openOrCreateRoom.useMutation({
+    onSuccess: (roomId) => { setStoreRoomId(roomId); setStoreOpening(false); },
+    onError: (err) => { toast.error(err.message, { className: "bb-toast-err" }); setStoreOpening(false); },
+  });
+  const handleStoreChat = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!user) { toast.info("請先登入後才可以使用站內訊息", { className: "bb-toast-info" }); return; }
+    if (user.id === userId) { toast.info("唔可以同自己開對話", { className: "bb-toast-info" }); return; }
+    setStoreOpening(true);
+    storeOpenRoom.mutate({ merchantId: userId, productTitle: "" });
+  };
 
   const activeProducts = (products as any[]).filter((p: any) => p.status === "active" && p.stock > 0);
   const soldProducts = (products as any[]).filter((p: any) => p.status === "sold");
@@ -868,7 +882,6 @@ export default function MerchantStore() {
               const merchantUrl = `https://share.hongxcollections.com/merchants/${userId}`;
               const contactMsg = `${merchantContactPreset}\n${merchantUrl}`;
               const waLink = merchant.whatsapp ? buildWhatsAppUrl(merchant.whatsapp, contactMsg) : "";
-              if (!waLink && !messengerLink) return null;
               const handleMessenger = async (e: React.MouseEvent<HTMLAnchorElement>) => {
                 e.preventDefault();
                 try {
@@ -901,16 +914,20 @@ export default function MerchantStore() {
                 handleMessenger(e as React.MouseEvent<HTMLAnchorElement>);
               };
               return (
-                <div className={`flex gap-2 pt-1 ${waLink && messengerLink ? "flex-row" : ""}`}>
+                <div className="flex gap-2 pt-1">
+                  <button type="button" onClick={handleStoreChat} disabled={storeOpening}
+                    className="flex items-center justify-center gap-2 py-2.5 flex-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-xl text-xs font-semibold transition-all shadow-sm disabled:opacity-60">
+                    <MessageCircle className="w-4 h-4" />{storeOpening ? "..." : "站內訊息"}
+                  </button>
                   {waLink && (
                     <button type="button" onClick={handleWa}
-                      className={`flex items-center justify-center gap-2 py-2.5 bg-gradient-to-br from-[#25D366] to-[#1DA851] hover:from-[#1DA851] hover:to-[#179440] text-white rounded-xl text-xs font-semibold transition-all shadow-sm ${messengerLink ? "flex-1" : "w-full"}`}>
+                      className="flex items-center justify-center gap-2 py-2.5 flex-1 bg-gradient-to-br from-[#25D366] to-[#1DA851] hover:from-[#1DA851] hover:to-[#179440] text-white rounded-xl text-xs font-semibold transition-all shadow-sm">
                       <MessageCircle className="w-4 h-4" />WhatsApp
                     </button>
                   )}
                   {messengerLink && (
                     <button type="button" onClick={handleMsn}
-                      className={`flex items-center justify-center gap-2 py-2.5 bg-gradient-to-br from-[#0084FF] to-[#0066CC] hover:from-[#0066CC] hover:to-[#004D99] text-white rounded-xl text-xs font-semibold transition-all shadow-sm ${waLink ? "flex-1" : "w-full"}`}>
+                      className="flex items-center justify-center gap-2 py-2.5 flex-1 bg-gradient-to-br from-[#0084FF] to-[#0066CC] hover:from-[#0066CC] hover:to-[#004D99] text-white rounded-xl text-xs font-semibold transition-all shadow-sm">
                       <MessageCircle className="w-4 h-4" />Messenger
                     </button>
                   )}
@@ -1126,6 +1143,15 @@ export default function MerchantStore() {
           )}
         </div>
       </div>
+      {storeRoomId !== null && (
+        <ChatRoomDialog
+          roomId={storeRoomId}
+          open={storeRoomId !== null}
+          onOpenChange={(o) => {
+            if (!o) { setStoreRoomId(null); storeUtils.chat.unreadTotal.invalidate(); storeUtils.chat.listMyRooms.invalidate(); }
+          }}
+        />
+      )}
     </div>
   );
 }
