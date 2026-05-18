@@ -592,7 +592,7 @@ export default function MerchantStore() {
   const [storeRoomId, setStoreRoomId] = useState<number | null>(null);
   const [storeOpening, setStoreOpening] = useState(false);
   const storeUtils = trpc.useUtils();
-  const storeOpenRoom = trpc.chat.openOrCreateRoom.useMutation({
+  const storeOpenRoom = trpc.chat.openRoom.useMutation({
     onSuccess: (roomId) => { setStoreRoomId(roomId); setStoreOpening(false); },
     onError: (err) => { toast.error(err.message, { className: "bb-toast-err" }); setStoreOpening(false); },
   });
@@ -914,22 +914,26 @@ export default function MerchantStore() {
                 handleMessenger(e as React.MouseEvent<HTMLAnchorElement>);
               };
               return (
-                <div className="flex gap-2 pt-1">
+                <div className="flex flex-col gap-2 pt-1">
                   <button type="button" onClick={handleStoreChat} disabled={storeOpening}
-                    className="flex items-center justify-center gap-2 py-2.5 flex-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-xl text-xs font-semibold transition-all shadow-sm disabled:opacity-60">
-                    <MessageCircle className="w-4 h-4" />{storeOpening ? "..." : "站內訊息"}
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
+                    <MessageCircle className="w-4 h-4" />{storeOpening ? "連線中..." : "站內訊息"}
                   </button>
-                  {waLink && (
-                    <button type="button" onClick={handleWa}
-                      className="flex items-center justify-center gap-2 py-2.5 flex-1 bg-gradient-to-br from-[#25D366] to-[#1DA851] hover:from-[#1DA851] hover:to-[#179440] text-white rounded-xl text-xs font-semibold transition-all shadow-sm">
-                      <MessageCircle className="w-4 h-4" />WhatsApp
-                    </button>
-                  )}
-                  {messengerLink && (
-                    <button type="button" onClick={handleMsn}
-                      className="flex items-center justify-center gap-2 py-2.5 flex-1 bg-gradient-to-br from-[#0084FF] to-[#0066CC] hover:from-[#0066CC] hover:to-[#004D99] text-white rounded-xl text-xs font-semibold transition-all shadow-sm">
-                      <MessageCircle className="w-4 h-4" />Messenger
-                    </button>
+                  {(waLink || messengerLink) && (
+                    <div className={`flex gap-2 ${waLink && messengerLink ? "flex-row" : ""}`}>
+                      {waLink && (
+                        <button type="button" onClick={handleWa}
+                          className={`flex items-center justify-center gap-2 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-semibold transition-colors ${messengerLink ? "flex-1" : "w-full"}`}>
+                          <MessageCircle className="w-4 h-4" />WhatsApp
+                        </button>
+                      )}
+                      {messengerLink && (
+                        <button type="button" onClick={handleMsn}
+                          className={`flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors ${waLink ? "flex-1" : "w-full"}`}>
+                          <MessageCircle className="w-4 h-4" />Messenger
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               );

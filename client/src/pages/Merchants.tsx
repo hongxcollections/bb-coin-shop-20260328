@@ -64,7 +64,7 @@ export default function Merchants() {
   const [chatRoomId, setChatRoomId] = useState<number | null>(null);
   const [chatOpeningFor, setChatOpeningFor] = useState<number | null>(null);
   const chatUtils = trpc.useUtils();
-  const merchantChat = trpc.chat.openOrCreateRoom.useMutation({
+  const merchantChat = trpc.chat.openRoom.useMutation({
     onSuccess: (roomId) => { setChatRoomId(roomId); setChatOpeningFor(null); },
     onError: (err) => { toast.error(err.message, { className: "bb-toast-err" }); setChatOpeningFor(null); },
   });
@@ -301,17 +301,15 @@ export default function Merchants() {
                           <Package className="w-3 h-3" />{m.productCount ?? 0}
                         </span>
                       </div>
-                      {user?.id !== m.userId && (
-                        <button
-                          type="button"
-                          onClick={(e) => handleMerchantChat(e, m.userId)}
-                          disabled={chatOpeningFor === m.userId}
-                          className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded-md transition-colors shrink-0 border border-amber-200 disabled:opacity-60"
-                        >
-                          <MessageCircle className="w-3 h-3" />
-                          {chatOpeningFor === m.userId ? "..." : "站內訊息"}
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => handleMerchantChat(e, m.userId)}
+                        disabled={chatOpeningFor === m.userId}
+                        className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded-md transition-colors shrink-0 border border-amber-200 disabled:opacity-60"
+                      >
+                        <MessageCircle className="w-3 h-3" />
+                        {chatOpeningFor === m.userId ? "..." : "站內訊息"}
+                      </button>
                     </div>
                   </div>
                 </div>
