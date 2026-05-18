@@ -981,6 +981,7 @@ export default function MerchantStore() {
                       currentUserId={user?.id}
                       highestBidderId={a.highestBidderId}
                       highestBidderName={a.highestBidderName}
+                      bidCount={Number(a.bidCount ?? 0)}
                       sellerName={merchant?.merchantName ? sanitizeUserText(merchant.merchantName) : null}
                       bidIncrement={Number((a as { bidIncrement?: number }).bidIncrement ?? 30)}
                       antiSnipeEnabled={(a as { antiSnipeEnabled?: number }).antiSnipeEnabled}
