@@ -762,18 +762,20 @@ export default function MerchantProductDetail() {
                 if (!user) { toast.info("請先登入後才可以聯繫商戶", { className: "bb-toast-info" }); return; }
                 fn();
               };
-              const renderBtns = (p: any, d: ReturnType<typeof mkData>, pill: string, icon: string) => (
-                <div className="flex flex-wrap gap-1 mt-1" onClick={e => e.stopPropagation()}>
-                  <button onClick={e => { e.preventDefault(); e.stopPropagation(); handleBuy(p); }}
-                    className={`${pill} bg-amber-500 hover:bg-amber-600 text-white`}>
-                    <ShoppingCart className={icon} />落單
-                  </button>
-                  {/* 站內訊息 */}
+              const renderBtns = (p: any, _d: ReturnType<typeof mkData>, pill: string, icon: string) => (
+                <div className="flex flex-wrap gap-1 mt-1 justify-end" onClick={e => e.stopPropagation()}>
                   <button type="button" aria-label="站內訊息"
                     onClick={e => { e.stopPropagation(); handleProductChat(product.merchantId, p.title); }}
                     className={`${pill} text-amber-700 bg-amber-100 hover:bg-amber-200 font-bold`}>
                     <MessageCircle className={icon} />訊息
                   </button>
+                  <button onClick={e => { e.preventDefault(); e.stopPropagation(); handleBuy(p); }}
+                    className={`${pill} bg-amber-500 hover:bg-amber-600 text-white`}>
+                    <ShoppingCart className={icon} />落單
+                  </button>
+                  <div onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
+                    <ProductShareMenu productId={p.id} title={p.title} price={parseFloat(p.price ?? "0")} currency={p.currency} iconOnly />
+                  </div>
                 </div>
               );
 

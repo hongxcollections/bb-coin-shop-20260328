@@ -91,6 +91,8 @@ function AuctionImageOverlay({ endTime }: { endTime: Date | string }) {
 const PAGE_SIZE = 20;
 
 function HeroSlide({ auction }: { auction: any }) {
+  const { isAuthenticated } = useAuth();
+  const [, navigate] = useLocation();
   const [timeLeft, setTimeLeft] = useState({ h: 0, m: 0, s: 0, urgent: false, ended: false });
   useEffect(() => {
     function calc() {
@@ -149,10 +151,20 @@ function HeroSlide({ auction }: { auction: any }) {
                 <Clock className="w-3 h-3 shrink-0" />
                 {timeLeft.ended ? "已結束" : `${timeLeft.h > 0 ? `${timeLeft.h}h ` : ""}${pad(timeLeft.m)}m ${pad(timeLeft.s)}s`}
               </div>
-              <div className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white shadow-lg transition-transform group-hover:scale-105"
+              <button type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!isAuthenticated) {
+                    toast.info("請先登入先可以出價 🔐", { className: "bb-toast-info", duration: 3500 });
+                    return;
+                  }
+                  navigate(`/auctions/${auction.id}`);
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white shadow-lg transition-transform group-hover:scale-105"
                 style={{ background: "linear-gradient(135deg,#f59e0b 0%,#d97706 50%,#b45309 100%)" }}>
                 <Gavel className="w-3.5 h-3.5" />立即出價
-              </div>
+              </button>
             </div>
           </div>
         </div>

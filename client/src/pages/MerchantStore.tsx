@@ -216,17 +216,17 @@ function ContactBtns({ product, merchantId, size = "md" }: {
   return (
     <>
       <div className={`flex flex-wrap gap-1 shrink-0 ${isSmall ? "mt-auto justify-end" : ""}`} onClick={e => e.stopPropagation()}>
-        <button type="button"
-          onClick={handleBuy}
-          className={`${pillBase} bg-amber-500 hover:bg-amber-600 text-white`}>
-          <ShoppingCart className={iconSz} />
-          {!isSmall && "落單"}
-        </button>
         <button type="button" disabled={opening}
           onClick={handleChat}
           className={`${pillBase} text-amber-700 bg-amber-100 hover:bg-amber-200 font-bold disabled:opacity-60`}>
           <MessageCircle className={iconSz} />
           {!isSmall && (opening ? "..." : "站內訊息")}
+        </button>
+        <button type="button"
+          onClick={handleBuy}
+          className={`${pillBase} bg-amber-500 hover:bg-amber-600 text-white`}>
+          <ShoppingCart className={iconSz} />
+          {!isSmall && "落單"}
         </button>
       </div>
       {buyingProduct && <BuyDialog product={buyingProduct} onClose={() => setBuyingProduct(null)} />}
