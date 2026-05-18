@@ -612,8 +612,8 @@ export default function AuctionDetail() {
                   {/* 底部漸層遮罩（影片播放時隱藏，避免擋控制條） */}
                   {!isVideoSelected && (
                     <div
-                      className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"
-                      style={{ background: "linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
+                      className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
+                      style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.28) 55%, transparent 100%)" }}
                     />
                   )}
                   {/* 左下：商戶名稱 */}
