@@ -46,6 +46,7 @@ import { ShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
 import Header from "@/components/Header";
 import EarlyBirdBanner from "@/components/EarlyBirdBanner";
+import { AuctionCard } from "@/components/AuctionCard";
 
 function AuctionImageOverlay({ endTime }: { endTime: Date | string }) {
   const [txt, setTxt] = useState("");
@@ -1615,123 +1616,44 @@ export default function Home() {
             </div>
           ) : paginated.length > 0 ? (
             <div className="flex flex-col gap-[2px]">
-              {paginated.map((auction) => (
-                <Link key={auction.id} href={`/auctions/${auction.id}`}>
-                  <div className="auction-list-item flex gap-3 p-3 border border-amber-100 rounded-lg hover:border-amber-300 hover:bg-amber-50/50 cursor-pointer transition-all">
-                    {/* Left: Image */}
-                    <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
-                      {auction.images && (auction.images as Array<{ imageUrl: string }>).length > 0 ? (
-                        <img
-                          src={(auction.images as Array<{ imageUrl: string }>)[0].imageUrl}
-                          alt={auction.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-3xl">🪙</span>
-                      )}
-                      <AuctionImageOverlay endTime={auction.endTime} />
-                    </div>
-
-                    {/* Right: Content */}
-                    <div className="flex-1 flex flex-col justify-between min-w-0">
-                      {/* Title & Badges */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-sm line-clamp-1 text-amber-900">{auction.title}</h3>
-                          {/* 商戶名標籤 */}
-                          {(auction as { sellerName?: string | null }).sellerName && (
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <Store className="w-2.5 h-2.5 text-amber-400 shrink-0" />
-                              <span className="text-[10px] text-amber-600 truncate">{(auction as { sellerName?: string | null }).sellerName}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          {(() => {
-                            const now = Date.now();
-                            const endMs = new Date(auction.endTime).getTime();
-                            const isEndingSoon = (endMs - now) <= endingSoonMs;
-                            return (
-                              <>
-                                {isEndingSoon && (
-                                  <Badge className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 animate-pulse">
-                                    {endingSoonText}
-                                  </Badge>
-                                )}
-                                <Badge className="bg-emerald-500 text-white text-[9px] px-1.5 py-0.5">
-                                  競拍中
-                                </Badge>
-                              </>
-                            );
-                          })()}
-                        </div>
-                      </div>
-
-                      {/* Price row：左邊出價＋bidder，右邊 bidcount + ShareMenu + 閃出價（同 Auctions 主站對齊） */}
-                      <div className="mt-1 flex items-end justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] text-muted-foreground">目前出價</span>
-                            {(() => {
-                              const a = auction as { highestBidderName?: string | null; highestBidderId?: number | null };
-                              if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
-                                return <span className="text-[9px] text-emerald-600 font-bold">(我本人✓)</span>;
-                              } else if (a.highestBidderName) {
-                                return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;
-                              } else if (!a.highestBidderId) {
-                                return <span className="text-[9px] text-gray-400">(未有出價)</span>;
-                              }
-                              return null;
-                            })()}
-                          </div>
-                          <div className="text-sm font-bold text-amber-600">
-                            {getCurrencySymbol((auction as { currency?: string }).currency ?? 'HKD')}{Number(auction.currentPrice).toLocaleString()}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {/* 出價人數 */}
-                          {(() => {
-                            const bc = Number((auction as { bidCount?: number }).bidCount ?? 0);
-                            return bc > 0 ? (
-                              <div className="flex items-center gap-0.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
-                                <Users className="w-2.5 h-2.5" />
-                                <span className="font-semibold">{bc}</span>
-                              </div>
-                            ) : null;
-                          })()}
-                          <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                            <ShareMenu
-                              auctionId={auction.id}
-                              title={auction.title}
-                              latestBid={Number(auction.currentPrice)}
-                              currency={(auction as { currency?: string }).currency}
-                              endTime={auction.endTime}
-                              iconOnly
-                            />
-                          </div>
-                          <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                            <QuickBidPopover
-                              auctionId={auction.id}
-                              title={auction.title}
-                              currentPrice={Number(auction.currentPrice)}
-                              startingPrice={Number((auction as { startingPrice?: number | string }).startingPrice ?? 0)}
-                              bidIncrement={Number((auction as { bidIncrement?: number }).bidIncrement ?? 30)}
-                              currency={(auction as { currency?: string }).currency}
-                              hasExistingBid={!!(auction as { highestBidderId?: number | null }).highestBidderId}
-                              isEnded={new Date(auction.endTime) <= new Date() || (auction as { status?: string }).status === "ended"}
-                              createdBy={(auction as { createdBy?: number }).createdBy}
-                              endTime={auction.endTime}
-                              antiSnipeEnabled={(auction as { antiSnipeEnabled?: number }).antiSnipeEnabled}
-                              antiSnipeMinutes={(auction as { antiSnipeMinutes?: number }).antiSnipeMinutes}
-                              extendMinutes={(auction as { extendMinutes?: number }).extendMinutes}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+              {paginated.map((auction) => {
+                const nowMs = Date.now();
+                const endMs = new Date(auction.endTime).getTime();
+                const isEnded = endMs <= nowMs || (auction as { status?: string }).status === "ended";
+                const isEndingSoon = !isEnded && (endMs - nowMs) <= endingSoonMs;
+                const ah = auction as { highestBidderName?: string | null; highestBidderId?: number | null; sellerName?: string | null; bidCount?: number | null; currency?: string; startingPrice?: number | string | null; bidIncrement?: number; antiSnipeEnabled?: number; antiSnipeMinutes?: number; extendMinutes?: number; createdBy?: number };
+                const imageUrl = (auction.images as Array<{ imageUrl: string }> | undefined)?.[0]?.imageUrl;
+                const totalDuration = auction.createdAt ? endMs - new Date(auction.createdAt).getTime() : null;
+                const elapsed = auction.createdAt ? nowMs - new Date(auction.createdAt).getTime() : null;
+                const timeProgress = (totalDuration && elapsed && totalDuration > 0)
+                  ? Math.min(Math.max(elapsed / totalDuration, 0), 1) : null;
+                return (
+                  <AuctionCard
+                    key={auction.id}
+                    auctionId={auction.id}
+                    title={auction.title}
+                    imageUrl={imageUrl}
+                    endTime={auction.endTime}
+                    currentPrice={Number(auction.currentPrice)}
+                    startingPrice={Number(ah.startingPrice ?? 0)}
+                    currency={ah.currency}
+                    isEnded={isEnded}
+                    isEndingSoon={isEndingSoon}
+                    endingSoonText={endingSoonText}
+                    currentUserId={user?.id}
+                    highestBidderId={ah.highestBidderId}
+                    highestBidderName={ah.highestBidderName}
+                    bidCount={Number(ah.bidCount ?? 0)}
+                    sellerName={ah.sellerName}
+                    bidIncrement={Number(ah.bidIncrement ?? 30)}
+                    antiSnipeEnabled={ah.antiSnipeEnabled}
+                    antiSnipeMinutes={ah.antiSnipeMinutes}
+                    extendMinutes={ah.extendMinutes}
+                    createdBy={ah.createdBy}
+                    timeProgress={timeProgress}
+                  />
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-20 bg-amber-50/30 rounded-3xl border border-dashed border-amber-200">

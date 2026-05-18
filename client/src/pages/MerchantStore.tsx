@@ -8,6 +8,7 @@ import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { ShareMenu, ProductShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
+import { AuctionCard } from "@/components/AuctionCard";
 import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag, Share2, QrCode, CalendarClock, ShoppingCart, CheckCircle2, Loader2, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -967,82 +968,26 @@ export default function MerchantStore() {
                   const isEnded = new Date(a.endTime).getTime() <= Date.now();
                   const currency = a.currency ?? "HKD";
                   return (
-                    <Link key={a.id} href={`/auctions/${a.id}`}>
-                      <div className="auction-list-item flex flex-col gap-2 p-3 bg-white border border-amber-100 rounded-xl hover:border-amber-300 hover:shadow-sm hover:bg-amber-50/30 cursor-pointer transition-all">
-                        {/* Row 1: 商品名稱 + 狀態 badge 全寬 */}
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <h3 className="font-semibold text-[15px] line-clamp-1 text-amber-900 flex-1 min-w-0">{a.title}</h3>
-                          <Badge className={`text-[9px] px-1.5 py-0.5 shrink-0 ${!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
-                            {!isEnded ? "競拍中" : "已結束"}
-                          </Badge>
-                        </div>
-                        {/* Row 2: 圖片 + 資料 */}
-                        <div className="flex gap-3">
-                          <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
-                            {a.coverImage ? (
-                              <img src={a.coverImage} alt={a.title} className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="text-3xl">🪙</span>
-                            )}
-                            {!isEnded && <AuctionImageOverlay endTime={a.endTime} />}
-                          </div>
-                          <div className="flex-1 flex flex-col justify-between gap-1 min-w-0">
-                            {merchant?.merchantName && (
-                              <div className="flex items-center gap-0.5">
-                                <Store className="w-2.5 h-2.5 text-amber-400 shrink-0" />
-                                <span className="text-[10px] text-amber-600 truncate">{sanitizeUserText(merchant.merchantName)}</span>
-                              </div>
-                            )}
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] text-muted-foreground">目前出價</span>
-                              {(() => {
-                                if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
-                                  return <span className="text-[9px] text-emerald-600 font-bold">(我本人✓)</span>;
-                                } else if (a.highestBidderName) {
-                                  return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;
-                                } else if (!a.highestBidderId) {
-                                  return <span className="text-[9px] text-gray-500 font-normal">(未有出價)</span>;
-                                }
-                                return null;
-                              })()}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xl font-bold text-amber-600 flex-1">
-                                {getCurrencySymbol(currency)}{Number(a.currentPrice ?? a.startingPrice ?? 0).toLocaleString()}
-                              </span>
-                              <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                                <ShareMenu
-                                  auctionId={a.id}
-                                  title={a.title}
-                                  latestBid={Number(a.currentPrice ?? a.startingPrice ?? 0)}
-                                  currency={currency}
-                                  endTime={a.endTime}
-                                  shareTemplate={null}
-                                  iconOnly
-                                />
-                              </div>
-                              <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                                <QuickBidPopover
-                                  auctionId={a.id}
-                                  title={a.title}
-                                  currentPrice={Number(a.currentPrice ?? a.startingPrice ?? 0)}
-                                  startingPrice={Number(a.startingPrice ?? 0)}
-                                  bidIncrement={Number((a as { bidIncrement?: number }).bidIncrement ?? 30)}
-                                  currency={currency}
-                                  hasExistingBid={!!a.highestBidderId}
-                                  isEnded={isEnded}
-                                  createdBy={(a as { createdBy?: number }).createdBy}
-                                  endTime={a.endTime}
-                                  antiSnipeEnabled={(a as { antiSnipeEnabled?: number }).antiSnipeEnabled}
-                                  antiSnipeMinutes={(a as { antiSnipeMinutes?: number }).antiSnipeMinutes}
-                                  extendMinutes={(a as { extendMinutes?: number }).extendMinutes}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
+                    <AuctionCard
+                      key={a.id}
+                      auctionId={a.id}
+                      title={a.title}
+                      imageUrl={a.coverImage}
+                      endTime={a.endTime}
+                      currentPrice={Number(a.currentPrice ?? a.startingPrice ?? 0)}
+                      startingPrice={Number(a.startingPrice ?? 0)}
+                      currency={currency}
+                      isEnded={isEnded}
+                      currentUserId={user?.id}
+                      highestBidderId={a.highestBidderId}
+                      highestBidderName={a.highestBidderName}
+                      sellerName={merchant?.merchantName ? sanitizeUserText(merchant.merchantName) : null}
+                      bidIncrement={Number((a as { bidIncrement?: number }).bidIncrement ?? 30)}
+                      antiSnipeEnabled={(a as { antiSnipeEnabled?: number }).antiSnipeEnabled}
+                      antiSnipeMinutes={(a as { antiSnipeMinutes?: number }).antiSnipeMinutes}
+                      extendMinutes={(a as { extendMinutes?: number }).extendMinutes}
+                      createdBy={(a as { createdBy?: number }).createdBy}
+                    />
                   );
                 })}
               </div>

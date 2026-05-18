@@ -5,6 +5,7 @@ import BottomNav from "@/components/BottomNav";
 import { Badge } from "@/components/ui/badge";
 import { ShareMenu, SessionShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
+import { AuctionCard } from "@/components/AuctionCard";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Calendar, Clock, Package, Users, Store, QrCode } from "lucide-react";
@@ -384,123 +385,40 @@ export default function MerchantSessionPublic() {
                 : null;
 
               return (
-                <Link
+                <AuctionCard
                   key={auction.id}
-                  href={`/auctions/${auction.id}`}
-                  onClick={() => {
+                  auctionId={auction.id}
+                  title={auction.title}
+                  imageUrl={(auction.images as Array<{ imageUrl: string }> | undefined)?.[0]?.imageUrl}
+                  endTime={auction.endTime}
+                  currentPrice={curPrice}
+                  startingPrice={Number(a.startingPrice ?? 0)}
+                  currency={a.currency}
+                  isEnded={isItemEnded}
+                  isEndingSoon={isEndingSoon}
+                  currentUserId={user?.id}
+                  highestBidderId={a.highestBidderId}
+                  highestBidderName={a.highestBidderName}
+                  bidCount={Number(a.bidCount ?? 0)}
+                  sessionMode
+                  isSessionFullyEnded={isEnded}
+                  isPrivileged={isPrivileged}
+                  sellerName={a.sellerName}
+                  bidIncrement={Number(a.bidIncrement ?? 30)}
+                  shareTemplate={a.fbShareTemplate}
+                  antiSnipeEnabled={(a as { antiSnipeEnabled?: number }).antiSnipeEnabled}
+                  antiSnipeMinutes={(a as { antiSnipeMinutes?: number }).antiSnipeMinutes}
+                  extendMinutes={(a as { extendMinutes?: number }).extendMinutes}
+                  createdBy={a.createdBy}
+                  timeProgress={timeProgress}
+                  onLinkClick={() => {
                     try {
                       sessionStorage.setItem("bb_auction_from_session", JSON.stringify({
                         merchantUserId, slug, title: session.title, merchantName,
                       }));
                     } catch {}
                   }}
-                >
-                  <div className={`auction-list-item flex flex-col gap-2 p-3 rounded-xl cursor-pointer transition-all border bg-white ${isEndingSoon ? "border-orange-200 bg-orange-50/40 hover:border-orange-300" : "border-amber-100 hover:border-amber-300 hover:bg-amber-50/50"}`}>
-                    {/* Row 1: 商品名稱 + badges 全寬 */}
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <h3 className="font-semibold text-[15px] line-clamp-1 text-amber-900 flex-1 min-w-0">{auction.title}</h3>
-                      {isEndingSoon && (
-                        <Badge className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 animate-pulse shrink-0">
-                          即將結束
-                        </Badge>
-                      )}
-                      <Badge className={`text-[9px] px-1.5 py-0.5 shrink-0 ${!isItemEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
-                        {!isItemEnded ? "競拍中" : "已結束"}
-                      </Badge>
-                    </div>
-                    {/* Row 2: 圖片 + 資料 */}
-                    <div className="flex gap-3">
-                      <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
-                        {auction.images && (auction.images as Array<{ imageUrl: string }>).length > 0 ? (
-                          <img
-                            src={(auction.images as Array<{ imageUrl: string }>)[0].imageUrl}
-                            alt={auction.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-3xl">🪙</span>
-                        )}
-                        <AuctionImageOverlay endTime={auction.endTime} />
-                      </div>
-                      <div className="flex-1 flex flex-col justify-between gap-1 min-w-0">
-                        {a.sellerName && (
-                          <div className="flex items-center gap-1">
-                            <Store className="w-2.5 h-2.5 text-amber-400 shrink-0" />
-                            <span className="text-[10px] text-amber-600 truncate">{a.sellerName}</span>
-                          </div>
-                        )}
-                        {/* 出價資訊行 */}
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] text-muted-foreground shrink-0">{isItemEnded ? "成交價" : "目前出價"}</span>
-                          {(() => {
-                            if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
-                              return <span className="text-[9px] text-emerald-600 font-bold">{isItemEnded ? "(我得標了✓)" : "(我本人✓)"}</span>;
-                            } else if (a.highestBidderName && isItemEnded && isEnded && !isPrivileged) {
-                              return <span className="text-[9px] text-gray-500">(得標者 ***)</span>;
-                            } else if (a.highestBidderName) {
-                              return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;
-                            } else if (!a.highestBidderId) {
-                              return <span className="text-[9px] text-gray-400">{isItemEnded ? "(流拍)" : "(未有出價)"}</span>;
-                            }
-                            return null;
-                          })()}
-                          {(() => {
-                            const bc = Number(a.bidCount ?? 0);
-                            return bc > 0 ? (
-                              <div className="flex items-center gap-0.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
-                                <Users className="w-2.5 h-2.5" />
-                                <span className="font-semibold">{bc}</span>
-                              </div>
-                            ) : null;
-                          })()}
-                        </div>
-                        {/* 價錢 + 分享 + 閃出價 */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-xl font-bold text-amber-600 flex-1">{curr}{curPrice.toLocaleString()}</span>
-                          <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                            <ShareMenu
-                              auctionId={auction.id}
-                              title={auction.title}
-                              latestBid={curPrice}
-                              currency={a.currency}
-                              endTime={auction.endTime}
-                              shareTemplate={a.fbShareTemplate}
-                              iconOnly
-                            />
-                          </div>
-                          <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                            <QuickBidPopover
-                              auctionId={auction.id}
-                              title={auction.title}
-                              currentPrice={curPrice}
-                              startingPrice={Number(a.startingPrice ?? 0)}
-                              bidIncrement={Number(a.bidIncrement ?? 30)}
-                              currency={a.currency}
-                              hasExistingBid={!!a.highestBidderId}
-                              isEnded={isItemEnded}
-                              createdBy={a.createdBy}
-                              endTime={auction.endTime}
-                              antiSnipeEnabled={(a as { antiSnipeEnabled?: number }).antiSnipeEnabled}
-                              antiSnipeMinutes={(a as { antiSnipeMinutes?: number }).antiSnipeMinutes}
-                              extendMinutes={(a as { extendMinutes?: number }).extendMinutes}
-                            />
-                          </div>
-                        </div>
-                        {/* 倒計時進度條 */}
-                        {timeProgress !== null && !isItemEnded && (
-                          <div>
-                            <div className="h-1 rounded-full bg-amber-100 overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${timeProgress > 0.8 ? "bg-red-400" : timeProgress > 0.5 ? "bg-orange-400" : "bg-amber-400"}`}
-                                style={{ width: `${timeProgress * 100}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </Link>
+                />
               );
             })}
           </div>
