@@ -83,6 +83,7 @@ export async function sendPushToUser(userId: number, payload: PushPayload): Prom
         const res: any = await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
           JSON.stringify(payload),
+          { urgency: "high", TTL: 60 },
         );
         sent++;
         console.log(`[Push] OK user=${userId} host=${host} tail=...${tail} status=${res?.statusCode ?? '?'} ua=${(s.userAgent ?? '').slice(0, 60)}`);
@@ -114,6 +115,7 @@ export async function sendPushToEndpoint(endpoint: string, payload: PushPayload)
     const res: any = await webpush.sendNotification(
       { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
       JSON.stringify(payload),
+      { urgency: "high", TTL: 60 },
     );
     console.log(`[Push] OK (endpoint) user=${s.userId} host=${host} tail=...${tail} status=${res?.statusCode ?? '?'}`);
     return true;
