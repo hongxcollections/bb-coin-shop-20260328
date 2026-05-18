@@ -12,9 +12,10 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 /**
- * 全站靜默自動訂閱推播
- * 條件：已登入 + 瀏覽器支援 + 已授權通知 + 仲未訂閱
- * 用戶毋須做任何事 — 只要曾經授權過一次，之後每次入站自動恢復訂閱
+ * 全站自動訂閱推播
+ * - permission "granted"：靜默自動訂閱（毋須任何動作）
+ * - permission "default"：登入後自動彈授權 prompt，用戶按允許即訂閱
+ * - permission "denied"：不做任何事
  */
 export function AutoPushSubscribe() {
   const { isAuthenticated } = useAuth();
@@ -28,11 +29,18 @@ export function AutoPushSubscribe() {
     if (!keyData?.publicKey) return;
     if (typeof window === "undefined") return;
     if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return;
-    if (Notification.permission !== "granted") return;
+    if (Notification.permission === "denied") return;
     triedRef.current = true;
 
     (async () => {
       try {
+        // 如尚未授權，自動請求授權
+        let permission = Notification.permission;
+        if (permission === "default") {
+          permission = await Notification.requestPermission();
+        }
+        if (permission !== "granted") return;
+
         const reg = await navigator.serviceWorker.register("/push-sw.js");
         await navigator.serviceWorker.ready;
         let sub = await reg.pushManager.getSubscription();

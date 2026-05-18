@@ -4,9 +4,9 @@ import { Volume2, VolumeX } from "lucide-react";
 const STORAGE_KEY = "bb-push-volume";
 
 export function getPushVolume(): number {
-  if (typeof window === "undefined") return 0.05;
-  const v = parseFloat(localStorage.getItem(STORAGE_KEY) ?? "0.05");
-  if (isNaN(v)) return 0.05;
+  if (typeof window === "undefined") return 0.03;
+  const v = parseFloat(localStorage.getItem(STORAGE_KEY) ?? "0.03");
+  if (isNaN(v)) return 0.03;
   return Math.max(0, Math.min(1, v));
 }
 
