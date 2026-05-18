@@ -8,7 +8,7 @@ interface SeoMeta {
   ogType?: "website" | "article";
 }
 
-const DEFAULT_TITLE = "hongxcollections｜香港專業錢幣拍賣";
+const DEFAULT_TITLE = "hongxcollections.com | 錢幣 · 競投 · 即時成交";
 const DEFAULT_DESC = "香港最具規模的錢幣網上拍賣平台，買賣古幣、紀念幣、評級幣，免費登記立即出價。";
 const DEFAULT_IMAGE = "https://hongxcollections.com/og-default.jpg";
 const SITE_NAME = "hongxcollections";

@@ -82,6 +82,11 @@ function injectStaticPageMeta(html: string, reqPath: string, base: string): stri
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
   const pages: Record<string, { title: string; description: string; canonical: string }> = {
+    "/": {
+      title: "hongxcollections.com | 錢幣 · 競投 · 即時成交",
+      description: "香港最具規模的錢幣網上拍賣平台，買賣古幣、紀念幣、評級幣，免費登記立即出價。",
+      canonical: base,
+    },
     "/auctions": {
       title: "錢幣拍賣｜所有拍品 — hongxcollections",
       description: "瀏覽香港最齊全的錢幣拍賣列表，包括古幣、評級幣、紀念幣、舊紙幣等，免費登記即可出價競投。",
