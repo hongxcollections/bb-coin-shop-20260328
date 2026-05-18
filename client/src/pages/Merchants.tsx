@@ -64,8 +64,8 @@ export default function Merchants() {
   const [chatRoomId, setChatRoomId] = useState<number | null>(null);
   const [chatOpeningFor, setChatOpeningFor] = useState<number | null>(null);
   const chatUtils = trpc.useUtils();
-  const merchantChat = trpc.chat.openRoom.useMutation({
-    onSuccess: (roomId) => { setChatRoomId(roomId); setChatOpeningFor(null); },
+  const merchantChat = trpc.chat.openRoomByMerchant.useMutation({
+    onSuccess: ({ roomId }) => { setChatRoomId(roomId); setChatOpeningFor(null); },
     onError: (err) => { toast.error(err.message, { className: "bb-toast-err" }); setChatOpeningFor(null); },
   });
   const handleMerchantChat = (e: React.MouseEvent, merchantUserId: number) => {

@@ -592,8 +592,8 @@ export default function MerchantStore() {
   const [storeRoomId, setStoreRoomId] = useState<number | null>(null);
   const [storeOpening, setStoreOpening] = useState(false);
   const storeUtils = trpc.useUtils();
-  const storeOpenRoom = trpc.chat.openRoom.useMutation({
-    onSuccess: (roomId) => { setStoreRoomId(roomId); setStoreOpening(false); },
+  const storeOpenRoom = trpc.chat.openRoomByMerchant.useMutation({
+    onSuccess: ({ roomId }) => { setStoreRoomId(roomId); setStoreOpening(false); },
     onError: (err) => { toast.error(err.message, { className: "bb-toast-err" }); setStoreOpening(false); },
   });
   const handleStoreChat = (e: React.MouseEvent) => {
