@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Users, Store } from "lucide-react";
+import { Users, Store, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
@@ -35,8 +35,16 @@ function AuctionImageOverlay({ endTime }: { endTime: Date | string }) {
 
   if (!txt) return null;
   return (
-    <div className={`absolute bottom-0 left-0 right-0 text-center text-[9px] font-bold py-0.5 ${urgent ? "bg-red-500/85 text-white" : "bg-black/50 text-white"}`}>
-      {txt}
+    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1 pointer-events-none">
+      {urgent ? (
+        <div className="flex items-center gap-0.5 text-[10px] font-black leading-none animate-pulse bg-red-600 text-white px-1 py-0.5 rounded self-start inline-flex">
+          <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
+        </div>
+      ) : (
+        <div className="flex items-center gap-0.5 text-[10px] font-bold leading-none text-white">
+          <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
+        </div>
+      )}
     </div>
   );
 }
