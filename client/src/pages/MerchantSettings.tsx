@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag, ShieldCheck, Store, Camera, X, Droplets, LayoutList, MessageSquare } from "lucide-react";
 
-const BID_INCREMENT_OPTIONS = [30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
+const BID_INCREMENT_OPTIONS = [10, 20, 30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
 
 export default function MerchantSettings() {
   const { isAuthenticated } = useAuth();

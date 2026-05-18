@@ -26,7 +26,7 @@ import { MerchantAuctionOrdersTab } from "@/components/MerchantAuctionOrdersTab"
 const MAX_IMAGES = 10;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-const BID_INCREMENT_OPTIONS = [30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
+const BID_INCREMENT_OPTIONS = [10, 20, 30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
 
 const CURRENCY_OPTIONS = [
   { value: "HKD", label: "🇭🇰 港幣 HKD", symbol: "HK$" },
