@@ -593,16 +593,18 @@ export default function MerchantProductDetail() {
                           {/* 聯絡 + 跳頁 */}
                           <div className="flex gap-2 pt-1 flex-wrap">
                             {accordionWaLink && (
-                              <a href={accordionWaLink} target="_blank" rel="noopener noreferrer"
+                              <button type="button"
+                                onClick={() => { if (!user) { toast.info("請先登入後才可以聯繫商戶", { className: "bb-toast-info" }); return; } window.open(accordionWaLink, "_blank", "noopener,noreferrer"); }}
                                 className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 bg-green-500 text-white text-xs font-semibold rounded-lg">
-                                <Phone className="w-3.5 h-3.5" />WhatsApp
-                              </a>
+                                <Phone className="w-3.5 h-3.5" />WA
+                              </button>
                             )}
                             {messengerLink && (
-                              <a href={messengerLink} onClick={handleMerchantMessenger} target="_blank" rel="noopener noreferrer"
+                              <button type="button"
+                                onClick={() => { if (!user) { toast.info("請先登入後才可以聯繫商戶", { className: "bb-toast-info" }); return; } handleMerchantMessenger({ preventDefault: () => {}, stopPropagation: () => {} } as any); }}
                                 className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg">
-                                <MessageCircle className="w-3.5 h-3.5" />Messenger
-                              </a>
+                                <MessageCircle className="w-3.5 h-3.5" />MSN
+                              </button>
                             )}
                             <Link href={`/merchants/${product.merchantId}`}
                               className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg">
@@ -677,18 +679,26 @@ export default function MerchantProductDetail() {
                         此商品已售出，如有查詢可聯絡商戶
                       </p>
                     )}
+                    {/* 站內訊息 — 突出位置 */}
+                    <button type="button"
+                      onClick={() => { if (!user) { toast.info("請先登入後才可以使用站內訊息", { className: "bb-toast-info" }); return; } window.location.href = "/messages"; }}
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
+                      <MessageCircle className="w-4 h-4" />站內訊息
+                    </button>
                     <div className={`flex gap-2 ${waLink && messengerLink ? "flex-row" : ""}`}>
                       {waLink && (
-                        <a href={waLink} target="_blank" rel="noopener noreferrer"
-                          className={`flex items-center justify-center gap-2 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-semibold transition-colors ${messengerLink ? "flex-1" : "w-full"}`}>
+                        <button type="button"
+                          onClick={() => { if (!user) { toast.info("請先登入後才可以聯繫商戶", { className: "bb-toast-info" }); return; } window.open(waLink, "_blank", "noopener,noreferrer"); }}
+                          className={`flex items-center justify-center gap-2 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-semibold transition-colors ${messengerLink ? "flex-1" : "w-full"}`}>
                           <MessageCircle className="w-4 h-4" />WhatsApp
-                        </a>
+                        </button>
                       )}
                       {messengerLink && (
-                        <a href={messengerLink} onClick={handleMessengerClick} target="_blank" rel="noopener noreferrer"
-                          className={`flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors ${waLink ? "flex-1" : "w-full"}`}>
+                        <button type="button"
+                          onClick={() => { if (!user) { toast.info("請先登入後才可以聯繫商戶", { className: "bb-toast-info" }); return; } handleMessengerClick({ preventDefault: () => {}, stopPropagation: () => {} } as any); }}
+                          className={`flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors ${waLink ? "flex-1" : "w-full"}`}>
                           <MessageCircle className="w-4 h-4" />Messenger
-                        </a>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -725,23 +735,35 @@ export default function MerchantProductDetail() {
                 return { pImgs, pPrice, pWaLink, onMsn };
               };
 
+              const requireLoginOther = (fn: () => void) => {
+                if (!user) { toast.info("請先登入後才可以聯繫商戶", { className: "bb-toast-info" }); return; }
+                fn();
+              };
               const renderBtns = (p: any, d: ReturnType<typeof mkData>, pill: string, icon: string) => (
                 <div className="flex flex-wrap gap-1 mt-1" onClick={e => e.stopPropagation()}>
                   <button onClick={e => { e.preventDefault(); e.stopPropagation(); handleBuy(p); }}
                     className={`${pill} bg-amber-500 hover:bg-amber-600 text-white`}>
                     <ShoppingCart className={icon} />落單
                   </button>
+                  {/* 站內訊息 */}
+                  <button type="button" aria-label="站內訊息"
+                    onClick={e => { e.stopPropagation(); if (!user) { toast.info("請先登入後才可以使用站內訊息", { className: "bb-toast-info" }); return; } window.location.href = "/messages"; }}
+                    className={`${pill} text-amber-700 bg-amber-100 hover:bg-amber-200 font-bold`}>
+                    <MessageCircle className={icon} />訊息
+                  </button>
                   {d.pWaLink && (
-                    <a href={d.pWaLink} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp 聯絡"
+                    <button type="button" aria-label="WhatsApp 聯絡"
+                      onClick={e => { e.stopPropagation(); requireLoginOther(() => window.open(d.pWaLink, "_blank", "noopener,noreferrer")); }}
                       className={`${pill} text-[#25D366] bg-[#25D366]/10 hover:bg-[#25D366]/20`}>
-                      <svg viewBox="0 0 24 24" fill="currentColor" className={icon}><path d={WA_PATH} /></svg>聯絡
-                    </a>
+                      <svg viewBox="0 0 24 24" fill="currentColor" className={icon}><path d={WA_PATH} /></svg>WA
+                    </button>
                   )}
                   {messengerLink && (
-                    <a href={messengerLink} onClick={d.onMsn} target="_blank" rel="noopener noreferrer" aria-label="Messenger 聯絡"
+                    <button type="button" aria-label="Messenger 聯絡"
+                      onClick={e => { e.stopPropagation(); requireLoginOther(() => d.onMsn(e as any)); }}
                       className={`${pill} text-blue-600 bg-blue-50 hover:bg-blue-100`}>
-                      <svg viewBox="0 0 24 24" fill="currentColor" className={icon}><path d={MSN_PATH} /></svg>聯絡
-                    </a>
+                      <svg viewBox="0 0 24 24" fill="currentColor" className={icon}><path d={MSN_PATH} /></svg>MSN
+                    </button>
                   )}
                 </div>
               );
