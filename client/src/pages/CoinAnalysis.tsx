@@ -356,10 +356,11 @@ function RelatedAuctionCard({ a, t }: { a: RelatedAuction; t: typeof L.zh }) {
 }
 
 // ─── History Item Card ────────────────────────────────────────────────────────
-function HistoryCard({ item, onDelete, onExpand, t }: {
+function HistoryCard({ item, onDelete, onExpand, onShare, t }: {
   item: HistoryItem;
   onDelete: (id: number) => void;
-  onExpand: (data: AnalysisData) => void;
+  onExpand: (item: HistoryItem) => void;
+  onShare: (item: HistoryItem) => void;
   t: typeof L.zh;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -387,10 +388,18 @@ function HistoryCard({ item, onDelete, onExpand, t }: {
           <div className="flex items-center gap-1.5 shrink-0">
             <span className="text-xs text-gray-400 hidden sm:block">{date}</span>
             <button
-              onClick={() => onExpand(d)}
+              onClick={() => onExpand(item)}
+              title="展開鑑定結果"
               className="w-7 h-7 rounded-full bg-amber-50 flex items-center justify-center hover:bg-amber-100 transition-colors"
             >
               <ZoomIn className="w-3.5 h-3.5 text-amber-600" />
+            </button>
+            <button
+              onClick={() => onShare(item)}
+              title="分享去藏品社區"
+              className="w-7 h-7 rounded-full bg-sky-50 flex items-center justify-center hover:bg-sky-100 transition-colors"
+            >
+              <Users className="w-3.5 h-3.5 text-sky-500" />
             </button>
             <button
               onClick={() => setConfirmOpen(true)}
@@ -666,13 +675,15 @@ export default function CoinAnalysis() {
     }
   };
 
-  const handleExpandHistory = (data: AnalysisData) => {
+  const handleExpandHistory = (item: HistoryItem) => {
+    const data = item.analysisData;
     setAnalysisData(data);
-    setImagePreview(null);
+    setImagePreview(item.imageUrl || null);
+    setImageBase64("");
     setRelatedAuctions([]);
-    setHistoryId(null);
-    setSavedImageUrl(null);
-    setImageSaved(false);
+    setHistoryId(item.id);
+    setSavedImageUrl(item.imageUrl || null);
+    setImageSaved(!!item.imageUrl);
     setLoadingRelated(true);
     const keywords = [
       getField(data, "name", "Name"),
@@ -681,6 +692,30 @@ export default function CoinAnalysis() {
     ].filter(Boolean);
     fetchRelatedAuctions(keywords);
     setTab("analyze");
+  };
+
+  const handleShareFromHistory = (item: HistoryItem) => {
+    const data = item.analysisData;
+    const coinName = getField(data, "name", "Name") || item.coinName || "AI 鑑定藏品";
+    const coinType = getField(data, "type", "Type") || item.coinType || "";
+    const country = getField(data, "country", "Country") || item.coinCountry || "";
+    const year = getField(data, "year", "Year") || "";
+    const condition = getField(data, "condition", "Condition") || "";
+    const rarity = getField(data, "rarity", "Rarity") || "";
+    const value = getField(data, "estimatedValue", "Estimated Market Value") || "";
+    const hist = getField(data, "historicalBackground", "Historical Background") || "";
+    const title = coinName.length > 50 ? coinName.slice(0, 48) + "…" : coinName;
+    const bodyParts: string[] = [];
+    if (country || year) bodyParts.push(`發行地區：${[country, year].filter(Boolean).join("　年份：")}`);
+    if (condition) bodyParts.push(`品相：${condition}`);
+    if (rarity) bodyParts.push(`稀有程度：${rarity}`);
+    if (value) bodyParts.push(`估計市值：${value}`);
+    if (hist) bodyParts.push(`\n${hist}`);
+    const body = bodyParts.join("\n");
+    const tags = [coinType, country].filter(Boolean).slice(0, 3) as string[];
+    const prefill = { title, body, imageUrls: item.imageUrl ? [item.imageUrl] : [], tags };
+    sessionStorage.setItem("aiAnalysisPrefill", JSON.stringify(prefill));
+    window.location.href = "/collection-square/new?fromAiAnalysis=1";
   };
 
   const handleClear = () => {
@@ -963,6 +998,7 @@ export default function CoinAnalysis() {
                   t={t}
                   onDelete={id => deleteHistoryMutation.mutate({ id })}
                   onExpand={handleExpandHistory}
+                  onShare={handleShareFromHistory}
                 />
               ))
             )}
