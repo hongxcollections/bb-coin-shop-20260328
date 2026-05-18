@@ -848,62 +848,16 @@ export default function CoinAnalysis() {
 
             {/* 分析按鈕 */}
             {imageBase64 && (
-              <div className="flex gap-2">
-                <button
-                  onClick={handleAnalyze}
-                  disabled={analyzeMutation.isPending}
-                  className="flex-1 py-3 rounded-xl font-bold text-white transition-colors flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60"
-                >
-                  {analyzeMutation.isPending
-                    ? <><Loader2 className="w-4 h-4 animate-spin" />{t.analyzing}</>
-                    : <><Info className="w-4 h-4" />{analysisData ? t.reanalyze : t.analyze}</>
-                  }
-                </button>
-                {analysisData && (
-                  <button
-                    onClick={handleClear}
-                    title="拆除（清除所有結果）"
-                    className="px-3 py-3 rounded-xl font-semibold text-gray-500 border border-gray-200 bg-white hover:bg-gray-50 hover:text-gray-700 transition-colors flex items-center gap-1.5"
-                  >
-                    <Eraser className="w-4 h-4" />
-                    <span className="text-xs">拆除</span>
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* 儲存 + 分享去藏品社區 */}
-            {analysisData && (
-              <div className="flex gap-2">
-                <button
-                  onClick={handleSave}
-                  disabled={isSavingImage || !imageBase64}
-                  title={imageSaved ? "圖片已儲存到歷史記錄" : "將鑑定結果（連圖片）儲存到歷史記錄"}
-                  className={`flex-1 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors border ${
-                    imageSaved
-                      ? "bg-green-50 border-green-200 text-green-700"
-                      : "bg-white border-amber-200 text-amber-700 hover:bg-amber-50"
-                  } disabled:opacity-50`}
-                >
-                  {isSavingImage
-                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />儲存中…</>
-                    : imageSaved
-                      ? <><CheckCircle2 className="w-3.5 h-3.5" />已儲存</>
-                      : <><BookmarkPlus className="w-3.5 h-3.5" />儲存</>
-                  }
-                </button>
-                <button
-                  onClick={handleShareCommunity}
-                  disabled={isSharingCommunity}
-                  title="分享去藏品社區"
-                  className="flex-1 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-sky-50 border border-sky-200 text-sky-700 hover:bg-sky-100 transition-colors disabled:opacity-50"
-                >
-                  {isSharingCommunity
-                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />準備中…</>
-                    : <><Users className="w-3.5 h-3.5" />分享去藏品社區</>
-                  }
-                </button>
-              </div>
+              <button
+                onClick={handleAnalyze}
+                disabled={analyzeMutation.isPending}
+                className="w-full py-3 rounded-xl font-bold text-white transition-colors flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60"
+              >
+                {analyzeMutation.isPending
+                  ? <><Loader2 className="w-4 h-4 animate-spin" />{t.analyzing}</>
+                  : <><Info className="w-4 h-4" />{analysisData ? t.reanalyze : t.analyze}</>
+                }
+              </button>
             )}
 
             {/* 結果 + 相關拍賣 */}
@@ -917,6 +871,50 @@ export default function CoinAnalysis() {
                 loadingRelated={loadingRelated}
                 modelUsed={modelUsed}
               />
+            )}
+
+            {/* 儲存 / 拆除 / 分享去藏品社區 — 放喺結果底部，清楚可見 */}
+            {analysisData && (
+              <div className="bg-white rounded-2xl border border-amber-100 shadow-sm p-4 space-y-3">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">鑑定完成 · 你可以</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSave}
+                    disabled={isSavingImage || !imageBase64}
+                    title={imageSaved ? "圖片已儲存到歷史記錄" : "將鑑定結果（連圖片）儲存到歷史記錄"}
+                    className={`flex-1 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors border ${
+                      imageSaved
+                        ? "bg-green-50 border-green-200 text-green-700"
+                        : "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+                    } disabled:opacity-50`}
+                  >
+                    {isSavingImage
+                      ? <><Loader2 className="w-4 h-4 animate-spin" />儲存中…</>
+                      : imageSaved
+                        ? <><CheckCircle2 className="w-4 h-4" />已儲存</>
+                        : <><BookmarkPlus className="w-4 h-4" />儲存記錄</>
+                    }
+                  </button>
+                  <button
+                    onClick={handleShareCommunity}
+                    disabled={isSharingCommunity}
+                    title="分享去藏品社區"
+                    className="flex-1 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-sky-50 border border-sky-200 text-sky-700 hover:bg-sky-100 transition-colors disabled:opacity-50"
+                  >
+                    {isSharingCommunity
+                      ? <><Loader2 className="w-4 h-4 animate-spin" />準備中…</>
+                      : <><Users className="w-4 h-4" />分享社區</>
+                    }
+                  </button>
+                </div>
+                <button
+                  onClick={handleClear}
+                  className="w-full py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 text-gray-400 border border-gray-100 bg-gray-50 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                >
+                  <Eraser className="w-4 h-4" />
+                  拆除（清除結果，重新上傳）
+                </button>
+              </div>
             )}
 
             {/* 空白提示 */}
