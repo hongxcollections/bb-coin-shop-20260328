@@ -765,9 +765,9 @@ export default function MerchantProductDetail() {
               const renderBtns = (p: any, _d: ReturnType<typeof mkData>, pill: string, icon: string) => (
                 <div className="flex flex-wrap gap-1 mt-1 justify-end" onClick={e => e.stopPropagation()}>
                   <button type="button" aria-label="站內訊息"
-                    onClick={e => { e.stopPropagation(); handleProductChat(product.merchantId, p.title); }}
+                    onClick={e => { e.preventDefault(); e.stopPropagation(); handleProductChat(product.merchantId, p.title); }}
                     className={`${pill} text-amber-700 bg-amber-100 hover:bg-amber-200 font-bold`}>
-                    <MessageCircle className={icon} />訊息
+                    <MessageCircle className={icon} />站內訊息
                   </button>
                   <button onClick={e => { e.preventDefault(); e.stopPropagation(); handleBuy(p); }}
                     className={`${pill} bg-amber-500 hover:bg-amber-600 text-white`}>

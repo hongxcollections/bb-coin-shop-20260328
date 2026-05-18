@@ -91,7 +91,7 @@ function AuctionImageOverlay({ endTime }: { endTime: Date | string }) {
 const PAGE_SIZE = 20;
 
 function HeroSlide({ auction }: { auction: any }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [, navigate] = useLocation();
   const [timeLeft, setTimeLeft] = useState({ h: 0, m: 0, s: 0, urgent: false, ended: false });
   useEffect(() => {
@@ -157,6 +157,10 @@ function HeroSlide({ auction }: { auction: any }) {
                   e.stopPropagation();
                   if (!isAuthenticated) {
                     toast.info("請先登入先可以出價 🔐", { className: "bb-toast-info", duration: 3500 });
+                    return;
+                  }
+                  if (user?.id === auction.createdBy) {
+                    toast.error("商戶自己的商品，禁止出價 🚫", { className: "bb-toast-err", duration: 3500 });
                     return;
                   }
                   navigate(`/auctions/${auction.id}`);
