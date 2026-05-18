@@ -145,22 +145,18 @@ export async function runProxyBidEngine(auctionId: number, triggeringUserId: num
 async function notifyOutbid(auctionId: number, previousHighestBidderId: number | null, newBidAmount: number, origin: string) {
   if (!previousHighestBidderId) return;
 
-  // ── Web Push 即時通知（獨立執行，唔受任何 gate 影響；用戶有訂閱 + silver+ 就推） ──
+  // ── Web Push 即時通知（獨立執行，唔受任何 gate 影響；用戶有訂閱就推） ──
   try {
     const auction = await getAuctionById(auctionId);
     console.log(`[Push] Outbid trigger: auction=${auctionId}, prevUser=${previousHighestBidderId}, newBid=${newBidAmount}, auctionFound=${!!auction}`);
     if (auction) {
-      const isSilver = await isSilverOrAbove(previousHighestBidderId);
-      console.log(`[Push] User ${previousHighestBidderId} silver+ check: ${isSilver}`);
-      if (isSilver) {
-        const sent = await sendPushToUser(previousHighestBidderId, {
-          title: `⚡ 出價被超越 — ${auction.title}`,
-          body: `目前最高出價：${auction.currency} ${newBidAmount.toLocaleString()}，立即回應！`,
-          url: `/auctions/${auctionId}`,
-          tag: `outbid-${auctionId}`,
-        });
-        console.log(`[Push] Outbid push sent to user ${previousHighestBidderId}: ${sent} device(s)`);
-      }
+      const sent = await sendPushToUser(previousHighestBidderId, {
+        title: `⚡ 出價被超越 — ${auction.title}`,
+        body: `目前最高出價：${auction.currency} ${newBidAmount.toLocaleString()}，立即回應！`,
+        url: `/auctions/${auctionId}`,
+        tag: `outbid-${auctionId}`,
+      });
+      console.log(`[Push] Outbid push sent to user ${previousHighestBidderId}: ${sent} device(s)`);
     }
   } catch (pushErr) {
     console.error('[Push] Outbid push error:', pushErr);

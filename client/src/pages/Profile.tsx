@@ -12,6 +12,7 @@ import { User, TrendingUp, LogOut, Mail, CheckCircle2, Bell, BellOff, EyeOff, He
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { PushVolumeSlider } from "@/components/PushVolumeSlider";
+import { PushNotificationOptIn } from "@/components/PushNotificationOptIn";
 import { MemberBadge } from "@/components/MemberBadge";
 import { MemberHeroBanner } from "@/components/MemberHeroBanner";
 import Header from "@/components/Header";
@@ -461,6 +462,11 @@ export default function Profile() {
                   </button>
                 </div>
               ))}
+            </div>
+
+            {/* 手機推播通知 */}
+            <div className="border-t border-amber-100 pt-4 mt-2">
+              <PushNotificationOptIn />
             </div>
 
             {/* 推播鈴聲音量 */}
