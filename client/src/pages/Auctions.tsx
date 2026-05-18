@@ -547,7 +547,7 @@ export default function Auctions() {
 
                         {/* 價錢 + 分享 + 閃出價 */}
                         <div className="flex items-center gap-2">
-                          <span className="text-base font-bold text-amber-600 flex-1">{curr}{curPrice.toLocaleString()}</span>
+                          <span className="text-xl font-bold text-amber-600 flex-1">{curr}{curPrice.toLocaleString()}</span>
                           <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                             <ShareMenu
                               auctionId={auction.id}
