@@ -1,4 +1,5 @@
 import { useParams, Link, useLocation } from "wouter";
+import ChatRoomDialog from "@/components/ChatRoomDialog";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -53,20 +54,36 @@ const MessengerIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-function ContactBtns({ whatsapp, messengerLink, title, price, id, size = "md" }: {
-  whatsapp: string; messengerLink: string; title: string; price?: number; id?: number; size?: "md" | "sm" | "xs";
+function ContactBtns({ merchantId, title, price, id, size = "md" }: {
+  merchantId: number; title: string; price?: number; id?: number; size?: "md" | "sm" | "xs";
+  whatsapp?: string; messengerLink?: string;
 }) {
   const { user } = useAuth();
-  const [, navigate] = useLocation();
-  const msg = buildProductMsg(title, price, id);
-  const waLink = whatsapp ? buildWhatsAppUrl(whatsapp, msg) : "";
-  if (!waLink && !messengerLink) return null;
-  const stop = (e: React.MouseEvent) => e.stopPropagation();
+  const utils = trpc.useUtils();
+  const [opening, setOpening] = useState(false);
+  const [openRoomId, setOpenRoomId] = useState<number | null>(null);
+  const [initialMsg, setInitialMsg] = useState<string | undefined>(undefined);
 
-  const requireLogin = (e: React.MouseEvent, fn: () => void) => {
+  const openRoom = trpc.chat.openRoomByMerchant.useMutation({
+    onSuccess: ({ roomId, isNew }) => {
+      if (isNew) {
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        const idPart = id ? `\n商品連結：${origin}/merchant-products/${id}` : "";
+        setInitialMsg(`你好，我想查詢以下商品：\n${title}${idPart}`);
+      } else {
+        setInitialMsg(undefined);
+      }
+      setOpenRoomId(roomId);
+      setOpening(false);
+    },
+    onError: (err) => { toast.error(err.message, { className: "bb-toast-err" }); setOpening(false); },
+  });
+
+  const handleChat = (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
-    if (!user) { toast.info("請先登入後才可以聯繫商戶", { className: "bb-toast-info" }); return; }
-    fn();
+    if (!user) { toast.info("請先登入後才可以使用站內訊息", { className: "bb-toast-info" }); return; }
+    setOpening(true);
+    openRoom.mutate({ merchantId, productTitle: title });
   };
 
   const isSmall = size === "sm" || size === "xs";
@@ -75,35 +92,35 @@ function ContactBtns({ whatsapp, messengerLink, title, price, id, size = "md" }:
     : "flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors shrink-0";
   const iconSz = isSmall ? "w-2.5 h-2.5" : "w-3.5 h-3.5";
   return (
-    <div className={`flex flex-wrap gap-1 shrink-0 ${isSmall ? "mt-auto justify-end" : ""}`} onClick={stop}>
-      {/* 站內訊息 — 突出位置 */}
-      <button type="button"
-        onClick={(e) => { e.stopPropagation(); if (!user) { toast.info("請先登入後才可以使用站內訊息", { className: "bb-toast-info" }); return; } navigate("/messages"); }}
-        className={`${pillBase} text-amber-700 bg-amber-100 hover:bg-amber-200 font-bold`}>
-        <MessageCircle className={iconSz} />
-        {!isSmall && "站內訊息"}
-      </button>
-      {waLink && (
-        <button type="button" aria-label="WhatsApp 聯絡"
-          onClick={(e) => requireLogin(e, () => window.open(waLink, "_blank", "noopener,noreferrer"))}
-          className={`${pillBase} text-[#25D366] bg-[#25D366]/10 hover:bg-[#25D366]/20`}>
-          <WhatsAppIcon className={iconSz} />
-          {!isSmall && <span className="text-[9px]">WA</span>}
+    <>
+      <div className={`flex flex-wrap gap-1 shrink-0 ${isSmall ? "mt-auto justify-end" : ""}`} onClick={e => e.stopPropagation()}>
+        <button type="button" disabled={opening}
+          onClick={handleChat}
+          className={`${pillBase} text-amber-700 bg-amber-100 hover:bg-amber-200 font-bold disabled:opacity-60`}>
+          <MessageCircle className={iconSz} />
+          {!isSmall && (opening ? "..." : "站內訊息")}
         </button>
+      </div>
+      {openRoomId !== null && (
+        <ChatRoomDialog
+          roomId={openRoomId}
+          open={openRoomId !== null}
+          initialMessage={initialMsg}
+          onOpenChange={(o) => {
+            if (!o) {
+              setOpenRoomId(null);
+              setInitialMsg(undefined);
+              utils.chat.unreadTotal.invalidate();
+              utils.chat.listMyRooms.invalidate();
+            }
+          }}
+        />
       )}
-      {messengerLink && (
-        <button type="button" aria-label="Messenger 聯絡"
-          onClick={(e) => requireLogin(e, () => copyAndOpenMessenger(messengerLink, msg))}
-          className={`${pillBase} text-blue-600 bg-blue-50 hover:bg-blue-100`}>
-          <MessengerIcon className={iconSz} />
-          {!isSmall && <span className="text-[9px]">MSN</span>}
-        </button>
-      )}
-    </div>
+    </>
   );
 }
 
-function ProductsList({ products, layout, whatsapp, messengerLink, merchantName }: { products: any[]; layout: LayoutMode; whatsapp: string; messengerLink: string; merchantName: string }) {
+function ProductsList({ products, layout, whatsapp, messengerLink, merchantName, merchantId }: { products: any[]; layout: LayoutMode; whatsapp: string; messengerLink: string; merchantName: string; merchantId: number }) {
   const nameOverlay = merchantName ? (
     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-0.5 text-white text-[10px] font-medium leading-tight truncate pointer-events-none">
       {sanitizeUserText(merchantName)}
@@ -138,7 +155,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName 
                 {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{p.category}</span>}
                 <p className={`text-sm font-bold mt-0.5 ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</p>
                 <div className="flex items-center justify-end gap-1 mt-1">
-                  {!isSold ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
+                  {!isSold ? <ContactBtns merchantId={merchantId} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
                   <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                     <ProductShareMenu productId={p.id} title={p.title} price={price} currency={p.currency} iconOnly />
                   </div>
@@ -190,7 +207,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName 
                 <div className="flex items-center justify-between pt-1">
                   <span className={`text-base font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
                   <div className="flex items-center gap-1">
-                    {!isSold ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
+                    {!isSold ? <ContactBtns merchantId={merchantId} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
                     <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                       <ProductShareMenu productId={p.id} title={p.title} price={price} currency={p.currency} iconOnly />
                     </div>
@@ -232,7 +249,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName 
                 <span className={`text-[10px] font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
                 <div className="flex items-center justify-between gap-0.5">
                   {!isSold ? (
-                    <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="sm" />
+                    <ContactBtns merchantId={merchantId} title={p.title} price={price} id={p.id} size="sm" />
                   ) : (
                     <span className="mt-auto text-[9px] py-0.5 bg-gray-100 text-gray-400 rounded text-center">已售出</span>
                   )}
@@ -281,7 +298,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName 
               <span className={`text-sm font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
               {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
               <div className="mt-auto pt-1 flex items-center justify-end gap-1">
-                {!isSold ? <ContactBtns whatsapp={whatsapp} messengerLink={messengerLink} title={p.title} price={price} id={p.id} size="sm" /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
+                {!isSold ? <ContactBtns merchantId={merchantId} title={p.title} price={price} id={p.id} size="sm" /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
                 <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                   <ProductShareMenu productId={p.id} title={p.title} price={price} currency={p.currency} iconOnly />
                 </div>
@@ -931,6 +948,7 @@ export default function MerchantStore() {
                   whatsapp={merchant?.whatsapp ?? ""}
                   messengerLink={messengerLink}
                   merchantName={merchant?.merchantName ?? ""}
+                  merchantId={userId}
                 />
                 {soldProducts.length > 0 && (merchantInfo?.showSoldProducts ?? 1) !== 0 && (
                   <div className="mt-3">

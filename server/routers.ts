@@ -7164,6 +7164,29 @@ ${kb}`;
         return { roomId: result.room.id, isNew: result.isNew };
       }),
 
+    /** 商品查詢：直接開商戶對話（唔需要拍賣 ID，用 auctionId=-merchantId 作 sentinel） */
+    openRoomByMerchant: protectedProcedure
+      .input(z.object({ merchantId: z.number(), productTitle: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getOrCreateChatRoom, getUserMemberLevel, getUserById } = await import('./db');
+        if (input.merchantId === ctx.user.id) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '你係呢個商戶，唔需要同自己對話' });
+        }
+        const merchant = await getUserById(input.merchantId);
+        if (!merchant) throw new TRPCError({ code: 'NOT_FOUND', message: '找唔到呢個商戶' });
+        if (ctx.user.role !== 'admin') {
+          const lvl = await getUserMemberLevel(ctx.user.id);
+          if (lvl !== 'silver' && lvl !== 'gold' && lvl !== 'vip') {
+            throw new TRPCError({ code: 'FORBIDDEN', message: '只有銀牌或以上會員可以同商戶對話。請先升級會員等級 🥈' });
+          }
+        }
+        // sentinel: auctionId = -merchantId，每個買家對每個商戶只有一個通用對話間
+        const sentinelId = -input.merchantId;
+        const result = await getOrCreateChatRoom(sentinelId, ctx.user.id, input.merchantId);
+        if (!result) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '建立對話失敗' });
+        return { roomId: result.room.id, isNew: result.isNew };
+      }),
+
     /** 取得 room 詳情 + 訊息列表 (僅參與者) */
     getRoom: protectedProcedure
       .input(z.object({ roomId: z.number(), limit: z.number().default(100) }))

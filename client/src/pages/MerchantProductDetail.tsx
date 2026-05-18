@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import ChatRoomDialog from "@/components/ChatRoomDialog";
 import { useParams, Link, useLocation } from "wouter";
 import ImageLightbox from "@/components/ImageLightbox";
 import { ProductShareMenu, ShareMenu } from "@/components/ShareMenu";
@@ -226,6 +227,28 @@ export default function MerchantProductDetail() {
   const [buyingProduct, setBuyingProduct] = useState<any | null>(null);
   const { user } = useAuth();
   const utilsLock = trpc.useUtils();
+  const [productChatRoomId, setProductChatRoomId] = useState<number | null>(null);
+  const [productChatMsg, setProductChatMsg] = useState<string | undefined>(undefined);
+  const [productChatOpening, setProductChatOpening] = useState(false);
+  const openRoomByMerchant = trpc.chat.openRoomByMerchant.useMutation({
+    onSuccess: ({ roomId, isNew }, vars) => {
+      if (isNew) {
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        const url = `${origin}${window.location.pathname}`;
+        setProductChatMsg(`你好，我想查詢以下商品：\n${vars.productTitle ?? ""}\n商品連結：${url}`);
+      } else {
+        setProductChatMsg(undefined);
+      }
+      setProductChatRoomId(roomId);
+      setProductChatOpening(false);
+    },
+    onError: (err) => { toast.error(err.message, { className: "bb-toast-err" }); setProductChatOpening(false); },
+  });
+  const handleProductChat = (merchantId: number, productTitle: string) => {
+    if (!user) { toast.info("請先登入後才可以使用站內訊息", { className: "bb-toast-info" }); return; }
+    setProductChatOpening(true);
+    openRoomByMerchant.mutate({ merchantId, productTitle });
+  };
   const handleBuy = async (p: any) => {
     if (!user) { setBuyingProduct(p); return; }
     if (p.merchantId === user.id) {
@@ -680,10 +703,10 @@ export default function MerchantProductDetail() {
                       </p>
                     )}
                     {/* 站內訊息 — 突出位置 */}
-                    <button type="button"
-                      onClick={() => { if (!user) { toast.info("請先登入後才可以使用站內訊息", { className: "bb-toast-info" }); return; } window.location.href = "/messages"; }}
-                      className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
-                      <MessageCircle className="w-4 h-4" />站內訊息
+                    <button type="button" disabled={productChatOpening}
+                      onClick={() => handleProductChat(product.merchantId, product.title)}
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
+                      <MessageCircle className="w-4 h-4" />{productChatOpening ? "連線中..." : "站內訊息"}
                     </button>
                     <div className={`flex gap-2 ${waLink && messengerLink ? "flex-row" : ""}`}>
                       {waLink && (
@@ -747,7 +770,7 @@ export default function MerchantProductDetail() {
                   </button>
                   {/* 站內訊息 */}
                   <button type="button" aria-label="站內訊息"
-                    onClick={e => { e.stopPropagation(); if (!user) { toast.info("請先登入後才可以使用站內訊息", { className: "bb-toast-info" }); return; } window.location.href = "/messages"; }}
+                    onClick={e => { e.stopPropagation(); handleProductChat(product.merchantId, p.title); }}
                     className={`${pill} text-amber-700 bg-amber-100 hover:bg-amber-200 font-bold`}>
                     <MessageCircle className={icon} />訊息
                   </button>
@@ -1028,6 +1051,23 @@ export default function MerchantProductDetail() {
 
       {/* 落單彈窗 */}
       {buyingProduct && <BuyDialog product={buyingProduct} onClose={() => setBuyingProduct(null)} />}
+
+      {/* 站內訊息彈窗 */}
+      {productChatRoomId !== null && (
+        <ChatRoomDialog
+          roomId={productChatRoomId}
+          open={productChatRoomId !== null}
+          initialMessage={productChatMsg}
+          onOpenChange={(o) => {
+            if (!o) {
+              setProductChatRoomId(null);
+              setProductChatMsg(undefined);
+              utilsLock.chat.unreadTotal.invalidate();
+              utilsLock.chat.listMyRooms.invalidate();
+            }
+          }}
+        />
+      )}
 
       {/* 大圖燈箱 */}
       {lightboxOpen && imgs.length > 0 && (
