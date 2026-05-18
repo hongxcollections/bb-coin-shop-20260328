@@ -774,20 +774,6 @@ export default function MerchantProductDetail() {
                     className={`${pill} text-amber-700 bg-amber-100 hover:bg-amber-200 font-bold`}>
                     <MessageCircle className={icon} />訊息
                   </button>
-                  {d.pWaLink && (
-                    <button type="button" aria-label="WhatsApp 聯絡"
-                      onClick={e => { e.stopPropagation(); requireLoginOther(() => window.open(d.pWaLink, "_blank", "noopener,noreferrer")); }}
-                      className={`${pill} text-[#25D366] bg-[#25D366]/10 hover:bg-[#25D366]/20`}>
-                      <svg viewBox="0 0 24 24" fill="currentColor" className={icon}><path d={WA_PATH} /></svg>WA
-                    </button>
-                  )}
-                  {messengerLink && (
-                    <button type="button" aria-label="Messenger 聯絡"
-                      onClick={e => { e.stopPropagation(); requireLoginOther(() => d.onMsn(e as any)); }}
-                      className={`${pill} text-blue-600 bg-blue-50 hover:bg-blue-100`}>
-                      <svg viewBox="0 0 24 24" fill="currentColor" className={icon}><path d={MSN_PATH} /></svg>MSN
-                    </button>
-                  )}
                 </div>
               );
 

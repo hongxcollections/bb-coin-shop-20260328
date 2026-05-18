@@ -8,7 +8,7 @@ import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { ShareMenu, ProductShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
-import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag, Share2, QrCode, CalendarClock } from "lucide-react";
+import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag, Share2, QrCode, CalendarClock, ShoppingCart, CheckCircle2, Loader2, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { buildWhatsAppUrl, sanitizeUserText, parseCategories } from "@/lib/utils";
@@ -54,22 +54,138 @@ const MessengerIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-function ContactBtns({ merchantId, title, price, id, size = "md" }: {
-  merchantId: number; title: string; price?: number; id?: number; size?: "md" | "sm" | "xs";
-  whatsapp?: string; messengerLink?: string;
+function BuyDialog({ product, onClose }: { product: any; onClose: () => void }) {
+  const { user } = useAuth();
+  const [, navigate] = useLocation();
+  const [qty, setQty] = useState(1);
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [ordered, setOrdered] = useState(false);
+  const [orderedQty, setOrderedQty] = useState(0);
+  const utils = trpc.useUtils();
+  const price = parseFloat(product?.price ?? "0");
+  const currSymbol = getCurrencySymbol(product?.currency ?? "HKD");
+
+  const createOrder = trpc.productOrders.create.useMutation({
+    onSuccess: () => { utils.merchants.listProducts.invalidate(); setOrderedQty(qty); setOrdered(true); },
+    onError: (e) => toast.error(e.message, { className: "bb-toast-err" }),
+  });
+
+  if (!user) return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center" onClick={e => e.stopPropagation()}>
+        <ShoppingCart className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+        <p className="font-semibold text-gray-800 mb-1">請先登入</p>
+        <p className="text-sm text-gray-500 mb-4">登入後才可落單購買</p>
+        <button onClick={() => { onClose(); navigate(`/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`); }}
+          className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 rounded-xl transition-colors">前往登入</button>
+        <button onClick={onClose} className="w-full mt-2 text-sm text-gray-400 py-2">取消</button>
+      </div>
+    </div>
+  );
+
+  if (product?.merchantId === user.id) return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center" onClick={e => e.stopPropagation()}>
+        <span className="text-4xl mb-3 block">🚫</span>
+        <p className="font-semibold text-gray-800 mb-1">不能購買自己的商品</p>
+        <button onClick={onClose} className="w-full bg-gray-100 text-gray-600 font-semibold py-2.5 rounded-xl hover:bg-gray-200">關閉</button>
+      </div>
+    </div>
+  );
+
+  if (ordered) return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center" onClick={e => e.stopPropagation()}>
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle2 className="w-9 h-9 text-green-500" />
+        </div>
+        <h2 className="font-bold text-gray-800 text-lg mb-1">落單成功！</h2>
+        <p className="text-sm text-gray-500 mb-2">已成功落單 <span className="font-semibold text-gray-700">{orderedQty} 件</span></p>
+        <div className="bg-amber-50 rounded-xl px-4 py-2.5 mb-4 text-left">
+          <p className="text-sm font-medium text-gray-800 line-clamp-2">{product?.title}</p>
+          <p className="text-amber-600 font-bold text-sm mt-0.5">{currSymbol}{(price * orderedQty).toLocaleString()}</p>
+        </div>
+        <p className="text-sm text-gray-500 mb-6">請等候商戶確認成交，確認後我們會通知你。</p>
+        <button onClick={onClose} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 rounded-xl transition-colors">完成</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3">
+          <ShoppingCart className="w-5 h-5 text-amber-500 shrink-0" />
+          <h2 className="font-bold text-gray-800 text-base">確認落單</h2>
+          <button onClick={onClose} className="ml-auto p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="bg-amber-50 rounded-xl p-3 space-y-1">
+          <p className="font-semibold text-gray-800 text-sm line-clamp-2">{product?.title}</p>
+          <p className="text-amber-600 font-bold">{currSymbol}{price.toLocaleString()}</p>
+          <p className="text-xs text-gray-500">庫存：{product?.stock} 件</p>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-gray-500 font-medium">數量</label>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setQty(q => Math.max(1, q - 1))} className="w-8 h-8 rounded-full border border-amber-200 text-amber-600 font-bold text-lg flex items-center justify-center hover:bg-amber-50">−</button>
+            <span className="text-lg font-bold text-gray-800 w-8 text-center">{qty}</span>
+            <button onClick={() => setQty(q => Math.min(product?.stock ?? 1, q + 1))} className="w-8 h-8 rounded-full border border-amber-200 text-amber-600 font-bold text-lg flex items-center justify-center hover:bg-amber-50">+</button>
+            <span className="text-sm text-gray-500 ml-auto">合計：<span className="text-amber-600 font-bold">{currSymbol}{(price * qty).toLocaleString()}</span></span>
+          </div>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-gray-500 font-medium">備注（選填）</label>
+          <textarea className="w-full border border-gray-200 rounded-xl p-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300"
+            rows={2} maxLength={200} placeholder="如有特別要求請在此說明…"
+            value={note} onChange={e => setNote(e.target.value)} />
+        </div>
+        <p className="text-xs text-gray-400 bg-gray-50 rounded-lg p-2.5">落單後商戶會聯絡你確認成交。</p>
+        <div className="flex gap-2 pt-1">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50">取消</button>
+          <button disabled={submitting}
+            onClick={async () => {
+              setSubmitting(true);
+              try {
+                let buyerPushEndpoint: string | undefined;
+                try {
+                  const swReady = navigator.serviceWorker?.ready;
+                  if (swReady) {
+                    const timeout = new Promise<undefined>((res) => setTimeout(() => res(undefined), 1500));
+                    const reg = await Promise.race([swReady, timeout]);
+                    const sub = await reg?.pushManager?.getSubscription();
+                    if (sub?.endpoint) buyerPushEndpoint = sub.endpoint;
+                  }
+                } catch {}
+                await createOrder.mutateAsync({ productId: product.id, quantity: qty, buyerNote: note || undefined, buyerPushEndpoint });
+              } catch {} finally { setSubmitting(false); }
+            }}
+            className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-60">
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
+            {submitting ? "處理中…" : "確認落單"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ContactBtns({ product, merchantId, size = "md" }: {
+  product: any; merchantId: number; size?: "md" | "sm" | "xs";
 }) {
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const [opening, setOpening] = useState(false);
   const [openRoomId, setOpenRoomId] = useState<number | null>(null);
   const [initialMsg, setInitialMsg] = useState<string | undefined>(undefined);
+  const [buyingProduct, setBuyingProduct] = useState<any | null>(null);
 
   const openRoom = trpc.chat.openRoomByMerchant.useMutation({
     onSuccess: ({ roomId, isNew }) => {
       if (isNew) {
         const origin = typeof window !== "undefined" ? window.location.origin : "";
-        const idPart = id ? `\n商品連結：${origin}/merchant-products/${id}` : "";
-        setInitialMsg(`你好，我想查詢以下商品：\n${title}${idPart}`);
+        const idPart = product?.id ? `\n商品連結：${origin}/merchant-products/${product.id}` : "";
+        setInitialMsg(`你好，我想查詢以下商品：\n${product?.title ?? ""}${idPart}`);
       } else {
         setInitialMsg(undefined);
       }
@@ -83,7 +199,12 @@ function ContactBtns({ merchantId, title, price, id, size = "md" }: {
     e.preventDefault(); e.stopPropagation();
     if (!user) { toast.info("請先登入後才可以使用站內訊息", { className: "bb-toast-info" }); return; }
     setOpening(true);
-    openRoom.mutate({ merchantId, productTitle: title });
+    openRoom.mutate({ merchantId, productTitle: product?.title ?? "" });
+  };
+
+  const handleBuy = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    setBuyingProduct({ ...product, merchantId });
   };
 
   const isSmall = size === "sm" || size === "xs";
@@ -91,9 +212,16 @@ function ContactBtns({ merchantId, title, price, id, size = "md" }: {
     ? "flex items-center gap-0.5 text-[9px] font-semibold px-1 py-0.5 rounded-full transition-colors shrink-0"
     : "flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors shrink-0";
   const iconSz = isSmall ? "w-2.5 h-2.5" : "w-3.5 h-3.5";
+
   return (
     <>
       <div className={`flex flex-wrap gap-1 shrink-0 ${isSmall ? "mt-auto justify-end" : ""}`} onClick={e => e.stopPropagation()}>
+        <button type="button"
+          onClick={handleBuy}
+          className={`${pillBase} bg-amber-500 hover:bg-amber-600 text-white`}>
+          <ShoppingCart className={iconSz} />
+          {!isSmall && "落單"}
+        </button>
         <button type="button" disabled={opening}
           onClick={handleChat}
           className={`${pillBase} text-amber-700 bg-amber-100 hover:bg-amber-200 font-bold disabled:opacity-60`}>
@@ -101,6 +229,7 @@ function ContactBtns({ merchantId, title, price, id, size = "md" }: {
           {!isSmall && (opening ? "..." : "站內訊息")}
         </button>
       </div>
+      {buyingProduct && <BuyDialog product={buyingProduct} onClose={() => setBuyingProduct(null)} />}
       {openRoomId !== null && (
         <ChatRoomDialog
           roomId={openRoomId}
@@ -155,7 +284,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
                 {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{p.category}</span>}
                 <p className={`text-sm font-bold mt-0.5 ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</p>
                 <div className="flex items-center justify-end gap-1 mt-1">
-                  {!isSold ? <ContactBtns merchantId={merchantId} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
+                  {!isSold ? <ContactBtns product={p} merchantId={merchantId} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
                   <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                     <ProductShareMenu productId={p.id} title={p.title} price={price} currency={p.currency} iconOnly />
                   </div>
@@ -207,7 +336,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
                 <div className="flex items-center justify-between pt-1">
                   <span className={`text-base font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
                   <div className="flex items-center gap-1">
-                    {!isSold ? <ContactBtns merchantId={merchantId} title={p.title} price={price} id={p.id} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
+                    {!isSold ? <ContactBtns product={p} merchantId={merchantId} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
                     <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                       <ProductShareMenu productId={p.id} title={p.title} price={price} currency={p.currency} iconOnly />
                     </div>
@@ -249,7 +378,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
                 <span className={`text-[10px] font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
                 <div className="flex items-center justify-between gap-0.5">
                   {!isSold ? (
-                    <ContactBtns merchantId={merchantId} title={p.title} price={price} id={p.id} size="sm" />
+                    <ContactBtns product={p} merchantId={merchantId} size="sm" />
                   ) : (
                     <span className="mt-auto text-[9px] py-0.5 bg-gray-100 text-gray-400 rounded text-center">已售出</span>
                   )}
@@ -298,7 +427,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
               <span className={`text-sm font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
               {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
               <div className="mt-auto pt-1 flex items-center justify-end gap-1">
-                {!isSold ? <ContactBtns merchantId={merchantId} title={p.title} price={price} id={p.id} size="sm" /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
+                {!isSold ? <ContactBtns product={p} merchantId={merchantId} size="sm" /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
                 <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                   <ProductShareMenu productId={p.id} title={p.title} price={price} currency={p.currency} iconOnly />
                 </div>
