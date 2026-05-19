@@ -644,7 +644,7 @@ export default function MerchantProductDetail() {
                   {/* 第三行：交收/付款方式按鈕 — 向右，與上行相隔 8px */}
                   <button
                     onClick={() => setPaymentInfoOpen(true)}
-                    className="flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors ml-auto mt-2"
+                    className="flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors ml-auto mt-3"
                     title="交收/付款方式"
                   >
                     <Info className="w-3.5 h-3.5" />
@@ -835,6 +835,10 @@ export default function MerchantProductDetail() {
                       return (
                         <Link key={p.id} href={`/merchant-products/${p.id}`}>
                           <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-amber-300 transition-colors">
+                            {/* 標題移到照片上方 */}
+                            <div className="px-1.5 pt-1.5 pb-0.5">
+                              <h3 className="text-[12px] font-semibold text-gray-800 line-clamp-2 leading-tight">{p.title}</h3>
+                            </div>
                             <div className="relative">
                               {d.pImgs[0] ? (
                                 <img src={d.pImgs[0]} alt={p.title} className="w-full aspect-square object-cover" />
@@ -844,8 +848,7 @@ export default function MerchantProductDetail() {
                               {nameOverlay}
                             </div>
                             <div className="p-1.5 flex flex-col gap-0.5 flex-1">
-                              <h3 className="text-[10px] font-semibold text-gray-800 line-clamp-2 leading-tight">{p.title}</h3>
-                              <span className="text-[10px] font-bold text-amber-600">{p.currency ?? "HKD"} ${d.pPrice.toLocaleString()}</span>
+                              <span className="text-[14px] font-bold text-amber-600">{p.currency ?? "HKD"} ${d.pPrice.toLocaleString()}</span>
                               {renderBtns(p, d, smPill, "w-2.5 h-2.5")}
                             </div>
                           </div>
@@ -863,6 +866,11 @@ export default function MerchantProductDetail() {
                       return (
                         <Link key={p.id} href={`/merchant-products/${p.id}`}>
                           <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden flex flex-col cursor-pointer hover:border-amber-300 transition-colors">
+                            {/* 標題移到照片上方 */}
+                            <div className="px-2 pt-2 pb-1 flex items-start justify-between gap-1">
+                              <h3 className="text-[0.9rem] font-semibold text-gray-800 line-clamp-2 leading-snug flex-1">{p.title}</h3>
+                              {p.category && <span className="text-[8px] bg-amber-100 text-amber-700 px-1 py-0.5 rounded-full shrink-0">{p.category}</span>}
+                            </div>
                             <div className="relative">
                               {d.pImgs[0] ? (
                                 <div className="aspect-square w-full overflow-hidden bg-amber-50">
@@ -874,9 +882,7 @@ export default function MerchantProductDetail() {
                               {nameOverlay}
                             </div>
                             <div className="p-2 flex flex-col gap-1 flex-1">
-                              <h3 className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">{p.title}</h3>
-                              {p.category && <span className="text-[10px] text-amber-600">{p.category}</span>}
-                              <span className="font-bold text-amber-600 text-xs">{p.currency ?? "HKD"} ${d.pPrice.toLocaleString()}</span>
+                              <span className="font-bold text-amber-600 text-[1.05rem]">{p.currency ?? "HKD"} ${d.pPrice.toLocaleString()}</span>
                               {renderBtns(p, d, smPill, "w-2.5 h-2.5")}
                             </div>
                           </div>
