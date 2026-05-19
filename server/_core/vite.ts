@@ -354,16 +354,17 @@ async function injectProductOgMeta(html: string, reqPath: string, protocol: stri
 
     const currency = (product as { currency?: string }).currency ?? "HKD";
     const currSymbol = getCurrencySymbol(currency);
-    const price = Number((product as { price: string | number }).price).toLocaleString();
+    const priceNum = Number((product as { price: string | number }).price);
+    const priceText = priceNum === 0 ? "查詢格價" : `${currSymbol}${priceNum.toLocaleString()}`;
     const merchantName = (product as { merchantName?: string }).merchantName ?? "";
 
     const stripHtml = (s: string) => s.replace(/<[^>]*>?/g, "").replace(/&lt;[^&]*?&gt;/gi, "");
     const rawTitle = stripHtml(product.title).replace(/\s+/g, " ").trim();
     const titleForOg = rawTitle.length > 25 ? rawTitle.slice(0, 25) + "…" : rawTitle;
-    const ogTitle = `${titleForOg} | ${currSymbol}${price} | hongxcollections.com`;
+    const ogTitle = `${titleForOg} | ${priceText} | hongxcollections.com`;
     const rawDesc = stripHtml((product as { description?: string | null }).description?.toString() ?? "").replace(/\s+/g, " ").trim();
     const shortDesc = rawDesc.length > 100 ? rawDesc.slice(0, 100) + "…" : rawDesc;
-    const ogDesc = `${rawTitle} | 出售價 ${currSymbol}${price}${merchantName ? ` | ${merchantName}` : ""}${shortDesc ? ` | ${shortDesc}` : " | 歡迎查詢"} | hongxcollections`;
+    const ogDesc = `${rawTitle} | 出售價 ${priceText}${merchantName ? ` | ${merchantName}` : ""}${shortDesc ? ` | ${shortDesc}` : " | 歡迎查詢"} | hongxcollections`;
     const fullUrl = `${protocol}://${host}${reqPath}`;
 
     const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
