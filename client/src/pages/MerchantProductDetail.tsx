@@ -620,7 +620,7 @@ export default function MerchantProductDetail() {
                 <div className="pt-1 space-y-1">
                   {/* 第一行：出售價錢 | 庫存 N 件 [有貨] — 向左 */}
                   <div className="flex items-center justify-start gap-2">
-                    <span className="text-xs text-gray-400">出售價錢</span>
+                    <span className="text-xs text-gray-400">價錢</span>
                     {product.status === 'active' && product.stock > 0 ? (
                       <>
                         <span className="text-gray-300 text-xs select-none">|</span>
