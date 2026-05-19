@@ -4,6 +4,7 @@ import { useParams, Link, useLocation } from "wouter";
 import ImageLightbox from "@/components/ImageLightbox";
 import { ProductShareMenu, ShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
+import { AuctionCard } from "@/components/AuctionCard";
 import { Badge } from "@/components/ui/badge";
 import { getCurrencySymbol } from "./AdminAuctions";
 import { toast } from "sonner";
@@ -153,58 +154,6 @@ function BuyDialog({ product, onClose }: { product: any; onClose: () => void }) 
   );
 }
 
-function AuctionCountdown({ endTime }: { endTime: string | Date }) {
-  const end = new Date(endTime);
-  const now = new Date();
-  const diff = end.getTime() - now.getTime();
-  if (diff <= 0) return <span className="text-red-500 text-[10px]">已結束</span>;
-  const h = Math.floor(diff / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  if (h >= 24) return <span className="text-gray-500 text-[10px]">{Math.floor(h / 24)}天後</span>;
-  if (h >= 1) return <span className="text-amber-600 text-[10px]">{h}時{m}分</span>;
-  return <span className="text-red-500 text-[10px] font-semibold">{m}分鐘</span>;
-}
-
-function AuctionImageOverlay({ endTime }: { endTime: Date | string }) {
-  const [txt, setTxt] = useState("");
-  const [urgent, setUrgent] = useState(false);
-  useEffect(() => {
-    function update() {
-      const diff = new Date(endTime).getTime() - Date.now();
-      if (diff <= 0) { setTxt(""); return; }
-      const totalHours = diff / 3600000;
-      if (totalHours > 12) {
-        const days = Math.floor(diff / 86400000);
-        const remH = Math.floor((diff % 86400000) / 3600000);
-        setTxt(days >= 1 ? (remH > 0 ? `${days}天${remH}h後` : `${days}天後`) : `${Math.floor(totalHours)}h後`);
-        setUrgent(false);
-      } else {
-        const h = Math.floor(totalHours);
-        const m = Math.floor((diff % 3600000) / 60000);
-        const s = Math.floor((diff % 60000) / 1000);
-        const pad = (n: number) => String(n).padStart(2, "0");
-        setTxt(h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`);
-        setUrgent(diff < 3600000);
-      }
-    }
-    update();
-    const id = setInterval(update, 1000);
-    return () => clearInterval(id);
-  }, [endTime]);
-  if (!txt) return null;
-  return (
-    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1 pointer-events-none">
-      {urgent
-        ? <div className="flex items-center gap-0.5 text-[10px] font-black leading-none animate-pulse bg-red-600 text-white px-1 py-0.5 rounded self-start inline-flex">
-            <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
-          </div>
-        : <div className="flex items-center gap-0.5 text-[10px] font-bold leading-none text-white">
-            <Clock className="w-2.5 h-2.5 shrink-0" />{txt}
-          </div>
-      }
-    </div>
-  );
-}
 
 export default function MerchantProductDetail() {
   const params = useParams<{ id: string }>();
@@ -938,7 +887,7 @@ export default function MerchantProductDetail() {
               );
             })()}
 
-            {/* ── 同商戶拍賣商品（一律 grid1 單列）── */}
+            {/* ── 同商戶拍賣商品 ── */}
             {(auctionItems as any[]).length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
@@ -948,86 +897,40 @@ export default function MerchantProductDetail() {
                 </div>
                 <div className="flex flex-col gap-[2px]">
                   {(auctionItems as any[]).map((a: any) => {
-                    const isEnded = new Date(a.endTime).getTime() <= Date.now();
-                    const currency = a.currency ?? "HKD";
+                    const nowMs = Date.now();
+                    const endMs = new Date(a.endTime).getTime();
+                    const isEnded = endMs <= nowMs;
+                    const isEndingSoon = !isEnded && (endMs - nowMs) <= 60 * 60 * 1000;
+                    const totalDuration = a.createdAt ? endMs - new Date(a.createdAt).getTime() : null;
+                    const elapsed = a.createdAt ? nowMs - new Date(a.createdAt).getTime() : null;
+                    const timeProgress = (totalDuration && elapsed && totalDuration > 0)
+                      ? Math.min(Math.max(elapsed / totalDuration, 0), 1)
+                      : null;
                     return (
-                      <Link key={a.id} href={`/auctions/${a.id}`}>
-                        <div className="flex gap-3 p-3 bg-white border border-amber-100 rounded-lg hover:border-amber-300 hover:bg-amber-50/50 cursor-pointer transition-all">
-                          {/* 左：封面圖（倒數 overlay 喺底部） */}
-                          <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0 shadow-sm">
-                            {a.coverImage ? (
-                              <img src={a.coverImage} alt={a.title} className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="text-3xl">🪙</span>
-                            )}
-                            {!isEnded && <AuctionImageOverlay endTime={a.endTime} />}
-                          </div>
-                          {/* 右：內容 + 分享 + 閃出價 */}
-                          <div className="flex-1 flex flex-col justify-between min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-sm line-clamp-1 text-amber-900">{a.title}</h3>
-                                {(merchantDetail?.merchantName ?? product?.merchantName) && (
-                                  <div className="flex items-center gap-0.5 mt-0.5">
-                                    <Store className="w-2.5 h-2.5 text-amber-400 shrink-0" />
-                                    <span className="text-[10px] text-amber-600 truncate">{merchantDetail?.merchantName ?? product?.merchantName}</span>
-                                  </div>
-                                )}
-                              </div>
-                              <Badge className={`text-[9px] px-1.5 py-0.5 shrink-0 ${!isEnded ? "bg-emerald-500 text-white" : "bg-gray-400 text-white"}`}>
-                                {!isEnded ? "競拍中" : "已結束"}
-                              </Badge>
-                            </div>
-                            <div className="mt-1">
-                              <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                目前出價
-                                {(() => {
-                                  if (a.highestBidderId && user?.id && a.highestBidderId === user.id) {
-                                    return <span className="text-[9px] text-emerald-600 font-bold">(我本人✓)</span>;
-                                  } else if (a.highestBidderName) {
-                                    return <span className="text-[9px] text-red-500 font-semibold">({a.highestBidderName})</span>;
-                                  } else if (!a.highestBidderId) {
-                                    return <span className="text-[9px] text-gray-500 font-normal">(未有出價)</span>;
-                                  }
-                                  return null;
-                                })()}
-                              </div>
-                              <div className="text-sm font-bold text-amber-600">
-                                {getCurrencySymbol(currency)}{Number(a.currentPrice ?? a.startingPrice ?? 0).toLocaleString()}
-                              </div>
-                              <div className="flex items-center justify-end gap-1.5 mt-0.5">
-                                <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                                  <ShareMenu
-                                    auctionId={a.id}
-                                    title={a.title}
-                                    latestBid={Number(a.currentPrice ?? a.startingPrice ?? 0)}
-                                    currency={currency}
-                                    endTime={a.endTime}
-                                    shareTemplate={null}
-                                  />
-                                </div>
-                                <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                                  <QuickBidPopover
-                                    auctionId={a.id}
-                                    title={a.title}
-                                    currentPrice={Number(a.currentPrice ?? a.startingPrice ?? 0)}
-                                    startingPrice={Number(a.startingPrice ?? 0)}
-                                    bidIncrement={Number((a as { bidIncrement?: number }).bidIncrement ?? 30)}
-                                    currency={currency}
-                                    hasExistingBid={!!a.highestBidderId}
-                                    isEnded={isEnded}
-                                    createdBy={(a as { createdBy?: number }).createdBy}
-                                    endTime={a.endTime}
-                                    antiSnipeEnabled={(a as { antiSnipeEnabled?: number }).antiSnipeEnabled}
-                                    antiSnipeMinutes={(a as { antiSnipeMinutes?: number }).antiSnipeMinutes}
-                                    extendMinutes={(a as { extendMinutes?: number }).extendMinutes}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </Link>
+                      <AuctionCard
+                        key={a.id}
+                        auctionId={a.id}
+                        title={a.title}
+                        imageUrl={a.coverImage}
+                        endTime={a.endTime}
+                        currentPrice={Number(a.currentPrice ?? a.startingPrice ?? 0)}
+                        startingPrice={Number(a.startingPrice ?? 0)}
+                        currency={a.currency}
+                        isEnded={isEnded}
+                        isEndingSoon={isEndingSoon}
+                        currentUserId={user?.id}
+                        highestBidderId={a.highestBidderId}
+                        highestBidderName={a.highestBidderName}
+                        bidCount={Number(a.bidCount ?? 0)}
+                        sellerName={merchantDetail?.merchantName ?? product?.merchantName}
+                        bidIncrement={Number(a.bidIncrement ?? 30)}
+                        shareTemplate={a.fbShareTemplate ?? null}
+                        antiSnipeEnabled={a.antiSnipeEnabled}
+                        antiSnipeMinutes={a.antiSnipeMinutes}
+                        extendMinutes={a.extendMinutes}
+                        createdBy={a.createdBy}
+                        timeProgress={timeProgress}
+                      />
                     );
                   })}
                 </div>
