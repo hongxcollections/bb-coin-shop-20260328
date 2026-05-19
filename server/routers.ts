@@ -3439,6 +3439,17 @@ export const appRouter = router({
         return getMerchantSettings(ctx.user.id);
       }),
 
+    /** 公開：取得商戶交收/付款資訊（供買家在拍賣/商品詳情頁查看） */
+    getPaymentInfo: publicProcedure
+      .input(z.object({ merchantUserId: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const settings = await getMerchantSettings(input.merchantUserId);
+        return {
+          paymentInstructions: settings?.paymentInstructions ?? null,
+          deliveryInfo: settings?.deliveryInfo ?? null,
+        };
+      }),
+
     /** 更新商戶個人設定 */
     updateSettings: protectedProcedure
       .input(z.object({

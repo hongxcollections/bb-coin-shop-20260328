@@ -17,7 +17,7 @@ import {
   Store, MessageCircle, Package, Gavel, ChevronLeft,
   Clock, Tag, ShoppingBag, ChevronLeft as Prev, ChevronRight as Next,
   ChevronDown, ChevronUp, Star, Phone, ShoppingCart, Loader2, X, CheckCircle2,
-  Play,
+  Play, Info, Truck, CreditCard,
 } from "lucide-react";
 
 // ── 落單確認彈窗 ──
@@ -179,6 +179,7 @@ export default function MerchantProductDetail() {
   const [productChatRoomId, setProductChatRoomId] = useState<number | null>(null);
   const [productChatMsg, setProductChatMsg] = useState<string | undefined>(undefined);
   const [productChatOpening, setProductChatOpening] = useState(false);
+  const [paymentInfoOpen, setPaymentInfoOpen] = useState(false);
   const openRoomByMerchant = trpc.chat.openRoomByMerchant.useMutation({
     onSuccess: ({ roomId, isNew }, vars) => {
       if (isNew) {
@@ -232,6 +233,11 @@ export default function MerchantProductDetail() {
 
   const { data: allMerchants = [] } = trpc.merchants.listApprovedMerchants.useQuery();
   const merchantInfo = (allMerchants as any[]).find((m: any) => m.userId === product?.merchantId);
+
+  const { data: paymentInfo } = trpc.merchants.getPaymentInfo.useQuery(
+    { merchantUserId: product?.merchantId ?? 0 },
+    { enabled: !!product?.merchantId, staleTime: 300_000 }
+  );
 
   const { data: merchantDetail, isLoading: merchantLoading } = trpc.merchants.getPublicMerchant.useQuery(
     { userId: product?.merchantId ?? 0 },
@@ -633,6 +639,14 @@ export default function MerchantProductDetail() {
                   </span>
                 </div>
 
+                {/* 交收/付款資訊按鈕 */}
+                <button
+                  onClick={() => setPaymentInfoOpen(true)}
+                  className="w-full flex items-center justify-center gap-2 py-2 border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-xl text-xs font-medium transition-colors"
+                >
+                  <Info className="w-3.5 h-3.5" />查看交收 / 付款方式
+                </button>
+
                 {/* 落單按鈕 */}
                 {product.status === 'active' && product.stock > 0 && (
                   <button
@@ -968,6 +982,51 @@ export default function MerchantProductDetail() {
           alt={product?.title}
           onClose={() => setLightboxOpen(false)}
         />
+      )}
+
+      {/* 交收/付款方式 底部彈窗 */}
+      {paymentInfoOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-8"
+          onClick={() => setPaymentInfoOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl w-full max-w-sm shadow-xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
+              <h2 className="font-bold text-gray-800 text-base">交收 / 付款方式</h2>
+              <button onClick={() => setPaymentInfoOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              {(paymentInfo as any)?.deliveryInfo ? (
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 mb-2">
+                    <Truck className="w-3.5 h-3.5" />交收安排
+                  </div>
+                  <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed bg-gray-50 rounded-xl px-3 py-2.5">
+                    {(paymentInfo as any).deliveryInfo}
+                  </p>
+                </div>
+              ) : null}
+              {(paymentInfo as any)?.paymentInstructions ? (
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 mb-2">
+                    <CreditCard className="w-3.5 h-3.5" />付款方式
+                  </div>
+                  <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed bg-gray-50 rounded-xl px-3 py-2.5">
+                    {(paymentInfo as any).paymentInstructions}
+                  </p>
+                </div>
+              ) : null}
+              {!(paymentInfo as any)?.deliveryInfo && !(paymentInfo as any)?.paymentInstructions && (
+                <p className="text-sm text-gray-400 text-center py-6">商戶未設定交收 / 付款資訊</p>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

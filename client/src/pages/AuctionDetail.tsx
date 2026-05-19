@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Clock, ChevronLeft, ChevronRight, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X, EyeOff, AlertCircle, Heart, Share2, Play } from "lucide-react";
+import { Clock, ChevronLeft, ChevronRight, User, TrendingUp, History, ArrowUpCircle, ChevronDown, Bot, X, EyeOff, AlertCircle, Heart, Share2, Play, Info, Truck, CreditCard } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -123,6 +123,7 @@ export default function AuctionDetail() {
   const [pendingProxyAmount, setPendingProxyAmount] = useState(0);
   const memberBenefits = useMembershipBenefitsDialog();
   const [isFavorited, setIsFavorited] = useState(false);
+  const [paymentInfoOpen, setPaymentInfoOpen] = useState(false);
   // 追蹤上一次已知的最高出價，用於偵測其他用戶的新出價
   const prevPriceRef = useRef<number | null>(null);
   const touchStartXRef = useRef<number>(0);
@@ -176,6 +177,11 @@ export default function AuctionDetail() {
       // 切換回此標籤頁時立即重新取得最新數據
       refetchOnWindowFocus: true,
     }
+  );
+
+  const { data: paymentInfo } = trpc.merchants.getPaymentInfo.useQuery(
+    { merchantUserId: (auction as any)?.createdBy ?? 0 },
+    { enabled: !!(auction as any)?.createdBy, staleTime: 300_000 }
   );
 
   // SEO meta — 必須在頂層無條件呼叫（hooks 規則），auction 為 undefined 時傳空值
@@ -786,6 +792,16 @@ export default function AuctionDetail() {
                       compact
                     />
                   </div>
+                  <button
+                    onClick={() => setPaymentInfoOpen(true)}
+                    className="flex flex-col items-center gap-0.5 group"
+                    title="得標後交收 / 付款方式"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-amber-100 hover:bg-amber-200 flex items-center justify-center transition-colors">
+                      <Info className="w-4 h-4 text-amber-600" />
+                    </div>
+                    <span className="text-[0.6rem] text-amber-600 leading-none">交收/付款</span>
+                  </button>
                 </div>
 
                 {/* 反狙擊延時提示 */}
@@ -1324,6 +1340,51 @@ export default function AuctionDetail() {
           alt={auction.title}
           onClose={() => setLightboxOpen(false)}
         />
+      )}
+
+      {/* 交收/付款方式 底部彈窗 */}
+      {paymentInfoOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-8"
+          onClick={() => setPaymentInfoOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl w-full max-w-sm shadow-xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
+              <h2 className="font-bold text-gray-800 text-base">得標後交收 / 付款方式</h2>
+              <button onClick={() => setPaymentInfoOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              {(paymentInfo as any)?.deliveryInfo ? (
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 mb-2">
+                    <Truck className="w-3.5 h-3.5" />交收安排
+                  </div>
+                  <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed bg-gray-50 rounded-xl px-3 py-2.5">
+                    {(paymentInfo as any).deliveryInfo}
+                  </p>
+                </div>
+              ) : null}
+              {(paymentInfo as any)?.paymentInstructions ? (
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 mb-2">
+                    <CreditCard className="w-3.5 h-3.5" />付款方式
+                  </div>
+                  <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed bg-gray-50 rounded-xl px-3 py-2.5">
+                    {(paymentInfo as any).paymentInstructions}
+                  </p>
+                </div>
+              ) : null}
+              {!(paymentInfo as any)?.deliveryInfo && !(paymentInfo as any)?.paymentInstructions && (
+                <p className="text-sm text-gray-400 text-center py-6">商戶未設定交收 / 付款資訊</p>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
