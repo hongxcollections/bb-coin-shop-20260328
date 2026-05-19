@@ -315,6 +315,7 @@ function ImageUploadZone({
 function AuctionCard({
   auction, tab, selected, onToggleSelect,
   onEdit, onDelete, onPublish, onArchive, onRestore, onRelist, onActiveEdit, onActiveDelete, onPermanentDelete,
+  onDuplicate,
   fbRefreshEnabled,
 }: {
   auction: AuctionItem;
@@ -330,6 +331,7 @@ function AuctionCard({
   onActiveEdit: (a: AuctionItem) => void;
   onActiveDelete?: (id: number, title: string) => void;
   onPermanentDelete?: (id: number, title: string) => void;
+  onDuplicate?: (id: number) => void;
   fbRefreshEnabled?: boolean;
 }) {
   const img = auction.images?.[0]?.imageUrl;
@@ -404,6 +406,9 @@ function AuctionCard({
               </Button>
               <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-green-300 text-green-700 hover:bg-green-50" onClick={() => onPublish(auction)}>
                 <Send className="w-2.5 h-2.5" />發佈
+              </Button>
+              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-blue-200 text-blue-600 hover:bg-blue-50" onClick={() => onDuplicate?.(auction.id)}>
+                <Copy className="w-2.5 h-2.5" />複製
               </Button>
               <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-red-200 text-red-600 hover:bg-red-50" onClick={() => onDelete(auction.id, auction.title)}>
                 <Trash2 className="w-2.5 h-2.5" />刪除
@@ -721,6 +726,14 @@ export default function MerchantAuctions() {
       refetchDrafts(); refetchActive(); refetchArchived();
     },
     onError: (err) => toast.error(err.message || "刪除失敗"),
+  });
+
+  const duplicateMutation = trpc.merchants.duplicateDraft.useMutation({
+    onSuccess: () => {
+      toast.success("已複製草稿，請前往草稿上傳圖片並設定結束時間");
+      refetchDrafts();
+    },
+    onError: (err) => toast.error(err.message || "複製失敗"),
   });
 
   const merchantDeleteMutation = trpc.auctions.merchantDelete.useMutation({
@@ -1287,6 +1300,7 @@ export default function MerchantAuctions() {
                 onActiveEdit={openActiveEdit}
                 onActiveDelete={(id, title) => setActiveDeleteConfirm({ id, title })}
                 onPermanentDelete={handlePermanentDelete}
+                onDuplicate={(id) => duplicateMutation.mutate({ id })}
                 fbRefreshEnabled={false /* FB 預覽功能暫時停用 */}
               />
             ))}

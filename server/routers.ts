@@ -3083,6 +3083,43 @@ export const appRouter = router({
         return withImages;
       }),
 
+    /** 複製草稿（不含圖片，標題加 [複製]） */
+    duplicateDraft: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const auction = await getAuctionById(input.id);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到草稿' });
+        if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只能複製自己的草稿' });
+        }
+        if (auction.status !== 'draft') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只可複製草稿狀態的拍賣' });
+        }
+        const suffix = '[複製]';
+        const maxBase = 255 - suffix.length;
+        const newTitle = auction.title.length <= maxBase
+          ? auction.title + suffix
+          : auction.title.slice(0, maxBase) + suffix;
+        const thirtyDaysLater = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        const newAuction = await createAuction({
+          title: newTitle,
+          description: auction.description ?? undefined,
+          startingPrice: auction.startingPrice,
+          currentPrice: auction.startingPrice,
+          endTime: thirtyDaysLater,
+          status: 'draft',
+          bidIncrement: auction.bidIncrement,
+          currency: auction.currency,
+          createdBy: ctx.user.id,
+          category: auction.category ?? undefined,
+          antiSnipeEnabled: auction.antiSnipeEnabled,
+          antiSnipeMinutes: auction.antiSnipeMinutes,
+          extendMinutes: auction.extendMinutes,
+          antiSnipeMemberLevels: auction.antiSnipeMemberLevels ?? undefined,
+        });
+        return { id: newAuction.id };
+      }),
+
     /** 商戶發佈草稿拍賣 */
     publishDraft: protectedProcedure
       .input(z.object({
