@@ -372,28 +372,27 @@ export default function MerchantSessionPublic() {
               <div className="text-xs text-gray-500">已結束</div>
               <div className="text-lg font-bold text-gray-600">{stats.ended}</div>
             </div>
-            {/* 你領先 — 點擊篩選；> 0 時眨眨眨 */}
+            {/* 你領先 — > 0 可點擊篩選 + 淡出淡入；= 0 唔可點 */}
             {user?.id && (
-              <button
-                type="button"
-                onClick={() => { setFilter("leading"); scrollToList(); }}
-                className={`rounded-xl p-3 text-center transition-all relative overflow-hidden ${
-                  filter === "leading"
-                    ? "bg-emerald-50 border-2 border-emerald-500 shadow-sm"
-                    : stats.myLeading > 0
-                      ? "bg-white border-2 border-emerald-400 hover:border-emerald-500"
-                      : "bg-white border border-emerald-100 hover:border-emerald-300"
-                }`}
-              >
-                {/* 眨眼光暈 ring — only when leading > 0 and not already selected */}
-                {stats.myLeading > 0 && filter !== "leading" && (
-                  <span className="absolute inset-0 rounded-xl animate-ping border-2 border-emerald-400 opacity-60 pointer-events-none" />
-                )}
-                <div className="text-xs text-gray-500 relative">你領先</div>
-                <div className={`text-lg font-bold relative ${stats.myLeading > 0 ? "text-emerald-600" : "text-emerald-700"}`}>
-                  {stats.myLeading}
+              stats.myLeading > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => { setFilter("leading"); scrollToList(); }}
+                  className={`rounded-xl p-3 text-center transition-all ${
+                    filter === "leading"
+                      ? "bg-emerald-50 border-2 border-emerald-500 shadow-sm"
+                      : "bg-white border-2 border-emerald-400 hover:border-emerald-500 animate-pulse"
+                  }`}
+                >
+                  <div className="text-xs text-gray-500">你領先</div>
+                  <div className="text-lg font-bold text-emerald-600">{stats.myLeading}</div>
+                </button>
+              ) : (
+                <div className="bg-white border border-emerald-100 rounded-xl p-3 text-center">
+                  <div className="text-xs text-gray-500">你領先</div>
+                  <div className="text-lg font-bold text-emerald-700">0</div>
                 </div>
-              </button>
+              )
             )}
           </div>
         )}
@@ -412,17 +411,7 @@ export default function MerchantSessionPublic() {
               : auctions;
           return (
           <>
-            {filter !== "all" && (
-              <div ref={listRef} className="flex items-center gap-2 mb-2 scroll-mt-4">
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${filter === "active" ? "bg-green-100 text-green-700" : "bg-emerald-100 text-emerald-700"}`}>
-                  {filter === "active" ? `進行中 ${filtered.length} 件` : `你領先 ${filtered.length} 件`}
-                </span>
-                <button type="button" onClick={() => setFilter("all")} className="text-xs text-gray-400 hover:text-gray-600 underline">
-                  顯示全部
-                </button>
-              </div>
-            )}
-            {filter === "all" && <div ref={listRef} className="scroll-mt-4" />}
+            <div ref={listRef} className="scroll-mt-4" />
             <div className="flex flex-col gap-[2px]">
             {filtered.map((auction: any) => {
               const nowMs = Date.now();
