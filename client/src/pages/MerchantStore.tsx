@@ -284,7 +284,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
               <div className="flex-1 min-w-0">
                 <h3 className={`text-sm font-semibold line-clamp-1 ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
                 {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{p.category}</span>}
-                <p className={`text-sm font-bold mt-0.5 ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</p>
+                <p className={`text-sm font-bold mt-0.5 ${isSold ? "text-gray-400" : "text-amber-600"}`}>{price === 0 ? "查詢格價" : `${sym}${price.toLocaleString()}`}</p>
                 <div className="flex items-center justify-end gap-1 mt-1">
                   {!isSold ? <ContactBtns product={p} merchantId={merchantId} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
                   <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
@@ -336,7 +336,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
                 </div>
                 {p.description && <p className="text-xs text-gray-500 line-clamp-3">{p.description}</p>}
                 <div className="flex items-center justify-between pt-1">
-                  <span className={`text-[1.4rem] font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
+                  <span className={`text-[1.4rem] font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{price === 0 ? "查詢格價" : `${sym}${price.toLocaleString()}`}</span>
                   <div className="flex items-center gap-1">
                     {!isSold ? <ContactBtns product={p} merchantId={merchantId} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
                     <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
@@ -377,7 +377,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
               </div>
               <div className="p-1.5 flex flex-col gap-0.5 flex-1">
                 <h3 className={`text-[10px] font-semibold line-clamp-2 leading-tight ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
-                <span className={`text-[10px] font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
+                <span className={`text-[10px] font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{price === 0 ? "查詢格價" : `${sym}${price.toLocaleString()}`}</span>
                 <div className="flex items-center justify-between gap-0.5">
                   {!isSold ? (
                     <ContactBtns product={p} merchantId={merchantId} size="sm" />
@@ -427,7 +427,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
               {nameOverlay}
             </div>
             <div className="p-2.5 flex flex-col gap-1 flex-1">
-              <span className={`text-[1.225rem] font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
+              <span className={`text-[1.225rem] font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{price === 0 ? "查詢格價" : `${sym}${price.toLocaleString()}`}</span>
               {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
               <div className="mt-auto pt-1 flex items-center justify-end gap-1">
                 {!isSold ? <ContactBtns product={p} merchantId={merchantId} size="sm" /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}

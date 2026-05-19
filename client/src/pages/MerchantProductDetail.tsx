@@ -748,7 +748,8 @@ export default function MerchantProductDetail() {
                 const _mWaDigits = (whatsapp ?? "").toString().replace(/[^0-9]/g, "");
                 const pEffWa = _mWaDigits.length >= 7 ? whatsapp : (_pWaDigits.length >= 7 ? (p.whatsapp ?? "") : "");
                 const pProductUrl = `${window.location.origin}/merchant-products/${p.id}`;
-                const pMsg = `你好，我想查詢以下商品：\n商品：${p.title}\n價錢：HK$${pPrice.toLocaleString()}\n連結：${pProductUrl}`;
+                const pPriceText = pPrice === 0 ? "查詢格價" : `HK$${pPrice.toLocaleString()}`;
+                const pMsg = `你好，我想查詢以下商品：\n商品：${p.title}\n價錢：${pPriceText}\n連結：${pProductUrl}`;
                 const pWaLink = pEffWa ? buildWhatsAppUrl(String(pEffWa), pMsg) : "";
                 const onMsn = async (e: React.MouseEvent<HTMLAnchorElement>) => {
                   e.preventDefault(); e.stopPropagation();
@@ -762,17 +763,17 @@ export default function MerchantProductDetail() {
                 if (!user) { toast.info("請先登入後才可以聯繫商戶", { className: "bb-toast-info" }); return; }
                 fn();
               };
-              const renderBtns = (p: any, _d: ReturnType<typeof mkData>, pill: string, icon: string) => (
+              const renderBtns = (p: any, d: ReturnType<typeof mkData>, pill: string, icon: string) => (
                 <div className="flex flex-wrap gap-1 mt-1 justify-end" onClick={e => e.stopPropagation()}>
-                  <button type="button" aria-label="站內訊息"
-                    onClick={e => { e.preventDefault(); e.stopPropagation(); handleProductChat(product.merchantId, p.title); }}
+                  <button type="button" aria-label={d.pPrice === 0 ? "查詢格價" : "站內訊息"}
+                    onClick={e => { e.preventDefault(); e.stopPropagation(); d.pPrice === 0 ? handlePriceEnquiryChat(product.merchantId, p.title) : handleProductChat(product.merchantId, p.title); }}
                     className={`${pill} text-amber-700 bg-amber-100 hover:bg-amber-200 font-bold`}>
-                    <MessageCircle className={icon} />站內訊息
+                    <MessageCircle className={icon} />{d.pPrice === 0 ? "查詢格價" : "站內訊息"}
                   </button>
-                  <button onClick={e => { e.preventDefault(); e.stopPropagation(); handleBuy(p); }}
+                  {d.pPrice > 0 && <button onClick={e => { e.preventDefault(); e.stopPropagation(); handleBuy(p); }}
                     className={`${pill} bg-amber-500 hover:bg-amber-600 text-white`}>
                     <ShoppingCart className={icon} />落單
-                  </button>
+                  </button>}
                   <div onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
                     <ProductShareMenu productId={p.id} title={p.title} price={parseFloat(p.price ?? "0")} currency={p.currency} iconOnly />
                   </div>
@@ -819,7 +820,7 @@ export default function MerchantProductDetail() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 {p.category && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{p.category}</span>}
-                                <p className="text-[1.225rem] font-bold text-amber-600 mt-0.5">{p.currency ?? "HKD"} ${d.pPrice.toLocaleString()}</p>
+                                <p className="text-[1.225rem] font-bold text-amber-600 mt-0.5">{d.pPrice === 0 ? "查詢格價" : `${p.currency ?? "HKD"} $${d.pPrice.toLocaleString()}`}</p>
                                 {renderBtns(p, d, mdPill, "w-3.5 h-3.5")}
                               </div>
                             </div>
@@ -853,7 +854,7 @@ export default function MerchantProductDetail() {
                               </div>
                               {p.description && <p className="text-xs text-gray-500 line-clamp-2">{p.description}</p>}
                               <div className="flex items-center justify-between pt-1">
-                                <span className="text-[1.4rem] font-bold text-amber-600">{p.currency ?? "HKD"} ${d.pPrice.toLocaleString()}</span>
+                                <span className="text-[1.4rem] font-bold text-amber-600">{d.pPrice === 0 ? "查詢格價" : `${p.currency ?? "HKD"} $${d.pPrice.toLocaleString()}`}</span>
                                 {renderBtns(p, d, mdPill, "w-3.5 h-3.5")}
                               </div>
                             </div>
@@ -885,7 +886,7 @@ export default function MerchantProductDetail() {
                               {nameOverlay}
                             </div>
                             <div className="p-1.5 flex flex-col gap-0.5 flex-1">
-                              <span className="text-[14px] font-bold text-amber-600">{p.currency ?? "HKD"} ${d.pPrice.toLocaleString()}</span>
+                              <span className="text-[14px] font-bold text-amber-600">{d.pPrice === 0 ? "查詢格價" : `${p.currency ?? "HKD"} $${d.pPrice.toLocaleString()}`}</span>
                               {renderBtns(p, d, smPill, "w-2.5 h-2.5")}
                             </div>
                           </div>
@@ -919,7 +920,7 @@ export default function MerchantProductDetail() {
                               {nameOverlay}
                             </div>
                             <div className="p-2 flex flex-col gap-1 flex-1">
-                              <span className="font-bold text-amber-600 text-[1.05rem]">{p.currency ?? "HKD"} ${d.pPrice.toLocaleString()}</span>
+                              <span className="font-bold text-amber-600 text-[1.05rem]">{d.pPrice === 0 ? "查詢格價" : `${p.currency ?? "HKD"} $${d.pPrice.toLocaleString()}`}</span>
                               {renderBtns(p, d, smPill, "w-2.5 h-2.5")}
                             </div>
                           </div>

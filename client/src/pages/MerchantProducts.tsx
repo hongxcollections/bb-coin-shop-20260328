@@ -1573,7 +1573,7 @@ export default function MerchantProducts() {
                         {categories.slice(0, 2).map(c => (
                           <span key={c} className="text-[11px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-medium">{c}</span>
                         ))}
-                        <span className="font-extrabold text-green-600 text-base leading-none">{p.currency} ${price.toLocaleString()}</span>
+                        <span className="font-extrabold text-green-600 text-base leading-none">{price === 0 ? "查詢格價" : `${p.currency} $${price.toLocaleString()}`}</span>
                         <span className="text-[11px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">庫存 {p.stock}</span>
                       </div>
 
@@ -1682,7 +1682,7 @@ export default function MerchantProducts() {
                     {p.description && <p className="text-xs text-gray-500 line-clamp-2">{p.description}</p>}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-amber-600">{p.currency} ${price.toLocaleString()}</span>
+                        <span className="font-bold text-amber-600">{price === 0 ? "查詢格價" : `${p.currency} $${price.toLocaleString()}`}</span>
                         {p.category && (p.category.includes("|") ? p.category.split("|") : [p.category]).map((c: string) => <span key={c} className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">{c.trim()}</span>)}
                       </div>
                       <span className="text-xs text-gray-400">庫存 {p.stock}</span>
@@ -1765,7 +1765,7 @@ export default function MerchantProducts() {
                         {STATUS_LABELS[p.status] ?? p.status}
                       </span>
                     </div>
-                    <span className="font-bold text-amber-600 text-xs">{p.currency} ${price.toLocaleString()}</span>
+                    <span className="font-bold text-amber-600 text-xs">{price === 0 ? "查詢格價" : `${p.currency} $${price.toLocaleString()}`}</span>
                     <span className="text-[10px] text-gray-400">庫存 {p.stock}</span>
                     <div className="flex gap-1 mt-auto pt-1 flex-wrap">
                       <button onClick={() => startEdit(p)} className="flex-1 text-[10px] py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-center">
@@ -1841,7 +1841,7 @@ export default function MerchantProducts() {
                   </div>
                   <div className="p-1.5 flex flex-col gap-0.5 flex-1">
                     <h3 className="text-[10px] font-semibold text-gray-800 line-clamp-2 leading-tight">{p.title}</h3>
-                    <span className="text-[10px] font-bold text-amber-600">${price.toLocaleString()}</span>
+                    <span className="text-[10px] font-bold text-amber-600">{price === 0 ? "查詢格價" : `$${price.toLocaleString()}`}</span>
                     <div className="flex gap-1 mt-1 flex-wrap">
                       <button onClick={() => startEdit(p)} className="flex-1 text-[9px] py-0.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors text-center">
                         編輯
