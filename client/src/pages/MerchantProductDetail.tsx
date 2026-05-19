@@ -987,7 +987,7 @@ export default function MerchantProductDetail() {
       {/* 交收/付款方式 底部彈窗 */}
       {paymentInfoOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-8"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20"
           onClick={() => setPaymentInfoOpen(false)}
         >
           <div

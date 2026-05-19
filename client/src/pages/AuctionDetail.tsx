@@ -718,6 +718,7 @@ export default function AuctionDetail() {
             <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
+                  {/* 左欄：出價 label + 大價 + 起拍價 */}
                   <div>
                     <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5 flex-wrap">
                       {!isActive && bids.length === 0 ? (
@@ -753,26 +754,39 @@ export default function AuctionDetail() {
                     <div className="text-3xl font-extrabold text-amber-600 price-tag">
                       {currencySymbol}{Number(auction.currentPrice).toLocaleString()}
                     </div>
-                  </div>
-                  <div className="text-right">
-                    {/* 出價次數 */}
-                    <div className="text-xs text-muted-foreground mb-0.5">出價次數</div>
-                    <div className="flex items-center gap-1 text-amber-700 font-bold justify-end mb-2">
-                      <TrendingUp className="w-4 h-4" />
-                      {bids.length}
+                    <div className="text-xs text-muted-foreground mt-1">
+                      起拍價：{currencySymbol}{Number(auction.startingPrice).toLocaleString()}
                     </div>
-                    {/* 起拍價 + 每口 同一行，右對齊 */}
-                    <div className="flex items-center gap-2.5 justify-end text-xs text-muted-foreground">
-                      <span>起拍 {currencySymbol}{Number(auction.startingPrice).toLocaleString()}</span>
-                      <span className="flex items-center gap-0.5 text-amber-700 font-semibold">
-                        <ArrowUpCircle className="w-3 h-3" />每口 {currencySymbol}{bidIncrement}
-                      </span>
+                  </div>
+                  {/* 右欄：交收/付款 → 出價次數 → 每口加幅，全部右對齊 */}
+                  <div className="text-right space-y-1">
+                    <button
+                      onClick={() => setPaymentInfoOpen(true)}
+                      className="flex items-center gap-1 justify-end w-full text-amber-600 hover:text-amber-700 transition-colors"
+                      title="得標後交收 / 付款方式"
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                      <span className="text-xs font-medium">交收/付款</span>
+                    </button>
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-0.5">出價次數</div>
+                      <div className="flex items-center gap-1 text-amber-700 font-bold justify-end">
+                        <TrendingUp className="w-4 h-4" />
+                        {bids.length}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-0.5">每口加幅</div>
+                      <div className="flex items-center gap-1 text-amber-700 font-bold justify-end">
+                        <ArrowUpCircle className="w-4 h-4" />
+                        {currencySymbol}{bidIncrement}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Countdown + ChatButton + 交收/付款（右對齊） */}
-                <div className="flex items-center mb-2" style={{ gap: "12px" }}>
+                {/* Countdown + 問商戶 icon */}
+                <div className="flex items-center mb-2" style={{ gap: "20px" }}>
                   <div className="inline-flex flex-col" style={{ gap: "3px" }}>
                     <CountdownTimer endTime={new Date(auction.endTime)} />
                     <span className="text-[0.68rem] text-muted-foreground leading-tight self-end">
@@ -788,16 +802,6 @@ export default function AuctionDetail() {
                       compact
                     />
                   </div>
-                  <button
-                    onClick={() => setPaymentInfoOpen(true)}
-                    className="ml-auto flex flex-col items-center gap-0.5"
-                    title="得標後交收 / 付款方式"
-                  >
-                    <div className="w-9 h-9 rounded-full bg-amber-100 hover:bg-amber-200 flex items-center justify-center transition-colors">
-                      <Info className="w-4 h-4 text-amber-600" />
-                    </div>
-                    <span className="text-[0.6rem] text-amber-600 leading-none">交收/付款</span>
-                  </button>
                 </div>
 
                 {/* 反狙擊延時提示 */}
@@ -1341,7 +1345,7 @@ export default function AuctionDetail() {
       {/* 交收/付款方式 底部彈窗 */}
       {paymentInfoOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-8"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20"
           onClick={() => setPaymentInfoOpen(false)}
         >
           <div
