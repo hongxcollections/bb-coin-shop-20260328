@@ -616,36 +616,34 @@ export default function MerchantProductDetail() {
                   <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{product.description}</p>
                 )}
 
-                {/* 出售價錢 + 庫存 */}
-                <div className="flex items-end justify-between pt-1 relative">
-                  <div>
-                    <p className="text-xs text-gray-400 mb-0.5">出售價錢</p>
-                    <div className="flex items-center">
-                      <span className="text-2xl font-bold text-amber-600">{product.currency} ${price.toLocaleString()}</span>
-                      {product.status === 'active' && product.stock > 0 && (
-                        <div style={{ marginLeft: 20 }}>
+                {/* 出售價錢：價錢 | 庫存 N 件 + 有貨（同一行）；右上角改為交收/付款方式 */}
+                <div className="relative pt-1">
+                  <p className="text-xs text-gray-400 mb-1">出售價錢</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[1.8rem] font-bold text-amber-600">{product.currency} ${price.toLocaleString()}</span>
+                    {product.status === 'active' && product.stock > 0 ? (
+                      <>
+                        <span className="text-gray-300 text-sm select-none">|</span>
+                        <span className="text-xs text-gray-500">庫存 {product.stock} 件</span>
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">有貨</span>
+                        <div style={{ marginLeft: 4 }}>
                           <OfferButton product={product as any} />
                         </div>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      {product.status === 'active' && product.stock > 0 ? `庫存 ${product.stock} 件` : "已售出"}
-                    </div>
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-400">已售出</span>
+                    )}
                   </div>
-                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                    product.status === 'active' && product.stock > 0 ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                  }`}>
-                    {product.status === 'active' && product.stock > 0 ? "有貨" : "售罄"}
-                  </span>
+                  {/* 原「有貨」badge 位置 → 交收/付款方式按鈕 */}
+                  <button
+                    onClick={() => setPaymentInfoOpen(true)}
+                    className="absolute top-0 right-0 flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors"
+                    title="交收/付款方式"
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                    <span className="text-xs font-medium">交收/付款方式</span>
+                  </button>
                 </div>
-
-                {/* 交收/付款資訊按鈕 */}
-                <button
-                  onClick={() => setPaymentInfoOpen(true)}
-                  className="w-full flex items-center justify-center gap-2 py-2 border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-xl text-xs font-medium transition-colors"
-                >
-                  <Info className="w-3.5 h-3.5" />查看交收 / 付款方式
-                </button>
 
                 {/* 落單按鈕 */}
                 {product.status === 'active' && product.stock > 0 && (
