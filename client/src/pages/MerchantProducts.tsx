@@ -1117,7 +1117,7 @@ export default function MerchantProducts() {
   async function handleSubmit() {
     if (!form.title.trim()) return toast.error("請輸入商品名稱");
     const price = parseFloat(form.price);
-    if (isNaN(price) || price <= 0) return toast.error("請輸入有效售價");
+    if (isNaN(price) || price < 0) return toast.error("請輸入有效售價（0 = 查詢格價）");
     const stock = parseInt(form.stock);
     if (isNaN(stock) || stock < 0) return toast.error("請輸入有效庫存量");
     if (form.images.length === 0) return toast.error("請最少上傳一幅商品圖片");
@@ -1372,8 +1372,8 @@ export default function MerchantProducts() {
 
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-2">
-                <label className="text-xs text-gray-500 font-medium">售價 *</label>
-                <Input type="number" placeholder="0" min="1" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} />
+                <label className="text-xs text-gray-500 font-medium">售價 *（填 0 = 查詢格價）</label>
+                <Input type="number" placeholder="0" min="0" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} />
               </div>
               <div className="space-y-2">
                 <label className="text-xs text-gray-500 font-medium">貨幣</label>

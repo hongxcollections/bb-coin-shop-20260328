@@ -3821,7 +3821,7 @@ export const appRouter = router({
       .input(z.object({
         title: z.string().min(1).max(200),
         description: z.string().max(2000).optional(),
-        price: z.number().positive(),
+        price: z.number().min(0),
         currency: z.string().default('HKD'),
         category: z.string().max(500).optional(),
         images: z.string().optional(),
@@ -3892,7 +3892,7 @@ export const appRouter = router({
         id: z.number().int().positive(),
         title: z.string().min(1).max(200).optional(),
         description: z.string().max(2000).optional(),
-        price: z.number().positive().optional(),
+        price: z.number().min(0).optional(),
         currency: z.string().optional(),
         category: z.string().max(500).optional(),
         images: z.string().optional(),
