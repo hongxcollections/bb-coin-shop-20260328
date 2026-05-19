@@ -616,30 +616,35 @@ export default function MerchantProductDetail() {
                   <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{product.description}</p>
                 )}
 
-                {/* 出售價錢：價錢 | 庫存 N 件 + 有貨（同一行）；右上角改為交收/付款方式 */}
-                <div className="relative pt-1">
-                  <p className="text-xs text-gray-400 mb-1">出售價錢</p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[1.8rem] font-bold text-amber-600">{product.currency} ${price.toLocaleString()}</span>
-                    {product.status === 'active' && product.stock > 0 && (
-                      <div style={{ marginLeft: 4 }}>
-                        <OfferButton product={product as any} />
-                      </div>
-                    )}
+                {/* 出售價錢三行佈局 */}
+                <div className="pt-1 space-y-1">
+                  {/* 第一行：出售價錢 | 庫存 N 件 [有貨] — 向右 */}
+                  <div className="flex items-center justify-end gap-2">
+                    <span className="text-xs text-gray-400">出售價錢</span>
                     {product.status === 'active' && product.stock > 0 ? (
                       <>
-                        <span className="text-gray-300 text-sm select-none">|</span>
+                        <span className="text-gray-300 text-xs select-none">|</span>
                         <span className="text-xs text-gray-500">庫存 {product.stock} 件</span>
                         <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">有貨</span>
                       </>
                     ) : (
-                      <span className="text-xs text-gray-400">已售出</span>
+                      <>
+                        <span className="text-gray-300 text-xs select-none">|</span>
+                        <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">售罄</span>
+                      </>
                     )}
                   </div>
-                  {/* 原「有貨」badge 位置 → 交收/付款方式按鈕 */}
+                  {/* 第二行：HKD $xxx + 問商戶 icon — 置中 */}
+                  <div className="flex items-center justify-center gap-3 my-1">
+                    <span className="text-[1.8rem] font-bold text-amber-600">{product.currency} ${price.toLocaleString()}</span>
+                    {product.status === 'active' && product.stock > 0 && (
+                      <OfferButton product={product as any} />
+                    )}
+                  </div>
+                  {/* 第三行：交收/付款方式按鈕 — 向左 */}
                   <button
                     onClick={() => setPaymentInfoOpen(true)}
-                    className="absolute top-0 right-0 flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors"
+                    className="flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors"
                     title="交收/付款方式"
                   >
                     <Info className="w-3.5 h-3.5" />
