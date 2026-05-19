@@ -641,10 +641,10 @@ export default function MerchantProductDetail() {
                       <OfferButton product={product as any} />
                     )}
                   </div>
-                  {/* 第三行：交收/付款方式按鈕 — 向右 */}
+                  {/* 第三行：交收/付款方式按鈕 — 向右，與上行相隔 8px */}
                   <button
                     onClick={() => setPaymentInfoOpen(true)}
-                    className="flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors ml-auto"
+                    className="flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors ml-auto mt-2"
                     title="交收/付款方式"
                   >
                     <Info className="w-3.5 h-3.5" />

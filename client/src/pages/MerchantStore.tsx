@@ -407,6 +407,11 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
         return (
           <Link key={p.id} href={`/merchant-products/${p.id}`}>
           <div className={`bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col cursor-pointer transition-colors ${isSold ? "border-gray-100 opacity-75 hover:border-gray-200" : "border-amber-100 hover:border-amber-300"}`}>
+            {/* 商品名稱移到照片上方 */}
+            <div className="px-2.5 pt-2 pb-1 flex items-start justify-between gap-1">
+              <h3 className={`text-[0.9rem] font-semibold leading-snug line-clamp-2 flex-1 ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
+              {p.category && <span className="text-[8px] bg-amber-100 text-amber-700 px-1 py-0.5 rounded-full shrink-0">{p.category}</span>}
+            </div>
             <div className="relative">
               {imgs[0] ? (
                 <div className="aspect-square w-full overflow-hidden bg-amber-50">
@@ -421,11 +426,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
               {nameOverlay}
             </div>
             <div className="p-2.5 flex flex-col gap-1 flex-1">
-              <div className="flex items-start justify-between gap-1">
-                <h3 className={`text-xs font-semibold leading-snug line-clamp-2 flex-1 ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
-                {p.category && <span className="text-[10px] bg-amber-100 text-amber-700 px-1 py-0.5 rounded-full shrink-0">{p.category}</span>}
-              </div>
-              <span className={`text-sm font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
+              <span className={`text-[1.225rem] font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
               {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
               <div className="mt-auto pt-1 flex items-center justify-end gap-1">
                 {!isSold ? <ContactBtns product={p} merchantId={merchantId} size="sm" /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
