@@ -62,7 +62,31 @@ export default function Privacy() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold mb-3">7. 您的權利</h2>
+            <h2 className="text-xl font-semibold mb-3">7. 第三方廣告及 Google AdSense</h2>
+            <p className="mb-2">
+              本網站使用 Google AdSense 顯示廣告。Google 及其合作夥伴（第三方廣告商）可能透過 Cookie、網路信標或類似技術，根據您過去對本網站或其他網站的瀏覽紀錄，向您提供個人化廣告。
+            </p>
+            <p className="mb-2">
+              Google 使用 DoubleClick Cookie，令廣告商及其代理機構能夠根據您對本網站及其他網站的存取情況顯示廣告。
+            </p>
+            <p className="mb-2">
+              您可透過以下方式選擇退出個人化廣告：
+            </p>
+            <ul className="list-disc pl-6 space-y-1">
+              <li>
+                前往 <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener noreferrer" className="underline text-amber-600">Google 廣告設定</a> 調整偏好設定
+              </li>
+              <li>
+                前往 <a href="https://www.networkadvertising.org/choices/" target="_blank" rel="noopener noreferrer" className="underline text-amber-600">Network Advertising Initiative 退出頁面</a>，選擇退出第三方廣告商使用 Cookie
+              </li>
+            </ul>
+            <p className="mt-2">
+              如需了解 Google 如何使用資料，請參閱 <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline text-amber-600">Google 私隱政策</a>。
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold mb-3">8. 您的權利</h2>
             <p>您有權：</p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
               <li>查閱我們持有的您的個人資料</li>
@@ -72,14 +96,14 @@ export default function Privacy() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold mb-3">8. 聯絡我們</h2>
+            <h2 className="text-xl font-semibold mb-3">9. 聯絡我們</h2>
             <p>
               如您對本隱私權政策有任何疑問，請透過電子郵件聯絡我們：ywkyee@gmail.com
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold mb-3">9. 政策更新</h2>
+            <h2 className="text-xl font-semibold mb-3">10. 政策更新</h2>
             <p>
               我們可能會不時更新本隱私權政策。更新後的政策將在本頁面公佈，並更新「最後更新日期」。
             </p>

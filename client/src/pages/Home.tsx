@@ -1772,8 +1772,8 @@ export default function Home() {
           <div className="flex gap-4 font-bold">
             <Link href="/" className="hover:text-amber-400 transition-colors">首頁</Link>
             <button onClick={() => setShowMerchantFlow(true)} className="hover:text-amber-400 transition-colors">商戶申請流程</button>
-            <a href="#" className="hover:text-amber-400 transition-colors">服務條款</a>
-            <a href="#" className="hover:text-amber-400 transition-colors">隱私政策</a>
+            <Link href="/terms" className="hover:text-amber-400 transition-colors">服務條款</Link>
+            <Link href="/privacy" className="hover:text-amber-400 transition-colors">隱私政策</Link>
           </div>
         </div>
       </footer>
