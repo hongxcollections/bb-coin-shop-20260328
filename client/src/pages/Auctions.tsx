@@ -23,6 +23,7 @@ import { ShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
 import { AuctionCard } from "@/components/AuctionCard";
 import Header from "@/components/Header";
+import AdSenseAd from "@/components/AdSenseAd";
 
 function AuctionImageOverlay({ endTime }: { endTime: Date | string }) {
   const [txt, setTxt] = useState("");
@@ -507,6 +508,9 @@ export default function Auctions() {
                   onLinkClick={saveScrollPosition}
                 />
                 {bannerEl}
+                {(rowIdx + 1) % 8 === 0 && (
+                  <AdSenseAd slot="0987654321" format="horizontal" className="my-1 rounded-xl overflow-hidden" />
+                )}
                 </React.Fragment>
               );
             })}

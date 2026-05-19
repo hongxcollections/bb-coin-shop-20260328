@@ -30,6 +30,10 @@ export default function AdminSiteSettings() {
 
   const s = (settings as Record<string, string> | undefined) ?? {};
 
+  // Google AdSense
+  const [adsenseEnabled, setAdsenseEnabled] = useState(true);
+  const [adsensePublisherId, setAdsensePublisherId] = useState("ca-pub-0000000000000000");
+
   // AI 客服 Chatbot 開關（預設開啟）
   const [chatbotEnabled, setChatbotEnabled] = useState(true);
   // AI 分享文案 開關（預設開啟）
@@ -151,6 +155,8 @@ export default function AdminSiteSettings() {
 
   useEffect(() => {
     if (!settings) return;
+    if (s.adsenseEnabled !== undefined) setAdsenseEnabled(s.adsenseEnabled !== "false");
+    if (s.adsensePublisherId) setAdsensePublisherId(s.adsensePublisherId);
     if (s.chatbotEnabled !== undefined) setChatbotEnabled(s.chatbotEnabled !== "false");
     if (s.aiShareCopyEnabled !== undefined) setAiShareCopyEnabled(s.aiShareCopyEnabled !== "false");
     if (s.aiVideoScriptEnabled !== undefined) setAiVideoScriptEnabled(s.aiVideoScriptEnabled !== "false");
@@ -245,6 +251,52 @@ export default function AdminSiteSettings() {
           <div className="text-center py-12 text-muted-foreground">載入設定中...</div>
         ) : (
           <div className="space-y-6">
+
+            {/* Google AdSense */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-blue-500" />
+                  <CardTitle className="text-lg">Google AdSense 廣告</CardTitle>
+                </div>
+                <CardDescription>控制全站廣告顯示。廣告位置：商品詳情頁描述下方、拍賣列表每 8 件後、商戶主頁商品前。</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between gap-3 py-2 border-b">
+                  <div>
+                    <p className="font-medium text-sm">廣告開關</p>
+                    <p className="text-xs text-muted-foreground">關閉後全站所有廣告位均隱藏</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={adsenseEnabled}
+                      onCheckedChange={(v) => {
+                        setAdsenseEnabled(v);
+                        setSetting.mutate({ key: 'adsenseEnabled', value: v ? "true" : "false" });
+                      }}
+                    />
+                    <Label className="cursor-pointer text-xs">
+                      {adsenseEnabled
+                        ? <span className="text-emerald-600 font-semibold">已開啟</span>
+                        : <span className="text-muted-foreground">已關閉</span>}
+                    </Label>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Publisher ID（ca-pub-XXXXXXXXXXXXXXXX）</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={adsensePublisherId}
+                      onChange={(e) => setAdsensePublisherId(e.target.value)}
+                      placeholder="ca-pub-0000000000000000"
+                      className="font-mono text-xs"
+                    />
+                    <SaveBtn onClick={() => save('adsensePublisherId', adsensePublisherId)} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">喺 AdSense 後台 → 帳戶 → 帳戶資訊 搵到。填入真實 ID 廣告先會顯示。</p>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* AI 功能總開關 */}
             <Card>
