@@ -1,6 +1,6 @@
 import { useParams, Link, useLocation } from "wouter";
 import ChatRoomDialog from "@/components/ChatRoomDialog";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -172,8 +172,8 @@ function BuyDialog({ product, onClose }: { product: any; onClose: () => void }) 
   );
 }
 
-function ContactBtns({ product, merchantId, size = "md" }: {
-  product: any; merchantId: number; size?: "md" | "sm" | "xs";
+function ContactBtns({ product, merchantId, size = "md", price }: {
+  product: any; merchantId: number; size?: "md" | "sm" | "xs"; price?: number;
 }) {
   const { user } = useAuth();
   const utils = trpc.useUtils();
@@ -181,13 +181,21 @@ function ContactBtns({ product, merchantId, size = "md" }: {
   const [openRoomId, setOpenRoomId] = useState<number | null>(null);
   const [initialMsg, setInitialMsg] = useState<string | undefined>(undefined);
   const [buyingProduct, setBuyingProduct] = useState<any | null>(null);
+  const isPriceEnquiryRef = useRef(false);
+
+  const effectivePrice = price ?? parseFloat(product?.price ?? "1");
+  const isPriceEnquiry = effectivePrice === 0;
 
   const openRoom = trpc.chat.openRoomByMerchant.useMutation({
     onSuccess: ({ roomId, isNew }) => {
       if (isNew) {
         const origin = typeof window !== "undefined" ? window.location.origin : "";
         const idPart = product?.id ? `\n商品連結：${origin}/merchant-products/${product.id}` : "";
-        setInitialMsg(`你好，我想查詢以下商品：\n${product?.title ?? ""}${idPart}`);
+        if (isPriceEnquiryRef.current) {
+          setInitialMsg(`你好，我想查詢以下商品格價：\n商品：${product?.title ?? ""}${idPart}`);
+        } else {
+          setInitialMsg(`你好，我想查詢以下商品：\n${product?.title ?? ""}${idPart}`);
+        }
       } else {
         setInitialMsg(undefined);
       }
@@ -199,7 +207,11 @@ function ContactBtns({ product, merchantId, size = "md" }: {
 
   const handleChat = (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
-    if (!user) { toast.info("請先登入後才可以使用站內訊息", { className: "bb-toast-info" }); return; }
+    if (!user) {
+      toast.info(isPriceEnquiry ? "請先登入後才可以查詢格價" : "請先登入後才可以使用站內訊息", { className: "bb-toast-info" });
+      return;
+    }
+    isPriceEnquiryRef.current = isPriceEnquiry;
     setOpening(true);
     openRoom.mutate({ merchantId, productTitle: product?.title ?? "" });
   };
@@ -222,14 +234,16 @@ function ContactBtns({ product, merchantId, size = "md" }: {
           onClick={handleChat}
           className={`${pillBase} text-amber-700 bg-amber-100 hover:bg-amber-200 font-bold disabled:opacity-60`}>
           <MessageCircle className={iconSz} />
-          {!isSmall && (opening ? "..." : "站內訊息")}
+          {!isSmall && (opening ? "..." : isPriceEnquiry ? "查詢格價" : "站內訊息")}
         </button>
-        <button type="button"
-          onClick={handleBuy}
-          className={`${pillBase} bg-amber-500 hover:bg-amber-600 text-white`}>
-          <ShoppingCart className={iconSz} />
-          {!isSmall && "落單"}
-        </button>
+        {!isPriceEnquiry && (
+          <button type="button"
+            onClick={handleBuy}
+            className={`${pillBase} bg-amber-500 hover:bg-amber-600 text-white`}>
+            <ShoppingCart className={iconSz} />
+            {!isSmall && "落單"}
+          </button>
+        )}
       </div>
       {buyingProduct && <BuyDialog product={buyingProduct} onClose={() => setBuyingProduct(null)} />}
       {openRoomId !== null && (
@@ -286,7 +300,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
                 {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{p.category}</span>}
                 <p className={`text-sm font-bold mt-0.5 ${isSold ? "text-gray-400" : "text-amber-600"}`}>{price === 0 ? "查詢格價" : `${sym}${price.toLocaleString()}`}</p>
                 <div className="flex items-center justify-end gap-1 mt-1">
-                  {!isSold ? <ContactBtns product={p} merchantId={merchantId} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
+                  {!isSold ? <ContactBtns product={p} merchantId={merchantId} price={price} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">已售出</span>}
                   <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                     <ProductShareMenu productId={p.id} title={p.title} price={price} currency={p.currency} iconOnly />
                   </div>
@@ -338,7 +352,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
                 <div className="flex items-center justify-between pt-1">
                   <span className={`text-[1.4rem] font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{price === 0 ? "查詢格價" : `${sym}${price.toLocaleString()}`}</span>
                   <div className="flex items-center gap-1">
-                    {!isSold ? <ContactBtns product={p} merchantId={merchantId} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
+                    {!isSold ? <ContactBtns product={p} merchantId={merchantId} price={price} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
                     <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                       <ProductShareMenu productId={p.id} title={p.title} price={price} currency={p.currency} iconOnly />
                     </div>
@@ -380,7 +394,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
                 <span className={`text-[10px] font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{price === 0 ? "查詢格價" : `${sym}${price.toLocaleString()}`}</span>
                 <div className="flex items-center justify-between gap-0.5">
                   {!isSold ? (
-                    <ContactBtns product={p} merchantId={merchantId} size="sm" />
+                    <ContactBtns product={p} merchantId={merchantId} size="sm" price={price} />
                   ) : (
                     <span className="mt-auto text-[9px] py-0.5 bg-gray-100 text-gray-400 rounded text-center">已售出</span>
                   )}
@@ -430,7 +444,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
               <span className={`text-[1.225rem] font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{price === 0 ? "查詢格價" : `${sym}${price.toLocaleString()}`}</span>
               {p.description && <p className="text-[10px] text-gray-500 line-clamp-2">{p.description}</p>}
               <div className="mt-auto pt-1 flex items-center justify-end gap-1">
-                {!isSold ? <ContactBtns product={p} merchantId={merchantId} size="sm" /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
+                {!isSold ? <ContactBtns product={p} merchantId={merchantId} size="sm" price={price} /> : <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">已售出</span>}
                 <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                   <ProductShareMenu productId={p.id} title={p.title} price={price} currency={p.currency} iconOnly />
                 </div>
