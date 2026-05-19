@@ -180,16 +180,21 @@ export default function MerchantProductDetail() {
   const [productChatRoomId, setProductChatRoomId] = useState<number | null>(null);
   const [productChatMsg, setProductChatMsg] = useState<string | undefined>(undefined);
   const [productChatOpening, setProductChatOpening] = useState(false);
+  const isPriceEnquiryRef = useRef(false);
   const [paymentInfoOpen, setPaymentInfoOpen] = useState(false);
   const openRoomByMerchant = trpc.chat.openRoomByMerchant.useMutation({
     onSuccess: ({ roomId, isNew }, vars) => {
       if (isNew) {
         const origin = typeof window !== "undefined" ? window.location.origin : "";
         const url = `${origin}${window.location.pathname}`;
-        setProductChatMsg(`你好，我想查詢以下商品：\n${vars.productTitle ?? ""}\n商品連結：${url}`);
+        const msg = isPriceEnquiryRef.current
+          ? `你好，我想查詢以下商品嘅格價：\n${vars.productTitle ?? ""}\n商品連結：${url}`
+          : `你好，我想查詢以下商品：\n${vars.productTitle ?? ""}\n商品連結：${url}`;
+        setProductChatMsg(msg);
       } else {
         setProductChatMsg(undefined);
       }
+      isPriceEnquiryRef.current = false;
       setProductChatRoomId(roomId);
       setProductChatOpening(false);
     },
@@ -197,6 +202,12 @@ export default function MerchantProductDetail() {
   });
   const handleProductChat = (merchantId: number, productTitle: string) => {
     if (!user) { toast.info("請先登入後才可以使用站內訊息", { className: "bb-toast-info" }); return; }
+    setProductChatOpening(true);
+    openRoomByMerchant.mutate({ merchantId, productTitle });
+  };
+  const handlePriceEnquiryChat = (merchantId: number, productTitle: string) => {
+    if (!user) { toast.info("請先登入後才可以查詢格價", { className: "bb-toast-info" }); return; }
+    isPriceEnquiryRef.current = true;
     setProductChatOpening(true);
     openRoomByMerchant.mutate({ merchantId, productTitle });
   };
@@ -286,13 +297,15 @@ export default function MerchantProductDetail() {
   const _productWaDigits = _productWa.replace(/[^0-9]/g, "");
   const whatsapp = _productWaDigits.length >= 7 ? _productWa : (merchantInfo?.whatsapp ?? "");
   const productUrl = `${window.location.origin}/merchant-products/${productId}`;
-  const waLink = buildWhatsAppUrl(whatsapp, `你好，我想查詢以下商品：\n商品：${product?.title}\n價錢：HK$${price.toLocaleString()}\n連結：${productUrl}`);
+  const waPriceText = price === 0 ? "查詢格價" : `HK$${price.toLocaleString()}`;
+  const waLink = buildWhatsAppUrl(whatsapp, `你好，我想查詢以下商品：\n商品：${product?.title}\n價錢：${waPriceText}\n連結：${productUrl}`);
   const fbRaw = (merchantDetail as any)?.facebook ?? "";
   const messengerLink = fbRaw
     ? (fbRaw.startsWith("http") ? fbRaw : `https://m.me/${fbRaw}`)
     : "";
 
-  const messengerMessage = `你好，我想查詢以下商品：\n商品：${product?.title ?? ""}\n價錢：HK$${price.toLocaleString()}\n連結：${productUrl}`;
+  const messengerPriceText = price === 0 ? "查詢格價" : `HK$${price.toLocaleString()}`;
+  const messengerMessage = `你好，我想查詢以下商品：\n商品：${product?.title ?? ""}\n價錢：${messengerPriceText}\n連結：${productUrl}`;
 
   const handleMessengerClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
@@ -640,8 +653,12 @@ export default function MerchantProductDetail() {
                   </div>
                   {/* 第二行：HKD $xxx + 問商戶 icon — 向左 */}
                   <div className="flex items-center justify-start gap-3 my-1">
-                    <span className="text-[1.8rem] font-bold text-amber-600">{product.currency} ${price.toLocaleString()}</span>
-                    {product.status === 'active' && product.stock > 0 && (
+                    {price === 0 ? (
+                      <span className="text-[1.5rem] font-bold text-amber-500">查詢格價</span>
+                    ) : (
+                      <span className="text-[1.8rem] font-bold text-amber-600">{product.currency} ${price.toLocaleString()}</span>
+                    )}
+                    {product.status === 'active' && product.stock > 0 && price > 0 && (
                       <OfferButton product={product as any} />
                     )}
                   </div>
@@ -656,14 +673,25 @@ export default function MerchantProductDetail() {
                   </button>
                 </div>
 
-                {/* 落單按鈕 */}
+                {/* 落單按鈕 / 查詢格價按鈕 */}
                 {product.status === 'active' && product.stock > 0 && (
-                  <button
-                    onClick={() => handleBuy(product)}
-                    className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
-                  >
-                    <ShoppingCart className="w-4 h-4" />立即落單
-                  </button>
+                  price === 0 ? (
+                    <button
+                      type="button"
+                      disabled={productChatOpening}
+                      onClick={() => handlePriceEnquiryChat(product.merchantId, product.title)}
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+                    >
+                      <MessageCircle className="w-4 h-4" />{productChatOpening ? "連線中..." : "查詢格價"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleBuy(product)}
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+                    >
+                      <ShoppingCart className="w-4 h-4" />立即落單
+                    </button>
+                  )
                 )}
 
                 {/* 聯絡按鈕（無論售出與否都顯示） */}
