@@ -260,7 +260,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
 
   if (layout === "list") {
     return (
-      <div className="flex flex-col gap-[3px]">
+      <div className="flex flex-col gap-[5px]">
         {products.map((p: any) => {
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
@@ -301,7 +301,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
 
   if (layout === "big") {
     return (
-      <div className="flex flex-col gap-[3px]">
+      <div className="flex flex-col gap-[5px]">
         {products.map((p: any) => {
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");
@@ -330,12 +330,12 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
               )}
               <div className="p-3 space-y-1.5">
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className={`font-semibold line-clamp-2 text-sm flex-1 ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
-                  {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">{p.category}</span>}
+                  <h3 className={`font-semibold line-clamp-2 text-[1.05rem] flex-1 ${isSold ? "text-gray-500" : "text-gray-800"}`}>{p.title}</h3>
+                  {p.category && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">{p.category}</span>}
                 </div>
                 {p.description && <p className="text-xs text-gray-500 line-clamp-3">{p.description}</p>}
                 <div className="flex items-center justify-between pt-1">
-                  <span className={`text-base font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
+                  <span className={`text-[1.4rem] font-bold ${isSold ? "text-gray-400" : "text-amber-600"}`}>{sym}{price.toLocaleString()}</span>
                   <div className="flex items-center gap-1">
                     {!isSold ? <ContactBtns product={p} merchantId={merchantId} /> : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">已售出</span>}
                     <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
@@ -354,7 +354,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
 
   if (layout === "grid3") {
     return (
-      <div className="grid grid-cols-3 gap-[3px]">
+      <div className="grid grid-cols-3 gap-[5px]">
         {products.map((p: any) => {
           const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
           const price = parseFloat(p.price ?? "0");

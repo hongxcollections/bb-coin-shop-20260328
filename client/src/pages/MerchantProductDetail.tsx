@@ -766,7 +766,7 @@ export default function MerchantProductDetail() {
 
                 {/* list：橫排 */}
                 {layout === "list" && (
-                  <div className="flex flex-col gap-[2px]">
+                  <div className="flex flex-col gap-[5px]">
                     {paginatedOthers.map((p: any) => {
                       const d = mkData(p);
                       return (
@@ -800,7 +800,7 @@ export default function MerchantProductDetail() {
 
                 {/* big：大圖 */}
                 {layout === "big" && (
-                  <div className="flex flex-col gap-[2px]">
+                  <div className="flex flex-col gap-[5px]">
                     {paginatedOthers.map((p: any) => {
                       const d = mkData(p);
                       return (
@@ -816,12 +816,12 @@ export default function MerchantProductDetail() {
                             </div>
                             <div className="p-3 space-y-1">
                               <div className="flex items-start justify-between gap-2">
-                                <h3 className="font-semibold text-sm text-gray-800 line-clamp-2 flex-1">{p.title}</h3>
-                                {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">{p.category}</span>}
+                                <h3 className="font-semibold text-[1.05rem] text-gray-800 line-clamp-2 flex-1">{p.title}</h3>
+                                {p.category && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">{p.category}</span>}
                               </div>
                               {p.description && <p className="text-xs text-gray-500 line-clamp-2">{p.description}</p>}
                               <div className="flex items-center justify-between pt-1">
-                                <span className="text-base font-bold text-amber-600">{p.currency ?? "HKD"} ${d.pPrice.toLocaleString()}</span>
+                                <span className="text-[1.4rem] font-bold text-amber-600">{p.currency ?? "HKD"} ${d.pPrice.toLocaleString()}</span>
                                 {renderBtns(p, d, mdPill, "w-3.5 h-3.5")}
                               </div>
                             </div>
@@ -834,7 +834,7 @@ export default function MerchantProductDetail() {
 
                 {/* grid3：三欄 */}
                 {layout === "grid3" && (
-                  <div className="grid grid-cols-3 gap-[2px]">
+                  <div className="grid grid-cols-3 gap-[5px]">
                     {paginatedOthers.map((p: any) => {
                       const d = mkData(p);
                       return (
