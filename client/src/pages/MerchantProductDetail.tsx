@@ -618,8 +618,8 @@ export default function MerchantProductDetail() {
 
                 {/* 出售價錢三行佈局 */}
                 <div className="pt-1 space-y-1">
-                  {/* 第一行：出售價錢 | 庫存 N 件 [有貨] — 向右 */}
-                  <div className="flex items-center justify-end gap-2">
+                  {/* 第一行：出售價錢 | 庫存 N 件 [有貨] — 向左 */}
+                  <div className="flex items-center justify-start gap-2">
                     <span className="text-xs text-gray-400">出售價錢</span>
                     {product.status === 'active' && product.stock > 0 ? (
                       <>
@@ -634,17 +634,17 @@ export default function MerchantProductDetail() {
                       </>
                     )}
                   </div>
-                  {/* 第二行：HKD $xxx + 問商戶 icon — 置中 */}
-                  <div className="flex items-center justify-center gap-3 my-1">
+                  {/* 第二行：HKD $xxx + 問商戶 icon — 向左 */}
+                  <div className="flex items-center justify-start gap-3 my-1">
                     <span className="text-[1.8rem] font-bold text-amber-600">{product.currency} ${price.toLocaleString()}</span>
                     {product.status === 'active' && product.stock > 0 && (
                       <OfferButton product={product as any} />
                     )}
                   </div>
-                  {/* 第三行：交收/付款方式按鈕 — 向左 */}
+                  {/* 第三行：交收/付款方式按鈕 — 向右 */}
                   <button
                     onClick={() => setPaymentInfoOpen(true)}
-                    className="flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors"
+                    className="flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors ml-auto"
                     title="交收/付款方式"
                   >
                     <Info className="w-3.5 h-3.5" />
