@@ -621,14 +621,16 @@ export default function MerchantProductDetail() {
                   <p className="text-xs text-gray-400 mb-1">出售價錢</p>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[1.8rem] font-bold text-amber-600">{product.currency} ${price.toLocaleString()}</span>
+                    {product.status === 'active' && product.stock > 0 && (
+                      <div style={{ marginLeft: 4 }}>
+                        <OfferButton product={product as any} />
+                      </div>
+                    )}
                     {product.status === 'active' && product.stock > 0 ? (
                       <>
                         <span className="text-gray-300 text-sm select-none">|</span>
                         <span className="text-xs text-gray-500">庫存 {product.stock} 件</span>
                         <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">有貨</span>
-                        <div style={{ marginLeft: 4 }}>
-                          <OfferButton product={product as any} />
-                        </div>
                       </>
                     ) : (
                       <span className="text-xs text-gray-400">已售出</span>
