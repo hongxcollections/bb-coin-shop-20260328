@@ -32,7 +32,7 @@ export default function AdminSiteSettings() {
 
   // Google AdSense
   const [adsenseEnabled, setAdsenseEnabled] = useState(true);
-  const [adsensePublisherId, setAdsensePublisherId] = useState("ca-pub-0000000000000000");
+  const [adsensePublisherId, setAdsensePublisherId] = useState("ca-pub-3555957571802049");
 
   // AI 客服 Chatbot 開關（預設開啟）
   const [chatbotEnabled, setChatbotEnabled] = useState(true);

@@ -7,16 +7,26 @@ interface AdSenseAdProps {
   className?: string;
 }
 
+function injectAdSenseScript(publisherId: string) {
+  if (document.querySelector(`script[data-adsense="${publisherId}"]`)) return;
+  const script = document.createElement("script");
+  script.async = true;
+  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${publisherId}`;
+  script.crossOrigin = "anonymous";
+  script.setAttribute("data-adsense", publisherId);
+  document.head.appendChild(script);
+}
+
 export default function AdSenseAd({ slot, format = "auto", className = "" }: AdSenseAdProps) {
   const { data: settings } = trpc.siteSettings.getAll.useQuery();
   const s = (settings as Record<string, string> | undefined) ?? {};
   const enabled = s.adsenseEnabled !== "false";
-  const publisherId = s.adsensePublisherId || "";
-  const ref = useRef<HTMLModElement>(null);
+  const publisherId = s.adsensePublisherId || "ca-pub-3555957571802049";
   const pushed = useRef(false);
 
   useEffect(() => {
-    if (!enabled || !publisherId || publisherId === "ca-pub-0000000000000000") return;
+    if (!enabled || !publisherId) return;
+    injectAdSenseScript(publisherId);
     if (pushed.current) return;
     pushed.current = true;
     try {
@@ -26,12 +36,11 @@ export default function AdSenseAd({ slot, format = "auto", className = "" }: AdS
     } catch {}
   }, [enabled, publisherId]);
 
-  if (!enabled || !publisherId || publisherId === "ca-pub-0000000000000000") return null;
+  if (!enabled) return null;
 
   return (
     <div className={`overflow-hidden ${className}`}>
       <ins
-        ref={ref}
         className="adsbygoogle"
         style={{ display: "block" }}
         data-ad-client={publisherId}
