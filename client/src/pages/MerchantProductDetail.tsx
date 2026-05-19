@@ -771,20 +771,25 @@ export default function MerchantProductDetail() {
                       const d = mkData(p);
                       return (
                         <Link key={p.id} href={`/merchant-products/${p.id}`}>
-                          <div className="bg-white rounded-xl border border-amber-100 shadow-sm p-3 flex gap-3 items-start cursor-pointer hover:border-amber-300 transition-colors">
-                            <div className="relative shrink-0">
-                              {d.pImgs[0] ? (
-                                <img src={d.pImgs[0]} alt={p.title} className="w-16 h-16 rounded-lg object-cover" />
-                              ) : (
-                                <div className="w-16 h-16 rounded-lg bg-amber-50 flex items-center justify-center"><Package className="w-6 h-6 text-amber-200" /></div>
-                              )}
-                              {nameOverlay}
+                          <div className="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden cursor-pointer hover:border-amber-300 transition-colors">
+                            {/* 標題移到照片上方 */}
+                            <div className="px-3 pt-2.5 pb-1">
+                              <h3 className="text-[1.05rem] font-semibold text-gray-800 line-clamp-2 leading-snug">{p.title}</h3>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="text-sm font-semibold text-gray-800 line-clamp-1">{p.title}</h3>
-                              {p.category && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{p.category}</span>}
-                              <p className="text-sm font-bold text-amber-600 mt-0.5">{p.currency ?? "HKD"} ${d.pPrice.toLocaleString()}</p>
-                              {renderBtns(p, d, mdPill, "w-3.5 h-3.5")}
+                            <div className="p-3 pt-0 flex gap-3 items-start">
+                              <div className="relative shrink-0">
+                                {d.pImgs[0] ? (
+                                  <img src={d.pImgs[0]} alt={p.title} className="w-16 h-16 rounded-lg object-cover" />
+                                ) : (
+                                  <div className="w-16 h-16 rounded-lg bg-amber-50 flex items-center justify-center"><Package className="w-6 h-6 text-amber-200" /></div>
+                                )}
+                                {nameOverlay}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                {p.category && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{p.category}</span>}
+                                <p className="text-[1.225rem] font-bold text-amber-600 mt-0.5">{p.currency ?? "HKD"} ${d.pPrice.toLocaleString()}</p>
+                                {renderBtns(p, d, mdPill, "w-3.5 h-3.5")}
+                              </div>
                             </div>
                           </div>
                         </Link>
