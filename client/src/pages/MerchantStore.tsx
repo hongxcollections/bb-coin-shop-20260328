@@ -398,7 +398,7 @@ function ProductsList({ products, layout, whatsapp, messengerLink, merchantName,
 
   // grid2 (default)
   return (
-    <div className="grid grid-cols-2 gap-[3px]">
+    <div className="grid grid-cols-2 gap-[5px]">
       {products.map((p: any) => {
         const imgs: string[] = (() => { try { return p.images ? JSON.parse(p.images) : []; } catch { return []; } })();
         const price = parseFloat(p.price ?? "0");

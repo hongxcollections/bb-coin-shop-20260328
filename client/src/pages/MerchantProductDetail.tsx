@@ -865,7 +865,7 @@ export default function MerchantProductDetail() {
 
                 {/* grid2（預設，包含任何未知值）*/}
                 {layout !== "list" && layout !== "big" && layout !== "grid3" && (
-                  <div className="grid grid-cols-2 gap-[2px]">
+                  <div className="grid grid-cols-2 gap-[5px]">
                     {paginatedOthers.map((p: any) => {
                       const d = mkData(p);
                       return (
