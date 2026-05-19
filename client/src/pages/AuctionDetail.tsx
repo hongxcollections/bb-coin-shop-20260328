@@ -717,8 +717,8 @@ export default function AuctionDetail() {
             {/* Price Card */}
             <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50">
               <CardContent className="p-5">
-                {/* 第一行：出價 label + 大價（左）｜ 交收/付款 icon+文字（右） */}
-                <div className="flex items-start justify-between mb-1">
+                {/* 第一行：出價 label + 大價（左）｜ 交收/付款 icon+文字（右，底部對齊大價） */}
+                <div className="flex items-end justify-between mb-1">
                   <div>
                     <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5 flex-wrap">
                       {!isActive && bids.length === 0 ? (
@@ -757,7 +757,7 @@ export default function AuctionDetail() {
                   </div>
                   <button
                     onClick={() => setPaymentInfoOpen(true)}
-                    className="flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors mt-1"
+                    className="flex items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors mb-0.5"
                     title="得標後交收 / 付款方式"
                   >
                     <Info className="w-3.5 h-3.5" />
