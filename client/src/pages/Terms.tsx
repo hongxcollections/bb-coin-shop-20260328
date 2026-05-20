@@ -1,7 +1,7 @@
 export default function Terms() {
   return (
     <div className="min-h-screen bg-background">
-      <div className="container max-w-3xl mx-auto py-12">
+      <div className="container max-w-3xl mx-auto pt-12 pb-20">
         <h1 className="text-3xl font-bold mb-8">服務條款</h1>
         <p className="text-sm text-muted-foreground mb-8">最後更新日期：2026 年 4 月 14 日</p>
 
