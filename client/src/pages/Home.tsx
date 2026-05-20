@@ -1779,7 +1779,7 @@ export default function Home() {
           </div>
           <div className="border-t border-amber-900/40 pt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5">
             <div className="flex flex-col gap-0.5">
-              <span>Hong X Collections · <a href="mailto:ywkyee@gmail.com" className="hover:text-amber-400 transition-colors">ywkyee@gmail.com</a> · WhatsApp: <a href="https://wa.me/85297927793" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">+852 9792 7793</a></span>
+              <span>hongxcollections.com · <a href="mailto:ywkyee@gmail.com" className="hover:text-amber-400 transition-colors">ywkyee@gmail.com</a> · WhatsApp: <a href="https://wa.me/85297927793" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">+852 9792 7793</a></span>
               <span>Shop 340, 3/F, Ho Mong Lok Shopping Centre, 163-173 Portland Street, Mong Kok, Kowloon, Hong Kong</span>
             </div>
           </div>

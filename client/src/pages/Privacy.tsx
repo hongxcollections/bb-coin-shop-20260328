@@ -99,7 +99,7 @@ export default function Privacy() {
             <h2 className="text-xl font-semibold mb-3">9. 聯絡我們</h2>
             <p className="mb-3">如您對本隱私權政策有任何疑問，請透過以下方式聯絡我們：</p>
             <ul className="space-y-1">
-              <li><strong>資料控制者：</strong>Hong X Collections</li>
+              <li><strong>資料控制者：</strong>hongxcollections.com</li>
               <li><strong>電郵：</strong><a href="mailto:ywkyee@gmail.com" className="underline text-amber-600">ywkyee@gmail.com</a></li>
               <li><strong>WhatsApp：</strong><a href="https://wa.me/85297927793" target="_blank" rel="noopener noreferrer" className="underline text-amber-600">+852 9792 7793</a></li>
               <li><strong>地址：</strong>Shop 340, 3/F, Ho Mong Lok Shopping Centre, 163-173 Portland Street, Mong Kok, Kowloon, Hong Kong</li>
