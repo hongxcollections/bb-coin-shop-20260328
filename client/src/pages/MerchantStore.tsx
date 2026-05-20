@@ -1058,7 +1058,7 @@ export default function MerchantStore() {
               <div className="text-center py-10 text-2xl animate-spin">💰</div>
             ) : (
               <>
-                <AdSenseAd slot="1122334455" format="auto" className="rounded-xl overflow-hidden mb-2" />
+                <AdSenseAd slot="9658476126" format="auto" className="rounded-xl overflow-hidden mb-2" />
                 <ProductsList
                   products={paginatedActiveProducts}
                   layout={merchantLayout}

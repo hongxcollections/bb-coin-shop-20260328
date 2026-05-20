@@ -509,7 +509,7 @@ export default function Auctions() {
                 />
                 {bannerEl}
                 {(rowIdx + 1) % 8 === 0 && (
-                  <AdSenseAd slot="0987654321" width={320} height={100} className="my-1 rounded-xl overflow-hidden mx-auto" />
+                  <AdSenseAd slot="7230103426" width={320} height={100} className="my-1 rounded-xl overflow-hidden mx-auto" />
                 )}
                 </React.Fragment>
               );
