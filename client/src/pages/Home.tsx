@@ -1767,13 +1767,21 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="bg-amber-950 text-amber-100/60 py-4 pb-24 border-t border-amber-900/50">
-        <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
-          <p>© 2026 hongxcollections.com · 專業錢幣拍賣平台</p>
-          <div className="flex gap-4 font-bold">
-            <Link href="/" className="hover:text-amber-400 transition-colors">首頁</Link>
-            <button onClick={() => setShowMerchantFlow(true)} className="hover:text-amber-400 transition-colors">商戶申請流程</button>
-            <Link href="/terms" className="hover:text-amber-400 transition-colors">服務條款</Link>
-            <Link href="/privacy" className="hover:text-amber-400 transition-colors">隱私政策</Link>
+        <div className="container flex flex-col gap-3 text-xs">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+            <p>© 2026 hongxcollections.com · 專業錢幣拍賣平台</p>
+            <div className="flex gap-4 font-bold">
+              <Link href="/" className="hover:text-amber-400 transition-colors">首頁</Link>
+              <button onClick={() => setShowMerchantFlow(true)} className="hover:text-amber-400 transition-colors">商戶申請流程</button>
+              <Link href="/terms" className="hover:text-amber-400 transition-colors">服務條款</Link>
+              <Link href="/privacy" className="hover:text-amber-400 transition-colors">隱私政策</Link>
+            </div>
+          </div>
+          <div className="border-t border-amber-900/40 pt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5">
+            <div className="flex flex-col gap-0.5">
+              <span>Hong X Collections · <a href="mailto:ywkyee@gmail.com" className="hover:text-amber-400 transition-colors">ywkyee@gmail.com</a> · WhatsApp: <a href="https://wa.me/85297927793" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition-colors">+852 9792 7793</a></span>
+              <span>Shop 340, 3/F, Ho Mong Lok Shopping Centre, 163-173 Portland Street, Mong Kok, Kowloon, Hong Kong</span>
+            </div>
           </div>
         </div>
       </footer>
