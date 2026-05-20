@@ -606,9 +606,11 @@ export default function Auctions() {
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
           <p>© 2026 hongxcollections.com · 專業錢幣拍賣平台</p>
           <div className="flex gap-4 font-bold">
-            <Link href="/" className="hover:text-amber-400 transition-colors">首頁</Link>
-            <a href="#" className="hover:text-amber-400 transition-colors">服務條款</a>
-            <a href="#" className="hover:text-amber-400 transition-colors">隱私政策</a>
+            <Link href="/" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="hover:text-amber-400 transition-colors">首頁</Link>
+            <Link href="/merchant-apply" className="hover:text-amber-400 transition-colors">商戶申請流程</Link>
+            <Link href="/about" className="hover:text-amber-400 transition-colors">關於我們</Link>
+            <Link href="/terms" className="hover:text-amber-400 transition-colors">服務條款</Link>
+            <Link href="/privacy" className="hover:text-amber-400 transition-colors">隱私政策</Link>
           </div>
         </div>
       </footer>

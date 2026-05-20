@@ -35,7 +35,7 @@ export default function About() {
               </li>
               <li className="flex items-start gap-2">
                 <Star className="w-4 h-4 mt-0.5 text-amber-500 shrink-0" />
-                <span>藏家天地，收藏心得交流社群</span>
+                <span>藏品社區，收藏心得交流社群</span>
               </li>
               <li className="flex items-start gap-2">
                 <Star className="w-4 h-4 mt-0.5 text-amber-500 shrink-0" />
