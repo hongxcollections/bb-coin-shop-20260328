@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShareMenu, SessionShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
 import { AuctionCard } from "@/components/AuctionCard";
+import AdSenseAd from "@/components/AdSenseAd";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Calendar, Clock, Package, Users, Store, QrCode } from "lucide-react";
@@ -413,7 +414,7 @@ export default function MerchantSessionPublic() {
           <>
             <div ref={listRef} className="scroll-mt-4" />
             <div className="flex flex-col gap-[2px]">
-            {filtered.map((auction: any) => {
+            {filtered.map((auction: any, idx: number) => {
               const nowMs = Date.now();
               const endMs = new Date(auction.endTime).getTime();
               const isItemEnded = endMs <= nowMs;
@@ -429,40 +430,44 @@ export default function MerchantSessionPublic() {
                 : null;
 
               return (
-                <AuctionCard
-                  key={auction.id}
-                  auctionId={auction.id}
-                  title={auction.title}
-                  imageUrl={(auction.images as Array<{ imageUrl: string }> | undefined)?.[0]?.imageUrl}
-                  endTime={auction.endTime}
-                  currentPrice={curPrice}
-                  startingPrice={Number(a.startingPrice ?? 0)}
-                  currency={a.currency}
-                  isEnded={isItemEnded}
-                  isEndingSoon={isEndingSoon}
-                  currentUserId={user?.id}
-                  highestBidderId={a.highestBidderId}
-                  highestBidderName={a.highestBidderName}
-                  bidCount={Number(a.bidCount ?? 0)}
-                  sessionMode
-                  isSessionFullyEnded={isEnded}
-                  isPrivileged={isPrivileged}
-                  sellerName={a.sellerName}
-                  bidIncrement={Number(a.bidIncrement ?? 30)}
-                  shareTemplate={a.fbShareTemplate}
-                  antiSnipeEnabled={(a as { antiSnipeEnabled?: number }).antiSnipeEnabled}
-                  antiSnipeMinutes={(a as { antiSnipeMinutes?: number }).antiSnipeMinutes}
-                  extendMinutes={(a as { extendMinutes?: number }).extendMinutes}
-                  createdBy={a.createdBy}
-                  timeProgress={timeProgress}
-                  onLinkClick={() => {
-                    try {
-                      sessionStorage.setItem("bb_auction_from_session", JSON.stringify({
-                        merchantUserId, slug, title: session.title, merchantName,
-                      }));
-                    } catch {}
-                  }}
-                />
+                <React.Fragment key={auction.id}>
+                  <AuctionCard
+                    auctionId={auction.id}
+                    title={auction.title}
+                    imageUrl={(auction.images as Array<{ imageUrl: string }> | undefined)?.[0]?.imageUrl}
+                    endTime={auction.endTime}
+                    currentPrice={curPrice}
+                    startingPrice={Number(a.startingPrice ?? 0)}
+                    currency={a.currency}
+                    isEnded={isItemEnded}
+                    isEndingSoon={isEndingSoon}
+                    currentUserId={user?.id}
+                    highestBidderId={a.highestBidderId}
+                    highestBidderName={a.highestBidderName}
+                    bidCount={Number(a.bidCount ?? 0)}
+                    sessionMode
+                    isSessionFullyEnded={isEnded}
+                    isPrivileged={isPrivileged}
+                    sellerName={a.sellerName}
+                    bidIncrement={Number(a.bidIncrement ?? 30)}
+                    shareTemplate={a.fbShareTemplate}
+                    antiSnipeEnabled={(a as { antiSnipeEnabled?: number }).antiSnipeEnabled}
+                    antiSnipeMinutes={(a as { antiSnipeMinutes?: number }).antiSnipeMinutes}
+                    extendMinutes={(a as { extendMinutes?: number }).extendMinutes}
+                    createdBy={a.createdBy}
+                    timeProgress={timeProgress}
+                    onLinkClick={() => {
+                      try {
+                        sessionStorage.setItem("bb_auction_from_session", JSON.stringify({
+                          merchantUserId, slug, title: session.title, merchantName,
+                        }));
+                      } catch {}
+                    }}
+                  />
+                  {idx === 5 && filtered.length > 6 && (
+                    <AdSenseAd slot="2797554307" width={320} height={100} className="my-1 rounded-xl overflow-hidden mx-auto" />
+                  )}
+                </React.Fragment>
               );
             })}
             </div>
