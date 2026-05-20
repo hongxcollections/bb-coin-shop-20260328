@@ -4,6 +4,8 @@ import { trpc } from "@/lib/trpc";
 interface AdSenseAdProps {
   slot: string;
   format?: "auto" | "rectangle" | "horizontal" | "vertical";
+  width?: number;
+  height?: number;
   className?: string;
 }
 
@@ -17,7 +19,7 @@ function injectAdSenseScript(publisherId: string) {
   document.head.appendChild(script);
 }
 
-export default function AdSenseAd({ slot, format = "auto", className = "" }: AdSenseAdProps) {
+export default function AdSenseAd({ slot, format = "auto", width, height, className = "" }: AdSenseAdProps) {
   const { data: settings } = trpc.siteSettings.getAll.useQuery();
   const s = (settings as Record<string, string> | undefined) ?? {};
   const enabled = s.adsenseEnabled !== "false";
@@ -38,15 +40,18 @@ export default function AdSenseAd({ slot, format = "auto", className = "" }: AdS
 
   if (!enabled) return null;
 
+  const isFixed = width !== undefined && height !== undefined;
+
   return (
     <div className={`overflow-hidden ${className}`}>
       <ins
         className="adsbygoogle"
-        style={{ display: "block" }}
+        style={isFixed
+          ? { display: "inline-block", width: `${width}px`, height: `${height}px` }
+          : { display: "block" }}
         data-ad-client={publisherId}
         data-ad-slot={slot}
-        data-ad-format={format}
-        data-full-width-responsive="true"
+        {...(!isFixed && { "data-ad-format": format, "data-full-width-responsive": "true" })}
       />
     </div>
   );
