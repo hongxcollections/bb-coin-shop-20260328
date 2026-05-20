@@ -72,7 +72,7 @@ interface ProductForm {
 }
 
 const EMPTY_FORM: ProductForm = {
-  title: "", description: "", price: "", currency: "HKD", categories: [], stock: "1", images: [], videoUrl: "", allowOffers: true,
+  title: "", description: "", price: "0", currency: "HKD", categories: [], stock: "1", images: [], videoUrl: "", allowOffers: true,
 };
 
 const MAX_VIDEO_SIZE = 30 * 1024 * 1024;
