@@ -49,6 +49,7 @@ import MemberBenefits from "./pages/MemberBenefits";
 import WebhookSetup from "./pages/WebhookSetup";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import About from "./pages/About";
 import MerchantApply from "./pages/MerchantApply";
 import MerchantDashboard from "./pages/MerchantDashboard";
 import MerchantAuctions from "./pages/MerchantAuctions";
@@ -201,6 +202,7 @@ function Router() {
       <Route path={"/login"} component={Login} />
       <Route path={"/privacy"} component={Privacy} />
       <Route path={"/terms"} component={Terms} />
+      <Route path={"/about"} component={About} />
       <Route path={"/merchant-apply"} component={MerchantApply} />
       <Route path={"/merchant-dashboard"} component={MerchantDashboard} />
       <Route path={"/merchant-auctions"} component={MerchantAuctions} />
