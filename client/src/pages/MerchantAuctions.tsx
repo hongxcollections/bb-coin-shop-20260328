@@ -461,6 +461,22 @@ function AuctionCard({
             >
               <Megaphone className="w-2.5 h-2.5" />廣播
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 px-1.5 text-xs gap-0.5"
+              title="分享拍賣連結"
+              onClick={async () => {
+                const url = `https://share.hongxcollections.com/auctions/${auction.id}`;
+                if (navigator.share) {
+                  try { await navigator.share({ title: auction.title, url }); } catch {}
+                } else {
+                  try { await navigator.clipboard.writeText(url); toast.success("連結已複製！"); } catch { toast.error("複製失敗"); }
+                }
+              }}
+            >
+              <Share2 className="w-2.5 h-2.5" />
+            </Button>
             {fbRefreshEnabled && (
               <Button
                 size="sm"
