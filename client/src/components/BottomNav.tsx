@@ -383,7 +383,15 @@ export default function BottomNav() {
             </button>
 
             <h2 className="text-base font-bold mb-1">聯絡客服</h2>
-            <p className="text-xs text-muted-foreground mb-5">關於任何網站問題，請以下方式聯繫 7×24h</p>
+            <p className="text-xs text-muted-foreground mb-3">關於任何網站問題, 請以下方式聯繫 7×24h</p>
+
+            <div className="flex flex-wrap gap-1.5 mb-5">
+              {["用戶/商戶 申請流程", "網站 商品拍賣/出售 事宜/功能", "其他"].map(topic => (
+                <span key={topic} className="px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-[11px] font-medium">
+                  # {topic}
+                </span>
+              ))}
+            </div>
 
             <div className="space-y-4">
               <a
