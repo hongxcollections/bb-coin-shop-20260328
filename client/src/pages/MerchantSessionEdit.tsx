@@ -762,42 +762,16 @@ export default function MerchantSessionEdit() {
               const effectiveStatus = (endedByTime && (a.status === "active" || a.status === "draft")) ? "ended" : a.status;
               const sl = statusLabel(effectiveStatus, !!a.highestBidderId);
               return (
-                <div key={it.id} className="bg-white border border-amber-100 rounded-xl p-3 flex items-center gap-3">
-                  <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0">
-                    {firstImg ? (
-                      <img src={firstImg} alt={a.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-2xl">🪙</span>
-                    )}
-                    <ItemCountdownOverlay endTime={a.endTime} />
-                  </div>
-                  <div className="flex-1 min-w-0">
+                <div key={it.id} className="bg-white border border-amber-100 rounded-xl overflow-hidden">
+                  {/* ① 商品名稱 18px 左 + 狀態 badge 右 */}
+                  <div className="flex items-center gap-2 px-3 pt-3 pb-1">
                     <Link href={`/auctions/${a.id}`}>
-                      <a className="font-medium text-sm text-amber-900 hover:underline truncate block">{a.title}</a>
+                      <a className="text-[18px] font-bold text-amber-900 hover:underline leading-snug line-clamp-1 flex-1">{a.title}</a>
                     </Link>
-                    <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
-                      <span className={`px-1.5 py-0.5 rounded ${sl.cls}`}>{sl.txt}</span>
-                      <span>{getCurrencySymbol(a.currency)} {Number(a.currentPrice).toLocaleString()}</span>
-                      {a.highestBidderId ? (
-                        <span className="text-rose-600 font-medium">最高: {a.highestBidderName ?? '未知'}</span>
-                      ) : (
-                        <span className="text-gray-400">未有出價</span>
-                      )}
-                      {(() => {
-                        const bc = Number(a.bidCount ?? 0);
-                        return bc > 0 ? (
-                          <BidHistoryToggle auctionId={a.id} bidCount={bc} currency={a.currency} />
-                        ) : null;
-                      })()}
-                    </div>
-                    <div className="text-[11px] text-gray-500 mt-0.5 inline-flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      結束 {fmtEndTime(a.endTime)}
-                    </div>
-                  </div>
-                  {!isLocked && (
-                    <Button size="sm" variant="ghost" className="text-rose-600 shrink-0"
-                      onClick={async () => {
+                    <span className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${sl.cls}`}>{sl.txt}</span>
+                    {!isLocked && (
+                      <Button size="sm" variant="ghost" className="text-rose-600 shrink-0 h-6 w-6 p-0"
+                        onClick={async () => {
                         // 已有人出價 → 直接拒絕拆除
                         if (a.highestBidderId) {
                           toast.error("此商品已有人出價，不得從專場拆除");
@@ -819,6 +793,47 @@ export default function MerchantSessionEdit() {
                     </Button>
                   )}
                 </div>
+
+                {/* ② 圖片 + 右側資訊 */}
+                <div className="flex gap-3 px-3 pb-3">
+                  <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-amber-100 flex items-center justify-center shrink-0">
+                    {firstImg ? (
+                      <img src={firstImg} alt={a.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-2xl">🪙</span>
+                    )}
+                    <ItemCountdownOverlay endTime={a.endTime} />
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-0.5 pt-0.5">
+                    {a.description && (
+                      <p className="text-xs text-gray-500 leading-snug line-clamp-2">{a.description}</p>
+                    )}
+                    {(a as any).privateNote && (
+                      <p className="text-xs text-gray-400 leading-snug">{(a as any).privateNote}</p>
+                    )}
+                    <div className="text-xs text-gray-600 flex items-center gap-1.5 flex-wrap">
+                      <span>{getCurrencySymbol(a.currency)} {Number(a.currentPrice).toLocaleString()}</span>
+                      {a.highestBidderId ? (
+                        <span className="text-rose-600 font-medium">最高: {a.highestBidderName ?? '未知'}</span>
+                      ) : (
+                        <span className="text-gray-400">未有出價</span>
+                      )}
+                    </div>
+                    {(() => {
+                      const bc = Number(a.bidCount ?? 0);
+                      return bc > 0 ? (
+                        <div className="text-xs text-gray-500">
+                          <BidHistoryToggle auctionId={a.id} bidCount={bc} currency={a.currency} />
+                        </div>
+                      ) : null;
+                    })()}
+                    <div className="text-xs text-gray-500 inline-flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      結束 {fmtEndTime(a.endTime)}
+                    </div>
+                  </div>
+                </div>
+              </div>
               );
             })}
           </div>

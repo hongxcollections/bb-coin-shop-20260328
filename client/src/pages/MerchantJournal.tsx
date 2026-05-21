@@ -209,7 +209,7 @@ export default function MerchantJournal() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // ── # mention state ──
+  // ── # mention state (create form) ──
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionIdx, setMentionIdx] = useState(0);
 
@@ -218,6 +218,17 @@ export default function MerchantJournal() {
     const q = mentionQuery.toLowerCase();
     return contactList.filter(c => c.name.toLowerCase().includes(q)).slice(0, 8);
   }, [mentionQuery, contactList]);
+
+  // ── # mention state (edit form) ──
+  const [editMentionQuery, setEditMentionQuery] = useState<string | null>(null);
+  const [editMentionIdx, setEditMentionIdx] = useState(0);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const editMentionSuggestions = useMemo(() => {
+    if (editMentionQuery === null) return [];
+    const q = editMentionQuery.toLowerCase();
+    return contactList.filter(c => c.name.toLowerCase().includes(q)).slice(0, 8);
+  }, [editMentionQuery, contactList]);
 
   // ── Filter state ──
   const [filterDateFrom, setFilterDateFrom] = useState("");
@@ -385,6 +396,47 @@ export default function MerchantJournal() {
       return () => document.removeEventListener("click", handle);
     }
   }, [mentionQuery]);
+
+  // ── Edit form # mention handlers ──
+  const handleEditContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setEditContent(val);
+    const pos = e.target.selectionStart ?? val.length;
+    const before = val.slice(0, pos);
+    const match = before.match(/#([^#\s,，。！？\n]*)$/);
+    if (match) { setEditMentionQuery(match[1]); setEditMentionIdx(0); }
+    else setEditMentionQuery(null);
+  };
+
+  const insertEditMention = (name: string) => {
+    const ta = editTextareaRef.current;
+    const pos = ta?.selectionStart ?? editContent.length;
+    const before = editContent.slice(0, pos);
+    const after = editContent.slice(pos);
+    const newBefore = before.replace(/#([^#\s,，。！？\n]*)$/, `#${name} `);
+    setEditContent(newBefore + after);
+    setEditMentionQuery(null);
+    requestAnimationFrame(() => {
+      ta?.focus();
+      ta?.setSelectionRange(newBefore.length, newBefore.length);
+    });
+  };
+
+  const handleEditContentKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (editMentionQuery === null || editMentionSuggestions.length === 0) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setEditMentionIdx(i => (i + 1) % editMentionSuggestions.length); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setEditMentionIdx(i => (i - 1 + editMentionSuggestions.length) % editMentionSuggestions.length); }
+    else if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); insertEditMention(editMentionSuggestions[editMentionIdx].name); }
+    else if (e.key === "Escape") { e.preventDefault(); setEditMentionQuery(null); }
+  };
+
+  useEffect(() => {
+    const handle = () => setEditMentionQuery(null);
+    if (editMentionQuery !== null) {
+      document.addEventListener("click", handle, { once: true });
+      return () => document.removeEventListener("click", handle);
+    }
+  }, [editMentionQuery]);
 
   // ── Images ──
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -684,13 +736,32 @@ export default function MerchantJournal() {
                           className="flex-1 text-xs rounded-lg border border-input bg-background px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-amber-400"
                         />
                       </div>
-                      <Textarea
-                        value={editContent}
-                        onChange={e => setEditContent(e.target.value)}
-                        maxLength={500}
-                        className="resize-none text-sm min-h-32"
-                        autoFocus
-                      />
+                      <div className="relative">
+                        <Textarea
+                          ref={editTextareaRef}
+                          value={editContent}
+                          onChange={handleEditContentChange}
+                          onKeyDown={handleEditContentKeyDown}
+                          maxLength={500}
+                          className="resize-none text-sm min-h-32"
+                          autoFocus
+                        />
+                        {editMentionQuery !== null && editMentionSuggestions.length > 0 && (
+                          <div className="absolute left-0 right-0 top-full mt-1 z-20 rounded-xl border bg-popover shadow-lg overflow-hidden">
+                            {editMentionSuggestions.map((c, i) => (
+                              <button
+                                key={c.id}
+                                onMouseDown={e => { e.preventDefault(); insertEditMention(c.name); }}
+                                className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 transition-colors ${
+                                  i === editMentionIdx ? "bg-amber-50 text-amber-700" : "hover:bg-muted"
+                                }`}
+                              >
+                                <User className="w-3 h-3 opacity-50" /> {c.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <div className="text-[11px] text-muted-foreground text-right -mt-1">{editContent.length}/500</div>
                       <div>
                         <p className="text-[11px] text-muted-foreground mb-1.5 flex items-center gap-1"><Tag className="w-3 h-3" />類別</p>
