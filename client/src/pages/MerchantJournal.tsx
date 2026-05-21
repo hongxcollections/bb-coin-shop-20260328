@@ -33,9 +33,15 @@ function fmtDateOnly(d: Date | string | null | undefined) {
   return new Date(d).toLocaleDateString("zh-HK", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
+/** Extract #mentions from content string */
+function extractMentions(text: string): string[] {
+  const matches = text.match(/#([^\s#,，。！？\n]+)/g) ?? [];
+  return [...new Set(matches.map(m => m.slice(1)))];
+}
+
 // ─── Contact Book Card ──────────────────────────────────────────────────────
 function ContactBook() {
-  const { confirm: confirmDialog } = useConfirm();
+  const confirmDialog = useConfirm();
   const utils = trpc.useUtils();
 
   const { data: contacts = [] } = trpc.merchantJournal.listContacts.useQuery();
@@ -116,13 +122,12 @@ function ContactBook() {
 
       {open && (
         <div className="px-4 pb-4 space-y-3">
-          {/* Contact chips */}
           {contacts.length === 0 ? (
             <p className="text-[11px] text-muted-foreground">尚未新增任何聯絡人</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {(contacts as { id: number; name: string }[]).map(c => (
-                <div key={c.id} className="flex items-center gap-0">
+                <div key={c.id}>
                   {editingName === c.name ? (
                     <div className="flex items-center gap-1 bg-amber-50 border border-amber-300 rounded-full px-2 py-0.5">
                       <input
@@ -133,11 +138,7 @@ function ContactBook() {
                         className="text-xs bg-transparent outline-none w-24 text-amber-800"
                         maxLength={100}
                       />
-                      <button
-                        onClick={commitRename}
-                        disabled={renameContact.isPending}
-                        className="text-amber-600 hover:text-amber-800"
-                      >
+                      <button onClick={commitRename} disabled={renameContact.isPending} className="text-amber-600 hover:text-amber-800">
                         {renameContact.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                       </button>
                       <button onClick={() => setEditingName(null)} className="text-gray-400 hover:text-gray-600">
@@ -147,18 +148,10 @@ function ContactBook() {
                   ) : (
                     <span className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 pl-2.5 pr-1 py-0.5 rounded-full text-xs font-medium">
                       {c.name}
-                      <button
-                        onClick={() => startEdit(c.name)}
-                        className="hover:text-amber-600 transition-colors p-0.5 rounded-full"
-                        title="修改名稱"
-                      >
+                      <button onClick={() => startEdit(c.name)} className="hover:text-amber-600 transition-colors p-0.5 rounded-full" title="修改名稱">
                         <Pencil className="w-2.5 h-2.5" />
                       </button>
-                      <button
-                        onClick={() => handleDelete(c.name)}
-                        className="hover:text-red-500 transition-colors p-0.5 rounded-full"
-                        title="拆除此聯絡人"
-                      >
+                      <button onClick={() => handleDelete(c.name)} className="hover:text-red-500 transition-colors p-0.5 rounded-full" title="拆除此聯絡人">
                         <X className="w-2.5 h-2.5" />
                       </button>
                     </span>
@@ -168,7 +161,6 @@ function ContactBook() {
             </div>
           )}
 
-          {/* Add new contact */}
           <div className="flex items-center gap-2">
             <Input
               placeholder="新增聯絡人⋯"
@@ -178,18 +170,12 @@ function ContactBook() {
               maxLength={100}
               className="h-8 text-xs flex-1"
             />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleAdd}
-              disabled={!newName.trim() || addContact.isPending}
-              className="h-8 text-xs px-3"
-            >
+            <Button size="sm" variant="outline" onClick={handleAdd} disabled={!newName.trim() || addContact.isPending} className="h-8 text-xs px-3">
               {addContact.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground -mt-1">
-            修改或拆除聯絡人後，所有相關日誌內容會自動同步
+            在日誌內容輸入 # 可快速提及聯絡人 · 修改或拆除後所有日誌自動同步
           </p>
         </div>
       )}
@@ -199,7 +185,7 @@ function ContactBook() {
 
 // ─── Main Page ──────────────────────────────────────────────────────────────
 export default function MerchantJournal() {
-  const { confirm: confirmDialog } = useConfirm();
+  const confirmDialog = useConfirm();
   const utils = trpc.useUtils();
 
   const { data: enabledData, isLoading: enabledLoading } = trpc.merchantJournal.isEnabled.useQuery();
@@ -217,7 +203,6 @@ export default function MerchantJournal() {
   const [content, setContent] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [entryAt, setEntryAt] = useState<string>(toLocalDatetimeValue());
-  const [entryContacts, setEntryContacts] = useState<string[]>([]);
   const [imageFiles, setImageFiles] = useState<{ file: File; preview: string }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
@@ -242,7 +227,7 @@ export default function MerchantJournal() {
   const [filterContactSearch, setFilterContactSearch] = useState("");
   const [showFilter, setShowFilter] = useState(false);
 
-  // ── Client-side filtering ──
+  // ── Client-side filtering — scan content for #mentions ──
   const filtered = useMemo(() => {
     return entries.filter(e => {
       const dt = new Date(e.entryAt ?? e.createdAt);
@@ -254,8 +239,8 @@ export default function MerchantJournal() {
       }
       if (filterTag && !(e.tags ?? []).includes(filterTag)) return false;
       if (filterContacts.length > 0) {
-        const entryC: string[] = e.contacts ?? [];
-        if (!filterContacts.some(fc => entryC.includes(fc))) return false;
+        const mentions = extractMentions(e.content ?? "");
+        if (!filterContacts.some(fc => mentions.includes(fc))) return false;
       }
       return true;
     });
@@ -273,7 +258,8 @@ export default function MerchantJournal() {
   const createEntry = trpc.merchantJournal.create.useMutation({
     onSuccess: () => {
       utils.merchantJournal.list.invalidate();
-      setContent(""); setSelectedTags([]); setEntryContacts([]);
+      utils.merchantJournal.listContacts.invalidate();
+      setContent(""); setSelectedTags([]);
       setImageFiles([]); setEntryAt(toLocalDatetimeValue());
       toast.success("日誌已記錄");
     },
@@ -286,16 +272,13 @@ export default function MerchantJournal() {
   const toggleTag = (tag: string) =>
     setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
 
-  const toggleEntryContact = (name: string) =>
-    setEntryContacts(prev => prev.includes(name) ? prev.filter(x => x !== name) : [...prev, name]);
-
   // ── # mention ──
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setContent(val);
     const pos = e.target.selectionStart ?? val.length;
     const before = val.slice(0, pos);
-    const match = before.match(/#([^#\s,]*)$/);
+    const match = before.match(/#([^#\s,，。！？\n]*)$/);
     if (match) { setMentionQuery(match[1]); setMentionIdx(0); }
     else setMentionQuery(null);
   };
@@ -305,7 +288,7 @@ export default function MerchantJournal() {
     const pos = ta?.selectionStart ?? content.length;
     const before = content.slice(0, pos);
     const after = content.slice(pos);
-    const newBefore = before.replace(/#([^#\s,]*)$/, `#${name} `);
+    const newBefore = before.replace(/#([^#\s,，。！？\n]*)$/, `#${name} `);
     setContent(newBefore + after);
     setMentionQuery(null);
     requestAnimationFrame(() => {
@@ -341,7 +324,7 @@ export default function MerchantJournal() {
   const removeImage = (idx: number) =>
     setImageFiles(prev => { URL.revokeObjectURL(prev[idx].preview); return prev.filter((_, i) => i !== idx); });
 
-  // ── Submit ──
+  // ── Submit — extract #mentions from content for contacts ──
   const handleSubmit = async () => {
     if (!content.trim()) { toast.error("請輸入日誌內容"); return; }
     setIsSubmitting(true);
@@ -357,12 +340,13 @@ export default function MerchantJournal() {
         const result = await uploadImage.mutateAsync({ imageData: base64, fileName: file.name, mimeType: file.type || "image/jpeg" });
         urls.push(result.url);
       }
+      const mentions = extractMentions(content.trim());
       await createEntry.mutateAsync({
         content: content.trim(),
         tags: selectedTags,
         imageUrls: urls,
         entryAt: entryAt || undefined,
-        contacts: entryContacts,
+        contacts: mentions,
       });
     } catch (err: any) {
       toast.error(err?.message ?? "記錄失敗");
@@ -405,7 +389,6 @@ export default function MerchantJournal() {
       <Header />
       <div className="container max-w-lg mx-auto px-4 pt-4 pb-20">
 
-        {/* Back */}
         <Link href="/merchant-dashboard">
           <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-amber-600 mb-4">
             <ChevronLeft className="w-4 h-4" /> 返回商戶後台
@@ -480,31 +463,6 @@ export default function MerchantJournal() {
             </div>
           </div>
 
-          {/* Select contacts from book */}
-          {contactList.length > 0 && (
-            <div>
-              <p className="text-[11px] text-muted-foreground mb-1.5 flex items-center gap-1">
-                <User className="w-3 h-3" />相關人物（點選加入此日誌）
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {contactList.map(c => (
-                  <button key={c.id} onClick={() => toggleEntryContact(c.name)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                      entryContacts.includes(c.name)
-                        ? "bg-indigo-500 text-white border-indigo-500"
-                        : "bg-indigo-50 text-indigo-700 border-transparent hover:border-indigo-300"
-                    }`}
-                  >{c.name}</button>
-                ))}
-              </div>
-              {entryContacts.length > 0 && (
-                <p className="text-[10px] text-indigo-500 mt-1">
-                  已選：{entryContacts.join("、")}
-                </p>
-              )}
-            </div>
-          )}
-
           {/* Image previews */}
           {imageFiles.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
@@ -549,7 +507,7 @@ export default function MerchantJournal() {
             }`}
           >
             <Filter className="w-3.5 h-3.5" />
-            {hasFilter ? `篩選中${filterContacts.length > 1 ? `（${filterContacts.length} 人）` : ""}` : "篩選"}
+            {hasFilter ? `篩選中${filterContacts.length > 0 ? `（${filterContacts.length} 人）` : ""}` : "篩選"}
             {hasFilter && (
               <button onClick={e => {
                 e.stopPropagation();
@@ -587,7 +545,7 @@ export default function MerchantJournal() {
               <div>
                 <p className="text-[11px] text-muted-foreground mb-1.5 flex items-center gap-1">
                   <User className="w-3 h-3" />人物篩選
-                  <span className="text-gray-400">（可多選，符合其中一人即顯示）</span>
+                  <span className="text-gray-400 ml-1">（掃描日誌 # 標記，可多選）</span>
                 </p>
                 {filterContacts.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-2">
@@ -614,7 +572,7 @@ export default function MerchantJournal() {
                   </div>
                 ) : (
                   <p className="text-[11px] text-muted-foreground">
-                    {contactList.length === 0 ? "聯絡人名冊為空，先在上方新增聯絡人" : "找不到匹配的聯絡人"}
+                    {contactList.length === 0 ? "先在聯絡人名冊新增聯絡人，再於日誌內容以 # 標記" : "找不到匹配的聯絡人"}
                   </p>
                 )}
               </div>
@@ -636,60 +594,64 @@ export default function MerchantJournal() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map((entry: any) => (
-              <div key={entry.id} className="rounded-2xl border bg-card p-4 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
-                    <span className="text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
-                      {fmtEntryDate(entry.entryAt)}
-                    </span>
-                    {(entry.tags ?? []).map((tag: string) => (
-                      <span key={tag} className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-medium">{tag}</span>
-                    ))}
+            {filtered.map((entry: any) => {
+              const mentions = extractMentions(entry.content ?? "");
+              return (
+                <div key={entry.id} className="rounded-2xl border bg-card p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
+                      <span className="text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                        {fmtEntryDate(entry.entryAt)}
+                      </span>
+                      {(entry.tags ?? []).map((tag: string) => (
+                        <span key={tag} className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-medium">{tag}</span>
+                      ))}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const ok = await confirmDialog({ title: "確認刪除？", description: "刪除後不能復原。", tone: "danger" });
+                        if (!ok) return;
+                        deleteEntry.mutate({ id: entry.id });
+                      }}
+                      className="shrink-0 text-gray-300 hover:text-red-400 transition-colors mt-0.5"
+                    ><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
-                  <button
-                    onClick={async () => {
-                      const ok = await confirmDialog({ title: "確認刪除？", description: "刪除後不能復原。", tone: "danger" });
-                      if (!ok) return;
-                      deleteEntry.mutate({ id: entry.id });
-                    }}
-                    className="shrink-0 text-gray-300 hover:text-red-400 transition-colors mt-0.5"
-                  ><Trash2 className="w-3.5 h-3.5" /></button>
+
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{entry.content}</p>
+
+                  {/* #mention chips extracted from content */}
+                  {mentions.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {mentions.map(c => (
+                        <button key={c}
+                          onClick={() => { if (!filterContacts.includes(c)) setFilterContacts(prev => [...prev, c]); setShowFilter(true); }}
+                          className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full text-[10px] font-medium hover:bg-indigo-100 transition-colors"
+                          title="點擊篩選此人物"
+                        >
+                          <User className="w-2.5 h-2.5" />{c}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {(entry.images ?? []).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {(entry.images as string[]).map((url: string, i: number) => (
+                        <button key={i} onClick={() => setExpandedImage(url)}
+                          className="w-9 h-9 rounded-lg overflow-hidden border hover:opacity-80 transition-opacity"
+                        >
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {entry.entryAt && new Date(entry.entryAt).getTime() !== new Date(entry.createdAt).getTime() && (
+                    <p className="text-[10px] text-gray-300">記錄於 {fmtDateOnly(entry.createdAt)}</p>
+                  )}
                 </div>
-
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{entry.content}</p>
-
-                {(entry.contacts ?? []).length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {(entry.contacts as string[]).map(c => (
-                      <button key={c}
-                        onClick={() => { if (!filterContacts.includes(c)) setFilterContacts(prev => [...prev, c]); setShowFilter(true); }}
-                        className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full text-[10px] font-medium hover:bg-indigo-100 transition-colors"
-                        title="點擊篩選此人物"
-                      >
-                        <User className="w-2.5 h-2.5" />{c}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {(entry.images ?? []).length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {(entry.images as string[]).map((url: string, i: number) => (
-                      <button key={i} onClick={() => setExpandedImage(url)}
-                        className="w-9 h-9 rounded-lg overflow-hidden border hover:opacity-80 transition-opacity"
-                      >
-                        <img src={url} alt="" className="w-full h-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {entry.entryAt && new Date(entry.entryAt).getTime() !== new Date(entry.createdAt).getTime() && (
-                  <p className="text-[10px] text-gray-300">記錄於 {fmtDateOnly(entry.createdAt)}</p>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
