@@ -9265,7 +9265,9 @@ EXAMPLE OUTPUT (exact format):
         throw new TRPCError({ code: 'FORBIDDEN', message: '日誌功能未開通' });
       }
       const [rows]: any = await pool.execute(
-        `SELECT mj.id, mj.content, mj.tags, mj.contacts, mj.createdAt, mj.entryAt
+        `SELECT mj.id, mj.content, mj.tags, mj.contacts,
+                DATE_FORMAT(CONVERT_TZ(mj.createdAt, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s') as createdAt,
+                DATE_FORMAT(mj.entryAt, '%Y-%m-%dT%H:%i:%s') as entryAt
          FROM merchantJournals mj
          WHERE mj.merchantUserId = ?
          ORDER BY COALESCE(mj.entryAt, mj.createdAt) DESC
@@ -9315,10 +9317,11 @@ EXAMPLE OUTPUT (exact format):
         }
         const tagsStr = input.tags.join(',');
         const contactsStr = input.contacts.join(',');
-        const entryAt = input.entryAt ? new Date(input.entryAt) : null;
+        // Store entryAt as local (HK) time string — no Date() conversion to avoid UTC shift
+        const entryAtStr = input.entryAt ? input.entryAt.replace('T', ' ').slice(0, 16) + ':00' : null;
         const [result]: any = await pool.execute(
           'INSERT INTO merchantJournals (merchantUserId, content, tags, contacts, entryAt) VALUES (?, ?, ?, ?, ?)',
-          [ctx.user.id, input.content, tagsStr, contactsStr || null, entryAt]
+          [ctx.user.id, input.content, tagsStr, contactsStr || null, entryAtStr]
         );
         const journalId = result.insertId;
         for (let i = 0; i < input.imageUrls.length; i++) {
@@ -9357,10 +9360,11 @@ EXAMPLE OUTPUT (exact format):
         if (!Array.isArray(rows) || rows.length === 0) throw new TRPCError({ code: 'NOT_FOUND' });
         const tagsStr = input.tags.join(',');
         const contactsStr = input.contacts.join(',');
-        const entryAt = input.entryAt ? new Date(input.entryAt) : null;
+        // Store entryAt as local (HK) time string — no Date() conversion to avoid UTC shift
+        const entryAtStr = input.entryAt ? input.entryAt.replace('T', ' ').slice(0, 16) + ':00' : null;
         await pool.execute(
           'UPDATE merchantJournals SET content = ?, tags = ?, contacts = ?, entryAt = ? WHERE id = ? AND merchantUserId = ?',
-          [input.content, tagsStr, contactsStr || null, entryAt, input.id, ctx.user.id]
+          [input.content, tagsStr, contactsStr || null, entryAtStr, input.id, ctx.user.id]
         );
         if (input.imageUrls !== undefined) {
           await pool.execute('DELETE FROM merchantJournalImages WHERE journalId = ?', [input.id]);

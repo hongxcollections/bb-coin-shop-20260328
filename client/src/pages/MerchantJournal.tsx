@@ -318,7 +318,7 @@ export default function MerchantJournal() {
         content: editContent.trim(),
         tags: editTags,
         contacts: extractMentions(editContent.trim()),
-        entryAt: editEntryAt ? new Date(editEntryAt).toISOString() : undefined,
+        entryAt: editEntryAt || undefined,
         imageUrls: [...editExistingImages, ...newUrls],
       });
     } catch (err: any) {
@@ -470,7 +470,7 @@ export default function MerchantJournal() {
         content: content.trim(),
         tags: selectedTags,
         imageUrls: urls,
-        entryAt: entryAt ? new Date(entryAt).toISOString() : undefined,
+        entryAt: entryAt || undefined,
         contacts: mentions,
       });
     } catch (err: any) {
