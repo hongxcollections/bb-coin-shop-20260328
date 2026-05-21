@@ -933,7 +933,7 @@ async function bootstrapMissingColumns() {
   await addIndex('idx_merchantJournalImages_journalId', 'CREATE INDEX `idx_merchantJournalImages_journalId` ON `merchantJournalImages` (`journalId`)');
   await alter("ALTER TABLE `merchantJournals` ADD COLUMN `entryAt` datetime NULL", "Ensured merchantJournals.entryAt column");
   await alter("ALTER TABLE `merchantJournals` ADD COLUMN `contacts` varchar(500) NULL", "Ensured merchantJournals.contacts column");
-  await check(`CREATE TABLE IF NOT EXISTS \`merchantJournalContacts\` (
+  await alter(`CREATE TABLE IF NOT EXISTS \`merchantJournalContacts\` (
     \`id\` int NOT NULL AUTO_INCREMENT,
     \`merchantUserId\` int NOT NULL,
     \`name\` varchar(100) NOT NULL,
