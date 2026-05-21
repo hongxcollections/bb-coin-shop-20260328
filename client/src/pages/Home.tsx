@@ -37,6 +37,7 @@ import {
   Sparkles,
   ArrowRight,
   UserPlus,
+  MessageCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -290,16 +291,26 @@ function ProductHeroSlide({ product, onBuy }: { product: any; onBuy: (p: any) =>
           <h2 className="text-white font-bold text-base leading-snug line-clamp-2 drop-shadow mb-1">{product.title}</h2>
         </Link>
         <p className="text-amber-300 font-bold text-lg leading-none mb-2 drop-shadow">
-          {currSymbol}{price.toLocaleString()}
+          {price === 0 ? "查詢格價" : `${currSymbol}${price.toLocaleString()}`}
         </p>
         <div className="flex items-end justify-end gap-2">
-          <button
-            onClick={() => onBuy(product)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white shadow-lg transition-transform group-hover:scale-105"
-            style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
-          >
-            <ShoppingCart className="w-3.5 h-3.5" />立即落單
-          </button>
+          {price === 0 ? (
+            <Link
+              href={`/merchant-products/${product.id}`}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white shadow-lg transition-transform group-hover:scale-105"
+              style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
+            >
+              <MessageCircle className="w-3.5 h-3.5" />查詢價格
+            </Link>
+          ) : (
+            <button
+              onClick={() => onBuy(product)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white shadow-lg transition-transform group-hover:scale-105"
+              style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />立即落單
+            </button>
+          )}
           <Link
             href={`/merchant-products/${product.id}`}
             className="flex items-center gap-1 px-3 py-2 rounded-full text-sm font-bold text-white/90 bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-sm"
@@ -695,16 +706,27 @@ function FeaturedProductSideCard({ products, onBuy, currentUserId }: { products:
             {product.title}
           </h3>
           <p className="text-amber-300 font-bold text-[12px] leading-none mb-1 drop-shadow">
-            {curr}{price.toLocaleString()}
+            {price === 0 ? "查詢格價" : `${curr}${price.toLocaleString()}`}
           </p>
           <div className="flex items-center justify-end gap-1">
-            <button
-              onClick={e => { e.stopPropagation(); onBuy(product); }}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white shadow"
-              style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
-            >
-              <ShoppingCart className="w-2.5 h-2.5" />落單
-            </button>
+            {price === 0 ? (
+              <Link
+                href={`/merchant-products/${product.id}`}
+                onClick={e => e.stopPropagation()}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white shadow"
+                style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
+              >
+                <MessageCircle className="w-2.5 h-2.5" />查詢
+              </Link>
+            ) : (
+              <button
+                onClick={e => { e.stopPropagation(); onBuy(product); }}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white shadow"
+                style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
+              >
+                <ShoppingCart className="w-2.5 h-2.5" />落單
+              </button>
+            )}
             <Link
               href={`/merchant-products/${product.id}`}
               onClick={e => e.stopPropagation()}
