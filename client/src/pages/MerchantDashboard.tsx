@@ -8,7 +8,7 @@ import {
   AlertCircle, ArrowUpRight, ArrowDownLeft, ShoppingBag, Settings,
   RotateCcw, Layers, CreditCard, PlusCircle, Send, ChevronDown, Loader2,
   Upload, X, ImageIcon, Printer, Search, HelpCircle, Package,
-  LayoutList, LayoutGrid, Grid3X3, Maximize2, Link2, Copy, Tag, QrCode,
+  LayoutList, LayoutGrid, Grid3X3, Maximize2, Link2, Copy, Tag, QrCode, BookOpen,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { sanitizeUserText } from "@/lib/utils";
@@ -648,6 +648,17 @@ export default function MerchantDashboard() {
               <div>
                 <p className="font-semibold text-sm text-purple-900">拍賣專場</p>
                 <p className="text-xs text-gray-400 mt-0.5">建立小型拍賣會 · 公開 URL</p>
+              </div>
+            </div>
+          </Link>
+          <Link href="/merchant/journal">
+            <div className="rounded-2xl bg-white border border-amber-100 p-4 flex items-center gap-3 hover:border-amber-300 hover:bg-amber-50/50 transition-colors cursor-pointer">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+                <BookOpen className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-amber-900">商戶日誌</p>
+                <p className="text-xs text-gray-400 mt-0.5">記事 · 交收 · 送評</p>
               </div>
             </div>
           </Link>

@@ -50,6 +50,7 @@ import WebhookSetup from "./pages/WebhookSetup";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import About from "./pages/About";
+import MerchantJournal from "./pages/MerchantJournal";
 import MerchantApply from "./pages/MerchantApply";
 import MerchantDashboard from "./pages/MerchantDashboard";
 import MerchantAuctions from "./pages/MerchantAuctions";
@@ -203,6 +204,7 @@ function Router() {
       <Route path={"/privacy"} component={Privacy} />
       <Route path={"/terms"} component={Terms} />
       <Route path={"/about"} component={About} />
+      <Route path={"/merchant/journal"} component={MerchantJournal} />
       <Route path={"/merchant-apply"} component={MerchantApply} />
       <Route path={"/merchant-dashboard"} component={MerchantDashboard} />
       <Route path={"/merchant-auctions"} component={MerchantAuctions} />

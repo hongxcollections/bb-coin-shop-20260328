@@ -214,7 +214,7 @@ export default function Auctions() {
               <Gavel className="w-3.5 h-3.5" /> 即時競拍
             </div>
             <div className="flex items-baseline gap-3 flex-wrap">
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-amber-900">實時拍賣區塊</h1>
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-amber-900">所有拍賣</h1>
               <span className="inline-flex items-center bg-white/85 backdrop-blur text-amber-800 px-2.5 py-0.5 rounded-full text-xs font-bold border border-amber-300/60 shadow-sm">
                 共 {filtered.length} 件拍品
               </span>

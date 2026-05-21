@@ -9203,6 +9203,127 @@ EXAMPLE OUTPUT (exact format):
         return { matchedIds };
       }),
   }),
+
+  // ── 商戶日誌 ─────────────────────────────────────────────────────────────────
+  merchantJournal: router({
+    isEnabled: protectedProcedure.query(async ({ ctx }) => {
+      const [rows]: any = await db.execute(sql`SELECT journalEnabled FROM merchantApplications WHERE userId = ${ctx.user.id} AND status = 'approved' LIMIT 1`);
+      return { enabled: Array.isArray(rows) && rows.length > 0 ? Number(rows[0].journalEnabled) === 1 : false };
+    }),
+
+    adminList: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+      const [rows]: any = await db.execute(sql`
+        SELECT ma.userId, u.name, u.email, u.phone, ma.journalEnabled
+        FROM merchantApplications ma
+        JOIN users u ON u.id = ma.userId
+        WHERE ma.status = 'approved'
+        ORDER BY u.name ASC
+      `);
+      return (Array.isArray(rows) ? rows : []).map((r: any) => ({
+        userId: Number(r.userId),
+        name: String(r.name ?? ''),
+        email: r.email ? String(r.email) : null,
+        phone: r.phone ? String(r.phone) : null,
+        journalEnabled: Number(r.journalEnabled) === 1,
+      }));
+    }),
+
+    setJournalEnabled: protectedProcedure
+      .input(z.object({ userId: z.number().int().positive(), enabled: z.boolean() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
+        await db.execute(sql`UPDATE merchantApplications SET journalEnabled = ${input.enabled ? 1 : 0} WHERE userId = ${input.userId} AND status = 'approved'`);
+        return { success: true };
+      }),
+
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const [appRows]: any = await db.execute(sql`SELECT journalEnabled FROM merchantApplications WHERE userId = ${ctx.user.id} AND status = 'approved' LIMIT 1`);
+      if (!Array.isArray(appRows) || appRows.length === 0 || Number(appRows[0].journalEnabled) !== 1) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: '日誌功能未開通' });
+      }
+      const [rows]: any = await db.execute(sql`
+        SELECT mj.id, mj.content, mj.tags, mj.createdAt,
+               GROUP_CONCAT(mji.imageUrl ORDER BY mji.displayOrder SEPARATOR '|||') as images
+        FROM merchantJournals mj
+        LEFT JOIN merchantJournalImages mji ON mji.journalId = mj.id
+        WHERE mj.merchantUserId = ${ctx.user.id}
+        GROUP BY mj.id
+        ORDER BY mj.createdAt DESC
+        LIMIT 200
+      `);
+      return (Array.isArray(rows) ? rows : []).map((j: any) => ({
+        id: Number(j.id),
+        content: String(j.content ?? ''),
+        tags: j.tags ? String(j.tags).split(',').filter(Boolean) : [],
+        createdAt: j.createdAt,
+        images: j.images ? String(j.images).split('|||').filter(Boolean) : [],
+      }));
+    }),
+
+    create: protectedProcedure
+      .input(z.object({
+        content: z.string().min(1).max(500),
+        tags: z.array(z.string().max(20)).max(5).default([]),
+        imageUrls: z.array(z.string().url()).max(5).default([]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const [appRows]: any = await db.execute(sql`SELECT journalEnabled FROM merchantApplications WHERE userId = ${ctx.user.id} AND status = 'approved' LIMIT 1`);
+        if (!Array.isArray(appRows) || appRows.length === 0 || Number(appRows[0].journalEnabled) !== 1) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '日誌功能未開通' });
+        }
+        const tagsStr = input.tags.join(',');
+        const [result]: any = await db.execute(sql`INSERT INTO merchantJournals (merchantUserId, content, tags) VALUES (${ctx.user.id}, ${input.content}, ${tagsStr})`);
+        const journalId = result.insertId;
+        for (let i = 0; i < input.imageUrls.length; i++) {
+          await db.execute(sql`INSERT INTO merchantJournalImages (journalId, imageUrl, displayOrder) VALUES (${journalId}, ${input.imageUrls[i]}, ${i})`);
+        }
+        return { success: true, id: journalId };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const [rows]: any = await db.execute(sql`SELECT id FROM merchantJournals WHERE id = ${input.id} AND merchantUserId = ${ctx.user.id} LIMIT 1`);
+        if (!Array.isArray(rows) || rows.length === 0) throw new TRPCError({ code: 'NOT_FOUND' });
+        await db.execute(sql`DELETE FROM merchantJournalImages WHERE journalId = ${input.id}`);
+        await db.execute(sql`DELETE FROM merchantJournals WHERE id = ${input.id} AND merchantUserId = ${ctx.user.id}`);
+        return { success: true };
+      }),
+
+    uploadImage: protectedProcedure
+      .input(z.object({
+        imageData: z.string().max(12 * 1024 * 1024, '圖片資料過大'),
+        fileName: z.string().min(1).max(255),
+        mimeType: z.string().max(64).default('image/jpeg'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const [appRows]: any = await db.execute(sql`SELECT journalEnabled FROM merchantApplications WHERE userId = ${ctx.user.id} AND status = 'approved' LIMIT 1`);
+        if (!Array.isArray(appRows) || appRows.length === 0 || Number(appRows[0].journalEnabled) !== 1) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '日誌功能未開通' });
+        }
+        const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+        const mime = (input.mimeType || 'image/jpeg').toLowerCase();
+        if (!allowedMimes.includes(mime)) throw new TRPCError({ code: 'BAD_REQUEST', message: `不支援此圖片格式（${mime}）` });
+        const rawBuffer = Buffer.from(input.imageData, 'base64');
+        if (rawBuffer.length > 8 * 1024 * 1024) throw new TRPCError({ code: 'BAD_REQUEST', message: '圖片不可超過 8MB' });
+        let outBuffer = rawBuffer;
+        let outMime = mime;
+        try {
+          const sharpMod = (await import('sharp')).default;
+          outBuffer = await sharpMod(rawBuffer, { failOn: 'none' })
+            .rotate()
+            .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true })
+            .jpeg({ quality: 80, progressive: true })
+            .toBuffer();
+          outMime = 'image/jpeg';
+        } catch { /* keep original */ }
+        const ext = outMime.split('/')[1] ?? 'jpg';
+        const key = `merchant-journal/${ctx.user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { url } = await storagePut(key, outBuffer, outMime);
+        return { url };
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
 

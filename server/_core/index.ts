@@ -910,6 +910,28 @@ async function bootstrapMissingColumns() {
   await addIndex('idx_dailyChallengeAnswers_userId', 'CREATE INDEX `idx_dailyChallengeAnswers_userId` ON `dailyChallengeAnswers` (`userId`)');
   await addIndex('idx_dailyChallengeAnswers_challengeId', 'CREATE INDEX `idx_dailyChallengeAnswers_challengeId` ON `dailyChallengeAnswers` (`challengeId`)');
 
+  // ── 商戶日誌功能 ─────────────────────────────────────────────────────────────
+  if (!(await check('merchantApplications', 'journalEnabled'))) {
+    await alter('ALTER TABLE `merchantApplications` ADD COLUMN `journalEnabled` int NOT NULL DEFAULT 0', 'Ensured merchantApplications.journalEnabled column');
+  }
+  await alter(`CREATE TABLE IF NOT EXISTS \`merchantJournals\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`merchantUserId\` int NOT NULL,
+    \`content\` text NOT NULL,
+    \`tags\` varchar(255) NULL,
+    \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+    CONSTRAINT \`merchantJournals_id\` PRIMARY KEY(\`id\`)
+  )`, 'Ensured merchantJournals table');
+  await alter(`CREATE TABLE IF NOT EXISTS \`merchantJournalImages\` (
+    \`id\` int AUTO_INCREMENT NOT NULL,
+    \`journalId\` int NOT NULL,
+    \`imageUrl\` varchar(800) NOT NULL,
+    \`displayOrder\` int NOT NULL DEFAULT 0,
+    CONSTRAINT \`merchantJournalImages_id\` PRIMARY KEY(\`id\`)
+  )`, 'Ensured merchantJournalImages table');
+  await addIndex('idx_merchantJournals_merchantUserId', 'CREATE INDEX `idx_merchantJournals_merchantUserId` ON `merchantJournals` (`merchantUserId`, `createdAt`)');
+  await addIndex('idx_merchantJournalImages_journalId', 'CREATE INDEX `idx_merchantJournalImages_journalId` ON `merchantJournalImages` (`journalId`)');
+
   // ── One-time data fix: archive 重複嘅原件 ──────────────────────────────────
   // relistAuction 舊邏輯冇 archive 原件，造成 eligible list 重複出現同款商品。
   // 凡有 relist 版本存在（relistSourceId = original.id）且 relist 本身未 archive，

@@ -11,7 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
   Sparkles, CheckCircle2, XCircle, AlertCircle, ChevronLeft, Inbox,
-  Building2, RefreshCw, ArrowRightLeft, Wallet, ExternalLink, Loader2, Image as ImageIcon,
+  Building2, RefreshCw, ArrowRightLeft, Wallet, ExternalLink, Loader2, Image as ImageIcon, BookOpen,
 } from "lucide-react";
 
 // ── helpers ──
@@ -198,6 +198,9 @@ export default function AdminMerchantCenter() {
   const { data: tierChanges, refetch: refetchTierChanges, isLoading: tierChangesLoading } = trpc.depositTiers.listChangeRequests.useQuery(
     undefined, { enabled: adminEnabled, refetchInterval: 30000 }
   );
+  const { data: journalMerchants, refetch: refetchJournal } = trpc.merchantJournal.adminList.useQuery(
+    undefined, { enabled: adminEnabled }
+  );
 
   // ── Mutations ──
   const approveOnboarding = trpc.merchants.approveOnboarding.useMutation({
@@ -231,6 +234,10 @@ export default function AdminMerchantCenter() {
       toast.success(`轉套餐申請 #${vars.id} ${vars.status === "approved" ? "已批准 ✅" : "已拒絕"}`);
       refetchTierChanges();
     },
+    onError: (e) => toast.error(e.message),
+  });
+  const setJournalEnabled = trpc.merchantJournal.setJournalEnabled.useMutation({
+    onSuccess: () => { toast.success("日誌設定已更新"); refetchJournal(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -726,6 +733,42 @@ export default function AdminMerchantCenter() {
             ))}
           </TabsContent>
         </Tabs>
+
+        {/* ── 商戶日誌開通管理 ── */}
+        <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50">
+          <CardContent className="pt-4 pb-4 px-4">
+            <div className="flex items-center gap-2 mb-3">
+              <BookOpen className="w-4 h-4 text-amber-600" />
+              <span className="text-sm font-bold text-amber-900">商戶日誌開通管理</span>
+              <span className="text-xs text-amber-600 ml-auto">{(journalMerchants ?? []).length} 位商戶</span>
+            </div>
+            {!journalMerchants ? (
+              <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-amber-400" /></div>
+            ) : journalMerchants.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-3">暫無已批准商戶</p>
+            ) : (
+              <div className="space-y-2">
+                {journalMerchants.map((m) => (
+                  <div key={m.userId} className="flex items-center justify-between gap-2 bg-white rounded-xl px-3 py-2 border border-amber-100">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{m.name}</p>
+                      <p className="text-[11px] text-gray-400 truncate">{m.phone ?? m.email ?? `ID ${m.userId}`}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant={m.journalEnabled ? "default" : "outline"}
+                      disabled={setJournalEnabled.isPending}
+                      onClick={() => setJournalEnabled.mutate({ userId: m.userId, enabled: !m.journalEnabled })}
+                      className={`shrink-0 text-xs px-3 h-7 ${m.journalEnabled ? "bg-amber-500 hover:bg-amber-600 text-white" : "border-amber-300 text-amber-700 hover:bg-amber-50"}`}
+                    >
+                      {m.journalEnabled ? "已開通" : "未開通"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* ── Footer hint ── */}
         <Card className="bg-gradient-to-r from-gray-50 to-slate-50 border-gray-200">
