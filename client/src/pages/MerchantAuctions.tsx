@@ -1384,7 +1384,7 @@ export default function MerchantAuctions() {
                 value={form.privateNote}
                 onChange={e => setForm(f => ({ ...f, privateNote: e.target.value }))}
                 placeholder="內部備註，不會顯示給買家…"
-                className="min-h-[60px] text-xs"
+                className="min-h-[60px]"
               />
               {form.privateNote.length > 0 && (
                 <p className="text-[10px] text-gray-400 text-right mt-0.5">{form.privateNote.length}/500</p>

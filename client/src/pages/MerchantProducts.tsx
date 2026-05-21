@@ -1596,10 +1596,6 @@ export default function MerchantProducts() {
                           ))}
                           <span className="text-[8px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded-full leading-none">庫存 {p.stock}</span>
                         </div>
-                        {/* 右邊第二行: 私人備註 (如有) */}
-                        {(p as any).privateNote && (
-                          <p className="text-xs text-gray-400 leading-snug">{(p as any).privateNote}</p>
-                        )}
                         {/* 主打/排隊狀態 */}
                         {isActive && isFeatured && (
                           <div className="flex items-center gap-1 text-[10px] text-orange-500 font-semibold">
@@ -1616,6 +1612,11 @@ export default function MerchantProducts() {
                         )}
                       </div>
                     </div>
+
+                    {/* 私人備註 — 描述區下面 */}
+                    {(p as any).privateNote && (
+                      <p className="text-xs text-gray-400 leading-snug">{(p as any).privateNote}</p>
+                    )}
 
                     {/* ③ 圖片下面 第一行: 分享去藏品社區 + 申請主打 → 向右 */}
                     {isActive && (
