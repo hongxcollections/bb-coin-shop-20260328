@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 const TAGS = ["交收", "送評", "入貨", "拍賣", "其他"];
-const MAX_IMAGES = 10;
+const MAX_IMAGES = 20;
 
 function toLocalDatetimeValue(d?: Date | string | null): string {
   const dt = d ? new Date(d) : new Date();
@@ -70,7 +70,7 @@ function ContactBook() {
   const [newName, setNewName] = useState("");
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
 
   const handleAdd = () => {
@@ -318,7 +318,7 @@ export default function MerchantJournal() {
         content: editContent.trim(),
         tags: editTags,
         contacts: extractMentions(editContent.trim()),
-        entryAt: editEntryAt || undefined,
+        entryAt: editEntryAt ? new Date(editEntryAt).toISOString() : undefined,
         imageUrls: [...editExistingImages, ...newUrls],
       });
     } catch (err: any) {
@@ -470,7 +470,7 @@ export default function MerchantJournal() {
         content: content.trim(),
         tags: selectedTags,
         imageUrls: urls,
-        entryAt: entryAt || undefined,
+        entryAt: entryAt ? new Date(entryAt).toISOString() : undefined,
         contacts: mentions,
       });
     } catch (err: any) {

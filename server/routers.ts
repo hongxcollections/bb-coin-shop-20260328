@@ -9300,7 +9300,7 @@ EXAMPLE OUTPUT (exact format):
       .input(z.object({
         content: z.string().min(1).max(500),
         tags: z.array(z.string().max(20)).max(5).default([]),
-        imageUrls: z.array(z.string().url()).max(10).default([]),
+        imageUrls: z.array(z.string().url()).max(20).default([]),
         entryAt: z.string().optional(),
         contacts: z.array(z.string().max(30)).max(20).default([]),
       }))
@@ -9346,7 +9346,7 @@ EXAMPLE OUTPUT (exact format):
         tags: z.array(z.string()).default([]),
         contacts: z.array(z.string()).default([]),
         entryAt: z.string().optional(),
-        imageUrls: z.array(z.string().url()).max(10).optional(),
+        imageUrls: z.array(z.string().url()).max(20).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const pool = await getRawPool();
