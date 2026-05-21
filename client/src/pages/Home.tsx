@@ -295,9 +295,15 @@ function ProductHeroSlide({ product, onBuy, currentUserId }: { product: any; onB
           {price === 0 ? "查詢格價" : `${currSymbol}${price.toLocaleString()}`}
         </p>
         <div className="flex items-end justify-end gap-2">
-          {!isMerchantOwn && (price === 0 ? (
+          {price === 0 ? (
             <Link
               href={`/merchant-products/${product.id}`}
+              onClick={(e) => {
+                if (isMerchantOwn) {
+                  e.preventDefault();
+                  toast.error("商戶自己的商品，禁止查詢 🚫", { className: "bb-toast-err", duration: 3500 });
+                }
+              }}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white shadow-lg transition-transform group-hover:scale-105"
               style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
             >
@@ -311,7 +317,7 @@ function ProductHeroSlide({ product, onBuy, currentUserId }: { product: any; onB
             >
               <ShoppingCart className="w-3.5 h-3.5" />立即落單
             </button>
-          ))}
+          )}
           <Link
             href={`/merchant-products/${product.id}`}
             className="flex items-center gap-1 px-3 py-2 rounded-full text-sm font-bold text-white/90 bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-sm"
@@ -710,10 +716,16 @@ function FeaturedProductSideCard({ products, onBuy, currentUserId }: { products:
             {price === 0 ? "查詢格價" : `${curr}${price.toLocaleString()}`}
           </p>
           <div className="flex items-center justify-end gap-1">
-            {currentUserId == null || product?.merchantId !== currentUserId ? (price === 0 ? (
+            {price === 0 ? (
               <Link
                 href={`/merchant-products/${product.id}`}
-                onClick={e => e.stopPropagation()}
+                onClick={e => {
+                  e.stopPropagation();
+                  if (currentUserId != null && product?.merchantId === currentUserId) {
+                    e.preventDefault();
+                    toast.error("商戶自己的商品，禁止查詢 🚫", { className: "bb-toast-err", duration: 3500 });
+                  }
+                }}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold text-white shadow"
                 style={{ background: "linear-gradient(135deg,#f97316 0%,#ea580c 50%,#c2410c 100%)" }}
               >
@@ -727,7 +739,7 @@ function FeaturedProductSideCard({ products, onBuy, currentUserId }: { products:
               >
                 <ShoppingCart className="w-2.5 h-2.5" />落單
               </button>
-            )) : null}
+            )}
             <Link
               href={`/merchant-products/${product.id}`}
               onClick={e => e.stopPropagation()}
