@@ -72,6 +72,7 @@ export default function BottomNav() {
   const [location] = useLocation();
   const [showMore, setShowMore] = useState(false);
   const [showMessages, setShowMessages] = useState(false);
+  const [showContact, setShowContact] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToast();
 
@@ -180,7 +181,7 @@ export default function BottomNav() {
               return (
                 <button
                   key={item.label}
-                  onClick={() => showComingSoon("客服")}
+                  onClick={() => setShowContact(true)}
                   className="bottom-nav-center-btn"
                   aria-label={item.label}
                 >
@@ -360,6 +361,67 @@ export default function BottomNav() {
         </div>
       </nav>
       <MessagesListDialog open={showMessages} onOpenChange={setShowMessages} />
+
+      {/* 客服聯絡 Popup */}
+      {showContact && (
+        <div
+          className="fixed inset-0 z-[200] flex items-end justify-center"
+          onClick={() => setShowContact(false)}
+        >
+          <div className="absolute inset-0 bg-black/50" />
+          <div
+            className="relative w-full max-w-lg bg-background rounded-t-2xl px-6 pt-5 pb-10 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Handle bar */}
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted-foreground/30" />
+
+            <h2 className="text-base font-bold mb-1">聯絡客服</h2>
+            <p className="text-xs text-muted-foreground mb-5">關於任何網站問題，請以下方式聯繫 7×24h</p>
+
+            <div className="space-y-4">
+              <a
+                href="https://wa.me/85297927793"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 p-3 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/50 hover:opacity-80 transition-opacity"
+              >
+                <span className="text-2xl">💬</span>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">WhatsApp</p>
+                  <p className="text-sm font-bold">+852 9792 7793</p>
+                </div>
+              </a>
+
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/50">
+                <span className="text-2xl">🟢</span>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">微信 WeChat</p>
+                  <p className="text-sm font-bold select-all">davis-yee</p>
+                </div>
+              </div>
+
+              <a
+                href="mailto:ywkyee@gmail.com"
+                className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 hover:opacity-80 transition-opacity"
+              >
+                <span className="text-2xl">✉️</span>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">電郵</p>
+                  <p className="text-sm font-bold">ywkyee@gmail.com</p>
+                </div>
+              </a>
+            </div>
+
+            <button
+              onClick={() => setShowContact(false)}
+              className="mt-6 w-full py-2.5 rounded-xl bg-muted text-sm font-medium hover:bg-muted/80 transition-colors"
+            >
+              關閉
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
