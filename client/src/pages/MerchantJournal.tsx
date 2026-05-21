@@ -444,8 +444,7 @@ export default function MerchantJournal() {
               onChange={handleContentChange}
               onKeyDown={handleContentKeyDown}
               maxLength={500}
-              rows={6}
-              className="resize-none text-sm"
+              className="resize-none text-sm min-h-40"
             />
             {mentionQuery !== null && mentionSuggestions.length > 0 && (
               <div className="absolute left-0 right-0 top-full mt-1 z-20 rounded-xl border bg-popover shadow-lg overflow-hidden">

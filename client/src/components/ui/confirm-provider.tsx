@@ -65,7 +65,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
           if (!open) close(false);
         }}
       >
-        <AlertDialogContent className="mb-20 sm:mb-0">
+        <AlertDialogContent style={{ top: "40%" }}>
           <AlertDialogHeader>
             <AlertDialogTitle className={titleClass}>
               {pending?.title ?? "請確認"}
