@@ -1596,7 +1596,11 @@ export default function MerchantProducts() {
                           ))}
                           <span className="text-[8px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded-full leading-none">庫存 {p.stock}</span>
                         </div>
-                        {/* 右邊第二行: 私人備註 (如有) */}
+                        {/* 右邊第二行: 商品描述 (如有) */}
+                        {p.description && (
+                          <p className="text-xs text-gray-500 leading-snug line-clamp-2">{p.description}</p>
+                        )}
+                        {/* 私人備註 (如有) */}
                         {(p as any).privateNote && (
                           <p className="text-xs text-gray-400 leading-snug">{(p as any).privateNote}</p>
                         )}

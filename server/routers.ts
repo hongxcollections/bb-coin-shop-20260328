@@ -9334,6 +9334,7 @@ EXAMPLE OUTPUT (exact format):
         tags: z.array(z.string()).default([]),
         contacts: z.array(z.string()).default([]),
         entryAt: z.string().optional(),
+        imageUrls: z.array(z.string().url()).max(10).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const pool = await getRawPool();
@@ -9349,6 +9350,15 @@ EXAMPLE OUTPUT (exact format):
           'UPDATE merchantJournals SET content = ?, tags = ?, contacts = ?, entryAt = ? WHERE id = ? AND merchantUserId = ?',
           [input.content, tagsStr, contactsStr || null, entryAt, input.id, ctx.user.id]
         );
+        if (input.imageUrls !== undefined) {
+          await pool.execute('DELETE FROM merchantJournalImages WHERE journalId = ?', [input.id]);
+          for (let i = 0; i < input.imageUrls.length; i++) {
+            await pool.execute(
+              'INSERT INTO merchantJournalImages (journalId, imageUrl, displayOrder) VALUES (?, ?, ?)',
+              [input.id, input.imageUrls[i], i]
+            );
+          }
+        }
         for (const name of input.contacts) {
           try {
             await pool.execute(

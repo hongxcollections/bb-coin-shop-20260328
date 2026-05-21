@@ -400,6 +400,9 @@ function AuctionCard({
                 : <span className="ml-1 text-gray-400">🛡️停用</span>
             )}
           </p>
+          {auction.description && (
+            <p className="text-xs text-muted-foreground leading-snug line-clamp-2">{auction.description}</p>
+          )}
           {auction.endTime && tab !== "草稿" && (
             <p className="text-xs text-muted-foreground leading-snug">
               {tab === "進行中" ? "結：" : "標："}

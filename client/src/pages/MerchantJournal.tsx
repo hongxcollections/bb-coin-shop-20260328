@@ -258,17 +258,64 @@ export default function MerchantJournal() {
   const [editContent, setEditContent] = useState("");
   const [editTags, setEditTags] = useState<string[]>([]);
   const [editEntryAt, setEditEntryAt] = useState("");
+  const [editExistingImages, setEditExistingImages] = useState<string[]>([]);
+  const [editNewImages, setEditNewImages] = useState<{ file: File; preview: string }[]>([]);
+  const [editIsSubmitting, setEditIsSubmitting] = useState(false);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
   function startEditEntry(entry: any) {
     setEditingEntryId(entry.id);
     setEditContent(entry.content ?? "");
     setEditTags(entry.tags ?? []);
     setEditEntryAt(toLocalDatetimeValue(entry.entryAt));
+    setEditExistingImages((entry.images ?? []) as string[]);
+    setEditNewImages([]);
   }
   function cancelEditEntry() {
     setEditingEntryId(null);
     setEditContent(""); setEditTags([]); setEditEntryAt("");
+    editNewImages.forEach(f => URL.revokeObjectURL(f.preview));
+    setEditExistingImages([]); setEditNewImages([]);
   }
+
+  const handleEditFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    const remaining = MAX_IMAGES - editExistingImages.length - editNewImages.length;
+    const toAdd = files.slice(0, remaining);
+    setEditNewImages(prev => [...prev, ...toAdd.map(f => ({ file: f, preview: URL.createObjectURL(f) }))]);
+    if (editFileInputRef.current) editFileInputRef.current.value = "";
+  };
+
+  const handleSaveEdit = async (entryId: number) => {
+    if (!editContent.trim()) { toast.error("內容不能為空"); return; }
+    setEditIsSubmitting(true);
+    try {
+      const newUrls: string[] = [];
+      for (const { file } of editNewImages) {
+        const base64 = await new Promise<string>((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res((r.result as string).split(",")[1]);
+          r.onerror = rej;
+          r.readAsDataURL(file);
+        });
+        const result = await uploadImage.mutateAsync({ imageData: base64, fileName: file.name, mimeType: file.type || "image/jpeg" });
+        newUrls.push(result.url);
+      }
+      await updateEntry.mutateAsync({
+        id: entryId,
+        content: editContent.trim(),
+        tags: editTags,
+        contacts: extractMentions(editContent.trim()),
+        entryAt: editEntryAt || undefined,
+        imageUrls: [...editExistingImages, ...newUrls],
+      });
+    } catch (err: any) {
+      toast.error(err?.message ?? "更新失敗");
+    } finally {
+      setEditIsSubmitting(false);
+    }
+  };
 
   // ── Mutations ──
   const uploadImage = trpc.merchantJournal.uploadImage.useMutation();
@@ -659,20 +706,47 @@ export default function MerchantJournal() {
                           ))}
                         </div>
                       </div>
-                      <div className="flex gap-2 pt-1">
-                        <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={cancelEditEntry} disabled={updateEntry.isPending}>取消</Button>
-                        <Button size="sm" className="flex-1 gold-gradient text-white text-xs" onClick={() => {
-                          if (!editContent.trim()) { toast.error("內容不能為空"); return; }
-                          updateEntry.mutate({
-                            id: entry.id,
-                            content: editContent.trim(),
-                            tags: editTags,
-                            contacts: extractMentions(editContent.trim()),
-                            entryAt: editEntryAt || undefined,
-                          });
-                        }} disabled={updateEntry.isPending || !editContent.trim()}>
-                          {updateEntry.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "儲存"}
-                        </Button>
+                      {/* ── Image management ── */}
+                      {(editExistingImages.length > 0 || editNewImages.length > 0) && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {editExistingImages.map((url, i) => (
+                            <div key={`ex-${i}`} className="relative w-9 h-9">
+                              <img src={url} alt="" className="w-9 h-9 object-cover rounded-lg border" />
+                              <button
+                                onClick={() => setEditExistingImages(prev => prev.filter((_, idx) => idx !== i))}
+                                className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                              ><X className="w-2.5 h-2.5" /></button>
+                            </div>
+                          ))}
+                          {editNewImages.map((f, i) => (
+                            <div key={`new-${i}`} className="relative w-9 h-9">
+                              <img src={f.preview} alt="" className="w-9 h-9 object-cover rounded-lg border border-blue-200" />
+                              <button
+                                onClick={() => setEditNewImages(prev => { URL.revokeObjectURL(prev[i].preview); return prev.filter((_, idx) => idx !== i); })}
+                                className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                              ><X className="w-2.5 h-2.5" /></button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        {editExistingImages.length + editNewImages.length < MAX_IMAGES ? (
+                          <button
+                            onClick={() => editFileInputRef.current?.click()}
+                            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-600 transition-colors"
+                          >
+                            <ImageIcon className="w-3.5 h-3.5" />加圖片（{editExistingImages.length + editNewImages.length}/{MAX_IMAGES}）
+                          </button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">{MAX_IMAGES} 張已達上限</span>
+                        )}
+                        <input ref={editFileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleEditFileSelect} />
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" className="text-xs" onClick={cancelEditEntry} disabled={editIsSubmitting}>取消</Button>
+                          <Button size="sm" className="gold-gradient text-white text-xs" onClick={() => handleSaveEdit(entry.id)} disabled={editIsSubmitting || !editContent.trim()}>
+                            {editIsSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "儲存"}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ) : (
