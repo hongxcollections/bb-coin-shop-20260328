@@ -198,8 +198,8 @@ export default function AdminMerchantCenter() {
   const { data: tierChanges, refetch: refetchTierChanges, isLoading: tierChangesLoading } = trpc.depositTiers.listChangeRequests.useQuery(
     undefined, { enabled: adminEnabled, refetchInterval: 30000 }
   );
-  const { data: journalMerchants, refetch: refetchJournal } = trpc.merchantJournal.adminList.useQuery(
-    undefined, { enabled: adminEnabled }
+  const { data: journalMerchants, refetch: refetchJournal, isLoading: journalLoading, error: journalError } = trpc.merchantJournal.adminList.useQuery(
+    undefined, { enabled: adminEnabled, retry: 1 }
   );
 
   // ── Mutations ──
@@ -740,11 +740,18 @@ export default function AdminMerchantCenter() {
             <div className="flex items-center gap-2 mb-3">
               <BookOpen className="w-4 h-4 text-amber-600" />
               <span className="text-sm font-bold text-amber-900">商戶日誌開通管理</span>
-              <span className="text-xs text-amber-600 ml-auto">{(journalMerchants ?? []).length} 位商戶</span>
+              <span className="text-xs text-amber-600 ml-auto">
+                {journalLoading ? "..." : `${(journalMerchants ?? []).length} 位商戶`}
+              </span>
             </div>
-            {!journalMerchants ? (
+            {journalLoading ? (
               <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-amber-400" /></div>
-            ) : journalMerchants.length === 0 ? (
+            ) : journalError ? (
+              <div className="text-center py-3">
+                <p className="text-xs text-red-500 mb-1.5">{(journalError as any)?.message ?? "載入失敗"}</p>
+                <button onClick={() => refetchJournal()} className="text-xs text-amber-600 underline hover:text-amber-800">重試</button>
+              </div>
+            ) : !journalMerchants || journalMerchants.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-3">暫無已批准商戶</p>
             ) : (
               <div className="space-y-2">
