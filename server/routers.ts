@@ -9266,8 +9266,8 @@ EXAMPLE OUTPUT (exact format):
       }
       const [rows]: any = await pool.execute(
         `SELECT mj.id, mj.content, mj.tags, mj.contacts,
-                DATE_FORMAT(CONVERT_TZ(mj.createdAt, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s') as createdAt,
-                DATE_FORMAT(mj.entryAt, '%Y-%m-%dT%H:%i:%s') as entryAt
+                DATE_FORMAT(CONVERT_TZ(mj.createdAt, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as createdAt,
+                DATE_FORMAT(mj.entryAt, '%Y-%m-%dT%H:%i:%s+08:00') as entryAt
          FROM merchantJournals mj
          WHERE mj.merchantUserId = ?
          ORDER BY COALESCE(mj.entryAt, mj.createdAt) DESC

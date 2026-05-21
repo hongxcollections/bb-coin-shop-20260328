@@ -16,21 +16,24 @@ import {
 const TAGS = ["交收", "送評", "入貨", "拍賣", "其他"];
 const MAX_IMAGES = 20;
 
+const HK_TZ = "Asia/Hong_Kong";
 function toLocalDatetimeValue(d?: Date | string | null): string {
   const dt = d ? new Date(d) : new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+  // sv-SE gives "YYYY-MM-DD HH:MM:SS" in the target timezone — reliable across all devices
+  const s = dt.toLocaleString("sv-SE", { timeZone: HK_TZ });
+  return s.slice(0, 16).replace(" ", "T");
 }
 function fmtEntryDate(d: Date | string | null | undefined) {
   if (!d) return "";
   return new Date(d).toLocaleString("zh-HK", {
     year: "numeric", month: "2-digit", day: "2-digit",
     hour: "2-digit", minute: "2-digit", weekday: "short",
+    timeZone: HK_TZ,
   });
 }
 function fmtDateOnly(d: Date | string | null | undefined) {
   if (!d) return "";
-  return new Date(d).toLocaleDateString("zh-HK", { year: "numeric", month: "2-digit", day: "2-digit" });
+  return new Date(d).toLocaleDateString("zh-HK", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: HK_TZ });
 }
 
 /** Extract #mentions from content string */
