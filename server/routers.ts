@@ -9270,7 +9270,9 @@ EXAMPLE OUTPUT (exact format):
         id: Number(j.id),
         content: String(j.content ?? ''),
         tags: j.tags ? String(j.tags).split(',').filter(Boolean) : [],
+        contacts: j.contacts ? String(j.contacts).split(',').filter(Boolean) : [],
         createdAt: j.createdAt,
+        entryAt: j.entryAt ?? j.createdAt,
         images: j.images ? String(j.images).split('|||').filter(Boolean) : [],
       }));
     }),
@@ -9280,6 +9282,8 @@ EXAMPLE OUTPUT (exact format):
         content: z.string().min(1).max(500),
         tags: z.array(z.string().max(20)).max(5).default([]),
         imageUrls: z.array(z.string().url()).max(5).default([]),
+        entryAt: z.string().optional(),
+        contacts: z.array(z.string().max(30)).max(20).default([]),
       }))
       .mutation(async ({ input, ctx }) => {
         const pool = await getRawPool();
@@ -9291,9 +9295,11 @@ EXAMPLE OUTPUT (exact format):
           throw new TRPCError({ code: 'FORBIDDEN', message: '日誌功能未開通' });
         }
         const tagsStr = input.tags.join(',');
+        const contactsStr = input.contacts.join(',');
+        const entryAt = input.entryAt ? new Date(input.entryAt) : null;
         const [result]: any = await pool.execute(
-          'INSERT INTO merchantJournals (merchantUserId, content, tags) VALUES (?, ?, ?)',
-          [ctx.user.id, input.content, tagsStr]
+          'INSERT INTO merchantJournals (merchantUserId, content, tags, contacts, entryAt) VALUES (?, ?, ?, ?, ?)',
+          [ctx.user.id, input.content, tagsStr, contactsStr || null, entryAt]
         );
         const journalId = result.insertId;
         for (let i = 0; i < input.imageUrls.length; i++) {
