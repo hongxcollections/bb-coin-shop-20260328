@@ -1373,6 +1373,23 @@ export default function MerchantProducts() {
               <Textarea placeholder="品相、年份、特點等..." rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
             </div>
 
+            <div className="space-y-1.5">
+              <label className="text-xs text-gray-500 font-medium flex items-center gap-1">
+                <span>商戶私人備註</span>
+                <span className="text-[10px] text-gray-400 font-normal">（只有你能看到，買家不可見）</span>
+              </label>
+              <Textarea
+                placeholder="例：代客出售，成本價 $250，底價 $300⋯"
+                value={form.privateNote}
+                onChange={e => setForm(f => ({ ...f, privateNote: e.target.value }))}
+                className="text-sm min-h-20 resize-none"
+                maxLength={500}
+              />
+              {form.privateNote.length > 0 && (
+                <p className="text-[10px] text-gray-400 text-right">{form.privateNote.length}/500</p>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-2">
                 <label className="text-xs text-gray-500 font-medium">售價 *（填 0 = 查詢格價）</label>
@@ -1438,23 +1455,6 @@ export default function MerchantProducts() {
                 checked={form.allowOffers}
                 onChange={e => setForm(f => ({ ...f, allowOffers: e.target.checked }))}
               />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs text-gray-500 font-medium flex items-center gap-1">
-                <span>商戶私人備註</span>
-                <span className="text-[10px] text-gray-400 font-normal">（只有你能看到，買家不可見）</span>
-              </label>
-              <Textarea
-                placeholder="例：代客出售，成本價 $250，底價 $300⋯"
-                value={form.privateNote}
-                onChange={e => setForm(f => ({ ...f, privateNote: e.target.value }))}
-                className="text-sm min-h-20 resize-none"
-                maxLength={500}
-              />
-              {form.privateNote.length > 0 && (
-                <p className="text-[10px] text-gray-400 text-right">{form.privateNote.length}/500</p>
-              )}
             </div>
 
             <div className="flex gap-2 pt-1">
@@ -1596,6 +1596,10 @@ export default function MerchantProducts() {
                           ))}
                           <span className="text-[8px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded-full leading-none">庫存 {p.stock}</span>
                         </div>
+                        {/* 右邊第二行: 私人備註 (如有) */}
+                        {(p as any).privateNote && (
+                          <p className="text-xs text-gray-400 leading-snug">{(p as any).privateNote}</p>
+                        )}
                         {/* 主打/排隊狀態 */}
                         {isActive && isFeatured && (
                           <div className="flex items-center gap-1 text-[10px] text-orange-500 font-semibold">
@@ -1612,11 +1616,6 @@ export default function MerchantProducts() {
                         )}
                       </div>
                     </div>
-
-                    {/* 私人備註 — 描述區下面 */}
-                    {(p as any).privateNote && (
-                      <p className="text-xs text-gray-400 leading-snug">{(p as any).privateNote}</p>
-                    )}
 
                     {/* ③ 圖片下面 第一行: 分享去藏品社區 + 申請主打 → 向右 */}
                     {isActive && (
