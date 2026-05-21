@@ -1566,105 +1566,118 @@ export default function MerchantProducts() {
                   {/* 狀態色條 */}
                   <div className={`w-1 shrink-0 ${accentColor}`} />
 
-                  <div className="flex flex-1 gap-3 p-3 min-w-0">
-                    {/* 商品圖片 */}
-                    <div className="shrink-0">
-                      {imgs[0] ? (
-                        <img src={imgs[0]} alt={p.title} className="w-[72px] h-[72px] rounded-xl object-cover border border-gray-100" />
-                      ) : (
-                        <div className="w-[72px] h-[72px] rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100">
-                          <Package className="w-7 h-7 text-gray-300" />
+                  <div className="flex-1 p-3 space-y-2 min-w-0">
+
+                    {/* ① 商品名稱 — 18px 獨立一行，圖片上方 */}
+                    <h3 className="text-[18px] font-bold text-gray-800 leading-snug line-clamp-1">{p.title}</h3>
+
+                    {/* ② 圖片 + 右側資訊 */}
+                    <div className="flex gap-3">
+                      <div className="shrink-0">
+                        {imgs[0] ? (
+                          <img src={imgs[0]} alt={p.title} className="w-[72px] h-[72px] rounded-xl object-cover border border-gray-100" />
+                        ) : (
+                          <div className="w-[72px] h-[72px] rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100">
+                            <Package className="w-7 h-7 text-gray-300" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-1 pt-0.5">
+                        {/* 右邊第一行: 價錢(20px) + 狀態 + 分類(8px) + 庫存(8px) */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[20px] font-extrabold text-green-600 leading-none">
+                            {price === 0 ? "查詢格價" : `${p.currency} $${price.toLocaleString()}`}
+                          </span>
+                          <span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full leading-none ${STATUS_COLORS[p.status] ?? ""}`}>
+                            {STATUS_LABELS[p.status] ?? p.status}
+                          </span>
+                          {categories.slice(0, 2).map(c => (
+                            <span key={c} className="text-[8px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full font-medium leading-none">{c}</span>
+                          ))}
+                          <span className="text-[8px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded-full leading-none">庫存 {p.stock}</span>
                         </div>
-                      )}
+                        {/* 右邊第二行: 私人備註 (如有) */}
+                        {(p as any).privateNote && (
+                          <p className="text-[10px] text-gray-400 leading-snug line-clamp-2">{(p as any).privateNote}</p>
+                        )}
+                        {/* 主打/排隊狀態 */}
+                        {isActive && isFeatured && (
+                          <div className="flex items-center gap-1 text-[10px] text-orange-500 font-semibold">
+                            <Flame className="w-2.5 h-2.5" />主打刊登中
+                          </div>
+                        )}
+                        {isActive && queued && (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className="text-[9px] text-amber-600 font-semibold bg-amber-50 px-1.5 py-0.5 rounded-full">⏳ 排隊第 {queued.queuePosition} 位</span>
+                            <button onClick={() => setCancelQueueTarget({ id: queued.id, productTitle: p.title })} className="flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors">
+                              <X className="w-2 h-2" />取消
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* 商品資訊 */}
-                    <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-                      {/* 標題列 */}
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-sm font-bold text-gray-800 line-clamp-2 leading-snug flex-1">{p.title}</h3>
-                        <span className={`shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[p.status] ?? ""}`}>
-                          {STATUS_LABELS[p.status] ?? p.status}
-                        </span>
-                      </div>
-
-                      {/* 分類 + 價格列 */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {categories.slice(0, 2).map(c => (
-                          <span key={c} className="text-[11px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-medium">{c}</span>
-                        ))}
-                        <span className="font-extrabold text-green-600 text-base leading-none">{price === 0 ? "查詢格價" : `${p.currency} $${price.toLocaleString()}`}</span>
-                        <span className="text-[11px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">庫存 {p.stock}</span>
-                      </div>
-
-                      {/* 主打狀態列 */}
-                      {isActive && isFeatured && (
-                        <div className="flex items-center gap-1 text-[11px] text-orange-500 font-semibold">
-                          <Flame className="w-3 h-3" />主打刊登中
-                        </div>
-                      )}
-                      {isActive && queued && (
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[11px] text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded-full">⏳ 申請主打排隊第 {queued.queuePosition} 位</span>
-                          <button onClick={() => setCancelQueueTarget({ id: queued.id, productTitle: p.title })} className="flex items-center gap-0.5 text-[10px] font-semibold px-2 py-0.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors">
-                            <X className="w-2.5 h-2.5" />取消排隊
-                          </button>
-                        </div>
-                      )}
-
-                      {/* 操作按鈕列 */}
-                      <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                        {/* 編輯 */}
-                        <button onClick={() => startEdit(p)} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors font-medium">
-                          <Pencil className="w-3 h-3" />編輯
-                        </button>
-                        {/* 狀態操作 */}
-                        {isActive && (
-                          <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 font-medium">
-                            <EyeOff className="w-3 h-3" />下架
-                          </button>
-                        )}
-                        {isActive && (
-                          <button onClick={() => markSold(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 font-medium">
-                            <Tag className="w-3 h-3" />已售出
-                          </button>
-                        )}
-                        {isHidden && (
-                          <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 font-medium">
-                            <Eye className="w-3 h-3" />上架
-                          </button>
-                        )}
-                        {isSold && (
-                          <>
-                            <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium">
-                              <RotateCcw className="w-3 h-3" />重售
-                            </button>
-                            <button onClick={() => hideFromSold(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 font-medium">
-                              <EyeOff className="w-3 h-3" />下架
-                            </button>
-                          </>
-                        )}
-                        {/* 申請主打 */}
-                        {isActive && !isFeatured && !queued && (
-                          <button onClick={() => setFeaturedDialog({ id: p.id, title: p.title, price: parseFloat(p.price ?? '0'), currency: p.currency ?? 'HKD' })} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg hover:from-amber-500 hover:to-orange-600 transition-colors font-medium shadow-sm">
+                    {/* ③ 圖片下面 第一行: 申請主打 + 分享去藏品社區 → 向右 */}
+                    {isActive && (
+                      <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                        {!isFeatured && !queued && (
+                          <button
+                            onClick={() => setFeaturedDialog({ id: p.id, title: p.title, price: parseFloat(p.price ?? '0'), currency: p.currency ?? 'HKD' })}
+                            className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg hover:from-amber-500 hover:to-orange-600 transition-colors font-medium shadow-sm"
+                          >
                             <Flame className="w-3 h-3" />申請主打
                           </button>
                         )}
-                        {/* 分享去藏品社區 */}
-                        {isActive && (
-                          <a href={`/collection-square/new?productId=${p.id}`} title="分享呢件商品去藏品社區" className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-sky-50 text-sky-600 rounded-lg hover:bg-sky-100 transition-colors font-medium">
-                            <Sparkles className="w-3 h-3" />分享去藏品社區
-                          </a>
-                        )}
-                        {/* 刪除 + 分享 */}
-                        <button onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors font-medium ml-auto">
-                          <Trash2 className="w-3 h-3" />刪除
+                        <a
+                          href={`/collection-square/new?productId=${p.id}`}
+                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-sky-50 text-sky-600 rounded-lg hover:bg-sky-100 transition-colors font-medium"
+                        >
+                          <Sparkles className="w-3 h-3" />分享去藏品社區
+                        </a>
+                      </div>
+                    )}
+
+                    {/* ④ 圖片下面 第二行: 編輯 + 狀態操作 + 拆除 + 分享icon → 向右 */}
+                    <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                      <button onClick={() => startEdit(p)} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors font-medium">
+                        <Pencil className="w-3 h-3" />編輯
+                      </button>
+                      {isActive && (
+                        <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 font-medium">
+                          <EyeOff className="w-3 h-3" />下架
                         </button>
-                        <div onClick={e => e.stopPropagation()}>
-                          <ProductShareMenu productId={p.id} title={p.title} price={parseFloat(p.price ?? "0")} currency={p.currency} iconOnly />
-                        </div>
+                      )}
+                      {isActive && (
+                        <button onClick={() => markSold(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 font-medium">
+                          <Tag className="w-3 h-3" />已售出
+                        </button>
+                      )}
+                      {isHidden && (
+                        <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 font-medium">
+                          <Eye className="w-3 h-3" />上架
+                        </button>
+                      )}
+                      {isSold && (
+                        <>
+                          <button onClick={() => reList(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium">
+                            <RotateCcw className="w-3 h-3" />重售
+                          </button>
+                          <button onClick={() => hideFromSold(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 font-medium">
+                            <EyeOff className="w-3 h-3" />下架
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })}
+                        className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors font-medium"
+                      >
+                        <Trash2 className="w-3 h-3" />拆除
+                      </button>
+                      <div onClick={e => e.stopPropagation()}>
+                        <ProductShareMenu productId={p.id} title={p.title} price={parseFloat(p.price ?? "0")} currency={p.currency} iconOnly />
                       </div>
                     </div>
+
                   </div>
                 </div>
               );
