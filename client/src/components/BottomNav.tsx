@@ -370,11 +370,17 @@ export default function BottomNav() {
         >
           <div className="absolute inset-0 bg-black/50" />
           <div
-            className="relative w-full max-w-lg bg-background rounded-t-2xl px-6 pt-5 pb-6 mb-16 shadow-xl"
+            className="relative w-full max-w-lg bg-background rounded-2xl mx-[5px] px-6 pt-5 pb-6 mb-16 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Handle bar */}
-            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted-foreground/30" />
+            {/* X close button */}
+            <button
+              onClick={() => setShowContact(false)}
+              className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-full bg-muted hover:bg-muted/70 transition-colors text-muted-foreground"
+              aria-label="關閉"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+            </button>
 
             <h2 className="text-base font-bold mb-1">聯絡客服</h2>
             <p className="text-xs text-muted-foreground mb-5">關於任何網站問題，請以下方式聯繫 7×24h</p>
@@ -412,13 +418,6 @@ export default function BottomNav() {
                 </div>
               </a>
             </div>
-
-            <button
-              onClick={() => setShowContact(false)}
-              className="mt-6 w-full py-2.5 rounded-xl bg-muted text-sm font-medium hover:bg-muted/80 transition-colors"
-            >
-              關閉
-            </button>
           </div>
         </div>
       )}
