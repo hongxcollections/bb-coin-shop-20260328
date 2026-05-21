@@ -536,6 +536,7 @@ export async function getAuctionsByCreator(userId: number) {
         antiSnipeMinutes: auctions.antiSnipeMinutes,
         extendMinutes: auctions.extendMinutes,
         videoUrl: auctions.videoUrl,
+        privateNote: auctions.privateNote,
         bidCount: sql<number>`(SELECT COUNT(*) FROM bids WHERE bids.auctionId = ${auctions.id})`,
       })
       .from(auctions)
