@@ -69,10 +69,11 @@ interface ProductForm {
   images: string[];
   videoUrl: string;
   allowOffers: boolean;
+  privateNote: string;
 }
 
 const EMPTY_FORM: ProductForm = {
-  title: "", description: "", price: "0", currency: "HKD", categories: [], stock: "1", images: [], videoUrl: "", allowOffers: true,
+  title: "", description: "", price: "0", currency: "HKD", categories: [], stock: "1", images: [], videoUrl: "", allowOffers: true, privateNote: "",
 };
 
 const MAX_VIDEO_SIZE = 30 * 1024 * 1024;
@@ -1010,6 +1011,7 @@ export default function MerchantProducts() {
       })(),
       stock: String(p.stock ?? 1),
       allowOffers: Number((p as any).allowOffers ?? 1) === 1,
+      privateNote: (p as any).privateNote ?? "",
       images: imgs,
       videoUrl: p.videoUrl ?? "",
     });
@@ -1185,6 +1187,7 @@ export default function MerchantProducts() {
       videoUrl: form.videoUrl ? form.videoUrl : null,
       stock,
       allowOffers: form.allowOffers ? 1 : 0,
+      privateNote: form.privateNote.trim() || null,
     };
     setSaving(true);
     try {
@@ -1435,6 +1438,23 @@ export default function MerchantProducts() {
                 checked={form.allowOffers}
                 onChange={e => setForm(f => ({ ...f, allowOffers: e.target.checked }))}
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs text-gray-500 font-medium flex items-center gap-1">
+                <span>商戶私人備註</span>
+                <span className="text-[10px] text-gray-400 font-normal">（只有你能看到，買家不可見）</span>
+              </label>
+              <Textarea
+                placeholder="例：代客出售，成本價 $250，底價 $300⋯"
+                value={form.privateNote}
+                onChange={e => setForm(f => ({ ...f, privateNote: e.target.value }))}
+                className="text-sm min-h-20 resize-none"
+                maxLength={500}
+              />
+              {form.privateNote.length > 0 && (
+                <p className="text-[10px] text-gray-400 text-right">{form.privateNote.length}/500</p>
+              )}
             </div>
 
             <div className="flex gap-2 pt-1">

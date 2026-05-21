@@ -253,6 +253,23 @@ export default function MerchantJournal() {
     return contactList.filter(c => !q || c.name.toLowerCase().includes(q));
   }, [contactList, filterContactSearch]);
 
+  // ── Edit entry state ──
+  const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [editEntryAt, setEditEntryAt] = useState("");
+
+  function startEditEntry(entry: any) {
+    setEditingEntryId(entry.id);
+    setEditContent(entry.content ?? "");
+    setEditTags(entry.tags ?? []);
+    setEditEntryAt(toLocalDatetimeValue(entry.entryAt));
+  }
+  function cancelEditEntry() {
+    setEditingEntryId(null);
+    setEditContent(""); setEditTags([]); setEditEntryAt("");
+  }
+
   // ── Mutations ──
   const uploadImage = trpc.merchantJournal.uploadImage.useMutation();
   const createEntry = trpc.merchantJournal.create.useMutation({
@@ -263,6 +280,15 @@ export default function MerchantJournal() {
       setImageFiles([]); setEntryAt(toLocalDatetimeValue());
       toast.success("日誌已記錄");
     },
+  });
+  const updateEntry = trpc.merchantJournal.update.useMutation({
+    onSuccess: () => {
+      utils.merchantJournal.list.invalidate();
+      utils.merchantJournal.listContacts.invalidate();
+      cancelEditEntry();
+      toast.success("已更新");
+    },
+    onError: (e) => toast.error(e.message ?? "更新失敗"),
   });
   const deleteEntry = trpc.merchantJournal.delete.useMutation({
     onSuccess: () => { utils.merchantJournal.list.invalidate(); toast.success("已刪除"); },
@@ -596,58 +622,121 @@ export default function MerchantJournal() {
           <div className="space-y-3">
             {filtered.map((entry: any) => {
               const mentions = extractMentions(entry.content ?? "");
+              const isEditing = editingEntryId === entry.id;
               return (
                 <div key={entry.id} className="rounded-2xl border bg-card p-4 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
-                      <span className="text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
-                        {fmtEntryDate(entry.entryAt)}
-                      </span>
-                      {(entry.tags ?? []).map((tag: string) => (
-                        <span key={tag} className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-medium">{tag}</span>
-                      ))}
+                  {isEditing ? (
+                    /* ── Edit mode ── */
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <CalendarDays className="w-4 h-4 text-amber-500 shrink-0" />
+                        <input
+                          type="datetime-local"
+                          value={editEntryAt}
+                          onChange={e => setEditEntryAt(e.target.value)}
+                          className="flex-1 text-xs rounded-lg border border-input bg-background px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-amber-400"
+                        />
+                      </div>
+                      <Textarea
+                        value={editContent}
+                        onChange={e => setEditContent(e.target.value)}
+                        maxLength={500}
+                        className="resize-none text-sm min-h-32"
+                        autoFocus
+                      />
+                      <div className="text-[11px] text-muted-foreground text-right -mt-1">{editContent.length}/500</div>
+                      <div>
+                        <p className="text-[11px] text-muted-foreground mb-1.5 flex items-center gap-1"><Tag className="w-3 h-3" />類別</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {TAGS.map(tag => (
+                            <button key={tag} onClick={() => setEditTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])}
+                              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                                editTags.includes(tag)
+                                  ? "bg-amber-500 text-white border-amber-500"
+                                  : "bg-muted text-muted-foreground border-transparent hover:border-amber-300"
+                              }`}
+                            >{tag}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={cancelEditEntry} disabled={updateEntry.isPending}>取消</Button>
+                        <Button size="sm" className="flex-1 gold-gradient text-white text-xs" onClick={() => {
+                          if (!editContent.trim()) { toast.error("內容不能為空"); return; }
+                          updateEntry.mutate({
+                            id: entry.id,
+                            content: editContent.trim(),
+                            tags: editTags,
+                            contacts: extractMentions(editContent.trim()),
+                            entryAt: editEntryAt || undefined,
+                          });
+                        }} disabled={updateEntry.isPending || !editContent.trim()}>
+                          {updateEntry.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "儲存"}
+                        </Button>
+                      </div>
                     </div>
-                    <button
-                      onClick={async () => {
-                        const ok = await confirmDialog({ title: "確認刪除？", description: "刪除後不能復原。", tone: "danger" });
-                        if (!ok) return;
-                        deleteEntry.mutate({ id: entry.id });
-                      }}
-                      className="shrink-0 text-gray-300 hover:text-red-400 transition-colors mt-0.5"
-                    ><Trash2 className="w-3.5 h-3.5" /></button>
-                  </div>
+                  ) : (
+                    /* ── View mode ── */
+                    <>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
+                          <span className="text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                            {fmtEntryDate(entry.entryAt)}
+                          </span>
+                          {(entry.tags ?? []).map((tag: string) => (
+                            <span key={tag} className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-medium">{tag}</span>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                          <button
+                            onClick={() => startEditEntry(entry)}
+                            className="text-gray-300 hover:text-amber-500 transition-colors"
+                            title="修改"
+                          ><Pencil className="w-3.5 h-3.5" /></button>
+                          <button
+                            onClick={async () => {
+                              const ok = await confirmDialog({ title: "確認刪除？", description: "刪除後不能復原。", tone: "danger" });
+                              if (!ok) return;
+                              deleteEntry.mutate({ id: entry.id });
+                            }}
+                            className="text-gray-300 hover:text-red-400 transition-colors"
+                            title="刪除"
+                          ><Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                      </div>
 
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{entry.content}</p>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{entry.content}</p>
 
-                  {/* #mention chips extracted from content */}
-                  {mentions.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {mentions.map(c => (
-                        <button key={c}
-                          onClick={() => { if (!filterContacts.includes(c)) setFilterContacts(prev => [...prev, c]); setShowFilter(true); }}
-                          className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full text-[10px] font-medium hover:bg-indigo-100 transition-colors"
-                          title="點擊篩選此人物"
-                        >
-                          <User className="w-2.5 h-2.5" />{c}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                      {mentions.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {mentions.map(c => (
+                            <button key={c}
+                              onClick={() => { if (!filterContacts.includes(c)) setFilterContacts(prev => [...prev, c]); setShowFilter(true); }}
+                              className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full text-[10px] font-medium hover:bg-indigo-100 transition-colors"
+                              title="點擊篩選此人物"
+                            >
+                              <User className="w-2.5 h-2.5" />{c}
+                            </button>
+                          ))}
+                        </div>
+                      )}
 
-                  {(entry.images ?? []).length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {(entry.images as string[]).map((url: string, i: number) => (
-                        <button key={i} onClick={() => setExpandedImage(url)}
-                          className="w-9 h-9 rounded-lg overflow-hidden border hover:opacity-80 transition-opacity"
-                        >
-                          <img src={url} alt="" className="w-full h-full object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                      {(entry.images ?? []).length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {(entry.images as string[]).map((url: string, i: number) => (
+                            <button key={i} onClick={() => setExpandedImage(url)}
+                              className="w-9 h-9 rounded-lg overflow-hidden border hover:opacity-80 transition-opacity"
+                            >
+                              <img src={url} alt="" className="w-full h-full object-cover" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
 
-                  {entry.entryAt && new Date(entry.entryAt).getTime() !== new Date(entry.createdAt).getTime() && (
-                    <p className="text-[10px] text-gray-300">記錄於 {fmtDateOnly(entry.createdAt)}</p>
+                      {entry.entryAt && new Date(entry.entryAt).getTime() !== new Date(entry.createdAt).getTime() && (
+                        <p className="text-[10px] text-gray-300">記錄於 {fmtDateOnly(entry.createdAt)}</p>
+                      )}
+                    </>
                   )}
                 </div>
               );

@@ -398,6 +398,13 @@ async function bootstrapMissingColumns() {
       'Added allowOffers to merchantProducts'
     );
   }
+  // 加 merchantProducts.privateNote
+  if (!(await check('merchantProducts', 'privateNote'))) {
+    await alter(
+      `ALTER TABLE \`merchantProducts\` ADD COLUMN \`privateNote\` text NULL`,
+      'Added privateNote to merchantProducts'
+    );
+  }
 
   // 訊息表情 reaction
   await alter(`CREATE TABLE IF NOT EXISTS \`auctionChatMessageReactions\` (

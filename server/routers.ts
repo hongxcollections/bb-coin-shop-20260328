@@ -9320,6 +9320,39 @@ EXAMPLE OUTPUT (exact format):
         return { success: true, id: journalId };
       }),
 
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        content: z.string().min(1).max(500),
+        tags: z.array(z.string()).default([]),
+        contacts: z.array(z.string()).default([]),
+        entryAt: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const pool = await getRawPool();
+        const [rows]: any = await pool.execute(
+          'SELECT id FROM merchantJournals WHERE id = ? AND merchantUserId = ? LIMIT 1',
+          [input.id, ctx.user.id]
+        );
+        if (!Array.isArray(rows) || rows.length === 0) throw new TRPCError({ code: 'NOT_FOUND' });
+        const tagsStr = input.tags.join(',');
+        const contactsStr = input.contacts.join(',');
+        const entryAt = input.entryAt ? new Date(input.entryAt) : null;
+        await pool.execute(
+          'UPDATE merchantJournals SET content = ?, tags = ?, contacts = ?, entryAt = ? WHERE id = ? AND merchantUserId = ?',
+          [input.content, tagsStr, contactsStr || null, entryAt, input.id, ctx.user.id]
+        );
+        for (const name of input.contacts) {
+          try {
+            await pool.execute(
+              'INSERT IGNORE INTO merchantJournalContacts (merchantUserId, name) VALUES (?, ?)',
+              [ctx.user.id, name]
+            );
+          } catch { /* ignore duplicate */ }
+        }
+        return { success: true };
+      }),
+
     delete: protectedProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {

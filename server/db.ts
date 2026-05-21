@@ -4694,7 +4694,7 @@ export async function createMerchantProduct(data: {
   merchantId: number; merchantName: string; merchantIcon?: string; whatsapp?: string;
   title: string; description?: string; price: number; currency?: string;
   category?: string; images?: string; videoUrl?: string | null; stock?: number;
-  allowOffers?: number;
+  allowOffers?: number; privateNote?: string | null;
 }): Promise<number> {
   await ensureMerchantProductsTable();
   const db = await getDb();
@@ -4715,9 +4715,12 @@ export async function createMerchantProduct(data: {
     status: 'active',
   });
   const id = (result as any).insertId as number;
-  // allowOffers (raw SQL since column added via bootstrap)
+  // allowOffers / privateNote (raw SQL since columns added via bootstrap)
   if (typeof data.allowOffers === 'number') {
     try { await db.execute(sql`UPDATE merchantProducts SET allowOffers = ${data.allowOffers} WHERE id = ${id}`); } catch {}
+  }
+  if (data.privateNote !== undefined) {
+    try { await db.execute(sql`UPDATE merchantProducts SET privateNote = ${data.privateNote ?? null} WHERE id = ${id}`); } catch {}
   }
   // Fire-and-forget: 通知 FB 抓 OG cache
   try { pingProductOg(id); } catch {}
@@ -4727,7 +4730,7 @@ export async function createMerchantProduct(data: {
 export async function updateMerchantProduct(id: number, merchantId: number, data: Partial<{
   title: string; description: string; price: number; currency: string;
   category: string; images: string; videoUrl: string | null; stock: number; status: string;
-  allowOffers: number;
+  allowOffers: number; privateNote: string | null;
 }>): Promise<void> {
   await ensureMerchantProductsTable();
   const db = await getDb();
@@ -4746,6 +4749,9 @@ export async function updateMerchantProduct(id: number, merchantId: number, data
     .where(and(eq(merchantProducts.id, id), eq(merchantProducts.merchantId, merchantId)));
   if (typeof data.allowOffers === 'number') {
     try { await db.execute(sql`UPDATE merchantProducts SET allowOffers = ${data.allowOffers} WHERE id = ${id} AND merchantId = ${merchantId}`); } catch {}
+  }
+  if (data.privateNote !== undefined) {
+    try { await db.execute(sql`UPDATE merchantProducts SET privateNote = ${data.privateNote ?? null} WHERE id = ${id} AND merchantId = ${merchantId}`); } catch {}
   }
   // 商品售出或下架時，自動處理主打刊登（queued 退費，active 過期+提升排隊）
   if (data.status === 'sold' || data.status === 'hidden') {
