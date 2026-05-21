@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { parseCategories } from "@/lib/categories";
+import { DEFAULT_CATEGORIES } from "@/lib/categories";
 import {
   Plus, Pencil, Trash2, Archive, RotateCcw, Upload, X,
   ImageIcon, CheckCircle2, AlertCircle, AlertTriangle, Loader2, ChevronLeft,
@@ -631,7 +631,8 @@ export default function MerchantAuctions() {
   })();
   const { data: siteSettingsData } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const { data: merchantSettingsData } = trpc.merchants.getSettings.useQuery(undefined, { staleTime: 60_000, enabled: isAuthenticated });
-  const CATEGORIES = parseCategories(siteSettingsData as Record<string, string> | undefined);
+  const { data: merchantCatsData } = trpc.merchants.getMyCategories.useQuery(undefined, { staleTime: 5 * 60 * 1000, enabled: isAuthenticated });
+  const CATEGORIES = merchantCatsData?.categories ?? DEFAULT_CATEGORIES;
   const { refetch: refetchMyDeposit } = trpc.sellerDeposits.myDeposit.useQuery(undefined, { enabled: isAuthenticated, staleTime: 0, refetchOnWindowFocus: true });
   const { refetch: refetchCanList } = trpc.sellerDeposits.canList.useQuery(undefined, { enabled: false, staleTime: 0 });
   const { refetch: refetchQuotaInfo } = trpc.merchants.getQuotaInfo.useQuery(undefined, { enabled: false, staleTime: 0 });

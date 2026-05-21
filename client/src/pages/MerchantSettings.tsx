@@ -12,7 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
-import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag, ShieldCheck, Store, Camera, X, Droplets, LayoutList, MessageSquare } from "lucide-react";
+import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag, ShieldCheck, Store, Camera, X, Droplets, LayoutList, MessageSquare, FolderOpen, Plus, Pencil, Trash2, ChevronUp, ChevronDown, Check } from "lucide-react";
+import { DEFAULT_CATEGORIES } from "@/lib/categories";
 
 const BID_INCREMENT_OPTIONS = [10, 20, 30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
 
@@ -45,6 +46,19 @@ export default function MerchantSettings() {
     onSuccess: () => { utils.merchants.getSettings.invalidate(); utils.merchants.listApprovedMerchants.invalidate(); toast.success("每頁顯示數量已儲存"); },
     onError: (err) => toast.error(err.message || "儲存失敗"),
   });
+
+  const { data: myCategories } = trpc.merchants.getMyCategories.useQuery(undefined, { staleTime: 5 * 60 * 1000, enabled: isAuthenticated });
+  const updateCatsMutation = trpc.merchants.updateMyCategories.useMutation({
+    onSuccess: () => { toast.success("分類已儲存"); utils.merchants.getMyCategories.invalidate(); },
+    onError: (err) => toast.error(err.message || "儲存失敗"),
+  });
+  const [cats, setCats] = useState<string[]>(DEFAULT_CATEGORIES);
+  const [newCat, setNewCat] = useState("");
+  const [editingCatIdx, setEditingCatIdx] = useState<number | null>(null);
+  const [editingCatVal, setEditingCatVal] = useState("");
+  useEffect(() => {
+    if (myCategories?.categories) setCats(myCategories.categories);
+  }, [myCategories]);
 
   // ── 商戶聊天離線自動回覆 ─────────────────────────────────────────────────
   const { data: autoReplyData } = trpc.chat.getMyAutoReply.useQuery(undefined, { enabled: isAuthenticated });
@@ -1333,6 +1347,81 @@ export default function MerchantSettings() {
         </Card>
 
         <FailureLockCard settings={settings} />
+
+        {/* 拍賣／出售商品分類 */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <FolderOpen className="w-4 h-4 text-amber-500" />
+              拍賣／出售商品分類
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">管理你的商品分類，新增拍賣及出售商品時可選取。</p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1.5">
+              {cats.map((cat, idx) => (
+                <div key={idx} className="flex items-center gap-2 p-2 bg-amber-50/60 border border-amber-100 rounded-lg">
+                  {editingCatIdx === idx ? (
+                    <>
+                      <Input
+                        autoFocus
+                        value={editingCatVal}
+                        onChange={(e) => setEditingCatVal(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const v = editingCatVal.trim();
+                            if (!v) { toast.error("分類名稱不能為空"); return; }
+                            if (v !== cat && cats.includes(v)) { toast.error("分類已存在"); return; }
+                            setCats(prev => prev.map((c, i) => i === idx ? v : c));
+                            setEditingCatIdx(null);
+                          } else if (e.key === "Escape") setEditingCatIdx(null);
+                        }}
+                        className="flex-1 h-7 text-sm py-0 border-amber-300 focus-visible:ring-amber-400"
+                      />
+                      <button onClick={() => { const v = editingCatVal.trim(); if (!v) { toast.error("分類名稱不能為空"); return; } if (v !== cat && cats.includes(v)) { toast.error("分類已存在"); return; } setCats(prev => prev.map((c, i) => i === idx ? v : c)); setEditingCatIdx(null); }} className="p-1 rounded hover:bg-green-100" title="確認"><Check className="w-3.5 h-3.5 text-green-600" /></button>
+                      <button onClick={() => setEditingCatIdx(null)} className="p-1 rounded hover:bg-gray-100" title="取消"><X className="w-3.5 h-3.5 text-gray-400" /></button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex-1 text-sm text-amber-900 font-medium">{cat}</span>
+                      <button onClick={() => { setEditingCatIdx(idx); setEditingCatVal(cat); }} className="p-1 rounded hover:bg-amber-100" title="改名"><Pencil className="w-3.5 h-3.5 text-amber-500" /></button>
+                      <button disabled={idx === 0} onClick={() => setCats(prev => { const a = [...prev]; [a[idx-1], a[idx]] = [a[idx], a[idx-1]]; return a; })} className="p-1 rounded hover:bg-amber-100 disabled:opacity-30" title="上移"><ChevronUp className="w-3.5 h-3.5 text-amber-600" /></button>
+                      <button disabled={idx === cats.length - 1} onClick={() => setCats(prev => { const a = [...prev]; [a[idx+1], a[idx]] = [a[idx], a[idx+1]]; return a; })} className="p-1 rounded hover:bg-amber-100 disabled:opacity-30" title="下移"><ChevronDown className="w-3.5 h-3.5 text-amber-600" /></button>
+                      <button onClick={() => setCats(prev => prev.filter((_, i) => i !== idx))} className="p-1 rounded hover:bg-red-100" title="刪除"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={newCat}
+                onChange={(e) => setNewCat(e.target.value)}
+                placeholder="新增分類名稱，例：錯體鈔/幣"
+                className="flex-1"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newCat.trim()) {
+                    if (cats.includes(newCat.trim())) { toast.error("分類已存在"); return; }
+                    setCats(prev => [...prev, newCat.trim()]); setNewCat("");
+                  }
+                }}
+              />
+              <Button variant="outline" className="border-amber-300 text-amber-700 hover:bg-amber-50 gap-1" onClick={() => { if (!newCat.trim()) { toast.error("請輸入分類名稱"); return; } if (cats.includes(newCat.trim())) { toast.error("分類已存在"); return; } setCats(prev => [...prev, newCat.trim()]); setNewCat(""); }}>
+                <Plus className="w-4 h-4" />新增
+              </Button>
+            </div>
+            <div className="flex items-center justify-between flex-wrap gap-3 pt-1">
+              <div className="flex gap-2">
+                <p className="text-xs text-muted-foreground">共 {cats.length} 個分類</p>
+                <button className="text-xs text-amber-600 underline hover:text-amber-800" onClick={() => setCats(DEFAULT_CATEGORIES)}>還原預設</button>
+              </div>
+              <Button onClick={() => { if (cats.length === 0) { toast.error("至少保留一個分類"); return; } updateCatsMutation.mutate({ categories: cats }); }} disabled={updateCatsMutation.isPending} className="bg-amber-600 hover:bg-amber-700 text-white gap-2">
+                <Save className="w-4 h-4" />
+                {updateCatsMutation.isPending ? "儲存中..." : "儲存分類設定"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -22,7 +22,7 @@ import {
   ShoppingBag, CheckCircle2, XCircle, Clock, Flame, RotateCcw, Tag,
   Facebook, Copy, Check, CreditCard, Sparkles, Mic, Share2,
 } from "lucide-react";
-import { parseCategories } from "@/lib/categories";
+import { DEFAULT_CATEGORIES } from "@/lib/categories";
 import { ProductShareMenu } from "@/components/ShareMenu";
 
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
@@ -870,8 +870,8 @@ export default function MerchantProducts() {
     return params.get("tab") === "orders" ? "orders" : "products";
   });
 
-  const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
-  const CATEGORIES = parseCategories(siteSettings as Record<string, string> | undefined);
+  const { data: merchantCatsData } = trpc.merchants.getMyCategories.useQuery(undefined, { staleTime: 5 * 60 * 1000, enabled: isAuthenticated });
+  const CATEGORIES = merchantCatsData?.categories ?? DEFAULT_CATEGORIES;
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
