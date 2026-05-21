@@ -9281,7 +9281,7 @@ EXAMPLE OUTPUT (exact format):
       .input(z.object({
         content: z.string().min(1).max(500),
         tags: z.array(z.string().max(20)).max(5).default([]),
-        imageUrls: z.array(z.string().url()).max(5).default([]),
+        imageUrls: z.array(z.string().url()).max(10).default([]),
         entryAt: z.string().optional(),
         contacts: z.array(z.string().max(30)).max(20).default([]),
       }))

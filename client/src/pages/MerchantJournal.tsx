@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import Header from "@/components/Header";
@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 const TAGS = ["交收", "送評", "入貨", "拍賣", "其他"];
-const MAX_IMAGES = 5;
+const MAX_IMAGES = 10;
 
 function toLocalDatetimeValue(d?: Date | string | null): string {
   const dt = d ? new Date(d) : new Date();
@@ -50,27 +50,42 @@ export default function MerchantJournal() {
   const [entryAt, setEntryAt] = useState<string>(toLocalDatetimeValue());
   const [contacts, setContacts] = useState<string[]>([]);
   const [contactInput, setContactInput] = useState("");
+  const [editingChipIdx, setEditingChipIdx] = useState<number | null>(null);
   const [imageFiles, setImageFiles] = useState<{ file: File; preview: string }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contactInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // ── # mention state ──
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionIdx, setMentionIdx] = useState(0);
 
   // ── Filter state ──
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterTag, setFilterTag] = useState("");
-  const [filterContact, setFilterContact] = useState("");
+  const [filterContacts, setFilterContacts] = useState<string[]>([]);
+  const [filterContactSearch, setFilterContactSearch] = useState("");
   const [showFilter, setShowFilter] = useState(false);
 
   const entries = rawEntries as any[];
 
-  // ── Derived: all contacts across entries ──
+  // ── Derived: all contacts across saved entries ──
   const allContacts = useMemo(() => {
     const set = new Set<string>();
     entries.forEach(e => (e.contacts ?? []).forEach((c: string) => set.add(c)));
+    contacts.forEach(c => set.add(c));
     return Array.from(set).sort();
-  }, [entries]);
+  }, [entries, contacts]);
+
+  // ── # mention suggestions ──
+  const mentionSuggestions = useMemo(() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.toLowerCase();
+    return allContacts.filter(c => c.toLowerCase().includes(q)).slice(0, 8);
+  }, [mentionQuery, allContacts]);
 
   // ── Client-side filtering ──
   const filtered = useMemo(() => {
@@ -83,15 +98,22 @@ export default function MerchantJournal() {
         if (dt >= to) return false;
       }
       if (filterTag && !(e.tags ?? []).includes(filterTag)) return false;
-      if (filterContact) {
-        const lc = filterContact.toLowerCase();
-        if (!(e.contacts ?? []).some((c: string) => c.toLowerCase().includes(lc))) return false;
+      if (filterContacts.length > 0) {
+        const entryC: string[] = e.contacts ?? [];
+        const hasAny = filterContacts.some(fc => entryC.includes(fc));
+        if (!hasAny) return false;
       }
       return true;
     });
-  }, [entries, filterDateFrom, filterDateTo, filterTag, filterContact]);
+  }, [entries, filterDateFrom, filterDateTo, filterTag, filterContacts]);
 
-  const hasFilter = filterDateFrom || filterDateTo || filterTag || filterContact;
+  const hasFilter = filterDateFrom || filterDateTo || filterTag || filterContacts.length > 0;
+
+  // ── Visible contact chips in filter (after text search) ──
+  const visibleFilterContacts = useMemo(() => {
+    const q = filterContactSearch.toLowerCase();
+    return allContacts.filter(c => !q || c.toLowerCase().includes(q));
+  }, [allContacts, filterContactSearch]);
 
   // ── Mutations ──
   const uploadImage = trpc.merchantJournal.uploadImage.useMutation();
@@ -102,6 +124,7 @@ export default function MerchantJournal() {
       setSelectedTags([]);
       setContacts([]);
       setContactInput("");
+      setEditingChipIdx(null);
       setImageFiles([]);
       setEntryAt(toLocalDatetimeValue());
       toast.success("日誌已記錄");
@@ -111,24 +134,90 @@ export default function MerchantJournal() {
     onSuccess: () => { utils.merchantJournal.list.invalidate(); toast.success("已刪除"); },
   });
 
-  // ── Helpers ──
+  // ── Helpers: tags ──
   const toggleTag = (tag: string) =>
     setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
 
-  const addContact = () => {
-    const name = contactInput.trim();
-    if (!name) return;
-    if (!contacts.includes(name)) setContacts(prev => [...prev, name]);
+  // ── Helpers: contacts chip ──
+  const commitContact = (raw: string = contactInput) => {
+    const name = raw.trim();
+    if (!name) { setContactInput(""); return; }
+    if (editingChipIdx !== null) {
+      setContacts(prev => prev.map((c, i) => i === editingChipIdx ? name : c));
+      setEditingChipIdx(null);
+    } else {
+      if (!contacts.includes(name)) setContacts(prev => [...prev, name]);
+    }
     setContactInput("");
     contactInputRef.current?.focus();
   };
 
-  const handleContactKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addContact(); }
-    if (e.key === "Backspace" && !contactInput && contacts.length > 0)
-      setContacts(prev => prev.slice(0, -1));
+  const editChip = (idx: number) => {
+    setContactInput(contacts[idx]);
+    setEditingChipIdx(idx);
+    contactInputRef.current?.focus();
   };
 
+  const removeChip = (idx: number) => {
+    setContacts(prev => prev.filter((_, i) => i !== idx));
+    if (editingChipIdx === idx) { setContactInput(""); setEditingChipIdx(null); }
+  };
+
+  const handleContactKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === ",") { e.preventDefault(); commitContact(); }
+    if (e.key === "Backspace" && !contactInput && contacts.length > 0 && editingChipIdx === null)
+      editChip(contacts.length - 1);
+    if (e.key === "Escape") { setContactInput(""); setEditingChipIdx(null); }
+  };
+
+  // ── Helpers: # mention ──
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setContent(val);
+    const pos = e.target.selectionStart ?? val.length;
+    const before = val.slice(0, pos);
+    const match = before.match(/#([^#\s,]*)$/);
+    if (match) {
+      setMentionQuery(match[1]);
+      setMentionIdx(0);
+    } else {
+      setMentionQuery(null);
+    }
+  };
+
+  const insertMention = (name: string) => {
+    const ta = textareaRef.current;
+    const pos = ta?.selectionStart ?? content.length;
+    const before = content.slice(0, pos);
+    const after = content.slice(pos);
+    const newBefore = before.replace(/#([^#\s,]*)$/, `#${name} `);
+    const newContent = newBefore + after;
+    setContent(newContent);
+    setMentionQuery(null);
+    requestAnimationFrame(() => {
+      ta?.focus();
+      ta?.setSelectionRange(newBefore.length, newBefore.length);
+    });
+  };
+
+  const handleContentKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mentionQuery === null || mentionSuggestions.length === 0) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setMentionIdx(i => (i + 1) % mentionSuggestions.length); }
+    if (e.key === "ArrowUp") { e.preventDefault(); setMentionIdx(i => (i - 1 + mentionSuggestions.length) % mentionSuggestions.length); }
+    if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); insertMention(mentionSuggestions[mentionIdx]); }
+    if (e.key === "Escape") { e.preventDefault(); setMentionQuery(null); }
+  };
+
+  // Close mention on outside click
+  useEffect(() => {
+    const handle = () => setMentionQuery(null);
+    if (mentionQuery !== null) {
+      document.addEventListener("click", handle, { once: true });
+      return () => document.removeEventListener("click", handle);
+    }
+  }, [mentionQuery]);
+
+  // ── Helpers: images ──
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
@@ -141,6 +230,7 @@ export default function MerchantJournal() {
     setImageFiles(prev => { URL.revokeObjectURL(prev[idx].preview); return prev.filter((_, i) => i !== idx); });
   };
 
+  // ── Submit ──
   const handleSubmit = async () => {
     if (!content.trim()) { toast.error("請輸入日誌內容"); return; }
     setIsSubmitting(true);
@@ -169,6 +259,10 @@ export default function MerchantJournal() {
       setIsSubmitting(false);
     }
   };
+
+  // ── Toggle filter contact ──
+  const toggleFilterContact = (c: string) =>
+    setFilterContacts(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
 
   if (enabledLoading) {
     return (
@@ -228,15 +322,34 @@ export default function MerchantJournal() {
             />
           </div>
 
-          {/* Content */}
-          <Textarea
-            placeholder="記下今日發生咗什麼⋯（最多 500 字）"
-            value={content}
-            onChange={e => setContent(e.target.value)}
-            maxLength={500}
-            rows={3}
-            className="resize-none text-sm"
-          />
+          {/* Content + # mention */}
+          <div className="relative">
+            <Textarea
+              ref={textareaRef}
+              placeholder="記下今日發生咗什麼⋯（最多 500 字）輸入 # 可標記人物"
+              value={content}
+              onChange={handleContentChange}
+              onKeyDown={handleContentKeyDown}
+              maxLength={500}
+              rows={3}
+              className="resize-none text-sm"
+            />
+            {mentionQuery !== null && mentionSuggestions.length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-1 z-20 rounded-xl border bg-popover shadow-lg overflow-hidden">
+                {mentionSuggestions.map((c, i) => (
+                  <button
+                    key={c}
+                    onMouseDown={e => { e.preventDefault(); insertMention(c); }}
+                    className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 transition-colors ${
+                      i === mentionIdx ? "bg-amber-50 text-amber-700" : "hover:bg-muted"
+                    }`}
+                  >
+                    <User className="w-3 h-3 opacity-50" /> {c}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="text-[11px] text-muted-foreground text-right -mt-1">{content.length}/500</div>
 
           {/* Category tags */}
@@ -259,14 +372,34 @@ export default function MerchantJournal() {
             </div>
           </div>
 
-          {/* Contacts input */}
+          {/* Contacts chip input */}
           <div>
-            <p className="text-[11px] text-muted-foreground mb-1.5 flex items-center gap-1"><User className="w-3 h-3" />相關人物（Enter 或逗號加入）</p>
+            <p className="text-[11px] text-muted-foreground mb-1.5 flex items-center gap-1">
+              <User className="w-3 h-3" />相關人物
+              <span className="text-gray-400">（Enter 加入 · 點擊 chip 修改 · Backspace 修改上一個）</span>
+            </p>
             <div className="flex flex-wrap items-center gap-1.5 min-h-[36px] rounded-lg border border-input bg-background px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-amber-400">
-              {contacts.map(c => (
-                <span key={c} className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-medium">
-                  {c}
-                  <button onClick={() => setContacts(prev => prev.filter(x => x !== c))} className="hover:text-red-500">
+              {contacts.map((c, idx) => (
+                <span
+                  key={idx}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors ${
+                    editingChipIdx === idx
+                      ? "bg-amber-100 text-amber-700 ring-1 ring-amber-400"
+                      : "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                  }`}
+                >
+                  <button
+                    onClick={() => editChip(idx)}
+                    className="hover:underline"
+                    title="點擊修改"
+                  >
+                    {c}
+                  </button>
+                  <button
+                    onClick={() => removeChip(idx)}
+                    className="hover:text-red-500 ml-0.5"
+                    title="移除"
+                  >
                     <X className="w-2.5 h-2.5" />
                   </button>
                 </span>
@@ -277,22 +410,25 @@ export default function MerchantJournal() {
                 value={contactInput}
                 onChange={e => setContactInput(e.target.value)}
                 onKeyDown={handleContactKeyDown}
-                onBlur={addContact}
+                onBlur={() => { if (contactInput.trim()) commitContact(); }}
                 placeholder={contacts.length === 0 ? "輸入人名⋯" : ""}
                 className="flex-1 min-w-[80px] text-xs bg-transparent outline-none placeholder:text-muted-foreground"
               />
             </div>
+            {editingChipIdx !== null && (
+              <p className="text-[10px] text-amber-600 mt-1">正在修改「{contacts[editingChipIdx]}」→ 輸入新名稱後按 Enter 確認，Esc 取消</p>
+            )}
           </div>
 
           {/* Image previews */}
           {imageFiles.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {imageFiles.map((f, i) => (
-                <div key={i} className="relative w-14 h-14">
-                  <img src={f.preview} alt="" className="w-14 h-14 object-cover rounded-lg border" />
+                <div key={i} className="relative w-9 h-9">
+                  <img src={f.preview} alt="" className="w-9 h-9 object-cover rounded-lg border" />
                   <button
                     onClick={() => removeImage(i)}
-                    className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
                   >
                     <X className="w-2.5 h-2.5" />
                   </button>
@@ -335,10 +471,15 @@ export default function MerchantJournal() {
             }`}
           >
             <Filter className="w-3.5 h-3.5" />
-            {hasFilter ? "篩選中" : "篩選"}
+            {hasFilter ? `篩選中${filterContacts.length > 1 ? `（${filterContacts.length} 人）` : ""}` : "篩選"}
             {hasFilter && (
               <button
-                onClick={e => { e.stopPropagation(); setFilterDateFrom(""); setFilterDateTo(""); setFilterTag(""); setFilterContact(""); }}
+                onClick={e => {
+                  e.stopPropagation();
+                  setFilterDateFrom(""); setFilterDateTo("");
+                  setFilterTag(""); setFilterContacts([]);
+                  setFilterContactSearch("");
+                }}
                 className="ml-1 hover:text-red-500"
               >
                 <X className="w-3 h-3" />
@@ -388,17 +529,37 @@ export default function MerchantJournal() {
                 </div>
               </div>
 
-              {/* Contact filter */}
+              {/* Contact multi-select filter */}
               <div>
-                <p className="text-[11px] text-muted-foreground mb-1.5 flex items-center gap-1"><User className="w-3 h-3" />人物篩選</p>
-                {allContacts.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {allContacts.map(c => (
+                <p className="text-[11px] text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <User className="w-3 h-3" />人物篩選
+                  <span className="text-gray-400">（可多選，符合其中一人即顯示）</span>
+                </p>
+                {filterContacts.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {filterContacts.map(c => (
+                      <span key={c} className="inline-flex items-center gap-1 bg-indigo-500 text-white px-2 py-0.5 rounded-full text-[10px] font-medium">
+                        {c}
+                        <button onClick={() => toggleFilterContact(c)} className="hover:opacity-70"><X className="w-2 h-2" /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <Input
+                  type="text"
+                  placeholder="搜尋人物名⋯"
+                  value={filterContactSearch}
+                  onChange={e => setFilterContactSearch(e.target.value)}
+                  className="h-8 text-xs mb-2"
+                />
+                {visibleFilterContacts.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {visibleFilterContacts.map(c => (
                       <button
                         key={c}
-                        onClick={() => setFilterContact(filterContact === c ? "" : c)}
+                        onClick={() => toggleFilterContact(c)}
                         className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                          filterContact === c
+                          filterContacts.includes(c)
                             ? "bg-indigo-500 text-white border-indigo-500"
                             : "bg-indigo-50 text-indigo-700 border-transparent hover:border-indigo-300"
                         }`}
@@ -407,14 +568,11 @@ export default function MerchantJournal() {
                       </button>
                     ))}
                   </div>
-                ) : null}
-                <Input
-                  type="text"
-                  placeholder="搜尋人物名⋯"
-                  value={filterContact}
-                  onChange={e => setFilterContact(e.target.value)}
-                  className="h-8 text-xs"
-                />
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">
+                    {allContacts.length === 0 ? "暫無人物記錄，新增日誌並標記人物後即可在此篩選" : "找不到匹配的人物"}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -472,8 +630,12 @@ export default function MerchantJournal() {
                     {(entry.contacts as string[]).map(c => (
                       <button
                         key={c}
-                        onClick={() => { setFilterContact(c); setShowFilter(true); }}
+                        onClick={() => {
+                          if (!filterContacts.includes(c)) setFilterContacts(prev => [...prev, c]);
+                          setShowFilter(true);
+                        }}
                         className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full text-[10px] font-medium hover:bg-indigo-100 transition-colors"
+                        title="點擊篩選此人物"
                       >
                         <User className="w-2.5 h-2.5" />{c}
                       </button>
@@ -481,14 +643,14 @@ export default function MerchantJournal() {
                   </div>
                 )}
 
-                {/* Images */}
+                {/* Images — 3/5 original size (w-9 h-9 ≈ 34px) */}
                 {(entry.images ?? []).length > 0 && (
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {(entry.images as string[]).map((url, i) => (
                       <button
                         key={i}
                         onClick={() => setExpandedImage(url)}
-                        className="w-14 h-14 rounded-lg overflow-hidden border hover:opacity-80 transition-opacity"
+                        className="w-9 h-9 rounded-lg overflow-hidden border hover:opacity-80 transition-opacity"
                       >
                         <img src={url} alt="" className="w-full h-full object-cover" />
                       </button>
@@ -496,7 +658,7 @@ export default function MerchantJournal() {
                   </div>
                 )}
 
-                {/* Created-at footnote (if different from entryAt) */}
+                {/* Created-at footnote */}
                 {entry.entryAt && new Date(entry.entryAt).getTime() !== new Date(entry.createdAt).getTime() && (
                   <p className="text-[10px] text-gray-300">記錄於 {fmtDateOnly(entry.createdAt)}</p>
                 )}
