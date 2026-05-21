@@ -181,6 +181,7 @@ interface AuctionFormData {
   extendMinutes: number;
   categories: string[];
   videoUrl: string;
+  privateNote: string;
 }
 
 const MAX_VIDEO_SIZE = 30 * 1024 * 1024;
@@ -197,6 +198,7 @@ const defaultForm: AuctionFormData = {
   extendMinutes: 3,
   categories: [],
   videoUrl: "",
+  privateNote: "",
 };
 
 type AuctionItem = {
@@ -215,6 +217,7 @@ type AuctionItem = {
   antiSnipeMinutes?: number | null;
   extendMinutes?: number | null;
   category?: string | null;
+  privateNote?: string | null;
   images: Array<{ id?: number; imageUrl: string; displayOrder: number }>;
 };
 
@@ -339,149 +342,162 @@ function AuctionCard({
   const [broadcastOpen, setBroadcastOpen] = useState(false);
 
   return (
-    <div className={`flex gap-2 p-2 rounded-lg border transition-colors ${isDraft && selected ? "border-amber-400 bg-amber-50/60" : "bg-card hover:bg-accent/5"}`}>
-      {/* Checkbox（只在草稿 tab 顯示） */}
-      {isDraft && onToggleSelect && (
-        <div className="flex items-center flex-shrink-0">
-          <Checkbox
-            checked={selected ?? false}
-            onCheckedChange={() => onToggleSelect(auction.id)}
-            className="border-amber-400 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
-          />
-        </div>
-      )}
+    <div className={`rounded-lg border transition-colors ${isDraft && selected ? "border-amber-400 bg-amber-50/60" : "bg-card hover:bg-accent/5"}`}>
 
-      <div className="w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
-        {img ? (
-          <img src={img} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <ImageIcon className="w-5 h-5 text-muted-foreground/40" />
+      {/* ① 商品名稱 18px — 獨立一行，圖片上方 */}
+      <div className="flex items-start gap-2 px-2 pt-2 pb-1">
+        {isDraft && onToggleSelect && (
+          <div className="flex items-center flex-shrink-0 pt-0.5">
+            <Checkbox
+              checked={selected ?? false}
+              onCheckedChange={() => onToggleSelect(auction.id)}
+              className="border-amber-400 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+            />
           </div>
         )}
+        <Link href={`/auctions/${auction.id}`}>
+          <a className="text-[18px] font-bold leading-snug text-amber-700 hover:underline line-clamp-1">{auction.title}</a>
+        </Link>
       </div>
 
-      <div className="flex-1 min-w-0">
-        <Link href={`/auctions/${auction.id}`}>
-          <a className="font-medium text-sm truncate leading-snug block text-amber-700 hover:underline">{auction.title}</a>
-        </Link>
-        {tab === "進行中" && (
-          <p className="text-xs mt-0.5 leading-snug">
-            <span className="text-gray-400">最高：</span>
-            {auction.highestBidderName ? (
-              <>
-                <span className="font-semibold text-amber-700">{getCurrencySymbol(auction.currency ?? "HKD")}{Number(auction.currentPrice).toLocaleString()}</span>
-                <span className="text-gray-500"> · {auction.highestBidderName}</span>
-              </>
-            ) : (
-              <span className="text-gray-400">未有出價</span>
+      {/* ② 圖片 + 右側資訊 */}
+      <div className="flex gap-2 px-2 pb-1">
+        <div className="w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
+          {img ? (
+            <img src={img} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <ImageIcon className="w-5 h-5 text-muted-foreground/40" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0 pt-0.5 space-y-0.5">
+          {tab === "進行中" && (
+            <p className="text-xs leading-snug">
+              <span className="text-gray-400">最高：</span>
+              {(auction as any).highestBidderName ? (
+                <>
+                  <span className="font-semibold text-amber-700">{getCurrencySymbol(auction.currency ?? "HKD")}{Number(auction.currentPrice).toLocaleString()}</span>
+                  <span className="text-gray-500"> · {(auction as any).highestBidderName}</span>
+                </>
+              ) : (
+                <span className="text-gray-400">未有出價</span>
+              )}
+            </p>
+          )}
+          {tab === "已結束" && (
+            <p className="text-xs leading-snug">
+              <span className="font-medium text-gray-500">流拍 · 無人出價</span>
+            </p>
+          )}
+          {/* 起：HK$0 · 口：$30🛡️3+1分 — 不改動 */}
+          <p className="text-xs text-muted-foreground leading-snug">
+            起：{getCurrencySymbol(auction.currency ?? "HKD")}{Number(auction.startingPrice).toLocaleString()}
+            {" · "}口：${auction.bidIncrement ?? 30}
+            {tab === "草稿" && (
+              (auction.antiSnipeEnabled ?? 1) === 1
+                ? <span className="ml-1 text-amber-500">🛡️{auction.antiSnipeMinutes ?? 3}+{auction.extendMinutes ?? 3}分</span>
+                : <span className="ml-1 text-gray-400">🛡️停用</span>
             )}
           </p>
-        )}
-        {tab === "已結束" && (
-          <p className="text-xs mt-0.5 leading-snug">
-            <span className="font-medium text-gray-500">流拍 · 無人出價</span>
-          </p>
-        )}
-        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-          起：{getCurrencySymbol(auction.currency ?? "HKD")}{Number(auction.startingPrice).toLocaleString()}
-          {" · "}口：${auction.bidIncrement ?? 30}
-          {tab === "草稿" && (
-            (auction.antiSnipeEnabled ?? 1) === 1
-              ? <span className="ml-1 text-amber-500">🛡️{auction.antiSnipeMinutes ?? 3}+{auction.extendMinutes ?? 3}分</span>
-              : <span className="ml-1 text-gray-400">🛡️停用</span>
+          {auction.endTime && tab !== "草稿" && (
+            <p className="text-xs text-muted-foreground leading-snug">
+              {tab === "進行中" ? "結：" : "標："}
+              {formatDate(auction.endTime)}
+            </p>
           )}
-        </p>
-        {auction.endTime && tab !== "草稿" && (
-          <p className="text-xs text-muted-foreground leading-snug">
-            {tab === "進行中" ? "結：" : "標："}
-            {formatDate(auction.endTime)}
-          </p>
-        )}
-        <div className="flex gap-1 mt-1 flex-nowrap">
-          {tab === "草稿" && (
-            <>
-              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5" onClick={() => onEdit(auction)}>
-                <Pencil className="w-2.5 h-2.5" />編輯
-              </Button>
-              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-green-300 text-green-700 hover:bg-green-50" onClick={() => onPublish(auction)}>
-                <Send className="w-2.5 h-2.5" />發佈
-              </Button>
-              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-blue-200 text-blue-600 hover:bg-blue-50" onClick={() => onDuplicate?.(auction.id)}>
-                <Copy className="w-2.5 h-2.5" />複製
-              </Button>
-              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-red-200 text-red-600 hover:bg-red-50" onClick={() => onDelete(auction.id, auction.title)}>
-                <Trash2 className="w-2.5 h-2.5" />刪除
-              </Button>
-            </>
+          {/* 圖片右邊第二行: 私人備註 */}
+          {auction.privateNote && (
+            <p className="text-xs text-muted-foreground leading-snug">{auction.privateNote}</p>
           )}
-          {tab === "進行中" && (
-            <>
-              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5" onClick={() => onActiveEdit(auction)}>
-                <Pencil className="w-2.5 h-2.5" />修改
-              </Button>
+        </div>
+      </div>
+
+      {/* ③ 按鈕 — 圖片下方，向右對齊 */}
+      <div className="flex gap-1 justify-end flex-wrap px-2 pb-2">
+        {tab === "草稿" && (
+          <>
+            <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-red-200 text-red-600 hover:bg-red-50" onClick={() => onDelete(auction.id, auction.title)}>
+              <Trash2 className="w-2.5 h-2.5" />拆除
+            </Button>
+            <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5" onClick={() => onEdit(auction)}>
+              <Pencil className="w-2.5 h-2.5" />編輯
+            </Button>
+            <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-green-300 text-green-700 hover:bg-green-50" onClick={() => onPublish(auction)}>
+              <Send className="w-2.5 h-2.5" />發佈
+            </Button>
+            <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-blue-200 text-blue-600 hover:bg-blue-50" onClick={() => onDuplicate?.(auction.id)}>
+              <Copy className="w-2.5 h-2.5" />複製
+            </Button>
+          </>
+        )}
+        {tab === "進行中" && (
+          <>
+            <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5" onClick={() => onActiveEdit(auction)}>
+              <Pencil className="w-2.5 h-2.5" />修改
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 px-1.5 text-xs gap-0.5 border-amber-300 text-amber-700 hover:bg-amber-50"
+              title="向所有曾出價買家發送訊息（每小時 1 次）"
+              onClick={() => setBroadcastOpen(true)}
+            >
+              <Megaphone className="w-2.5 h-2.5" />廣播
+            </Button>
+            {fbRefreshEnabled && (
               <Button
                 size="sm"
                 variant="outline"
-                className="h-6 px-1.5 text-xs gap-0.5 border-amber-300 text-amber-700 hover:bg-amber-50"
-                title="向所有曾出價買家發送訊息（每小時 1 次）"
-                onClick={() => setBroadcastOpen(true)}
+                className="h-6 px-1.5 text-xs gap-0.5 border-blue-300 text-blue-700 hover:bg-blue-50"
+                title="開 FB Sharing Debugger 強制重新抓取 OG meta（每次去 FB 群組分享前撳一下，最多撳 2-3 次直至顯示正確圖+標題）"
+                onClick={() => {
+                  const url = `https://share.hongxcollections.com/auctions/${auction.id}`;
+                  window.open(`https://developers.facebook.com/tools/debug/?q=${encodeURIComponent(url)}`, "_blank", "noopener");
+                }}
               >
-                <Megaphone className="w-2.5 h-2.5" />廣播
+                <RotateCcw className="w-2.5 h-2.5" />FB 預覽
               </Button>
-              {fbRefreshEnabled && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-6 px-1.5 text-xs gap-0.5 border-blue-300 text-blue-700 hover:bg-blue-50"
-                  title="開 FB Sharing Debugger 強制重新抓取 OG meta（每次去 FB 群組分享前撳一下，最多撳 2-3 次直至顯示正確圖+標題）"
-                  onClick={() => {
-                    const url = `https://share.hongxcollections.com/auctions/${auction.id}`;
-                    window.open(`https://developers.facebook.com/tools/debug/?q=${encodeURIComponent(url)}`, "_blank", "noopener");
-                  }}
-                >
-                  <RotateCcw className="w-2.5 h-2.5" />FB 預覽
-                </Button>
-              )}
-              {Number((auction as { bidCount?: number }).bidCount ?? 1) === 0 && onActiveDelete && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-6 px-1.5 text-xs gap-0.5 border-red-200 text-red-600 hover:bg-red-50"
-                  onClick={() => onActiveDelete(auction.id, auction.title)}
-                >
-                  <Trash2 className="w-2.5 h-2.5" />刪除
-                </Button>
-              )}
-            </>
-          )}
-          {tab === "已結束" && (
-            <>
-              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => onRelist(auction.id)}>
-                <RotateCcw className="w-2.5 h-2.5" />重新刊登
+            )}
+            {Number((auction as { bidCount?: number }).bidCount ?? 1) === 0 && onActiveDelete && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 px-1.5 text-xs gap-0.5 border-red-200 text-red-600 hover:bg-red-50"
+                onClick={() => onActiveDelete(auction.id, auction.title)}
+              >
+                <Trash2 className="w-2.5 h-2.5" />刪除
               </Button>
-              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-gray-300 text-gray-600 hover:bg-gray-50" onClick={() => onArchive(auction.id)}>
-                <Archive className="w-2.5 h-2.5" />封存
+            )}
+          </>
+        )}
+        {tab === "已結束" && (
+          <>
+            <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => onRelist(auction.id)}>
+              <RotateCcw className="w-2.5 h-2.5" />重新刊登
+            </Button>
+            <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-gray-300 text-gray-600 hover:bg-gray-50" onClick={() => onArchive(auction.id)}>
+              <Archive className="w-2.5 h-2.5" />封存
+            </Button>
+          </>
+        )}
+        {tab === "封存" && (
+          <>
+            <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-amber-200 text-amber-700 hover:bg-amber-50" onClick={() => onRestore(auction.id)}>
+              <RotateCcw className="w-2.5 h-2.5" />取消封存
+            </Button>
+            <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => onRelist(auction.id)}>
+              <RotateCcw className="w-2.5 h-2.5" />重刊
+            </Button>
+            {!auction.highestBidderId && onPermanentDelete && (
+              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-red-300 text-red-600 hover:bg-red-50" onClick={() => onPermanentDelete(auction.id, auction.title)}>
+                <Trash2 className="w-2.5 h-2.5" />永久刪除
               </Button>
-            </>
-          )}
-          {tab === "封存" && (
-            <>
-              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-amber-200 text-amber-700 hover:bg-amber-50" onClick={() => onRestore(auction.id)}>
-                <RotateCcw className="w-2.5 h-2.5" />取消封存
-              </Button>
-              <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => onRelist(auction.id)}>
-                <RotateCcw className="w-2.5 h-2.5" />重刊
-              </Button>
-              {!auction.highestBidderId && onPermanentDelete && (
-                <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-red-300 text-red-600 hover:bg-red-50" onClick={() => onPermanentDelete(auction.id, auction.title)}>
-                  <Trash2 className="w-2.5 h-2.5" />永久刪除
-                </Button>
-              )}
-            </>
-          )}
-        </div>
+            )}
+          </>
+        )}
       </div>
+
       {broadcastOpen && (
         <MerchantBroadcastDialog
           open={broadcastOpen}
@@ -898,6 +914,7 @@ export default function MerchantAuctions() {
         return a.category.trim() ? [a.category.trim()] : [];
       })(),
       videoUrl: (a as { videoUrl?: string | null }).videoUrl ?? "",
+      privateNote: a.privateNote ?? "",
     });
     setUploadedImages((a.images ?? []).map((img) => ({ url: img.imageUrl, displayOrder: img.displayOrder, imageId: img.id })));
     setPendingImages([]);
@@ -1001,10 +1018,11 @@ export default function MerchantAuctions() {
       }
     }
 
+    const privateNote = form.privateNote.trim() || null;
     if (editId) {
-      updateMutation.mutate({ id: editId, title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, category, videoUrl: form.videoUrl || null });
+      updateMutation.mutate({ id: editId, title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, category, videoUrl: form.videoUrl || null, privateNote });
     } else {
-      createMutation.mutate({ title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, category, videoUrl: form.videoUrl || null });
+      createMutation.mutate({ title: form.title, description: form.description, startingPrice: parseFloat(form.startingPrice), bidIncrement: form.bidIncrement, currency: form.currency as never, antiSnipeEnabled, antiSnipeMinutes, extendMinutes, category, videoUrl: form.videoUrl || null, privateNote });
     }
   };
 
@@ -1359,6 +1377,18 @@ export default function MerchantAuctions() {
             <div>
               <Label>描述</Label>
               <Textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="詳細描述…" rows={3} />
+            </div>
+            <div>
+              <Label>私人備註（只有你能看到，買家不可見）</Label>
+              <Textarea
+                value={form.privateNote}
+                onChange={e => setForm(f => ({ ...f, privateNote: e.target.value }))}
+                placeholder="內部備註，不會顯示給買家…"
+                className="min-h-[60px] text-xs"
+              />
+              {form.privateNote.length > 0 && (
+                <p className="text-[10px] text-gray-400 text-right mt-0.5">{form.privateNote.length}/500</p>
+              )}
             </div>
             <div>
               <div className="flex items-center gap-1.5 mb-1.5">

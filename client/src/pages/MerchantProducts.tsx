@@ -1598,7 +1598,7 @@ export default function MerchantProducts() {
                         </div>
                         {/* 右邊第二行: 私人備註 (如有) */}
                         {(p as any).privateNote && (
-                          <p className="text-[10px] text-gray-400 leading-snug line-clamp-2">{(p as any).privateNote}</p>
+                          <p className="text-xs text-gray-400 leading-snug">{(p as any).privateNote}</p>
                         )}
                         {/* 主打/排隊狀態 */}
                         {isActive && isFeatured && (

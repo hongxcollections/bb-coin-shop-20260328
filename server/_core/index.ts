@@ -635,6 +635,10 @@ async function bootstrapMissingColumns() {
     await alter(`ALTER TABLE \`auctions\` ADD COLUMN \`auctionOrderFinalPrice\` DECIMAL(12,2) NULL`,
       'Added auctionOrderFinalPrice to auctions');
   }
+  if (!(await check('auctions', 'privateNote'))) {
+    await alter(`ALTER TABLE \`auctions\` ADD COLUMN \`privateNote\` TEXT NULL`,
+      'Added privateNote to auctions');
+  }
   // 🔴 Backfill：之前 cron 只 end 咗 session 而冇 end 場內個別 auction，導致商戶後台拍賣訂單見唔到記錄
   // 修復：所有屬於 ended session 嘅 active auction 連帶 mark 'ended'
   try {

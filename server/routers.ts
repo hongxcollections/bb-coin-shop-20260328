@@ -2813,6 +2813,7 @@ export const appRouter = router({
         extendMinutes: z.number().int().min(1).max(60).default(3),
         category: z.string().optional(),
         videoUrl: z.string().max(500).nullable().optional(),
+        privateNote: z.string().max(500).nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         // 停權檢查
@@ -2838,6 +2839,7 @@ export const appRouter = router({
           extendMinutes: input.extendMinutes,
           category: input.category,
           videoUrl: input.videoUrl ?? null,
+          privateNote: input.privateNote ?? null,
         });
         return result;
       }),
@@ -2955,6 +2957,7 @@ export const appRouter = router({
         extendMinutes: z.number().int().min(1).max(60).optional(),
         category: z.string().optional(),
         videoUrl: z.string().max(500).nullable().optional(),
+        privateNote: z.string().max(500).nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const auction = await getAuctionById(input.id);
@@ -2979,6 +2982,7 @@ export const appRouter = router({
         if (input.extendMinutes !== undefined) updateData.extendMinutes = input.extendMinutes;
         if (input.category !== undefined) updateData.category = input.category;
         if (input.videoUrl !== undefined) updateData.videoUrl = input.videoUrl;
+        if (input.privateNote !== undefined) updateData.privateNote = input.privateNote;
         await updateAuction(input.id, updateData);
         return { success: true };
       }),
