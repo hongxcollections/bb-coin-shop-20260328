@@ -9207,19 +9207,24 @@ EXAMPLE OUTPUT (exact format):
   // ── 商戶日誌 ─────────────────────────────────────────────────────────────────
   merchantJournal: router({
     isEnabled: protectedProcedure.query(async ({ ctx }) => {
-      const [rows]: any = await db.execute(sql`SELECT journalEnabled FROM merchantApplications WHERE userId = ${ctx.user.id} AND status = 'approved' LIMIT 1`);
+      const pool = await getRawPool();
+      const [rows]: any = await pool.execute(
+        'SELECT journalEnabled FROM merchantApplications WHERE userId = ? AND status = ? LIMIT 1',
+        [ctx.user.id, 'approved']
+      );
       return { enabled: Array.isArray(rows) && rows.length > 0 ? Number(rows[0].journalEnabled) === 1 : false };
     }),
 
     adminList: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
-      const [rows]: any = await db.execute(sql`
-        SELECT ma.userId, u.name, u.email, u.phone, ma.journalEnabled
-        FROM merchantApplications ma
-        JOIN users u ON u.id = ma.userId
-        WHERE ma.status = 'approved'
-        ORDER BY u.name ASC
-      `);
+      const pool = await getRawPool();
+      const [rows]: any = await pool.execute(
+        `SELECT ma.userId, u.name, u.email, u.phone, ma.journalEnabled
+         FROM merchantApplications ma
+         JOIN users u ON u.id = ma.userId
+         WHERE ma.status = 'approved'
+         ORDER BY u.name ASC`
+      );
       return (Array.isArray(rows) ? rows : []).map((r: any) => ({
         userId: Number(r.userId),
         name: String(r.name ?? ''),
@@ -9233,25 +9238,34 @@ EXAMPLE OUTPUT (exact format):
       .input(z.object({ userId: z.number().int().positive(), enabled: z.boolean() }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user.role !== 'admin') throw new TRPCError({ code: 'FORBIDDEN' });
-        await db.execute(sql`UPDATE merchantApplications SET journalEnabled = ${input.enabled ? 1 : 0} WHERE userId = ${input.userId} AND status = 'approved'`);
+        const pool = await getRawPool();
+        await pool.execute(
+          "UPDATE merchantApplications SET journalEnabled = ? WHERE userId = ? AND status = 'approved'",
+          [input.enabled ? 1 : 0, input.userId]
+        );
         return { success: true };
       }),
 
     list: protectedProcedure.query(async ({ ctx }) => {
-      const [appRows]: any = await db.execute(sql`SELECT journalEnabled FROM merchantApplications WHERE userId = ${ctx.user.id} AND status = 'approved' LIMIT 1`);
+      const pool = await getRawPool();
+      const [appRows]: any = await pool.execute(
+        "SELECT journalEnabled FROM merchantApplications WHERE userId = ? AND status = 'approved' LIMIT 1",
+        [ctx.user.id]
+      );
       if (!Array.isArray(appRows) || appRows.length === 0 || Number(appRows[0].journalEnabled) !== 1) {
         throw new TRPCError({ code: 'FORBIDDEN', message: '日誌功能未開通' });
       }
-      const [rows]: any = await db.execute(sql`
-        SELECT mj.id, mj.content, mj.tags, mj.createdAt,
-               GROUP_CONCAT(mji.imageUrl ORDER BY mji.displayOrder SEPARATOR '|||') as images
-        FROM merchantJournals mj
-        LEFT JOIN merchantJournalImages mji ON mji.journalId = mj.id
-        WHERE mj.merchantUserId = ${ctx.user.id}
-        GROUP BY mj.id
-        ORDER BY mj.createdAt DESC
-        LIMIT 200
-      `);
+      const [rows]: any = await pool.execute(
+        `SELECT mj.id, mj.content, mj.tags, mj.createdAt,
+                GROUP_CONCAT(mji.imageUrl ORDER BY mji.displayOrder SEPARATOR '|||') as images
+         FROM merchantJournals mj
+         LEFT JOIN merchantJournalImages mji ON mji.journalId = mj.id
+         WHERE mj.merchantUserId = ?
+         GROUP BY mj.id
+         ORDER BY mj.createdAt DESC
+         LIMIT 200`,
+        [ctx.user.id]
+      );
       return (Array.isArray(rows) ? rows : []).map((j: any) => ({
         id: Number(j.id),
         content: String(j.content ?? ''),
@@ -9268,15 +9282,25 @@ EXAMPLE OUTPUT (exact format):
         imageUrls: z.array(z.string().url()).max(5).default([]),
       }))
       .mutation(async ({ input, ctx }) => {
-        const [appRows]: any = await db.execute(sql`SELECT journalEnabled FROM merchantApplications WHERE userId = ${ctx.user.id} AND status = 'approved' LIMIT 1`);
+        const pool = await getRawPool();
+        const [appRows]: any = await pool.execute(
+          "SELECT journalEnabled FROM merchantApplications WHERE userId = ? AND status = 'approved' LIMIT 1",
+          [ctx.user.id]
+        );
         if (!Array.isArray(appRows) || appRows.length === 0 || Number(appRows[0].journalEnabled) !== 1) {
           throw new TRPCError({ code: 'FORBIDDEN', message: '日誌功能未開通' });
         }
         const tagsStr = input.tags.join(',');
-        const [result]: any = await db.execute(sql`INSERT INTO merchantJournals (merchantUserId, content, tags) VALUES (${ctx.user.id}, ${input.content}, ${tagsStr})`);
+        const [result]: any = await pool.execute(
+          'INSERT INTO merchantJournals (merchantUserId, content, tags) VALUES (?, ?, ?)',
+          [ctx.user.id, input.content, tagsStr]
+        );
         const journalId = result.insertId;
         for (let i = 0; i < input.imageUrls.length; i++) {
-          await db.execute(sql`INSERT INTO merchantJournalImages (journalId, imageUrl, displayOrder) VALUES (${journalId}, ${input.imageUrls[i]}, ${i})`);
+          await pool.execute(
+            'INSERT INTO merchantJournalImages (journalId, imageUrl, displayOrder) VALUES (?, ?, ?)',
+            [journalId, input.imageUrls[i], i]
+          );
         }
         return { success: true, id: journalId };
       }),
@@ -9284,10 +9308,14 @@ EXAMPLE OUTPUT (exact format):
     delete: protectedProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
-        const [rows]: any = await db.execute(sql`SELECT id FROM merchantJournals WHERE id = ${input.id} AND merchantUserId = ${ctx.user.id} LIMIT 1`);
+        const pool = await getRawPool();
+        const [rows]: any = await pool.execute(
+          'SELECT id FROM merchantJournals WHERE id = ? AND merchantUserId = ? LIMIT 1',
+          [input.id, ctx.user.id]
+        );
         if (!Array.isArray(rows) || rows.length === 0) throw new TRPCError({ code: 'NOT_FOUND' });
-        await db.execute(sql`DELETE FROM merchantJournalImages WHERE journalId = ${input.id}`);
-        await db.execute(sql`DELETE FROM merchantJournals WHERE id = ${input.id} AND merchantUserId = ${ctx.user.id}`);
+        await pool.execute('DELETE FROM merchantJournalImages WHERE journalId = ?', [input.id]);
+        await pool.execute('DELETE FROM merchantJournals WHERE id = ? AND merchantUserId = ?', [input.id, ctx.user.id]);
         return { success: true };
       }),
 
@@ -9298,7 +9326,11 @@ EXAMPLE OUTPUT (exact format):
         mimeType: z.string().max(64).default('image/jpeg'),
       }))
       .mutation(async ({ input, ctx }) => {
-        const [appRows]: any = await db.execute(sql`SELECT journalEnabled FROM merchantApplications WHERE userId = ${ctx.user.id} AND status = 'approved' LIMIT 1`);
+        const pool = await getRawPool();
+        const [appRows]: any = await pool.execute(
+          "SELECT journalEnabled FROM merchantApplications WHERE userId = ? AND status = 'approved' LIMIT 1",
+          [ctx.user.id]
+        );
         if (!Array.isArray(appRows) || appRows.length === 0 || Number(appRows[0].journalEnabled) !== 1) {
           throw new TRPCError({ code: 'FORBIDDEN', message: '日誌功能未開通' });
         }
