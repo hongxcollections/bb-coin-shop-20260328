@@ -571,7 +571,7 @@ export default function MerchantAuctions() {
   // Active auction limited edit dialog
   const [activeEditOpen, setActiveEditOpen] = useState(false);
   const [activeEditTarget, setActiveEditTarget] = useState<AuctionItem | null>(null);
-  const [activeEditForm, setActiveEditForm] = useState({ title: "", description: "", categories: [] as string[], videoUrl: "", startingPrice: "", bidIncrement: 30, currency: "HKD" });
+  const [activeEditForm, setActiveEditForm] = useState({ title: "", description: "", privateNote: "", categories: [] as string[], videoUrl: "", startingPrice: "", bidIncrement: 30, currency: "HKD" });
   const activeEditVideoFileRef = useRef<HTMLInputElement>(null);
   const [activeEditUploadingVideo, setActiveEditUploadingVideo] = useState(false);
   const handleActiveEditVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -935,6 +935,7 @@ export default function MerchantAuctions() {
         if (a.category.includes("|")) return a.category.split("|").map(s => s.trim()).filter(Boolean);
         return a.category.trim() ? [a.category.trim()] : [];
       })(),
+      privateNote: (a as any).privateNote ?? "",
       videoUrl: aVideoUrl,
       startingPrice: String(a.startingPrice),
       bidIncrement: a.bidIncrement ?? 30,
@@ -981,6 +982,7 @@ export default function MerchantAuctions() {
       id: activeEditTarget.id,
       title: activeEditForm.title,
       description: activeEditForm.description,
+      privateNote: activeEditForm.privateNote || null,
       category: activeEditForm.categories.join("|"),
       videoUrl: activeEditForm.videoUrl || null,
       ...(hasBids ? {} : {
@@ -2214,6 +2216,22 @@ export default function MerchantAuctions() {
                 onChange={e => setActiveEditForm(f => ({ ...f, description: e.target.value }))}
                 placeholder="商品描述、狀況說明等..."
               />
+            </div>
+            <div>
+              <Label className="text-sm font-medium flex items-center gap-1">
+                商戶私人備註
+                <span className="text-[11px] text-muted-foreground font-normal">（只有你能看到）</span>
+              </Label>
+              <Textarea
+                className="mt-1 min-h-[72px] text-sm resize-none"
+                value={activeEditForm.privateNote}
+                onChange={e => setActiveEditForm(f => ({ ...f, privateNote: e.target.value }))}
+                placeholder="例：代客出售，成本價 $250⋯"
+                maxLength={500}
+              />
+              {activeEditForm.privateNote.length > 0 && (
+                <p className="text-[10px] text-muted-foreground text-right mt-0.5">{activeEditForm.privateNote.length}/500</p>
+              )}
             </div>
             <div>
               <Label className="text-sm font-medium">分類</Label>

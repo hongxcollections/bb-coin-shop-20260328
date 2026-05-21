@@ -2993,6 +2993,7 @@ export const appRouter = router({
         id: z.number().int().positive(),
         title: z.string().min(1).max(255).optional(),
         description: z.string().optional(),
+        privateNote: z.string().max(500).nullable().optional(),
         category: z.string().optional(),
         videoUrl: z.string().nullable().optional(),
         startingPrice: z.number().min(0).optional(),
@@ -3022,6 +3023,7 @@ export const appRouter = router({
         const updateData: Record<string, unknown> = {};
         if (input.title !== undefined) updateData.title = input.title;
         if (input.description !== undefined) updateData.description = input.description;
+        if (input.privateNote !== undefined) updateData.privateNote = input.privateNote;
         if (input.category !== undefined) updateData.category = input.category;
         if (input.videoUrl !== undefined) updateData.videoUrl = input.videoUrl;
         if (input.startingPrice !== undefined) {
