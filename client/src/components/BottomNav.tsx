@@ -370,7 +370,7 @@ export default function BottomNav() {
         >
           <div className="absolute inset-0 bg-black/50" />
           <div
-            className="relative w-full max-w-lg bg-background rounded-t-2xl px-6 pt-5 pb-10 shadow-xl"
+            className="relative w-full max-w-lg bg-background rounded-t-2xl px-6 pt-5 pb-6 mb-16 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Handle bar */}
