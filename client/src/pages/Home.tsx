@@ -258,11 +258,12 @@ function HeroCarousel({ auctions }: { auctions: any[] }) {
 }
 
 // ── 精選商品 Hero 輪播 ──
-function ProductHeroSlide({ product, onBuy }: { product: any; onBuy: (p: any) => void; currentUserId?: number | null }) {
+function ProductHeroSlide({ product, onBuy, currentUserId }: { product: any; onBuy: (p: any) => void; currentUserId?: number | null }) {
   const imgs = parseProductImages(product.images);
   const thumb = imgs[0] ?? null;
   const currSymbol = getCurrencySymbol(product.currency ?? "HKD");
   const price = parseFloat(product.price ?? "0");
+  const isMerchantOwn = currentUserId != null && product.merchantId === currentUserId;
 
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden group">
@@ -294,7 +295,7 @@ function ProductHeroSlide({ product, onBuy }: { product: any; onBuy: (p: any) =>
           {price === 0 ? "查詢格價" : `${currSymbol}${price.toLocaleString()}`}
         </p>
         <div className="flex items-end justify-end gap-2">
-          {price === 0 ? (
+          {!isMerchantOwn && (price === 0 ? (
             <Link
               href={`/merchant-products/${product.id}`}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold text-white shadow-lg transition-transform group-hover:scale-105"
@@ -310,7 +311,7 @@ function ProductHeroSlide({ product, onBuy }: { product: any; onBuy: (p: any) =>
             >
               <ShoppingCart className="w-3.5 h-3.5" />立即落單
             </button>
-          )}
+          ))}
           <Link
             href={`/merchant-products/${product.id}`}
             className="flex items-center gap-1 px-3 py-2 rounded-full text-sm font-bold text-white/90 bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-sm"
@@ -709,7 +710,7 @@ function FeaturedProductSideCard({ products, onBuy, currentUserId }: { products:
             {price === 0 ? "查詢格價" : `${curr}${price.toLocaleString()}`}
           </p>
           <div className="flex items-center justify-end gap-1">
-            {price === 0 ? (
+            {currentUserId == null || product?.merchantId !== currentUserId ? (price === 0 ? (
               <Link
                 href={`/merchant-products/${product.id}`}
                 onClick={e => e.stopPropagation()}
@@ -726,7 +727,7 @@ function FeaturedProductSideCard({ products, onBuy, currentUserId }: { products:
               >
                 <ShoppingCart className="w-2.5 h-2.5" />落單
               </button>
-            )}
+            )) : null}
             <Link
               href={`/merchant-products/${product.id}`}
               onClick={e => e.stopPropagation()}
