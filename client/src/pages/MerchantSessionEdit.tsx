@@ -765,12 +765,13 @@ export default function MerchantSessionEdit() {
                 <div key={it.id} className="bg-white border border-amber-100 rounded-xl overflow-hidden">
                   {/* ① 商品名稱 18px 左 + 狀態 badge 右 */}
                   <div className="flex items-center gap-2 px-3 pt-3 pb-1">
-                    <Link href={`/auctions/${a.id}`}>
-                      <a className="text-[18px] font-bold text-amber-900 hover:underline leading-snug line-clamp-1 flex-1">{a.title}</a>
+                    <Link href={`/auctions/${a.id}`} className="flex-1 min-w-0">
+                      <a className="text-[18px] font-bold text-amber-900 hover:underline leading-snug line-clamp-1 block">{a.title}</a>
                     </Link>
-                    <span className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${sl.cls}`}>{sl.txt}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${sl.cls}`}>{sl.txt}</span>
                     {!isLocked && (
-                      <Button size="sm" variant="ghost" className="text-rose-600 shrink-0 h-6 w-6 p-0"
+                      <Button size="sm" variant="ghost" className="text-rose-600 h-6 w-6 p-0"
                         onClick={async () => {
                         // 已有人出價 → 直接拒絕拆除
                         if (a.highestBidderId) {
@@ -792,7 +793,8 @@ export default function MerchantSessionEdit() {
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   )}
-                </div>
+                    </div>
+                  </div>
 
                 {/* ② 圖片 + 右側資訊 */}
                 <div className="flex gap-3 px-3 pb-3">

@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { MapPin, Mail, MessageCircle, Clock, Shield, Star } from "lucide-react";
+import { MapPin, Mail, MessageCircle, Clock, Shield, Star, FileText } from "lucide-react";
 
 export default function About() {
   return (
@@ -73,6 +73,10 @@ export default function About() {
               <li className="flex items-center gap-3">
                 <Clock className="w-4 h-4 text-amber-500 shrink-0" />
                 <span>服務時間：星期一至六 11:00–20:00（香港時間）</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <FileText className="w-4 h-4 text-amber-500 shrink-0" />
+                <span>商業登記號碼：56630138-000-10-25-A</span>
               </li>
             </ul>
           </section>
