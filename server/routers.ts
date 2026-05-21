@@ -3098,9 +3098,6 @@ export const appRouter = router({
         if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '只能複製自己的草稿' });
         }
-        if (auction.status !== 'draft') {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: '只可複製草稿狀態的拍賣' });
-        }
         const suffix = '[複製]';
         const maxBase = 255 - suffix.length;
         const newTitle = auction.title.length <= maxBase

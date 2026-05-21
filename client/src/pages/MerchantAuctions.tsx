@@ -436,8 +436,21 @@ function AuctionCard({
         )}
         {tab === "進行中" && (
           <>
+            {Number((auction as { bidCount?: number }).bidCount ?? 1) === 0 && onActiveDelete && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 px-1.5 text-xs gap-0.5 border-red-200 text-red-600 hover:bg-red-50"
+                onClick={() => onActiveDelete(auction.id, auction.title)}
+              >
+                <Trash2 className="w-2.5 h-2.5" />拆除
+              </Button>
+            )}
             <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5" onClick={() => onActiveEdit(auction)}>
               <Pencil className="w-2.5 h-2.5" />修改
+            </Button>
+            <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-blue-200 text-blue-600 hover:bg-blue-50" onClick={() => onDuplicate?.(auction.id)}>
+              <Copy className="w-2.5 h-2.5" />複製
             </Button>
             <Button
               size="sm"
@@ -460,16 +473,6 @@ function AuctionCard({
                 }}
               >
                 <RotateCcw className="w-2.5 h-2.5" />FB 預覽
-              </Button>
-            )}
-            {Number((auction as { bidCount?: number }).bidCount ?? 1) === 0 && onActiveDelete && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-6 px-1.5 text-xs gap-0.5 border-red-200 text-red-600 hover:bg-red-50"
-                onClick={() => onActiveDelete(auction.id, auction.title)}
-              >
-                <Trash2 className="w-2.5 h-2.5" />刪除
               </Button>
             )}
           </>
