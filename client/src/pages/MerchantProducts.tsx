@@ -1604,7 +1604,7 @@ export default function MerchantProducts() {
                         )}
                         {/* 私人備註 (如有) */}
                         {(p as any).privateNote && (
-                          <p className="text-xs text-gray-400 leading-snug whitespace-pre-wrap">{(p as any).privateNote}</p>
+                          <p className="text-xs text-gray-400 leading-snug whitespace-pre-wrap"><span className="text-[8px] text-red-500 font-medium mr-0.5">[備註]</span>{(p as any).privateNote}</p>
                         )}
                         {/* 主打/排隊狀態 */}
                         {isActive && isFeatured && (

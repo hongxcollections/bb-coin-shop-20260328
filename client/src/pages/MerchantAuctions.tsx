@@ -411,7 +411,7 @@ function AuctionCard({
           )}
           {/* 圖片右邊第二行: 私人備註 */}
           {auction.privateNote && (
-            <p className="text-xs text-muted-foreground leading-snug whitespace-pre-wrap">{auction.privateNote}</p>
+            <p className="text-xs text-muted-foreground leading-snug whitespace-pre-wrap"><span className="text-[8px] text-red-500 font-medium mr-0.5">[備註]</span>{auction.privateNote}</p>
           )}
         </div>
       </div>
