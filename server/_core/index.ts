@@ -933,6 +933,14 @@ async function bootstrapMissingColumns() {
   await addIndex('idx_merchantJournalImages_journalId', 'CREATE INDEX `idx_merchantJournalImages_journalId` ON `merchantJournalImages` (`journalId`)');
   await alter("ALTER TABLE `merchantJournals` ADD COLUMN `entryAt` datetime NULL", "Ensured merchantJournals.entryAt column");
   await alter("ALTER TABLE `merchantJournals` ADD COLUMN `contacts` varchar(500) NULL", "Ensured merchantJournals.contacts column");
+  await check(`CREATE TABLE IF NOT EXISTS \`merchantJournalContacts\` (
+    \`id\` int NOT NULL AUTO_INCREMENT,
+    \`merchantUserId\` int NOT NULL,
+    \`name\` varchar(100) NOT NULL,
+    \`createdAt\` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY \`uq_mjc_merchant_name\` (\`merchantUserId\`, \`name\`),
+    PRIMARY KEY (\`id\`)
+  )`, 'Ensured merchantJournalContacts table');
 
   // ── One-time data fix: archive 重複嘅原件 ──────────────────────────────────
   // relistAuction 舊邏輯冇 archive 原件，造成 eligible list 重複出現同款商品。

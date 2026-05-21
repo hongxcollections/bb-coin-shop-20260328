@@ -9308,6 +9308,15 @@ EXAMPLE OUTPUT (exact format):
             [journalId, input.imageUrls[i], i]
           );
         }
+        // Sync new contacts into the global contact book
+        for (const name of input.contacts) {
+          try {
+            await pool.execute(
+              'INSERT IGNORE INTO merchantJournalContacts (merchantUserId, name) VALUES (?, ?)',
+              [ctx.user.id, name]
+            );
+          } catch { /* ignore duplicate */ }
+        }
         return { success: true, id: journalId };
       }),
 
@@ -9323,6 +9332,72 @@ EXAMPLE OUTPUT (exact format):
         await pool.execute('DELETE FROM merchantJournalImages WHERE journalId = ?', [input.id]);
         await pool.execute('DELETE FROM merchantJournals WHERE id = ? AND merchantUserId = ?', [input.id, ctx.user.id]);
         return { success: true };
+      }),
+
+    listContacts: protectedProcedure.query(async ({ ctx }) => {
+      const pool = await getRawPool();
+      const [rows]: any = await pool.execute(
+        'SELECT id, name FROM merchantJournalContacts WHERE merchantUserId = ? ORDER BY name ASC',
+        [ctx.user.id]
+      );
+      return (Array.isArray(rows) ? rows : []).map((r: any) => ({ id: Number(r.id), name: String(r.name) }));
+    }),
+
+    addContact: protectedProcedure
+      .input(z.object({ name: z.string().min(1).max(100) }))
+      .mutation(async ({ input, ctx }) => {
+        const pool = await getRawPool();
+        await pool.execute(
+          'INSERT IGNORE INTO merchantJournalContacts (merchantUserId, name) VALUES (?, ?)',
+          [ctx.user.id, input.name.trim()]
+        );
+        return { success: true };
+      }),
+
+    renameContact: protectedProcedure
+      .input(z.object({ oldName: z.string().min(1).max(100), newName: z.string().min(1).max(100) }))
+      .mutation(async ({ input, ctx }) => {
+        const pool = await getRawPool();
+        const old = input.oldName.trim();
+        const nw = input.newName.trim();
+        if (old === nw) return { success: true, affected: 0 };
+        await pool.execute(
+          'UPDATE merchantJournalContacts SET name = ? WHERE merchantUserId = ? AND name = ?',
+          [nw, ctx.user.id, old]
+        );
+        const [res]: any = await pool.execute(
+          `UPDATE merchantJournals
+           SET contacts = TRIM(BOTH ',' FROM
+             REPLACE(
+               REPLACE(CONCAT(',', COALESCE(contacts,''), ','), CONCAT(',', ?, ','), CONCAT(',', ?, ',')),
+               ',,', ','
+             ))
+           WHERE merchantUserId = ? AND FIND_IN_SET(?, COALESCE(contacts,''))`,
+          [old, nw, ctx.user.id, old]
+        );
+        return { success: true, affected: Number(res?.affectedRows ?? 0) };
+      }),
+
+    deleteContact: protectedProcedure
+      .input(z.object({ name: z.string().min(1).max(100) }))
+      .mutation(async ({ input, ctx }) => {
+        const pool = await getRawPool();
+        const name = input.name.trim();
+        await pool.execute(
+          'DELETE FROM merchantJournalContacts WHERE merchantUserId = ? AND name = ?',
+          [ctx.user.id, name]
+        );
+        const [res]: any = await pool.execute(
+          `UPDATE merchantJournals
+           SET contacts = TRIM(BOTH ',' FROM
+             REPLACE(
+               REPLACE(CONCAT(',', COALESCE(contacts,''), ','), CONCAT(',', ?, ','), ','),
+               ',,', ','
+             ))
+           WHERE merchantUserId = ? AND FIND_IN_SET(?, COALESCE(contacts,''))`,
+          [name, ctx.user.id, name]
+        );
+        return { success: true, affected: Number(res?.affectedRows ?? 0) };
       }),
 
     uploadImage: protectedProcedure
