@@ -283,7 +283,8 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
 
   const productUrl = `${SHARE_ORIGIN}/merchant-products/${productId}`;
   const currSymbol = getCurrSymbol(currency ?? "HKD");
-  const shareText = `${title}\n價錢：${currSymbol}${price.toLocaleString()}\n${productUrl}`;
+  const priceLabel = price === 0 ? "查詢格價" : `${currSymbol}${price.toLocaleString()}`;
+  const shareText = `${title}\n價錢：${priceLabel}\n${productUrl}`;
 
   const calcPosition = useCallback(() => {
     if (!btnRef.current) return;
