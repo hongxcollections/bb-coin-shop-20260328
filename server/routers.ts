@@ -3119,6 +3119,7 @@ export const appRouter = router({
           antiSnipeMinutes: auction.antiSnipeMinutes,
           extendMinutes: auction.extendMinutes,
           antiSnipeMemberLevels: auction.antiSnipeMemberLevels ?? undefined,
+          privateNote: auction.privateNote ?? undefined,
         });
         return { id: newAuction.id };
       }),
