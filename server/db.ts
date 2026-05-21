@@ -227,6 +227,7 @@ export async function getAuctionById(id: number) {
         antiSnipeMemberLevels: auctions.antiSnipeMemberLevels,
         archived: auctions.archived,
         videoUrl: auctions.videoUrl,
+        privateNote: auctions.privateNote,
       })
       .from(auctions)
       .where(eq(auctions.id, id))
