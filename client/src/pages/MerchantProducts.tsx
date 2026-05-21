@@ -1617,9 +1617,15 @@ export default function MerchantProducts() {
                       </div>
                     </div>
 
-                    {/* ③ 圖片下面 第一行: 申請主打 + 分享去藏品社區 → 向右 */}
+                    {/* ③ 圖片下面 第一行: 分享去藏品社區 + 申請主打 → 向右 */}
                     {isActive && (
                       <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                        <a
+                          href={`/collection-square/new?productId=${p.id}`}
+                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-sky-50 text-sky-600 rounded-lg hover:bg-sky-100 transition-colors font-medium"
+                        >
+                          <Sparkles className="w-3 h-3" />分享去藏品社區
+                        </a>
                         {!isFeatured && !queued && (
                           <button
                             onClick={() => setFeaturedDialog({ id: p.id, title: p.title, price: parseFloat(p.price ?? '0'), currency: p.currency ?? 'HKD' })}
@@ -1628,20 +1634,11 @@ export default function MerchantProducts() {
                             <Flame className="w-3 h-3" />申請主打
                           </button>
                         )}
-                        <a
-                          href={`/collection-square/new?productId=${p.id}`}
-                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-sky-50 text-sky-600 rounded-lg hover:bg-sky-100 transition-colors font-medium"
-                        >
-                          <Sparkles className="w-3 h-3" />分享去藏品社區
-                        </a>
                       </div>
                     )}
 
-                    {/* ④ 圖片下面 第二行: 編輯 + 狀態操作 + 拆除 + 分享icon → 向右 */}
+                    {/* ④ 圖片下面 第二行: 下架/售出/重售/上架 + 拆除 + 編輯 → 向右 */}
                     <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                      <button onClick={() => startEdit(p)} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors font-medium">
-                        <Pencil className="w-3 h-3" />編輯
-                      </button>
                       {isActive && (
                         <button onClick={() => toggleStatus(p)} disabled={updateStatus.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 font-medium">
                           <EyeOff className="w-3 h-3" />下架
@@ -1676,6 +1673,9 @@ export default function MerchantProducts() {
                       <div onClick={e => e.stopPropagation()}>
                         <ProductShareMenu productId={p.id} title={p.title} price={parseFloat(p.price ?? "0")} currency={p.currency} iconOnly />
                       </div>
+                      <button onClick={() => startEdit(p)} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors font-medium">
+                        <Pencil className="w-3 h-3" />編輯
+                      </button>
                     </div>
 
                   </div>

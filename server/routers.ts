@@ -3828,6 +3828,7 @@ export const appRouter = router({
         videoUrl: z.string().max(500).nullable().optional(),
         stock: z.number().int().min(1).default(1),
         allowOffers: z.number().int().min(0).max(1).optional(),
+        privateNote: z.string().max(500).nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         // 停權檢查
@@ -3876,6 +3877,7 @@ export const appRouter = router({
           videoUrl: input.videoUrl ?? null,
           stock: input.stock,
           allowOffers: input.allowOffers,
+          privateNote: input.privateNote ?? null,
         });
 
         // ── 扣減公佈額度（有限額時才扣） ────────────────────────────────────
@@ -3900,6 +3902,7 @@ export const appRouter = router({
         stock: z.number().int().min(0).optional(),
         status: z.enum(['active', 'sold', 'hidden']).optional(),
         allowOffers: z.number().int().min(0).max(1).optional(),
+        privateNote: z.string().max(500).nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const app = await getMerchantApplicationByUser(ctx.user.id);
