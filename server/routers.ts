@@ -9265,16 +9265,26 @@ EXAMPLE OUTPUT (exact format):
         throw new TRPCError({ code: 'FORBIDDEN', message: '日誌功能未開通' });
       }
       const [rows]: any = await pool.execute(
-        `SELECT mj.id, mj.content, mj.tags, mj.createdAt,
-                GROUP_CONCAT(mji.imageUrl ORDER BY mji.displayOrder SEPARATOR '|||') as images
+        `SELECT mj.id, mj.content, mj.tags, mj.contacts, mj.createdAt, mj.entryAt
          FROM merchantJournals mj
-         LEFT JOIN merchantJournalImages mji ON mji.journalId = mj.id
          WHERE mj.merchantUserId = ?
-         GROUP BY mj.id
-         ORDER BY mj.createdAt DESC
+         ORDER BY COALESCE(mj.entryAt, mj.createdAt) DESC
          LIMIT 200`,
         [ctx.user.id]
       );
+      const journalIds: number[] = (Array.isArray(rows) ? rows : []).map((j: any) => Number(j.id));
+      const imageMap = new Map<number, string[]>();
+      if (journalIds.length > 0) {
+        const [imgRows]: any = await pool.execute(
+          `SELECT journalId, imageUrl FROM merchantJournalImages WHERE journalId IN (${journalIds.map(() => '?').join(',')}) ORDER BY journalId, displayOrder`,
+          journalIds
+        );
+        for (const r of (Array.isArray(imgRows) ? imgRows : [])) {
+          const jid = Number(r.journalId);
+          if (!imageMap.has(jid)) imageMap.set(jid, []);
+          imageMap.get(jid)!.push(String(r.imageUrl));
+        }
+      }
       return (Array.isArray(rows) ? rows : []).map((j: any) => ({
         id: Number(j.id),
         content: String(j.content ?? ''),
@@ -9282,7 +9292,7 @@ EXAMPLE OUTPUT (exact format):
         contacts: j.contacts ? String(j.contacts).split(',').filter(Boolean) : [],
         createdAt: j.createdAt,
         entryAt: j.entryAt ?? j.createdAt,
-        images: j.images ? String(j.images).split('|||').filter(Boolean) : [],
+        images: imageMap.get(Number(j.id)) ?? [],
       }));
     }),
 
