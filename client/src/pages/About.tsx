@@ -76,6 +76,10 @@ export default function About() {
               </li>
               <li className="flex items-center gap-3">
                 <FileText className="w-4 h-4 text-amber-500 shrink-0" />
+                <span>業務名稱：hongxcollections</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <FileText className="w-4 h-4 text-amber-500 shrink-0" />
                 <span>商業登記號碼：56630138-000-10-25-A</span>
               </li>
             </ul>

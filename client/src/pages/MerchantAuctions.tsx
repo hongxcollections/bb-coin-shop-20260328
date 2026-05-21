@@ -401,7 +401,7 @@ function AuctionCard({
             )}
           </p>
           {auction.description && (
-            <p className="text-xs text-muted-foreground leading-snug line-clamp-2">{auction.description}</p>
+            <p className="text-xs text-muted-foreground leading-snug whitespace-pre-wrap">{auction.description}</p>
           )}
           {auction.endTime && tab !== "草稿" && (
             <p className="text-xs text-muted-foreground leading-snug">
@@ -411,7 +411,7 @@ function AuctionCard({
           )}
           {/* 圖片右邊第二行: 私人備註 */}
           {auction.privateNote && (
-            <p className="text-xs text-muted-foreground leading-snug">{auction.privateNote}</p>
+            <p className="text-xs text-muted-foreground leading-snug whitespace-pre-wrap">{auction.privateNote}</p>
           )}
         </div>
       </div>

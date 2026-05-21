@@ -1600,11 +1600,11 @@ export default function MerchantProducts() {
                         </div>
                         {/* 右邊第二行: 商品描述 (如有) */}
                         {p.description && (
-                          <p className="text-xs text-gray-500 leading-snug line-clamp-2">{p.description}</p>
+                          <p className="text-xs text-gray-500 leading-snug whitespace-pre-wrap">{p.description}</p>
                         )}
                         {/* 私人備註 (如有) */}
                         {(p as any).privateNote && (
-                          <p className="text-xs text-gray-400 leading-snug">{(p as any).privateNote}</p>
+                          <p className="text-xs text-gray-400 leading-snug whitespace-pre-wrap">{(p as any).privateNote}</p>
                         )}
                         {/* 主打/排隊狀態 */}
                         {isActive && isFeatured && (

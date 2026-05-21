@@ -808,10 +808,10 @@ export default function MerchantSessionEdit() {
                   </div>
                   <div className="flex-1 min-w-0 space-y-0.5 pt-0.5">
                     {a.description && (
-                      <p className="text-xs text-gray-500 leading-snug line-clamp-2">{a.description}</p>
+                      <p className="text-xs text-gray-500 leading-snug whitespace-pre-wrap">{a.description}</p>
                     )}
                     {(a as any).privateNote && (
-                      <p className="text-xs text-gray-400 leading-snug">{(a as any).privateNote}</p>
+                      <p className="text-xs text-gray-400 leading-snug whitespace-pre-wrap">{(a as any).privateNote}</p>
                     )}
                     <div className="text-xs text-gray-600 flex items-center gap-1.5 flex-wrap">
                       <span>{getCurrencySymbol(a.currency)} {Number(a.currentPrice).toLocaleString()}</span>
