@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { ChevronLeft, ThumbsUp, Share2, Send, ChevronDown, X } from "lucide-react";
+import { ChevronLeft, ThumbsUp, Share2, Send, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -55,6 +55,41 @@ function Avatar({ name, photoUrl, size = "md" }: { name: string; photoUrl?: stri
   );
 }
 
+/* ── Sort picker bottom sheet ── */
+const SORT_OPTIONS = [
+  { value: "new" as const, label: "由新至舊", desc: "顯示所有回應，且最新的回應顯示在最上方。" },
+  { value: "old" as const, label: "由舊至新", desc: "顯示所有回應，且最舊的回應顯示在最上方。" },
+];
+
+function SortSheet({ current, onSelect, onClose }: { current: "new" | "old"; onSelect: (v: "new" | "old") => void; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40" />
+      <div className="relative z-10 w-full bg-white rounded-t-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-center pt-2 pb-1">
+          <div className="w-10 h-1 bg-gray-300 rounded-full" />
+        </div>
+        {SORT_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            className="w-full flex items-center justify-between px-5 py-4 border-b border-gray-100 last:border-0 active:bg-gray-50"
+            onClick={() => { onSelect(opt.value); onClose(); }}
+          >
+            <div className="text-left">
+              <p className="text-[15px] font-semibold text-gray-900">{opt.label}</p>
+              <p className="text-[12px] text-gray-500 mt-0.5">{opt.desc}</p>
+            </div>
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ml-4 ${current === opt.value ? "border-[#1877f2]" : "border-gray-300"}`}>
+              {current === opt.value && <div className="w-2.5 h-2.5 rounded-full bg-[#1877f2]" />}
+            </div>
+          </button>
+        ))}
+        <div className="h-6" />
+      </div>
+    </div>
+  );
+}
+
 /* ── Pinch-to-zoom overlay ── */
 function ImageZoomViewer({ src, onClose }: { src: string; onClose: () => void }) {
   const [scale, setScale] = useState(1);
@@ -69,44 +104,31 @@ function ImageZoomViewer({ src, onClose }: { src: string; onClose: () => void })
     const dy = t[0].clientY - t[1].clientY;
     return Math.sqrt(dx * dx + dy * dy);
   };
-
   const handleTouchStart = (e: React.TouchEvent) => {
     e.stopPropagation();
-    if (e.touches.length === 2) {
-      lastDist.current = getDist(e.touches);
-      lastScale.current = scale;
-      dragStart.current = null;
-    } else if (e.touches.length === 1 && scale > 1) {
-      dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, ox: offsetX, oy: offsetY };
-    }
+    if (e.touches.length === 2) { lastDist.current = getDist(e.touches); lastScale.current = scale; dragStart.current = null; }
+    else if (e.touches.length === 1 && scale > 1) { dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, ox: offsetX, oy: offsetY }; }
   };
   const handleTouchMove = (e: React.TouchEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (e.touches.length === 2) {
-      const dist = getDist(e.touches);
-      setScale(Math.min(6, Math.max(1, lastScale.current * (dist / lastDist.current))));
-    } else if (e.touches.length === 1 && dragStart.current && scale > 1) {
+    e.stopPropagation(); e.preventDefault();
+    if (e.touches.length === 2) { setScale(Math.min(6, Math.max(1, lastScale.current * (getDist(e.touches) / lastDist.current)))); }
+    else if (e.touches.length === 1 && dragStart.current && scale > 1) {
       setOffsetX(dragStart.current.ox + e.touches[0].clientX - dragStart.current.x);
       setOffsetY(dragStart.current.oy + e.touches[0].clientY - dragStart.current.y);
     }
   };
   const handleTap = () => {
-    if (scale <= 1.05) { onClose(); }
-    else { setScale(1); setOffsetX(0); setOffsetY(0); }
+    if (scale <= 1.05) { onClose(); } else { setScale(1); setOffsetX(0); setOffsetY(0); }
   };
 
   return (
-    <div className="fixed inset-0 z-[80] bg-black flex items-center justify-center select-none" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onClick={handleTap}>
+    <div className="fixed inset-0 z-[90] bg-black flex items-center justify-center select-none" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onClick={handleTap}>
       <button className="absolute top-4 right-4 z-10 p-2 bg-white/20 rounded-full" onClick={(e) => { e.stopPropagation(); onClose(); }}>
         <X className="w-6 h-6 text-white" />
       </button>
-      <img
-        src={src} alt="" draggable={false}
-        className="max-w-full max-h-full object-contain touch-none"
+      <img src={src} alt="" draggable={false} className="max-w-full max-h-full object-contain touch-none"
         style={{ transform: `scale(${scale}) translate(${offsetX / scale}px, ${offsetY / scale}px)`, transition: scale === 1 ? "transform 0.2s ease" : "none" }}
-        onClick={(e) => e.stopPropagation()}
-      />
+        onClick={(e) => e.stopPropagation()} />
     </div>
   );
 }
@@ -122,12 +144,13 @@ export function AuctionImageLightbox({
   const sellerDisplayName = sellerName ?? "商戶";
 
   const [sort, setSort] = useState<"new" | "old">("new");
+  const [showSortSheet, setShowSortSheet] = useState(false);
   const [bidInput, setBidInput] = useState("");
   const [merchantInput, setMerchantInput] = useState("");
   const [merchantSentSuccess, setMerchantSentSuccess] = useState(false);
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
 
-  /* ── Swipe-right-to-close animation ── */
+  /* ── Swipe-right-to-close ── */
   const [dragX, setDragX] = useState(0);
   const dragXRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -165,7 +188,7 @@ export function AuctionImageLightbox({
     const onEnd = () => {
       if (!isDragging.current) return;
       isDragging.current = false;
-      if (dragXRef.current > 100) { triggerClose(); }
+      if (dragXRef.current > 100) triggerClose();
       else { setDragX(0); dragXRef.current = 0; }
     };
     el.addEventListener("touchstart", onStart, { passive: true });
@@ -224,13 +247,12 @@ export function AuctionImageLightbox({
     }
   }
 
-  /* ── Bottom input avatar: use DB-fresh photoUrl from own bid items ── */
+  /* ── Bottom input avatar: DB-fresh photoUrl ── */
   const myDbPhotoUrl = useMemo(() => {
     if (!user) return null;
     const mine = items.find(i => !i.isAnonymous && String(i.userId) === String(user.id));
     return mine?.photoUrl ?? null;
   }, [items, user]);
-
   const myAvatarUrl = isMerchant
     ? (sellerPhotoUrl ?? myDbPhotoUrl ?? user?.photoUrl ?? null)
     : (myDbPhotoUrl ?? user?.photoUrl ?? null);
@@ -261,6 +283,8 @@ export function AuctionImageLightbox({
     willChange: "transform",
   };
 
+  const sortLabel = sort === "new" ? "由新至舊" : "由舊至新";
+
   return (
     <>
       <div ref={containerRef} className="fixed inset-0 z-[70] bg-white flex flex-col" style={containerStyle}>
@@ -280,17 +304,15 @@ export function AuctionImageLightbox({
           </div>
         </div>
 
-        {/* Scrollable */}
+        {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto bg-white">
           {/* Images */}
           {images.map((img, idx) => (
             <div key={idx} className="border-b border-gray-100">
-              <img
-                src={img.imageUrl} alt={`圖片 ${idx + 1}`}
+              <img src={img.imageUrl} alt={`圖片 ${idx + 1}`}
                 className="w-full object-contain max-h-[70vh] cursor-zoom-in bg-white"
                 style={{ display: "block" }}
-                onClick={() => setZoomSrc(img.imageUrl)}
-              />
+                onClick={() => setZoomSrc(img.imageUrl)} />
               <div className="flex items-center bg-white border-t border-gray-100">
                 <button className="flex-1 flex items-center justify-center gap-2 py-3 text-gray-600 text-[15px] font-semibold hover:bg-gray-50 transition-colors" onClick={() => toast.info("讚好")}>
                   <ThumbsUp className="w-5 h-5" /> 讚好
@@ -305,19 +327,26 @@ export function AuctionImageLightbox({
 
           {/* Response panel */}
           <div className="bg-white">
+            {/* Sub-header: sort LEFT | stats RIGHT */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <button
+                className="flex items-center gap-1 text-[15px] font-bold text-gray-900"
+                onClick={() => setShowSortSheet(true)}
+              >
+                {sortLabel}
+                <svg className="w-4 h-4 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5">
                   <span className="text-base">👍</span>
-                  <span className="text-sm font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
+                  <span className="text-[13px] font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
                 </div>
-                <div className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                <div className="text-[11px] text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
                   每口 {curr}{bidIncrement.toLocaleString()}
                 </div>
               </div>
-              <button className="flex items-center gap-0.5 text-sm text-[#1877f2] font-semibold" onClick={() => setSort(s => s === "new" ? "old" : "new")}>
-                {sort === "new" ? "由新至舊" : "由舊至新"} <ChevronDown className="w-4 h-4" />
-              </button>
             </div>
 
             <div className="px-4 py-3 space-y-5 pb-6">
@@ -331,7 +360,6 @@ export function AuctionImageLightbox({
               )}
 
               {topLevelItems.map((item) => {
-                /* Merchant broadcast */
                 if (item.type === "comment") {
                   return (
                     <div key={`c-${item.id}`} className="flex items-start gap-3">
@@ -349,7 +377,6 @@ export function AuctionImageLightbox({
                   );
                 }
 
-                /* Bid item — layout matches reference image 2 */
                 const isMyBid = !item.isAnonymous && !!user && String(item.userId) === String(user.id);
                 return (
                   <div key={`b-${item.id}`}>
@@ -366,11 +393,11 @@ export function AuctionImageLightbox({
                         <p className="text-[18px] font-bold text-gray-900 mt-0.5 leading-tight">
                           {item.rawAmount != null ? `${curr}${Number(item.rawAmount).toLocaleString()}` : item.content}
                         </p>
-                        {/* 出價有效 outside, below price */}
+                        {/* 出價有效 — outside, very small */}
                         {isMyBid && (
-                          <p className="text-[11px] font-semibold text-green-600 mt-0.5">出價有效 ✓</p>
+                          <p className="text-[10px] font-semibold text-green-600 mt-0.5">出價有效 ✓</p>
                         )}
-                        {/* action row: 回覆 left, 👍👎 right */}
+                        {/* action row: 回覆 left | 👍👎 right */}
                         <div className="flex items-center justify-between mt-2">
                           <span className="text-[13px] font-bold text-gray-500">回覆</span>
                           <div className="flex items-center gap-4">
@@ -439,6 +466,10 @@ export function AuctionImageLightbox({
           )}
         </div>
       </div>
+
+      {showSortSheet && (
+        <SortSheet current={sort} onSelect={(v) => setSort(v)} onClose={() => setShowSortSheet(false)} />
+      )}
 
       {zoomSrc && <ImageZoomViewer src={zoomSrc} onClose={() => setZoomSrc(null)} />}
     </>

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Send, ThumbsUp, ThumbsDown, X, ChevronDown } from "lucide-react";
+import { Send, ThumbsUp, ThumbsDown, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -69,6 +69,41 @@ function Avatar({ name, photoUrl, size = "md" }: { name: string; photoUrl?: stri
   );
 }
 
+/* ── Sort picker bottom sheet (FB-style radio) ── */
+const SORT_OPTIONS = [
+  { value: "new" as const, label: "由新至舊", desc: "顯示所有回應，且最新的回應顯示在最上方。" },
+  { value: "old" as const, label: "由舊至新", desc: "顯示所有回應，且最舊的回應顯示在最上方。" },
+];
+
+function SortSheet({ current, onSelect, onClose }: { current: "new" | "old"; onSelect: (v: "new" | "old") => void; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40" />
+      <div className="relative z-10 w-full bg-white rounded-t-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-center pt-2 pb-1">
+          <div className="w-10 h-1 bg-gray-300 rounded-full" />
+        </div>
+        {SORT_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            className="w-full flex items-center justify-between px-5 py-4 border-b border-gray-100 last:border-0 active:bg-gray-50"
+            onClick={() => { onSelect(opt.value); onClose(); }}
+          >
+            <div className="text-left">
+              <p className="text-[15px] font-semibold text-gray-900">{opt.label}</p>
+              <p className="text-[12px] text-gray-500 mt-0.5">{opt.desc}</p>
+            </div>
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ml-4 ${current === opt.value ? "border-[#1877f2]" : "border-gray-300"}`}>
+              {current === opt.value && <div className="w-2.5 h-2.5 rounded-full bg-[#1877f2]" />}
+            </div>
+          </button>
+        ))}
+        <div className="h-6" />
+      </div>
+    </div>
+  );
+}
+
 export function AuctionFbPanel({
   open, onClose, auctionId, createdBy, sellerName, sellerPhotoUrl,
   currency, currentPrice, bidIncrement = 30, isEnded,
@@ -79,6 +114,7 @@ export function AuctionFbPanel({
   const sellerDisplayName = sellerName ?? "商戶";
 
   const [sort, setSort] = useState<"new" | "old">("new");
+  const [showSortSheet, setShowSortSheet] = useState(false);
   const [bidInput, setBidInput] = useState("");
   const [merchantInput, setMerchantInput] = useState("");
   const [merchantSentSuccess, setMerchantSentSuccess] = useState(false);
@@ -114,9 +150,7 @@ export function AuctionFbPanel({
       const dy = e.touches[0].clientY - startY.current;
       const dx = e.touches[0].clientX - startX.current;
       const atTop = !scrollRef.current || scrollRef.current.scrollTop <= 0;
-      if (!isDragging.current && dy > 8 && Math.abs(dy) > Math.abs(dx) && atTop) {
-        isDragging.current = true;
-      }
+      if (!isDragging.current && dy > 8 && Math.abs(dy) > Math.abs(dx) && atTop) isDragging.current = true;
       if (isDragging.current) {
         e.preventDefault();
         const clamped = Math.max(0, dy);
@@ -127,7 +161,7 @@ export function AuctionFbPanel({
     const onEnd = () => {
       if (!isDragging.current) return;
       isDragging.current = false;
-      if (dragYRef.current > 120) { triggerClose(); }
+      if (dragYRef.current > 120) triggerClose();
       else { setDragY(0); dragYRef.current = 0; }
     };
     panel.addEventListener("touchstart", onStart, { passive: true });
@@ -194,13 +228,12 @@ export function AuctionFbPanel({
     }
   }
 
-  /* ── Bottom input avatar: use DB-fresh photoUrl from own bid items ── */
+  /* ── Bottom input avatar: DB-fresh photoUrl ── */
   const myDbPhotoUrl = useMemo(() => {
     if (!user) return null;
     const mine = items.find(i => !i.isAnonymous && String(i.userId) === String(user.id));
     return mine?.photoUrl ?? null;
   }, [items, user]);
-
   const myAvatarUrl = isMerchant
     ? (sellerPhotoUrl ?? myDbPhotoUrl ?? user?.photoUrl ?? null)
     : (myDbPhotoUrl ?? user?.photoUrl ?? null);
@@ -244,205 +277,221 @@ export function AuctionFbPanel({
     willChange: "transform",
   };
 
+  const sortLabel = sort === "new" ? "由新至舊" : "由舊至新";
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-end" onClick={(e) => { if (e.target === e.currentTarget) triggerClose(); }}>
-      <div className="absolute inset-0 bg-black/50" onClick={triggerClose} />
-      <div ref={panelRef} className="relative z-10 w-full max-h-[88vh] bg-white rounded-t-2xl flex flex-col shadow-2xl" style={panelStyle}>
+    <>
+      <div className="fixed inset-0 z-[60] flex items-end" onClick={(e) => { if (e.target === e.currentTarget) triggerClose(); }}>
+        <div className="absolute inset-0 bg-black/50" onClick={triggerClose} />
+        <div ref={panelRef} className="relative z-10 w-full max-h-[88vh] bg-white rounded-t-2xl flex flex-col shadow-2xl" style={panelStyle}>
 
-        {/* Drag handle */}
-        <div className="flex justify-center pt-2 pb-0.5 shrink-0 touch-none select-none">
-          <div className="w-10 h-1 bg-gray-300 rounded-full" />
-        </div>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <span className="text-base">👍</span>
-              <span className="text-sm font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
-            </div>
-            <div className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-              每口 {curr}{bidIncrement.toLocaleString()}
-            </div>
+          {/* Drag handle */}
+          <div className="flex justify-center pt-2 pb-0.5 shrink-0 touch-none select-none">
+            <div className="w-10 h-1 bg-gray-300 rounded-full" />
           </div>
-          <div className="flex items-center gap-3">
-            <button className="flex items-center gap-0.5 text-sm text-[#1877f2] font-semibold" onClick={() => setSort(s => s === "new" ? "old" : "new")}>
-              {sort === "new" ? "由新至舊" : "由舊至新"} <ChevronDown className="w-4 h-4" />
+
+          {/* Header: sort LEFT | stats + X RIGHT */}
+          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 shrink-0">
+            {/* LEFT: sort picker button */}
+            <button
+              className="flex items-center gap-1 text-[15px] font-bold text-gray-900"
+              onClick={() => setShowSortSheet(true)}
+            >
+              {sortLabel}
+              <svg className="w-4 h-4 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
             </button>
-            <button onClick={triggerClose}><X className="w-5 h-5 text-gray-500" /></button>
-          </div>
-        </div>
 
-        {/* List */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
-          {isLoading && (
-            <div className="flex justify-center py-10">
-              <div className="w-7 h-7 border-2 border-gray-200 border-t-[#1877f2] rounded-full animate-spin" />
+            {/* RIGHT: stats + close */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-base">👍</span>
+                <span className="text-[13px] font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
+              </div>
+              <div className="text-[11px] text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                每口 {curr}{bidIncrement.toLocaleString()}
+              </div>
+              <button onClick={triggerClose}><X className="w-5 h-5 text-gray-500" /></button>
             </div>
-          )}
-          {!isLoading && topLevelItems.length === 0 && (
-            <div className="text-center py-10 text-gray-400 text-sm">暫無出價記錄，搶先出價！</div>
-          )}
+          </div>
 
-          {topLevelItems.map((item) => {
-            /* ── Merchant broadcast ── */
-            if (item.type === "comment") {
-              return (
-                <div key={`comment-${item.id}`} className="flex items-start gap-3">
-                  <Avatar name={sellerDisplayName} photoUrl={sellerPhotoUrl ?? item.photoUrl} size="lg" />
-                  <div className="flex-1 bg-blue-50 rounded-2xl px-3 py-2 border border-blue-100">
-                    <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                      <span className="text-[14px] font-bold text-blue-800">{sellerDisplayName}</span>
-                      <span className="text-[10px] bg-[#1877f2] text-white px-1.5 py-0.5 rounded font-semibold">管理員</span>
-                      <span className="text-gray-400 text-[12px]">·</span>
-                      <span className="text-[12px] text-blue-400">{timeAgo(item.createdAt)}</span>
+          {/* List */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
+            {isLoading && (
+              <div className="flex justify-center py-10">
+                <div className="w-7 h-7 border-2 border-gray-200 border-t-[#1877f2] rounded-full animate-spin" />
+              </div>
+            )}
+            {!isLoading && topLevelItems.length === 0 && (
+              <div className="text-center py-10 text-gray-400 text-sm">暫無出價記錄，搶先出價！</div>
+            )}
+
+            {topLevelItems.map((item) => {
+              /* Merchant broadcast */
+              if (item.type === "comment") {
+                return (
+                  <div key={`comment-${item.id}`} className="flex items-start gap-3">
+                    <Avatar name={sellerDisplayName} photoUrl={sellerPhotoUrl ?? item.photoUrl} size="lg" />
+                    <div className="flex-1 bg-blue-50 rounded-2xl px-3 py-2 border border-blue-100">
+                      <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                        <span className="text-[14px] font-bold text-blue-800">{sellerDisplayName}</span>
+                        <span className="text-[10px] bg-[#1877f2] text-white px-1.5 py-0.5 rounded font-semibold">管理員</span>
+                        <span className="text-gray-400 text-[12px]">·</span>
+                        <span className="text-[12px] text-blue-400">{timeAgo(item.createdAt)}</span>
+                      </div>
+                      <p className="text-[14px] text-blue-900">{item.content}</p>
                     </div>
-                    <p className="text-[14px] text-blue-900">{item.content}</p>
                   </div>
+                );
+              }
+
+              /* Bid item */
+              const isMyBid = !item.isAnonymous && !!user && String(item.userId) === String(user.id);
+              return (
+                <div key={`bid-${item.id}`}>
+                  <div className="flex items-start gap-3">
+                    <Avatar
+                      name={item.isAnonymous ? "匿" : item.userName}
+                      photoUrl={item.isAnonymous ? null : item.photoUrl}
+                      size="lg"
+                    />
+                    <div className="flex-1 min-w-0">
+                      {/* name · time */}
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <span className="text-[14px] font-bold text-gray-900">
+                          {item.isAnonymous ? "匿名用戶" : item.userName}
+                        </span>
+                        <span className="text-gray-400 text-[12px]">·</span>
+                        <span className="text-[12px] text-gray-500">{timeAgo(item.createdAt)}</span>
+                      </div>
+                      {/* Price large bold */}
+                      <p className="text-[18px] font-bold text-gray-900 mt-0.5 leading-tight">
+                        {item.rawAmount != null
+                          ? `${curr}${Number(item.rawAmount).toLocaleString()}`
+                          : item.content}
+                      </p>
+                      {/* 出價有效 — outside bubble, very small */}
+                      {isMyBid && (
+                        <p className="text-[10px] font-semibold text-green-600 mt-0.5">出價有效 ✓</p>
+                      )}
+                      {/* Action row: 回覆 left | 👍👎 right */}
+                      <div className="flex items-center justify-between mt-2">
+                        <button className="text-[13px] font-bold text-gray-500 hover:text-gray-700" onClick={() => handleReplyClick(item)}>
+                          回覆
+                        </button>
+                        <div className="flex items-center gap-4">
+                          <div className="relative flex items-center">
+                            {particles.filter(p => p.bidId === item.id && p.dir === "up").map(p => (
+                              <FloatingParticle key={p.id} dir="up" onDone={() => setParticles(prev => prev.filter(x => x.id !== p.id))} />
+                            ))}
+                            <button onClick={() => handleLike(item)} className="text-gray-400 hover:text-[#1877f2] transition-colors">
+                              <ThumbsUp className="w-[18px] h-[18px]" />
+                            </button>
+                          </div>
+                          <div className="relative flex items-center">
+                            {particles.filter(p => p.bidId === item.id && p.dir === "down").map(p => (
+                              <FloatingParticle key={p.id} dir="down" onDone={() => setParticles(prev => prev.filter(x => x.id !== p.id))} />
+                            ))}
+                            <button onClick={() => handleDislike(item)} className="text-gray-400 hover:text-red-400 transition-colors">
+                              <ThumbsDown className="w-[18px] h-[18px]" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Merchant reply input */}
+                      {replyingToBidId === item.id && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <Avatar name={user?.name ?? "?"} photoUrl={myAvatarUrl} size="sm" />
+                          <div className="flex-1 flex items-center gap-1.5 bg-gray-100 rounded-full px-3 py-1.5">
+                            <input
+                              className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
+                              placeholder="輸入回覆..."
+                              value={replyText}
+                              onChange={(e) => setReplyText(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReplySubmit(item.id); } }}
+                              autoFocus
+                            />
+                            <button onClick={() => handleReplySubmit(item.id)} disabled={!replyText.trim() || replyBidMutation.isPending} className="text-[#1877f2] disabled:opacity-40 shrink-0">
+                              <Send className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Nested replies */}
+                  {(replyMap.get(item.id) ?? []).map(reply => (
+                    <div key={reply.id} className="flex items-start gap-2 mt-2 pl-14">
+                      <Avatar name={reply.userName} photoUrl={reply.photoUrl} size="sm" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <span className="text-[13px] font-bold text-gray-900">{reply.userName}</span>
+                          <span className="text-gray-400 text-[11px]">·</span>
+                          <span className="text-[11px] text-gray-400">{timeAgo(reply.createdAt)}</span>
+                        </div>
+                        <p className="text-[13px] text-gray-800 mt-0.5">{reply.content}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               );
-            }
+            })}
+          </div>
 
-            /* ── Bid item — layout matches reference image ── */
-            const isMyBid = !item.isAnonymous && !!user && String(item.userId) === String(user.id);
-            return (
-              <div key={`bid-${item.id}`}>
-                <div className="flex items-start gap-3">
-                  {/* Large avatar (w-11) */}
-                  <Avatar
-                    name={item.isAnonymous ? "匿" : item.userName}
-                    photoUrl={item.isAnonymous ? null : item.photoUrl}
-                    size="lg"
+          {/* Bottom input */}
+          <div className="border-t border-gray-200 px-3 py-2 flex items-center gap-2 bg-white shrink-0">
+            <Avatar name={user?.name ?? "?"} photoUrl={myAvatarUrl} size="sm" />
+            {isMerchant ? (
+              <>
+                {merchantSentSuccess && (
+                  <span className="text-[11px] font-semibold text-green-600 whitespace-nowrap shrink-0">✓ 已發送</span>
+                )}
+                <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 gap-2">
+                  <input
+                    className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
+                    placeholder="撰寫廣播訊息給所有出價者..."
+                    value={merchantInput}
+                    onChange={(e) => { setMerchantInput(e.target.value); if (merchantSentSuccess) setMerchantSentSuccess(false); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleMerchantSend(); } }}
                   />
-                  <div className="flex-1 min-w-0">
-                    {/* Line 1: name · time */}
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <span className="text-[14px] font-bold text-gray-900">
-                        {item.isAnonymous ? "匿名用戶" : item.userName}
-                      </span>
-                      <span className="text-gray-400 text-[12px]">·</span>
-                      <span className="text-[12px] text-gray-500">{timeAgo(item.createdAt)}</span>
-                    </div>
-                    {/* Line 2: price/content — large bold */}
-                    <p className="text-[18px] font-bold text-gray-900 mt-0.5 leading-tight">
-                      {item.rawAmount != null
-                        ? `${curr}${Number(item.rawAmount).toLocaleString()}`
-                        : item.content}
-                    </p>
-                    {/* 出價有效 — OUTSIDE bubble, below content */}
-                    {isMyBid && (
-                      <p className="text-[11px] font-semibold text-green-600 mt-0.5">出價有效 ✓</p>
-                    )}
-                    {/* Action row: 回覆 on left, 👍👎 on right */}
-                    <div className="flex items-center justify-between mt-2">
-                      <button
-                        className="text-[13px] font-bold text-gray-500 hover:text-gray-700"
-                        onClick={() => handleReplyClick(item)}
-                      >
-                        回覆
-                      </button>
-                      <div className="flex items-center gap-4">
-                        <div className="relative flex items-center">
-                          {particles.filter(p => p.bidId === item.id && p.dir === "up").map(p => (
-                            <FloatingParticle key={p.id} dir="up" onDone={() => setParticles(prev => prev.filter(x => x.id !== p.id))} />
-                          ))}
-                          <button onClick={() => handleLike(item)} className="text-gray-400 hover:text-[#1877f2] transition-colors">
-                            <ThumbsUp className="w-[18px] h-[18px]" />
-                          </button>
-                        </div>
-                        <div className="relative flex items-center">
-                          {particles.filter(p => p.bidId === item.id && p.dir === "down").map(p => (
-                            <FloatingParticle key={p.id} dir="down" onDone={() => setParticles(prev => prev.filter(x => x.id !== p.id))} />
-                          ))}
-                          <button onClick={() => handleDislike(item)} className="text-gray-400 hover:text-red-400 transition-colors">
-                            <ThumbsDown className="w-[18px] h-[18px]" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Merchant reply input */}
-                    {replyingToBidId === item.id && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <Avatar name={user?.name ?? "?"} photoUrl={myAvatarUrl} size="sm" />
-                        <div className="flex-1 flex items-center gap-1.5 bg-gray-100 rounded-full px-3 py-1.5">
-                          <input
-                            className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
-                            placeholder="輸入回覆..."
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReplySubmit(item.id); } }}
-                            autoFocus
-                          />
-                          <button onClick={() => handleReplySubmit(item.id)} disabled={!replyText.trim() || replyBidMutation.isPending} className="text-[#1877f2] disabled:opacity-40 shrink-0">
-                            <Send className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 </div>
-
-                {/* Nested replies — indented */}
-                {(replyMap.get(item.id) ?? []).map(reply => (
-                  <div key={reply.id} className="flex items-start gap-2 mt-2 pl-14">
-                    <Avatar name={reply.userName} photoUrl={reply.photoUrl} size="sm" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-[13px] font-bold text-gray-900">{reply.userName}</span>
-                        <span className="text-gray-400 text-[11px]">·</span>
-                        <span className="text-[11px] text-gray-400">{timeAgo(reply.createdAt)}</span>
-                      </div>
-                      <p className="text-[13px] text-gray-800 mt-0.5">{reply.content}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Bottom input */}
-        <div className="border-t border-gray-200 px-3 py-2 flex items-center gap-2 bg-white shrink-0">
-          <Avatar name={user?.name ?? "?"} photoUrl={myAvatarUrl} size="sm" />
-          {isMerchant ? (
-            <>
-              {merchantSentSuccess && (
-                <span className="text-[11px] font-semibold text-green-600 whitespace-nowrap shrink-0">✓ 已發送</span>
-              )}
-              <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 gap-2">
-                <input
-                  className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
-                  placeholder="撰寫廣播訊息給所有出價者..."
-                  value={merchantInput}
-                  onChange={(e) => { setMerchantInput(e.target.value); if (merchantSentSuccess) setMerchantSentSuccess(false); }}
-                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleMerchantSend(); } }}
-                />
-              </div>
-              <button onClick={handleMerchantSend} disabled={!merchantInput.trim() || broadcastMutation.isPending} className="p-2 text-[#1877f2] disabled:opacity-40 shrink-0">
-                <Send className="w-5 h-5" />
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2">
-                <input
-                  className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
-                  placeholder={isEnded ? "拍賣已結束" : `出價 (最低 ${curr}${(currentPrice + bidIncrement).toLocaleString()})`}
-                  value={bidInput}
-                  onChange={(e) => { if (/^\d*$/.test(e.target.value)) setBidInput(e.target.value); }}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleBuyerBid(); }}
-                  inputMode="numeric"
-                  disabled={isEnded || !isAuthenticated}
-                />
-              </div>
-              <button onClick={handleBuyerBid} disabled={!bidInput || placeBid.isPending || isEnded} className="p-2 text-[#1877f2] disabled:opacity-40 shrink-0">
-                <Send className="w-5 h-5" />
-              </button>
-            </>
-          )}
+                <button onClick={handleMerchantSend} disabled={!merchantInput.trim() || broadcastMutation.isPending} className="p-2 text-[#1877f2] disabled:opacity-40 shrink-0">
+                  <Send className="w-5 h-5" />
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2">
+                  <input
+                    className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
+                    placeholder={isEnded ? "拍賣已結束" : `出價 (最低 ${curr}${(currentPrice + bidIncrement).toLocaleString()})`}
+                    value={bidInput}
+                    onChange={(e) => { if (/^\d*$/.test(e.target.value)) setBidInput(e.target.value); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleBuyerBid(); }}
+                    inputMode="numeric"
+                    disabled={isEnded || !isAuthenticated}
+                  />
+                </div>
+                <button onClick={handleBuyerBid} disabled={!bidInput || placeBid.isPending || isEnded} className="p-2 text-[#1877f2] disabled:opacity-40 shrink-0">
+                  <Send className="w-5 h-5" />
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Sort picker sheet */}
+      {showSortSheet && (
+        <SortSheet
+          current={sort}
+          onSelect={(v) => setSort(v)}
+          onClose={() => setShowSortSheet(false)}
+        />
+      )}
+    </>
   );
 }
