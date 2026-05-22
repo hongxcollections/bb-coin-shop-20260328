@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, Crown, Check, Star, Zap, Shield, Upload, CreditCard,
@@ -125,10 +125,8 @@ export default function SubscriptionPlans() {
   // ── Mutations ──
   const subscribeMutation = trpc.subscriptions.subscribe.useMutation({
     onSuccess: () => {
-      toast.success("訂閱申請已提交！管理員確認收款後將為您升級。");
       utils.subscriptions.mySubscription.invalidate();
       utils.subscriptions.myHistory.invalidate();
-      closeSubscribeDialog();
     },
     onError: (err) => toast.error(`提交失敗：${err.message}`),
   });
@@ -157,6 +155,10 @@ export default function SubscriptionPlans() {
   const closeSubscribeDialog = () => {
     setSubscribeDialogOpen(false);
     setSelectedPlan(null);
+    setPaymentMethod("");
+    setPaymentReference("");
+    setPaymentProofUrl("");
+    subscribeMutation.reset();
   };
 
   const handleUploadProof = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -476,6 +478,55 @@ export default function SubscriptionPlans() {
       {/* ── Subscribe Dialog ── */}
       <Dialog open={subscribeDialogOpen} onOpenChange={(open) => { if (!open) closeSubscribeDialog(); }}>
         <DialogContent className="max-w-md">
+          {subscribeMutation.isSuccess ? (
+            /* ── 提交成功確認頁 ── */
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-green-700">
+                  <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> 訂閱申請已提交
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 text-sm">
+                <div className="rounded-lg bg-green-50 border border-green-200 p-3 space-y-1.5">
+                  {selectedPlan && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">計劃</span>
+                      <span className="font-medium">{selectedPlan.name}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">週期</span>
+                    <span className="font-medium">{billingCycle === "yearly" ? "年繳" : "月繳"}</span>
+                  </div>
+                  {paymentMethod && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">付款方式</span>
+                      <span className="font-medium">{PAYMENT_METHODS.find(m => m.value === paymentMethod)?.label ?? paymentMethod}</span>
+                    </div>
+                  )}
+                  {paymentReference && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">付款參考</span>
+                      <span className="font-medium">{paymentReference}</span>
+                    </div>
+                  )}
+                  {paymentProofUrl && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">付款憑證</span>
+                      <span className="font-medium text-green-600">已上傳</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500">管理員確認收款後將為您升級會員等級，請耐心等候通知。通常在 1-2 個工作天內完成審核。</p>
+              </div>
+              <DialogFooter>
+                <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={closeSubscribeDialog}>
+                  明白，關閉
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+          <>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Crown className="w-5 h-5 text-amber-600" />
@@ -595,6 +646,8 @@ export default function SubscriptionPlans() {
                 </Button>
               </div>
             </div>
+          )}
+          </>
           )}
         </DialogContent>
       </Dialog>
