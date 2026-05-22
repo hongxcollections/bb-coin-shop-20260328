@@ -246,8 +246,9 @@ export default function AdminMerchantCenter() {
     () => (merchantApps ?? []).filter((a: { status: string }) => a.status === "pending"),
     [merchantApps]
   );
+  // 包含所有 pending 訂閱：首次訂閱（isRenewal=0/null）+ 續期（isRenewal=1）
   const pendingRenewals = useMemo(
-    () => (subscriptions ?? []).filter((s: { status: string; isRenewal?: number }) => s.status === "pending" && s.isRenewal === 1),
+    () => (subscriptions ?? []).filter((s: { status: string }) => s.status === "pending"),
     [subscriptions]
   );
   const pendingTopUps = useMemo(
@@ -340,7 +341,7 @@ export default function AdminMerchantCenter() {
           <KpiCard
             active={tab === "renewal"}
             count={counts.renewal}
-            label="訂閱續期"
+            label="月費訂閱"
             icon={<RefreshCw className="w-5 h-5" />}
             accent={ACCENTS.blue}
             onClick={() => setTab("renewal")}
@@ -489,14 +490,14 @@ export default function AdminMerchantCenter() {
             })}
           </TabsContent>
 
-          {/* ── Tab 2: 續期 ── */}
+          {/* ── Tab 2: 月費訂閱（首次 + 續期）── */}
           <TabsContent value="renewal" className="space-y-3 mt-0">
             {subsLoading ? <LoadingBlock /> : pendingRenewals.length === 0 ? (
               <Card className="border-dashed border-2 border-blue-200 bg-white/70">
                 <EmptyState
                   icon={<RefreshCw className="w-10 h-10" />}
-                  title="暫無待審續期申請"
-                  desc="商戶提交續期後會自動出現喺呢度。"
+                  title="暫無待審月費訂閱申請"
+                  desc="商戶提交訂閱或續期後會自動出現喺呢度。"
                 />
               </Card>
             ) : pendingRenewals.map((sub: any) => (
@@ -509,13 +510,15 @@ export default function AdminMerchantCenter() {
                     subtitle={sub.userEmail ?? undefined}
                     time={relTime(sub.createdAt)}
                     badges={
-                      <Badge className="bg-blue-500 text-white border-0 text-[10px]">🔄 續期申請</Badge>
+                      sub.isRenewal
+                        ? <Badge className="bg-blue-500 text-white border-0 text-[10px]">🔄 續期申請</Badge>
+                        : <Badge className="bg-violet-500 text-white border-0 text-[10px]">✨ 首次訂閱</Badge>
                     }
                   />
 
                   <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50/60 p-4 space-y-3">
                     <div className="bg-white/70 rounded-lg px-3 py-2">
-                      <p className="text-[10px] text-blue-600 uppercase tracking-wider font-medium">📅 續期計劃</p>
+                      <p className="text-[10px] text-blue-600 uppercase tracking-wider font-medium">{sub.isRenewal ? "📅 續期計劃" : "📋 訂閱計劃"}</p>
                       <p className="text-sm font-bold text-blue-900 mt-0.5">{sub.planName ?? "—"}</p>
                       <p className="text-[10px] text-blue-700">
                         {sub.billingCycle === "yearly" ? "年費 (延 365 日)" : "月費 (延 30 日)"}
