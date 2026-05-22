@@ -421,6 +421,11 @@ export default function MerchantDashboard() {
   const hasPendingRenewal = (mySubHistory as Array<{ status: string; isRenewal?: number }> | undefined)
     ?.some(s => s.status === "pending" && s.isRenewal === 1) ?? false;
 
+  // 是否已有任何 pending 申請（首次訂閱 or 續期）
+  type _SubHistRow = { id: number; planName: string | null; billingCycle: string | null; status: string; isRenewal?: number | null; paymentMethod?: string | null; paymentReference?: string | null; createdAt?: Date | string | null };
+  const hasPendingApplication = (mySubHistory as _SubHistRow[] | undefined)?.some(s => s.status === "pending") ?? false;
+  const pendingSubRecord = (mySubHistory as _SubHistRow[] | undefined)?.find(s => s.status === "pending") ?? null;
+
   // Carry-over 模式下：續期批核後新 row 即時變成 active sub。
   // 偵測「現任 active sub 本身係一張最近批核嘅續期 row」→ 顯示綠色「續期已成功」確認。
   const RENEW_CONFIRM_DAYS = 7;
@@ -448,7 +453,7 @@ export default function MerchantDashboard() {
   const bannerDays = bannerSub?.endDate
     ? Math.ceil((new Date(bannerSub.endDate).getTime() - Date.now()) / 86400000)
     : null;
-  const showExpiryWarning = !!bannerSub && bannerDays !== null && (bannerSub.status === 'expired' || bannerDays <= 7);
+  const showExpiryWarning = !hasPendingApplication && !!bannerSub && bannerDays !== null && (bannerSub.status === 'expired' || bannerDays <= 7);
 
   const handleSubmitRenew = () => {
     if (!renewPaymentMethod) { toast.error("請選擇付款方式"); return; }
@@ -633,7 +638,7 @@ export default function MerchantDashboard() {
                 )}
               </div>
             </div>
-            {!quotaInfo.unlimited && quotaInfo.remainingQuota <= 0 && (
+            {!quotaInfo.unlimited && quotaInfo.remainingQuota <= 0 && !hasPendingApplication && (
               <Link href="/subscriptions">
                 <div className="animate-pulse bg-red-50 border-t border-red-200 px-4 py-2.5 flex items-center justify-center gap-1.5 cursor-pointer hover:bg-red-100 transition-colors">
                   <span className="text-xs font-semibold text-red-600">發佈次數已用盡 — 點此續訂月費</span>
@@ -822,6 +827,33 @@ export default function MerchantDashboard() {
                 {quotaInfo?.unlimited && <> 計劃為無限制發佈。</>}
                 {' '}新到期日：<span className="font-semibold">{fmtDate(mySubscription.endDate ?? null)}</span>
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── 訂閱申請審核中 banner ── */}
+        {hasPendingApplication && pendingSubRecord && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 flex items-start gap-3 text-sm">
+            <Clock className="w-5 h-5 mt-0.5 flex-shrink-0 text-blue-500" />
+            <div className="flex-1 min-w-0 space-y-1">
+              <p className="font-semibold text-blue-800">
+                {pendingSubRecord.isRenewal ? "續期申請審核中" : "訂閱申請審核中"}
+              </p>
+              <p className="text-xs text-blue-700">
+                計劃：{pendingSubRecord.planName ?? "—"}｜{pendingSubRecord.billingCycle === "yearly" ? "年繳" : "月繳"}
+              </p>
+              {pendingSubRecord.paymentMethod && (
+                <p className="text-xs text-blue-700">
+                  付款方式：{pendingSubRecord.paymentMethod}
+                  {pendingSubRecord.paymentReference ? `｜參考編號：${pendingSubRecord.paymentReference}` : ""}
+                </p>
+              )}
+              {pendingSubRecord.createdAt && (
+                <p className="text-xs text-blue-500">
+                  提交時間：{new Date(pendingSubRecord.createdAt).toLocaleString("zh-HK", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                </p>
+              )}
+              <p className="text-xs text-blue-600 font-medium">管理員確認收款後即時生效，請耐心等候。</p>
             </div>
           </div>
         )}
