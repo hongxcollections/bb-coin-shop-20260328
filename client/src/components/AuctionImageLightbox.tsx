@@ -62,8 +62,6 @@ function ImageZoomViewer({ src, onClose }: { src: string; onClose: () => void })
   const [offsetY, setOffsetY] = useState(0);
   const lastDist = useRef(0);
   const lastScale = useRef(1);
-  const lastMidX = useRef(0);
-  const lastMidY = useRef(0);
   const dragStart = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
 
   const getDist = (t: React.TouchList) => {
@@ -77,8 +75,6 @@ function ImageZoomViewer({ src, onClose }: { src: string; onClose: () => void })
     if (e.touches.length === 2) {
       lastDist.current = getDist(e.touches);
       lastScale.current = scale;
-      lastMidX.current = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      lastMidY.current = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       dragStart.current = null;
     } else if (e.touches.length === 1 && scale > 1) {
       dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, ox: offsetX, oy: offsetY };
@@ -90,26 +86,13 @@ function ImageZoomViewer({ src, onClose }: { src: string; onClose: () => void })
     e.preventDefault();
     if (e.touches.length === 2) {
       const dist = getDist(e.touches);
-      const newScale = Math.min(6, Math.max(1, lastScale.current * (dist / lastDist.current)));
-      setScale(newScale);
+      setScale(Math.min(6, Math.max(1, lastScale.current * (dist / lastDist.current))));
     } else if (e.touches.length === 1 && dragStart.current && scale > 1) {
-      const dx = e.touches[0].clientX - dragStart.current.x;
-      const dy = e.touches[0].clientY - dragStart.current.y;
-      setOffsetX(dragStart.current.ox + dx);
-      setOffsetY(dragStart.current.oy + dy);
+      setOffsetX(dragStart.current.ox + e.touches[0].clientX - dragStart.current.x);
+      setOffsetY(dragStart.current.oy + e.touches[0].clientY - dragStart.current.y);
     }
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    e.stopPropagation();
-    if (e.touches.length === 0 && scale < 1.1) {
-      setScale(1);
-      setOffsetX(0);
-      setOffsetY(0);
-    }
-  };
-
-  /* Single tap closes when not zoomed */
   const handleTap = () => {
     if (scale <= 1.05) {
       onClose();
@@ -125,7 +108,6 @@ function ImageZoomViewer({ src, onClose }: { src: string; onClose: () => void })
       className="fixed inset-0 z-[80] bg-black flex items-center justify-center select-none"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
       onClick={handleTap}
     >
       <button
@@ -166,7 +148,9 @@ export function AuctionImageLightbox({
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
-  /* ── iOS-compatible body scroll lock ── */
+  const sellerDisplayName = sellerName ?? "商戶";
+
+  /* ── iOS body scroll lock ── */
   useEffect(() => {
     if (!open) return;
     const scrollY = window.scrollY;
@@ -246,7 +230,7 @@ export function AuctionImageLightbox({
     }
   };
 
-  /* ── Swipe right to close (only horizontal swipes, not vertical scrolling) ── */
+  /* ── Swipe right to close (only clear horizontal swipes) ── */
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
@@ -258,57 +242,62 @@ export function AuctionImageLightbox({
     if (dx > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) onClose();
   };
 
-  /* ── Merchant avatar = sellerPhotoUrl; user avatar = their photoUrl ── */
-  const myAvatarUrl = isMerchant ? (sellerPhotoUrl ?? user?.photoUrl ?? null) : (user?.photoUrl ?? null);
+  /* ── Bottom input avatar ── */
+  const myAvatarUrl = isMerchant
+    ? (sellerPhotoUrl ?? user?.photoUrl ?? null)
+    : (user?.photoUrl ?? null);
 
   if (!open) return null;
 
   return (
     <>
+      {/* ── White background lightbox ── */}
       <div
-        className="fixed inset-0 z-[70] bg-black flex flex-col"
+        className="fixed inset-0 z-[70] bg-white flex flex-col"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-3 py-2 bg-black text-white shrink-0">
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
-            <ChevronLeft className="w-6 h-6" />
+        {/* Header — white background, dark text */}
+        <div className="flex items-center justify-between px-3 py-2 bg-white border-b border-gray-200 text-gray-900 shrink-0">
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
+            <ChevronLeft className="w-6 h-6 text-gray-700" />
           </button>
           <div className="flex-1 mx-2 text-center">
-            <p className="text-[15px] font-bold leading-tight truncate">{sellerName ?? "商戶"}的帖子</p>
+            <p className="text-[15px] font-bold leading-tight truncate text-gray-900">{sellerDisplayName}的帖子</p>
           </div>
           <div className="w-9 h-9 rounded-full overflow-hidden bg-amber-500 flex items-center justify-center shrink-0">
             {sellerPhotoUrl
-              ? <img src={sellerPhotoUrl} alt={sellerName ?? "商"} className="w-full h-full object-cover" />
-              : <span className="text-white font-bold text-base">{(sellerName ?? "商").charAt(0).toUpperCase()}</span>
+              ? <img src={sellerPhotoUrl} alt={sellerDisplayName} className="w-full h-full object-cover" />
+              : <span className="text-white font-bold text-base">{sellerDisplayName.charAt(0).toUpperCase()}</span>
             }
           </div>
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto bg-black">
-          {/* Images with per-image action bar */}
+        <div className="flex-1 overflow-y-auto bg-white">
+          {/* Images on white background */}
           {images.map((img, idx) => (
-            <div key={idx}>
-              <img
-                src={img.imageUrl}
-                alt={`圖片 ${idx + 1}`}
-                className="w-full object-contain max-h-[70vh] cursor-zoom-in"
-                style={{ display: "block" }}
-                onClick={() => setZoomSrc(img.imageUrl)}
-              />
-              {/* Per-image action bar: 讚好 | 分享 (no 回應) */}
-              <div className="flex items-center bg-black border-t border-white/10">
+            <div key={idx} className="border-b border-gray-100">
+              <div className="bg-white">
+                <img
+                  src={img.imageUrl}
+                  alt={`圖片 ${idx + 1}`}
+                  className="w-full object-contain max-h-[70vh] cursor-zoom-in"
+                  style={{ display: "block" }}
+                  onClick={() => setZoomSrc(img.imageUrl)}
+                />
+              </div>
+              {/* Per-image action bar on white */}
+              <div className="flex items-center bg-white border-t border-gray-100">
                 <button
-                  className="flex-1 flex items-center justify-center gap-2 py-3 text-white text-[15px] font-semibold hover:bg-white/10 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 text-gray-600 text-[15px] font-semibold hover:bg-gray-50 transition-colors"
                   onClick={() => toast.info("讚好")}
                 >
                   <ThumbsUp className="w-5 h-5" /> 讚好
                 </button>
-                <div className="w-px h-6 bg-white/20" />
+                <div className="w-px h-6 bg-gray-200" />
                 <button
-                  className="flex-1 flex items-center justify-center gap-2 py-3 text-white text-[15px] font-semibold hover:bg-white/10 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 text-gray-600 text-[15px] font-semibold hover:bg-gray-50 transition-colors"
                   onClick={handleShare}
                 >
                   <Share2 className="w-5 h-5" /> 分享
@@ -317,8 +306,8 @@ export function AuctionImageLightbox({
             </div>
           ))}
 
-          {/* Panel content on white background */}
-          <div className="bg-white rounded-t-2xl mt-2">
+          {/* Panel content */}
+          <div className="bg-white">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5">
@@ -348,13 +337,15 @@ export function AuctionImageLightbox({
               )}
 
               {topLevelItems.map((item) => {
+                /* ── Merchant broadcast ── */
                 if (item.type === "comment") {
                   return (
-                    <div key={`c-${item.id}`} className="flex items-start gap-2 text-sm">
-                      <span className="text-base mt-0.5 shrink-0">📢</span>
+                    <div key={`c-${item.id}`} className="flex items-start gap-2.5">
+                      <Avatar name={sellerDisplayName} photoUrl={sellerPhotoUrl ?? item.photoUrl} />
                       <div className="flex-1 bg-blue-50 rounded-2xl px-3 py-2 border border-blue-100">
                         <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className="text-[13px] font-bold text-blue-800">{item.userName}</span>
+                          <span className="text-[13px] font-bold text-blue-800">{sellerDisplayName}</span>
+                          <span className="text-[10px] bg-[#1877f2] text-white px-1.5 py-0.5 rounded font-semibold">管理員</span>
                           <span className="text-[10px] text-blue-400">{timeAgo(item.createdAt)}</span>
                         </div>
                         <p className="text-[13px] text-blue-900">{item.content}</p>
@@ -362,7 +353,9 @@ export function AuctionImageLightbox({
                     </div>
                   );
                 }
-                const isMyBid = !item.isAnonymous && !!user && item.userId === user.id;
+
+                /* ── Bid item ── */
+                const isMyBid = !item.isAnonymous && !!user && Number(item.userId) === Number(user.id);
                 return (
                   <div key={`b-${item.id}`}>
                     <div className="flex items-start gap-2.5">
@@ -377,7 +370,7 @@ export function AuctionImageLightbox({
                           </p>
                           {isMyBid && (
                             <div className="flex justify-end mt-1 mb-[3px]">
-                              <span className="text-[10px] font-semibold text-green-600">出價有效</span>
+                              <span className="text-[10px] font-semibold text-green-600">出價有效 ✓</span>
                             </div>
                           )}
                         </div>
@@ -445,7 +438,7 @@ export function AuctionImageLightbox({
         </div>
       </div>
 
-      {/* Pinch-to-zoom overlay — sits on top of lightbox */}
+      {/* Pinch-to-zoom overlay — on top of everything */}
       {zoomSrc && <ImageZoomViewer src={zoomSrc} onClose={() => setZoomSrc(null)} />}
     </>
   );

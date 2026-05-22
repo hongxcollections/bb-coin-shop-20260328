@@ -11,6 +11,7 @@ interface AuctionFbPanelProps {
   auctionId: number;
   auctionTitle: string;
   createdBy?: number;
+  sellerName?: string | null;
   sellerPhotoUrl?: string | null;
   currency?: string | null;
   currentPrice: number;
@@ -69,7 +70,7 @@ function Avatar({ name, photoUrl, size = "md" }: { name: string; photoUrl?: stri
 }
 
 export function AuctionFbPanel({
-  open, onClose, auctionId, auctionTitle, createdBy, sellerPhotoUrl,
+  open, onClose, auctionId, createdBy, sellerName, sellerPhotoUrl,
   currency, currentPrice, bidIncrement = 30, isEnded,
 }: AuctionFbPanelProps) {
   const { user, isAuthenticated } = useAuth();
@@ -87,7 +88,7 @@ export function AuctionFbPanel({
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
-  /* ── iOS-compatible body scroll lock ── */
+  /* ── iOS body scroll lock ── */
   useEffect(() => {
     if (!open) return;
     const scrollY = window.scrollY;
@@ -168,7 +169,6 @@ export function AuctionFbPanel({
     triggerParticle(item.id, "up");
     if (isMerchant && item.type === "bid") likeBidMutation.mutate({ bidId: item.id });
   };
-
   const handleDislike = (item: PanelItem) => triggerParticle(item.id, "down");
 
   const handleReplyClick = (item: PanelItem) => {
@@ -176,7 +176,6 @@ export function AuctionFbPanel({
     setReplyingToBidId(prev => prev === item.id ? null : item.id);
     setReplyText("");
   };
-
   const handleReplySubmit = (bidId: number) => {
     if (!replyText.trim()) return;
     replyBidMutation.mutate({ bidId, content: replyText.trim() });
@@ -190,13 +189,12 @@ export function AuctionFbPanel({
     if (amount <= currentPrice) { toast.error(`出價必須高於 ${curr}${currentPrice.toLocaleString()}`); return; }
     placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: 0 });
   };
-
   const handleMerchantSend = () => {
     if (!merchantInput.trim()) return;
     broadcastMutation.mutate({ auctionId, content: merchantInput.trim() });
   };
 
-  /* ── Swipe handlers: right or down to close ── */
+  /* ── Swipe right or down to close ── */
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
@@ -208,8 +206,13 @@ export function AuctionFbPanel({
     if (dy > 80) onClose();
   };
 
-  /* ── Bottom input avatar: merchant uses sellerPhotoUrl, user uses their photoUrl ── */
-  const myAvatarUrl = isMerchant ? (sellerPhotoUrl ?? user?.photoUrl ?? null) : (user?.photoUrl ?? null);
+  /* ── Avatar for bottom input ── */
+  const myAvatarUrl = isMerchant
+    ? (sellerPhotoUrl ?? user?.photoUrl ?? null)
+    : (user?.photoUrl ?? null);
+
+  /* ── Seller display name for broadcast bubbles ── */
+  const sellerDisplayName = sellerName ?? "商戶";
 
   if (!open) return null;
 
@@ -221,10 +224,12 @@ export function AuctionFbPanel({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
       >
+        {/* Drag handle */}
         <div className="flex justify-center pt-2 pb-0.5 shrink-0">
           <div className="w-10 h-1 bg-gray-300 rounded-full" />
         </div>
 
+        {/* Header */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
@@ -246,6 +251,7 @@ export function AuctionFbPanel({
           </div>
         </div>
 
+        {/* Items list */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
           {isLoading && (
             <div className="flex justify-center py-10">
@@ -257,13 +263,16 @@ export function AuctionFbPanel({
           )}
 
           {topLevelItems.map((item) => {
+            /* ── Merchant broadcast (top-level comment, no replyToBidId) ── */
             if (item.type === "comment") {
               return (
-                <div key={`comment-${item.id}`} className="flex items-start gap-2 text-sm">
-                  <span className="text-base mt-0.5 shrink-0">📢</span>
+                <div key={`comment-${item.id}`} className="flex items-start gap-2.5">
+                  {/* Use seller's photo (merchantIcon) for broadcast avatar */}
+                  <Avatar name={sellerDisplayName} photoUrl={sellerPhotoUrl ?? item.photoUrl} />
                   <div className="flex-1 bg-blue-50 rounded-2xl px-3 py-2 border border-blue-100">
                     <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[13px] font-bold text-blue-800">{item.userName}</span>
+                      <span className="text-[13px] font-bold text-blue-800">{sellerDisplayName}</span>
+                      <span className="text-[10px] bg-[#1877f2] text-white px-1.5 py-0.5 rounded font-semibold">管理員</span>
                       <span className="text-[10px] text-blue-400">{timeAgo(item.createdAt)}</span>
                     </div>
                     <p className="text-[13px] text-blue-900">{item.content}</p>
@@ -272,7 +281,9 @@ export function AuctionFbPanel({
               );
             }
 
-            const isMyBid = !item.isAnonymous && !!user && item.userId === user.id;
+            /* ── Bid item ── */
+            /* Fix: coerce both sides to Number to avoid string/int mismatch */
+            const isMyBid = !item.isAnonymous && !!user && Number(item.userId) === Number(user.id);
             return (
               <div key={`bid-${item.id}`}>
                 <div className="flex items-start gap-2.5">
@@ -281,6 +292,7 @@ export function AuctionFbPanel({
                     photoUrl={item.isAnonymous ? null : item.photoUrl}
                   />
                   <div className="flex-1 min-w-0">
+                    {/* Bubble */}
                     <div className="bg-gray-100 rounded-2xl px-3 py-2 inline-block max-w-[80%]">
                       <p className="text-[13px] font-bold text-gray-900 leading-tight">
                         {item.isAnonymous ? "匿名用戶" : item.userName}
@@ -290,12 +302,15 @@ export function AuctionFbPanel({
                           ? `${curr}${Number(item.rawAmount).toLocaleString()}`
                           : item.content}
                       </p>
+                      {/* 出價有效 — shown for ALL of my own bids */}
                       {isMyBid && (
                         <div className="flex justify-end mt-1 mb-[3px]">
-                          <span className="text-[10px] font-semibold text-green-600">出價有效</span>
+                          <span className="text-[10px] font-semibold text-green-600">出價有效 ✓</span>
                         </div>
                       )}
                     </div>
+
+                    {/* Action row */}
                     <div className="flex items-center gap-3 mt-1 ml-1">
                       <span className="text-[11px] text-gray-400">{timeAgo(item.createdAt)}</span>
                       <button className="text-[12px] font-bold text-gray-500 hover:text-gray-700" onClick={() => handleReplyClick(item)}>回覆</button>
@@ -316,6 +331,8 @@ export function AuctionFbPanel({
                         </button>
                       </div>
                     </div>
+
+                    {/* Merchant reply input */}
                     {replyingToBidId === item.id && (
                       <div className="mt-2 flex items-center gap-2 ml-1">
                         <Avatar name={user?.name ?? "?"} photoUrl={myAvatarUrl} size="sm" />
@@ -336,8 +353,11 @@ export function AuctionFbPanel({
                     )}
                   </div>
                 </div>
+
+                {/* Nested merchant replies */}
                 {(replyMap.get(item.id) ?? []).map(reply => (
                   <div key={reply.id} className="flex items-start gap-2 mt-1.5 pl-11">
+                    {/* Reply avatar also uses merchantIcon (from COALESCE SQL) */}
                     <Avatar name={reply.userName} photoUrl={reply.photoUrl} size="sm" />
                     <div className="flex-1 bg-gray-100 rounded-2xl px-3 py-1.5">
                       <p className="text-[12px] font-bold text-gray-900">{reply.userName}</p>
@@ -351,6 +371,7 @@ export function AuctionFbPanel({
           })}
         </div>
 
+        {/* Bottom input */}
         <div className="border-t border-gray-200 px-3 py-2 flex items-center gap-2 bg-white shrink-0">
           <Avatar name={user?.name ?? "?"} photoUrl={myAvatarUrl} size="sm" />
           {isMerchant ? (
