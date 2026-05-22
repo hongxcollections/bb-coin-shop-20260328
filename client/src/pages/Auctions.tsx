@@ -15,13 +15,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Clock, Search, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown, Shield, TrendingUp, Award, Coins, Store, Users, LogIn, Gavel, Sparkles } from "lucide-react";
+import { Clock, Search, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown, Shield, TrendingUp, Award, Coins, Store, Users, LogIn, Gavel, Sparkles, LayoutGrid, List } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrencySymbol } from "./AdminAuctions";
 import { parseCategories } from "@/lib/categories";
 import { ShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
 import { AuctionCard } from "@/components/AuctionCard";
+import { AuctionCardFb } from "@/components/AuctionCardFb";
 import Header from "@/components/Header";
 import AdSenseAd from "@/components/AdSenseAd";
 
@@ -82,6 +83,9 @@ export default function Auctions() {
     return (hasScroll && savedPage) ? parseInt(savedPage, 10) : 0;
   });
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [viewMode, setViewMode] = useState<"default" | "fb">(() => {
+    try { return (localStorage.getItem("auctions-view-mode") as "default" | "fb") ?? "default"; } catch { return "default"; }
+  });
   const scrollRestoredRef = useRef(false);
 
   const saveScrollPosition = () => {
@@ -415,6 +419,18 @@ export default function Auctions() {
                 {f === "active" ? "競拍中" : "我的出價"}
               </Button>
             ))}
+            <button
+              onClick={() => {
+                const next = viewMode === "default" ? "fb" : "default";
+                setViewMode(next);
+                try { localStorage.setItem("auctions-view-mode", next); } catch {}
+              }}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${viewMode === "fb" ? "bg-[#1877f2] text-white border-[#1877f2]" : "border-amber-200 text-amber-700 hover:bg-amber-50"}`}
+              title={viewMode === "fb" ? "切換至預設視圖" : "切換至 FB 視圖"}
+            >
+              {viewMode === "fb" ? <List className="w-3.5 h-3.5" /> : <LayoutGrid className="w-3.5 h-3.5" />}
+              <span className="ml-0.5">{viewMode === "fb" ? "預設" : "FB"}</span>
+            </button>
           </div>
         </div>
 
@@ -482,31 +498,56 @@ export default function Auctions() {
 
               return (
                 <React.Fragment key={auction.id}>
-                <AuctionCard
-                  auctionId={auction.id}
-                  title={auction.title}
-                  imageUrl={(auction.images as Array<{ imageUrl: string }> | undefined)?.[0]?.imageUrl}
-                  endTime={auction.endTime}
-                  currentPrice={curPrice}
-                  startingPrice={Number(auction.startingPrice ?? 0)}
-                  currency={a.currency}
-                  isEnded={isEnded}
-                  isEndingSoon={isEndingSoon}
-                  endingSoonText={endingSoonText}
-                  currentUserId={user?.id}
-                  highestBidderId={a.highestBidderId}
-                  highestBidderName={a.highestBidderName}
-                  bidCount={Number(a.bidCount ?? 0)}
-                  sellerName={a.sellerName}
-                  bidIncrement={Number(auction.bidIncrement ?? 30)}
-                  shareTemplate={a.fbShareTemplate}
-                  antiSnipeEnabled={(auction as { antiSnipeEnabled?: number }).antiSnipeEnabled}
-                  antiSnipeMinutes={(auction as { antiSnipeMinutes?: number }).antiSnipeMinutes}
-                  extendMinutes={(auction as { extendMinutes?: number }).extendMinutes}
-                  createdBy={(auction as { createdBy?: number }).createdBy}
-                  timeProgress={timeProgress}
-                  onLinkClick={saveScrollPosition}
-                />
+                {viewMode === "fb" ? (
+                  <AuctionCardFb
+                    auctionId={auction.id}
+                    title={auction.title}
+                    images={(auction.images as Array<{ imageUrl: string }> | undefined) ?? []}
+                    endTime={auction.endTime}
+                    createdAt={auction.createdAt}
+                    currentPrice={curPrice}
+                    currency={a.currency}
+                    isEnded={isEnded}
+                    bidCount={Number(a.bidCount ?? 0)}
+                    highestBidderId={a.highestBidderId}
+                    highestBidderName={a.highestBidderName}
+                    currentUserId={user?.id}
+                    sellerName={a.sellerName}
+                    createdBy={(auction as { createdBy?: number }).createdBy}
+                    bidIncrement={Number(auction.bidIncrement ?? 30)}
+                    shareTemplate={a.fbShareTemplate}
+                    antiSnipeEnabled={(auction as { antiSnipeEnabled?: number }).antiSnipeEnabled}
+                    antiSnipeMinutes={(auction as { antiSnipeMinutes?: number }).antiSnipeMinutes}
+                    extendMinutes={(auction as { extendMinutes?: number }).extendMinutes}
+                    onLinkClick={saveScrollPosition}
+                  />
+                ) : (
+                  <AuctionCard
+                    auctionId={auction.id}
+                    title={auction.title}
+                    imageUrl={(auction.images as Array<{ imageUrl: string }> | undefined)?.[0]?.imageUrl}
+                    endTime={auction.endTime}
+                    currentPrice={curPrice}
+                    startingPrice={Number(auction.startingPrice ?? 0)}
+                    currency={a.currency}
+                    isEnded={isEnded}
+                    isEndingSoon={isEndingSoon}
+                    endingSoonText={endingSoonText}
+                    currentUserId={user?.id}
+                    highestBidderId={a.highestBidderId}
+                    highestBidderName={a.highestBidderName}
+                    bidCount={Number(a.bidCount ?? 0)}
+                    sellerName={a.sellerName}
+                    bidIncrement={Number(auction.bidIncrement ?? 30)}
+                    shareTemplate={a.fbShareTemplate}
+                    antiSnipeEnabled={(auction as { antiSnipeEnabled?: number }).antiSnipeEnabled}
+                    antiSnipeMinutes={(auction as { antiSnipeMinutes?: number }).antiSnipeMinutes}
+                    extendMinutes={(auction as { extendMinutes?: number }).extendMinutes}
+                    createdBy={(auction as { createdBy?: number }).createdBy}
+                    timeProgress={timeProgress}
+                    onLinkClick={saveScrollPosition}
+                  />
+                )}
                 {bannerEl}
                 {(rowIdx + 1) % 8 === 0 && (
                   <AdSenseAd slot="7230103426" width={320} height={100} className="my-1 rounded-xl overflow-hidden mx-auto" />

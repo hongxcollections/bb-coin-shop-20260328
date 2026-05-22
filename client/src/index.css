@@ -833,3 +833,15 @@
 .product-strip-scroll::-webkit-scrollbar {
   display: none;
 }
+
+/* ── FB Card Animations ── */
+@keyframes fb-heart-float {
+  0%   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  50%  { opacity: 0.85; transform: translateX(-50%) translateY(-40px) scale(1.4); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-80px) scale(0.8); }
+}
+@keyframes fb-dislike-drop {
+  0%   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  50%  { opacity: 0.85; transform: translateX(-50%) translateY(40px) scale(1.4); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(80px) scale(0.8); }
+}

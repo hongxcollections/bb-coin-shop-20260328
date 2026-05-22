@@ -743,3 +743,14 @@ export const communitySeederThemes = mysqlTable("communitySeederThemes", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type CommunitySeederTheme = typeof communitySeederThemes.$inferSelect;
+
+export const auctionComments = mysqlTable("auctionComments", {
+  id: int("id").autoincrement().primaryKey(),
+  auctionId: int("auctionId").notNull(),
+  userId: int("userId").notNull(),
+  content: text("content").notNull(),
+  replyToBidId: int("replyToBidId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AuctionComment = typeof auctionComments.$inferSelect;
+export type InsertAuctionComment = typeof auctionComments.$inferInsert;

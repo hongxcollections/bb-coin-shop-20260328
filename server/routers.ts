@@ -7,7 +7,7 @@ import { z } from "zod";
 import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner, saveCoinAnalysisHistory, getUserCoinAnalysisHistory, deleteCoinAnalysisHistory, updateCoinAnalysisHistoryImage, searchRelatedAuctions, setMerchantPageSizes } from "./db";
 import type { AdTargetType } from "./db";
 import type { Auction } from "../drizzle/schema";
-import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids, merchantAuctionSessions, merchantAuctionSessionItems, communitySeederDrafts } from "../drizzle/schema";
+import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids, merchantAuctionSessions, merchantAuctionSessionItems, communitySeederDrafts, auctionComments } from "../drizzle/schema";
 import { sanitizeUserText } from "./_core/sanitize";
 import { eq, sql } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon, checkAndUpdateAuctionStatus } from "./auctions";
@@ -9569,8 +9569,172 @@ EXAMPLE OUTPUT (exact format):
         return { url };
       }),
   }),
+
+  auctionFbPanel: router({
+    getPanel: publicProcedure
+      .input(z.object({
+        auctionId: z.number().int().positive(),
+        sort: z.enum(["new", "old"]).default("new"),
+      }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        const bidsRows: any = await db.execute(sql.raw(`
+          SELECT 'bid' AS type, b.id, b.auctionId, b.userId,
+            CASE WHEN b.isAnonymous=1 THEN '匿名用戶' ELSE u.name END AS userName,
+            u.photoUrl, CAST(b.bidAmount AS CHAR) AS content,
+            CAST(b.bidAmount AS DECIMAL(10,2)) AS rawAmount,
+            b.isAnonymous, NULL AS replyToBidId, b.createdAt
+          FROM bids b
+          LEFT JOIN users u ON u.id = b.userId
+          WHERE b.auctionId = ${input.auctionId}
+        `));
+        const commentsRows: any = await db.execute(sql.raw(`
+          SELECT 'comment' AS type, c.id, c.auctionId, c.userId,
+            u.name AS userName, u.photoUrl, c.content, NULL AS rawAmount,
+            0 AS isAnonymous, c.replyToBidId, c.createdAt
+          FROM auctionComments c
+          LEFT JOIN users u ON u.id = c.userId
+          WHERE c.auctionId = ${input.auctionId}
+        `));
+        const normalise = (rows: any): any[] => {
+          if (Array.isArray(rows) && Array.isArray(rows[0])) return rows[0];
+          if (Array.isArray(rows)) return rows;
+          return [];
+        };
+        const bidsArr = normalise(bidsRows);
+        const commentsArr = normalise(commentsRows);
+        const merged = [
+          ...bidsArr.map((r: any) => ({
+            type: 'bid' as const,
+            id: Number(r.id),
+            userId: Number(r.userId),
+            userName: (r.userName as string) ?? '匿名用戶',
+            photoUrl: (r.photoUrl as string | null) ?? null,
+            content: String(r.content ?? ''),
+            rawAmount: r.rawAmount != null ? Number(r.rawAmount) : null,
+            isAnonymous: Boolean(r.isAnonymous),
+            replyToBidId: null as null,
+            createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+          })),
+          ...commentsArr.map((r: any) => ({
+            type: 'comment' as const,
+            id: Number(r.id),
+            userId: Number(r.userId),
+            userName: (r.userName as string) ?? '用戶',
+            photoUrl: (r.photoUrl as string | null) ?? null,
+            content: String(r.content ?? ''),
+            rawAmount: null as null,
+            isAnonymous: false,
+            replyToBidId: r.replyToBidId != null ? Number(r.replyToBidId) : null,
+            createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+          })),
+        ];
+        merged.sort((a, b) => {
+          const ta = new Date(a.createdAt).getTime();
+          const tb = new Date(b.createdAt).getTime();
+          return input.sort === "new" ? tb - ta : ta - tb;
+        });
+        return { items: merged, totalBids: bidsArr.length };
+      }),
+
+    postMerchantBroadcast: protectedProcedure
+      .input(z.object({
+        auctionId: z.number().int().positive(),
+        content: z.string().min(1).max(1000),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const aRows: any = await db.execute(sql.raw(`SELECT createdBy, title FROM auctions WHERE id = ${input.auctionId} LIMIT 1`));
+        const auction = normaliseFirst(aRows);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND' });
+        if (Number(auction.createdBy) !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有商戶可廣播訊息' });
+        }
+        await db.insert(auctionComments).values({ auctionId: input.auctionId, userId: ctx.user.id, content: input.content });
+        const bidderRows: any = await db.execute(sql.raw(`SELECT DISTINCT userId FROM bids WHERE auctionId = ${input.auctionId} AND userId IS NOT NULL`));
+        const bidders = normaliseArr(bidderRows);
+        for (const row of bidders) {
+          const uid = Number(row.userId);
+          if (uid && uid !== ctx.user.id) {
+            sendPushToUser(uid, {
+              title: `📢 ${String(auction.title).slice(0, 40)}`,
+              body: input.content.slice(0, 120),
+              url: `/auctions/${input.auctionId}`,
+            }).catch(() => {});
+          }
+        }
+        return { success: true };
+      }),
+
+    merchantLikeBid: protectedProcedure
+      .input(z.object({ bidId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const rows: any = await db.execute(sql.raw(`
+          SELECT b.userId, b.bidAmount, b.auctionId, a.createdBy, a.title, a.id AS aId
+          FROM bids b JOIN auctions a ON a.id = b.auctionId
+          WHERE b.id = ${input.bidId} LIMIT 1
+        `));
+        const r = normaliseFirst(rows);
+        if (!r) throw new TRPCError({ code: 'NOT_FOUND' });
+        if (Number(r.createdBy) !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有商戶可執行此操作' });
+        }
+        if (r.userId) {
+          await sendPushToUser(Number(r.userId), {
+            title: `❤️ 多謝你的出價 HK$${Number(r.bidAmount).toLocaleString()} 有效`,
+            body: String(r.title),
+            url: `/auctions/${r.aId}`,
+          });
+        }
+        return { success: true };
+      }),
+
+    merchantReplyBid: protectedProcedure
+      .input(z.object({
+        bidId: z.number().int().positive(),
+        content: z.string().min(1).max(500),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const rows: any = await db.execute(sql.raw(`
+          SELECT b.userId, b.bidAmount, b.auctionId, a.createdBy, a.title, a.id AS aId
+          FROM bids b JOIN auctions a ON a.id = b.auctionId
+          WHERE b.id = ${input.bidId} LIMIT 1
+        `));
+        const r = normaliseFirst(rows);
+        if (!r) throw new TRPCError({ code: 'NOT_FOUND' });
+        if (Number(r.createdBy) !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只有商戶可執行此操作' });
+        }
+        await db.insert(auctionComments).values({
+          auctionId: Number(r.auctionId),
+          userId: ctx.user.id,
+          content: input.content,
+          replyToBidId: input.bidId,
+        });
+        if (r.userId) {
+          await sendPushToUser(Number(r.userId), {
+            title: `💬 商戶回覆咗你`,
+            body: `${String(r.title).slice(0, 40)}：${input.content.slice(0, 80)}`,
+            url: `/auctions/${r.aId}`,
+          });
+        }
+        return { success: true };
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
+
+function normaliseArr(rows: any): any[] {
+  if (Array.isArray(rows) && Array.isArray(rows[0])) return rows[0];
+  if (Array.isArray(rows)) return rows;
+  return [];
+}
+function normaliseFirst(rows: any): any | null {
+  const arr = normaliseArr(rows);
+  return arr[0] ?? null;
+}
 
 // ─── 藏品社區 AI 助手 helpers ─────────────────────────────────────────
 async function getDbThemes(db: any): Promise<Array<{ id: string; label: string; hint: string; sortOrder: number; isSystem: boolean }>> {

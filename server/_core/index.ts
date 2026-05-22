@@ -978,6 +978,18 @@ async function bootstrapMissingColumns() {
     console.warn('[Bootstrap] Relist dedup cleanup failed (non-fatal):', (e as Error).message);
   }
 
+  await alter(`CREATE TABLE IF NOT EXISTS \`auctionComments\` (
+    \`id\` int NOT NULL AUTO_INCREMENT,
+    \`auctionId\` int NOT NULL,
+    \`userId\` int NOT NULL,
+    \`content\` text NOT NULL,
+    \`replyToBidId\` int DEFAULT NULL,
+    \`createdAt\` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (\`id\`),
+    INDEX \`idx_auctionComments_auction\` (\`auctionId\`),
+    INDEX \`idx_auctionComments_replyToBid\` (\`replyToBidId\`)
+  )`, 'Ensured auctionComments table');
+
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
 }
