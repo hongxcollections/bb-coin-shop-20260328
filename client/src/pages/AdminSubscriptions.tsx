@@ -129,6 +129,10 @@ export default function AdminSubscriptions() {
   const [quotaEditId, setQuotaEditId] = useState<number | null>(null);
   const [quotaEditValue, setQuotaEditValue] = useState("");
 
+  // EndDate edit state
+  const [endDateEditId, setEndDateEditId] = useState<number | null>(null);
+  const [endDateEditValue, setEndDateEditValue] = useState("");
+
   // Payment methods state
   const [paymentMethodsText, setPaymentMethodsText] = useState("");
 
@@ -212,6 +216,16 @@ export default function AdminSubscriptions() {
       utils.subscriptions.adminListSubscriptions.invalidate();
       setQuotaEditId(null);
       setQuotaEditValue("");
+    },
+    onError: (err) => toast.error(`更新失敗：${err.message}`),
+  });
+
+  const updateEndDateMutation = trpc.subscriptions.adminUpdateEndDate.useMutation({
+    onSuccess: () => {
+      toast.success("到期日已更新");
+      utils.subscriptions.adminListSubscriptions.invalidate();
+      setEndDateEditId(null);
+      setEndDateEditValue("");
     },
     onError: (err) => toast.error(`更新失敗：${err.message}`),
   });
@@ -537,7 +551,7 @@ export default function AdminSubscriptions() {
                                     <span>發佈限額結餘：</span>
                                     {(sub.maxListings ?? 0) === 0
                                       ? <span className="text-green-600 font-medium">無限制</span>
-                                      : quotaEditId === sub.id && sub.status === "active"
+                                      : quotaEditId === sub.id
                                         ? (
                                           <span className="flex items-center gap-1">
                                             <input
@@ -560,15 +574,13 @@ export default function AdminSubscriptions() {
                                             <span className={`font-medium ${(sub.remainingQuota ?? 0) <= 0 ? "text-red-600" : (sub.remainingQuota ?? 0) <= 5 ? "text-amber-600" : "text-blue-600"}`}>
                                               {sub.remainingQuota ?? 0} / {sub.maxListings} 次
                                             </span>
-                                            {sub.status === "active" && (
-                                              <button
-                                                onClick={() => { setQuotaEditId(sub.id); setQuotaEditValue(String(sub.remainingQuota ?? 0)); }}
-                                                className="text-gray-400 hover:text-blue-500 transition-colors"
-                                                title="修改限額"
-                                              >
-                                                <Pencil className="w-3 h-3" />
-                                              </button>
-                                            )}
+                                            <button
+                                              onClick={() => { setQuotaEditId(sub.id); setQuotaEditValue(String(sub.remainingQuota ?? 0)); }}
+                                              className="text-gray-400 hover:text-blue-500 transition-colors"
+                                              title="修改限額"
+                                            >
+                                              <Pencil className="w-3 h-3" />
+                                            </button>
                                           </span>
                                         )
                                     }
@@ -577,11 +589,46 @@ export default function AdminSubscriptions() {
                                 <p>付款方式：{PAYMENT_METHODS.find(m => m.value === sub.paymentMethod)?.label ?? sub.paymentMethod ?? "未指定"}</p>
                                 {sub.paymentReference && <p>付款參考：{sub.paymentReference}</p>}
                                 <p>申請時間：{formatDate(sub.createdAt)}</p>
-                                {sub.startDate && <p>生效：{formatDate(sub.startDate)} ~ {formatDate(sub.endDate)}</p>}
+                                {sub.startDate && (
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    <span>生效：{formatDate(sub.startDate)} ~ </span>
+                                    {endDateEditId === sub.id ? (
+                                      <span className="flex items-center gap-1">
+                                        <input
+                                          type="date"
+                                          value={endDateEditValue}
+                                          onChange={e => setEndDateEditValue(e.target.value)}
+                                          className="border rounded px-1 py-0.5 text-xs"
+                                          onKeyDown={e => {
+                                            if (e.key === "Enter" && endDateEditValue) updateEndDateMutation.mutate({ subscriptionId: sub.id, endDate: endDateEditValue });
+                                            if (e.key === "Escape") { setEndDateEditId(null); setEndDateEditValue(""); }
+                                          }}
+                                          autoFocus
+                                        />
+                                        <button onClick={() => { if (endDateEditValue) updateEndDateMutation.mutate({ subscriptionId: sub.id, endDate: endDateEditValue }); }} className="text-green-600 hover:text-green-700 font-medium text-xs">✓</button>
+                                        <button onClick={() => { setEndDateEditId(null); setEndDateEditValue(""); }} className="text-gray-400 hover:text-gray-600 text-xs">✕</button>
+                                      </span>
+                                    ) : (
+                                      <span className="flex items-center gap-1">
+                                        <span>{formatDate(sub.endDate)}</span>
+                                        <button
+                                          onClick={() => { setEndDateEditId(sub.id); setEndDateEditValue(sub.endDate ? new Date(sub.endDate as any).toISOString().slice(0, 10) : ""); }}
+                                          className="text-gray-400 hover:text-blue-500 transition-colors"
+                                          title="修改到期日"
+                                        >
+                                          <Pencil className="w-3 h-3" />
+                                        </button>
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                                 {sub.adminNote && <p className="text-amber-700">備註：{sub.adminNote}</p>}
                               </div>
                             </div>
-                            <div className="flex gap-1.5 flex-wrap">
+                            <div className="flex gap-1.5 flex-wrap items-center">
+                              {sub.status === "expired" && (
+                                <span className="text-xs font-semibold text-red-500 animate-pulse select-none">已到期</span>
+                              )}
                               {sub.paymentProofUrl && (
                                 <Button
                                   variant="outline" size="sm"

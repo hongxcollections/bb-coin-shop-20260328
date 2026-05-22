@@ -4364,6 +4364,20 @@ export async function adminSetSubscriptionQuota(subscriptionId: number, remainin
   return { success: true };
 }
 
+export async function adminSetSubscriptionEndDate(
+  subscriptionId: number,
+  endDate: Date
+): Promise<{ success: boolean; status: 'active' | 'expired' }> {
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+  const now = new Date();
+  const newStatus: 'active' | 'expired' = endDate.getTime() > now.getTime() ? 'active' : 'expired';
+  await db.update(userSubscriptions)
+    .set({ endDate, status: newStatus })
+    .where(eq(userSubscriptions.id, subscriptionId));
+  return { success: true, status: newStatus };
+}
+
 // ─── Commission Refund Requests ───────────────────────────────────────────────
 
 export async function createRefundRequest(data: {
