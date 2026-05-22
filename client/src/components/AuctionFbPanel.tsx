@@ -149,12 +149,15 @@ export function AuctionFbPanel({
   const [particles, setParticles] = useState<{ id: number; bidId: number; dir: "up" | "down" }[]>([]);
   const pidRef = useRef(0);
 
-  /* ── Drag-to-close (downward) ── */
+  /* ── Drag-to-close (down + right) ── */
   const [dragY, setDragY] = useState(0);
+  const [dragX, setDragX] = useState(0);
   const dragYRef = useRef(0);
+  const dragXRef = useRef(0);
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
+  const dragDir = useRef<"y" | "x" | null>(null);
   const startY = useRef(0);
   const startX = useRef(0);
 
@@ -162,6 +165,12 @@ export function AuctionFbPanel({
     setDragY(window.innerHeight);
     dragYRef.current = window.innerHeight;
     setTimeout(() => { setDragY(0); dragYRef.current = 0; onClose(); }, 280);
+  }, [onClose]);
+
+  const triggerCloseRight = useCallback(() => {
+    setDragX(window.innerWidth);
+    dragXRef.current = window.innerWidth;
+    setTimeout(() => { setDragX(0); dragXRef.current = 0; onClose(); }, 280);
   }, [onClose]);
 
   useEffect(() => {
@@ -176,19 +185,34 @@ export function AuctionFbPanel({
       const dy = e.touches[0].clientY - startY.current;
       const dx = e.touches[0].clientX - startX.current;
       const atTop = !scrollRef.current || scrollRef.current.scrollTop <= 0;
-      if (!isDragging.current && dy > 8 && Math.abs(dy) > Math.abs(dx) && atTop) isDragging.current = true;
+      if (!isDragging.current) {
+        if (dy > 8 && Math.abs(dy) > Math.abs(dx) && atTop) { isDragging.current = true; dragDir.current = "y"; }
+        else if (dx > 8 && Math.abs(dx) > Math.abs(dy)) { isDragging.current = true; dragDir.current = "x"; }
+      }
       if (isDragging.current) {
         e.preventDefault();
-        const clamped = Math.max(0, dy);
-        dragYRef.current = clamped;
-        setDragY(clamped);
+        if (dragDir.current === "y") {
+          const clamped = Math.max(0, dy);
+          dragYRef.current = clamped;
+          setDragY(clamped);
+        } else {
+          const clamped = Math.max(0, dx);
+          dragXRef.current = clamped;
+          setDragX(clamped);
+        }
       }
     };
     const onEnd = () => {
       if (!isDragging.current) return;
       isDragging.current = false;
-      if (dragYRef.current > 120) triggerClose();
-      else { setDragY(0); dragYRef.current = 0; }
+      if (dragDir.current === "y") {
+        if (dragYRef.current > 120) triggerClose();
+        else { setDragY(0); dragYRef.current = 0; }
+      } else {
+        if (dragXRef.current > 100) triggerCloseRight();
+        else { setDragX(0); dragXRef.current = 0; }
+      }
+      dragDir.current = null;
     };
     panel.addEventListener("touchstart", onStart, { passive: true });
     panel.addEventListener("touchmove", onMove, { passive: false });
@@ -198,7 +222,7 @@ export function AuctionFbPanel({
       panel.removeEventListener("touchmove", onMove);
       panel.removeEventListener("touchend", onEnd);
     };
-  }, [open, triggerClose]);
+  }, [open, triggerClose, triggerCloseRight]);
 
   /* ── iOS body scroll lock ── */
   useEffect(() => {
@@ -311,8 +335,8 @@ export function AuctionFbPanel({
   if (!open) return null;
 
   const panelStyle: React.CSSProperties = {
-    transform: `translateY(${dragY}px)`,
-    transition: (isDragging.current || dragY === 0) ? "none" : "transform 0.28s cubic-bezier(0.4,0,0.2,1)",
+    transform: `translateY(${dragY}px) translateX(${dragX}px)`,
+    transition: (isDragging.current || (dragY === 0 && dragX === 0)) ? "none" : "transform 0.28s cubic-bezier(0.4,0,0.2,1)",
     willChange: "transform",
   };
 
@@ -347,9 +371,6 @@ export function AuctionFbPanel({
               <div className="flex items-center gap-1.5">
                 <span className="text-base">👍</span>
                 <span className="text-[13px] font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
-              </div>
-              <div className="text-[11px] text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                每口 {curr}{bidIncrement.toLocaleString()}
               </div>
               <button onClick={triggerClose}><X className="w-5 h-5 text-gray-500" /></button>
             </div>

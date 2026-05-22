@@ -342,6 +342,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         currentPrice={currentPrice}
         bidIncrement={bidIncrement}
         isEnded={isEnded}
+        endTime={endTime}
         antiSnipeEnabled={antiSnipeEnabled}
         antiSnipeMinutes={antiSnipeMinutes}
         extendMinutes={extendMinutes}

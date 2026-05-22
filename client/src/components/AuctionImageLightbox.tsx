@@ -385,9 +385,6 @@ export function AuctionImageLightbox({
                   <span className="text-base">👍</span>
                   <span className="text-[13px] font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
                 </div>
-                <div className="text-[11px] text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                  每口 {curr}{bidIncrement.toLocaleString()}
-                </div>
               </div>
             </div>
 
