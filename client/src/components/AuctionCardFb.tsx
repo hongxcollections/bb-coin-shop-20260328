@@ -332,6 +332,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         auctionId={auctionId}
         auctionTitle={title}
         createdBy={createdBy}
+        sellerPhotoUrl={sellerPhotoUrl}
         currency={currency}
         currentPrice={currentPrice}
         bidIncrement={bidIncrement}

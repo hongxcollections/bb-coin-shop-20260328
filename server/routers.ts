@@ -9581,19 +9581,24 @@ EXAMPLE OUTPUT (exact format):
         const bidsRows: any = await db.execute(sql.raw(`
           SELECT 'bid' AS type, b.id, b.auctionId, b.userId,
             CASE WHEN b.isAnonymous=1 THEN '匿名用戶' ELSE u.name END AS userName,
-            u.photoUrl, CAST(b.bidAmount AS CHAR) AS content,
+            COALESCE(NULLIF(TRIM(ma.merchantIcon),''), NULLIF(TRIM(u.photoUrl),'')) AS photoUrl,
+            CAST(b.bidAmount AS CHAR) AS content,
             CAST(b.bidAmount AS DECIMAL(10,2)) AS rawAmount,
             b.isAnonymous, NULL AS replyToBidId, b.createdAt
           FROM bids b
           LEFT JOIN users u ON u.id = b.userId
+          LEFT JOIN merchantApplications ma ON ma.userId = b.userId AND ma.status = 'approved'
           WHERE b.auctionId = ${input.auctionId}
         `));
         const commentsRows: any = await db.execute(sql.raw(`
           SELECT 'comment' AS type, c.id, c.auctionId, c.userId,
-            u.name AS userName, u.photoUrl, c.content, NULL AS rawAmount,
+            u.name AS userName,
+            COALESCE(NULLIF(TRIM(ma.merchantIcon),''), NULLIF(TRIM(u.photoUrl),'')) AS photoUrl,
+            c.content, NULL AS rawAmount,
             0 AS isAnonymous, c.replyToBidId, c.createdAt
           FROM auctionComments c
           LEFT JOIN users u ON u.id = c.userId
+          LEFT JOIN merchantApplications ma ON ma.userId = c.userId AND ma.status = 'approved'
           WHERE c.auctionId = ${input.auctionId}
         `));
         const normalise = (rows: any): any[] => {
