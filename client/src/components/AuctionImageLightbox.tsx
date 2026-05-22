@@ -276,7 +276,16 @@ export function AuctionImageLightbox({
     onError: (err) => toast.error(`出價失敗：${err.message}`),
   });
 
-  const items: PanelItem[] = panelData?.items ?? [];
+  /* Chrome: ctx.user may be null for publicProcedure — supplement server isMyBid with client check */
+  const items: PanelItem[] = (panelData?.items ?? []).map(item => ({
+    ...item,
+    isMyBid: item.isMyBid || (
+      item.type === "bid" &&
+      !item.isAnonymous &&
+      user?.id != null &&
+      String(item.userId) === String(user.id)
+    ),
+  }));
   const topLevelItems = items.filter(
     i => i.type === "bid" || (i.type === "comment" && i.replyToBidId === null)
   );
