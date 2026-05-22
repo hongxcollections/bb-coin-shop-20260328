@@ -2260,9 +2260,13 @@ export const appRouter = router({
         paymentProofUrl: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        // 防止重複申請：已有任何 pending 訂閱（首次或續期）時拒絕
+        const history = await getUserSubscriptions(ctx.user.id);
+        const hasPending = (history as Array<{ status: string }>).some(s => s.status === 'pending');
+        if (hasPending) throw new TRPCError({ code: 'BAD_REQUEST', message: '您已有待審核的訂閱申請，請耐心等候管理員確認收款後再操作。' });
         // Verify plan exists and is active
         const plan = await getSubscriptionPlanById(input.planId);
-        if (!plan || !plan.isActive) throw new TRPCError({ code: 'NOT_FOUND', message: '\u8a02\u95b1\u8a08\u5283\u4e0d\u5b58\u5728\u6216\u5df2\u505c\u7528' });
+        if (!plan || !plan.isActive) throw new TRPCError({ code: 'NOT_FOUND', message: '訂閱計劃不存在或已停用' });
         return createUserSubscription({
           userId: ctx.user.id,
           planId: input.planId,

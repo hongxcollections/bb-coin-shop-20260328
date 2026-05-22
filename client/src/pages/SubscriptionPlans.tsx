@@ -118,6 +118,8 @@ export default function SubscriptionPlans() {
 
   const { data: siteSettings } = trpc.siteSettings.getAll.useQuery();
 
+  const hasPendingApplication = (myHistory as SubscriptionHistory[] | undefined)?.some(s => s.status === "pending") ?? false;
+
   const utils = trpc.useUtils();
 
   // ── Mutations ──
@@ -384,14 +386,14 @@ export default function SubscriptionPlans() {
                     {isAuthenticated ? (
                       <Button
                         onClick={() => openSubscribe(plan)}
-                        disabled={isCurrentLevel}
+                        disabled={isCurrentLevel || hasPendingApplication}
                         className={`w-full ${
-                          isCurrentLevel
+                          isCurrentLevel || hasPendingApplication
                             ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                             : "gold-gradient text-white border-0 hover:shadow-md"
                         }`}
                       >
-                        {isCurrentLevel ? "目前等級" : "立即訂閱"}
+                        {isCurrentLevel ? "目前等級" : hasPendingApplication ? "申請審核中" : "立即訂閱"}
                       </Button>
                     ) : (
                       <Link href="/login">
@@ -586,10 +588,10 @@ export default function SubscriptionPlans() {
                 <Button variant="outline" onClick={closeSubscribeDialog} className="flex-1">取消</Button>
                 <Button
                   onClick={handleSubmitSubscription}
-                  disabled={subscribeMutation.isPending}
+                  disabled={subscribeMutation.isPending || hasPendingApplication}
                   className="flex-1 gold-gradient text-white border-0"
                 >
-                  {subscribeMutation.isPending ? "提交中..." : "提交訂閱申請"}
+                  {subscribeMutation.isPending ? "提交中..." : hasPendingApplication ? "已有審核中申請" : "提交訂閱申請"}
                 </Button>
               </div>
             </div>
