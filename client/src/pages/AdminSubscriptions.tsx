@@ -87,7 +87,7 @@ function statusBadge(status: string) {
   switch (status) {
     case "pending": return { label: "待審核", cls: "bg-amber-100 text-amber-700 border-amber-200" };
     case "active": return { label: "生效中", cls: "bg-green-100 text-green-700 border-green-200" };
-    case "expired": return { label: "已過期", cls: "bg-gray-100 text-gray-600 border-gray-200" };
+    case "expired": return { label: "已過期", cls: "bg-red-50 text-red-600 border-red-200 animate-pulse" };
     case "cancelled": return { label: "已取消", cls: "bg-red-100 text-red-700 border-red-200" };
     case "rejected": return { label: "已拒絕", cls: "bg-red-100 text-red-600 border-red-200" };
     default: return { label: status, cls: "bg-gray-100 text-gray-700 border-gray-200" };

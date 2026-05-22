@@ -442,7 +442,16 @@ export default function MerchantDashboard() {
     ? Math.ceil((new Date(mySubscription.endDate).getTime() - Date.now()) / 86400000)
     : null;
   const canRenew = mySubscription && daysUntilExpiry !== null && daysUntilExpiry <= 14;
-  const showExpiryWarning = mySubscription && daysUntilExpiry !== null && daysUntilExpiry <= 7;
+  // 過期 banner：active sub 用 mySubscription；訂閱已過期時從 history 取最近 expired row
+  type _BannerSub = { status: string; endDate: Date | string | null; planName: string | null; billingCycle: string | null };
+  const recentExpiredSub = !mySubscription
+    ? (mySubHistory as _BannerSub[] | undefined)?.find(s => s.status === 'expired') ?? null
+    : null;
+  const bannerSub: _BannerSub | null = (mySubscription as _BannerSub | null | undefined) ?? recentExpiredSub;
+  const bannerDays = bannerSub?.endDate
+    ? Math.ceil((new Date(bannerSub.endDate).getTime() - Date.now()) / 86400000)
+    : null;
+  const showExpiryWarning = !!bannerSub && bannerDays !== null && (bannerSub.status === 'expired' || bannerDays <= 7);
 
   const handleSubmitRenew = () => {
     if (!renewPaymentMethod) { toast.error("請選擇付款方式"); return; }
@@ -814,19 +823,19 @@ export default function MerchantDashboard() {
         {/* ── 訂閱即將到期 / 已過期 banner ── */}
         {showExpiryWarning && (
           <div className={`rounded-xl border px-4 py-3 flex items-start gap-3 text-sm animate-pulse ${
-            (daysUntilExpiry ?? 0) <= 0
+            (bannerDays ?? 0) <= 0
               ? "bg-red-50 border-red-300 text-red-700"
-              : (daysUntilExpiry ?? 0) <= 3
+              : (bannerDays ?? 0) <= 3
               ? "bg-red-50 border-red-200 text-red-700"
               : "bg-amber-50 border-amber-200 text-amber-700"
           }`}>
             <Clock className="w-5 h-5 mt-0.5 flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="font-semibold">
-                {(daysUntilExpiry ?? 0) <= 0 ? "訂閱已過期！請盡快續期" : `訂閱即將到期：仲有 ${daysUntilExpiry} 日`}
+                {(bannerDays ?? 0) <= 0 ? "訂閱已過期！請盡快續期" : `訂閱即將到期：仲有 ${bannerDays} 日`}
               </p>
               <p className="text-xs mt-0.5">
-                計劃：{mySubscription?.planName ?? "—"} ({mySubscription?.billingCycle === "yearly" ? "年繳" : "月繳"}) | 到期：{fmtDate(mySubscription?.endDate ?? null)}
+                計劃：{bannerSub?.planName ?? "—"} ({bannerSub?.billingCycle === "yearly" ? "年繳" : "月繳"}) | 到期：{fmtDate((bannerSub?.endDate as Date | null | undefined) ?? null)}
               </p>
               {hasPendingRenewal && (
                 <p className="text-xs mt-1 inline-flex items-center gap-1 text-blue-600">
