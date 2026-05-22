@@ -2281,24 +2281,27 @@ export const appRouter = router({
         paymentProofUrl: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        // 必須有 active subscription 先可以續期
+        // 揾 parent：優先 active，冇就揾最近 expired（允許過期後申請續期）
         const active = await getUserActiveSubscription(ctx.user.id);
-        if (!active) throw new TRPCError({ code: 'BAD_REQUEST', message: '冇生效中嘅訂閱，請直接揀計劃訂閱' });
-        // 防止重複申請：check 有冇 pending 嘅 renewal
         const history = await getUserSubscriptions(ctx.user.id);
-        const pendingRenewal = (history as Array<{ status: string; isRenewal?: number }>).find(
+        type _HistRow = { id: number; planId: number; billingCycle: string; status: string; isRenewal?: number | null };
+        const parentSub: _HistRow | null = (active as _HistRow | null)
+          ?? (history as _HistRow[]).find(h => h.status === 'expired') ?? null;
+        if (!parentSub) throw new TRPCError({ code: 'BAD_REQUEST', message: '冇訂閱記錄，請直接揀計劃訂閱' });
+        // 防止重複申請：check 有冇 pending 嘅 renewal
+        const pendingRenewal = (history as Array<{ status: string; isRenewal?: number | null }>).find(
           h => h.status === 'pending' && h.isRenewal === 1
         );
         if (pendingRenewal) throw new TRPCError({ code: 'BAD_REQUEST', message: '已有續期申請待審核，請耐心等候' });
         return createUserSubscription({
           userId: ctx.user.id,
-          planId: active.planId,
-          billingCycle: active.billingCycle as 'monthly' | 'yearly',
+          planId: parentSub.planId,
+          billingCycle: parentSub.billingCycle as 'monthly' | 'yearly',
           paymentMethod: input.paymentMethod,
           paymentReference: input.paymentReference,
           paymentProofUrl: input.paymentProofUrl,
           isRenewal: true,
-          parentSubscriptionId: active.id,
+          parentSubscriptionId: parentSub.id,
         });
       }),
 
