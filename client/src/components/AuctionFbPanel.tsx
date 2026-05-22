@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, ThumbsUp, ThumbsDown, X, ChevronDown } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -76,6 +76,7 @@ export function AuctionFbPanel({
   const { user, isAuthenticated } = useAuth();
   const isMerchant = !!user && user.id === createdBy;
   const curr = (!currency || currency === "HKD") ? "HK$" : currency;
+  const sellerDisplayName = sellerName ?? "商戶";
 
   const [sort, setSort] = useState<"new" | "old">("new");
   const [bidInput, setBidInput] = useState("");
@@ -85,8 +86,79 @@ export function AuctionFbPanel({
   const [replyText, setReplyText] = useState("");
   const [particles, setParticles] = useState<{ id: number; bidId: number; dir: "up" | "down" }[]>([]);
   const pidRef = useRef(0);
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
+
+  /* ── Drag-to-close state ── */
+  const [dragY, setDragY] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const dragYRef = useRef(0);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const startY = useRef(0);
+  const startX = useRef(0);
+
+  const triggerClose = useCallback(() => {
+    setIsAnimating(true);
+    setDragY(window.innerHeight);
+    dragYRef.current = window.innerHeight;
+    setTimeout(() => {
+      setDragY(0);
+      dragYRef.current = 0;
+      setIsAnimating(false);
+      onClose();
+    }, 280);
+  }, [onClose]);
+
+  /* ── Non-passive touch handlers to block pull-to-refresh ── */
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || !open) return;
+
+    const onStart = (e: TouchEvent) => {
+      startY.current = e.touches[0].clientY;
+      startX.current = e.touches[0].clientX;
+      isDragging.current = false;
+    };
+
+    const onMove = (e: TouchEvent) => {
+      const dy = e.touches[0].clientY - startY.current;
+      const dx = e.touches[0].clientX - startX.current;
+      const scrollEl = scrollRef.current;
+      const atTop = !scrollEl || scrollEl.scrollTop <= 0;
+
+      /* Activate downward panel drag only when list is scrolled to top */
+      if (!isDragging.current && dy > 8 && Math.abs(dy) > Math.abs(dx) && atTop) {
+        isDragging.current = true;
+      }
+
+      if (isDragging.current) {
+        e.preventDefault(); /* blocks pull-to-refresh */
+        const clamped = Math.max(0, dy);
+        dragYRef.current = clamped;
+        setDragY(clamped);
+      }
+    };
+
+    const onEnd = () => {
+      if (!isDragging.current) return;
+      isDragging.current = false;
+      if (dragYRef.current > 120) {
+        triggerClose();
+      } else {
+        setDragY(0);
+        dragYRef.current = 0;
+      }
+    };
+
+    panel.addEventListener("touchstart", onStart, { passive: true });
+    panel.addEventListener("touchmove", onMove, { passive: false });
+    panel.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      panel.removeEventListener("touchstart", onStart);
+      panel.removeEventListener("touchmove", onMove);
+      panel.removeEventListener("touchend", onEnd);
+    };
+  }, [open, triggerClose]);
 
   /* ── iOS body scroll lock ── */
   useEffect(() => {
@@ -194,38 +266,32 @@ export function AuctionFbPanel({
     broadcastMutation.mutate({ auctionId, content: merchantInput.trim() });
   };
 
-  /* ── Swipe right or down to close ── */
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-  };
-  const handleTouchMove = (e: React.TouchEvent) => {
-    const dx = e.touches[0].clientX - touchStartX.current;
-    const dy = e.touches[0].clientY - touchStartY.current;
-    if (dx > 80 && Math.abs(dx) > Math.abs(dy)) { onClose(); return; }
-    if (dy > 80) onClose();
-  };
-
-  /* ── Avatar for bottom input ── */
   const myAvatarUrl = isMerchant
     ? (sellerPhotoUrl ?? user?.photoUrl ?? null)
     : (user?.photoUrl ?? null);
 
-  /* ── Seller display name for broadcast bubbles ── */
-  const sellerDisplayName = sellerName ?? "商戶";
-
   if (!open) return null;
 
+  /* Panel follows finger when dragging; springs back or animates out on release */
+  const panelStyle: React.CSSProperties = {
+    transform: `translateY(${dragY}px)`,
+    transition: (isDragging.current || dragY === 0) ? "none" : "transform 0.28s cubic-bezier(0.4,0,0.2,1)",
+    willChange: "transform",
+  };
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-end" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+    <div
+      className="fixed inset-0 z-[60] flex items-end"
+      onClick={(e) => { if (e.target === e.currentTarget && !isAnimating) triggerClose(); }}
+    >
+      <div className="absolute inset-0 bg-black/50" onClick={() => { if (!isAnimating) triggerClose(); }} />
       <div
+        ref={panelRef}
         className="relative z-10 w-full max-h-[88vh] bg-white rounded-t-2xl flex flex-col shadow-2xl"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
+        style={panelStyle}
       >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-2 pb-0.5 shrink-0">
+        {/* Drag handle pill */}
+        <div className="flex justify-center pt-2 pb-0.5 shrink-0 cursor-grab active:cursor-grabbing touch-none select-none">
           <div className="w-10 h-1 bg-gray-300 rounded-full" />
         </div>
 
@@ -247,12 +313,12 @@ export function AuctionFbPanel({
             >
               {sort === "new" ? "由新至舊" : "由舊至新"} <ChevronDown className="w-4 h-4" />
             </button>
-            <button onClick={onClose}><X className="w-5 h-5 text-gray-500" /></button>
+            <button onClick={triggerClose}><X className="w-5 h-5 text-gray-500" /></button>
           </div>
         </div>
 
-        {/* Items list */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+        {/* Scrollable list */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
           {isLoading && (
             <div className="flex justify-center py-10">
               <div className="w-7 h-7 border-2 border-gray-200 border-t-[#1877f2] rounded-full animate-spin" />
@@ -263,11 +329,10 @@ export function AuctionFbPanel({
           )}
 
           {topLevelItems.map((item) => {
-            /* ── Merchant broadcast (top-level comment, no replyToBidId) ── */
+            /* Merchant broadcast */
             if (item.type === "comment") {
               return (
                 <div key={`comment-${item.id}`} className="flex items-start gap-2.5">
-                  {/* Use seller's photo (merchantIcon) for broadcast avatar */}
                   <Avatar name={sellerDisplayName} photoUrl={sellerPhotoUrl ?? item.photoUrl} />
                   <div className="flex-1 bg-blue-50 rounded-2xl px-3 py-2 border border-blue-100">
                     <div className="flex items-center gap-1.5 mb-0.5">
@@ -281,9 +346,8 @@ export function AuctionFbPanel({
               );
             }
 
-            /* ── Bid item ── */
-            /* Fix: coerce both sides to Number to avoid string/int mismatch */
-            const isMyBid = !item.isAnonymous && !!user && Number(item.userId) === Number(user.id);
+            /* Bid item — String comparison avoids Chrome int/string mismatch */
+            const isMyBid = !item.isAnonymous && !!user && String(item.userId) === String(user.id);
             return (
               <div key={`bid-${item.id}`}>
                 <div className="flex items-start gap-2.5">
@@ -292,7 +356,6 @@ export function AuctionFbPanel({
                     photoUrl={item.isAnonymous ? null : item.photoUrl}
                   />
                   <div className="flex-1 min-w-0">
-                    {/* Bubble */}
                     <div className="bg-gray-100 rounded-2xl px-3 py-2 inline-block max-w-[80%]">
                       <p className="text-[13px] font-bold text-gray-900 leading-tight">
                         {item.isAnonymous ? "匿名用戶" : item.userName}
@@ -302,15 +365,12 @@ export function AuctionFbPanel({
                           ? `${curr}${Number(item.rawAmount).toLocaleString()}`
                           : item.content}
                       </p>
-                      {/* 出價有效 — shown for ALL of my own bids */}
                       {isMyBid && (
                         <div className="flex justify-end mt-1 mb-[3px]">
                           <span className="text-[10px] font-semibold text-green-600">出價有效 ✓</span>
                         </div>
                       )}
                     </div>
-
-                    {/* Action row */}
                     <div className="flex items-center gap-3 mt-1 ml-1">
                       <span className="text-[11px] text-gray-400">{timeAgo(item.createdAt)}</span>
                       <button className="text-[12px] font-bold text-gray-500 hover:text-gray-700" onClick={() => handleReplyClick(item)}>回覆</button>
@@ -331,8 +391,6 @@ export function AuctionFbPanel({
                         </button>
                       </div>
                     </div>
-
-                    {/* Merchant reply input */}
                     {replyingToBidId === item.id && (
                       <div className="mt-2 flex items-center gap-2 ml-1">
                         <Avatar name={user?.name ?? "?"} photoUrl={myAvatarUrl} size="sm" />
@@ -353,11 +411,8 @@ export function AuctionFbPanel({
                     )}
                   </div>
                 </div>
-
-                {/* Nested merchant replies */}
                 {(replyMap.get(item.id) ?? []).map(reply => (
                   <div key={reply.id} className="flex items-start gap-2 mt-1.5 pl-11">
-                    {/* Reply avatar also uses merchantIcon (from COALESCE SQL) */}
                     <Avatar name={reply.userName} photoUrl={reply.photoUrl} size="sm" />
                     <div className="flex-1 bg-gray-100 rounded-2xl px-3 py-1.5">
                       <p className="text-[12px] font-bold text-gray-900">{reply.userName}</p>

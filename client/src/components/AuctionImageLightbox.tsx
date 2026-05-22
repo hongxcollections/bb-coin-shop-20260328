@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { ChevronLeft, ThumbsUp, Share2, Send, ChevronDown, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -139,16 +139,85 @@ export function AuctionImageLightbox({
   const { user, isAuthenticated } = useAuth();
   const isMerchant = !!user && user.id === createdBy;
   const curr = (!currency || currency === "HKD") ? "HK$" : currency;
+  const sellerDisplayName = sellerName ?? "商戶";
 
   const [sort, setSort] = useState<"new" | "old">("new");
   const [bidInput, setBidInput] = useState("");
   const [merchantInput, setMerchantInput] = useState("");
   const [merchantSentSuccess, setMerchantSentSuccess] = useState(false);
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
 
-  const sellerDisplayName = sellerName ?? "商戶";
+  /* ── Swipe-right drag animation state ── */
+  const [dragX, setDragX] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const dragXRef = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const startY = useRef(0);
+
+  const triggerClose = useCallback(() => {
+    setIsAnimating(true);
+    setDragX(window.innerWidth);
+    dragXRef.current = window.innerWidth;
+    setTimeout(() => {
+      setDragX(0);
+      dragXRef.current = 0;
+      setIsAnimating(false);
+      onClose();
+    }, 280);
+  }, [onClose]);
+
+  /* ── Non-passive touch handlers for swipe-right with animation ── */
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !open) return;
+
+    const onStart = (e: TouchEvent) => {
+      if (zoomSrc) return;
+      startX.current = e.touches[0].clientX;
+      startY.current = e.touches[0].clientY;
+      isDragging.current = false;
+    };
+
+    const onMove = (e: TouchEvent) => {
+      if (zoomSrc) return;
+      const dx = e.touches[0].clientX - startX.current;
+      const dy = e.touches[0].clientY - startY.current;
+
+      /* Activate rightward drag (not vertical scroll) */
+      if (!isDragging.current && dx > 8 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+        isDragging.current = true;
+      }
+
+      if (isDragging.current) {
+        e.preventDefault();
+        const clamped = Math.max(0, dx);
+        dragXRef.current = clamped;
+        setDragX(clamped);
+      }
+    };
+
+    const onEnd = () => {
+      if (!isDragging.current) return;
+      isDragging.current = false;
+      if (dragXRef.current > 100) {
+        triggerClose();
+      } else {
+        setDragX(0);
+        dragXRef.current = 0;
+      }
+    };
+
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+    };
+  }, [open, zoomSrc, triggerClose]);
 
   /* ── iOS body scroll lock ── */
   useEffect(() => {
@@ -230,36 +299,32 @@ export function AuctionImageLightbox({
     }
   };
 
-  /* ── Swipe right to close (only clear horizontal swipes) ── */
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-  };
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (zoomSrc) return;
-    const dx = e.touches[0].clientX - touchStartX.current;
-    const dy = e.touches[0].clientY - touchStartY.current;
-    if (dx > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) onClose();
-  };
-
-  /* ── Bottom input avatar ── */
   const myAvatarUrl = isMerchant
     ? (sellerPhotoUrl ?? user?.photoUrl ?? null)
     : (user?.photoUrl ?? null);
 
   if (!open) return null;
 
+  /* Lightbox slides right with finger; springs back or exits right on release */
+  const containerStyle: React.CSSProperties = {
+    transform: `translateX(${dragX}px)`,
+    transition: (isDragging.current || dragX === 0) ? "none" : "transform 0.28s cubic-bezier(0.4,0,0.2,1)",
+    willChange: "transform",
+  };
+
   return (
     <>
-      {/* ── White background lightbox ── */}
       <div
+        ref={containerRef}
         className="fixed inset-0 z-[70] bg-white flex flex-col"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
+        style={containerStyle}
       >
-        {/* Header — white background, dark text */}
-        <div className="flex items-center justify-between px-3 py-2 bg-white border-b border-gray-200 text-gray-900 shrink-0">
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
+        {/* Header */}
+        <div className="flex items-center justify-between px-3 py-2 bg-white border-b border-gray-200 shrink-0">
+          <button
+            onClick={triggerClose}
+            className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+          >
             <ChevronLeft className="w-6 h-6 text-gray-700" />
           </button>
           <div className="flex-1 mx-2 text-center">
@@ -273,9 +338,8 @@ export function AuctionImageLightbox({
           </div>
         </div>
 
-        {/* Scrollable content */}
+        {/* Scrollable content on white */}
         <div className="flex-1 overflow-y-auto bg-white">
-          {/* Images on white background */}
           {images.map((img, idx) => (
             <div key={idx} className="border-b border-gray-100">
               <div className="bg-white">
@@ -287,7 +351,6 @@ export function AuctionImageLightbox({
                   onClick={() => setZoomSrc(img.imageUrl)}
                 />
               </div>
-              {/* Per-image action bar on white */}
               <div className="flex items-center bg-white border-t border-gray-100">
                 <button
                   className="flex-1 flex items-center justify-center gap-2 py-3 text-gray-600 text-[15px] font-semibold hover:bg-gray-50 transition-colors"
@@ -306,7 +369,7 @@ export function AuctionImageLightbox({
             </div>
           ))}
 
-          {/* Panel content */}
+          {/* Response panel */}
           <div className="bg-white">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
               <div className="flex items-center gap-3">
@@ -337,7 +400,6 @@ export function AuctionImageLightbox({
               )}
 
               {topLevelItems.map((item) => {
-                /* ── Merchant broadcast ── */
                 if (item.type === "comment") {
                   return (
                     <div key={`c-${item.id}`} className="flex items-start gap-2.5">
@@ -354,8 +416,8 @@ export function AuctionImageLightbox({
                   );
                 }
 
-                /* ── Bid item ── */
-                const isMyBid = !item.isAnonymous && !!user && Number(item.userId) === Number(user.id);
+                /* String comparison to avoid Chrome int/string mismatch */
+                const isMyBid = !item.isAnonymous && !!user && String(item.userId) === String(user.id);
                 return (
                   <div key={`b-${item.id}`}>
                     <div className="flex items-start gap-2.5">
@@ -438,7 +500,6 @@ export function AuctionImageLightbox({
         </div>
       </div>
 
-      {/* Pinch-to-zoom overlay — on top of everything */}
       {zoomSrc && <ImageZoomViewer src={zoomSrc} onClose={() => setZoomSrc(null)} />}
     </>
   );
