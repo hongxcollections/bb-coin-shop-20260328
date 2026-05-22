@@ -443,7 +443,7 @@ export default function MerchantDashboard() {
     : null;
   const canRenew = mySubscription && daysUntilExpiry !== null && daysUntilExpiry <= 14;
   // 過期 banner：active sub 用 mySubscription；訂閱已過期時從 history 取最近 expired row
-  type _BannerSub = { status: string; endDate: Date | string | null; planName: string | null; billingCycle: string | null };
+  type _BannerSub = { status: string; endDate: Date | string | null; planName: string | null; billingCycle: string | null; planId?: number | null };
   const recentExpiredSub = !mySubscription
     ? (mySubHistory as _BannerSub[] | undefined)?.find(s => s.status === 'expired') ?? null
     : null;
@@ -1332,15 +1332,15 @@ export default function MerchantDashboard() {
           </DialogHeader>
           <div className="space-y-3 text-sm">
             <div className="rounded-lg bg-purple-50 border border-purple-100 p-3 space-y-1">
-              <div className="flex justify-between"><span className="text-gray-500">計劃</span><span className="font-medium">{mySubscription?.planName ?? "—"}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">週期</span><span className="font-medium">{mySubscription?.billingCycle === "yearly" ? "年繳" : "月繳"}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">現有到期</span><span className="font-medium">{fmtDate(mySubscription?.endDate ?? null)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">計劃</span><span className="font-medium">{bannerSub?.planName ?? "—"}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">週期</span><span className="font-medium">{bannerSub?.billingCycle === "yearly" ? "年繳" : "月繳"}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">現有到期</span><span className="font-medium">{fmtDate((bannerSub?.endDate as Date | null | undefined) ?? null)}</span></div>
               {(() => {
                 const plan = (availablePlans as Array<{ id: number; monthlyPrice: string | number; yearlyPrice: string | number }> | undefined)?.find(
-                  p => p.id === mySubscription?.planId
+                  p => p.id === (bannerSub?.planId ?? mySubscription?.planId)
                 );
                 if (!plan) return null;
-                const isYearly = mySubscription?.billingCycle === "yearly";
+                const isYearly = bannerSub?.billingCycle === "yearly";
                 const price = Number(isYearly ? plan.yearlyPrice : plan.monthlyPrice);
                 return (
                   <div className="flex justify-between items-baseline pt-1.5 mt-1.5 border-t border-purple-200">
