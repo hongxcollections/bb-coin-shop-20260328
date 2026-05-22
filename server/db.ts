@@ -155,6 +155,7 @@ export async function getAuctions(limit = 20, offset = 0, category?: string) {
         highestBidderName: users.name,
         highestBidderIsAnonymous: sql<number>`COALESCE((SELECT isAnonymous FROM bids WHERE auctionId = ${auctions.id} AND userId = ${auctions.highestBidderId} ORDER BY id DESC LIMIT 1), 0)`,
         sellerName: sql<string | null>`(SELECT name FROM users WHERE id = ${auctions.createdBy})`,
+        sellerPhotoUrl: sql<string | null>`(SELECT photoUrl FROM users WHERE id = ${auctions.createdBy})`,
         endTime: auctions.endTime,
         status: auctions.status,
         fbPostUrl: auctions.fbPostUrl,
@@ -169,7 +170,7 @@ export async function getAuctions(limit = 20, offset = 0, category?: string) {
         antiSnipeMinutes: auctions.antiSnipeMinutes,
         extendMinutes: auctions.extendMinutes,
         fbShareTemplate: sql<string | null>`(SELECT fbShareTemplate FROM merchant_settings WHERE userId = ${auctions.createdBy} LIMIT 1)`,
-        bidCount: sql<number>`(SELECT COUNT(*) FROM bids WHERE bids.auctionId = ${auctions.id})`,
+        bidCount: sql<number>`((SELECT COUNT(*) FROM bids WHERE bids.auctionId = ${auctions.id}) + (SELECT COUNT(*) FROM auctionComments WHERE auctionComments.auctionId = ${auctions.id}))`,
       })
       .from(auctions)
       .leftJoin(users, eq(auctions.highestBidderId, users.id));

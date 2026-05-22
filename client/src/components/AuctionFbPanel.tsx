@@ -163,6 +163,11 @@ export function AuctionFbPanel({
     }
   }
 
+  /* ── Index of current user's most recent bid (for "出價有效" badge) ── */
+  const firstUserBidIdx = user
+    ? topLevelItems.findIndex(i => i.type === "bid" && i.userId === user.id)
+    : -1;
+
   const triggerParticle = (bidId: number, dir: "up" | "down") => {
     const id = pidRef.current++;
     setParticles(p => [...p, { id, bidId, dir }]);
@@ -258,7 +263,7 @@ export function AuctionFbPanel({
             <div className="text-center py-10 text-gray-400 text-sm">暫無出價記錄，搶先出價！</div>
           )}
 
-          {topLevelItems.map(item => {
+          {topLevelItems.map((item, idx) => {
             /* ── Broadcast (merchant announcement) ── */
             if (item.type === "comment") {
               return (
@@ -276,20 +281,33 @@ export function AuctionFbPanel({
             }
 
             /* ── Bid ── */
+            const isMyBid = bidSuccess && idx === firstUserBidIdx;
             return (
               <div key={`bid-${item.id}`}>
                 <div className="flex items-start gap-2.5">
-                  <Avatar name={item.isAnonymous ? "匿" : item.userName} photoUrl={item.photoUrl} />
+                  {/* Bid avatar — use actual user photo */}
+                  <Avatar
+                    name={item.isAnonymous ? "匿" : item.userName}
+                    photoUrl={item.isAnonymous ? null : item.photoUrl}
+                  />
                   <div className="flex-1 min-w-0">
-                    <div className="bg-gray-100 rounded-2xl px-3 py-2 inline-block max-w-full">
-                      <p className="text-[13px] font-bold text-gray-900 leading-tight">
-                        {item.isAnonymous ? "匿名用戶" : item.userName}
-                      </p>
-                      <p className="text-base font-semibold text-gray-800 mt-0.5">
-                        {item.rawAmount != null
-                          ? `${curr}${Number(item.rawAmount).toLocaleString()}`
-                          : item.content}
-                      </p>
+                    {/* Bubble row + "出價有效" badge to the right */}
+                    <div className="flex items-start gap-2">
+                      <div className="bg-gray-100 rounded-2xl px-3 py-2 inline-block max-w-[80%]">
+                        <p className="text-[13px] font-bold text-gray-900 leading-tight">
+                          {item.isAnonymous ? "匿名用戶" : item.userName}
+                        </p>
+                        <p className="text-base font-semibold text-gray-800 mt-0.5">
+                          {item.rawAmount != null
+                            ? `${curr}${Number(item.rawAmount).toLocaleString()}`
+                            : item.content}
+                        </p>
+                      </div>
+                      {isMyBid && (
+                        <span className="text-[11px] font-semibold text-green-600 whitespace-nowrap mt-2 shrink-0">
+                          出價有效
+                        </span>
+                      )}
                     </div>
                     {/* Action row */}
                     <div className="flex items-center gap-3 mt-1 ml-1">
@@ -321,7 +339,8 @@ export function AuctionFbPanel({
                     {/* Merchant reply input for this bid */}
                     {replyingToBidId === item.id && (
                       <div className="mt-2 flex items-center gap-2 ml-1">
-                        <Avatar name={user?.name ?? "?"} size="sm" />
+                        {/* Reply avatar uses current user's actual photo */}
+                        <Avatar name={user?.name ?? "?"} photoUrl={user?.photoUrl ?? null} size="sm" />
                         <div className="flex-1 flex items-center gap-1.5 bg-gray-100 rounded-full px-3 py-1.5">
                           <input
                             className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
@@ -362,7 +381,8 @@ export function AuctionFbPanel({
 
         {/* Bottom input */}
         <div className="border-t border-gray-200 px-3 py-2 flex items-center gap-2 bg-white shrink-0">
-          <Avatar name={user?.name ?? "?"} photoUrl={null} size="sm" />
+          {/* Bottom avatar uses current user's actual photo */}
+          <Avatar name={user?.name ?? "?"} photoUrl={user?.photoUrl ?? null} size="sm" />
           {isMerchant ? (
             <>
               {merchantSentSuccess && (
@@ -392,11 +412,6 @@ export function AuctionFbPanel({
             </>
           ) : (
             <>
-              {bidSuccess && (
-                <span className="text-[11px] font-semibold text-green-600 whitespace-nowrap shrink-0">
-                  出價有效
-                </span>
-              )}
               <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2">
                 <input
                   className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"

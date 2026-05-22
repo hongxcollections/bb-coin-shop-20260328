@@ -9634,7 +9634,7 @@ EXAMPLE OUTPUT (exact format):
           const tb = new Date(b.createdAt).getTime();
           return input.sort === "new" ? tb - ta : ta - tb;
         });
-        return { items: merged, totalBids: bidsArr.length };
+        return { items: merged, totalBids: merged.length };
       }),
 
     postMerchantBroadcast: protectedProcedure

@@ -448,7 +448,7 @@ export default function Auctions() {
               const endMs = new Date(auction.endTime).getTime();
               const isEnded = endMs <= now;
               const isEndingSoon = !isEnded && (endMs - now) <= endingSoonMs;
-              const a = auction as { highestBidderName?: string | null; highestBidderId?: number | null; sellerName?: string | null; bidCount?: number | null; startingPrice?: number | string | null; currency?: string; fbShareTemplate?: string | null };
+              const a = auction as { highestBidderName?: string | null; highestBidderId?: number | null; sellerName?: string | null; sellerPhotoUrl?: string | null; bidCount?: number | null; startingPrice?: number | string | null; currency?: string; fbShareTemplate?: string | null };
               const curr = getCurrencySymbol(a.currency ?? 'HKD');
               const startPrice = a.startingPrice ? Number(a.startingPrice) : null;
               const curPrice = Number(auction.currentPrice);
@@ -513,6 +513,7 @@ export default function Auctions() {
                     highestBidderName={a.highestBidderName}
                     currentUserId={user?.id}
                     sellerName={a.sellerName}
+                    sellerPhotoUrl={a.sellerPhotoUrl ?? null}
                     createdBy={(auction as { createdBy?: number }).createdBy}
                     bidIncrement={Number(auction.bidIncrement ?? 30)}
                     shareTemplate={a.fbShareTemplate}

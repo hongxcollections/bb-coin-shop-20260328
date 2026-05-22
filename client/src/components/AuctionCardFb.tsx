@@ -18,6 +18,7 @@ export interface AuctionCardFbProps {
   highestBidderName?: string | null;
   currentUserId?: number | null;
   sellerName?: string | null;
+  sellerPhotoUrl?: string | null;
   createdBy?: number;
   bidIncrement?: number;
   shareTemplate?: string | null;
@@ -123,7 +124,7 @@ function TruncatedText({ text }: { text: string }) {
   const LIMIT = 80;
   if (text.length <= LIMIT || expanded) {
     return (
-      <p className="text-sm text-gray-800 whitespace-pre-line">
+      <p className="text-[18px] font-bold text-gray-900 leading-snug whitespace-pre-line">
         {text}
         {text.length > LIMIT && (
           <button
@@ -135,7 +136,7 @@ function TruncatedText({ text }: { text: string }) {
     );
   }
   return (
-    <p className="text-sm text-gray-800">
+    <p className="text-[18px] font-bold text-gray-900 leading-snug">
       {text.slice(0, LIMIT)}
       <button
         className="text-gray-500 ml-1 text-xs font-medium"
@@ -149,7 +150,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
   const {
     auctionId, title, images = [], endTime, createdAt, currentPrice, currency,
     isEnded, bidCount = 0, highestBidderName, currentUserId, highestBidderId,
-    sellerName, createdBy, bidIncrement = 30, shareTemplate,
+    sellerName, sellerPhotoUrl, createdBy, bidIncrement = 30, shareTemplate,
     antiSnipeEnabled, antiSnipeMinutes, extendMinutes, onLinkClick,
   } = props;
 
@@ -174,7 +175,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
     if (highestBidderName) {
       return <span className="text-xs text-gray-500">👍 {highestBidderName} {bidCount > 1 ? `和 ${bidCount - 1} 人` : ""}</span>;
     }
-    return <span className="text-xs text-gray-500">👍 {bidCount} 人出價</span>;
+    return <span className="text-xs text-gray-500">👍 {bidCount} 則回應</span>;
   })();
 
   return (
@@ -182,8 +183,12 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
       {/* Header */}
       <div className="flex items-start justify-between px-3 pt-3 pb-1.5">
         <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold text-base shrink-0">
-            {initials}
+          {/* Seller avatar — use actual photo if available */}
+          <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold text-base shrink-0 overflow-hidden">
+            {sellerPhotoUrl
+              ? <img src={sellerPhotoUrl} alt={sellerName ?? "商戶"} className="w-full h-full object-cover" />
+              : initials
+            }
           </div>
           <div>
             <div className="flex items-center gap-1.5">
@@ -200,16 +205,23 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         <MoreHorizontal className="w-5 h-5 text-gray-500 mt-1 cursor-pointer" />
       </div>
 
-      {/* Title/description text */}
+      {/* Title/description text + price row */}
       <div className="px-3 pb-2">
         <TruncatedText text={title} />
         {!isEnded && (
-          <p className="text-[12px] text-amber-600 mt-1 font-medium">
-            目前出價：{curr}{currentPrice.toLocaleString()}
-          </p>
+          <div className="flex items-center justify-end gap-3 mt-1.5">
+            <span className="text-[13px] text-amber-600 font-semibold">
+              目前：{curr}{currentPrice.toLocaleString()}
+            </span>
+            {highestBidderName && (
+              <span className="text-[12px] text-gray-500 truncate max-w-[110px]">
+                最高：{highestBidderName}
+              </span>
+            )}
+          </div>
         )}
         {isEnded && (
-          <p className="text-[12px] text-gray-400 mt-1">此拍賣已結束</p>
+          <p className="text-[12px] text-gray-400 mt-1 text-right">此拍賣已結束</p>
         )}
       </div>
 
@@ -245,7 +257,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
       {/* Divider */}
       <div className="border-t border-gray-200 mx-0" />
 
-      {/* 3 action buttons */}
+      {/* 3 action buttons — no dividers */}
       <div className="flex items-center">
         {/* 讚好 */}
         <div className="relative flex-1">
