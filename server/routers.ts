@@ -9576,7 +9576,8 @@ EXAMPLE OUTPUT (exact format):
         auctionId: z.number().int().positive(),
         sort: z.enum(["new", "old"]).default("new"),
       }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        const myUserId: number | null = ctx.user?.id ?? null;
         const db = await getDb();
         const bidsRows: any = await db.execute(sql.raw(`
           SELECT 'bid' AS type, b.id, b.auctionId, b.userId,
@@ -9606,6 +9607,13 @@ EXAMPLE OUTPUT (exact format):
           if (Array.isArray(rows)) return rows;
           return [];
         };
+        /* normalise createdAt: MySQL DATETIME has no timezone → append Z so client parses as UTC */
+        const normDate = (v: any): string => {
+          if (v instanceof Date) return v.toISOString();
+          const s = String(v);
+          if (s.includes('Z') || s.includes('+')) return s;
+          return s.replace(' ', 'T') + 'Z';
+        };
         const bidsArr = normalise(bidsRows);
         const commentsArr = normalise(commentsRows);
         const merged = [
@@ -9618,8 +9626,10 @@ EXAMPLE OUTPUT (exact format):
             content: String(r.content ?? ''),
             rawAmount: r.rawAmount != null ? Number(r.rawAmount) : null,
             isAnonymous: Boolean(r.isAnonymous),
+            /* isMyBid computed server-side — avoids browser int/string type mismatch */
+            isMyBid: !Boolean(r.isAnonymous) && myUserId != null && Number(r.userId) === myUserId,
             replyToBidId: null as null,
-            createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+            createdAt: normDate(r.createdAt),
           })),
           ...commentsArr.map((r: any) => ({
             type: 'comment' as const,
@@ -9630,8 +9640,9 @@ EXAMPLE OUTPUT (exact format):
             content: String(r.content ?? ''),
             rawAmount: null as null,
             isAnonymous: false,
+            isMyBid: false,
             replyToBidId: r.replyToBidId != null ? Number(r.replyToBidId) : null,
-            createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+            createdAt: normDate(r.createdAt),
           })),
         ];
         merged.sort((a, b) => {

@@ -31,12 +31,15 @@ type PanelItem = {
   content: string;
   rawAmount: number | null;
   isAnonymous: boolean;
+  isMyBid: boolean;
   replyToBidId: number | null;
   createdAt: string;
 };
 
 function timeAgo(d: string): string {
-  const diff = Date.now() - new Date(d).getTime();
+  /* Server sends UTC ISO (with Z). If somehow still raw MySQL "YYYY-MM-DD HH:MM:SS", append Z */
+  const iso = d.includes("Z") || d.includes("+") ? d : d.replace(" ", "T") + "Z";
+  const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
   if (m < 1) return "剛才";
   if (m < 60) return `${m}分鐘`;
@@ -346,8 +349,7 @@ export function AuctionFbPanel({
                 );
               }
 
-              /* Bid item */
-              const isMyBid = !item.isAnonymous && !!user && String(item.userId) === String(user.id);
+              /* Bid item — isMyBid comes from server */
               return (
                 <div key={`bid-${item.id}`}>
                   <div className="flex items-start gap-3">
@@ -365,16 +367,17 @@ export function AuctionFbPanel({
                         <span className="text-gray-400 text-[12px]">·</span>
                         <span className="text-[12px] text-gray-500">{timeAgo(item.createdAt)}</span>
                       </div>
-                      {/* Price large bold */}
-                      <p className="text-[18px] font-bold text-gray-900 mt-0.5 leading-tight">
-                        {item.rawAmount != null
-                          ? `${curr}${Number(item.rawAmount).toLocaleString()}`
-                          : item.content}
-                      </p>
-                      {/* 出價有效 — outside bubble, very small */}
-                      {isMyBid && (
-                        <p className="text-[10px] font-semibold text-green-600 mt-0.5">出價有效 ✓</p>
-                      )}
+                      {/* Price + 出價有效 on same line */}
+                      <div className="flex items-baseline gap-2 mt-0.5">
+                        <p className="text-[18px] font-bold text-gray-900 leading-tight">
+                          {item.rawAmount != null
+                            ? `${curr}${Number(item.rawAmount).toLocaleString()}`
+                            : item.content}
+                        </p>
+                        {item.isMyBid && (
+                          <span className="text-[10px] font-semibold text-green-600 whitespace-nowrap">出價有效 ✓</span>
+                        )}
+                      </div>
                       {/* Action row: 回覆 left | 👍👎 right */}
                       <div className="flex items-center justify-between mt-2">
                         <button className="text-[13px] font-bold text-gray-500 hover:text-gray-700" onClick={() => handleReplyClick(item)}>

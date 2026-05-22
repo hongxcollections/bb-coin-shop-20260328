@@ -29,12 +29,14 @@ type PanelItem = {
   content: string;
   rawAmount: number | null;
   isAnonymous: boolean;
+  isMyBid: boolean;
   replyToBidId: number | null;
   createdAt: string;
 };
 
 function timeAgo(d: string): string {
-  const diff = Date.now() - new Date(d).getTime();
+  const iso = d.includes("Z") || d.includes("+") ? d : d.replace(" ", "T") + "Z";
+  const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
   if (m < 1) return "剛才";
   if (m < 60) return `${m}分鐘`;
@@ -377,7 +379,7 @@ export function AuctionImageLightbox({
                   );
                 }
 
-                const isMyBid = !item.isAnonymous && !!user && String(item.userId) === String(user.id);
+                /* isMyBid from server */
                 return (
                   <div key={`b-${item.id}`}>
                     <div className="flex items-start gap-3">
@@ -389,14 +391,15 @@ export function AuctionImageLightbox({
                           <span className="text-gray-400 text-[12px]">·</span>
                           <span className="text-[12px] text-gray-500">{timeAgo(item.createdAt)}</span>
                         </div>
-                        {/* price large */}
-                        <p className="text-[18px] font-bold text-gray-900 mt-0.5 leading-tight">
-                          {item.rawAmount != null ? `${curr}${Number(item.rawAmount).toLocaleString()}` : item.content}
-                        </p>
-                        {/* 出價有效 — outside, very small */}
-                        {isMyBid && (
-                          <p className="text-[10px] font-semibold text-green-600 mt-0.5">出價有效 ✓</p>
-                        )}
+                        {/* price + 出價有效 same line */}
+                        <div className="flex items-baseline gap-2 mt-0.5">
+                          <p className="text-[18px] font-bold text-gray-900 leading-tight">
+                            {item.rawAmount != null ? `${curr}${Number(item.rawAmount).toLocaleString()}` : item.content}
+                          </p>
+                          {item.isMyBid && (
+                            <span className="text-[10px] font-semibold text-green-600 whitespace-nowrap">出價有效 ✓</span>
+                          )}
+                        </div>
                         {/* action row: 回覆 left | 👍👎 right */}
                         <div className="flex items-center justify-between mt-2">
                           <span className="text-[13px] font-bold text-gray-500">回覆</span>
