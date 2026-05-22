@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Send, ThumbsUp, ThumbsDown, X, ChevronDown } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -57,8 +57,8 @@ function FloatingParticle({ dir, onDone }: { dir: "up" | "down"; onDone: () => v
   );
 }
 
-function Avatar({ name, photoUrl, size = "md" }: { name: string; photoUrl?: string | null; size?: "sm" | "md" }) {
-  const sz = size === "sm" ? "w-7 h-7 text-xs" : "w-9 h-9 text-sm";
+function Avatar({ name, photoUrl, size = "md" }: { name: string; photoUrl?: string | null; size?: "sm" | "md" | "lg" }) {
+  const sz = size === "sm" ? "w-7 h-7 text-xs" : size === "lg" ? "w-11 h-11 text-base" : "w-9 h-9 text-sm";
   return (
     <div className={`${sz} rounded-full bg-amber-500 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden`}>
       {photoUrl
@@ -87,9 +87,8 @@ export function AuctionFbPanel({
   const [particles, setParticles] = useState<{ id: number; bidId: number; dir: "up" | "down" }[]>([]);
   const pidRef = useRef(0);
 
-  /* ── Drag-to-close state ── */
+  /* ── Drag-to-close (downward) ── */
   const [dragY, setDragY] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
   const dragYRef = useRef(0);
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -98,58 +97,39 @@ export function AuctionFbPanel({
   const startX = useRef(0);
 
   const triggerClose = useCallback(() => {
-    setIsAnimating(true);
     setDragY(window.innerHeight);
     dragYRef.current = window.innerHeight;
-    setTimeout(() => {
-      setDragY(0);
-      dragYRef.current = 0;
-      setIsAnimating(false);
-      onClose();
-    }, 280);
+    setTimeout(() => { setDragY(0); dragYRef.current = 0; onClose(); }, 280);
   }, [onClose]);
 
-  /* ── Non-passive touch handlers to block pull-to-refresh ── */
   useEffect(() => {
     const panel = panelRef.current;
     if (!panel || !open) return;
-
     const onStart = (e: TouchEvent) => {
       startY.current = e.touches[0].clientY;
       startX.current = e.touches[0].clientX;
       isDragging.current = false;
     };
-
     const onMove = (e: TouchEvent) => {
       const dy = e.touches[0].clientY - startY.current;
       const dx = e.touches[0].clientX - startX.current;
-      const scrollEl = scrollRef.current;
-      const atTop = !scrollEl || scrollEl.scrollTop <= 0;
-
-      /* Activate downward panel drag only when list is scrolled to top */
+      const atTop = !scrollRef.current || scrollRef.current.scrollTop <= 0;
       if (!isDragging.current && dy > 8 && Math.abs(dy) > Math.abs(dx) && atTop) {
         isDragging.current = true;
       }
-
       if (isDragging.current) {
-        e.preventDefault(); /* blocks pull-to-refresh */
+        e.preventDefault();
         const clamped = Math.max(0, dy);
         dragYRef.current = clamped;
         setDragY(clamped);
       }
     };
-
     const onEnd = () => {
       if (!isDragging.current) return;
       isDragging.current = false;
-      if (dragYRef.current > 120) {
-        triggerClose();
-      } else {
-        setDragY(0);
-        dragYRef.current = 0;
-      }
+      if (dragYRef.current > 120) { triggerClose(); }
+      else { setDragY(0); dragYRef.current = 0; }
     };
-
     panel.addEventListener("touchstart", onStart, { passive: true });
     panel.addEventListener("touchmove", onMove, { passive: false });
     panel.addEventListener("touchend", onEnd, { passive: true });
@@ -179,43 +159,25 @@ export function AuctionFbPanel({
   }, [open]);
 
   const utils = trpc.useUtils();
-
   const { data: panelData, isLoading } = trpc.auctionFbPanel.getPanel.useQuery(
     { auctionId, sort },
     { enabled: open, refetchOnWindowFocus: false }
   );
 
   const broadcastMutation = trpc.auctionFbPanel.postMerchantBroadcast.useMutation({
-    onSuccess: () => {
-      setMerchantInput("");
-      setMerchantSentSuccess(true);
-      utils.auctionFbPanel.getPanel.invalidate();
-      toast.success("廣播訊息已發送");
-    },
+    onSuccess: () => { setMerchantInput(""); setMerchantSentSuccess(true); utils.auctionFbPanel.getPanel.invalidate(); toast.success("廣播訊息已發送"); },
     onError: (err) => toast.error(err.message),
   });
-
   const likeBidMutation = trpc.auctionFbPanel.merchantLikeBid.useMutation({
     onSuccess: () => toast.success("已發送讚好通知"),
     onError: (err) => toast.error(err.message),
   });
-
   const replyBidMutation = trpc.auctionFbPanel.merchantReplyBid.useMutation({
-    onSuccess: () => {
-      setReplyingToBidId(null);
-      setReplyText("");
-      utils.auctionFbPanel.getPanel.invalidate();
-      toast.success("回覆已發送");
-    },
+    onSuccess: () => { setReplyingToBidId(null); setReplyText(""); utils.auctionFbPanel.getPanel.invalidate(); toast.success("回覆已發送"); },
     onError: (err) => toast.error(err.message),
   });
-
   const placeBid = trpc.auctions.placeBid.useMutation({
-    onSuccess: () => {
-      setBidInput("");
-      utils.auctionFbPanel.getPanel.invalidate();
-      toast.success("出價成功！");
-    },
+    onSuccess: () => { setBidInput(""); utils.auctionFbPanel.getPanel.invalidate(); toast.success("出價成功！"); },
     onError: (err) => toast.error(`出價失敗：${err.message}`),
   });
 
@@ -232,17 +194,26 @@ export function AuctionFbPanel({
     }
   }
 
+  /* ── Bottom input avatar: use DB-fresh photoUrl from own bid items ── */
+  const myDbPhotoUrl = useMemo(() => {
+    if (!user) return null;
+    const mine = items.find(i => !i.isAnonymous && String(i.userId) === String(user.id));
+    return mine?.photoUrl ?? null;
+  }, [items, user]);
+
+  const myAvatarUrl = isMerchant
+    ? (sellerPhotoUrl ?? myDbPhotoUrl ?? user?.photoUrl ?? null)
+    : (myDbPhotoUrl ?? user?.photoUrl ?? null);
+
   const triggerParticle = (bidId: number, dir: "up" | "down") => {
     const id = pidRef.current++;
     setParticles(p => [...p, { id, bidId, dir }]);
   };
-
   const handleLike = (item: PanelItem) => {
     triggerParticle(item.id, "up");
     if (isMerchant && item.type === "bid") likeBidMutation.mutate({ bidId: item.id });
   };
   const handleDislike = (item: PanelItem) => triggerParticle(item.id, "down");
-
   const handleReplyClick = (item: PanelItem) => {
     if (!isMerchant) { toast.info("溫馨提示：回覆功能不適用"); return; }
     setReplyingToBidId(prev => prev === item.id ? null : item.id);
@@ -252,7 +223,6 @@ export function AuctionFbPanel({
     if (!replyText.trim()) return;
     replyBidMutation.mutate({ bidId, content: replyText.trim() });
   };
-
   const handleBuyerBid = () => {
     if (!isAuthenticated) { window.location.href = getLoginUrl(); return; }
     if (isEnded) { toast.error("此拍賣已結束"); return; }
@@ -266,13 +236,8 @@ export function AuctionFbPanel({
     broadcastMutation.mutate({ auctionId, content: merchantInput.trim() });
   };
 
-  const myAvatarUrl = isMerchant
-    ? (sellerPhotoUrl ?? user?.photoUrl ?? null)
-    : (user?.photoUrl ?? null);
-
   if (!open) return null;
 
-  /* Panel follows finger when dragging; springs back or animates out on release */
   const panelStyle: React.CSSProperties = {
     transform: `translateY(${dragY}px)`,
     transition: (isDragging.current || dragY === 0) ? "none" : "transform 0.28s cubic-bezier(0.4,0,0.2,1)",
@@ -280,18 +245,12 @@ export function AuctionFbPanel({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-end"
-      onClick={(e) => { if (e.target === e.currentTarget && !isAnimating) triggerClose(); }}
-    >
-      <div className="absolute inset-0 bg-black/50" onClick={() => { if (!isAnimating) triggerClose(); }} />
-      <div
-        ref={panelRef}
-        className="relative z-10 w-full max-h-[88vh] bg-white rounded-t-2xl flex flex-col shadow-2xl"
-        style={panelStyle}
-      >
-        {/* Drag handle pill */}
-        <div className="flex justify-center pt-2 pb-0.5 shrink-0 cursor-grab active:cursor-grabbing touch-none select-none">
+    <div className="fixed inset-0 z-[60] flex items-end" onClick={(e) => { if (e.target === e.currentTarget) triggerClose(); }}>
+      <div className="absolute inset-0 bg-black/50" onClick={triggerClose} />
+      <div ref={panelRef} className="relative z-10 w-full max-h-[88vh] bg-white rounded-t-2xl flex flex-col shadow-2xl" style={panelStyle}>
+
+        {/* Drag handle */}
+        <div className="flex justify-center pt-2 pb-0.5 shrink-0 touch-none select-none">
           <div className="w-10 h-1 bg-gray-300 rounded-full" />
         </div>
 
@@ -307,18 +266,15 @@ export function AuctionFbPanel({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              className="flex items-center gap-0.5 text-sm text-[#1877f2] font-semibold"
-              onClick={() => setSort(s => s === "new" ? "old" : "new")}
-            >
+            <button className="flex items-center gap-0.5 text-sm text-[#1877f2] font-semibold" onClick={() => setSort(s => s === "new" ? "old" : "new")}>
               {sort === "new" ? "由新至舊" : "由舊至新"} <ChevronDown className="w-4 h-4" />
             </button>
             <button onClick={triggerClose}><X className="w-5 h-5 text-gray-500" /></button>
           </div>
         </div>
 
-        {/* Scrollable list */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+        {/* List */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
           {isLoading && (
             <div className="flex justify-center py-10">
               <div className="w-7 h-7 border-2 border-gray-200 border-t-[#1877f2] rounded-full animate-spin" />
@@ -329,70 +285,85 @@ export function AuctionFbPanel({
           )}
 
           {topLevelItems.map((item) => {
-            /* Merchant broadcast */
+            /* ── Merchant broadcast ── */
             if (item.type === "comment") {
               return (
-                <div key={`comment-${item.id}`} className="flex items-start gap-2.5">
-                  <Avatar name={sellerDisplayName} photoUrl={sellerPhotoUrl ?? item.photoUrl} />
+                <div key={`comment-${item.id}`} className="flex items-start gap-3">
+                  <Avatar name={sellerDisplayName} photoUrl={sellerPhotoUrl ?? item.photoUrl} size="lg" />
                   <div className="flex-1 bg-blue-50 rounded-2xl px-3 py-2 border border-blue-100">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[13px] font-bold text-blue-800">{sellerDisplayName}</span>
+                    <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                      <span className="text-[14px] font-bold text-blue-800">{sellerDisplayName}</span>
                       <span className="text-[10px] bg-[#1877f2] text-white px-1.5 py-0.5 rounded font-semibold">管理員</span>
-                      <span className="text-[10px] text-blue-400">{timeAgo(item.createdAt)}</span>
+                      <span className="text-gray-400 text-[12px]">·</span>
+                      <span className="text-[12px] text-blue-400">{timeAgo(item.createdAt)}</span>
                     </div>
-                    <p className="text-[13px] text-blue-900">{item.content}</p>
+                    <p className="text-[14px] text-blue-900">{item.content}</p>
                   </div>
                 </div>
               );
             }
 
-            /* Bid item — String comparison avoids Chrome int/string mismatch */
+            /* ── Bid item — layout matches reference image ── */
             const isMyBid = !item.isAnonymous && !!user && String(item.userId) === String(user.id);
             return (
               <div key={`bid-${item.id}`}>
-                <div className="flex items-start gap-2.5">
+                <div className="flex items-start gap-3">
+                  {/* Large avatar (w-11) */}
                   <Avatar
                     name={item.isAnonymous ? "匿" : item.userName}
                     photoUrl={item.isAnonymous ? null : item.photoUrl}
+                    size="lg"
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="bg-gray-100 rounded-2xl px-3 py-2 inline-block max-w-[80%]">
-                      <p className="text-[13px] font-bold text-gray-900 leading-tight">
+                    {/* Line 1: name · time */}
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className="text-[14px] font-bold text-gray-900">
                         {item.isAnonymous ? "匿名用戶" : item.userName}
-                      </p>
-                      <p className="text-base font-semibold text-gray-800 mt-0.5">
-                        {item.rawAmount != null
-                          ? `${curr}${Number(item.rawAmount).toLocaleString()}`
-                          : item.content}
-                      </p>
-                      {isMyBid && (
-                        <div className="flex justify-end mt-1 mb-[3px]">
-                          <span className="text-[10px] font-semibold text-green-600">出價有效 ✓</span>
+                      </span>
+                      <span className="text-gray-400 text-[12px]">·</span>
+                      <span className="text-[12px] text-gray-500">{timeAgo(item.createdAt)}</span>
+                    </div>
+                    {/* Line 2: price/content — large bold */}
+                    <p className="text-[18px] font-bold text-gray-900 mt-0.5 leading-tight">
+                      {item.rawAmount != null
+                        ? `${curr}${Number(item.rawAmount).toLocaleString()}`
+                        : item.content}
+                    </p>
+                    {/* 出價有效 — OUTSIDE bubble, below content */}
+                    {isMyBid && (
+                      <p className="text-[11px] font-semibold text-green-600 mt-0.5">出價有效 ✓</p>
+                    )}
+                    {/* Action row: 回覆 on left, 👍👎 on right */}
+                    <div className="flex items-center justify-between mt-2">
+                      <button
+                        className="text-[13px] font-bold text-gray-500 hover:text-gray-700"
+                        onClick={() => handleReplyClick(item)}
+                      >
+                        回覆
+                      </button>
+                      <div className="flex items-center gap-4">
+                        <div className="relative flex items-center">
+                          {particles.filter(p => p.bidId === item.id && p.dir === "up").map(p => (
+                            <FloatingParticle key={p.id} dir="up" onDone={() => setParticles(prev => prev.filter(x => x.id !== p.id))} />
+                          ))}
+                          <button onClick={() => handleLike(item)} className="text-gray-400 hover:text-[#1877f2] transition-colors">
+                            <ThumbsUp className="w-[18px] h-[18px]" />
+                          </button>
                         </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 mt-1 ml-1">
-                      <span className="text-[11px] text-gray-400">{timeAgo(item.createdAt)}</span>
-                      <button className="text-[12px] font-bold text-gray-500 hover:text-gray-700" onClick={() => handleReplyClick(item)}>回覆</button>
-                      <div className="relative flex items-center">
-                        {particles.filter(p => p.bidId === item.id && p.dir === "up").map(p => (
-                          <FloatingParticle key={p.id} dir="up" onDone={() => setParticles(prev => prev.filter(x => x.id !== p.id))} />
-                        ))}
-                        <button onClick={() => handleLike(item)} className="text-gray-400 hover:text-[#1877f2] transition-colors">
-                          <ThumbsUp className="w-[15px] h-[15px]" />
-                        </button>
-                      </div>
-                      <div className="relative flex items-center">
-                        {particles.filter(p => p.bidId === item.id && p.dir === "down").map(p => (
-                          <FloatingParticle key={p.id} dir="down" onDone={() => setParticles(prev => prev.filter(x => x.id !== p.id))} />
-                        ))}
-                        <button onClick={() => handleDislike(item)} className="text-gray-400 hover:text-red-400 transition-colors">
-                          <ThumbsDown className="w-[15px] h-[15px]" />
-                        </button>
+                        <div className="relative flex items-center">
+                          {particles.filter(p => p.bidId === item.id && p.dir === "down").map(p => (
+                            <FloatingParticle key={p.id} dir="down" onDone={() => setParticles(prev => prev.filter(x => x.id !== p.id))} />
+                          ))}
+                          <button onClick={() => handleDislike(item)} className="text-gray-400 hover:text-red-400 transition-colors">
+                            <ThumbsDown className="w-[18px] h-[18px]" />
+                          </button>
+                        </div>
                       </div>
                     </div>
+
+                    {/* Merchant reply input */}
                     {replyingToBidId === item.id && (
-                      <div className="mt-2 flex items-center gap-2 ml-1">
+                      <div className="mt-2 flex items-center gap-2">
                         <Avatar name={user?.name ?? "?"} photoUrl={myAvatarUrl} size="sm" />
                         <div className="flex-1 flex items-center gap-1.5 bg-gray-100 rounded-full px-3 py-1.5">
                           <input
@@ -411,13 +382,18 @@ export function AuctionFbPanel({
                     )}
                   </div>
                 </div>
+
+                {/* Nested replies — indented */}
                 {(replyMap.get(item.id) ?? []).map(reply => (
-                  <div key={reply.id} className="flex items-start gap-2 mt-1.5 pl-11">
+                  <div key={reply.id} className="flex items-start gap-2 mt-2 pl-14">
                     <Avatar name={reply.userName} photoUrl={reply.photoUrl} size="sm" />
-                    <div className="flex-1 bg-gray-100 rounded-2xl px-3 py-1.5">
-                      <p className="text-[12px] font-bold text-gray-900">{reply.userName}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <span className="text-[13px] font-bold text-gray-900">{reply.userName}</span>
+                        <span className="text-gray-400 text-[11px]">·</span>
+                        <span className="text-[11px] text-gray-400">{timeAgo(reply.createdAt)}</span>
+                      </div>
                       <p className="text-[13px] text-gray-800 mt-0.5">{reply.content}</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{timeAgo(reply.createdAt)}</p>
                     </div>
                   </div>
                 ))}

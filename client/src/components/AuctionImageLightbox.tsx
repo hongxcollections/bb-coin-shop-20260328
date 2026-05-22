@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { ChevronLeft, ThumbsUp, Share2, Send, ChevronDown, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -43,8 +43,8 @@ function timeAgo(d: string): string {
   return `${Math.floor(h / 24)}天`;
 }
 
-function Avatar({ name, photoUrl, size = "md" }: { name: string; photoUrl?: string | null; size?: "sm" | "md" }) {
-  const sz = size === "sm" ? "w-7 h-7 text-xs" : "w-9 h-9 text-sm";
+function Avatar({ name, photoUrl, size = "md" }: { name: string; photoUrl?: string | null; size?: "sm" | "md" | "lg" }) {
+  const sz = size === "sm" ? "w-7 h-7 text-xs" : size === "lg" ? "w-11 h-11 text-base" : "w-9 h-9 text-sm";
   return (
     <div className={`${sz} rounded-full bg-amber-500 flex items-center justify-center text-white font-bold shrink-0 overflow-hidden`}>
       {photoUrl
@@ -80,7 +80,6 @@ function ImageZoomViewer({ src, onClose }: { src: string; onClose: () => void })
       dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, ox: offsetX, oy: offsetY };
     }
   };
-
   const handleTouchMove = (e: React.TouchEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -92,39 +91,20 @@ function ImageZoomViewer({ src, onClose }: { src: string; onClose: () => void })
       setOffsetY(dragStart.current.oy + e.touches[0].clientY - dragStart.current.y);
     }
   };
-
   const handleTap = () => {
-    if (scale <= 1.05) {
-      onClose();
-    } else {
-      setScale(1);
-      setOffsetX(0);
-      setOffsetY(0);
-    }
+    if (scale <= 1.05) { onClose(); }
+    else { setScale(1); setOffsetX(0); setOffsetY(0); }
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[80] bg-black flex items-center justify-center select-none"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onClick={handleTap}
-    >
-      <button
-        className="absolute top-4 right-4 z-10 p-2 bg-white/20 rounded-full"
-        onClick={(e) => { e.stopPropagation(); onClose(); }}
-      >
+    <div className="fixed inset-0 z-[80] bg-black flex items-center justify-center select-none" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onClick={handleTap}>
+      <button className="absolute top-4 right-4 z-10 p-2 bg-white/20 rounded-full" onClick={(e) => { e.stopPropagation(); onClose(); }}>
         <X className="w-6 h-6 text-white" />
       </button>
       <img
-        src={src}
-        alt=""
-        draggable={false}
+        src={src} alt="" draggable={false}
         className="max-w-full max-h-full object-contain touch-none"
-        style={{
-          transform: `scale(${scale}) translate(${offsetX / scale}px, ${offsetY / scale}px)`,
-          transition: scale === 1 ? "transform 0.2s ease" : "none",
-        }}
+        style={{ transform: `scale(${scale}) translate(${offsetX / scale}px, ${offsetY / scale}px)`, transition: scale === 1 ? "transform 0.2s ease" : "none" }}
         onClick={(e) => e.stopPropagation()}
       />
     </div>
@@ -147,9 +127,8 @@ export function AuctionImageLightbox({
   const [merchantSentSuccess, setMerchantSentSuccess] = useState(false);
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
 
-  /* ── Swipe-right drag animation state ── */
+  /* ── Swipe-right-to-close animation ── */
   const [dragX, setDragX] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
   const dragXRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -157,39 +136,25 @@ export function AuctionImageLightbox({
   const startY = useRef(0);
 
   const triggerClose = useCallback(() => {
-    setIsAnimating(true);
     setDragX(window.innerWidth);
     dragXRef.current = window.innerWidth;
-    setTimeout(() => {
-      setDragX(0);
-      dragXRef.current = 0;
-      setIsAnimating(false);
-      onClose();
-    }, 280);
+    setTimeout(() => { setDragX(0); dragXRef.current = 0; onClose(); }, 280);
   }, [onClose]);
 
-  /* ── Non-passive touch handlers for swipe-right with animation ── */
   useEffect(() => {
     const el = containerRef.current;
     if (!el || !open) return;
-
     const onStart = (e: TouchEvent) => {
       if (zoomSrc) return;
       startX.current = e.touches[0].clientX;
       startY.current = e.touches[0].clientY;
       isDragging.current = false;
     };
-
     const onMove = (e: TouchEvent) => {
       if (zoomSrc) return;
       const dx = e.touches[0].clientX - startX.current;
       const dy = e.touches[0].clientY - startY.current;
-
-      /* Activate rightward drag (not vertical scroll) */
-      if (!isDragging.current && dx > 8 && Math.abs(dx) > Math.abs(dy) * 1.2) {
-        isDragging.current = true;
-      }
-
+      if (!isDragging.current && dx > 8 && Math.abs(dx) > Math.abs(dy) * 1.2) isDragging.current = true;
       if (isDragging.current) {
         e.preventDefault();
         const clamped = Math.max(0, dx);
@@ -197,18 +162,12 @@ export function AuctionImageLightbox({
         setDragX(clamped);
       }
     };
-
     const onEnd = () => {
       if (!isDragging.current) return;
       isDragging.current = false;
-      if (dragXRef.current > 100) {
-        triggerClose();
-      } else {
-        setDragX(0);
-        dragXRef.current = 0;
-      }
+      if (dragXRef.current > 100) { triggerClose(); }
+      else { setDragX(0); dragXRef.current = 0; }
     };
-
     el.addEventListener("touchstart", onStart, { passive: true });
     el.addEventListener("touchmove", onMove, { passive: false });
     el.addEventListener("touchend", onEnd, { passive: true });
@@ -238,28 +197,17 @@ export function AuctionImageLightbox({
   }, [open]);
 
   const utils = trpc.useUtils();
-
   const { data: panelData, isLoading } = trpc.auctionFbPanel.getPanel.useQuery(
     { auctionId, sort },
     { enabled: open, refetchOnWindowFocus: false }
   );
 
   const broadcastMutation = trpc.auctionFbPanel.postMerchantBroadcast.useMutation({
-    onSuccess: () => {
-      setMerchantInput("");
-      setMerchantSentSuccess(true);
-      utils.auctionFbPanel.getPanel.invalidate();
-      toast.success("廣播訊息已發送");
-    },
+    onSuccess: () => { setMerchantInput(""); setMerchantSentSuccess(true); utils.auctionFbPanel.getPanel.invalidate(); toast.success("廣播訊息已發送"); },
     onError: (err) => toast.error(err.message),
   });
-
   const placeBid = trpc.auctions.placeBid.useMutation({
-    onSuccess: () => {
-      setBidInput("");
-      utils.auctionFbPanel.getPanel.invalidate();
-      toast.success("出價成功！");
-    },
+    onSuccess: () => { setBidInput(""); utils.auctionFbPanel.getPanel.invalidate(); toast.success("出價成功！"); },
     onError: (err) => toast.error(`出價失敗：${err.message}`),
   });
 
@@ -276,6 +224,17 @@ export function AuctionImageLightbox({
     }
   }
 
+  /* ── Bottom input avatar: use DB-fresh photoUrl from own bid items ── */
+  const myDbPhotoUrl = useMemo(() => {
+    if (!user) return null;
+    const mine = items.find(i => !i.isAnonymous && String(i.userId) === String(user.id));
+    return mine?.photoUrl ?? null;
+  }, [items, user]);
+
+  const myAvatarUrl = isMerchant
+    ? (sellerPhotoUrl ?? myDbPhotoUrl ?? user?.photoUrl ?? null)
+    : (myDbPhotoUrl ?? user?.photoUrl ?? null);
+
   const handleBuyerBid = () => {
     if (!isAuthenticated) { window.location.href = getLoginUrl(); return; }
     if (isEnded) { toast.error("此拍賣已結束"); return; }
@@ -284,28 +243,18 @@ export function AuctionImageLightbox({
     if (amount <= currentPrice) { toast.error(`出價必須高於 ${curr}${currentPrice.toLocaleString()}`); return; }
     placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: 0 });
   };
-
   const handleMerchantSend = () => {
     if (!merchantInput.trim()) return;
     broadcastMutation.mutate({ auctionId, content: merchantInput.trim() });
   };
-
   const handleShare = () => {
     const url = `${window.location.origin}/auctions/${auctionId}`;
-    if (navigator.share) {
-      navigator.share({ title: auctionTitle, url }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(url).then(() => toast.success("連結已複製"));
-    }
+    if (navigator.share) { navigator.share({ title: auctionTitle, url }).catch(() => {}); }
+    else { navigator.clipboard.writeText(url).then(() => toast.success("連結已複製")); }
   };
-
-  const myAvatarUrl = isMerchant
-    ? (sellerPhotoUrl ?? user?.photoUrl ?? null)
-    : (user?.photoUrl ?? null);
 
   if (!open) return null;
 
-  /* Lightbox slides right with finger; springs back or exits right on release */
   const containerStyle: React.CSSProperties = {
     transform: `translateX(${dragX}px)`,
     transition: (isDragging.current || dragX === 0) ? "none" : "transform 0.28s cubic-bezier(0.4,0,0.2,1)",
@@ -314,17 +263,10 @@ export function AuctionImageLightbox({
 
   return (
     <>
-      <div
-        ref={containerRef}
-        className="fixed inset-0 z-[70] bg-white flex flex-col"
-        style={containerStyle}
-      >
+      <div ref={containerRef} className="fixed inset-0 z-[70] bg-white flex flex-col" style={containerStyle}>
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 bg-white border-b border-gray-200 shrink-0">
-          <button
-            onClick={triggerClose}
-            className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
-          >
+          <button onClick={triggerClose} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
             <ChevronLeft className="w-6 h-6 text-gray-700" />
           </button>
           <div className="flex-1 mx-2 text-center">
@@ -338,31 +280,23 @@ export function AuctionImageLightbox({
           </div>
         </div>
 
-        {/* Scrollable content on white */}
+        {/* Scrollable */}
         <div className="flex-1 overflow-y-auto bg-white">
+          {/* Images */}
           {images.map((img, idx) => (
             <div key={idx} className="border-b border-gray-100">
-              <div className="bg-white">
-                <img
-                  src={img.imageUrl}
-                  alt={`圖片 ${idx + 1}`}
-                  className="w-full object-contain max-h-[70vh] cursor-zoom-in"
-                  style={{ display: "block" }}
-                  onClick={() => setZoomSrc(img.imageUrl)}
-                />
-              </div>
+              <img
+                src={img.imageUrl} alt={`圖片 ${idx + 1}`}
+                className="w-full object-contain max-h-[70vh] cursor-zoom-in bg-white"
+                style={{ display: "block" }}
+                onClick={() => setZoomSrc(img.imageUrl)}
+              />
               <div className="flex items-center bg-white border-t border-gray-100">
-                <button
-                  className="flex-1 flex items-center justify-center gap-2 py-3 text-gray-600 text-[15px] font-semibold hover:bg-gray-50 transition-colors"
-                  onClick={() => toast.info("讚好")}
-                >
+                <button className="flex-1 flex items-center justify-center gap-2 py-3 text-gray-600 text-[15px] font-semibold hover:bg-gray-50 transition-colors" onClick={() => toast.info("讚好")}>
                   <ThumbsUp className="w-5 h-5" /> 讚好
                 </button>
                 <div className="w-px h-6 bg-gray-200" />
-                <button
-                  className="flex-1 flex items-center justify-center gap-2 py-3 text-gray-600 text-[15px] font-semibold hover:bg-gray-50 transition-colors"
-                  onClick={handleShare}
-                >
+                <button className="flex-1 flex items-center justify-center gap-2 py-3 text-gray-600 text-[15px] font-semibold hover:bg-gray-50 transition-colors" onClick={handleShare}>
                   <Share2 className="w-5 h-5" /> 分享
                 </button>
               </div>
@@ -381,15 +315,12 @@ export function AuctionImageLightbox({
                   每口 {curr}{bidIncrement.toLocaleString()}
                 </div>
               </div>
-              <button
-                className="flex items-center gap-0.5 text-sm text-[#1877f2] font-semibold"
-                onClick={() => setSort(s => s === "new" ? "old" : "new")}
-              >
+              <button className="flex items-center gap-0.5 text-sm text-[#1877f2] font-semibold" onClick={() => setSort(s => s === "new" ? "old" : "new")}>
                 {sort === "new" ? "由新至舊" : "由舊至新"} <ChevronDown className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="px-4 py-3 space-y-4 pb-6">
+            <div className="px-4 py-3 space-y-5 pb-6">
               {isLoading && (
                 <div className="flex justify-center py-8">
                   <div className="w-7 h-7 border-2 border-gray-200 border-t-[#1877f2] rounded-full animate-spin" />
@@ -400,54 +331,65 @@ export function AuctionImageLightbox({
               )}
 
               {topLevelItems.map((item) => {
+                /* Merchant broadcast */
                 if (item.type === "comment") {
                   return (
-                    <div key={`c-${item.id}`} className="flex items-start gap-2.5">
-                      <Avatar name={sellerDisplayName} photoUrl={sellerPhotoUrl ?? item.photoUrl} />
+                    <div key={`c-${item.id}`} className="flex items-start gap-3">
+                      <Avatar name={sellerDisplayName} photoUrl={sellerPhotoUrl ?? item.photoUrl} size="lg" />
                       <div className="flex-1 bg-blue-50 rounded-2xl px-3 py-2 border border-blue-100">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className="text-[13px] font-bold text-blue-800">{sellerDisplayName}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                          <span className="text-[14px] font-bold text-blue-800">{sellerDisplayName}</span>
                           <span className="text-[10px] bg-[#1877f2] text-white px-1.5 py-0.5 rounded font-semibold">管理員</span>
-                          <span className="text-[10px] text-blue-400">{timeAgo(item.createdAt)}</span>
+                          <span className="text-gray-400 text-[12px]">·</span>
+                          <span className="text-[12px] text-blue-400">{timeAgo(item.createdAt)}</span>
                         </div>
-                        <p className="text-[13px] text-blue-900">{item.content}</p>
+                        <p className="text-[14px] text-blue-900">{item.content}</p>
                       </div>
                     </div>
                   );
                 }
 
-                /* String comparison to avoid Chrome int/string mismatch */
+                /* Bid item — layout matches reference image 2 */
                 const isMyBid = !item.isAnonymous && !!user && String(item.userId) === String(user.id);
                 return (
                   <div key={`b-${item.id}`}>
-                    <div className="flex items-start gap-2.5">
-                      <Avatar name={item.isAnonymous ? "匿" : item.userName} photoUrl={item.isAnonymous ? null : item.photoUrl} />
+                    <div className="flex items-start gap-3">
+                      <Avatar name={item.isAnonymous ? "匿" : item.userName} photoUrl={item.isAnonymous ? null : item.photoUrl} size="lg" />
                       <div className="flex-1 min-w-0">
-                        <div className="bg-gray-100 rounded-2xl px-3 py-2 inline-block max-w-[85%]">
-                          <p className="text-[13px] font-bold text-gray-900 leading-tight">
-                            {item.isAnonymous ? "匿名用戶" : item.userName}
-                          </p>
-                          <p className="text-base font-semibold text-gray-800 mt-0.5">
-                            {item.rawAmount != null ? `${curr}${Number(item.rawAmount).toLocaleString()}` : item.content}
-                          </p>
-                          {isMyBid && (
-                            <div className="flex justify-end mt-1 mb-[3px]">
-                              <span className="text-[10px] font-semibold text-green-600">出價有效 ✓</span>
-                            </div>
-                          )}
+                        {/* name · time */}
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <span className="text-[14px] font-bold text-gray-900">{item.isAnonymous ? "匿名用戶" : item.userName}</span>
+                          <span className="text-gray-400 text-[12px]">·</span>
+                          <span className="text-[12px] text-gray-500">{timeAgo(item.createdAt)}</span>
                         </div>
-                        <div className="flex items-center gap-3 mt-1 ml-1">
-                          <span className="text-[11px] text-gray-400">{timeAgo(item.createdAt)}</span>
+                        {/* price large */}
+                        <p className="text-[18px] font-bold text-gray-900 mt-0.5 leading-tight">
+                          {item.rawAmount != null ? `${curr}${Number(item.rawAmount).toLocaleString()}` : item.content}
+                        </p>
+                        {/* 出價有效 outside, below price */}
+                        {isMyBid && (
+                          <p className="text-[11px] font-semibold text-green-600 mt-0.5">出價有效 ✓</p>
+                        )}
+                        {/* action row: 回覆 left, 👍👎 right */}
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-[13px] font-bold text-gray-500">回覆</span>
+                          <div className="flex items-center gap-4">
+                            <ThumbsUp className="w-[18px] h-[18px] text-gray-400" />
+                            <ThumbsDown className="w-[18px] h-[18px] text-gray-400" />
+                          </div>
                         </div>
                       </div>
                     </div>
                     {(replyMap.get(item.id) ?? []).map(reply => (
-                      <div key={reply.id} className="flex items-start gap-2 mt-1.5 pl-11">
+                      <div key={reply.id} className="flex items-start gap-2 mt-2 pl-14">
                         <Avatar name={reply.userName} photoUrl={reply.photoUrl} size="sm" />
-                        <div className="flex-1 bg-gray-100 rounded-2xl px-3 py-1.5">
-                          <p className="text-[12px] font-bold text-gray-900">{reply.userName}</p>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className="text-[13px] font-bold text-gray-900">{reply.userName}</span>
+                            <span className="text-gray-400 text-[11px]">·</span>
+                            <span className="text-[11px] text-gray-400">{timeAgo(reply.createdAt)}</span>
+                          </div>
                           <p className="text-[13px] text-gray-800 mt-0.5">{reply.content}</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">{timeAgo(reply.createdAt)}</p>
                         </div>
                       </div>
                     ))}
@@ -458,14 +400,12 @@ export function AuctionImageLightbox({
           </div>
         </div>
 
-        {/* Fixed bottom input */}
+        {/* Bottom input */}
         <div className="border-t border-gray-200 px-3 py-2 flex items-center gap-2 bg-white shrink-0">
           <Avatar name={user?.name ?? "?"} photoUrl={myAvatarUrl} size="sm" />
           {isMerchant ? (
             <>
-              {merchantSentSuccess && (
-                <span className="text-[11px] font-semibold text-green-600 whitespace-nowrap shrink-0">✓ 已發送</span>
-              )}
+              {merchantSentSuccess && <span className="text-[11px] font-semibold text-green-600 whitespace-nowrap shrink-0">✓ 已發送</span>}
               <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 gap-2">
                 <input
                   className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
