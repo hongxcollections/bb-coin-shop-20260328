@@ -1342,6 +1342,18 @@ export default function MerchantDashboard() {
                 <div className="rounded-lg bg-green-50 border border-green-200 p-3 space-y-1.5">
                   <div className="flex justify-between"><span className="text-gray-500">計劃</span><span className="font-medium">{bannerSub?.planName ?? "—"}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">週期</span><span className="font-medium">{bannerSub?.billingCycle === "yearly" ? "年繳" : "月繳"}</span></div>
+                  {(() => {
+                    const plan = (availablePlans as Array<{ id: number; maxListings: number }> | undefined)?.find(
+                      p => p.id === (bannerSub?.planId ?? mySubscription?.planId)
+                    );
+                    if (!plan) return null;
+                    return (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">每期發佈限制</span>
+                        <span className="font-medium">{plan.maxListings === 0 ? "無限制" : `${plan.maxListings} 次`}</span>
+                      </div>
+                    );
+                  })()}
                   {renewPaymentMethod && (
                     <div className="flex justify-between"><span className="text-gray-500">付款方式</span><span className="font-medium">{DEPOSIT_PAYMENT_METHODS.find(m => m.value === renewPaymentMethod)?.label ?? renewPaymentMethod}</span></div>
                   )}
@@ -1377,20 +1389,26 @@ export default function MerchantDashboard() {
                   <div className="flex justify-between"><span className="text-gray-500">週期</span><span className="font-medium">{bannerSub?.billingCycle === "yearly" ? "年繳" : "月繳"}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">上次到期</span><span className="font-medium">{fmtDate((bannerSub?.endDate as Date | null | undefined) ?? null)}</span></div>
                   {(() => {
-                    const plan = (availablePlans as Array<{ id: number; monthlyPrice: string | number; yearlyPrice: string | number }> | undefined)?.find(
+                    const plan = (availablePlans as Array<{ id: number; monthlyPrice: string | number; yearlyPrice: string | number; maxListings: number }> | undefined)?.find(
                       p => p.id === (bannerSub?.planId ?? mySubscription?.planId)
                     );
                     if (!plan) return null;
                     const isYearly = bannerSub?.billingCycle === "yearly";
                     const price = Number(isYearly ? plan.yearlyPrice : plan.monthlyPrice);
                     return (
-                      <div className="flex justify-between items-baseline pt-1.5 mt-1.5 border-t border-purple-200">
-                        <span className="text-gray-500">應付金額</span>
-                        <span className="font-bold text-base text-purple-700">
-                          HKD${price.toLocaleString()}
-                          <span className="text-[10px] text-gray-500 font-normal ml-1">/{isYearly ? "年" : "月"}</span>
-                        </span>
-                      </div>
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">每期發佈限制</span>
+                          <span className="font-medium">{plan.maxListings === 0 ? "無限制" : `${plan.maxListings} 次`}</span>
+                        </div>
+                        <div className="flex justify-between items-baseline pt-1.5 mt-1.5 border-t border-purple-200">
+                          <span className="text-gray-500">應付金額</span>
+                          <span className="font-bold text-base text-purple-700">
+                            HKD${price.toLocaleString()}
+                            <span className="text-[10px] text-gray-500 font-normal ml-1">/{isYearly ? "年" : "月"}</span>
+                          </span>
+                        </div>
+                      </>
                     );
                   })()}
                 </div>
