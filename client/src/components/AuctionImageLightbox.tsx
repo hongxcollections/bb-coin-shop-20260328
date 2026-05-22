@@ -315,6 +315,7 @@ export function AuctionImageLightbox({
   const handleQuickBid = (amount: number) => {
     if (!isAuthenticated) { toast.info("請先登入先可以出價"); return; }
     if (isEnded) { toast.error("此拍賣已結束"); return; }
+    if (isMerchant) { toast.warning("商戶不可對自己的拍賣出價"); return; }
     placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: 0 });
   };
   const handleShare = () => {
@@ -496,8 +497,8 @@ export function AuctionImageLightbox({
           </div>
         )}
 
-        {/* Quick bid shortcuts — buyers only, active auction */}
-        {!isMerchant && !isEnded && (
+        {/* Quick bid shortcuts — all users, active auction */}
+        {!isEnded && (
           <div className={`${!endTime ? "border-t border-gray-100 " : ""}px-3 pt-1 pb-1 bg-white shrink-0`}>
             <div className="flex gap-2">
               {[

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Globe, MoreHorizontal, ThumbsUp, MessageCircle, Share2 } from "lucide-react";
 import { AuctionFbPanel } from "@/components/AuctionFbPanel";
 import { AuctionImageLightbox } from "@/components/AuctionImageLightbox";
@@ -27,6 +27,23 @@ export interface AuctionCardFbProps {
   antiSnipeMinutes?: number;
   extendMinutes?: number;
   onLinkClick?: () => void;
+}
+
+function MiniCountdown({ endTime }: { endTime: Date }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const diff = Math.max(0, endTime.getTime() - now.getTime());
+  if (diff === 0) return <span className="font-semibold text-red-500">已結束</span>;
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor((diff % 86400000) / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  if (d > 0) return <span className="font-semibold">{d}天{h}時{m}分</span>;
+  if (h > 0) return <span className="font-semibold">{h}時{m}分{s}秒</span>;
+  return <span className="font-semibold text-red-500">{m}分{s}秒</span>;
 }
 
 function timeAgo(d: string | Date | undefined): string {
@@ -209,15 +226,22 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
       <div className="px-3 pb-2">
         <TruncatedText text={title} />
         {!isEnded && (
-          <div className="flex items-center justify-end gap-3 mt-1.5">
-            <span className="text-[13px] text-amber-600 font-semibold">
-              目前：{curr}{currentPrice.toLocaleString()}
-            </span>
-            {highestBidderName && (
-              <span className="text-[12px] text-gray-500 truncate max-w-[110px]">
-                最高：{highestBidderName}
+          <div className="flex flex-col items-end mt-1.5 gap-0.5">
+            <div className="flex items-center gap-1 text-[11px] text-gray-600">
+              <span>⏰</span>
+              <span>倒數</span>
+              <MiniCountdown endTime={new Date(endTime)} />
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <span className="text-[13px] text-amber-600 font-semibold">
+                目前：{curr}{currentPrice.toLocaleString()}
               </span>
-            )}
+              {highestBidderName && (
+                <span className="text-[12px] text-gray-500 truncate max-w-[110px]">
+                  最高：{highestBidderName}
+                </span>
+              )}
+            </div>
           </div>
         )}
         {isEnded && (
