@@ -532,12 +532,12 @@ export default function AdminSubscriptions() {
                               </div>
                               <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
                                 <p>計劃：{sub.planName ?? "未知"} | 週期：{sub.billingCycle === "yearly" ? "年繳" : "月繳"}</p>
-                                {sub.status === "active" && (
+                                {(sub.status === "active" || sub.status === "expired") && (
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <span>發佈限額結餘：</span>
                                     {(sub.maxListings ?? 0) === 0
                                       ? <span className="text-green-600 font-medium">無限制</span>
-                                      : quotaEditId === sub.id
+                                      : quotaEditId === sub.id && sub.status === "active"
                                         ? (
                                           <span className="flex items-center gap-1">
                                             <input
@@ -560,13 +560,15 @@ export default function AdminSubscriptions() {
                                             <span className={`font-medium ${(sub.remainingQuota ?? 0) <= 0 ? "text-red-600" : (sub.remainingQuota ?? 0) <= 5 ? "text-amber-600" : "text-blue-600"}`}>
                                               {sub.remainingQuota ?? 0} / {sub.maxListings} 次
                                             </span>
-                                            <button
-                                              onClick={() => { setQuotaEditId(sub.id); setQuotaEditValue(String(sub.remainingQuota ?? 0)); }}
-                                              className="text-gray-400 hover:text-blue-500 transition-colors"
-                                              title="修改限額"
-                                            >
-                                              <Pencil className="w-3 h-3" />
-                                            </button>
+                                            {sub.status === "active" && (
+                                              <button
+                                                onClick={() => { setQuotaEditId(sub.id); setQuotaEditValue(String(sub.remainingQuota ?? 0)); }}
+                                                className="text-gray-400 hover:text-blue-500 transition-colors"
+                                                title="修改限額"
+                                              >
+                                                <Pencil className="w-3 h-3" />
+                                              </button>
+                                            )}
                                           </span>
                                         )
                                     }
