@@ -79,21 +79,29 @@ export function AuctionFbPanel({
   const [bidInput, setBidInput] = useState("");
   const [bidSuccess, setBidSuccess] = useState(false);
   const [merchantInput, setMerchantInput] = useState("");
+  const [merchantSentSuccess, setMerchantSentSuccess] = useState(false);
   const [replyingToBidId, setReplyingToBidId] = useState<number | null>(null);
   const [replyText, setReplyText] = useState("");
   const [particles, setParticles] = useState<{ id: number; bidId: number; dir: "up" | "down" }[]>([]);
   const pidRef = useRef(0);
   const touchStartY = useRef(0);
-  const bidSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* ── body scroll lock ── */
+  /* ── iOS-compatible body scroll lock ── */
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
+    if (!open) return;
+    const scrollY = window.scrollY;
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    document.body.style.overflow = "hidden";
+    return () => {
+      const savedY = Math.abs(parseInt(document.body.style.top || "0", 10));
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
       document.body.style.overflow = "";
-    }
-    return () => { document.body.style.overflow = ""; };
+      window.scrollTo(0, savedY);
+    };
   }, [open]);
 
   const utils = trpc.useUtils();
@@ -106,6 +114,7 @@ export function AuctionFbPanel({
   const broadcastMutation = trpc.auctionFbPanel.postMerchantBroadcast.useMutation({
     onSuccess: () => {
       setMerchantInput("");
+      setMerchantSentSuccess(true);
       utils.auctionFbPanel.getPanel.invalidate();
       toast.success("廣播訊息已發送");
     },
@@ -131,8 +140,6 @@ export function AuctionFbPanel({
     onSuccess: () => {
       setBidInput("");
       setBidSuccess(true);
-      if (bidSuccessTimer.current) clearTimeout(bidSuccessTimer.current);
-      bidSuccessTimer.current = setTimeout(() => setBidSuccess(false), 4000);
       utils.auctionFbPanel.getPanel.invalidate();
       toast.success("出價成功！");
     },
@@ -140,9 +147,14 @@ export function AuctionFbPanel({
   });
 
   const items: PanelItem[] = panelData?.items ?? [];
-  const bidItems = items.filter(i => i.type === "bid");
+
+  /* ── Unified sorted list: bids + broadcasts (top-level comments) together ── */
+  const topLevelItems = items.filter(
+    i => i.type === "bid" || (i.type === "comment" && i.replyToBidId === null)
+  );
+
+  /* ── Replies map: nested under their parent bid ── */
   const replyMap = new Map<number, PanelItem[]>();
-  const broadcasts = items.filter(i => i.type === "comment" && !i.replyToBidId);
   for (const item of items) {
     if (item.type === "comment" && item.replyToBidId != null) {
       const arr = replyMap.get(item.replyToBidId) ?? [];
@@ -217,7 +229,6 @@ export function AuctionFbPanel({
               <span className="text-base">👍</span>
               <span className="text-sm font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
             </div>
-            {/* 每口價 */}
             <div className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
               每口 {curr}{bidIncrement.toLocaleString()}
             </div>
@@ -235,23 +246,7 @@ export function AuctionFbPanel({
           </div>
         </div>
 
-        {/* Broadcast messages */}
-        {broadcasts.length > 0 && (
-          <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 shrink-0 space-y-2">
-            {broadcasts.map(bc => (
-              <div key={bc.id} className="flex items-start gap-2 text-sm text-blue-800">
-                <span className="text-base mt-0.5">📢</span>
-                <div>
-                  <span className="font-semibold">{bc.userName}</span>
-                  <span className="text-xs text-blue-400 ml-1.5">{timeAgo(bc.createdAt)}</span>
-                  <p className="mt-0.5 text-blue-900">{bc.content}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Bid list */}
+        {/* Unified sorted list: bids + broadcasts mixed */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
           {isLoading && (
             <div className="flex justify-center py-10">
@@ -259,99 +254,110 @@ export function AuctionFbPanel({
             </div>
           )}
 
-          {!isLoading && bidItems.length === 0 && (
+          {!isLoading && topLevelItems.length === 0 && (
             <div className="text-center py-10 text-gray-400 text-sm">暫無出價記錄，搶先出價！</div>
           )}
 
-          {bidItems.map(item => (
-            <div key={item.id}>
-              <div className="flex items-start gap-2.5">
-                <Avatar name={item.isAnonymous ? "匿" : item.userName} photoUrl={item.photoUrl} />
-                <div className="flex-1 min-w-0">
-                  <div className="bg-gray-100 rounded-2xl px-3 py-2 inline-block max-w-full">
-                    <p className="text-[13px] font-bold text-gray-900 leading-tight">
-                      {item.isAnonymous ? "匿名用戶" : item.userName}
-                    </p>
-                    <p className="text-base font-semibold text-gray-800 mt-0.5">
-                      {item.rawAmount != null
-                        ? `${curr}${Number(item.rawAmount).toLocaleString()}`
-                        : item.content}
-                    </p>
-                  </div>
-                  {/* Action row */}
-                  <div className="flex items-center gap-3 mt-1 ml-1">
-                    <span className="text-[11px] text-gray-400">{timeAgo(item.createdAt)}</span>
-                    <button
-                      className="text-[12px] font-bold text-gray-500 hover:text-gray-700"
-                      onClick={() => handleReplyClick(item)}
-                    >
-                      回覆
-                    </button>
-                    {/* Like icon */}
-                    <div className="relative flex items-center">
-                      {particles.filter(p => p.bidId === item.id && p.dir === "up").map(p => (
-                        <FloatingParticle key={p.id} dir="up" onDone={() => setParticles(prev => prev.filter(x => x.id !== p.id))} />
-                      ))}
-                      <button
-                        onClick={() => handleLike(item)}
-                        className="text-gray-400 hover:text-[#1877f2] transition-colors"
-                      >
-                        <ThumbsUp className="w-[15px] h-[15px]" />
-                      </button>
+          {topLevelItems.map(item => {
+            /* ── Broadcast (merchant announcement) ── */
+            if (item.type === "comment") {
+              return (
+                <div key={`comment-${item.id}`} className="flex items-start gap-2 text-sm">
+                  <span className="text-base mt-0.5 shrink-0">📢</span>
+                  <div className="flex-1 bg-blue-50 rounded-2xl px-3 py-2 border border-blue-100">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-[13px] font-bold text-blue-800">{item.userName}</span>
+                      <span className="text-[10px] text-blue-400">{timeAgo(item.createdAt)}</span>
                     </div>
-                    {/* Dislike icon */}
-                    <div className="relative flex items-center">
-                      {particles.filter(p => p.bidId === item.id && p.dir === "down").map(p => (
-                        <FloatingParticle key={p.id} dir="down" onDone={() => setParticles(prev => prev.filter(x => x.id !== p.id))} />
-                      ))}
-                      <button
-                        onClick={() => handleDislike(item)}
-                        className="text-gray-400 hover:text-red-400 transition-colors"
-                      >
-                        <ThumbsDown className="w-[15px] h-[15px]" />
-                      </button>
-                    </div>
+                    <p className="text-[13px] text-blue-900">{item.content}</p>
                   </div>
+                </div>
+              );
+            }
 
-                  {/* Merchant reply input for this bid */}
-                  {replyingToBidId === item.id && (
-                    <div className="mt-2 flex items-center gap-2 ml-1">
-                      <Avatar name={user?.name ?? "?"} size="sm" />
-                      <div className="flex-1 flex items-center gap-1.5 bg-gray-100 rounded-full px-3 py-1.5">
-                        <input
-                          className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
-                          placeholder="輸入回覆..."
-                          value={replyText}
-                          onChange={(e) => setReplyText(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReplySubmit(item.id); } }}
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => handleReplySubmit(item.id)}
-                          disabled={!replyText.trim() || replyBidMutation.isPending}
-                          className="text-[#1877f2] disabled:opacity-40 shrink-0"
-                        >
-                          <Send className="w-4 h-4" />
+            /* ── Bid ── */
+            return (
+              <div key={`bid-${item.id}`}>
+                <div className="flex items-start gap-2.5">
+                  <Avatar name={item.isAnonymous ? "匿" : item.userName} photoUrl={item.photoUrl} />
+                  <div className="flex-1 min-w-0">
+                    <div className="bg-gray-100 rounded-2xl px-3 py-2 inline-block max-w-full">
+                      <p className="text-[13px] font-bold text-gray-900 leading-tight">
+                        {item.isAnonymous ? "匿名用戶" : item.userName}
+                      </p>
+                      <p className="text-base font-semibold text-gray-800 mt-0.5">
+                        {item.rawAmount != null
+                          ? `${curr}${Number(item.rawAmount).toLocaleString()}`
+                          : item.content}
+                      </p>
+                    </div>
+                    {/* Action row */}
+                    <div className="flex items-center gap-3 mt-1 ml-1">
+                      <span className="text-[11px] text-gray-400">{timeAgo(item.createdAt)}</span>
+                      <button
+                        className="text-[12px] font-bold text-gray-500 hover:text-gray-700"
+                        onClick={() => handleReplyClick(item)}
+                      >
+                        回覆
+                      </button>
+                      <div className="relative flex items-center">
+                        {particles.filter(p => p.bidId === item.id && p.dir === "up").map(p => (
+                          <FloatingParticle key={p.id} dir="up" onDone={() => setParticles(prev => prev.filter(x => x.id !== p.id))} />
+                        ))}
+                        <button onClick={() => handleLike(item)} className="text-gray-400 hover:text-[#1877f2] transition-colors">
+                          <ThumbsUp className="w-[15px] h-[15px]" />
+                        </button>
+                      </div>
+                      <div className="relative flex items-center">
+                        {particles.filter(p => p.bidId === item.id && p.dir === "down").map(p => (
+                          <FloatingParticle key={p.id} dir="down" onDone={() => setParticles(prev => prev.filter(x => x.id !== p.id))} />
+                        ))}
+                        <button onClick={() => handleDislike(item)} className="text-gray-400 hover:text-red-400 transition-colors">
+                          <ThumbsDown className="w-[15px] h-[15px]" />
                         </button>
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Merchant replies nested under this bid */}
-              {(replyMap.get(item.id) ?? []).map(reply => (
-                <div key={reply.id} className="flex items-start gap-2 mt-1.5 pl-11">
-                  <Avatar name={reply.userName} photoUrl={reply.photoUrl} size="sm" />
-                  <div className="flex-1 bg-gray-100 rounded-2xl px-3 py-1.5">
-                    <p className="text-[12px] font-bold text-gray-900">{reply.userName}</p>
-                    <p className="text-[13px] text-gray-800 mt-0.5">{reply.content}</p>
-                    <p className="text-[10px] text-gray-400 mt-0.5">{timeAgo(reply.createdAt)}</p>
+                    {/* Merchant reply input for this bid */}
+                    {replyingToBidId === item.id && (
+                      <div className="mt-2 flex items-center gap-2 ml-1">
+                        <Avatar name={user?.name ?? "?"} size="sm" />
+                        <div className="flex-1 flex items-center gap-1.5 bg-gray-100 rounded-full px-3 py-1.5">
+                          <input
+                            className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
+                            placeholder="輸入回覆..."
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReplySubmit(item.id); } }}
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => handleReplySubmit(item.id)}
+                            disabled={!replyText.trim() || replyBidMutation.isPending}
+                            className="text-[#1877f2] disabled:opacity-40 shrink-0"
+                          >
+                            <Send className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
-          ))}
+
+                {/* Replies nested under this bid */}
+                {(replyMap.get(item.id) ?? []).map(reply => (
+                  <div key={reply.id} className="flex items-start gap-2 mt-1.5 pl-11">
+                    <Avatar name={reply.userName} photoUrl={reply.photoUrl} size="sm" />
+                    <div className="flex-1 bg-gray-100 rounded-2xl px-3 py-1.5">
+                      <p className="text-[12px] font-bold text-gray-900">{reply.userName}</p>
+                      <p className="text-[13px] text-gray-800 mt-0.5">{reply.content}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{timeAgo(reply.createdAt)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
         </div>
 
         {/* Bottom input */}
@@ -359,12 +365,20 @@ export function AuctionFbPanel({
           <Avatar name={user?.name ?? "?"} photoUrl={null} size="sm" />
           {isMerchant ? (
             <>
+              {merchantSentSuccess && (
+                <span className="text-[11px] font-semibold text-green-600 whitespace-nowrap shrink-0">
+                  ✓ 已發送
+                </span>
+              )}
               <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 gap-2">
                 <input
                   className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
                   placeholder="撰寫廣播訊息給所有出價者..."
                   value={merchantInput}
-                  onChange={(e) => setMerchantInput(e.target.value)}
+                  onChange={(e) => {
+                    setMerchantInput(e.target.value);
+                    if (merchantSentSuccess) setMerchantSentSuccess(false);
+                  }}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleMerchantSend(); } }}
                 />
               </div>
@@ -378,7 +392,6 @@ export function AuctionFbPanel({
             </>
           ) : (
             <>
-              {/* 出價有效 label — shows after successful bid */}
               {bidSuccess && (
                 <span className="text-[11px] font-semibold text-green-600 whitespace-nowrap shrink-0">
                   出價有效
