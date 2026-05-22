@@ -477,25 +477,28 @@ export function AuctionImageLightbox({
           </div>
         </div>
 
+        {/* Countdown + anti-snipe — visible to ALL (merchant included) */}
+        {endTime && !isEnded && (
+          <div className="border-t border-gray-100 px-3 pt-2 pb-1.5 bg-white shrink-0">
+            <div className="flex flex-col items-end gap-0.5 text-[11px] text-gray-600">
+              <div className="flex items-center gap-1">
+                <span>⏰</span>
+                <span>倒數</span>
+                <MiniCountdown endTime={new Date(endTime)} />
+              </div>
+              {(antiSnipeEnabled ?? 1) === 1 && (antiSnipeMinutes ?? 3) > 0 && (
+                <div className="flex items-start gap-1 text-right leading-snug">
+                  <span>🛡️</span>
+                  <span>結束前 {antiSnipeMinutes ?? 3} 分鐘內有出價，自動延長 {extendMinutes ?? 1} 分鐘</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Quick bid shortcuts — buyers only, active auction */}
         {!isMerchant && !isEnded && (
-          <div className="border-t border-gray-100 px-3 pt-2 pb-1 bg-white shrink-0">
-            {/* Countdown + anti-snipe info — right-aligned */}
-            {endTime && (
-              <div className="flex flex-col items-end gap-0.5 mb-1.5 text-[11px] text-gray-600">
-                <div className="flex items-center gap-1">
-                  <span>⏰</span>
-                  <span>倒數</span>
-                  <MiniCountdown endTime={new Date(endTime)} />
-                </div>
-                {(antiSnipeEnabled ?? 1) === 1 && (antiSnipeMinutes ?? 3) > 0 && (
-                  <div className="flex items-start gap-1 text-right leading-snug">
-                    <span>🛡️</span>
-                    <span>結束前 {antiSnipeMinutes ?? 3} 分鐘內有出價，自動延長 {extendMinutes ?? 1} 分鐘</span>
-                  </div>
-                )}
-              </div>
-            )}
+          <div className={`${!endTime ? "border-t border-gray-100 " : ""}px-3 pt-1 pb-1 bg-white shrink-0`}>
             <div className="flex gap-2">
               {[
                 { hint: "最低", amt: currentPrice + bidIncrement },
