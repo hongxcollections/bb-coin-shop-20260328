@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Send, ThumbsUp, ThumbsDown, X, ChevronDown } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -77,12 +77,24 @@ export function AuctionFbPanel({
 
   const [sort, setSort] = useState<"new" | "old">("new");
   const [bidInput, setBidInput] = useState("");
+  const [bidSuccess, setBidSuccess] = useState(false);
   const [merchantInput, setMerchantInput] = useState("");
   const [replyingToBidId, setReplyingToBidId] = useState<number | null>(null);
   const [replyText, setReplyText] = useState("");
   const [particles, setParticles] = useState<{ id: number; bidId: number; dir: "up" | "down" }[]>([]);
   const pidRef = useRef(0);
   const touchStartY = useRef(0);
+  const bidSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* ── body scroll lock ── */
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
 
   const utils = trpc.useUtils();
 
@@ -118,6 +130,9 @@ export function AuctionFbPanel({
   const placeBid = trpc.auctions.placeBid.useMutation({
     onSuccess: () => {
       setBidInput("");
+      setBidSuccess(true);
+      if (bidSuccessTimer.current) clearTimeout(bidSuccessTimer.current);
+      bidSuccessTimer.current = setTimeout(() => setBidSuccess(false), 4000);
       utils.auctionFbPanel.getPanel.invalidate();
       toast.success("出價成功！");
     },
@@ -197,9 +212,15 @@ export function AuctionFbPanel({
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 shrink-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-base">👍</span>
-            <span className="text-sm font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-base">👍</span>
+              <span className="text-sm font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
+            </div>
+            {/* 每口價 */}
+            <div className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+              每口 {curr}{bidIncrement.toLocaleString()}
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -357,12 +378,23 @@ export function AuctionFbPanel({
             </>
           ) : (
             <>
+              {/* 出價有效 label — shows after successful bid */}
+              {bidSuccess && (
+                <span className="text-[11px] font-semibold text-green-600 whitespace-nowrap shrink-0">
+                  出價有效
+                </span>
+              )}
               <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2">
                 <input
                   className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
                   placeholder={isEnded ? "拍賣已結束" : `出價 (最低 ${curr}${(currentPrice + bidIncrement).toLocaleString()})`}
                   value={bidInput}
-                  onChange={(e) => { if (/^\d*$/.test(e.target.value)) setBidInput(e.target.value); }}
+                  onChange={(e) => {
+                    if (/^\d*$/.test(e.target.value)) {
+                      setBidInput(e.target.value);
+                      if (bidSuccess) setBidSuccess(false);
+                    }
+                  }}
                   onKeyDown={(e) => { if (e.key === "Enter") handleBuyerBid(); }}
                   inputMode="numeric"
                   disabled={isEnded || !isAuthenticated}
