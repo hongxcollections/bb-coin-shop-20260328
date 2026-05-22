@@ -20,6 +20,7 @@ interface AuctionFbPanelProps {
   antiSnipeEnabled?: number;
   antiSnipeMinutes?: number;
   extendMinutes?: number;
+  endTime?: string | Date;
 }
 
 type PanelItem = {
@@ -72,6 +73,27 @@ function Avatar({ name, photoUrl, size = "md" }: { name: string; photoUrl?: stri
   );
 }
 
+/* ── Mini countdown (live) ── */
+function MiniCountdown({ endTime }: { endTime: Date }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const diff = endTime.getTime() - now.getTime();
+  if (diff <= 0) return <span className="font-bold tabular-nums text-red-500">已結束</span>;
+  const days = Math.floor(diff / 86400000);
+  const hrs = Math.floor((diff % 86400000) / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  const secs = Math.floor((diff % 60000) / 1000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    <span className="font-bold tabular-nums">
+      {days > 0 ? `${days}日 ` : ""}{pad(hrs)}:{pad(mins)}:{pad(secs)}
+    </span>
+  );
+}
+
 /* ── Sort picker bottom sheet (FB-style radio) ── */
 const SORT_OPTIONS = [
   { value: "new" as const, label: "由新至舊", desc: "顯示所有回應，且最新的回應顯示在最上方。" },
@@ -110,6 +132,7 @@ function SortSheet({ current, onSelect, onClose }: { current: "new" | "old"; onS
 export function AuctionFbPanel({
   open, onClose, auctionId, createdBy, sellerName, sellerPhotoUrl,
   currency, currentPrice, bidIncrement = 30, isEnded,
+  endTime, antiSnipeEnabled, antiSnipeMinutes, extendMinutes,
 }: AuctionFbPanelProps) {
   const { user, isAuthenticated } = useAuth();
   const isMerchant = !!user && user.id === createdBy;
@@ -214,7 +237,15 @@ export function AuctionFbPanel({
     onError: (err) => toast.error(err.message),
   });
   const placeBid = trpc.auctions.placeBid.useMutation({
-    onSuccess: () => { setBidInput(""); utils.auctionFbPanel.getPanel.invalidate(); toast.success("出價成功！"); },
+    onSuccess: () => {
+      setBidInput("");
+      utils.auctionFbPanel.getPanel.invalidate();
+      toast.success("出價成功！");
+      setTimeout(() => {
+        if (sort === "new") scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+        else scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+      }, 350);
+    },
     onError: (err) => toast.error(`出價失敗：${err.message}`),
   });
 
@@ -452,6 +483,22 @@ export function AuctionFbPanel({
           {/* Quick bid shortcuts — buyers only, active auction */}
           {!isMerchant && !isEnded && (
             <div className="border-t border-gray-100 px-3 pt-2 pb-1 bg-white shrink-0">
+              {/* Countdown + anti-snipe info — right-aligned */}
+              {endTime && (
+                <div className="flex flex-col items-end gap-0.5 mb-1.5 text-[11px] text-gray-600">
+                  <div className="flex items-center gap-1">
+                    <span>⏰</span>
+                    <span>倒數</span>
+                    <MiniCountdown endTime={new Date(endTime)} />
+                  </div>
+                  {(antiSnipeEnabled ?? 1) === 1 && (antiSnipeMinutes ?? 3) > 0 && (
+                    <div className="flex items-start gap-1 text-right leading-snug">
+                      <span>🛡️</span>
+                      <span>結束前 {antiSnipeMinutes ?? 3} 分鐘內有出價，自動延長 {extendMinutes ?? 1} 分鐘</span>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex gap-2">
                 {[
                   { hint: "最低", amt: currentPrice + bidIncrement },
