@@ -9575,9 +9575,15 @@ EXAMPLE OUTPUT (exact format):
       .input(z.object({
         auctionId: z.number().int().positive(),
         sort: z.enum(["new", "old"]).default("new"),
+        viewerUserId: z.number().int().positive().optional(),
       }))
       .query(async ({ input, ctx }) => {
-        const myUserId: number | null = ctx.user?.id ?? null;
+        /* ctx.user may be null in Chrome (public procedure, cookie may not be sent).
+           Fall back to client-supplied viewerUserId for isMyBid display only. */
+        const myUserId: number | null =
+          ctx.user?.id != null ? Number(ctx.user.id)
+          : input.viewerUserId != null ? Number(input.viewerUserId)
+          : null;
         const db = await getDb();
         const bidsRows: any = await db.execute(sql.raw(`
           SELECT 'bid' AS type, b.id, b.auctionId, b.userId,

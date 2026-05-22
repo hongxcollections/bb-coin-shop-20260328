@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { ChevronLeft, ThumbsUp, Share2, Send, X } from "lucide-react";
+import { ChevronLeft, ThumbsUp, ThumbsDown, Share2, Send, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -223,7 +223,7 @@ export function AuctionImageLightbox({
 
   const utils = trpc.useUtils();
   const { data: panelData, isLoading } = trpc.auctionFbPanel.getPanel.useQuery(
-    { auctionId, sort },
+    { auctionId, sort, viewerUserId: user?.id },
     { enabled: open, refetchOnWindowFocus: false }
   );
 
@@ -270,6 +270,11 @@ export function AuctionImageLightbox({
   const handleMerchantSend = () => {
     if (!merchantInput.trim()) return;
     broadcastMutation.mutate({ auctionId, content: merchantInput.trim() });
+  };
+  const handleQuickBid = (amount: number) => {
+    if (!isAuthenticated) { toast.info("請先登入先可以出價"); return; }
+    if (isEnded) { toast.error("此拍賣已結束"); return; }
+    placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: 0 });
   };
   const handleShare = () => {
     const url = `${window.location.origin}/auctions/${auctionId}`;
@@ -429,6 +434,29 @@ export function AuctionImageLightbox({
             </div>
           </div>
         </div>
+
+        {/* Quick bid shortcuts — buyers only, active auction */}
+        {!isMerchant && !isEnded && (
+          <div className="border-t border-gray-100 px-3 pt-2 pb-1 bg-white shrink-0">
+            <div className="flex gap-2">
+              {[
+                { hint: "最低", amt: currentPrice + bidIncrement },
+                { hint: "+1口", amt: currentPrice + bidIncrement * 2 },
+                { hint: "+2口", amt: currentPrice + bidIncrement * 3 },
+              ].map(({ hint, amt }) => (
+                <button
+                  key={hint}
+                  onClick={() => handleQuickBid(amt)}
+                  disabled={placeBid.isPending}
+                  className="flex-1 flex flex-col items-center py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 active:bg-amber-200 border border-amber-200 text-amber-800 disabled:opacity-50 transition-colors"
+                >
+                  <span className="text-[9px] text-amber-600/80">{hint}</span>
+                  <span className="text-xs font-bold">{curr}{amt.toLocaleString()}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Bottom input */}
         <div className="border-t border-gray-200 px-3 py-2 flex items-center gap-2 bg-white shrink-0">
