@@ -2502,6 +2502,20 @@ export async function cancelSubscription(subscriptionId: number, adminId: number
   }
 }
 
+export async function deleteUserSubscription(subscriptionId: number) {
+  await ensureSubscriptionTables();
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+  const subs = await db.select({ status: userSubscriptions.status })
+    .from(userSubscriptions).where(eq(userSubscriptions.id, subscriptionId)).limit(1);
+  if (!subs[0]) throw new Error('找不到訂閱記錄');
+  if (!['rejected', 'cancelled'].includes(subs[0].status)) {
+    throw new Error('只可拆除已拒絕或已取消的訂閱記錄');
+  }
+  await db.delete(userSubscriptions).where(eq(userSubscriptions.id, subscriptionId));
+  return { success: true };
+}
+
 /**
  * Auto-expire any active subscription whose endDate has passed.
  * Called at the start of subscription queries so over-due rows

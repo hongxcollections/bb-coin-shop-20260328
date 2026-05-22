@@ -210,6 +210,15 @@ export default function AdminSubscriptions() {
     onError: (err) => toast.error(`取消失敗：${err.message}`),
   });
 
+  const deleteRecordMutation = trpc.subscriptions.adminDeleteRecord.useMutation({
+    onSuccess: () => {
+      toast.success("記錄已拆除");
+      utils.subscriptions.adminListSubscriptions.invalidate();
+      utils.subscriptions.adminStats.invalidate();
+    },
+    onError: (err) => toast.error(`拆除失敗：${err.message}`),
+  });
+
   const updateQuotaMutation = trpc.subscriptions.adminUpdateQuota.useMutation({
     onSuccess: () => {
       toast.success("發佈限額已更新");
@@ -663,6 +672,25 @@ export default function AdminSubscriptions() {
                                   onClick={() => openAction(sub, "cancel")}
                                 >
                                   <Ban className="w-3 h-3 mr-0.5" /> 取消
+                                </Button>
+                              )}
+                              {(sub.status === "rejected" || sub.status === "cancelled") && (
+                                <Button
+                                  variant="outline" size="sm"
+                                  className="text-gray-500 border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-xs h-7"
+                                  disabled={deleteRecordMutation.isPending}
+                                  onClick={async () => {
+                                    const ok = await confirmDialog({
+                                      title: "確認拆除記錄？",
+                                      description: "此訂閱記錄將永久刪除，不可復原。",
+                                      confirmText: "確認拆除",
+                                      tone: "danger",
+                                    });
+                                    if (!ok) return;
+                                    deleteRecordMutation.mutate({ subscriptionId: sub.id });
+                                  }}
+                                >
+                                  <Trash2 className="w-3 h-3 mr-0.5" /> 拆除記錄
                                 </Button>
                               )}
                             </div>
