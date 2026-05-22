@@ -845,11 +845,11 @@ export default function MerchantDashboard() {
             </div>
             <Button
               size="sm"
-              disabled={hasPendingRenewal}
+              disabled={hasPendingRenewal || renewMutation.isSuccess || renewMutation.isPending}
               onClick={() => setRenewDialogOpen(true)}
               className="bg-amber-600 hover:bg-amber-700 text-white border-0 flex-shrink-0"
             >
-              {hasPendingRenewal ? "續期審核中" : "一鍵續期"}
+              {(hasPendingRenewal || renewMutation.isSuccess) ? "續期審核中" : "一鍵續期"}
             </Button>
           </div>
         )}
@@ -1328,13 +1328,14 @@ export default function MerchantDashboard() {
       <Dialog open={renewDialogOpen} onOpenChange={setRenewDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>續期訂閱計劃</DialogTitle>
+            <DialogTitle>提交續期申請</DialogTitle>
+            <p className="text-xs text-muted-foreground pt-1">確認以下訂閱資料，填寫付款後提交，管理員批核後即時生效。</p>
           </DialogHeader>
           <div className="space-y-3 text-sm">
             <div className="rounded-lg bg-purple-50 border border-purple-100 p-3 space-y-1">
               <div className="flex justify-between"><span className="text-gray-500">計劃</span><span className="font-medium">{bannerSub?.planName ?? "—"}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">週期</span><span className="font-medium">{bannerSub?.billingCycle === "yearly" ? "年繳" : "月繳"}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">現有到期</span><span className="font-medium">{fmtDate((bannerSub?.endDate as Date | null | undefined) ?? null)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">上次到期</span><span className="font-medium">{fmtDate((bannerSub?.endDate as Date | null | undefined) ?? null)}</span></div>
               {(() => {
                 const plan = (availablePlans as Array<{ id: number; monthlyPrice: string | number; yearlyPrice: string | number }> | undefined)?.find(
                   p => p.id === (bannerSub?.planId ?? mySubscription?.planId)
