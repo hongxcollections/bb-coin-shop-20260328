@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { Globe, MoreHorizontal, ThumbsUp, MessageCircle, Share2 } from "lucide-react";
 import { AuctionFbPanel } from "@/components/AuctionFbPanel";
+import { AuctionImageLightbox } from "@/components/AuctionImageLightbox";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 export interface AuctionCardFbProps {
@@ -39,19 +40,18 @@ function timeAgo(d: string | Date | undefined): string {
   return `${Math.floor(h / 24)}天`;
 }
 
-function FbPhotoGrid({ images, bidCount, onClick }: {
+function FbPhotoGrid({ images, bidCount, onPhotoClick }: {
   images: { imageUrl: string }[];
   bidCount: number;
-  onClick: (e: React.MouseEvent) => void;
+  onPhotoClick: () => void;
 }) {
   const count = images.length;
   if (count === 0) return null;
   const extra = count > 5 ? count - 5 : 0;
-
   const imgCls = "w-full h-full object-cover";
 
   return (
-    <div className="relative cursor-pointer" onClick={onClick}>
+    <div className="relative cursor-pointer" onClick={onPhotoClick}>
       {count === 1 && (
         <img src={images[0].imageUrl} alt="" className="w-full max-h-80 object-cover" />
       )}
@@ -156,6 +156,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
 
   const { user } = useAuth();
   const [panelOpen, setPanelOpen] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [particles, setParticles] = useState<number[]>([]);
   const pidRef = useRef(0);
   const curr = currency === "HKD" || !currency ? "HK$" : currency;
@@ -183,7 +184,6 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
       {/* Header */}
       <div className="flex items-start justify-between px-3 pt-3 pb-1.5">
         <div className="flex items-center gap-2">
-          {/* Seller avatar — use actual photo if available */}
           <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold text-base shrink-0 overflow-hidden">
             {sellerPhotoUrl
               ? <img src={sellerPhotoUrl} alt={sellerName ?? "商戶"} className="w-full h-full object-cover" />
@@ -205,7 +205,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         <MoreHorizontal className="w-5 h-5 text-gray-500 mt-1 cursor-pointer" />
       </div>
 
-      {/* Title/description text + price row */}
+      {/* Title + price row */}
       <div className="px-3 pb-2">
         <TruncatedText text={title} />
         {!isEnded && (
@@ -225,12 +225,12 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         )}
       </div>
 
-      {/* Photo grid */}
+      {/* Photo grid — tapping opens full lightbox */}
       {images.length > 0 ? (
         <FbPhotoGrid
           images={images}
           bidCount={bidCount}
-          onClick={(e) => { e.preventDefault(); if (onLinkClick) onLinkClick(); window.location.href = `/auctions/${auctionId}`; }}
+          onPhotoClick={() => setLightboxOpen(true)}
         />
       ) : (
         <div
@@ -242,7 +242,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
       )}
 
       {/* Reaction + comment count bar */}
-      {(bidCount > 0) && (
+      {bidCount > 0 && (
         <div className="flex items-center justify-between px-3 py-1.5">
           {reactionLabel}
           <button
@@ -257,7 +257,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
       {/* Divider */}
       <div className="border-t border-gray-200 mx-0" />
 
-      {/* 3 action buttons — no dividers */}
+      {/* 3 action buttons */}
       <div className="flex items-center">
         {/* 讚好 */}
         <div className="relative flex-1">
@@ -309,7 +309,23 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         </div>
       </div>
 
-      {/* FB Panel */}
+      {/* Image lightbox — tapping photos opens this */}
+      <AuctionImageLightbox
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        images={images}
+        auctionId={auctionId}
+        auctionTitle={title}
+        sellerName={sellerName}
+        sellerPhotoUrl={sellerPhotoUrl}
+        createdBy={createdBy}
+        currency={currency}
+        currentPrice={currentPrice}
+        bidIncrement={bidIncrement}
+        isEnded={isEnded}
+      />
+
+      {/* FB Panel — opened via "回應" button */}
       <AuctionFbPanel
         open={panelOpen}
         onClose={() => setPanelOpen(false)}

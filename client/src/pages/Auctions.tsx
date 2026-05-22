@@ -419,18 +419,20 @@ export default function Auctions() {
                 {f === "active" ? "競拍中" : "我的出價"}
               </Button>
             ))}
-            <button
-              onClick={() => {
-                const next = viewMode === "default" ? "fb" : "default";
-                setViewMode(next);
-                try { localStorage.setItem("auctions-view-mode", next); } catch {}
-              }}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${viewMode === "fb" ? "bg-[#1877f2] text-white border-[#1877f2]" : "border-amber-200 text-amber-700 hover:bg-amber-50"}`}
-              title={viewMode === "fb" ? "切換至預設視圖" : "切換至 FB 視圖"}
-            >
-              {viewMode === "fb" ? <List className="w-3.5 h-3.5" /> : <LayoutGrid className="w-3.5 h-3.5" />}
-              <span className="ml-0.5">{viewMode === "fb" ? "預設" : "FB"}</span>
-            </button>
+            {_ss.fbViewEnabled === "true" && (
+              <button
+                onClick={() => {
+                  const next = viewMode === "default" ? "fb" : "default";
+                  setViewMode(next);
+                  try { localStorage.setItem("auctions-view-mode", next); } catch {}
+                }}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${viewMode === "fb" ? "bg-[#1877f2] text-white border-[#1877f2]" : "border-amber-200 text-amber-700 hover:bg-amber-50"}`}
+                title={viewMode === "fb" ? "切換至預設視圖" : "切換至 FB 視圖"}
+              >
+                {viewMode === "fb" ? <List className="w-3.5 h-3.5" /> : <LayoutGrid className="w-3.5 h-3.5" />}
+                <span className="ml-0.5">{viewMode === "fb" ? "預設" : "FB"}</span>
+              </button>
+            )}
           </div>
         </div>
 

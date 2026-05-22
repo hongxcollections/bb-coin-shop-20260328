@@ -155,7 +155,7 @@ export async function getAuctions(limit = 20, offset = 0, category?: string) {
         highestBidderName: users.name,
         highestBidderIsAnonymous: sql<number>`COALESCE((SELECT isAnonymous FROM bids WHERE auctionId = ${auctions.id} AND userId = ${auctions.highestBidderId} ORDER BY id DESC LIMIT 1), 0)`,
         sellerName: sql<string | null>`(SELECT name FROM users WHERE id = ${auctions.createdBy})`,
-        sellerPhotoUrl: sql<string | null>`(SELECT photoUrl FROM users WHERE id = ${auctions.createdBy})`,
+        sellerPhotoUrl: sql<string | null>`(SELECT COALESCE(NULLIF(TRIM(ma.merchantIcon),''), NULLIF(TRIM(u.photoUrl),'')) FROM users u LEFT JOIN merchantApplications ma ON ma.userId = u.id AND ma.status = 'approved' WHERE u.id = ${auctions.createdBy} LIMIT 1)`,
         endTime: auctions.endTime,
         status: auctions.status,
         fbPostUrl: auctions.fbPostUrl,
