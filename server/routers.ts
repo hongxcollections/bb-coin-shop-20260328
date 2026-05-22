@@ -1873,6 +1873,28 @@ export const appRouter = router({
         }
         return { success: true, sentTo: winner.email };
       }),
+
+    // Admin: count all pending approvals (for nav badge)
+    adminGetPendingCount: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== 'admin') return { total: 0 };
+        const db = await getDb();
+        if (!db) return { total: 0 };
+        try {
+          const [r] = await db.execute(sql`
+            SELECT (
+              (SELECT COUNT(*) FROM merchantApplications WHERE status = 'pending') +
+              (SELECT COUNT(*) FROM commissionRefundRequests WHERE status = 'pending') +
+              (SELECT COUNT(*) FROM depositTopUpRequests WHERE status = 'pending') +
+              (SELECT COUNT(*) FROM userSubscriptions WHERE status = 'pending') +
+              (SELECT COUNT(*) FROM depositTierChangeRequests WHERE status = 'pending')
+            ) AS total
+          `);
+          return { total: Number((r as any).total ?? 0) };
+        } catch {
+          return { total: 0 };
+        }
+      }),
   }),
 
   export: router({

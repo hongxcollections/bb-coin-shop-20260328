@@ -57,6 +57,12 @@ export default function BottomNav() {
   const { data: _autoBidStatus } = trpc.loyalty.myAutoBidStatus.useQuery(undefined, { enabled: isAuthenticated });
   const _memberLevel = (_autoBidStatus?.level as string | undefined) ?? "bronze";
   const _isAdmin = user?.role === "admin";
+  const { data: adminPending } = trpc.users.adminGetPendingCount.useQuery(undefined, {
+    enabled: isAuthenticated && _isAdmin,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const adminPendingCount = Number((adminPending as { total?: number } | undefined)?.total ?? 0);
   const canUseChat = _isAdmin || ["silver", "gold", "vip"].includes(_memberLevel);
   const { data: _siteSettings, isSuccess: _settingsLoaded } = trpc.siteSettings.getAll.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const _ss = (_siteSettings as Record<string, string> | undefined) ?? {};
@@ -263,6 +269,11 @@ export default function BottomNav() {
                             >
                               <Shield className="w-4 h-4" />
                               <span>管理後台</span>
+                              {adminPendingCount > 0 && (
+                                <span style={{ marginLeft: "auto", background: "#dc2626", color: "white", fontSize: "10px", fontWeight: 700, padding: "1px 6px", borderRadius: "9px", minWidth: "18px", textAlign: "center" }}>
+                                  {adminPendingCount > 99 ? "99+" : adminPendingCount}
+                                </span>
+                              )}
                             </Link>
                           )}
                           <Link

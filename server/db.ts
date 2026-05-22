@@ -1715,6 +1715,7 @@ export async function getAllSellerDeposits() {
       })
       .from(sellerDeposits)
       .leftJoin(users, eq(sellerDeposits.userId, users.id))
+      .where(sql`EXISTS (SELECT 1 FROM merchantApplications WHERE userId = ${sellerDeposits.userId} AND status = 'approved')`)
       .orderBy(desc(sellerDeposits.updatedAt));
     return result;
   } catch (error) {
