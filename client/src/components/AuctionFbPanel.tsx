@@ -277,6 +277,7 @@ export function AuctionFbPanel({
   const topLevelItems = items.filter(
     i => i.type === "bid" || (i.type === "comment" && i.replyToBidId === null)
   );
+  const maxBidAmount = Math.max(0, ...items.filter(i => i.type === "bid" && i.rawAmount != null).map(i => Number(i.rawAmount)));
   const replyMap = new Map<number, PanelItem[]>();
   for (const item of items) {
     if (item.type === "comment" && item.replyToBidId != null) {
@@ -407,8 +408,9 @@ export function AuctionFbPanel({
               }
 
               /* Bid item — isMyBid comes from server */
+              const isLeading = item.isMyBid && Number(item.rawAmount) === maxBidAmount && maxBidAmount > 0;
               return (
-                <div key={`bid-${item.id}`}>
+                <div key={`bid-${item.id}`} className={isLeading ? "border-l-[3px] border-red-500 pl-2 -ml-2" : ""}>
                   <div className="flex items-start gap-3">
                     <Avatar
                       name={item.isAnonymous ? "匿" : item.userName}
@@ -433,6 +435,9 @@ export function AuctionFbPanel({
                         </p>
                         {item.isMyBid && (
                           <span className="text-[10px] font-semibold text-green-600 whitespace-nowrap">出價有效 ✓</span>
+                        )}
+                        {isLeading && (
+                          <span className="text-[10px] font-bold text-red-500 border border-red-400 rounded px-1 whitespace-nowrap">領先</span>
                         )}
                       </div>
                       {/* Action row: 回覆 left | 👍👎 right */}

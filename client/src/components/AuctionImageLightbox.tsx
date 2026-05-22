@@ -172,6 +172,7 @@ export function AuctionImageLightbox({
   const sellerDisplayName = sellerName ?? "商戶";
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const responseSectionRef = useRef<HTMLDivElement>(null);
   const [sort, setSort] = useState<"new" | "old">("new");
   const [showSortSheet, setShowSortSheet] = useState(false);
   const [bidInput, setBidInput] = useState("");
@@ -264,8 +265,12 @@ export function AuctionImageLightbox({
       utils.auctionFbPanel.getPanel.invalidate();
       toast.success("出價成功！");
       setTimeout(() => {
-        if (sort === "new") scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-        else scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+        if (sort === "new") {
+          const responseTop = responseSectionRef.current?.offsetTop ?? 0;
+          scrollRef.current?.scrollTo({ top: responseTop, behavior: "smooth" });
+        } else {
+          scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+        }
       }, 350);
     },
     onError: (err) => toast.error(`出價失敗：${err.message}`),
@@ -275,6 +280,7 @@ export function AuctionImageLightbox({
   const topLevelItems = items.filter(
     i => i.type === "bid" || (i.type === "comment" && i.replyToBidId === null)
   );
+  const maxBidAmount = Math.max(0, ...items.filter(i => i.type === "bid" && i.rawAmount != null).map(i => Number(i.rawAmount)));
   const replyMap = new Map<number, PanelItem[]>();
   for (const item of items) {
     if (item.type === "comment" && item.replyToBidId != null) {
@@ -368,7 +374,7 @@ export function AuctionImageLightbox({
           ))}
 
           {/* Response panel */}
-          <div className="bg-white">
+          <div ref={responseSectionRef} className="bg-white">
             {/* Sub-header: sort LEFT | stats RIGHT */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
               <button
@@ -417,8 +423,9 @@ export function AuctionImageLightbox({
                 }
 
                 /* isMyBid from server */
+                const isLeading = item.isMyBid && Number(item.rawAmount) === maxBidAmount && maxBidAmount > 0;
                 return (
-                  <div key={`b-${item.id}`}>
+                  <div key={`b-${item.id}`} className={isLeading ? "border-l-[3px] border-red-500 pl-2 -ml-2" : ""}>
                     <div className="flex items-start gap-3">
                       <Avatar name={item.isAnonymous ? "匿" : item.userName} photoUrl={item.isAnonymous ? null : item.photoUrl} size="lg" />
                       <div className="flex-1 min-w-0">
@@ -435,6 +442,9 @@ export function AuctionImageLightbox({
                           </p>
                           {item.isMyBid && (
                             <span className="text-[10px] font-semibold text-green-600 whitespace-nowrap">出價有效 ✓</span>
+                          )}
+                          {isLeading && (
+                            <span className="text-[10px] font-bold text-red-500 border border-red-400 rounded px-1 whitespace-nowrap">領先</span>
                           )}
                         </div>
                         {/* action row: 回覆 left | 👍👎 right */}
