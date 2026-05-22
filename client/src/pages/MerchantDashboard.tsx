@@ -393,9 +393,6 @@ export default function MerchantDashboard() {
 
   const renewMutation = trpc.subscriptions.renew.useMutation({
     onSuccess: () => {
-      toast.success("續期申請已提交，管理員確認收款後將自動延長");
-      setRenewDialogOpen(false);
-      setRenewPaymentMethod(""); setRenewPaymentRef(""); setRenewProofUrl("");
       refetchSubHistory();
       utils.subscriptions.mySubscription.invalidate();
     },
@@ -1325,75 +1322,120 @@ export default function MerchantDashboard() {
       <MerchantOffersDialog open={showOffersDialog} onOpenChange={setShowOffersDialog} />
 
       {/* ── 續期一鍵延長 dialog ── */}
-      <Dialog open={renewDialogOpen} onOpenChange={setRenewDialogOpen}>
+      <Dialog open={renewDialogOpen} onOpenChange={(open) => {
+        setRenewDialogOpen(open);
+        if (!open) {
+          renewMutation.reset();
+          setRenewPaymentMethod(""); setRenewPaymentRef(""); setRenewProofUrl("");
+        }
+      }}>
         <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>提交續期申請</DialogTitle>
-            <p className="text-xs text-muted-foreground pt-1">確認以下訂閱資料，填寫付款後提交，管理員批核後即時生效。</p>
-          </DialogHeader>
-          <div className="space-y-3 text-sm">
-            <div className="rounded-lg bg-purple-50 border border-purple-100 p-3 space-y-1">
-              <div className="flex justify-between"><span className="text-gray-500">計劃</span><span className="font-medium">{bannerSub?.planName ?? "—"}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">週期</span><span className="font-medium">{bannerSub?.billingCycle === "yearly" ? "年繳" : "月繳"}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">上次到期</span><span className="font-medium">{fmtDate((bannerSub?.endDate as Date | null | undefined) ?? null)}</span></div>
-              {(() => {
-                const plan = (availablePlans as Array<{ id: number; monthlyPrice: string | number; yearlyPrice: string | number }> | undefined)?.find(
-                  p => p.id === (bannerSub?.planId ?? mySubscription?.planId)
-                );
-                if (!plan) return null;
-                const isYearly = bannerSub?.billingCycle === "yearly";
-                const price = Number(isYearly ? plan.yearlyPrice : plan.monthlyPrice);
-                return (
-                  <div className="flex justify-between items-baseline pt-1.5 mt-1.5 border-t border-purple-200">
-                    <span className="text-gray-500">應付金額</span>
-                    <span className="font-bold text-base text-purple-700">
-                      HKD${price.toLocaleString()}
-                      <span className="text-[10px] text-gray-500 font-normal ml-1">/{isYearly ? "年" : "月"}</span>
-                    </span>
-                  </div>
-                );
-              })()}
-            </div>
-            <p className="text-xs text-amber-600">⚠️ 管理員批核後，新訂閱將從現有到期日接續延長，限額會在現有結餘耗盡後自動啟用。</p>
+          {renewMutation.isSuccess ? (
+            /* ── 提交成功確認頁 ── */
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-green-700">
+                  <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> 續期申請已提交
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 text-sm">
+                <div className="rounded-lg bg-green-50 border border-green-200 p-3 space-y-1.5">
+                  <div className="flex justify-between"><span className="text-gray-500">計劃</span><span className="font-medium">{bannerSub?.planName ?? "—"}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">週期</span><span className="font-medium">{bannerSub?.billingCycle === "yearly" ? "年繳" : "月繳"}</span></div>
+                  {renewPaymentMethod && (
+                    <div className="flex justify-between"><span className="text-gray-500">付款方式</span><span className="font-medium">{DEPOSIT_PAYMENT_METHODS.find(m => m.value === renewPaymentMethod)?.label ?? renewPaymentMethod}</span></div>
+                  )}
+                  {renewPaymentRef && (
+                    <div className="flex justify-between"><span className="text-gray-500">付款參考</span><span className="font-medium">{renewPaymentRef}</span></div>
+                  )}
+                  {renewProofUrl && (
+                    <div className="flex justify-between"><span className="text-gray-500">付款憑證</span><span className="font-medium text-green-600">已上傳</span></div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500">管理員確認收款後將自動延長訂閱，請耐心等候通知。</p>
+              </div>
+              <DialogFooter>
+                <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => {
+                  setRenewDialogOpen(false);
+                  renewMutation.reset();
+                  setRenewPaymentMethod(""); setRenewPaymentRef(""); setRenewProofUrl("");
+                }}>
+                  明白，關閉
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            /* ── 填寫付款資料 ── */
+            <>
+              <DialogHeader>
+                <DialogTitle>提交續期申請</DialogTitle>
+                <p className="text-xs text-muted-foreground pt-1">確認以下訂閱資料，填寫付款後提交，管理員批核後即時生效。</p>
+              </DialogHeader>
+              <div className="space-y-3 text-sm">
+                <div className="rounded-lg bg-purple-50 border border-purple-100 p-3 space-y-1">
+                  <div className="flex justify-between"><span className="text-gray-500">計劃</span><span className="font-medium">{bannerSub?.planName ?? "—"}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">週期</span><span className="font-medium">{bannerSub?.billingCycle === "yearly" ? "年繳" : "月繳"}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">上次到期</span><span className="font-medium">{fmtDate((bannerSub?.endDate as Date | null | undefined) ?? null)}</span></div>
+                  {(() => {
+                    const plan = (availablePlans as Array<{ id: number; monthlyPrice: string | number; yearlyPrice: string | number }> | undefined)?.find(
+                      p => p.id === (bannerSub?.planId ?? mySubscription?.planId)
+                    );
+                    if (!plan) return null;
+                    const isYearly = bannerSub?.billingCycle === "yearly";
+                    const price = Number(isYearly ? plan.yearlyPrice : plan.monthlyPrice);
+                    return (
+                      <div className="flex justify-between items-baseline pt-1.5 mt-1.5 border-t border-purple-200">
+                        <span className="text-gray-500">應付金額</span>
+                        <span className="font-bold text-base text-purple-700">
+                          HKD${price.toLocaleString()}
+                          <span className="text-[10px] text-gray-500 font-normal ml-1">/{isYearly ? "年" : "月"}</span>
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+                <p className="text-xs text-amber-600">⚠️ 管理員批核後，新訂閱將從現有到期日接續延長，限額會在現有結餘耗盡後自動啟用。</p>
 
-            <div>
-              <Label className="text-xs">付款方式 <span className="text-red-500">*</span></Label>
-              <Select value={renewPaymentMethod} onValueChange={setRenewPaymentMethod}>
-                <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="揀付款方式" /></SelectTrigger>
-                <SelectContent>
-                  {DEPOSIT_PAYMENT_METHODS.map(m => (
-                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                <div>
+                  <Label className="text-xs">付款方式 <span className="text-red-500">*</span></Label>
+                  <Select value={renewPaymentMethod} onValueChange={setRenewPaymentMethod}>
+                    <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="揀付款方式" /></SelectTrigger>
+                    <SelectContent>
+                      {DEPOSIT_PAYMENT_METHODS.map(m => (
+                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div>
-              <Label className="text-xs">付款參考編號（選填）</Label>
-              <Input value={renewPaymentRef} onChange={e => setRenewPaymentRef(e.target.value)} placeholder="e.g. FPS / PayMe ref" className="h-9 text-sm" />
-            </div>
+                <div>
+                  <Label className="text-xs">付款參考編號（選填）</Label>
+                  <Input value={renewPaymentRef} onChange={e => setRenewPaymentRef(e.target.value)} placeholder="e.g. FPS / PayMe ref" className="h-9 text-sm" />
+                </div>
 
-            <div>
-              <Label className="text-xs">付款憑證（選填，最多 5MB）</Label>
-              <input
-                type="file"
-                accept="image/*,.pdf"
-                onChange={handleRenewProofFile}
-                className="block w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
-                disabled={renewProofUploading}
-              />
-              {renewProofUploading && <p className="text-xs text-blue-500 mt-1">上傳中...</p>}
-              {renewProofUrl && !renewProofUploading && (
-                <p className="text-xs text-green-600 mt-1 inline-flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> 已上傳</p>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRenewDialogOpen(false)} disabled={renewMutation.isPending}>取消</Button>
-            <Button onClick={handleSubmitRenew} disabled={renewMutation.isPending || renewProofUploading} className="bg-amber-600 hover:bg-amber-700">
-              {renewMutation.isPending ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> 提交中</> : "提交續期申請"}
-            </Button>
-          </DialogFooter>
+                <div>
+                  <Label className="text-xs">付款憑證（選填，最多 5MB）</Label>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={handleRenewProofFile}
+                    className="block w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                    disabled={renewProofUploading}
+                  />
+                  {renewProofUploading && <p className="text-xs text-blue-500 mt-1">上傳中...</p>}
+                  {renewProofUrl && !renewProofUploading && (
+                    <p className="text-xs text-green-600 mt-1 inline-flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> 已上傳</p>
+                  )}
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setRenewDialogOpen(false)} disabled={renewMutation.isPending}>取消</Button>
+                <Button onClick={handleSubmitRenew} disabled={renewMutation.isPending || renewProofUploading} className="bg-amber-600 hover:bg-amber-700">
+                  {renewMutation.isPending ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> 提交中</> : "提交續期申請"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
