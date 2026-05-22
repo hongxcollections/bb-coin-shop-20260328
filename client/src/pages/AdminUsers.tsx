@@ -57,6 +57,8 @@ type UserRow = {
   activeProductCount: number;
   subscriptionEndDate: string | null;
   subscriptionQuota: number | null;
+  subscriptionStatus: string | null;
+  subscriptionId: number | null;
   merchantAppStatus: string | null;
   fbRefreshPreviewEnabled: number;
 };
@@ -996,6 +998,9 @@ type EditState = {
   monthlyVideoQuota: string;
   maxVideoSeconds: string;
   subscriptionEndDate: string; // YYYY-MM-DD（空字串 = 用戶冇訂閱記錄）
+  subscriptionRemainingQuota: string; // string-backed
+  subscriptionId: number | null;
+  subscriptionStatus: string | null;
   hasSubscription: boolean;
   fbRefreshPreviewEnabled: number;
 };
@@ -1046,6 +1051,11 @@ export default function AdminUsers() {
       refetch();
     },
     onError: (err) => toast.error(err.message),
+  });
+
+  const adminUpdateSubQuota = trpc.subscriptions.adminUpdateQuota.useMutation({
+    onSuccess: () => { refetch(); },
+    onError: (err) => toast.error(`更新發佈數目失敗：${err.message}`),
   });
 
   const adminSetPassword = trpc.users.adminSetPassword.useMutation({
@@ -1187,6 +1197,9 @@ export default function AdminUsers() {
       subscriptionEndDate: u.subscriptionEndDate
         ? new Date(u.subscriptionEndDate).toISOString().slice(0, 10)
         : "",
+      subscriptionRemainingQuota: String(u.subscriptionQuota ?? 0),
+      subscriptionId: u.subscriptionId ?? null,
+      subscriptionStatus: u.subscriptionStatus ?? null,
       hasSubscription: !!u.subscriptionEndDate,
       fbRefreshPreviewEnabled: Number(u.fbRefreshPreviewEnabled ?? 0),
     });
@@ -1217,6 +1230,13 @@ export default function AdminUsers() {
         adminUpdateSubEndDate.mutate({
           userId: editState.userId,
           endDate: editState.subscriptionEndDate,
+        });
+      }
+      // 更新發佈數目（需有 subscriptionId）
+      if (editState.subscriptionId) {
+        adminUpdateSubQuota.mutate({
+          subscriptionId: editState.subscriptionId,
+          remainingQuota: parseInt(editState.subscriptionRemainingQuota, 10) || 0,
         });
       }
     }
@@ -1823,23 +1843,45 @@ export default function AdminUsers() {
                     </div>
                   </div>
 
-                  {/* 訂閱費到期日 */}
-                  <div className="space-y-1.5 border-t border-amber-200 pt-3">
-                    <Label>訂閱費到期日</Label>
+                  {/* 訂閱費到期日 + 發佈數目 */}
+                  <div className="space-y-3 border-t border-amber-200 pt-3">
                     {editState.hasSubscription ? (
                       <>
-                        <Input
-                          type="date"
-                          value={editState.subscriptionEndDate}
-                          onChange={(e) => setEditState({ ...editState, subscriptionEndDate: e.target.value })}
-                          className="border-amber-200"
-                        />
-                        <p className="text-xs text-amber-700">
-                          修改後若日期已過，系統會自動將訂閱標記為「已過期」，商戶將無法繼續發佈拍賣。
-                        </p>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <Label>訂閱費到期日</Label>
+                            {editState.subscriptionStatus === "expired" && (
+                              <span className="text-xs font-semibold text-red-500 animate-pulse">已到期</span>
+                            )}
+                          </div>
+                          <Input
+                            type="date"
+                            value={editState.subscriptionEndDate}
+                            onChange={(e) => setEditState({ ...editState, subscriptionEndDate: e.target.value })}
+                            className="border-amber-200"
+                          />
+                          <p className="text-xs text-amber-700">
+                            修改後若日期已過，系統會自動將訂閱標記為「已過期」；填未來日期可重新啟用。
+                          </p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>發佈數目結餘</Label>
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            value={editState.subscriptionRemainingQuota}
+                            onChange={(e) => setEditState({ ...editState, subscriptionRemainingQuota: e.target.value })}
+                            className="border-amber-200"
+                          />
+                          <p className="text-xs text-muted-foreground">0 = 已用盡（但計劃為無限制者不受此數字影響）。</p>
+                        </div>
                       </>
                     ) : (
-                      <p className="text-xs text-muted-foreground">此商戶尚未有任何訂閱記錄，無法設定到期日。</p>
+                      <>
+                        <Label>訂閱費到期日</Label>
+                        <p className="text-xs text-muted-foreground">此商戶尚未有任何訂閱記錄，無法設定到期日。</p>
+                      </>
                     )}
                   </div>
                 </div>
@@ -1851,7 +1893,7 @@ export default function AdminUsers() {
             <Button
               className="bg-amber-600 hover:bg-amber-700 text-white"
               onClick={handleSaveEdit}
-              disabled={adminUpdate.isPending || adminUpdateDeposit.isPending || adminUpdateSubEndDate.isPending}
+              disabled={adminUpdate.isPending || adminUpdateDeposit.isPending || adminUpdateSubEndDate.isPending || adminUpdateSubQuota.isPending}
             >
               {adminUpdate.isPending ? "儲存中…" : "儲存變更"}
             </Button>
