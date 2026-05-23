@@ -413,6 +413,7 @@ export function AuctionImageLightbox({
                     currency={currency ?? undefined}
                     endTime={endTime}
                     fbCardStyle
+                    buttonClassName="w-full flex items-center justify-center gap-2 py-3 text-gray-600 hover:bg-gray-50 transition-colors text-[15px] font-semibold"
                   />
                 </div>
               </div>
@@ -612,7 +613,7 @@ export function AuctionImageLightbox({
               {merchantSentSuccess && <span className="text-[11px] font-semibold text-green-600 whitespace-nowrap shrink-0">✓ 已發送</span>}
               <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 gap-2 overflow-hidden">
                 <input
-                  className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
+                  className="flex-1 bg-transparent text-sm focus:outline-none border-0 outline-none placeholder-gray-400"
                   placeholder="撰寫廣播訊息給所有出價者..."
                   value={merchantInput}
                   onChange={(e) => { setMerchantInput(e.target.value); if (merchantSentSuccess) setMerchantSentSuccess(false); }}
@@ -629,7 +630,7 @@ export function AuctionImageLightbox({
             <>
               <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 overflow-hidden">
                 <input
-                  className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
+                  className="flex-1 bg-transparent text-sm focus:outline-none border-0 outline-none placeholder-gray-400"
                   placeholder={`出價 (最低 ${curr}${(currentPrice + bidIncrement).toLocaleString()})`}
                   value={bidInput}
                   onChange={(e) => { if (/^\d*$/.test(e.target.value)) setBidInput(e.target.value); }}

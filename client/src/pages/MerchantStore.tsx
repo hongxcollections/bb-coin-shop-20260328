@@ -1065,30 +1065,38 @@ export default function MerchantStore() {
               <div className="p-3">
                 <div className="flex flex-col gap-[3px]">
                   {(endedAuctionItems as any[]).map((a: any) => {
-                    const currency = a.currency ?? "HKD";
+                    const sym = getCurrencySymbol(a.currency ?? "HKD");
+                    const finalPrice = Number(a.currentPrice ?? a.startingPrice ?? 0);
+                    const hasWinner = !!a.highestBidderId;
+                    const winnerDisplay = a.highestBidderName === "🕵️ 匿名買家"
+                      ? "🕵️ 匿名"
+                      : a.highestBidderName
+                        ? `${String(a.highestBidderName).charAt(0)}***`
+                        : "***";
                     return (
-                      <AuctionCard
-                        key={a.id}
-                        auctionId={a.id}
-                        title={a.title}
-                        imageUrl={a.coverImage}
-                        endTime={a.endTime}
-                        currentPrice={Number(a.currentPrice ?? a.startingPrice ?? 0)}
-                        startingPrice={Number(a.startingPrice ?? 0)}
-                        currency={currency}
-                        isEnded={true}
-                        currentUserId={user?.id}
-                        highestBidderId={a.highestBidderId}
-                        highestBidderName={a.highestBidderName}
-                        bidCount={Number(a.bidCount ?? 0)}
-                        sellerName={merchant?.merchantName ? sanitizeUserText(merchant.merchantName) : null}
-                        bidIncrement={Number(a.bidIncrement ?? 30)}
-                        antiSnipeEnabled={a.antiSnipeEnabled}
-                        antiSnipeMinutes={a.antiSnipeMinutes}
-                        extendMinutes={a.extendMinutes}
-                        createdBy={a.createdBy}
-                        timeProgress={1}
-                      />
+                      <a key={a.id} href={`/auctions/${a.id}`} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                          {a.coverImage
+                            ? <img src={a.coverImage} alt={a.title} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">無圖</div>
+                          }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-gray-800 truncate">{a.title}</p>
+                          {hasWinner ? (
+                            <>
+                              <p className="text-[14px] font-bold text-amber-600 mt-0.5">{sym}{finalPrice.toLocaleString()} <span className="text-[11px] font-semibold text-gray-400">成交價</span></p>
+                              <p className="text-[11px] text-gray-400 mt-0.5">得標者 {winnerDisplay}</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-[13px] font-semibold text-gray-400 mt-0.5">沒有出價</p>
+                              <p className="text-[11px] text-gray-400 mt-0.5">流拍</p>
+                            </>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-gray-300 shrink-0">›</span>
+                      </a>
                     );
                   })}
                 </div>
