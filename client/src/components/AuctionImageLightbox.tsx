@@ -61,6 +61,18 @@ function Avatar({ name, photoUrl, size = "md" }: { name: string; photoUrl?: stri
   );
 }
 
+function FloatingParticle({ dir, onDone }: { dir: "up" | "down"; onDone: () => void }) {
+  return (
+    <span
+      className="pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 text-xl select-none z-20"
+      style={{ animation: dir === "up" ? "fb-heart-float 0.8s ease-out forwards" : "fb-dislike-drop 0.8s ease-out forwards" }}
+      onAnimationEnd={onDone}
+    >
+      {dir === "up" ? "❤️" : "👎"}
+    </span>
+  );
+}
+
 /* ── Sort picker bottom sheet ── */
 const SORT_OPTIONS = [
   { value: "new" as const, label: "由新至舊", desc: "顯示所有回應，且最新的回應顯示在最上方。" },
@@ -178,6 +190,8 @@ export function AuctionImageLightbox({
   const [bidInput, setBidInput] = useState("");
   const [merchantInput, setMerchantInput] = useState("");
   const [merchantSentSuccess, setMerchantSentSuccess] = useState(false);
+  const [particles, setParticles] = useState<{ id: number; bidId: number; dir: "up" | "down" }[]>([]);
+  const pidRef = useRef(0);
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
 
   /* ── Swipe-right-to-close ── */
@@ -259,6 +273,10 @@ export function AuctionImageLightbox({
     onSuccess: () => { setMerchantInput(""); setMerchantSentSuccess(true); utils.auctionFbPanel.getPanel.invalidate(); toast.success("廣播訊息已發送"); },
     onError: (err) => toast.error(err.message),
   });
+  const likeBidMutation = trpc.auctionFbPanel.merchantLikeBid.useMutation({
+    onSuccess: () => toast.success("已發送讚好通知"),
+    onError: (err) => toast.error(err.message),
+  });
   const placeBid = trpc.auctions.placeBid.useMutation({
     onSuccess: () => {
       setBidInput("");
@@ -332,6 +350,15 @@ export function AuctionImageLightbox({
     if (navigator.share) { navigator.share({ title: auctionTitle, url }).catch(() => {}); }
     else { navigator.clipboard.writeText(url).then(() => toast.success("連結已複製")); }
   };
+  const triggerParticle = (bidId: number, dir: "up" | "down") => {
+    const id = pidRef.current++;
+    setParticles(p => [...p, { id, bidId, dir }]);
+  };
+  const handleLike = (item: PanelItem) => {
+    triggerParticle(item.id, "up");
+    if (isMerchant && item.type === "bid") likeBidMutation.mutate({ bidId: item.id });
+  };
+  const handleDislike = (item: PanelItem) => triggerParticle(item.id, "down");
 
   if (!open) return null;
 
@@ -397,9 +424,12 @@ export function AuctionImageLightbox({
                 </svg>
               </button>
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-base">👍</span>
-                  <span className="text-[13px] font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
+                <div className="flex flex-col items-end gap-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base">👍</span>
+                    <span className="text-[13px] font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-amber-600">目前：{curr}{currentPrice.toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -422,7 +452,7 @@ export function AuctionImageLightbox({
                       <div className="flex-1 bg-blue-50 rounded-2xl px-3 py-2 border border-blue-100">
                         <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                           <span className="text-[14px] font-bold text-blue-800">{sellerDisplayName}</span>
-                          <span className="text-[10px] bg-[#1877f2] text-white px-1.5 py-0.5 rounded font-semibold">管理員</span>
+                          <span className="text-[10px] bg-[#1877f2] text-white px-1.5 py-0.5 rounded font-semibold">商戶</span>
                           <span className="text-gray-400 text-[12px]">·</span>
                           <span className="text-[12px] text-blue-400">{timeAgo(item.createdAt)}</span>
                         </div>
@@ -461,8 +491,22 @@ export function AuctionImageLightbox({
                         <div className="flex items-center justify-between mt-2">
                           <span className="text-[13px] font-bold text-gray-500">回覆</span>
                           <div className="flex items-center gap-4">
-                            <ThumbsUp className="w-[18px] h-[18px] text-gray-400" />
-                            <ThumbsDown className="w-[18px] h-[18px] text-gray-400" />
+                            <div className="relative flex items-center">
+                              {particles.filter(p => p.bidId === item.id && p.dir === "up").map(p => (
+                                <FloatingParticle key={p.id} dir="up" onDone={() => setParticles(prev => prev.filter(x => x.id !== p.id))} />
+                              ))}
+                              <button onClick={() => handleLike(item)} className="text-gray-400 hover:text-[#1877f2] transition-colors">
+                                <ThumbsUp className="w-[18px] h-[18px]" />
+                              </button>
+                            </div>
+                            <div className="relative flex items-center">
+                              {particles.filter(p => p.bidId === item.id && p.dir === "down").map(p => (
+                                <FloatingParticle key={p.id} dir="down" onDone={() => setParticles(prev => prev.filter(x => x.id !== p.id))} />
+                              ))}
+                              <button onClick={() => handleDislike(item)} className="text-gray-400 hover:text-red-400 transition-colors">
+                                <ThumbsDown className="w-[18px] h-[18px]" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -535,7 +579,7 @@ export function AuctionImageLightbox({
           {isMerchant ? (
             <>
               {merchantSentSuccess && <span className="text-[11px] font-semibold text-green-600 whitespace-nowrap shrink-0">✓ 已發送</span>}
-              <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 gap-2">
+              <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 gap-2 overflow-hidden">
                 <input
                   className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
                   placeholder="撰寫廣播訊息給所有出價者..."
@@ -550,7 +594,7 @@ export function AuctionImageLightbox({
             </>
           ) : (
             <>
-              <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2">
+              <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 overflow-hidden">
                 <input
                   className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
                   placeholder={isEnded ? "拍賣已結束" : `出價 (最低 ${curr}${(currentPrice + bidIncrement).toLocaleString()})`}

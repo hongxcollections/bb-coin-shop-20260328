@@ -379,9 +379,12 @@ export function AuctionFbPanel({
 
             {/* RIGHT: stats + close */}
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                <span className="text-base">👍</span>
-                <span className="text-[13px] font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
+              <div className="flex flex-col items-end gap-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base">👍</span>
+                  <span className="text-[13px] font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
+                </div>
+                <span className="text-[11px] font-semibold text-amber-600">目前：{curr}{currentPrice.toLocaleString()}</span>
               </div>
               <button onClick={triggerClose}><X className="w-5 h-5 text-gray-500" /></button>
             </div>
@@ -407,7 +410,7 @@ export function AuctionFbPanel({
                     <div className="flex-1 bg-blue-50 rounded-2xl px-3 py-2 border border-blue-100">
                       <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                         <span className="text-[14px] font-bold text-blue-800">{sellerDisplayName}</span>
-                        <span className="text-[10px] bg-[#1877f2] text-white px-1.5 py-0.5 rounded font-semibold">管理員</span>
+                        <span className="text-[10px] bg-[#1877f2] text-white px-1.5 py-0.5 rounded font-semibold">商戶</span>
                         <span className="text-gray-400 text-[12px]">·</span>
                         <span className="text-[12px] text-blue-400">{timeAgo(item.createdAt)}</span>
                       </div>
@@ -566,7 +569,7 @@ export function AuctionFbPanel({
                 {merchantSentSuccess && (
                   <span className="text-[11px] font-semibold text-green-600 whitespace-nowrap shrink-0">✓ 已發送</span>
                 )}
-                <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 gap-2">
+                <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 gap-2 overflow-hidden">
                   <input
                     className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
                     placeholder="撰寫廣播訊息給所有出價者..."
@@ -581,7 +584,7 @@ export function AuctionFbPanel({
               </>
             ) : (
               <>
-                <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2">
+                <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 overflow-hidden">
                   <input
                     className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
                     placeholder={isEnded ? "拍賣已結束" : `出價 (最低 ${curr}${(currentPrice + bidIncrement).toLocaleString()})`}
