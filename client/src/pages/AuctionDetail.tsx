@@ -19,6 +19,7 @@ import { useSeoMeta } from "@/lib/useSeoMeta";
 import { ShareMenu } from "@/components/ShareMenu";
 import ImageLightbox from "@/components/ImageLightbox";
 import ChatButton from "@/components/ChatButton";
+import { AuctionCardFb } from "@/components/AuctionCardFb";
 
 function CountdownTimer({ endTime }: { endTime: Date }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -498,6 +499,44 @@ export default function AuctionDetail() {
   const isActive = auction.status === "active" && new Date() < new Date(auction.endTime);
   // 商戶擁有者或管理員可睇完整真實紀錄
   const isPrivileged = user?.role === "admin" || user?.id === (auction as { createdBy?: number }).createdBy;
+
+  /* ── Facebook 模式：整頁用 AuctionCardFb 渲染 ── */
+  if ((auction as any).displayMode === "facebook") {
+    const fbImages = images.map((img: { id: number; imageUrl: string }) => ({ imageUrl: img.imageUrl }));
+    const topBid = bids.length > 0 ? bids[0] : null;
+    const fbHighestBidderName = topBid
+      ? (topBid.isAnonymous === 1 ? "🕵️ 匿名買家" : (topBid.username ?? null))
+      : null;
+    return (
+      <div className="min-h-screen bg-gray-100 pb-20">
+        <Header />
+        <div className="max-w-xl mx-auto pt-4 px-0">
+          <AuctionCardFb
+            auctionId={auctionId}
+            title={auction.title}
+            images={fbImages}
+            endTime={auction.endTime}
+            createdAt={(auction as any).createdAt}
+            currentPrice={Number(auction.currentPrice)}
+            currency={(auction as any).currency}
+            isEnded={!isActive}
+            bidCount={bids.length}
+            highestBidderId={auction.highestBidderId ?? undefined}
+            highestBidderName={fbHighestBidderName}
+            currentUserId={user?.id}
+            sellerName={(auction as any).sellerName ?? null}
+            sellerPhotoUrl={(auction as any).sellerPhotoUrl ?? null}
+            createdBy={(auction as any).createdBy}
+            bidIncrement={Number((auction as any).bidIncrement ?? 30)}
+            shareTemplate={(auction as any).fbShareTemplate ?? null}
+            antiSnipeEnabled={(auction as any).antiSnipeEnabled}
+            antiSnipeMinutes={(auction as any).antiSnipeMinutes}
+            extendMinutes={(auction as any).extendMinutes}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 via-yellow-50/40 to-white overflow-x-hidden">

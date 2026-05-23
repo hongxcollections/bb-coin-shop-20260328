@@ -230,6 +230,9 @@ export async function getAuctionById(id: number) {
         archived: auctions.archived,
         videoUrl: auctions.videoUrl,
         privateNote: auctions.privateNote,
+        displayMode: auctions.displayMode,
+        sellerPhotoUrl: sql<string | null>`(SELECT COALESCE(NULLIF(TRIM(ma.merchantIcon),''), NULLIF(TRIM(u.photoUrl),'')) FROM users u LEFT JOIN merchantApplications ma ON ma.userId = u.id AND ma.status = 'approved' WHERE u.id = ${auctions.createdBy} LIMIT 1)`,
+        fbShareTemplate: sql<string | null>`(SELECT fbShareTemplate FROM merchant_settings WHERE userId = ${auctions.createdBy} LIMIT 1)`,
       })
       .from(auctions)
       .where(eq(auctions.id, id))
