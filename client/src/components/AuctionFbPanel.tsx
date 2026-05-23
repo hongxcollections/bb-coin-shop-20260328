@@ -384,11 +384,17 @@ export function AuctionFbPanel({
             </button>
 
             {/* RIGHT: stats + close */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <div className="flex flex-col items-end gap-0.5">
                 <div className="flex items-center gap-1.5">
                   <span className="text-base">👍</span>
                   <span className="text-[13px] font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
+                  {createdBy && (
+                    <button onClick={() => setPaymentInfoOpen(true)} className="flex items-center gap-0.5 text-gray-500 hover:text-amber-600 transition-colors shrink-0 ml-0.5">
+                      <Truck className="w-3.5 h-3.5" />
+                      <span className="text-[10px]">交收</span>
+                    </button>
+                  )}
                 </div>
                 {isEnded ? (
                   <span className="text-[11px] font-bold text-red-500 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">拍賣已結束</span>
@@ -396,17 +402,11 @@ export function AuctionFbPanel({
                   <div className="flex items-center gap-1.5 flex-wrap justify-end">
                     <span className="text-[11px] font-semibold text-amber-600">目前：{curr}{currentPrice.toLocaleString()}</span>
                     {highestBidderName && (
-                      <span className="text-[11px] text-gray-500 truncate max-w-[100px]">最高：{highestBidderName}</span>
+                      <span className="text-[11px] text-gray-500 truncate max-w-[80px]">最高：{highestBidderName}</span>
                     )}
                   </div>
                 )}
               </div>
-              {createdBy && (
-                <button onClick={() => setPaymentInfoOpen(true)} className="flex flex-col items-center gap-0.5 text-gray-500 hover:text-amber-600 transition-colors shrink-0">
-                  <Truck className="w-4 h-4" />
-                  <span className="text-[9px]">交收</span>
-                </button>
-              )}
               <button onClick={triggerClose}><X className="w-5 h-5 text-gray-500" /></button>
             </div>
           </div>

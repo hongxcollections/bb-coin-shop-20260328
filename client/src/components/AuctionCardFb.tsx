@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Globe, MoreHorizontal, ThumbsUp, MessageCircle, Share2 } from "lucide-react";
+import { Globe, MoreHorizontal, ThumbsUp, MessageCircle } from "lucide-react";
+import { ShareMenu } from "@/components/ShareMenu";
 import { AuctionFbPanel } from "@/components/AuctionFbPanel";
 import { AuctionImageLightbox } from "@/components/AuctionImageLightbox";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -314,22 +315,15 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         </div>
 
         {/* 分享 */}
-        <div className="flex-1">
-          <button
-            onClick={() => {
-              const url = `${window.location.origin}/auctions/${auctionId}`;
-              if (navigator.share) {
-                navigator.share({ title, url }).catch(() => {});
-              } else {
-                navigator.clipboard.writeText(url).then(() => {
-                  import("sonner").then(({ toast }) => toast.success("連結已複製"));
-                });
-              }
-            }}
-            className="w-full flex items-center justify-center gap-1.5 py-2 text-gray-600 hover:bg-gray-100 transition-colors text-[13px] font-semibold"
-          >
-            <Share2 className="w-[18px] h-[18px]" /> 分享
-          </button>
+        <div className="flex-1 flex items-center justify-center py-1.5">
+          <ShareMenu
+            auctionId={auctionId}
+            title={title}
+            latestBid={currentPrice}
+            currency={currency}
+            endTime={endTime}
+            shareTemplate={shareTemplate}
+          />
         </div>
       </div>
 
