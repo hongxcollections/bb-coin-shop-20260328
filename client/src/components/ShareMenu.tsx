@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Share2, Copy, Check, X, MoreHorizontal } from "lucide-react";
+import { Share2, Copy, Check, X, MoreHorizontal, CornerUpRight } from "lucide-react";
 import { toast } from "sonner";
 import { SHARE_ORIGIN } from "@/lib/shareUrl";
 
@@ -734,9 +734,7 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
         }
       >
         {fbCardStyle ? (
-          <svg viewBox="0 0 24 24" fill="currentColor" className="w-[18px] h-[18px]" aria-hidden="true">
-            <path d="M17 12l-5-5v3H8a6 6 0 00-6 6v2h2v-2a4 4 0 014-4h4v5l5-5z"/>
-          </svg>
+          <CornerUpRight className="w-[18px] h-[18px]" aria-hidden="true" />
         ) : (
           <Share2 className="w-3 h-3" />
         )}
