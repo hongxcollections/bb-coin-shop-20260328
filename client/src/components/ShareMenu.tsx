@@ -733,7 +733,13 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
             : "flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-1 transition-colors bg-amber-50 hover:bg-amber-100"
         }
       >
-        <Share2 className={fbCardStyle ? "w-[18px] h-[18px]" : "w-3 h-3"} />
+        {fbCardStyle ? (
+          <svg viewBox="0 0 24 24" fill="currentColor" className="w-[18px] h-[18px]" aria-hidden="true">
+            <path d="M21 12l-7-7v4C8 10 4 15 3 21c3-3.5 6.5-5 11-5v4l7-8z"/>
+          </svg>
+        ) : (
+          <Share2 className="w-3 h-3" />
+        )}
         {!iconOnly && "分享"}
       </button>
 

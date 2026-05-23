@@ -551,12 +551,17 @@ export function AuctionFbPanel({
                   <span>倒數</span>
                   <MiniCountdown endTime={new Date(endTime)} />
                 </div>
-                {(antiSnipeEnabled ?? 1) === 1 && (antiSnipeMinutes ?? 3) > 0 && (
+                {(antiSnipeEnabled ?? 1) === 1 && (antiSnipeMinutes ?? 3) > 0 ? (
                   <div className="flex items-start gap-1 text-right leading-snug">
                     <span>🛡️</span>
                     <span>結束前 {antiSnipeMinutes ?? 3} 分鐘內有出價，自動延長 {extendMinutes ?? 1} 分鐘</span>
                   </div>
-                )}
+                ) : (antiSnipeEnabled ?? 1) === 0 ? (
+                  <div className="flex items-start gap-1 text-right leading-snug text-gray-400">
+                    <span>⏱️</span>
+                    <span>出價沒有加時，到結束時間即停止出價</span>
+                  </div>
+                ) : null}
               </div>
             </div>
           )}
