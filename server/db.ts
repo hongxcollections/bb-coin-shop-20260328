@@ -3626,6 +3626,10 @@ export async function getEndedAuctionsByMerchant(merchantId: number, hideAfterDa
       antiSnipeEnabled: auctions.antiSnipeEnabled,
       antiSnipeMinutes: auctions.antiSnipeMinutes,
       extendMinutes: auctions.extendMinutes,
+      displayMode: auctions.displayMode,
+      sellerName: sql<string | null>`(SELECT name FROM users WHERE id = ${auctions.createdBy})`,
+      sellerPhotoUrl: sql<string | null>`(SELECT COALESCE(NULLIF(TRIM(ma.merchantIcon),''), NULLIF(TRIM(u.photoUrl),'')) FROM users u LEFT JOIN merchantApplications ma ON ma.userId = u.id AND ma.status = 'approved' WHERE u.id = ${auctions.createdBy} LIMIT 1)`,
+      fbShareTemplate: sql<string | null>`(SELECT fbShareTemplate FROM merchant_settings WHERE userId = ${auctions.createdBy} LIMIT 1)`,
     }).from(auctions)
       .leftJoin(usersTable, eq(auctions.highestBidderId, usersTable.id))
       .where(and(...conds))
@@ -3633,7 +3637,7 @@ export async function getEndedAuctionsByMerchant(merchantId: number, hideAfterDa
     return await Promise.all(rows.map(async (row) => {
       const imgs = await getAuctionImages(row.id);
       const highestBidderName = row.highestBidderIsAnonymous === 1 ? '🕵️ 匿名買家' : (row.highestBidderName ?? null);
-      return { ...row, coverImage: imgs[0]?.imageUrl ?? null, highestBidderName };
+      return { ...row, coverImage: imgs[0]?.imageUrl ?? null, images: imgs, highestBidderName };
     }));
   } catch (err) {
     console.error('[getEndedAuctionsByMerchant] error:', err);

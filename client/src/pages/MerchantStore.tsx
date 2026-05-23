@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShareMenu, ProductShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
 import { AuctionCard } from "@/components/AuctionCard";
+import { AuctionCardFb } from "@/components/AuctionCardFb";
 import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag, Share2, QrCode, CalendarClock, ShoppingCart, CheckCircle2, Loader2, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -1063,8 +1064,36 @@ export default function MerchantStore() {
             </button>
             {endedAuctionsOpen && (
               <div className="p-3">
-                <div className="flex flex-col gap-[3px]">
+                <div className="flex flex-col gap-2">
                   {(endedAuctionItems as any[]).map((a: any) => {
+                    if (a.displayMode === "facebook") {
+                      return (
+                        <AuctionCardFb
+                          key={a.id}
+                          auctionId={a.id}
+                          title={a.title}
+                          images={(a.images ?? []).length > 0 ? a.images : (a.coverImage ? [{ imageUrl: a.coverImage }] : [])}
+                          endTime={a.endTime}
+                          createdAt={a.createdAt}
+                          currentPrice={Number(a.currentPrice ?? a.startingPrice ?? 0)}
+                          currency={a.currency}
+                          isEnded={true}
+                          bidCount={Number(a.bidCount ?? 0)}
+                          highestBidderId={a.highestBidderId}
+                          highestBidderName={a.highestBidderName}
+                          currentUserId={user?.id}
+                          sellerName={a.sellerName}
+                          sellerPhotoUrl={a.sellerPhotoUrl ?? null}
+                          createdBy={a.createdBy}
+                          bidIncrement={Number(a.bidIncrement ?? 30)}
+                          shareTemplate={a.fbShareTemplate}
+                          antiSnipeEnabled={a.antiSnipeEnabled}
+                          antiSnipeMinutes={a.antiSnipeMinutes}
+                          extendMinutes={a.extendMinutes}
+                        />
+                      );
+                    }
+                    /* default: compact row */
                     const sym = getCurrencySymbol(a.currency ?? "HKD");
                     const finalPrice = Number(a.currentPrice ?? a.startingPrice ?? 0);
                     const hasWinner = !!a.highestBidderId;
