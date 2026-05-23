@@ -15,6 +15,7 @@ interface AuctionFbPanelProps {
   sellerPhotoUrl?: string | null;
   currency?: string | null;
   currentPrice: number;
+  highestBidderName?: string | null;
   bidIncrement?: number;
   isEnded: boolean;
   antiSnipeEnabled?: number;
@@ -131,7 +132,7 @@ function SortSheet({ current, onSelect, onClose }: { current: "new" | "old"; onS
 
 export function AuctionFbPanel({
   open, onClose, auctionId, createdBy, sellerName, sellerPhotoUrl,
-  currency, currentPrice, bidIncrement = 30, isEnded,
+  currency, currentPrice, highestBidderName, bidIncrement = 30, isEnded,
   endTime, antiSnipeEnabled, antiSnipeMinutes, extendMinutes,
 }: AuctionFbPanelProps) {
   const { user, isAuthenticated } = useAuth();
@@ -385,6 +386,9 @@ export function AuctionFbPanel({
                   <span className="text-[13px] font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
                 </div>
                 <span className="text-[11px] font-semibold text-amber-600">目前：{curr}{currentPrice.toLocaleString()}</span>
+                {highestBidderName && (
+                  <span className="text-[11px] text-gray-500 truncate max-w-[130px]">最高：{highestBidderName}</span>
+                )}
               </div>
               <button onClick={triggerClose}><X className="w-5 h-5 text-gray-500" /></button>
             </div>
@@ -421,7 +425,7 @@ export function AuctionFbPanel({
               }
 
               /* Bid item — isMyBid comes from server */
-              const isLeading = item.isMyBid && Number(item.rawAmount) === maxBidAmount && maxBidAmount > 0;
+              const isLeading = Number(item.rawAmount) === maxBidAmount && maxBidAmount > 0;
               return (
                 <div key={`bid-${item.id}`} className={isLeading ? "border-l-[3px] border-red-500 pl-2 -ml-2" : ""}>
                   <div className="flex items-start gap-3">

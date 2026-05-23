@@ -16,6 +16,7 @@ interface Props {
   createdBy?: number;
   currency?: string | null;
   currentPrice: number;
+  highestBidderName?: string | null;
   bidIncrement?: number;
   isEnded: boolean;
   endTime?: string | Date;
@@ -175,7 +176,7 @@ function ImageZoomViewer({ src, onClose }: { src: string; onClose: () => void })
 export function AuctionImageLightbox({
   open, onClose, images, auctionId, auctionTitle,
   sellerName, sellerPhotoUrl, createdBy,
-  currency, currentPrice, bidIncrement = 30, isEnded,
+  currency, currentPrice, highestBidderName, bidIncrement = 30, isEnded,
   endTime, antiSnipeEnabled, antiSnipeMinutes, extendMinutes,
 }: Props) {
   const { user, isAuthenticated } = useAuth();
@@ -430,6 +431,9 @@ export function AuctionImageLightbox({
                     <span className="text-[13px] font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
                   </div>
                   <span className="text-[11px] font-semibold text-amber-600">目前：{curr}{currentPrice.toLocaleString()}</span>
+                  {highestBidderName && (
+                    <span className="text-[11px] text-gray-500 truncate max-w-[130px]">最高：{highestBidderName}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -463,7 +467,7 @@ export function AuctionImageLightbox({
                 }
 
                 /* isMyBid from server */
-                const isLeading = item.isMyBid && Number(item.rawAmount) === maxBidAmount && maxBidAmount > 0;
+                const isLeading = Number(item.rawAmount) === maxBidAmount && maxBidAmount > 0;
                 return (
                   <div key={`b-${item.id}`} className={isLeading ? "border-l-[3px] border-red-500 pl-2 -ml-2" : ""}>
                     <div className="flex items-start gap-3">

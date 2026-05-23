@@ -345,6 +345,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         createdBy={createdBy}
         currency={currency}
         currentPrice={currentPrice}
+        highestBidderName={highestBidderName}
         bidIncrement={bidIncrement}
         isEnded={isEnded}
         endTime={endTime}
@@ -364,6 +365,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         sellerPhotoUrl={sellerPhotoUrl}
         currency={currency}
         currentPrice={currentPrice}
+        highestBidderName={highestBidderName}
         bidIncrement={bidIncrement}
         isEnded={isEnded}
         endTime={endTime}
