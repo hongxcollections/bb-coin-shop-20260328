@@ -60,6 +60,7 @@ export const auctions = mysqlTable("auctions", {
   paymentStatus: mysqlEnum("paymentStatus", ["pending_payment", "paid", "delivered"]),
   videoUrl: varchar("videoUrl", { length: 500 }),
   privateNote: text("privateNote"),
+  displayMode: varchar("displayMode", { length: 20 }).default("default").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

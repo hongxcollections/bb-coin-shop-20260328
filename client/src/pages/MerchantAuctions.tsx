@@ -218,6 +218,7 @@ type AuctionItem = {
   extendMinutes?: number | null;
   category?: string | null;
   privateNote?: string | null;
+  displayMode?: string | null;
   images: Array<{ id?: number; imageUrl: string; displayOrder: number }>;
 };
 
@@ -335,6 +336,7 @@ function AuctionCard({
   onActiveDelete?: (id: number, title: string) => void;
   onPermanentDelete?: (id: number, title: string) => void;
   onDuplicate?: (id: number) => void;
+  onSetDisplayMode?: (id: number, mode: "default" | "facebook") => void;
   fbRefreshEnabled?: boolean;
 }) {
   const img = auction.images?.[0]?.imageUrl;
@@ -420,6 +422,13 @@ function AuctionCard({
       <div className="flex gap-1 justify-end flex-wrap px-2 pb-2">
         {tab === "草稿" && (
           <>
+            <button
+              className={`h-6 px-1.5 text-[10px] rounded border font-semibold transition-colors ${auction.displayMode === "facebook" ? "bg-[#1877f2] text-white border-[#1877f2]" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
+              onClick={() => onSetDisplayMode?.(auction.id, auction.displayMode === "facebook" ? "default" : "facebook")}
+              title={auction.displayMode === "facebook" ? "目前：FB模式，點擊改為預設" : "目前：預設模式，點擊改為FB"}
+            >
+              {auction.displayMode === "facebook" ? "FB" : "預設"}
+            </button>
             <Button size="sm" variant="outline" className="h-6 px-1.5 text-xs gap-0.5 border-red-200 text-red-600 hover:bg-red-50" onClick={() => onDelete(auction.id, auction.title)}>
               <Trash2 className="w-2.5 h-2.5" />拆除
             </Button>
@@ -436,6 +445,13 @@ function AuctionCard({
         )}
         {tab === "進行中" && (
           <>
+            <button
+              className={`h-6 px-1.5 text-[10px] rounded border font-semibold transition-colors ${auction.displayMode === "facebook" ? "bg-[#1877f2] text-white border-[#1877f2]" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
+              onClick={() => onSetDisplayMode?.(auction.id, auction.displayMode === "facebook" ? "default" : "facebook")}
+              title={auction.displayMode === "facebook" ? "目前：FB模式，點擊改為預設" : "目前：預設模式，點擊改為FB"}
+            >
+              {auction.displayMode === "facebook" ? "FB" : "預設"}
+            </button>
             {Number((auction as { bidCount?: number }).bidCount ?? 1) === 0 && onActiveDelete && (
               <Button
                 size="sm"
@@ -773,6 +789,11 @@ export default function MerchantAuctions() {
       refetchDrafts();
     },
     onError: (err) => toast.error(err.message || "複製失敗"),
+  });
+
+  const setDisplayModeMutation = trpc.merchants.setDisplayMode.useMutation({
+    onSuccess: () => { refetchDrafts(); refetchActive(); },
+    onError: (err) => toast.error(err.message || "設定顯示模式失敗"),
   });
 
   const merchantDeleteMutation = trpc.auctions.merchantDelete.useMutation({
@@ -1344,6 +1365,7 @@ export default function MerchantAuctions() {
                 onActiveDelete={(id, title) => setActiveDeleteConfirm({ id, title })}
                 onPermanentDelete={handlePermanentDelete}
                 onDuplicate={(id) => duplicateMutation.mutate({ id })}
+                onSetDisplayMode={(id, mode) => setDisplayModeMutation.mutate({ id, displayMode: mode })}
                 fbRefreshEnabled={false /* FB 預覽功能暫時停用 */}
               />
             ))}

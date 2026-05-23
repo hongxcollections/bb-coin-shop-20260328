@@ -992,6 +992,13 @@ async function bootstrapMissingColumns() {
     INDEX \`idx_auctionComments_replyToBid\` (\`replyToBidId\`)
   )`, 'Ensured auctionComments table');
 
+  if (!(await check('auctions', 'displayMode'))) {
+    await alter(
+      `ALTER TABLE \`auctions\` ADD COLUMN \`displayMode\` varchar(20) NOT NULL DEFAULT 'default'`,
+      'Added displayMode to auctions'
+    );
+  }
+
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
 }

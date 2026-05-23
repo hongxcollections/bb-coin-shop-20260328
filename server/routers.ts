@@ -3085,6 +3085,25 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    /** 商戶設定拍賣顯示模式（草稿 + 進行中均可改） */
+    setDisplayMode: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        displayMode: z.enum(["default", "facebook"]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const auction = await getAuctionById(input.id);
+        if (!auction) throw new TRPCError({ code: 'NOT_FOUND', message: '找不到拍賣' });
+        if (auction.createdBy !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只能編輯自己的拍賣' });
+        }
+        if (auction.status !== 'draft' && auction.status !== 'active') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只有草稿或進行中拍賣可設定顯示模式' });
+        }
+        await updateAuction(input.id, { displayMode: input.displayMode });
+        return { success: true };
+      }),
+
     /** 商戶刪除草稿拍賣 */
     deleteAuction: protectedProcedure
       .input(z.object({ id: z.number().int().positive() }))
