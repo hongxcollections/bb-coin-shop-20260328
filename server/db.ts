@@ -170,6 +170,7 @@ export async function getAuctions(limit = 20, offset = 0, category?: string) {
         antiSnipeMinutes: auctions.antiSnipeMinutes,
         extendMinutes: auctions.extendMinutes,
         fbShareTemplate: sql<string | null>`(SELECT fbShareTemplate FROM merchant_settings WHERE userId = ${auctions.createdBy} LIMIT 1)`,
+        displayMode: auctions.displayMode,
         bidCount: sql<number>`((SELECT COUNT(*) FROM bids WHERE bids.auctionId = ${auctions.id}) + (SELECT COUNT(*) FROM auctionComments WHERE auctionComments.auctionId = ${auctions.id}))`,
       })
       .from(auctions)
