@@ -430,10 +430,12 @@ export function AuctionImageLightbox({
                     <span className="text-base">👍</span>
                     <span className="text-[13px] font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
                   </div>
-                  <span className="text-[11px] font-semibold text-amber-600">目前：{curr}{currentPrice.toLocaleString()}</span>
-                  {highestBidderName && (
-                    <span className="text-[11px] text-gray-500 truncate max-w-[130px]">最高：{highestBidderName}</span>
-                  )}
+                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                    <span className="text-[11px] font-semibold text-amber-600">目前：{curr}{currentPrice.toLocaleString()}</span>
+                    {highestBidderName && (
+                      <span className="text-[11px] text-gray-500 truncate max-w-[100px]">最高：{highestBidderName}</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -484,9 +486,7 @@ export function AuctionImageLightbox({
                           <p className="text-[18px] font-bold text-gray-900 leading-tight">
                             {item.rawAmount != null ? `${curr}${Number(item.rawAmount).toLocaleString()}` : item.content}
                           </p>
-                          {item.isMyBid && (
-                            <span className="text-[10px] font-semibold text-green-600 whitespace-nowrap">出價有效 ✓</span>
-                          )}
+                          <span className="text-[10px] font-semibold text-green-600 whitespace-nowrap">出價有效 ✓</span>
                           {isLeading && (
                             <span className="text-[10px] font-bold text-red-500 border border-red-400 rounded px-1 whitespace-nowrap">領先</span>
                           )}
