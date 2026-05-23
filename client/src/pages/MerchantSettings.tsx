@@ -179,6 +179,7 @@ export default function MerchantSettings() {
   const [extendMinutes, setExtendMinutes] = useState<string>("3");
   const [paymentInstructions, setPaymentInstructions] = useState<string>("");
   const [deliveryInfo, setDeliveryInfo] = useState<string>("");
+  const [winnerAutoReplyMessage, setWinnerAutoReplyMessage] = useState<string>("");
   const [fbShareTemplate, setFbShareTemplate] = useState<string>("");
   const [fbShareTemplateProduct, setFbShareTemplateProduct] = useState<string>("");
   const [fbGroups, setFbGroups] = useState<Array<{ name: string; url: string }>>([]);
@@ -266,6 +267,7 @@ export default function MerchantSettings() {
       setExtendMinutes(String(settings.defaultExtendMinutes ?? 3));
       setPaymentInstructions(settings.paymentInstructions ?? "");
       setDeliveryInfo(settings.deliveryInfo ?? "");
+      setWinnerAutoReplyMessage((settings as { winnerAutoReplyMessage?: string | null }).winnerAutoReplyMessage ?? "");
       setFbShareTemplate(settings.fbShareTemplate ?? "");
       setFbShareTemplateProduct((settings as { fbShareTemplateProduct?: string | null }).fbShareTemplateProduct ?? "");
       try {
@@ -323,7 +325,7 @@ export default function MerchantSettings() {
     const exm = parseInt(extendMinutes, 10);
     if (isNaN(asm) || asm < 0 || asm > 60) { toast.error("反狙擊觸發時間請填 0–60 分鐘"); return; }
     if (isNaN(exm) || exm < 1 || exm > 60) { toast.error("延長時間請填 1–60 分鐘"); return; }
-    updateMutation.mutate({ defaultEndDayOffset: offset, defaultEndTime: endTime, defaultStartingPrice: sp, defaultBidIncrement: bi, defaultAntiSnipeEnabled: antiSnipeEnabled ? 1 : 0, defaultAntiSnipeMinutes: asm, defaultExtendMinutes: exm, paymentInstructions: paymentInstructions.trim() || null, deliveryInfo: deliveryInfo.trim() || null, fbShareTemplate: fbShareTemplate.trim() || null, fbShareTemplateProduct: fbShareTemplateProduct.trim() || null });
+    updateMutation.mutate({ defaultEndDayOffset: offset, defaultEndTime: endTime, defaultStartingPrice: sp, defaultBidIncrement: bi, defaultAntiSnipeEnabled: antiSnipeEnabled ? 1 : 0, defaultAntiSnipeMinutes: asm, defaultExtendMinutes: exm, paymentInstructions: paymentInstructions.trim() || null, deliveryInfo: deliveryInfo.trim() || null, winnerAutoReplyMessage: winnerAutoReplyMessage.trim() || null, fbShareTemplate: fbShareTemplate.trim() || null, fbShareTemplateProduct: fbShareTemplateProduct.trim() || null });
   };
 
   if (!isAuthenticated) {
@@ -871,6 +873,18 @@ export default function MerchantSettings() {
                     onChange={(e) => setDeliveryInfo(e.target.value)}
                     className="text-sm resize-none"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="winnerAutoReplyMessage">得標後自動回覆訊息</Label>
+                  <Textarea
+                    id="winnerAutoReplyMessage"
+                    rows={3}
+                    placeholder={"例如：恭喜成功得標！請聯繫商戶確認交收事宜🤝"}
+                    value={winnerAutoReplyMessage}
+                    onChange={(e) => setWinnerAutoReplyMessage(e.target.value)}
+                    className="text-sm resize-none"
+                  />
+                  <p className="text-xs text-gray-400">拍賣結束後，系統會自動以此訊息回覆中標用戶並發送推送通知。留空則使用預設文字。</p>
                 </div>
                 <div className="flex justify-end pt-1">
                   <Button onClick={handleSave} disabled={updateMutation.isPending} className="gold-gradient text-white border-0 gap-1.5">

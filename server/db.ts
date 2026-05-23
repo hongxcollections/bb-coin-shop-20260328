@@ -3464,6 +3464,7 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   fbRefreshPreviewEnabled: 0,
   chatAutoReplyEnabled: 0,
   chatAutoReplyMessage: null as string | null,
+  winnerAutoReplyMessage: null as string | null,
   offersGloballyEnabled: 1,
   offerWindowDays: 7,
   offerMaxPerWindow: 3,
@@ -3479,7 +3480,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, offersGloballyEnabled, offerWindowDays, offerMaxPerWindow, failureLockThreshold, failureLockDays, failureLockEnabled, autoGenerateCover, autoGenerateProductCover, productCategories FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, winnerAutoReplyMessage, offersGloballyEnabled, offerWindowDays, offerMaxPerWindow, failureLockThreshold, failureLockDays, failureLockEnabled, autoGenerateCover, autoGenerateProductCover, productCategories FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -3514,6 +3515,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         fbRefreshPreviewEnabled: Number(row.fbRefreshPreviewEnabled ?? 0),
         chatAutoReplyEnabled: Number(row.chatAutoReplyEnabled ?? 0),
         chatAutoReplyMessage: row.chatAutoReplyMessage != null ? String(row.chatAutoReplyMessage) : null,
+        winnerAutoReplyMessage: row.winnerAutoReplyMessage != null ? String(row.winnerAutoReplyMessage) : null,
         offersGloballyEnabled: Number(row.offersGloballyEnabled ?? 1),
         offerWindowDays: Number(row.offerWindowDays ?? 7),
         offerMaxPerWindow: Number(row.offerMaxPerWindow ?? 3),
@@ -3721,7 +3723,7 @@ export async function setMerchantOfferLimits(userId: number, windowDays: number,
   `);
 }
 
-export async function upsertMerchantSettings(userId: number, defaultEndDayOffset: number, defaultEndTime: string, defaultStartingPrice: number, defaultBidIncrement: number, defaultAntiSnipeEnabled: number, defaultAntiSnipeMinutes: number, defaultExtendMinutes: number, paymentInstructions?: string | null, deliveryInfo?: string | null, fbShareTemplate?: string | null, fbShareTemplateProduct?: string | null): Promise<void> {
+export async function upsertMerchantSettings(userId: number, defaultEndDayOffset: number, defaultEndTime: string, defaultStartingPrice: number, defaultBidIncrement: number, defaultAntiSnipeEnabled: number, defaultAntiSnipeMinutes: number, defaultExtendMinutes: number, paymentInstructions?: string | null, deliveryInfo?: string | null, fbShareTemplate?: string | null, fbShareTemplateProduct?: string | null, winnerAutoReplyMessage?: string | null): Promise<void> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) throw new Error('DB unavailable');
@@ -3729,9 +3731,10 @@ export async function upsertMerchantSettings(userId: number, defaultEndDayOffset
   const di = deliveryInfo ?? null;
   const fst = fbShareTemplate ?? null;
   const fstp = fbShareTemplateProduct ?? null;
+  const warm = winnerAutoReplyMessage ?? null;
   await db.execute(sql`
-    INSERT INTO merchant_settings (userId, defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, paymentInstructions, deliveryInfo, fbShareTemplate, fbShareTemplateProduct)
-    VALUES (${userId}, ${defaultEndDayOffset}, ${defaultEndTime}, ${defaultStartingPrice}, ${defaultBidIncrement}, ${defaultAntiSnipeEnabled}, ${defaultAntiSnipeMinutes}, ${defaultExtendMinutes}, ${pi}, ${di}, ${fst}, ${fstp})
+    INSERT INTO merchant_settings (userId, defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, paymentInstructions, deliveryInfo, fbShareTemplate, fbShareTemplateProduct, winnerAutoReplyMessage)
+    VALUES (${userId}, ${defaultEndDayOffset}, ${defaultEndTime}, ${defaultStartingPrice}, ${defaultBidIncrement}, ${defaultAntiSnipeEnabled}, ${defaultAntiSnipeMinutes}, ${defaultExtendMinutes}, ${pi}, ${di}, ${fst}, ${fstp}, ${warm})
     ON DUPLICATE KEY UPDATE
       defaultEndDayOffset = ${defaultEndDayOffset},
       defaultEndTime = ${defaultEndTime},
@@ -3744,6 +3747,7 @@ export async function upsertMerchantSettings(userId: number, defaultEndDayOffset
       deliveryInfo = ${di},
       fbShareTemplate = ${fst},
       fbShareTemplateProduct = ${fstp},
+      winnerAutoReplyMessage = ${warm},
       updatedAt = CURRENT_TIMESTAMP
   `);
 }

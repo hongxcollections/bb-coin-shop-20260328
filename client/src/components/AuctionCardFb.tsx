@@ -245,7 +245,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
           </div>
         )}
         {isEnded && (
-          <p className="text-[12px] text-gray-400 mt-1 text-right">此拍賣已結束</p>
+          <p className="text-[12px] font-semibold text-red-500 mt-1 text-right">拍賣已結束</p>
         )}
       </div>
 

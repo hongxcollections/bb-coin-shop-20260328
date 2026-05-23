@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { ChevronLeft, ThumbsUp, ThumbsDown, Share2, Send, X } from "lucide-react";
+import { ChevronLeft, ThumbsUp, ThumbsDown, Share2, Send, X, Truck } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -194,6 +194,7 @@ export function AuctionImageLightbox({
   const [particles, setParticles] = useState<{ id: number; bidId: number; dir: "up" | "down" }[]>([]);
   const pidRef = useRef(0);
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
+  const [paymentInfoOpen, setPaymentInfoOpen] = useState(false);
 
   /* ── Swipe-right-to-close ── */
   const [dragX, setDragX] = useState(0);
@@ -268,6 +269,10 @@ export function AuctionImageLightbox({
   const { data: panelData, isLoading } = trpc.auctionFbPanel.getPanel.useQuery(
     { auctionId, sort, viewerUserId: user?.id },
     { enabled: open, refetchOnWindowFocus: false }
+  );
+  const { data: paymentInfo } = trpc.merchants.getPaymentInfo.useQuery(
+    { merchantUserId: createdBy! },
+    { enabled: !!createdBy && open }
   );
 
   const broadcastMutation = trpc.auctionFbPanel.postMerchantBroadcast.useMutation({
@@ -430,13 +435,23 @@ export function AuctionImageLightbox({
                     <span className="text-base">👍</span>
                     <span className="text-[13px] font-bold text-gray-900">{panelData?.totalBids ?? 0} 則回應</span>
                   </div>
-                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                    <span className="text-[11px] font-semibold text-amber-600">目前：{curr}{currentPrice.toLocaleString()}</span>
-                    {highestBidderName && (
-                      <span className="text-[11px] text-gray-500 truncate max-w-[100px]">最高：{highestBidderName}</span>
-                    )}
-                  </div>
+                  {isEnded ? (
+                    <span className="text-[11px] font-bold text-red-500 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">拍賣已結束</span>
+                  ) : (
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      <span className="text-[11px] font-semibold text-amber-600">目前：{curr}{currentPrice.toLocaleString()}</span>
+                      {highestBidderName && (
+                        <span className="text-[11px] text-gray-500 truncate max-w-[100px]">最高：{highestBidderName}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
+                {createdBy && (
+                  <button onClick={() => setPaymentInfoOpen(true)} className="flex flex-col items-center gap-0.5 text-gray-500 hover:text-amber-600 transition-colors shrink-0">
+                    <Truck className="w-4 h-4" />
+                    <span className="text-[9px]">交收</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -486,9 +501,13 @@ export function AuctionImageLightbox({
                           <p className="text-[18px] font-bold text-gray-900 leading-tight">
                             {item.rawAmount != null ? `${curr}${Number(item.rawAmount).toLocaleString()}` : item.content}
                           </p>
-                          <span className="text-[10px] font-semibold text-green-600 whitespace-nowrap">出價有效 ✓</span>
-                          {isLeading && (
-                            <span className="text-[10px] font-bold text-red-500 border border-red-400 rounded px-1 whitespace-nowrap">領先</span>
+                          {isEnded ? (
+                            isLeading && <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-300 rounded px-1 whitespace-nowrap">成功得標 🏆</span>
+                          ) : (
+                            <>
+                              <span className="text-[10px] font-semibold text-green-600 whitespace-nowrap">出價有效 ✓</span>
+                              {isLeading && <span className="text-[10px] font-bold text-red-500 border border-red-400 rounded px-1 whitespace-nowrap">領先</span>}
+                            </>
                           )}
                         </div>
                         {/* action row: 回覆 left | 👍👎 right */}
@@ -596,26 +615,60 @@ export function AuctionImageLightbox({
                 <Send className="w-5 h-5" />
               </button>
             </>
+          ) : isEnded ? (
+            <div className="flex-1 text-center text-[12px] text-gray-400">此拍賣已結束，可繼續瀏覽</div>
           ) : (
             <>
               <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 overflow-hidden">
                 <input
                   className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
-                  placeholder={isEnded ? "拍賣已結束" : `出價 (最低 ${curr}${(currentPrice + bidIncrement).toLocaleString()})`}
+                  placeholder={`出價 (最低 ${curr}${(currentPrice + bidIncrement).toLocaleString()})`}
                   value={bidInput}
                   onChange={(e) => { if (/^\d*$/.test(e.target.value)) setBidInput(e.target.value); }}
                   onKeyDown={(e) => { if (e.key === "Enter") handleBuyerBid(); }}
                   inputMode="numeric"
-                  disabled={isEnded || !isAuthenticated}
+                  disabled={!isAuthenticated}
                 />
               </div>
-              <button onClick={handleBuyerBid} disabled={!bidInput || placeBid.isPending || isEnded} className="p-2 text-[#1877f2] disabled:opacity-40 shrink-0">
+              <button onClick={handleBuyerBid} disabled={!bidInput || placeBid.isPending} className="p-2 text-[#1877f2] disabled:opacity-40 shrink-0">
                 <Send className="w-5 h-5" />
               </button>
             </>
           )}
         </div>
       </div>
+
+      {/* Payment info sheet */}
+      {paymentInfoOpen && (
+        <div className="fixed inset-0 z-[70] flex items-end" onClick={() => setPaymentInfoOpen(false)}>
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="relative z-10 w-full bg-white rounded-t-2xl shadow-2xl px-5 pt-5 pb-8" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-800 text-base">得標後交收 / 付款方式</h2>
+              <button onClick={() => setPaymentInfoOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            {paymentInfo?.deliveryInfo ? (
+              <div className="mb-4">
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1 mb-1">
+                  <Truck className="w-3.5 h-3.5" />交收安排
+                </p>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{paymentInfo.deliveryInfo}</p>
+              </div>
+            ) : null}
+            {paymentInfo?.paymentInstructions ? (
+              <div>
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">付款指引</p>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{paymentInfo.paymentInstructions}</p>
+              </div>
+            ) : null}
+            {!paymentInfo?.deliveryInfo && !paymentInfo?.paymentInstructions && (
+              <p className="text-sm text-gray-400 text-center py-6">商戶未設定交收 / 付款資訊</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {showSortSheet && (
         <SortSheet current={sort} onSelect={(v) => setSort(v)} onClose={() => setShowSortSheet(false)} />

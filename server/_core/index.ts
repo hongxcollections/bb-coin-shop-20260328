@@ -279,6 +279,8 @@ async function bootstrapMissingColumns() {
   )`, 'Ensured auctionChatRooms table');
   await alter(`ALTER TABLE \`auctionChatRooms\` ADD COLUMN \`bidderDeleted\` int NOT NULL DEFAULT 0`, 'Ensured auctionChatRooms.bidderDeleted column');
   await alter(`ALTER TABLE \`auctionChatRooms\` ADD COLUMN \`merchantDeleted\` int NOT NULL DEFAULT 0`, 'Ensured auctionChatRooms.merchantDeleted column');
+  await alter(`ALTER TABLE \`merchant_settings\` ADD COLUMN \`winnerAutoReplyMessage\` TEXT NULL`, 'Ensured merchant_settings.winnerAutoReplyMessage column');
+  await alter(`ALTER TABLE \`auctions\` ADD COLUMN \`winnerAutoReplySentAt\` DATETIME NULL`, 'Ensured auctions.winnerAutoReplySentAt column');
 
   await alter(`CREATE TABLE IF NOT EXISTS \`auctionChatMessages\` (
     \`id\` int AUTO_INCREMENT NOT NULL,
@@ -1909,6 +1911,48 @@ Output ONLY the JSON, nothing else.`;
       console.error('[Scheduler] auto-end sessions error:', err);
     }
   }, 5 * 60 * 1000);
+
+  // 得標者自動回覆 + web push — 每 2 分鐘
+  setInterval(async () => {
+    try {
+      const { getDb, getMerchantSettings } = await import('../db');
+      const { sql: sqlTag } = await import('drizzle-orm');
+      const { sendPushToUser } = await import('../push');
+      const db = await getDb();
+      if (!db) return;
+      const rows: any = await db.execute(sqlTag.raw(`
+        SELECT id, title, createdBy, highestBidderId
+        FROM auctions
+        WHERE status = 'ended'
+          AND highestBidderId IS NOT NULL
+          AND winnerAutoReplySentAt IS NULL
+        LIMIT 20
+      `));
+      const ended: any[] = Array.isArray(rows[0]) ? rows[0] : (Array.isArray(rows) ? rows as any[] : []);
+      for (const a of ended) {
+        try {
+          const claimResult: any = await db.execute(sqlTag.raw(
+            `UPDATE auctions SET winnerAutoReplySentAt = NOW() WHERE id = ${Number(a.id)} AND winnerAutoReplySentAt IS NULL`
+          ));
+          const affected = claimResult?.[0]?.affectedRows ?? claimResult?.affectedRows ?? 0;
+          if (Number(affected) === 0) continue;
+          const settings = await getMerchantSettings(Number(a.createdBy));
+          const message = (settings as any).winnerAutoReplyMessage?.trim() || '恭喜成功得標！請聯繫商戶確認交收事宜🤝';
+          const { auctionComments } = await import('../../drizzle/schema');
+          await db.insert(auctionComments).values({ auctionId: Number(a.id), userId: Number(a.createdBy), content: message });
+          await sendPushToUser(Number(a.highestBidderId), {
+            title: `🏆 恭喜得標：${String(a.title).slice(0, 40)}`,
+            body: message.slice(0, 120),
+            url: `/auctions/${Number(a.id)}`,
+          }).catch(() => {});
+        } catch (e) {
+          console.error(`[WinnerReply] Auction ${a.id} failed:`, e);
+        }
+      }
+    } catch (err) {
+      console.error('[Scheduler] Winner auto-reply error:', err);
+    }
+  }, 2 * 60 * 1000);
 
   // 啟動後 30 秒跑一次初始化
   setTimeout(async () => {
