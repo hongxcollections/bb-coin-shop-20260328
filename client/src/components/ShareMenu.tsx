@@ -735,7 +735,7 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
         }
       >
         {fbCardStyle ? (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5" aria-hidden="true">
             <path d="M14 6L21 12L14 18V14C9 14 5 16 3 21C3 16 5 10 14 10V6Z"/>
           </svg>
         ) : (

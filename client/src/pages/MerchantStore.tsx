@@ -1068,11 +1068,13 @@ export default function MerchantStore() {
                     const sym = getCurrencySymbol(a.currency ?? "HKD");
                     const finalPrice = Number(a.currentPrice ?? a.startingPrice ?? 0);
                     const hasWinner = !!a.highestBidderId;
-                    const winnerDisplay = a.highestBidderName === "🕵️ 匿名買家"
-                      ? "🕵️ 匿名"
-                      : a.highestBidderName
-                        ? `${String(a.highestBidderName).charAt(0)}***`
-                        : "***";
+                    const canSeeFullName =
+                      user?.id === a.createdBy ||
+                      user?.role === "admin" ||
+                      user?.id === a.highestBidderId;
+                    const winnerDisplay = canSeeFullName
+                      ? (a.highestBidderName ?? "***")
+                      : "***";
                     return (
                       <a key={a.id} href={`/auctions/${a.id}`} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
                         <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 shrink-0">
