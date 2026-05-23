@@ -722,9 +722,12 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
   return (
     <>
       <button
-        ref={btnRef}
+        ref={fbCardStyle ? undefined : btnRef}
         type="button"
-        onClick={handleOpen}
+        onClick={fbCardStyle
+          ? (e) => { e.preventDefault(); e.stopPropagation(); window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}`, "_blank", "noopener,noreferrer,width=600,height=400"); }
+          : handleOpen
+        }
         title="分享"
         className={fbCardStyle
           ? "w-full flex items-center justify-center gap-1.5 py-2 text-gray-600 hover:bg-gray-100 transition-colors text-[13px] font-semibold"
@@ -735,7 +738,7 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
       >
         {fbCardStyle ? (
           <svg viewBox="0 0 24 24" fill="currentColor" className="w-[18px] h-[18px]" aria-hidden="true">
-            <path d="M21 12l-7-7v4C8 10 4 15 3 21c3-3.5 6.5-5 11-5v4l7-8z"/>
+            <path d="M17 12l-5-5v3H8a6 6 0 00-6 6v2h2v-2a4 4 0 014-4h4v5l5-5z"/>
           </svg>
         ) : (
           <Share2 className="w-3 h-3" />

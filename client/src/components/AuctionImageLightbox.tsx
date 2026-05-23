@@ -353,8 +353,7 @@ export function AuctionImageLightbox({
   };
   const handleShare = () => {
     const url = `${window.location.origin}/auctions/${auctionId}`;
-    if (navigator.share) { navigator.share({ title: auctionTitle, url }).catch(() => {}); }
-    else { navigator.clipboard.writeText(url).then(() => toast.success("連結已複製")); }
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, "_blank", "noopener,noreferrer,width=600,height=400");
   };
   const triggerParticle = (bidId: number, dir: "up" | "down") => {
     const id = pidRef.current++;
@@ -410,7 +409,7 @@ export function AuctionImageLightbox({
                 </button>
                 <div className="w-px h-6 bg-gray-200" />
                 <button className="flex-1 flex items-center justify-center gap-2 py-3 text-gray-600 text-[15px] font-semibold hover:bg-gray-50 transition-colors" onClick={handleShare}>
-                  <Share2 className="w-5 h-5" /> 分享
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true"><path d="M17 12l-5-5v3H8a6 6 0 00-6 6v2h2v-2a4 4 0 014-4h4v5l5-5z"/></svg> 分享
                 </button>
               </div>
             </div>
