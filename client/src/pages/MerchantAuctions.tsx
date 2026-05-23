@@ -320,6 +320,7 @@ function AuctionCard({
   auction, tab, selected, onToggleSelect,
   onEdit, onDelete, onPublish, onArchive, onRestore, onRelist, onActiveEdit, onActiveDelete, onPermanentDelete,
   onDuplicate,
+  onSetDisplayMode,
   fbRefreshEnabled,
 }: {
   auction: AuctionItem;
