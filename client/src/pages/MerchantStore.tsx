@@ -580,6 +580,10 @@ export default function MerchantStore() {
     { userId },
     { enabled: userId > 0 }
   );
+  const { data: endedAuctionItems = [] } = trpc.merchants.getEndedAuctions.useQuery(
+    { userId },
+    { enabled: userId > 0 }
+  );
 
   const { data: siteSettingsData } = trpc.siteSettings.getAll.useQuery();
   const merchantContactPreset = (siteSettingsData as Record<string, string> | undefined)?.merchantContactMessage ?? "你好，我想查詢你的商品";
@@ -604,6 +608,7 @@ export default function MerchantStore() {
   const [auctionPage, setAuctionPage] = useState(0);
   const [productPage, setProductPage] = useState(0);
   const [soldOpen, setSoldOpen] = useState(false);
+  const [endedAuctionsOpen, setEndedAuctionsOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [sessionTab, setSessionTab] = useState<"active" | "ended">("active");
   const [storeRoomId, setStoreRoomId] = useState<number | null>(null);
@@ -1038,6 +1043,59 @@ export default function MerchantStore() {
             </div>
           )}
         </div>
+
+        {/* ── 完結拍賣 (merchant-controlled) ── */}
+        {(endedAuctionItems as any[]).length > 0 && (
+          <div className="rounded-2xl bg-gradient-to-b from-gray-50/80 to-white border border-gray-200 shadow-sm overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setEndedAuctionsOpen(o => !o)}
+              className="w-full flex items-center gap-2 px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-gray-100/80 to-gray-50/40 hover:from-gray-100 hover:to-gray-50 transition-colors"
+            >
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-gray-400 to-gray-500 shadow-sm shadow-gray-200">
+                <Gavel className="w-4 h-4 text-white" />
+              </div>
+              <h2 className="font-bold text-sm text-gray-600">完結拍賣</h2>
+              <span className="text-xs font-semibold text-gray-500 bg-white/80 border border-gray-200 px-2.5 py-0.5 rounded-full">
+                {(endedAuctionItems as any[]).length} 件
+              </span>
+              <ChevronDown className={`w-4 h-4 text-gray-400 ml-auto transition-transform duration-200 ${endedAuctionsOpen ? "rotate-180" : ""}`} />
+            </button>
+            {endedAuctionsOpen && (
+              <div className="p-3">
+                <div className="flex flex-col gap-[3px]">
+                  {(endedAuctionItems as any[]).map((a: any) => {
+                    const currency = a.currency ?? "HKD";
+                    return (
+                      <AuctionCard
+                        key={a.id}
+                        auctionId={a.id}
+                        title={a.title}
+                        imageUrl={a.coverImage}
+                        endTime={a.endTime}
+                        currentPrice={Number(a.currentPrice ?? a.startingPrice ?? 0)}
+                        startingPrice={Number(a.startingPrice ?? 0)}
+                        currency={currency}
+                        isEnded={true}
+                        currentUserId={user?.id}
+                        highestBidderId={a.highestBidderId}
+                        highestBidderName={a.highestBidderName}
+                        bidCount={Number(a.bidCount ?? 0)}
+                        sellerName={merchant?.merchantName ? sanitizeUserText(merchant.merchantName) : null}
+                        bidIncrement={Number(a.bidIncrement ?? 30)}
+                        antiSnipeEnabled={a.antiSnipeEnabled}
+                        antiSnipeMinutes={a.antiSnipeMinutes}
+                        extendMinutes={a.extendMinutes}
+                        createdBy={a.createdBy}
+                        timeProgress={1}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── 出售商品 ── */}
         <div className="rounded-2xl bg-gradient-to-b from-amber-50/40 to-white border border-amber-100 shadow-sm overflow-hidden">

@@ -3419,6 +3419,8 @@ async function ensureMerchantSettingsTable() {
       ['autoGenerateCover', 'TINYINT NOT NULL DEFAULT 0'],
       ['autoGenerateProductCover', 'TINYINT NOT NULL DEFAULT 0'],
       ['productCategories', 'TEXT NULL'],
+      ['showEndedAuctions', 'TINYINT NOT NULL DEFAULT 0'],
+      ['hideEndedAfterDays', 'INT NOT NULL DEFAULT 7'],
     ] as [string, string][]) {
       const chk = await db.execute(sql`
         SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
@@ -3474,13 +3476,15 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   autoGenerateCover: 0,
   autoGenerateProductCover: 0,
   productCategories: null as string | null,
+  showEndedAuctions: 0,
+  hideEndedAfterDays: 7,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, winnerAutoReplyMessage, offersGloballyEnabled, offerWindowDays, offerMaxPerWindow, failureLockThreshold, failureLockDays, failureLockEnabled, autoGenerateCover, autoGenerateProductCover, productCategories FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, winnerAutoReplyMessage, offersGloballyEnabled, offerWindowDays, offerMaxPerWindow, failureLockThreshold, failureLockDays, failureLockEnabled, autoGenerateCover, autoGenerateProductCover, productCategories, showEndedAuctions, hideEndedAfterDays FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -3525,6 +3529,8 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         autoGenerateCover: Number(row.autoGenerateCover ?? 0),
         autoGenerateProductCover: Number(row.autoGenerateProductCover ?? 0),
         productCategories: row.productCategories != null ? String(row.productCategories) : null,
+        showEndedAuctions: Number(row.showEndedAuctions ?? 0),
+        hideEndedAfterDays: Number(row.hideEndedAfterDays ?? 7),
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -3572,6 +3578,65 @@ export async function upsertMerchantFbGroups(userId: number, fbGroups: string | 
     VALUES (${userId}, ${fbGroups})
     ON DUPLICATE KEY UPDATE fbGroups = ${fbGroups}, updatedAt = CURRENT_TIMESTAMP
   `);
+}
+
+export async function setMerchantEndedAuctionVisibility(userId: number, showEndedAuctions: number, hideEndedAfterDays: number): Promise<void> {
+  await ensureMerchantSettingsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  await db.execute(sql`
+    INSERT INTO merchant_settings (userId, showEndedAuctions, hideEndedAfterDays)
+    VALUES (${userId}, ${showEndedAuctions}, ${hideEndedAfterDays})
+    ON DUPLICATE KEY UPDATE showEndedAuctions = ${showEndedAuctions}, hideEndedAfterDays = ${hideEndedAfterDays}, updatedAt = CURRENT_TIMESTAMP
+  `);
+}
+
+export async function getEndedAuctionsByMerchant(merchantId: number, hideAfterDays: number) {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const { users: usersTable } = await import('../drizzle/schema');
+    const conds = [
+      eq(auctions.createdBy, merchantId),
+      sql`${auctions.status} = 'ended'`,
+      sql`(${auctions.archived} = 0 OR ${auctions.archived} IS NULL)`,
+    ] as Parameters<typeof and>;
+    if (hideAfterDays > 0) {
+      const cutoff = new Date(Date.now() - hideAfterDays * 24 * 60 * 60 * 1000);
+      conds.push(gte(auctions.endTime, cutoff));
+    }
+    const rows = await db.select({
+      id: auctions.id,
+      title: auctions.title,
+      currentPrice: auctions.currentPrice,
+      startingPrice: auctions.startingPrice,
+      endTime: auctions.endTime,
+      status: auctions.status,
+      currency: auctions.currency,
+      category: auctions.category,
+      bidIncrement: auctions.bidIncrement,
+      createdBy: auctions.createdBy,
+      highestBidderId: auctions.highestBidderId,
+      highestBidderName: usersTable.name,
+      highestBidderIsAnonymous: sql<number>`COALESCE((SELECT isAnonymous FROM bids WHERE auctionId = ${auctions.id} AND userId = ${auctions.highestBidderId} ORDER BY id DESC LIMIT 1), 0)`,
+      bidCount: sql<number>`(SELECT COUNT(*) FROM bids WHERE auctionId = ${auctions.id})`,
+      createdAt: auctions.createdAt,
+      antiSnipeEnabled: auctions.antiSnipeEnabled,
+      antiSnipeMinutes: auctions.antiSnipeMinutes,
+      extendMinutes: auctions.extendMinutes,
+    }).from(auctions)
+      .leftJoin(usersTable, eq(auctions.highestBidderId, usersTable.id))
+      .where(and(...conds))
+      .orderBy(desc(auctions.endTime));
+    return await Promise.all(rows.map(async (row) => {
+      const imgs = await getAuctionImages(row.id);
+      const highestBidderName = row.highestBidderIsAnonymous === 1 ? '🕵️ 匿名買家' : (row.highestBidderName ?? null);
+      return { ...row, coverImage: imgs[0]?.imageUrl ?? null, highestBidderName };
+    }));
+  } catch (err) {
+    console.error('[getEndedAuctionsByMerchant] error:', err);
+    return [];
+  }
 }
 
 export async function setMerchantListingLayout(userId: number, listingLayout: string): Promise<void> {

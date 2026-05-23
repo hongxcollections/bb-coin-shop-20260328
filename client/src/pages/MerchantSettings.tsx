@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
-import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag, ShieldCheck, Store, Camera, X, Droplets, LayoutList, MessageSquare, FolderOpen, Plus, Pencil, Trash2, ChevronUp, ChevronDown, Check } from "lucide-react";
+import { ChevronLeft, Settings, CalendarClock, Save, Loader2, Info, Tag, ShieldCheck, Store, Camera, X, Droplets, LayoutList, MessageSquare, FolderOpen, Plus, Pencil, Trash2, ChevronUp, ChevronDown, Check, Gavel } from "lucide-react";
 import { DEFAULT_CATEGORIES } from "@/lib/categories";
 
 const BID_INCREMENT_OPTIONS = [10, 20, 30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
@@ -46,6 +46,12 @@ export default function MerchantSettings() {
     onSuccess: () => { utils.merchants.getSettings.invalidate(); utils.merchants.listApprovedMerchants.invalidate(); toast.success("每頁顯示數量已儲存"); },
     onError: (err) => toast.error(err.message || "儲存失敗"),
   });
+  const setEndedVisibility = trpc.merchants.setEndedAuctionVisibility.useMutation({
+    onSuccess: () => { utils.merchants.getSettings.invalidate(); toast.success("完結拍賣顯示設定已儲存"); },
+    onError: (err) => toast.error(err.message || "儲存失敗"),
+  });
+  const [showEnded, setShowEnded] = useState(false);
+  const [hideAfterDays, setHideAfterDays] = useState("7");
 
   const { data: myCategories } = trpc.merchants.getMyCategories.useQuery(undefined, { staleTime: 5 * 60 * 1000, enabled: isAuthenticated });
   const updateCatsMutation = trpc.merchants.updateMyCategories.useMutation({
@@ -270,6 +276,8 @@ export default function MerchantSettings() {
       setWinnerAutoReplyMessage((settings as { winnerAutoReplyMessage?: string | null }).winnerAutoReplyMessage ?? "");
       setFbShareTemplate(settings.fbShareTemplate ?? "");
       setFbShareTemplateProduct((settings as { fbShareTemplateProduct?: string | null }).fbShareTemplateProduct ?? "");
+      setShowEnded((settings as any).showEndedAuctions === 1);
+      setHideAfterDays(String((settings as any).hideEndedAfterDays ?? 7));
       try {
         const raw = (settings as { fbGroups?: string | null }).fbGroups;
         if (raw) {
@@ -1249,6 +1257,74 @@ export default function MerchantSettings() {
                     disabled={setPageSizes.isPending}
                   />
                 </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 完結拍賣顯示設定 */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Gavel className="w-4 h-4 text-amber-500" />
+              完結拍賣顯示設定
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground py-4">
+                <Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">載入中…</span>
+              </div>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">控制你商戶頁面是否顯示已完結嘅拍賣，方便買家翻查歷史成交</p>
+                {/* 顯示開關 */}
+                <div className="flex items-center justify-between pt-1">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">展示完結拍賣</p>
+                    <p className="text-xs text-muted-foreground">開啟後訪客可以喺你嘅商戶頁睇到歷史拍賣</p>
+                  </div>
+                  <Switch
+                    checked={showEnded}
+                    onCheckedChange={(checked) => setShowEnded(checked)}
+                    disabled={setEndedVisibility.isPending}
+                  />
+                </div>
+                {/* 隱藏天數 */}
+                {showEnded && (
+                  <div className="space-y-2 pt-1 border-t border-gray-100">
+                    <Label className="text-gray-700 text-sm">完結後保留顯示天數</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="365"
+                        value={hideAfterDays}
+                        onChange={(e) => setHideAfterDays(e.target.value)}
+                        className="w-24 text-center"
+                        disabled={setEndedVisibility.isPending}
+                      />
+                      <span className="text-sm text-muted-foreground">日（填 0 = 永久顯示）</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">例如填 7，完結超過 7 日嘅拍賣會自動從商戶頁隱藏</p>
+                  </div>
+                )}
+                {/* 儲存按鈕 */}
+                <Button
+                  onClick={() => {
+                    const days = parseInt(hideAfterDays, 10);
+                    if (isNaN(days) || days < 0 || days > 365) {
+                      toast.error("天數請填 0–365 之間的整數");
+                      return;
+                    }
+                    setEndedVisibility.mutate({ showEndedAuctions: showEnded ? 1 : 0, hideEndedAfterDays: days });
+                  }}
+                  disabled={setEndedVisibility.isPending}
+                  className="gold-gradient text-white border-0 gap-1.5"
+                >
+                  {setEndedVisibility.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  儲存設定
+                </Button>
               </>
             )}
           </CardContent>
