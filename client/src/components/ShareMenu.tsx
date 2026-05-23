@@ -722,12 +722,9 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
   return (
     <>
       <button
-        ref={fbCardStyle ? undefined : btnRef}
+        ref={btnRef}
         type="button"
-        onClick={fbCardStyle
-          ? (e) => { e.preventDefault(); e.stopPropagation(); window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(auctionUrl)}`, "_blank", "noopener,noreferrer,width=600,height=400"); }
-          : handleOpen
-        }
+        onClick={handleOpen}
         title="分享"
         className={fbCardStyle
           ? "w-full flex items-center justify-center gap-1.5 py-2 text-gray-600 hover:bg-gray-100 transition-colors text-[13px] font-semibold"

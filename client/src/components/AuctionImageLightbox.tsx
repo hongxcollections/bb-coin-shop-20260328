@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { ChevronLeft, ThumbsUp, ThumbsDown, Share2, Send, X, Truck } from "lucide-react";
+import { ShareMenu } from "@/components/ShareMenu";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -351,10 +352,6 @@ export function AuctionImageLightbox({
     if (isMerchant) { toast.warning("商戶不可對自己的拍賣出價"); return; }
     placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: 0 });
   };
-  const handleShare = () => {
-    const url = `${window.location.origin}/auctions/${auctionId}`;
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, "_blank", "noopener,noreferrer,width=600,height=400");
-  };
   const triggerParticle = (bidId: number, dir: "up" | "down") => {
     const id = pidRef.current++;
     setParticles(p => [...p, { id, bidId, dir }]);
@@ -408,9 +405,16 @@ export function AuctionImageLightbox({
                   <ThumbsUp className="w-5 h-5" /> 讚好
                 </button>
                 <div className="w-px h-6 bg-gray-200" />
-                <button className="flex-1 flex items-center justify-center gap-2 py-3 text-gray-600 text-[15px] font-semibold hover:bg-gray-50 transition-colors" onClick={handleShare}>
-                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true"><path d="M17 12l-5-5v3H8a6 6 0 00-6 6v2h2v-2a4 4 0 014-4h4v5l5-5z"/></svg> 分享
-                </button>
+                <div className="flex-1">
+                  <ShareMenu
+                    auctionId={auctionId}
+                    title={auctionTitle}
+                    latestBid={currentPrice}
+                    currency={currency ?? undefined}
+                    endTime={endTime}
+                    fbCardStyle
+                  />
+                </div>
               </div>
             </div>
           ))}
