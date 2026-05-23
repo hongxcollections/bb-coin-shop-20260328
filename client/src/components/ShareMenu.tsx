@@ -192,6 +192,7 @@ interface ShareMenuProps {
   endTime?: string | Date | null;
   shareTemplate?: string | null;
   iconOnly?: boolean;
+  fbCardStyle?: boolean;
 }
 
 const DEFAULT_SHARE_TEMPLATE = "{title}\n目前出價 {price}\n結標時間：{endTime}\n快來競拍！";
@@ -586,7 +587,7 @@ export function CollectionShareMenu({ postId, title, iconOnly }: CollectionShare
   );
 }
 
-export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shareTemplate, iconOnly }: ShareMenuProps) {
+export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shareTemplate, iconOnly, fbCardStyle }: ShareMenuProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
@@ -725,12 +726,14 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
         type="button"
         onClick={handleOpen}
         title="分享"
-        className={iconOnly
-          ? "flex items-center justify-center w-6 h-6 text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded-full transition-colors bg-amber-50 hover:bg-amber-100"
-          : "flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-1 transition-colors bg-amber-50 hover:bg-amber-100"
+        className={fbCardStyle
+          ? "w-full flex items-center justify-center gap-1.5 py-2 text-gray-600 hover:bg-gray-100 transition-colors text-[13px] font-semibold"
+          : iconOnly
+            ? "flex items-center justify-center w-6 h-6 text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded-full transition-colors bg-amber-50 hover:bg-amber-100"
+            : "flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded px-2 py-1 transition-colors bg-amber-50 hover:bg-amber-100"
         }
       >
-        <Share2 className="w-3 h-3" />
+        <Share2 className={fbCardStyle ? "w-[18px] h-[18px]" : "w-3 h-3"} />
         {!iconOnly && "分享"}
       </button>
 

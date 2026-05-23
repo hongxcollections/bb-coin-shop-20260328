@@ -248,6 +248,9 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         {isEnded && (
           <p className="text-[12px] font-semibold text-red-500 mt-1 text-right">拍賣已結束</p>
         )}
+        {!isEnded && !antiSnipeEnabled && (
+          <p className="text-[11px] text-gray-400 mt-0.5 text-right">⏱️出價沒有加時，到結束時間即停止出價</p>
+        )}
       </div>
 
       {/* Photo grid — tapping opens full lightbox */}
@@ -315,7 +318,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         </div>
 
         {/* 分享 */}
-        <div className="flex-1 flex items-center justify-center py-1.5">
+        <div className="flex-1">
           <ShareMenu
             auctionId={auctionId}
             title={title}
@@ -323,6 +326,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
             currency={currency}
             endTime={endTime}
             shareTemplate={shareTemplate}
+            fbCardStyle
           />
         </div>
       </div>
