@@ -81,6 +81,7 @@ export interface AuctionCardProps {
   createdBy?: number;
 
   timeProgress?: number | null;
+  hasMyBid?: boolean;
 
   onLinkClick?: () => void;
 }
@@ -111,6 +112,7 @@ export function AuctionCard({
   extendMinutes,
   createdBy,
   timeProgress,
+  hasMyBid = false,
   onLinkClick,
 }: AuctionCardProps) {
   const curr = getCurrencySymbol(currency);
@@ -141,8 +143,8 @@ export function AuctionCard({
   }
 
   const cardBg = isEndingSoon
-    ? "border-orange-200 bg-orange-50/40 hover:border-orange-300"
-    : "border-amber-100 hover:border-amber-300 hover:bg-amber-50/50";
+    ? (hasMyBid ? "border-orange-300 bg-orange-100/70 hover:border-orange-400" : "border-orange-200 bg-orange-50/40 hover:border-orange-300")
+    : (hasMyBid ? "border-amber-200 bg-amber-100/50 hover:border-amber-300 hover:bg-amber-100/80" : "border-amber-100 hover:border-amber-300 hover:bg-amber-50/50");
 
   return (
     <Link href={`/auctions/${auctionId}`} onClick={onLinkClick}>

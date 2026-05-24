@@ -106,11 +106,11 @@ export default function Auctions() {
     staleTime: 15000,
   });
 
-  // 查詢當前用戶曾出價的拍賣 ID
+  // 查詢當前用戶曾出價的拍賣 ID（常駐 fetch，用於 card 底色高亮）
   const { data: myBidsData } = trpc.auctions.myBids.useQuery(undefined, {
-    enabled: isAuthenticated && filter === "myBids",
-    refetchInterval: 5000,
-    staleTime: 3000,
+    enabled: isAuthenticated,
+    refetchInterval: 30000,
+    staleTime: 15000,
   });
   const myBidAuctionIds = new Set((myBidsData ?? []).map((b: { auctionId: number | null }) => b.auctionId).filter((id: number | null): id is number => id !== null));
 
@@ -551,6 +551,7 @@ export default function Auctions() {
                     extendMinutes={(auction as { extendMinutes?: number }).extendMinutes}
                     createdBy={(auction as { createdBy?: number }).createdBy}
                     timeProgress={timeProgress}
+                    hasMyBid={myBidAuctionIds.has(auction.id)}
                     onLinkClick={saveScrollPosition}
                   />
                 )}
