@@ -440,10 +440,19 @@ export function AuctionFbPanel({
     if (!merchantInput.trim()) return;
     broadcastMutation.mutate({ auctionId, content: merchantInput.trim() });
   };
-  const handleQuickBid = (amount: number) => {
+  const handleQuickBid = async (amount: number) => {
     if (!isAuthenticated) { toast.info("請先登入先可以出價"); return; }
     if (isEnded) { toast.error("此拍賣已結束"); return; }
     if (isMerchant) { toast.warning("商戶不可對自己的拍賣出價"); return; }
+    if (myProxy?.isActive) {
+      const ok = await confirm({
+        title: "你已設有代理出價",
+        description: `你的代理出價上限為 ${curr}${Number(myProxy.maxAmount).toLocaleString()}，系統會自動為你出價。確定還要手動出價 ${curr}${amount.toLocaleString()}？`,
+        confirmText: "確定手動出價",
+        cancelText: "取消",
+      });
+      if (!ok) return;
+    }
     placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: isAnonymous ? 1 : 0 });
   };
 
