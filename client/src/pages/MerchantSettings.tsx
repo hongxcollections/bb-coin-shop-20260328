@@ -54,6 +54,11 @@ export default function MerchantSettings() {
     onSuccess: () => { utils.merchants.getSettings.invalidate(); toast.success("拍賣主頁紀錄設定已儲存"); },
     onError: (err) => toast.error(err.message || "儲存失敗"),
   });
+  const setShowUnsoldEnded = trpc.merchants.setShowUnsoldEnded.useMutation({
+    onSuccess: () => { utils.merchants.getSettings.invalidate(); toast.success("流拍顯示設定已儲存"); },
+    onError: (err) => toast.error(err.message || "儲存失敗"),
+  });
+  const [showUnsoldEnded, setShowUnsoldEndedState] = useState(false);
   const [showEnded, setShowEnded] = useState(false);
   const [hideAfterDays, setHideAfterDays] = useState("7");
   const [showEndedOnMain, setShowEndedOnMain] = useState(true);
@@ -286,6 +291,7 @@ export default function MerchantSettings() {
       setHideAfterDays(String((settings as any).hideEndedAfterDays ?? 7));
       setShowEndedOnMain((settings as any).showEndedOnMainPage !== 0);
       setMainPageDays(String((settings as any).mainPageEndedDays ?? 2));
+      setShowUnsoldEndedState((settings as any).showUnsoldEnded === 1);
       try {
         const raw = (settings as { fbGroups?: string | null }).fbGroups;
         if (raw) {
@@ -1383,6 +1389,25 @@ export default function MerchantSettings() {
                     {setMainPageEndedDisplay.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     儲存主頁設定
                   </Button>
+                </div>
+
+                <div className="border-t border-gray-100 pt-4 space-y-3">
+                  <p className="text-xs text-muted-foreground font-medium text-amber-700">流拍顯示設定</p>
+                  <p className="text-xs text-muted-foreground">控制沒有出價嘅流拍拍賣，是否在拍賣主頁及商戶主頁顯示</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">展示流拍（無出價）拍賣</p>
+                      <p className="text-xs text-muted-foreground">關閉後流拍紀錄不會出現喺主頁及商戶頁（預設關閉）</p>
+                    </div>
+                    <Switch
+                      checked={showUnsoldEnded}
+                      onCheckedChange={(checked) => {
+                        setShowUnsoldEndedState(checked);
+                        setShowUnsoldEnded.mutate({ showUnsoldEnded: checked ? 1 : 0 });
+                      }}
+                      disabled={setShowUnsoldEnded.isPending}
+                    />
+                  </div>
                 </div>
               </>
             )}

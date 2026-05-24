@@ -1,4 +1,4 @@
-import { eq, ne, desc, asc, and, or, gte, lte, gt, sql, inArray, isNull } from "drizzle-orm";
+import { eq, ne, desc, asc, and, or, gte, lte, gt, sql, inArray, isNull, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
 import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, depositTierChangeRequests, merchantProducts, MerchantProduct, featuredListings, FeaturedListing, auctionChatRooms, auctionChatMessages, AuctionChatRoom, AuctionChatMessage, auctionChatMessageReactions, AuctionChatMessageReaction, merchantAuctionSessions } from "../drizzle/schema";
@@ -179,6 +179,7 @@ export async function getAuctions(limit = 20, offset = 0, category?: string) {
     const conditions = [
       sql`${auctions.status} != 'draft'`,
       sql`(${auctions.archived} = 0 OR ${auctions.archived} IS NULL)`,
+      sql`NOT (${auctions.status} = 'ended' AND ${auctions.highestBidderId} IS NULL AND COALESCE((SELECT showUnsoldEnded FROM merchant_settings WHERE userId = ${auctions.createdBy} LIMIT 1), 0) = 0)`,
     ];
     if (category && category !== 'all') {
       conditions.push(sql`(${auctions.category} = ${category} OR ${auctions.category} LIKE ${`${category}|%`} OR ${auctions.category} LIKE ${`%|${category}`} OR ${auctions.category} LIKE ${`%|${category}|%`})`);
@@ -3522,13 +3523,14 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   hideEndedAfterDays: 7,
   showEndedOnMainPage: 1,
   mainPageEndedDays: 2,
+  showUnsoldEnded: 0,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, winnerAutoReplyMessage, offersGloballyEnabled, offerWindowDays, offerMaxPerWindow, failureLockThreshold, failureLockDays, failureLockEnabled, autoGenerateCover, autoGenerateProductCover, productCategories, showEndedAuctions, hideEndedAfterDays, showEndedOnMainPage, mainPageEndedDays FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, winnerAutoReplyMessage, offersGloballyEnabled, offerWindowDays, offerMaxPerWindow, failureLockThreshold, failureLockDays, failureLockEnabled, autoGenerateCover, autoGenerateProductCover, productCategories, showEndedAuctions, hideEndedAfterDays, showEndedOnMainPage, mainPageEndedDays, showUnsoldEnded FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -3577,6 +3579,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         hideEndedAfterDays: Number(row.hideEndedAfterDays ?? 7),
         showEndedOnMainPage: Number(row.showEndedOnMainPage ?? 1),
         mainPageEndedDays: Number(row.mainPageEndedDays ?? 2),
+        showUnsoldEnded: Number(row.showUnsoldEnded ?? 0),
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -3637,7 +3640,7 @@ export async function setMerchantEndedAuctionVisibility(userId: number, showEnde
   `);
 }
 
-export async function getEndedAuctionsByMerchant(merchantId: number, hideAfterDays: number) {
+export async function getEndedAuctionsByMerchant(merchantId: number, hideAfterDays: number, showUnsoldEnded = 0) {
   const db = await getDb();
   if (!db) return [];
   try {
@@ -3650,6 +3653,9 @@ export async function getEndedAuctionsByMerchant(merchantId: number, hideAfterDa
     if (hideAfterDays > 0) {
       const cutoff = new Date(Date.now() - hideAfterDays * 24 * 60 * 60 * 1000);
       conds.push(gte(auctions.endTime, cutoff));
+    }
+    if (!showUnsoldEnded) {
+      conds.push(isNotNull(auctions.highestBidderId));
     }
     const rows = await db.select({
       id: auctions.id,
@@ -3712,6 +3718,7 @@ export async function getRecentlyEndedForMainPage(): Promise<Array<{
         AND a.endTime >= DATE_SUB(NOW(), INTERVAL LEAST(COALESCE(
           (SELECT mainPageEndedDays FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 2
         ), 5) DAY)
+        AND NOT (a.highestBidderId IS NULL AND COALESCE((SELECT showUnsoldEnded FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 0) = 0)
       ORDER BY a.endTime DESC
       LIMIT 200
     `);
@@ -3735,6 +3742,17 @@ export async function getRecentlyEndedForMainPage(): Promise<Array<{
     console.error('[getRecentlyEndedForMainPage] error:', err);
     return [];
   }
+}
+
+export async function setShowUnsoldEnded(userId: number, showUnsoldEnded: number): Promise<void> {
+  await ensureMerchantSettingsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  await db.execute(sql`
+    INSERT INTO merchant_settings (userId, showUnsoldEnded)
+    VALUES (${userId}, ${showUnsoldEnded})
+    ON DUPLICATE KEY UPDATE showUnsoldEnded = ${showUnsoldEnded}, updatedAt = CURRENT_TIMESTAMP
+  `);
 }
 
 export async function setMainPageEndedDisplay(userId: number, showEndedOnMainPage: number, mainPageEndedDays: number): Promise<void> {

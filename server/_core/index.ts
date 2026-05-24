@@ -1013,6 +1013,13 @@ async function bootstrapMissingColumns() {
     );
   }
 
+  if (!(await check('merchant_settings', 'showUnsoldEnded'))) {
+    await alter(
+      `ALTER TABLE \`merchant_settings\` ADD COLUMN \`showUnsoldEnded\` tinyint(1) NOT NULL DEFAULT 0`,
+      'Added showUnsoldEnded to merchant_settings'
+    );
+  }
+
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
 }
