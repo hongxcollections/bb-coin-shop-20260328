@@ -16,6 +16,7 @@ interface AuctionFbPanelProps {
   currency?: string | null;
   currentPrice: number;
   highestBidderName?: string | null;
+  highestBidderId?: number | null;
   bidIncrement?: number;
   isEnded: boolean;
   antiSnipeEnabled?: number;
@@ -147,11 +148,15 @@ function SortSheet({ current, onSelect, onClose }: { current: "new" | "old"; onS
 
 export function AuctionFbPanel({
   open, onClose, auctionId, createdBy, sellerName, sellerPhotoUrl,
-  currency, currentPrice, highestBidderName, bidIncrement = 30, isEnded,
+  currency, currentPrice, highestBidderName, highestBidderId, bidIncrement = 30, isEnded,
   endTime, antiSnipeEnabled, antiSnipeMinutes, extendMinutes,
 }: AuctionFbPanelProps) {
   const { user, isAuthenticated } = useAuth();
   const isMerchant = !!user && user.id === createdBy;
+  const isAdmin = !!(user as any)?.role && (user as any).role === "admin";
+  const isCurrentUserWinner = !!(highestBidderId && user?.id && user.id === highestBidderId);
+  /* Privileged viewers see all real names/photos in ended auctions */
+  const isPrivileged = isMerchant || isAdmin || isCurrentUserWinner;
   const curr = (!currency || currency === "HKD") ? "HK$" : currency;
   const sellerDisplayName = sellerName ?? "商戶";
 
@@ -458,9 +463,9 @@ export function AuctionFbPanel({
 
               /* Bid item — isMyBid comes from server */
               const isLeading = Number(item.rawAmount) === maxBidAmount && maxBidAmount > 0;
-              /* When auction ended: non-leading bidders → "參與用戶"; winner viewed by non-winner → "得標用戶***" */
-              const isOtherBidder = isEnded && !isLeading && !item.isAnonymous;
-              const isWinnerAnon = isEnded && isLeading && !item.isAnonymous && (!user || String(user?.id) !== String(item.userId));
+              /* Ended auction: privileged (merchant/admin/winner) → real data; others → masked */
+              const isOtherBidder = isEnded && !isPrivileged && !isLeading && !item.isAnonymous;
+              const isWinnerAnon = isEnded && !isPrivileged && isLeading && !item.isAnonymous;
               const displayedName = item.isAnonymous
                 ? "匿名用戶"
                 : isWinnerAnon

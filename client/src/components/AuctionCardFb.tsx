@@ -187,13 +187,16 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
   };
 
   const isViewerWinner = !!(highestBidderId && currentUserId && highestBidderId === currentUserId);
+  const isViewerMerchant = !!(createdBy && currentUserId && createdBy === currentUserId);
+  const isViewerAdmin = !!(user as any)?.role && (user as any).role === "admin";
+  const isPrivilegedViewer = isViewerWinner || isViewerMerchant || isViewerAdmin;
 
   const reactionLabel = (() => {
     if (bidCount === 0) return null;
     if (isViewerWinner) {
       return <span className="text-xs text-gray-500">👍 我本人 {bidCount > 1 ? `和 ${bidCount - 1} 人` : ""}</span>;
     }
-    if (isEnded && highestBidderId) {
+    if (isEnded && highestBidderId && !isPrivilegedViewer) {
       return <span className="text-xs text-gray-500">👍 得標用戶*** {bidCount > 1 ? `和 ${bidCount - 1} 人` : ""}</span>;
     }
     if (highestBidderName) {
@@ -369,6 +372,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         currency={currency}
         currentPrice={currentPrice}
         highestBidderName={highestBidderName}
+        highestBidderId={highestBidderId}
         bidIncrement={bidIncrement}
         isEnded={isEnded}
         endTime={endTime}
