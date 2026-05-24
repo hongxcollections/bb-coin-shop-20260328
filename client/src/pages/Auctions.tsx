@@ -15,7 +15,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Clock, Search, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown, Shield, TrendingUp, Award, Coins, Store, Users, LogIn, Gavel, Sparkles, LayoutGrid, List } from "lucide-react";
+import { Clock, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, SlidersHorizontal, ChevronDown, Shield, TrendingUp, Award, Coins, Store, Users, LogIn, Gavel, Sparkles, LayoutGrid, List } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrencySymbol } from "./AdminAuctions";
 import { parseCategories } from "@/lib/categories";
@@ -84,6 +84,8 @@ export default function Auctions() {
   });
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [viewMode, setViewMode] = useState<"default" | "fb" | null>(null);
+  const [slimBarOpen, setSlimBarOpen] = useState(true);
+  const [slimBarPage, setSlimBarPage] = useState(0);
   const scrollRestoredRef = useRef(false);
 
   const saveScrollPosition = () => {
@@ -613,45 +615,103 @@ export default function Auctions() {
           </div>
         )}
 
-        {/* Recently ended auction records — always shown, not affected by viewMode/filter */}
-        {(recentlyEnded ?? []).length > 0 && (
-          <div className="mt-2 flex flex-col border border-gray-100 rounded overflow-hidden">
-            {(recentlyEnded as Array<{ id: number; title: string; endTime: string | Date; currency: string | null; sellerName: string | null; coverImage: string | null }>).map(rec => {
-              const rawStr = rec.endTime instanceof Date ? rec.endTime.toISOString() : String(rec.endTime);
-              const dt = (rawStr.endsWith('Z') || rawStr.includes('+'))
-                ? new Date(rawStr)
-                : new Date(rawStr.replace(' ', 'T') + '+08:00');
-              const dowNames = ['日','一','二','三','四','五','六'];
-              const mo = dt.getMonth() + 1;
-              const dy = dt.getDate();
-              const dow = dowNames[dt.getDay()];
-              const hh = String(dt.getHours()).padStart(2, '0');
-              const mm = String(dt.getMinutes()).padStart(2, '0');
-              const endedAt = `星期${dow} ${mo}/${dy} ${hh}:${mm}`;
-              return (
-                <Link
-                  key={rec.id}
-                  href={`/auctions/${rec.id}`}
-                  onClick={saveScrollPosition}
-                  className="flex items-center gap-1.5 px-2 h-[30px] bg-gray-50 border-b-2 border-gray-100 last:border-b-0 hover:bg-amber-50 transition-colors w-full"
-                >
-                  <div className="w-[25px] h-[25px] rounded-sm overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center">
-                    {rec.coverImage
-                      ? <img src={rec.coverImage} alt={rec.title} className="w-full h-full object-cover" />
-                      : <span style={{ fontSize: '11px' }}>🪙</span>
-                    }
+        {/* Recently ended auction records — collapsible + paginated */}
+        {(recentlyEnded ?? []).length > 0 && (() => {
+          const allEnded = recentlyEnded as Array<{ id: number; title: string; endTime: string | Date; currency: string | null; sellerName: string | null; coverImage: string | null }>;
+          const PAGE = 10;
+          const totalPages = Math.ceil(allEnded.length / PAGE);
+          const safePage = Math.min(slimBarPage, totalPages - 1);
+          const pageItems = allEnded.slice(safePage * PAGE, safePage * PAGE + PAGE);
+          return (
+            <div className="mt-2 border border-gray-100 rounded overflow-hidden">
+              {/* Header / toggle */}
+              <button
+                type="button"
+                onClick={() => setSlimBarOpen(o => !o)}
+                className="w-full flex items-center gap-1.5 px-2 h-[26px] bg-gray-100 hover:bg-gray-150 transition-colors border-b border-gray-200"
+              >
+                <Gavel className="w-3 h-3 text-gray-400 shrink-0" />
+                <span className="text-[10px] font-semibold text-gray-500 flex-1 text-left">完結拍賣紀錄</span>
+                <span className="text-[9px] text-gray-400">{allEnded.length} 件</span>
+                <ChevronDown className={`w-3 h-3 text-gray-400 ml-1 transition-transform duration-150 ${slimBarOpen ? "rotate-180" : ""}`} />
+              </button>
+              {slimBarOpen && (
+                <>
+                  <div className="flex flex-col">
+                    {pageItems.map(rec => {
+                      const rawStr = rec.endTime instanceof Date ? rec.endTime.toISOString() : String(rec.endTime);
+                      const dt = (rawStr.endsWith('Z') || rawStr.includes('+'))
+                        ? new Date(rawStr)
+                        : new Date(rawStr.replace(' ', 'T') + '+08:00');
+                      const dowNames = ['日','一','二','三','四','五','六'];
+                      const mo = dt.getMonth() + 1;
+                      const dy = dt.getDate();
+                      const dow = dowNames[dt.getDay()];
+                      const hh = String(dt.getHours()).padStart(2, '0');
+                      const mm = String(dt.getMinutes()).padStart(2, '0');
+                      const endedAt = `星期${dow} ${mo}/${dy} ${hh}:${mm}`;
+                      return (
+                        <Link
+                          key={rec.id}
+                          href={`/auctions/${rec.id}`}
+                          onClick={saveScrollPosition}
+                          className="flex items-center gap-1.5 px-2 h-[30px] bg-gray-50 border-b border-gray-100 last:border-b-0 hover:bg-amber-50 transition-colors w-full"
+                        >
+                          <div className="w-[25px] h-[25px] rounded-sm overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center">
+                            {rec.coverImage
+                              ? <img src={rec.coverImage} alt={rec.title} className="w-full h-full object-cover" />
+                              : <span style={{ fontSize: '11px' }}>🪙</span>
+                            }
+                          </div>
+                          <div className="flex-1 min-w-0 flex flex-col justify-center">
+                            <p className="truncate leading-none text-gray-700 font-medium" style={{ fontSize: '10px' }}>{rec.title}</p>
+                            <p className="truncate leading-none text-gray-400 mt-[2px]" style={{ fontSize: '6px' }}>
+                              {rec.sellerName ?? "商戶"} · 已結束 · {endedAt}
+                            </p>
+                          </div>
+                        </Link>
+                      );
+                    })}
                   </div>
-                  <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <p className="truncate leading-none text-gray-700 font-medium" style={{ fontSize: '10px' }}>{rec.title}</p>
-                    <p className="truncate leading-none text-gray-400 mt-[2px]" style={{ fontSize: '6px' }}>
-                      {rec.sellerName ?? "商戶"} · 已結束 · {endedAt}
-                    </p>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-1 px-2 py-1 bg-gray-50 border-t border-gray-100">
+                      <button
+                        type="button"
+                        onClick={() => setSlimBarPage(0)}
+                        disabled={safePage === 0}
+                        className="p-0.5 rounded disabled:opacity-30 hover:bg-gray-200 transition-colors"
+                        aria-label="首頁"
+                      ><ChevronsLeft className="w-3 h-3 text-gray-500" /></button>
+                      <button
+                        type="button"
+                        onClick={() => setSlimBarPage(p => Math.max(0, p - 1))}
+                        disabled={safePage === 0}
+                        className="p-0.5 rounded disabled:opacity-30 hover:bg-gray-200 transition-colors"
+                        aria-label="上一頁"
+                      ><ChevronLeft className="w-3 h-3 text-gray-500" /></button>
+                      <span className="text-[9px] text-gray-500 px-1">{safePage + 1} / {totalPages}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSlimBarPage(p => Math.min(totalPages - 1, p + 1))}
+                        disabled={safePage === totalPages - 1}
+                        className="p-0.5 rounded disabled:opacity-30 hover:bg-gray-200 transition-colors"
+                        aria-label="下一頁"
+                      ><ChevronRight className="w-3 h-3 text-gray-500" /></button>
+                      <button
+                        type="button"
+                        onClick={() => setSlimBarPage(totalPages - 1)}
+                        disabled={safePage === totalPages - 1}
+                        className="p-0.5 rounded disabled:opacity-30 hover:bg-gray-200 transition-colors"
+                        aria-label="尾頁"
+                      ><ChevronsRight className="w-3 h-3 text-gray-500" /></button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })()}
       </div>
       
       {/* ── Section 4: Brand Intro (Bottom) ── */}

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShareMenu, ProductShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
 import { AuctionCard } from "@/components/AuctionCard";
-import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronDown, Clock, Tag, Share2, QrCode, CalendarClock, ShoppingCart, CheckCircle2, Loader2, X } from "lucide-react";
+import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, Clock, Tag, Share2, QrCode, CalendarClock, ShoppingCart, CheckCircle2, Loader2, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { buildWhatsAppUrl, sanitizeUserText, parseCategories } from "@/lib/utils";
@@ -609,6 +609,7 @@ export default function MerchantStore() {
   const [productPage, setProductPage] = useState(0);
   const [soldOpen, setSoldOpen] = useState(false);
   const [endedAuctionsOpen, setEndedAuctionsOpen] = useState(false);
+  const [endedPage, setEndedPage] = useState(0);
   const [qrOpen, setQrOpen] = useState(false);
   const [sessionTab, setSessionTab] = useState<"active" | "ended">("active");
   const [storeRoomId, setStoreRoomId] = useState<number | null>(null);
@@ -1045,67 +1046,108 @@ export default function MerchantStore() {
         </div>
 
         {/* ── 完結拍賣 (merchant-controlled) ── */}
-        {(endedAuctionItems as any[]).length > 0 && (
-          <div className="rounded-2xl bg-gradient-to-b from-gray-50/80 to-white border border-gray-200 shadow-sm overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setEndedAuctionsOpen(o => !o)}
-              className="w-full flex items-center gap-2 px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-gray-100/80 to-gray-50/40 hover:from-gray-100 hover:to-gray-50 transition-colors"
-            >
-              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-gray-400 to-gray-500 shadow-sm shadow-gray-200">
-                <Gavel className="w-4 h-4 text-white" />
-              </div>
-              <h2 className="font-bold text-sm text-gray-600">完結拍賣</h2>
-              <span className="text-xs font-semibold text-gray-500 bg-white/80 border border-gray-200 px-2.5 py-0.5 rounded-full">
-                {(endedAuctionItems as any[]).length} 件
-              </span>
-              <ChevronDown className={`w-4 h-4 text-gray-400 ml-auto transition-transform duration-200 ${endedAuctionsOpen ? "rotate-180" : ""}`} />
-            </button>
-            {endedAuctionsOpen && (
-              <div className="p-3">
-                <div className="flex flex-col gap-[3px]">
-                  {(endedAuctionItems as any[]).map((a: any) => {
-                    const sym = getCurrencySymbol(a.currency ?? "HKD");
-                    const finalPrice = Number(a.currentPrice ?? a.startingPrice ?? 0);
-                    const hasWinner = !!a.highestBidderId;
-                    const canSeeFullName =
-                      user?.id === a.createdBy ||
-                      user?.role === "admin" ||
-                      user?.id === a.highestBidderId;
-                    const winnerDisplay = canSeeFullName
-                      ? (a.highestBidderName ?? "***")
-                      : "***";
-                    return (
-                      <a key={a.id} href={`/auctions/${a.id}`} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
-                        <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                          {a.coverImage
-                            ? <img src={a.coverImage} alt={a.title} className="w-full h-full object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">無圖</div>
-                          }
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold text-gray-800 truncate">{a.title}</p>
-                          {hasWinner ? (
-                            <>
-                              <p className="text-[14px] font-bold text-amber-600 mt-0.5">{sym}{finalPrice.toLocaleString()} <span className="text-[11px] font-semibold text-gray-400">成交價</span></p>
-                              <p className="text-[11px] text-gray-400 mt-0.5">得標者 {winnerDisplay}</p>
-                            </>
-                          ) : (
-                            <>
-                              <p className="text-[13px] font-semibold text-gray-400 mt-0.5">沒有出價</p>
-                              <p className="text-[11px] text-gray-400 mt-0.5">流拍</p>
-                            </>
-                          )}
-                        </div>
-                        <span className="text-[11px] text-gray-300 shrink-0">›</span>
-                      </a>
-                    );
-                  })}
+        {(endedAuctionItems as any[]).length > 0 && (() => {
+          const allEnded = endedAuctionItems as any[];
+          const PAGE = 10;
+          const totalPages = Math.ceil(allEnded.length / PAGE);
+          const safePage = Math.min(endedPage, totalPages - 1);
+          const pageItems = allEnded.slice(safePage * PAGE, safePage * PAGE + PAGE);
+          return (
+            <div className="rounded-2xl bg-gradient-to-b from-gray-50/80 to-white border border-gray-200 shadow-sm overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setEndedAuctionsOpen(o => !o)}
+                className="w-full flex items-center gap-2 px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-gray-100/80 to-gray-50/40 hover:from-gray-100 hover:to-gray-50 transition-colors"
+              >
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-gray-400 to-gray-500 shadow-sm shadow-gray-200">
+                  <Gavel className="w-4 h-4 text-white" />
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+                <h2 className="font-bold text-sm text-gray-600">完結拍賣</h2>
+                <span className="text-xs font-semibold text-gray-500 bg-white/80 border border-gray-200 px-2.5 py-0.5 rounded-full">
+                  {allEnded.length} 件
+                </span>
+                <ChevronDown className={`w-4 h-4 text-gray-400 ml-auto transition-transform duration-200 ${endedAuctionsOpen ? "rotate-180" : ""}`} />
+              </button>
+              {endedAuctionsOpen && (
+                <div className="p-3">
+                  <div className="flex flex-col gap-[3px]">
+                    {pageItems.map((a: any) => {
+                      const sym = getCurrencySymbol(a.currency ?? "HKD");
+                      const finalPrice = Number(a.currentPrice ?? a.startingPrice ?? 0);
+                      const hasWinner = !!a.highestBidderId;
+                      const canSeeFullName =
+                        user?.id === a.createdBy ||
+                        user?.role === "admin" ||
+                        user?.id === a.highestBidderId;
+                      const winnerDisplay = canSeeFullName
+                        ? (a.highestBidderName ?? "***")
+                        : "***";
+                      return (
+                        <a key={a.id} href={`/auctions/${a.id}`} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                          <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                            {a.coverImage
+                              ? <img src={a.coverImage} alt={a.title} className="w-full h-full object-cover" />
+                              : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">無圖</div>
+                            }
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-semibold text-gray-800 truncate">{a.title}</p>
+                            {hasWinner ? (
+                              <>
+                                <p className="text-[14px] font-bold text-amber-600 mt-0.5">{sym}{finalPrice.toLocaleString()} <span className="text-[11px] font-semibold text-gray-400">成交價</span></p>
+                                <p className="text-[11px] text-gray-400 mt-0.5">得標者 {winnerDisplay}</p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-[13px] font-semibold text-gray-400 mt-0.5">沒有出價</p>
+                                <p className="text-[11px] text-gray-400 mt-0.5">流拍</p>
+                              </>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-gray-300 shrink-0">›</span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-2 pt-2 border-t border-gray-100 mt-1">
+                      <button
+                        type="button"
+                        onClick={() => setEndedPage(0)}
+                        disabled={safePage === 0}
+                        className="p-1 rounded-lg disabled:opacity-30 hover:bg-gray-100 transition-colors"
+                        aria-label="首頁"
+                      ><ChevronsLeft className="w-4 h-4 text-gray-500" /></button>
+                      <button
+                        type="button"
+                        onClick={() => setEndedPage(p => Math.max(0, p - 1))}
+                        disabled={safePage === 0}
+                        className="p-1 rounded-lg disabled:opacity-30 hover:bg-gray-100 transition-colors"
+                        aria-label="上一頁"
+                      ><ChevronLeft className="w-4 h-4 text-gray-500" /></button>
+                      <span className="text-xs text-gray-500 px-2 min-w-[60px] text-center">{safePage + 1} / {totalPages}</span>
+                      <button
+                        type="button"
+                        onClick={() => setEndedPage(p => Math.min(totalPages - 1, p + 1))}
+                        disabled={safePage === totalPages - 1}
+                        className="p-1 rounded-lg disabled:opacity-30 hover:bg-gray-100 transition-colors"
+                        aria-label="下一頁"
+                      ><ChevronRight className="w-4 h-4 text-gray-500" /></button>
+                      <button
+                        type="button"
+                        onClick={() => setEndedPage(totalPages - 1)}
+                        disabled={safePage === totalPages - 1}
+                        className="p-1 rounded-lg disabled:opacity-30 hover:bg-gray-100 transition-colors"
+                        aria-label="尾頁"
+                      ><ChevronsRight className="w-4 h-4 text-gray-500" /></button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── 出售商品 ── */}
         <div className="rounded-2xl bg-gradient-to-b from-amber-50/40 to-white border border-amber-100 shadow-sm overflow-hidden">
