@@ -3661,7 +3661,7 @@ export const appRouter = router({
     setMainPageEndedDisplay: protectedProcedure
       .input(z.object({
         showEndedOnMainPage: z.number().int().min(0).max(1),
-        mainPageEndedDays: z.number().int().min(0).max(7),
+        mainPageEndedDays: z.number().int().min(0).max(5),
       }))
       .mutation(async ({ input, ctx }) => {
         const app = await getMerchantApplicationByUser(ctx.user.id);

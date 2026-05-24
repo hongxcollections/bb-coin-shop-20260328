@@ -3521,7 +3521,7 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   showEndedAuctions: 0,
   hideEndedAfterDays: 7,
   showEndedOnMainPage: 1,
-  mainPageEndedDays: 3,
+  mainPageEndedDays: 2,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
@@ -3576,7 +3576,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         showEndedAuctions: Number(row.showEndedAuctions ?? 0),
         hideEndedAfterDays: Number(row.hideEndedAfterDays ?? 7),
         showEndedOnMainPage: Number(row.showEndedOnMainPage ?? 1),
-        mainPageEndedDays: Number(row.mainPageEndedDays ?? 3),
+        mainPageEndedDays: Number(row.mainPageEndedDays ?? 2),
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -3710,8 +3710,8 @@ export async function getRecentlyEndedForMainPage(): Promise<Array<{
         AND (a.archived = 0 OR a.archived IS NULL)
         AND COALESCE((SELECT showEndedOnMainPage FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 1) = 1
         AND a.endTime >= DATE_SUB(NOW(), INTERVAL LEAST(COALESCE(
-          (SELECT mainPageEndedDays FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 3
-        ), 7) DAY)
+          (SELECT mainPageEndedDays FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 2
+        ), 5) DAY)
       ORDER BY a.endTime DESC
       LIMIT 200
     `);

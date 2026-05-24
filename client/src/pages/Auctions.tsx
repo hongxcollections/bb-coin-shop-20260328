@@ -615,31 +615,31 @@ export default function Auctions() {
 
         {/* Recently ended auction records — always shown, not affected by viewMode/filter */}
         {(recentlyEnded ?? []).length > 0 && (
-          <div className="mt-3 flex flex-col gap-[1px]">
+          <div className="mt-2 flex flex-col border border-gray-100 rounded overflow-hidden">
             {(recentlyEnded as Array<{ id: number; title: string; endTime: string | Date; currency: string | null; sellerName: string | null; coverImage: string | null }>).map(rec => {
               const dt = new Date(rec.endTime);
               const mo = dt.getMonth() + 1;
               const dy = dt.getDate();
               const hh = String(dt.getHours()).padStart(2, "0");
               const mm = String(dt.getMinutes()).padStart(2, "0");
-              const endedAt = `${mo}月${dy}日 ${hh}:${mm}`;
+              const endedAt = `${mo}/${dy} ${hh}:${mm}`;
               return (
                 <Link
                   key={rec.id}
                   href={`/auctions/${rec.id}`}
                   onClick={saveScrollPosition}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 hover:bg-gray-100 transition-colors w-full"
+                  className="flex items-center gap-1.5 px-2 h-[25px] bg-gray-50 border-b border-gray-100 last:border-b-0 hover:bg-amber-50 transition-colors w-full"
                 >
-                  <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center">
+                  <div className="w-5 h-5 rounded-sm overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center">
                     {rec.coverImage
                       ? <img src={rec.coverImage} alt={rec.title} className="w-full h-full object-cover" />
-                      : <span className="text-lg">🪙</span>
+                      : <span style={{ fontSize: '10px' }}>🪙</span>
                     }
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-700 truncate leading-snug">{rec.title}</p>
-                    <p className="text-xs text-gray-400 leading-snug truncate">
-                      {rec.sellerName ?? "商戶"} · 已結束 · {endedAt}
+                  <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    <p className="truncate leading-none text-gray-700 font-medium" style={{ fontSize: '10px' }}>{rec.title}</p>
+                    <p className="truncate leading-none text-gray-400 mt-[1px]" style={{ fontSize: '9px' }}>
+                      {rec.sellerName ?? "商戶"} · {endedAt}
                     </p>
                   </div>
                 </Link>

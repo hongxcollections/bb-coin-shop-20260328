@@ -57,7 +57,7 @@ export default function MerchantSettings() {
   const [showEnded, setShowEnded] = useState(false);
   const [hideAfterDays, setHideAfterDays] = useState("7");
   const [showEndedOnMain, setShowEndedOnMain] = useState(true);
-  const [mainPageDays, setMainPageDays] = useState("3");
+  const [mainPageDays, setMainPageDays] = useState("2");
 
   const { data: myCategories } = trpc.merchants.getMyCategories.useQuery(undefined, { staleTime: 5 * 60 * 1000, enabled: isAuthenticated });
   const updateCatsMutation = trpc.merchants.updateMyCategories.useMutation({
@@ -285,7 +285,7 @@ export default function MerchantSettings() {
       setShowEnded((settings as any).showEndedAuctions === 1);
       setHideAfterDays(String((settings as any).hideEndedAfterDays ?? 7));
       setShowEndedOnMain((settings as any).showEndedOnMainPage !== 0);
-      setMainPageDays(String((settings as any).mainPageEndedDays ?? 3));
+      setMainPageDays(String((settings as any).mainPageEndedDays ?? 2));
       try {
         const raw = (settings as { fbGroups?: string | null }).fbGroups;
         if (raw) {
@@ -1357,22 +1357,22 @@ export default function MerchantSettings() {
                         <Input
                           type="number"
                           min="0"
-                          max="7"
+                          max="5"
                           value={mainPageDays}
                           onChange={(e) => setMainPageDays(e.target.value)}
                           className="w-24 text-center"
                           disabled={setMainPageEndedDisplay.isPending}
                         />
-                        <span className="text-sm text-muted-foreground">日（最多 7 日）</span>
+                        <span className="text-sm text-muted-foreground">日（最多 5 日）</span>
                       </div>
-                      <p className="text-xs text-muted-foreground">預設 3 日，最多 7 日</p>
+                      <p className="text-xs text-muted-foreground">預設 2 日，最多 5 日</p>
                     </div>
                   )}
                   <Button
                     onClick={() => {
                       const days = parseInt(mainPageDays, 10);
-                      if (isNaN(days) || days < 0 || days > 7) {
-                        toast.error("天數請填 0–7 之間的整數");
+                      if (isNaN(days) || days < 0 || days > 5) {
+                        toast.error("天數請填 0–5 之間的整數");
                         return;
                       }
                       setMainPageEndedDisplay.mutate({ showEndedOnMainPage: showEndedOnMain ? 1 : 0, mainPageEndedDays: days });
