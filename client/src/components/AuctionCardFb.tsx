@@ -360,6 +360,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         currentPrice={currentPrice}
         highestBidderName={highestBidderName}
         bidIncrement={bidIncrement}
+        bidCount={bidCount}
         isEnded={isEnded}
         endTime={endTime}
         antiSnipeEnabled={antiSnipeEnabled}
@@ -381,6 +382,7 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
         highestBidderName={highestBidderName}
         highestBidderId={highestBidderId}
         bidIncrement={bidIncrement}
+        bidCount={bidCount}
         isEnded={isEnded}
         endTime={endTime}
         antiSnipeEnabled={antiSnipeEnabled}

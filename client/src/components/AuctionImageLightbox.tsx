@@ -19,6 +19,7 @@ interface Props {
   currentPrice: number;
   highestBidderName?: string | null;
   bidIncrement?: number;
+  bidCount?: number;
   isEnded: boolean;
   endTime?: string | Date;
   antiSnipeEnabled?: number;
@@ -178,7 +179,7 @@ function ImageZoomViewer({ src, onClose }: { src: string; onClose: () => void })
 export function AuctionImageLightbox({
   open, onClose, images, auctionId, auctionTitle,
   sellerName, sellerPhotoUrl, createdBy,
-  currency, currentPrice, highestBidderName, bidIncrement = 30, isEnded,
+  currency, currentPrice, highestBidderName, bidIncrement = 30, bidCount = 0, isEnded,
   endTime, antiSnipeEnabled, antiSnipeMinutes, extendMinutes,
 }: Props) {
   const { user, isAuthenticated } = useAuth();
@@ -587,11 +588,14 @@ export function AuctionImageLightbox({
         {!isEnded && (
           <div className={`${!endTime ? "border-t border-gray-100 " : ""}px-3 pt-1 pb-1 bg-white shrink-0`}>
             <div className="flex gap-2">
-              {[
-                { hint: "最低", amt: currentPrice + bidIncrement },
-                { hint: "+1口", amt: currentPrice + bidIncrement * 2 },
-                { hint: "+2口", amt: currentPrice + bidIncrement * 3 },
-              ].map(({ hint, amt }) => (
+              {(() => {
+                const minBid = bidCount > 0 ? currentPrice + bidIncrement : currentPrice;
+                return [
+                  { hint: "最低", amt: minBid },
+                  { hint: "+1口", amt: minBid + bidIncrement },
+                  { hint: "+2口", amt: minBid + bidIncrement * 2 },
+                ];
+              })().map(({ hint, amt }) => (
                 <button
                   key={hint}
                   onClick={() => handleQuickBid(amt)}
@@ -632,7 +636,7 @@ export function AuctionImageLightbox({
               <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 overflow-hidden">
                 <input
                   className="flex-1 bg-transparent text-sm focus:outline-none border-0 outline-none placeholder-gray-400"
-                  placeholder={`出價 (最低 ${curr}${(currentPrice + bidIncrement).toLocaleString()})`}
+                  placeholder={`出價 (最低 ${curr}${(bidCount > 0 ? currentPrice + bidIncrement : currentPrice).toLocaleString()})`}
                   value={bidInput}
                   onChange={(e) => { if (/^\d*$/.test(e.target.value)) setBidInput(e.target.value); }}
                   onKeyDown={(e) => { if (e.key === "Enter") handleBuyerBid(); }}

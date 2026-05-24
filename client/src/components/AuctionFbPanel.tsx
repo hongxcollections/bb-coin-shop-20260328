@@ -18,6 +18,7 @@ interface AuctionFbPanelProps {
   highestBidderName?: string | null;
   highestBidderId?: number | null;
   bidIncrement?: number;
+  bidCount?: number;
   isEnded: boolean;
   antiSnipeEnabled?: number;
   antiSnipeMinutes?: number;
@@ -149,7 +150,7 @@ function SortSheet({ current, onSelect, onClose }: { current: "new" | "old"; onS
 
 export function AuctionFbPanel({
   open, onClose, auctionId, createdBy, sellerName, sellerPhotoUrl,
-  currency, currentPrice, highestBidderName, highestBidderId, bidIncrement = 30, isEnded,
+  currency, currentPrice, highestBidderName, highestBidderId, bidIncrement = 30, bidCount = 0, isEnded,
   endTime, antiSnipeEnabled, antiSnipeMinutes, extendMinutes,
 }: AuctionFbPanelProps) {
   const { user, isAuthenticated } = useAuth();
@@ -618,11 +619,14 @@ export function AuctionFbPanel({
           {!isEnded && (
             <div className={`${!endTime ? "border-t border-gray-100 " : ""}px-3 pt-1 pb-1 bg-white shrink-0`}>
               <div className="flex gap-2">
-                {[
-                  { hint: "最低", amt: currentPrice + bidIncrement },
-                  { hint: "+1口", amt: currentPrice + bidIncrement * 2 },
-                  { hint: "+2口", amt: currentPrice + bidIncrement * 3 },
-                ].map(({ hint, amt }) => (
+                {(() => {
+                  const minBid = bidCount > 0 ? currentPrice + bidIncrement : currentPrice;
+                  return [
+                    { hint: "最低", amt: minBid },
+                    { hint: "+1口", amt: minBid + bidIncrement },
+                    { hint: "+2口", amt: minBid + bidIncrement * 2 },
+                  ];
+                })().map(({ hint, amt }) => (
                   <button
                     key={hint}
                     onClick={() => handleQuickBid(amt)}
@@ -665,7 +669,7 @@ export function AuctionFbPanel({
                 <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 overflow-hidden">
                   <input
                     className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
-                    placeholder={`出價 (最低 ${curr}${(currentPrice + bidIncrement).toLocaleString()})`}
+                    placeholder={`出價 (最低 ${curr}${(bidCount > 0 ? currentPrice + bidIncrement : currentPrice).toLocaleString()})`}
                     value={bidInput}
                     onChange={(e) => { if (/^\d*$/.test(e.target.value)) setBidInput(e.target.value); }}
                     onKeyDown={(e) => { if (e.key === "Enter") handleBuyerBid(); }}
