@@ -104,8 +104,9 @@ function MiniCountdown({ endTime }: { endTime: Date }) {
   const mins = Math.floor((diff % 3600000) / 60000);
   const secs = Math.floor((diff % 60000) / 1000);
   const pad = (n: number) => String(n).padStart(2, "0");
+  const urgent = diff < 180000;
   return (
-    <span className="font-bold tabular-nums">
+    <span className={`font-bold tabular-nums ${urgent ? "bg-red-600 text-white rounded px-1 py-0.5 animate-pulse" : ""}`}>
       {days > 0 ? `${days}日 ` : ""}{pad(hrs)}:{pad(mins)}:{pad(secs)}
     </span>
   );
@@ -559,19 +560,31 @@ export function AuctionFbPanel({
                   </div>
 
                   {/* Nested replies */}
-                  {(replyMap.get(item.id) ?? []).map(reply => (
-                    <div key={reply.id} className="flex items-start gap-2 mt-2 pl-14">
-                      <Avatar name={reply.userName} photoUrl={reply.photoUrl} size="sm" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-1 flex-wrap">
-                          <span className="text-[13px] font-bold text-gray-900">{reply.userName}</span>
-                          <span className="text-gray-400 text-[11px]">·</span>
-                          <span className="text-[11px] text-gray-400">{timeAgo(reply.createdAt)}</span>
+                  {(replyMap.get(item.id) ?? []).map(reply => {
+                    const isMerchantReply = Number(reply.userId) === Number(createdBy);
+                    return (
+                      <div key={reply.id} className={`flex items-start gap-2 mt-2 pl-14 ${isMerchantReply ? "pr-1" : ""}`}>
+                        <Avatar
+                          name={isMerchantReply ? sellerDisplayName : reply.userName}
+                          photoUrl={isMerchantReply ? (sellerPhotoUrl ?? reply.photoUrl) : reply.photoUrl}
+                          size="sm"
+                        />
+                        <div className={`flex-1 ${isMerchantReply ? "bg-blue-50 rounded-2xl px-3 py-2 border border-blue-100" : ""}`}>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className={`text-[13px] font-bold ${isMerchantReply ? "text-blue-800" : "text-gray-900"}`}>
+                              {isMerchantReply ? sellerDisplayName : reply.userName}
+                            </span>
+                            {isMerchantReply && (
+                              <span className="text-[10px] bg-[#1877f2] text-white px-1.5 py-0.5 rounded font-semibold">商戶</span>
+                            )}
+                            <span className="text-gray-400 text-[11px]">·</span>
+                            <span className="text-[11px] text-gray-400">{timeAgo(reply.createdAt)}</span>
+                          </div>
+                          <p className={`text-[13px] mt-0.5 ${isMerchantReply ? "text-blue-900" : "text-gray-800"}`}>{reply.content}</p>
                         </div>
-                        <p className="text-[13px] text-gray-800 mt-0.5">{reply.content}</p>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               );
             })}

@@ -124,8 +124,9 @@ function MiniCountdown({ endTime }: { endTime: Date }) {
   const mins = Math.floor((diff % 3600000) / 60000);
   const secs = Math.floor((diff % 60000) / 1000);
   const pad = (n: number) => String(n).padStart(2, "0");
+  const urgent = diff < 180000;
   return (
-    <span className="font-bold tabular-nums">
+    <span className={`font-bold tabular-nums ${urgent ? "bg-red-600 text-white rounded px-1 py-0.5 animate-pulse" : ""}`}>
       {days > 0 ? `${days}日 ` : ""}{pad(hrs)}:{pad(mins)}:{pad(secs)}
     </span>
   );

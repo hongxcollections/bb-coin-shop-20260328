@@ -42,9 +42,14 @@ function MiniCountdown({ endTime }: { endTime: Date }) {
   const h = Math.floor((diff % 86400000) / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
   const s = Math.floor((diff % 60000) / 1000);
+  const urgent = diff < 180000;
   if (d > 0) return <span className="font-semibold">{d}天{h}時{m}分</span>;
   if (h > 0) return <span className="font-semibold">{h}時{m}分{s}秒</span>;
-  return <span className="font-semibold text-red-500">{m}分{s}秒</span>;
+  return (
+    <span className={`font-semibold ${urgent ? "bg-red-600 text-white rounded px-1 py-0.5 animate-pulse" : "text-red-500"}`}>
+      {m}分{s}秒
+    </span>
+  );
 }
 
 function timeAgo(d: string | Date | undefined): string {
