@@ -3725,34 +3725,32 @@ export async function getRecentlyEndedForMainPage(): Promise<Array<{
 }>> {
   const db = await getDb();
   if (!db) return [];
-  const parseRows = (result: unknown) => {
-    const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
-    let rows: Array<Record<string, unknown>> = [];
-    if (Array.isArray(rawRows[0])) { rows = rawRows[0]; }
-    else if (Array.isArray(rawRows)) { rows = rawRows as unknown as Array<Record<string, unknown>>; }
-    return rows.map(r => ({
-      id: Number(r.id),
-      title: String(r.title ?? ''),
-      endTime: r.endTime as Date | string,
-      createdBy: Number(r.createdBy),
-      currency: r.currency != null ? String(r.currency) : null,
-      sellerName: r.sellerName != null ? String(r.sellerName) : null,
-      coverImage: r.coverImage != null ? String(r.coverImage) : null,
-    }));
+  const extractRows = (result: unknown): Array<Record<string, unknown>> => {
+    const raw = result as unknown as [Array<Record<string, unknown>>, unknown];
+    if (Array.isArray(raw) && Array.isArray(raw[0])) return raw[0];
+    if (Array.isArray(raw)) return raw as unknown as Array<Record<string, unknown>>;
+    return [];
   };
-  const baseSelect = sql`
-    SELECT
-      a.id, a.title, a.endTime, a.createdBy, a.currency,
-      (SELECT name FROM users WHERE id = a.createdBy LIMIT 1) AS sellerName,
-      (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY id ASC LIMIT 1) AS coverImage
-    FROM auctions a
-    WHERE a.status = 'ended'
-      AND (a.archived = 0 OR a.archived IS NULL)
-  `;
-  // Try with all per-merchant settings (showEndedOnMainPage, mainPageEndedDays, showUnsoldEnded)
+  const mapRow = (r: Record<string, unknown>) => ({
+    id: Number(r.id),
+    title: String(r.title ?? ''),
+    endTime: r.endTime as Date | string,
+    createdBy: Number(r.createdBy),
+    currency: r.currency != null ? String(r.currency) : null,
+    sellerName: r.sellerName != null ? String(r.sellerName) : null,
+    coverImage: r.coverImage != null ? String(r.coverImage) : null,
+  });
+
+  // Try full query with per-merchant settings (showEndedOnMainPage, mainPageEndedDays, showUnsoldEnded)
   try {
     const result = await db.execute(sql`
-      ${baseSelect}
+      SELECT
+        a.id, a.title, a.endTime, a.createdBy, a.currency,
+        (SELECT name FROM users WHERE id = a.createdBy LIMIT 1) AS sellerName,
+        (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY id ASC LIMIT 1) AS coverImage
+      FROM auctions a
+      WHERE a.status = 'ended'
+        AND (a.archived = 0 OR a.archived IS NULL)
         AND COALESCE((SELECT showEndedOnMainPage FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 1) = 1
         AND a.endTime >= DATE_SUB(NOW(), INTERVAL LEAST(COALESCE(
           (SELECT mainPageEndedDays FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 2
@@ -3761,20 +3759,31 @@ export async function getRecentlyEndedForMainPage(): Promise<Array<{
       ORDER BY a.endTime DESC
       LIMIT 200
     `);
-    return parseRows(result);
-  } catch {
-    // Fallback: columns may not exist yet — show ended auctions from last 2 days, exclude unsold
+    const rows = extractRows(result).map(mapRow);
+    console.log('[getRecentlyEndedForMainPage] full query returned', rows.length, 'rows');
+    return rows;
+  } catch (err1) {
+    console.warn('[getRecentlyEndedForMainPage] full query failed, trying fallback:', (err1 as Error).message);
+    // Fallback: columns may not exist yet on this DB — show ended auctions with bids from last 2 days
     try {
       const result = await db.execute(sql`
-        ${baseSelect}
+        SELECT
+          a.id, a.title, a.endTime, a.createdBy, a.currency,
+          (SELECT name FROM users WHERE id = a.createdBy LIMIT 1) AS sellerName,
+          (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY id ASC LIMIT 1) AS coverImage
+        FROM auctions a
+        WHERE a.status = 'ended'
+          AND (a.archived = 0 OR a.archived IS NULL)
           AND a.endTime >= DATE_SUB(NOW(), INTERVAL 2 DAY)
           AND a.highestBidderId IS NOT NULL
         ORDER BY a.endTime DESC
         LIMIT 200
       `);
-      return parseRows(result);
-    } catch (err) {
-      console.error('[getRecentlyEndedForMainPage] error:', err);
+      const rows = extractRows(result).map(mapRow);
+      console.log('[getRecentlyEndedForMainPage] fallback query returned', rows.length, 'rows');
+      return rows;
+    } catch (err2) {
+      console.error('[getRecentlyEndedForMainPage] both queries failed:', (err2 as Error).message);
       return [];
     }
   }
