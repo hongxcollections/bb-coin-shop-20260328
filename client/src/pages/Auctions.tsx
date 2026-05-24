@@ -617,29 +617,34 @@ export default function Auctions() {
         {(recentlyEnded ?? []).length > 0 && (
           <div className="mt-2 flex flex-col border border-gray-100 rounded overflow-hidden">
             {(recentlyEnded as Array<{ id: number; title: string; endTime: string | Date; currency: string | null; sellerName: string | null; coverImage: string | null }>).map(rec => {
-              const dt = new Date(rec.endTime);
+              const rawStr = rec.endTime instanceof Date ? rec.endTime.toISOString() : String(rec.endTime);
+              const dt = (rawStr.endsWith('Z') || rawStr.includes('+'))
+                ? new Date(rawStr)
+                : new Date(rawStr.replace(' ', 'T') + '+08:00');
+              const dowNames = ['日','一','二','三','四','五','六'];
               const mo = dt.getMonth() + 1;
               const dy = dt.getDate();
-              const hh = String(dt.getHours()).padStart(2, "0");
-              const mm = String(dt.getMinutes()).padStart(2, "0");
-              const endedAt = `${mo}/${dy} ${hh}:${mm}`;
+              const dow = dowNames[dt.getDay()];
+              const hh = String(dt.getHours()).padStart(2, '0');
+              const mm = String(dt.getMinutes()).padStart(2, '0');
+              const endedAt = `星期${dow} ${mo}/${dy} ${hh}:${mm}`;
               return (
                 <Link
                   key={rec.id}
                   href={`/auctions/${rec.id}`}
                   onClick={saveScrollPosition}
-                  className="flex items-center gap-1.5 px-2 h-[25px] bg-gray-50 border-b border-gray-100 last:border-b-0 hover:bg-amber-50 transition-colors w-full"
+                  className="flex items-center gap-1.5 px-2 h-[30px] bg-gray-50 border-b-2 border-gray-100 last:border-b-0 hover:bg-amber-50 transition-colors w-full"
                 >
-                  <div className="w-5 h-5 rounded-sm overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center">
+                  <div className="w-[25px] h-[25px] rounded-sm overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center">
                     {rec.coverImage
                       ? <img src={rec.coverImage} alt={rec.title} className="w-full h-full object-cover" />
-                      : <span style={{ fontSize: '10px' }}>🪙</span>
+                      : <span style={{ fontSize: '11px' }}>🪙</span>
                     }
                   </div>
                   <div className="flex-1 min-w-0 flex flex-col justify-center">
                     <p className="truncate leading-none text-gray-700 font-medium" style={{ fontSize: '10px' }}>{rec.title}</p>
-                    <p className="truncate leading-none text-gray-400 mt-[1px]" style={{ fontSize: '9px' }}>
-                      {rec.sellerName ?? "商戶"} · {endedAt}
+                    <p className="truncate leading-none text-gray-400 mt-[2px]" style={{ fontSize: '6px' }}>
+                      {rec.sellerName ?? "商戶"} · 已結束 · {endedAt}
                     </p>
                   </div>
                 </Link>
