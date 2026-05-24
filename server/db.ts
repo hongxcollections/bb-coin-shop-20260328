@@ -176,25 +176,35 @@ export async function getAuctions(limit = 20, offset = 0, category?: string) {
       .from(auctions)
       .leftJoin(users, eq(auctions.highestBidderId, users.id));
 
-    const conditions = [
+    const baseConditions = [
       sql`${auctions.status} != 'draft'`,
       sql`(${auctions.archived} = 0 OR ${auctions.archived} IS NULL)`,
-      sql`NOT (${auctions.status} = 'ended' AND ${auctions.highestBidderId} IS NULL AND COALESCE((SELECT showUnsoldEnded FROM merchant_settings WHERE userId = ${auctions.createdBy} LIMIT 1), 0) = 0)`,
     ];
+    const unsoldCondition = sql`NOT (${auctions.status} = 'ended' AND ${auctions.highestBidderId} IS NULL AND COALESCE((SELECT showUnsoldEnded FROM merchant_settings WHERE userId = ${auctions.createdBy} LIMIT 1), 0) = 0)`;
     if (category && category !== 'all') {
-      conditions.push(sql`(${auctions.category} = ${category} OR ${auctions.category} LIKE ${`${category}|%`} OR ${auctions.category} LIKE ${`%|${category}`} OR ${auctions.category} LIKE ${`%|${category}|%`})`);
+      baseConditions.push(sql`(${auctions.category} = ${category} OR ${auctions.category} LIKE ${`${category}|%`} OR ${auctions.category} LIKE ${`%|${category}`} OR ${auctions.category} LIKE ${`%|${category}|%`})`);
     }
 
-    const result = await baseQuery
-      .where(and(...conditions))
-      .orderBy(
-        sql`CASE WHEN ${auctions.status} = 'active' THEN 0 ELSE 1 END`,
-        sql`CASE WHEN ${auctions.status} = 'active' THEN ${auctions.endTime} ELSE NULL END`,
-        desc(auctions.createdAt)
-      )
-      .limit(limit)
-      .offset(offset);
-    return result;
+    const orderBy = [
+      sql`CASE WHEN ${auctions.status} = 'active' THEN 0 ELSE 1 END`,
+      sql`CASE WHEN ${auctions.status} = 'active' THEN ${auctions.endTime} ELSE NULL END`,
+      desc(auctions.createdAt),
+    ] as const;
+
+    try {
+      return await baseQuery
+        .where(and(...baseConditions, unsoldCondition))
+        .orderBy(...orderBy)
+        .limit(limit)
+        .offset(offset);
+    } catch {
+      // Fallback: if showUnsoldEnded column doesn't exist yet, run without that condition
+      return await baseQuery
+        .where(and(...baseConditions))
+        .orderBy(...orderBy)
+        .limit(limit)
+        .offset(offset);
+    }
   } catch (error) {
     console.error('[Database] Failed to get auctions:', error);
     return [];
@@ -3530,7 +3540,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, winnerAutoReplyMessage, offersGloballyEnabled, offerWindowDays, offerMaxPerWindow, failureLockThreshold, failureLockDays, failureLockEnabled, autoGenerateCover, autoGenerateProductCover, productCategories, showEndedAuctions, hideEndedAfterDays, showEndedOnMainPage, mainPageEndedDays, showUnsoldEnded FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, winnerAutoReplyMessage, offersGloballyEnabled, offerWindowDays, offerMaxPerWindow, failureLockThreshold, failureLockDays, failureLockEnabled, autoGenerateCover, autoGenerateProductCover, productCategories, showEndedAuctions, hideEndedAfterDays FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -3539,6 +3549,20 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
       row = (rawRows as unknown as Array<Record<string, unknown>>)[0] ?? null;
     }
     if (row && typeof row === 'object') {
+      // Fetch new columns separately with fallback — guards against columns not yet existing on older DBs
+      let showEndedOnMainPage = 1;
+      let mainPageEndedDays = 2;
+      let showUnsoldEnded = 0;
+      try {
+        const r2 = await db.execute(sql`SELECT showEndedOnMainPage, mainPageEndedDays, showUnsoldEnded FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+        const r2rows = r2 as unknown as [Array<Record<string, unknown>>, unknown];
+        const r2row = Array.isArray(r2rows[0]) ? r2rows[0][0] : (Array.isArray(r2rows) ? (r2rows as unknown as Array<Record<string, unknown>>)[0] : null);
+        if (r2row) {
+          showEndedOnMainPage = Number(r2row.showEndedOnMainPage ?? 1);
+          mainPageEndedDays = Number(r2row.mainPageEndedDays ?? 2);
+          showUnsoldEnded = Number(r2row.showUnsoldEnded ?? 0);
+        }
+      } catch { /* columns may not exist yet on this DB — use defaults above */ }
       return {
         defaultEndDayOffset: Number(row.defaultEndDayOffset ?? 7),
         defaultEndTime: String(row.defaultEndTime ?? '23:00'),
@@ -3577,9 +3601,9 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         productCategories: row.productCategories != null ? String(row.productCategories) : null,
         showEndedAuctions: Number(row.showEndedAuctions ?? 0),
         hideEndedAfterDays: Number(row.hideEndedAfterDays ?? 7),
-        showEndedOnMainPage: Number(row.showEndedOnMainPage ?? 1),
-        mainPageEndedDays: Number(row.mainPageEndedDays ?? 2),
-        showUnsoldEnded: Number(row.showUnsoldEnded ?? 0),
+        showEndedOnMainPage,
+        mainPageEndedDays,
+        showUnsoldEnded,
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -3701,34 +3725,11 @@ export async function getRecentlyEndedForMainPage(): Promise<Array<{
 }>> {
   const db = await getDb();
   if (!db) return [];
-  try {
-    const result = await db.execute(sql`
-      SELECT
-        a.id,
-        a.title,
-        a.endTime,
-        a.createdBy,
-        a.currency,
-        (SELECT name FROM users WHERE id = a.createdBy LIMIT 1) AS sellerName,
-        (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY id ASC LIMIT 1) AS coverImage
-      FROM auctions a
-      WHERE a.status = 'ended'
-        AND (a.archived = 0 OR a.archived IS NULL)
-        AND COALESCE((SELECT showEndedOnMainPage FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 1) = 1
-        AND a.endTime >= DATE_SUB(NOW(), INTERVAL LEAST(COALESCE(
-          (SELECT mainPageEndedDays FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 2
-        ), 5) DAY)
-        AND NOT (a.highestBidderId IS NULL AND COALESCE((SELECT showUnsoldEnded FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 0) = 0)
-      ORDER BY a.endTime DESC
-      LIMIT 200
-    `);
+  const parseRows = (result: unknown) => {
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let rows: Array<Record<string, unknown>> = [];
-    if (Array.isArray(rawRows[0])) {
-      rows = rawRows[0];
-    } else if (Array.isArray(rawRows)) {
-      rows = rawRows as unknown as Array<Record<string, unknown>>;
-    }
+    if (Array.isArray(rawRows[0])) { rows = rawRows[0]; }
+    else if (Array.isArray(rawRows)) { rows = rawRows as unknown as Array<Record<string, unknown>>; }
     return rows.map(r => ({
       id: Number(r.id),
       title: String(r.title ?? ''),
@@ -3738,9 +3739,44 @@ export async function getRecentlyEndedForMainPage(): Promise<Array<{
       sellerName: r.sellerName != null ? String(r.sellerName) : null,
       coverImage: r.coverImage != null ? String(r.coverImage) : null,
     }));
-  } catch (err) {
-    console.error('[getRecentlyEndedForMainPage] error:', err);
-    return [];
+  };
+  const baseSelect = sql`
+    SELECT
+      a.id, a.title, a.endTime, a.createdBy, a.currency,
+      (SELECT name FROM users WHERE id = a.createdBy LIMIT 1) AS sellerName,
+      (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY id ASC LIMIT 1) AS coverImage
+    FROM auctions a
+    WHERE a.status = 'ended'
+      AND (a.archived = 0 OR a.archived IS NULL)
+  `;
+  // Try with all per-merchant settings (showEndedOnMainPage, mainPageEndedDays, showUnsoldEnded)
+  try {
+    const result = await db.execute(sql`
+      ${baseSelect}
+        AND COALESCE((SELECT showEndedOnMainPage FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 1) = 1
+        AND a.endTime >= DATE_SUB(NOW(), INTERVAL LEAST(COALESCE(
+          (SELECT mainPageEndedDays FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 2
+        ), 5) DAY)
+        AND NOT (a.highestBidderId IS NULL AND COALESCE((SELECT showUnsoldEnded FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 0) = 0)
+      ORDER BY a.endTime DESC
+      LIMIT 200
+    `);
+    return parseRows(result);
+  } catch {
+    // Fallback: columns may not exist yet — show ended auctions from last 2 days, exclude unsold
+    try {
+      const result = await db.execute(sql`
+        ${baseSelect}
+          AND a.endTime >= DATE_SUB(NOW(), INTERVAL 2 DAY)
+          AND a.highestBidderId IS NOT NULL
+        ORDER BY a.endTime DESC
+        LIMIT 200
+      `);
+      return parseRows(result);
+    } catch (err) {
+      console.error('[getRecentlyEndedForMainPage] error:', err);
+      return [];
+    }
   }
 }
 
