@@ -606,7 +606,7 @@ export function AuctionFbPanel({
                       {replyingToBidId === item.id && (
                         <div className="mt-2 flex items-center gap-2">
                           <Avatar name={user?.name ?? "?"} photoUrl={myAvatarUrl} size="sm" />
-                          <div className="flex-1 flex items-center gap-1.5 bg-gray-100 rounded-full px-3 py-1.5">
+                          <div className="flex-1 flex items-center gap-1.5 bg-white border border-gray-200 rounded-2xl px-3 py-1.5">
                             <input
                               className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
                               placeholder="輸入回覆..."
@@ -762,7 +762,7 @@ export function AuctionFbPanel({
                 {merchantSentSuccess && (
                   <span className="text-[11px] font-semibold text-green-600 whitespace-nowrap shrink-0">✓ 已發送</span>
                 )}
-                <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 gap-2 overflow-hidden">
+                <div className="flex-1 flex items-center bg-white border border-gray-200 rounded-2xl px-3 py-2 gap-2 overflow-hidden">
                   <input
                     className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
                     placeholder="撰寫廣播訊息給所有出價者..."
@@ -779,7 +779,7 @@ export function AuctionFbPanel({
               <div className="flex-1 text-center text-[12px] text-gray-400">此拍賣已結束，可繼續瀏覽</div>
             ) : (
               <>
-                <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 overflow-hidden">
+                <div className="flex-1 flex items-center bg-white border border-gray-200 rounded-2xl px-3 py-2 overflow-hidden">
                   <input
                     className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400"
                     placeholder={`出價 (最低 ${curr}${(bidCount > 0 ? currentPrice + bidIncrement : currentPrice).toLocaleString()})`}
@@ -828,7 +828,7 @@ export function AuctionFbPanel({
                 {memberLevel === "silver" && silverMaxAmount > 0 && (
                   <p className="text-[11px] text-blue-500 mb-2">銀牌單次上限：{curr}{silverMaxAmount.toLocaleString()}</p>
                 )}
-                <div className="flex items-center bg-gray-100 rounded-xl px-3 py-2.5 mb-4 mt-2">
+                <div className="flex items-center bg-white border border-gray-200 rounded-2xl px-3 py-2.5 mb-4 mt-2">
                   <span className="text-sm text-gray-500 shrink-0 mr-1">{curr}</span>
                   <input
                     className="flex-1 bg-transparent text-base font-bold focus:outline-none placeholder-gray-400"
