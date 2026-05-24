@@ -1377,8 +1377,8 @@ export default function MerchantSettings() {
                   <Button
                     onClick={() => {
                       const days = parseInt(mainPageDays, 10);
-                      if (isNaN(days) || days < 0 || days > 5) {
-                        toast.error("天數請填 0–5 之間的整數");
+                      if (isNaN(days) || days < 0 || days > 30) {
+                        toast.error("天數請填 0–30 之間的整數");
                         return;
                       }
                       setMainPageEndedDisplay.mutate({ showEndedOnMainPage: showEndedOnMain ? 1 : 0, mainPageEndedDays: days });
