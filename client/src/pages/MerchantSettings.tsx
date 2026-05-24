@@ -62,7 +62,7 @@ export default function MerchantSettings() {
   const [showEnded, setShowEnded] = useState(false);
   const [hideAfterDays, setHideAfterDays] = useState("7");
   const [showEndedOnMain, setShowEndedOnMain] = useState(true);
-  const [mainPageDays, setMainPageDays] = useState("2");
+  const [mainPageDays, setMainPageDays] = useState("7");
 
   const { data: myCategories } = trpc.merchants.getMyCategories.useQuery(undefined, { staleTime: 5 * 60 * 1000, enabled: isAuthenticated });
   const updateCatsMutation = trpc.merchants.updateMyCategories.useMutation({
@@ -290,7 +290,7 @@ export default function MerchantSettings() {
       setShowEnded((settings as any).showEndedAuctions === 1);
       setHideAfterDays(String((settings as any).hideEndedAfterDays ?? 7));
       setShowEndedOnMain((settings as any).showEndedOnMainPage !== 0);
-      setMainPageDays(String((settings as any).mainPageEndedDays ?? 2));
+      setMainPageDays(String((settings as any).mainPageEndedDays ?? 7));
       setShowUnsoldEndedState((settings as any).showUnsoldEnded === 1);
       try {
         const raw = (settings as { fbGroups?: string | null }).fbGroups;
@@ -1363,15 +1363,15 @@ export default function MerchantSettings() {
                         <Input
                           type="number"
                           min="0"
-                          max="5"
+                          max="30"
                           value={mainPageDays}
                           onChange={(e) => setMainPageDays(e.target.value)}
                           className="w-24 text-center"
                           disabled={setMainPageEndedDisplay.isPending}
                         />
-                        <span className="text-sm text-muted-foreground">日（最多 5 日）</span>
+                        <span className="text-sm text-muted-foreground">日（最多 30 日）</span>
                       </div>
-                      <p className="text-xs text-muted-foreground">預設 2 日，最多 5 日</p>
+                      <p className="text-xs text-muted-foreground">預設 7 日，最多 30 日</p>
                     </div>
                   )}
                   <Button
