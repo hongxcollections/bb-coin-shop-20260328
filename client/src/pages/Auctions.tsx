@@ -422,18 +422,6 @@ export default function Auctions() {
                 {f === "active" ? "競拍中" : "我的出價"}
               </Button>
             ))}
-            {_ss.fbViewEnabled === "true" && (
-              <button
-                onClick={() => {
-                  setViewMode(prev => prev === "fb" ? null : "fb");
-                }}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${viewMode === "fb" ? "bg-[#1877f2] text-white border-[#1877f2]" : "border-amber-200 text-amber-700 hover:bg-amber-50"}`}
-                title={viewMode === "fb" ? "切換至預設視圖（按拍賣各自設定）" : "切換至全局 FB 視圖"}
-              >
-                {viewMode === "fb" ? <List className="w-3.5 h-3.5" /> : <LayoutGrid className="w-3.5 h-3.5" />}
-                <span className="ml-0.5">{viewMode === "fb" ? "預設" : "FB"}</span>
-              </button>
-            )}
           </div>
         </div>
 
