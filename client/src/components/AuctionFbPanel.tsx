@@ -606,19 +606,18 @@ export function AuctionFbPanel({
                       {replyingToBidId === item.id && (
                         <div className="mt-2 flex items-center gap-2">
                           <Avatar name={user?.name ?? "?"} photoUrl={myAvatarUrl} size="sm" />
-                          <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5" style={{ border: "1px solid #E5E5E5", background: "#fff", borderRadius: "12px", overflow: "hidden" }}>
-                            <input
-                              className="flex-1 bg-transparent text-sm outline-none placeholder-gray-400"
-                              placeholder="輸入回覆..."
-                              value={replyText}
-                              onChange={(e) => setReplyText(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReplySubmit(item.id); } }}
-                              autoFocus
-                            />
-                            <button onClick={() => handleReplySubmit(item.id)} disabled={!replyText.trim() || replyBidMutation.isPending} className="text-[#1877f2] disabled:opacity-40 shrink-0">
-                              <Send className="w-4 h-4" />
-                            </button>
-                          </div>
+                          <input
+                            className="flex-1 px-3 py-1.5 text-sm outline-none placeholder-gray-400"
+                            style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                            placeholder="輸入回覆..."
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReplySubmit(item.id); } }}
+                            autoFocus
+                          />
+                          <button onClick={() => handleReplySubmit(item.id)} disabled={!replyText.trim() || replyBidMutation.isPending} className="text-[#1877f2] disabled:opacity-40 shrink-0">
+                            <Send className="w-4 h-4" />
+                          </button>
                         </div>
                       )}
                     </div>
@@ -762,15 +761,14 @@ export function AuctionFbPanel({
                 {merchantSentSuccess && (
                   <span className="text-[11px] font-semibold text-green-600 whitespace-nowrap shrink-0">✓ 已發送</span>
                 )}
-                <div className="flex-1 flex items-center px-3 py-2 gap-2" style={{ border: "1px solid #E5E5E5", background: "#fff", borderRadius: "12px", overflow: "hidden" }}>
-                  <input
-                    className="flex-1 bg-transparent text-sm outline-none placeholder-gray-400"
-                    placeholder="撰寫廣播訊息給所有出價者..."
-                    value={merchantInput}
-                    onChange={(e) => { setMerchantInput(e.target.value); if (merchantSentSuccess) setMerchantSentSuccess(false); }}
-                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleMerchantSend(); } }}
-                  />
-                </div>
+                <input
+                  className="flex-1 px-3 py-2 text-sm outline-none placeholder-gray-400"
+                  style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                  placeholder="撰寫廣播訊息給所有出價者..."
+                  value={merchantInput}
+                  onChange={(e) => { setMerchantInput(e.target.value); if (merchantSentSuccess) setMerchantSentSuccess(false); }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleMerchantSend(); } }}
+                />
                 <button onClick={handleMerchantSend} disabled={!merchantInput.trim() || broadcastMutation.isPending} className="p-2 text-[#1877f2] disabled:opacity-40 shrink-0">
                   <Send className="w-5 h-5" />
                 </button>
@@ -779,17 +777,16 @@ export function AuctionFbPanel({
               <div className="flex-1 text-center text-[12px] text-gray-400">此拍賣已結束，可繼續瀏覽</div>
             ) : (
               <>
-                <div className="flex-1 flex items-center px-3 py-2" style={{ border: "1px solid #E5E5E5", background: "#fff", borderRadius: "12px", overflow: "hidden" }}>
-                  <input
-                    className="flex-1 bg-transparent text-sm outline-none placeholder-gray-400"
-                    placeholder={`出價 (最低 ${curr}${(bidCount > 0 ? currentPrice + bidIncrement : currentPrice).toLocaleString()})`}
-                    value={bidInput}
-                    onChange={(e) => { if (/^\d*$/.test(e.target.value)) setBidInput(e.target.value); }}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleBuyerBid(); }}
-                    inputMode="numeric"
-                    disabled={!isAuthenticated}
-                  />
-                </div>
+                <input
+                  className="flex-1 px-3 py-2 text-sm outline-none placeholder-gray-400"
+                  style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                  placeholder={`出價 (最低 ${curr}${(bidCount > 0 ? currentPrice + bidIncrement : currentPrice).toLocaleString()})`}
+                  value={bidInput}
+                  onChange={(e) => { if (/^\d*$/.test(e.target.value)) setBidInput(e.target.value); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleBuyerBid(); }}
+                  inputMode="numeric"
+                  disabled={!isAuthenticated}
+                />
                 <button onClick={handleBuyerBid} disabled={!bidInput || placeBid.isPending} className="p-2 text-[#1877f2] disabled:opacity-40 shrink-0">
                   <Send className="w-5 h-5" />
                 </button>
@@ -828,10 +825,11 @@ export function AuctionFbPanel({
                 {memberLevel === "silver" && silverMaxAmount > 0 && (
                   <p className="text-[11px] text-blue-500 mb-2">銀牌單次上限：{curr}{silverMaxAmount.toLocaleString()}</p>
                 )}
-                <div className="flex items-center px-3 py-2.5 mb-4 mt-2" style={{ border: "1px solid #E5E5E5", background: "#fff", borderRadius: "12px", overflow: "hidden" }}>
-                  <span className="text-sm text-gray-500 shrink-0 mr-1">{curr}</span>
+                <div className="flex items-center gap-1 mb-4 mt-2">
+                  <span className="text-sm text-gray-500 shrink-0">{curr}</span>
                   <input
-                    className="flex-1 bg-transparent text-base font-bold focus:outline-none placeholder-gray-400"
+                    className="flex-1 px-3 py-2.5 text-base font-bold outline-none placeholder-gray-400"
+                    style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
                     inputMode="numeric"
                     placeholder={`最低 ${curr}${(bidCount > 0 ? currentPrice + bidIncrement : currentPrice).toLocaleString()}`}
                     value={proxyAmountStr}
