@@ -1170,6 +1170,43 @@ export async function closeExpiredAuctions(): Promise<number[]> {
   }
 }
 
+/** Insert winner auto-reply comment immediately when auction ends.
+ *  Uses atomic claim (winnerAutoReplySentAt) to prevent duplicates. */
+export async function sendWinnerAutoReply(auctionId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    const claimResult: any = await db.execute(sql`
+      UPDATE auctions SET winnerAutoReplySentAt = NOW()
+      WHERE id = ${auctionId}
+        AND status = 'ended'
+        AND highestBidderId IS NOT NULL
+        AND winnerAutoReplySentAt IS NULL
+    `);
+    const affected = claimResult?.[0]?.affectedRows ?? claimResult?.affectedRows ?? 0;
+    if (Number(affected) === 0) return;
+    const rows: any = await db.execute(sql.raw(`
+      SELECT a.createdBy, a.highestBidderId,
+        (SELECT b.id FROM bids b WHERE b.auctionId = a.id ORDER BY b.bidAmount DESC LIMIT 1) AS winnerBidId
+      FROM auctions a WHERE a.id = ${auctionId} LIMIT 1
+    `));
+    const a = Array.isArray(rows[0]) ? rows[0][0] : (Array.isArray(rows) ? rows[0] : null);
+    if (!a || !a.createdBy) return;
+    const settings = await getMerchantSettings(Number(a.createdBy));
+    const message = (settings as any).winnerAutoReplyMessage?.trim() || '恭喜成功得標！請聯繫商戶確認交收事宜🤝';
+    const winnerBidId = a.winnerBidId != null ? Number(a.winnerBidId) : null;
+    const { auctionComments } = await import('../drizzle/schema');
+    await db.insert(auctionComments).values({
+      auctionId,
+      userId: Number(a.createdBy),
+      content: message,
+      ...(winnerBidId ? { replyToBidId: winnerBidId } : {}),
+    });
+  } catch (e) {
+    console.error(`[WinnerAutoReply] auctionId=${auctionId} error:`, e);
+  }
+}
+
 /** Dashboard statistics for admin panel */
 export async function getDashboardStats() {
   const db = await getDb();

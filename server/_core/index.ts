@@ -1919,54 +1919,6 @@ Output ONLY the JSON, nothing else.`;
     }
   }, 5 * 60 * 1000);
 
-  // 得標者自動回覆 + web push — 每 2 分鐘
-  setInterval(async () => {
-    try {
-      const { getDb, getMerchantSettings } = await import('../db');
-      const { sql: sqlTag } = await import('drizzle-orm');
-      const { sendPushToUser } = await import('../push');
-      const db = await getDb();
-      if (!db) return;
-      const rows: any = await db.execute(sqlTag.raw(`
-        SELECT a.id, a.title, a.createdBy, a.highestBidderId,
-          (SELECT b.id FROM bids b WHERE b.auctionId = a.id ORDER BY b.bidAmount DESC LIMIT 1) AS winnerBidId
-        FROM auctions a
-        WHERE a.status = 'ended'
-          AND a.highestBidderId IS NOT NULL
-          AND a.winnerAutoReplySentAt IS NULL
-        LIMIT 20
-      `));
-      const ended: any[] = Array.isArray(rows[0]) ? rows[0] : (Array.isArray(rows) ? rows as any[] : []);
-      for (const a of ended) {
-        try {
-          const claimResult: any = await db.execute(sqlTag.raw(
-            `UPDATE auctions SET winnerAutoReplySentAt = NOW() WHERE id = ${Number(a.id)} AND winnerAutoReplySentAt IS NULL`
-          ));
-          const affected = claimResult?.[0]?.affectedRows ?? claimResult?.affectedRows ?? 0;
-          if (Number(affected) === 0) continue;
-          const settings = await getMerchantSettings(Number(a.createdBy));
-          const message = (settings as any).winnerAutoReplyMessage?.trim() || '恭喜成功得標！請聯繫商戶確認交收事宜🤝';
-          const { auctionComments } = await import('../../drizzle/schema');
-          const winnerBidId = a.winnerBidId != null ? Number(a.winnerBidId) : null;
-          await db.insert(auctionComments).values({
-            auctionId: Number(a.id),
-            userId: Number(a.createdBy),
-            content: message,
-            ...(winnerBidId ? { replyToBidId: winnerBidId } : {}),
-          });
-          await sendPushToUser(Number(a.highestBidderId), {
-            title: `🏆 恭喜得標：${String(a.title).slice(0, 40)}`,
-            body: message.slice(0, 120),
-            url: `/auctions/${Number(a.id)}`,
-          }).catch(() => {});
-        } catch (e) {
-          console.error(`[WinnerReply] Auction ${a.id} failed:`, e);
-        }
-      }
-    } catch (err) {
-      console.error('[Scheduler] Winner auto-reply error:', err);
-    }
-  }, 2 * 60 * 1000);
 
   // 啟動後 30 秒跑一次初始化
   setTimeout(async () => {

@@ -155,8 +155,7 @@ export function AuctionFbPanel({
   const isMerchant = !!user && user.id === createdBy;
   const isAdmin = !!(user as any)?.role && (user as any).role === "admin";
   const isCurrentUserWinner = !!(highestBidderId && user?.id && user.id === highestBidderId);
-  /* Privileged viewers see all real names/photos in ended auctions */
-  const isPrivileged = isMerchant || isAdmin || isCurrentUserWinner;
+  /* isPrivileged is finalised after items are known — see below */
   const curr = (!currency || currency === "HKD") ? "HK$" : currency;
   const sellerDisplayName = sellerName ?? "商戶";
 
@@ -309,6 +308,10 @@ export function AuctionFbPanel({
       String(item.userId) === String(user.id)
     ),
   }));
+  /* Any user who placed a bid in this auction also sees real names/photos */
+  const isParticipant = items.some((i) => i.isMyBid);
+  const isPrivileged = isMerchant || isAdmin || isCurrentUserWinner || isParticipant;
+
   const topLevelItems = items.filter(
     i => i.type === "bid" || (i.type === "comment" && i.replyToBidId === null)
   );
