@@ -143,8 +143,8 @@ export function AuctionCard({
   }
 
   const cardBg = isEndingSoon
-    ? (hasMyBid ? "border-orange-300 bg-orange-100/70 hover:border-orange-400" : "border-orange-200 bg-orange-50/40 hover:border-orange-300")
-    : (hasMyBid ? "border-amber-200 bg-amber-100/50 hover:border-amber-300 hover:bg-amber-100/80" : "border-amber-100 hover:border-amber-300 hover:bg-amber-50/50");
+    ? (hasMyBid ? "border-orange-300 bg-orange-200/60 hover:border-orange-400" : "border-orange-200 bg-orange-50/40 hover:border-orange-300")
+    : (hasMyBid ? "border-amber-300 bg-amber-100 hover:border-amber-400 hover:bg-amber-100" : "border-amber-100 hover:border-amber-300 hover:bg-amber-50/50");
 
   return (
     <Link href={`/auctions/${auctionId}`} onClick={onLinkClick}>
