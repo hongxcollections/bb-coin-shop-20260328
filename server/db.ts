@@ -3723,14 +3723,10 @@ export async function getRecentlyEndedForMainPage(): Promise<Array<{
   id: number; title: string; endTime: Date | string; createdBy: number;
   currency: string | null; sellerName: string | null; coverImage: string | null;
 }>> {
-  const db = await getDb();
-  if (!db) return [];
-  const extractRows = (result: unknown): Array<Record<string, unknown>> => {
-    const raw = result as unknown as [Array<Record<string, unknown>>, unknown];
-    if (Array.isArray(raw) && Array.isArray(raw[0])) return raw[0];
-    if (Array.isArray(raw)) return raw as unknown as Array<Record<string, unknown>>;
-    return [];
-  };
+  // Use raw pool directly — db.execute() result structure varies across MySQL/TiDB versions
+  const pool = await getRawPool();
+  if (!pool) return [];
+
   const mapRow = (r: Record<string, unknown>) => ({
     id: Number(r.id),
     title: String(r.title ?? ''),
@@ -3743,8 +3739,8 @@ export async function getRecentlyEndedForMainPage(): Promise<Array<{
 
   // Try full query with per-merchant settings (showEndedOnMainPage, mainPageEndedDays, showUnsoldEnded)
   try {
-    const result = await db.execute(sql`
-      SELECT
+    const [rows] = await pool.execute(
+      `SELECT
         a.id, a.title, a.endTime, a.createdBy, a.currency,
         (SELECT name FROM users WHERE id = a.createdBy LIMIT 1) AS sellerName,
         (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY id ASC LIMIT 1) AS coverImage
@@ -3757,17 +3753,17 @@ export async function getRecentlyEndedForMainPage(): Promise<Array<{
         ), 5) DAY)
         AND NOT (a.highestBidderId IS NULL AND COALESCE((SELECT showUnsoldEnded FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 0) = 0)
       ORDER BY a.endTime DESC
-      LIMIT 200
-    `);
-    const rows = extractRows(result).map(mapRow);
-    console.log('[getRecentlyEndedForMainPage] full query returned', rows.length, 'rows');
-    return rows;
+      LIMIT 200`
+    );
+    const result = (rows as Array<Record<string, unknown>>).map(mapRow);
+    console.log('[getRecentlyEndedForMainPage] full query returned', result.length, 'rows');
+    return result;
   } catch (err1) {
     console.warn('[getRecentlyEndedForMainPage] full query failed, trying fallback:', (err1 as Error).message);
-    // Fallback: columns may not exist yet on this DB — show ended auctions with bids from last 2 days
+    // Fallback: columns may not exist yet on this DB
     try {
-      const result = await db.execute(sql`
-        SELECT
+      const [rows] = await pool.execute(
+        `SELECT
           a.id, a.title, a.endTime, a.createdBy, a.currency,
           (SELECT name FROM users WHERE id = a.createdBy LIMIT 1) AS sellerName,
           (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY id ASC LIMIT 1) AS coverImage
@@ -3777,11 +3773,11 @@ export async function getRecentlyEndedForMainPage(): Promise<Array<{
           AND a.endTime >= DATE_SUB(NOW(), INTERVAL 2 DAY)
           AND a.highestBidderId IS NOT NULL
         ORDER BY a.endTime DESC
-        LIMIT 200
-      `);
-      const rows = extractRows(result).map(mapRow);
-      console.log('[getRecentlyEndedForMainPage] fallback query returned', rows.length, 'rows');
-      return rows;
+        LIMIT 200`
+      );
+      const result = (rows as Array<Record<string, unknown>>).map(mapRow);
+      console.log('[getRecentlyEndedForMainPage] fallback query returned', result.length, 'rows');
+      return result;
     } catch (err2) {
       console.error('[getRecentlyEndedForMainPage] both queries failed:', (err2 as Error).message);
       return [];
