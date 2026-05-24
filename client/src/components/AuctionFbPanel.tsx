@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Send, ThumbsUp, ThumbsDown, X, Truck, User, EyeOff, Eye, PenLine } from "lucide-react";
+import { Send, ThumbsUp, ThumbsDown, X, Truck, User, EyeOff, Eye, Bot } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
@@ -173,8 +173,8 @@ export function AuctionFbPanel({
   const pidRef = useRef(0);
   const [paymentInfoOpen, setPaymentInfoOpen] = useState(false);
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [customBidOpen, setCustomBidOpen] = useState(false);
-  const [customBidStr, setCustomBidStr] = useState("");
+  const [proxyBidOpen, setProxyBidOpen] = useState(false);
+  const [proxyAmountStr, setProxyAmountStr] = useState("");
 
   /* ── Drag-to-close (down + right) ── */
   const [dragY, setDragY] = useState(0);
@@ -278,6 +278,10 @@ export function AuctionFbPanel({
     { merchantUserId: createdBy! },
     { enabled: !!createdBy && open }
   );
+  const { data: myProxy, refetch: refetchProxy } = trpc.auctions.getMyProxyBid.useQuery(
+    { auctionId },
+    { enabled: isAuthenticated && open }
+  );
   const { data: defaultAnonData } = trpc.users.getDefaultAnonymous.useQuery(undefined, {
     enabled: isAuthenticated && open,
   });
@@ -285,7 +289,10 @@ export function AuctionFbPanel({
     enabled: isAuthenticated && open,
   });
   const canUseAnonymous = autoBidStatus?.canUseAnonymous ?? false;
+  const canUseAutoBid = autoBidStatus?.canUseAutoBid ?? true;
   const memberLevel = autoBidStatus?.level ?? "bronze";
+  const bronzeQuota = autoBidStatus?.bronzeQuota ?? { used: 0, total: 0, remaining: 0 };
+  const silverMaxAmount = autoBidStatus?.silverMaxAmount ?? 0;
 
   useEffect(() => {
     if (defaultAnonData !== undefined) {
@@ -311,11 +318,25 @@ export function AuctionFbPanel({
     onSuccess: () => { setReplyingToBidId(null); setReplyText(""); utils.auctionFbPanel.getPanel.invalidate(); toast.success("回覆已發送"); },
     onError: (err) => toast.error(err.message),
   });
+  const setProxyBidMutation = trpc.auctions.setProxyBid.useMutation({
+    onSuccess: () => {
+      toast.success("代理出價已設定！系統將在您被超越時自動出價。");
+      setProxyAmountStr("");
+      setProxyBidOpen(false);
+      refetchProxy();
+    },
+    onError: (err) => toast.error(`設定失敗：${err.message}`),
+  });
+  const cancelProxyBidMutation = trpc.auctions.cancelProxyBid.useMutation({
+    onSuccess: () => { toast.success("代理出價已取消"); refetchProxy(); },
+    onError: (err) => toast.error(`取消失敗：${err.message}`),
+  });
+
   const placeBid = trpc.auctions.placeBid.useMutation({
     onSuccess: () => {
       setBidInput("");
-      setCustomBidStr("");
-      setCustomBidOpen(false);
+      setProxyAmountStr("");
+      setProxyBidOpen(false);
       utils.auctionFbPanel.getPanel.invalidate();
       toast.success("出價成功！");
       setTimeout(() => {
@@ -390,14 +411,11 @@ export function AuctionFbPanel({
     if (amount < minBid) { toast.error(`出價最低 ${curr}${minBid.toLocaleString()}`); return; }
     placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: isAnonymous ? 1 : 0 });
   };
-  const handleCustomBid = () => {
+  const handleSetProxy = () => {
     if (!isAuthenticated) { window.location.href = getLoginUrl(); return; }
-    if (isEnded) { toast.error("此拍賣已結束"); return; }
-    const amount = parseInt(customBidStr, 10);
-    if (!amount || amount <= 0) { toast.error("請輸入有效出價金額"); return; }
-    const minBid = bidCount > 0 ? currentPrice + bidIncrement : currentPrice;
-    if (amount < minBid) { toast.error(`出價最低 ${curr}${minBid.toLocaleString()}`); return; }
-    placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: isAnonymous ? 1 : 0 });
+    const amount = parseInt(proxyAmountStr, 10);
+    if (!amount || amount <= 0) { toast.error("請輸入有效代理出價上限"); return; }
+    setProxyBidMutation.mutate({ auctionId, maxAmount: amount });
   };
   const handleMerchantSend = () => {
     if (!merchantInput.trim()) return;
@@ -508,7 +526,9 @@ export function AuctionFbPanel({
               const isOtherBidder = isEnded && !isPrivileged && !isLeading && !item.isAnonymous;
               const isWinnerAnon = isEnded && !isPrivileged && isLeading && !item.isAnonymous;
               const displayedName = item.isAnonymous
-                ? "匿名用戶"
+                ? (item.isMyBid || isMerchant || isAdmin)
+                  ? `匿名用戶(${item.userName})`
+                  : "匿名用戶"
                 : isWinnerAnon
                 ? "得標用戶***"
                 : isOtherBidder
@@ -677,17 +697,28 @@ export function AuctionFbPanel({
             </div>
           )}
 
-          {/* 自訂出價 + 匿名 compact row — buyer only, active auction */}
+          {/* 代理出價 + 匿名 compact row — buyer only, active auction */}
           {!isEnded && !isMerchant && isAuthenticated && (
-            <div className="px-3 pb-1.5 flex items-center gap-2 bg-white shrink-0">
-              {/* 自訂出價 */}
-              <button
-                onClick={() => { setCustomBidStr(""); setCustomBidOpen(true); }}
-                className="flex items-center gap-1 px-3 py-1 rounded-full border border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 text-[12px] font-medium transition-colors"
-              >
-                <PenLine className="w-3 h-3" />
-                自訂出價
-              </button>
+            <div className="px-3 pb-1.5 flex items-center justify-end gap-2 bg-white shrink-0">
+              {/* 代理出價 */}
+              {myProxy?.isActive ? (
+                <button
+                  onClick={() => cancelProxyBidMutation.mutate({ auctionId })}
+                  disabled={cancelProxyBidMutation.isPending}
+                  className="flex items-center gap-1 px-3 py-1 rounded-full border border-blue-300 bg-blue-50 text-blue-700 text-[12px] font-medium transition-colors hover:bg-blue-100 disabled:opacity-50"
+                >
+                  <Bot className="w-3 h-3" />
+                  代理中：{curr}{myProxy.maxAmount.toLocaleString()} ✕
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setProxyAmountStr(""); setProxyBidOpen(true); }}
+                  className="flex items-center gap-1 px-3 py-1 rounded-full border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-600 text-[12px] font-medium transition-colors"
+                >
+                  <Bot className="w-3 h-3" />
+                  代理出價
+                </button>
+              )}
               {/* 匿名 toggle */}
               <button
                 onClick={() => {
@@ -760,42 +791,51 @@ export function AuctionFbPanel({
         </div>
       </div>
 
-      {/* Custom bid popup */}
-      {customBidOpen && (
-        <div className="fixed inset-0 z-[75] flex items-center justify-center px-6" onClick={() => setCustomBidOpen(false)}>
+      {/* Proxy bid popup */}
+      {proxyBidOpen && (
+        <div className="fixed inset-0 z-[75] flex items-center justify-center px-6" onClick={() => setProxyBidOpen(false)}>
           <div className="absolute inset-0 bg-black/50" />
           <div className="relative z-10 w-full max-w-xs bg-white rounded-2xl shadow-2xl p-5" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-gray-800 text-[15px]">自訂出價</h3>
-              <button onClick={() => setCustomBidOpen(false)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <Bot className="w-4 h-4 text-blue-500" />
+                <h3 className="font-bold text-gray-800 text-[15px]">代理出價</h3>
+              </div>
+              <button onClick={() => setProxyBidOpen(false)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100">
                 <X className="w-4 h-4 text-gray-500" />
               </button>
             </div>
-            <p className="text-[11px] text-gray-500 mb-3">
-              {(() => {
-                const minBid = bidCount > 0 ? currentPrice + bidIncrement : currentPrice;
-                return `最低出價：${curr}${minBid.toLocaleString()}`;
-              })()}
-              {isAnonymous && <span className="ml-2 text-slate-500">· 匿名出價</span>}
-            </p>
-            <div className="flex items-center bg-gray-100 rounded-xl px-3 py-2.5 mb-4">
+            <p className="text-[11px] text-gray-500 mb-1">設定出價上限，系統在您被超越時自動幫您出價。</p>
+            {!canUseAutoBid && memberLevel === "bronze" && (
+              <p className="text-[11px] text-amber-600 mb-2">代理出價功能僅限 🥈 銀牌或以上會員</p>
+            )}
+            {memberLevel === "bronze" && bronzeQuota.total > 0 && canUseAutoBid && (
+              <p className="text-[11px] text-amber-600 mb-2">
+                本月代理出價剩 {bronzeQuota.remaining} / {bronzeQuota.total} 次
+              </p>
+            )}
+            {memberLevel === "silver" && silverMaxAmount > 0 && (
+              <p className="text-[11px] text-blue-500 mb-2">銀牌單次上限：{curr}{silverMaxAmount.toLocaleString()}</p>
+            )}
+            <div className="flex items-center bg-gray-100 rounded-xl px-3 py-2.5 mb-4 mt-2">
               <span className="text-sm text-gray-500 shrink-0 mr-1">{curr}</span>
               <input
                 className="flex-1 bg-transparent text-base font-bold focus:outline-none placeholder-gray-400"
                 inputMode="numeric"
-                placeholder="輸入金額"
-                value={customBidStr}
-                onChange={(e) => { if (/^\d*$/.test(e.target.value)) setCustomBidStr(e.target.value); }}
-                onKeyDown={(e) => { if (e.key === "Enter") handleCustomBid(); }}
+                placeholder={`最低 ${curr}${(bidCount > 0 ? currentPrice + bidIncrement : currentPrice).toLocaleString()}`}
+                value={proxyAmountStr}
+                onChange={(e) => { if (/^\d*$/.test(e.target.value)) setProxyAmountStr(e.target.value); }}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSetProxy(); }}
                 autoFocus
+                disabled={!canUseAutoBid}
               />
             </div>
             <button
-              onClick={handleCustomBid}
-              disabled={!customBidStr || placeBid.isPending}
-              className="w-full py-2.5 rounded-xl bg-[#1877f2] text-white font-bold text-sm disabled:opacity-40 active:bg-[#1565d8] transition-colors"
+              onClick={handleSetProxy}
+              disabled={!proxyAmountStr || setProxyBidMutation.isPending || !canUseAutoBid}
+              className="w-full py-2.5 rounded-xl bg-blue-500 text-white font-bold text-sm disabled:opacity-40 active:bg-blue-600 transition-colors"
             >
-              {placeBid.isPending ? "出價中..." : "確認出價"}
+              {setProxyBidMutation.isPending ? "設定中..." : "確認代理出價"}
             </button>
           </div>
         </div>
