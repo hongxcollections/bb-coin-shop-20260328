@@ -3685,6 +3685,53 @@ export async function getEndedAuctionsByMerchant(merchantId: number, hideAfterDa
   }
 }
 
+export async function getRecentlyEndedForMainPage(): Promise<Array<{
+  id: number; title: string; endTime: Date | string; createdBy: number;
+  currency: string | null; sellerName: string | null; coverImage: string | null;
+}>> {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    const result = await db.execute(sql`
+      SELECT
+        a.id,
+        a.title,
+        a.endTime,
+        a.createdBy,
+        a.currency,
+        (SELECT name FROM users WHERE id = a.createdBy LIMIT 1) AS sellerName,
+        (SELECT imageUrl FROM auctionImages WHERE auctionId = a.id ORDER BY id ASC LIMIT 1) AS coverImage
+      FROM auctions a
+      WHERE a.status = 'ended'
+        AND (a.archived = 0 OR a.archived IS NULL)
+        AND a.endTime >= DATE_SUB(NOW(), INTERVAL COALESCE(
+          (SELECT hideEndedAfterDays FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 3
+        ) DAY)
+      ORDER BY a.endTime DESC
+      LIMIT 200
+    `);
+    const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
+    let rows: Array<Record<string, unknown>> = [];
+    if (Array.isArray(rawRows[0])) {
+      rows = rawRows[0];
+    } else if (Array.isArray(rawRows)) {
+      rows = rawRows as unknown as Array<Record<string, unknown>>;
+    }
+    return rows.map(r => ({
+      id: Number(r.id),
+      title: String(r.title ?? ''),
+      endTime: r.endTime as Date | string,
+      createdBy: Number(r.createdBy),
+      currency: r.currency != null ? String(r.currency) : null,
+      sellerName: r.sellerName != null ? String(r.sellerName) : null,
+      coverImage: r.coverImage != null ? String(r.coverImage) : null,
+    }));
+  } catch (err) {
+    console.error('[getRecentlyEndedForMainPage] error:', err);
+    return [];
+  }
+}
+
 export async function setMerchantListingLayout(userId: number, listingLayout: string): Promise<void> {
   await ensureMerchantSettingsTable();
   const db = await getDb();

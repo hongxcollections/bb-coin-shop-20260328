@@ -99,6 +99,11 @@ export default function Auctions() {
     }
   );
 
+  const { data: recentlyEnded } = trpc.auctions.listRecentEnded.useQuery(undefined, {
+    refetchInterval: 30000,
+    staleTime: 15000,
+  });
+
   // 查詢當前用戶曾出價的拍賣 ID
   const { data: myBidsData } = trpc.auctions.myBids.useQuery(undefined, {
     enabled: isAuthenticated && filter === "myBids",
@@ -605,6 +610,41 @@ export default function Auctions() {
             >
               <ChevronRight className="w-4 h-4" />
             </Button>
+          </div>
+        )}
+
+        {/* Recently ended auction records — always shown, not affected by viewMode/filter */}
+        {(recentlyEnded ?? []).length > 0 && (
+          <div className="mt-3 flex flex-col gap-[1px]">
+            {(recentlyEnded as Array<{ id: number; title: string; endTime: string | Date; currency: string | null; sellerName: string | null; coverImage: string | null }>).map(rec => {
+              const dt = new Date(rec.endTime);
+              const mo = dt.getMonth() + 1;
+              const dy = dt.getDate();
+              const hh = String(dt.getHours()).padStart(2, "0");
+              const mm = String(dt.getMinutes()).padStart(2, "0");
+              const endedAt = `${mo}月${dy}日 ${hh}:${mm}`;
+              return (
+                <Link
+                  key={rec.id}
+                  href={`/auctions/${rec.id}`}
+                  onClick={saveScrollPosition}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 hover:bg-gray-100 transition-colors w-full"
+                >
+                  <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center">
+                    {rec.coverImage
+                      ? <img src={rec.coverImage} alt={rec.title} className="w-full h-full object-cover" />
+                      : <span className="text-lg">🪙</span>
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-700 truncate leading-snug">{rec.title}</p>
+                    <p className="text-xs text-gray-400 leading-snug truncate">
+                      {rec.sellerName ?? "商戶"} · 已結束 · {endedAt}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

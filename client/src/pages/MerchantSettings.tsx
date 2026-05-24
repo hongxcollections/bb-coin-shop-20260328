@@ -277,7 +277,7 @@ export default function MerchantSettings() {
       setFbShareTemplate(settings.fbShareTemplate ?? "");
       setFbShareTemplateProduct((settings as { fbShareTemplateProduct?: string | null }).fbShareTemplateProduct ?? "");
       setShowEnded((settings as any).showEndedAuctions === 1);
-      setHideAfterDays(String((settings as any).hideEndedAfterDays ?? 7));
+      setHideAfterDays(String((settings as any).hideEndedAfterDays ?? 3));
       try {
         const raw = (settings as { fbGroups?: string | null }).fbGroups;
         if (raw) {
@@ -1306,7 +1306,7 @@ export default function MerchantSettings() {
                       />
                       <span className="text-sm text-muted-foreground">日（填 0 = 永久顯示）</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">例如填 7，完結超過 7 日嘅拍賣會自動從商戶頁隱藏</p>
+                    <p className="text-xs text-muted-foreground">例如填 3，完結超過該日數嘅拍賣會自動從主頁及商戶頁隱藏（預設 3 日）</p>
                   </div>
                 )}
                 {/* 儲存按鈕 */}
