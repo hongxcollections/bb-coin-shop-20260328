@@ -32,6 +32,7 @@ type PanelItem = {
   id: number;
   userId: number;
   userName: string;
+  realUserName: string | null;
   photoUrl: string | null;
   content: string;
   rawAmount: number | null;
@@ -271,7 +272,7 @@ export function AuctionFbPanel({
 
   const utils = trpc.useUtils();
   const { data: panelData, isLoading } = trpc.auctionFbPanel.getPanel.useQuery(
-    { auctionId, sort, viewerUserId: user?.id },
+    { auctionId, sort, viewerUserId: user?.id, createdBy: createdBy ?? undefined },
     { enabled: open, refetchOnWindowFocus: false }
   );
   const { data: paymentInfo } = trpc.merchants.getPaymentInfo.useQuery(
@@ -350,9 +351,9 @@ export function AuctionFbPanel({
   /* Chrome: ctx.user may be null for publicProcedure — supplement server isMyBid with client check */
   const items: PanelItem[] = (panelData?.items ?? []).map(item => ({
     ...item,
+    realUserName: (item as any).realUserName ?? null,
     isMyBid: item.isMyBid || (
       item.type === "bid" &&
-      !item.isAnonymous &&
       user?.id != null &&
       String(item.userId) === String(user.id)
     ),
@@ -526,8 +527,8 @@ export function AuctionFbPanel({
               const isOtherBidder = isEnded && !isPrivileged && !isLeading && !item.isAnonymous;
               const isWinnerAnon = isEnded && !isPrivileged && isLeading && !item.isAnonymous;
               const displayedName = item.isAnonymous
-                ? (item.isMyBid || isMerchant || isAdmin)
-                  ? `匿名用戶(${item.userName})`
+                ? item.realUserName
+                  ? `匿名用戶(${item.realUserName})`
                   : "匿名用戶"
                 : isWinnerAnon
                 ? "得標用戶***"

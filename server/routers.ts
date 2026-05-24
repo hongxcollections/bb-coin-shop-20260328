@@ -9655,6 +9655,7 @@ EXAMPLE OUTPUT (exact format):
         auctionId: z.number().int().positive(),
         sort: z.enum(["new", "old"]).default("new"),
         viewerUserId: z.number().int().positive().optional(),
+        createdBy: z.number().int().positive().optional(),
       }))
       .query(async ({ input, ctx }) => {
         /* ctx.user may be null in Chrome (public procedure, cookie may not be sent).
@@ -9663,10 +9664,15 @@ EXAMPLE OUTPUT (exact format):
           ctx.user?.id != null ? Number(ctx.user.id)
           : input.viewerUserId != null ? Number(input.viewerUserId)
           : null;
+        /* Privileged = admin or auction merchant (verified via ctx.user only, not client-supplied) */
+        const isPrivilegedViewer =
+          ctx.user?.role === 'admin' ||
+          (input.createdBy != null && ctx.user?.id != null && Number(ctx.user.id) === Number(input.createdBy));
         const db = await getDb();
         const bidsRows: any = await db.execute(sql.raw(`
           SELECT 'bid' AS type, b.id, b.auctionId, b.userId,
             CASE WHEN b.isAnonymous=1 THEN '匿名用戶' ELSE u.name END AS userName,
+            u.name AS realUserName,
             COALESCE(NULLIF(TRIM(ma.merchantIcon),''), NULLIF(TRIM(u.photoUrl),'')) AS photoUrl,
             CAST(b.bidAmount AS CHAR) AS content,
             CAST(b.bidAmount AS DECIMAL(10,2)) AS rawAmount,
@@ -9702,20 +9708,26 @@ EXAMPLE OUTPUT (exact format):
         const bidsArr = normalise(bidsRows);
         const commentsArr = normalise(commentsRows);
         const merged = [
-          ...bidsArr.map((r: any) => ({
-            type: 'bid' as const,
-            id: Number(r.id),
-            userId: Number(r.userId),
-            userName: (r.userName as string) ?? '匿名用戶',
-            photoUrl: (r.photoUrl as string | null) ?? null,
-            content: String(r.content ?? ''),
-            rawAmount: r.rawAmount != null ? Number(r.rawAmount) : null,
-            isAnonymous: Boolean(r.isAnonymous),
-            /* isMyBid computed server-side — avoids browser int/string type mismatch */
-            isMyBid: !Boolean(r.isAnonymous) && myUserId != null && Number(r.userId) === myUserId,
-            replyToBidId: null as null,
-            createdAt: normDate(r.createdAt),
-          })),
+          ...bidsArr.map((r: any) => {
+            const isOwn = myUserId != null && Number(r.userId) === myUserId;
+            const canSeeReal = isPrivilegedViewer || isOwn;
+            return {
+              type: 'bid' as const,
+              id: Number(r.id),
+              userId: Number(r.userId),
+              userName: (r.userName as string) ?? '匿名用戶',
+              /* realUserName only exposed to merchant/admin/own bid */
+              realUserName: Boolean(r.isAnonymous) && canSeeReal ? (r.realUserName as string ?? null) : null,
+              photoUrl: (r.photoUrl as string | null) ?? null,
+              content: String(r.content ?? ''),
+              rawAmount: r.rawAmount != null ? Number(r.rawAmount) : null,
+              isAnonymous: Boolean(r.isAnonymous),
+              /* isMyBid includes own anonymous bids */
+              isMyBid: myUserId != null && Number(r.userId) === myUserId,
+              replyToBidId: null as null,
+              createdAt: normDate(r.createdAt),
+            };
+          }),
           ...commentsArr.map((r: any) => ({
             type: 'comment' as const,
             id: Number(r.id),
