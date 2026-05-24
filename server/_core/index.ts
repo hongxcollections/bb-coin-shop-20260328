@@ -999,6 +999,20 @@ async function bootstrapMissingColumns() {
     );
   }
 
+  if (!(await check('merchant_settings', 'showEndedOnMainPage'))) {
+    await alter(
+      `ALTER TABLE \`merchant_settings\` ADD COLUMN \`showEndedOnMainPage\` tinyint(1) NOT NULL DEFAULT 1`,
+      'Added showEndedOnMainPage to merchant_settings'
+    );
+  }
+
+  if (!(await check('merchant_settings', 'mainPageEndedDays'))) {
+    await alter(
+      `ALTER TABLE \`merchant_settings\` ADD COLUMN \`mainPageEndedDays\` int NOT NULL DEFAULT 3`,
+      'Added mainPageEndedDays to merchant_settings'
+    );
+  }
+
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
 }

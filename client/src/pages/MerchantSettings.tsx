@@ -47,11 +47,17 @@ export default function MerchantSettings() {
     onError: (err) => toast.error(err.message || "儲存失敗"),
   });
   const setEndedVisibility = trpc.merchants.setEndedAuctionVisibility.useMutation({
-    onSuccess: () => { utils.merchants.getSettings.invalidate(); toast.success("完結拍賣顯示設定已儲存"); },
+    onSuccess: () => { utils.merchants.getSettings.invalidate(); toast.success("商戶頁完結拍賣設定已儲存"); },
+    onError: (err) => toast.error(err.message || "儲存失敗"),
+  });
+  const setMainPageEndedDisplay = trpc.merchants.setMainPageEndedDisplay.useMutation({
+    onSuccess: () => { utils.merchants.getSettings.invalidate(); toast.success("拍賣主頁紀錄設定已儲存"); },
     onError: (err) => toast.error(err.message || "儲存失敗"),
   });
   const [showEnded, setShowEnded] = useState(false);
   const [hideAfterDays, setHideAfterDays] = useState("7");
+  const [showEndedOnMain, setShowEndedOnMain] = useState(true);
+  const [mainPageDays, setMainPageDays] = useState("3");
 
   const { data: myCategories } = trpc.merchants.getMyCategories.useQuery(undefined, { staleTime: 5 * 60 * 1000, enabled: isAuthenticated });
   const updateCatsMutation = trpc.merchants.updateMyCategories.useMutation({
@@ -277,7 +283,9 @@ export default function MerchantSettings() {
       setFbShareTemplate(settings.fbShareTemplate ?? "");
       setFbShareTemplateProduct((settings as { fbShareTemplateProduct?: string | null }).fbShareTemplateProduct ?? "");
       setShowEnded((settings as any).showEndedAuctions === 1);
-      setHideAfterDays(String((settings as any).hideEndedAfterDays ?? 3));
+      setHideAfterDays(String((settings as any).hideEndedAfterDays ?? 7));
+      setShowEndedOnMain((settings as any).showEndedOnMainPage !== 0);
+      setMainPageDays(String((settings as any).mainPageEndedDays ?? 3));
       try {
         const raw = (settings as { fbGroups?: string | null }).fbGroups;
         if (raw) {
@@ -1277,11 +1285,12 @@ export default function MerchantSettings() {
               </div>
             ) : (
               <>
+                <p className="text-xs text-muted-foreground font-medium text-amber-700">商戶主頁設定</p>
                 <p className="text-xs text-muted-foreground">控制你商戶頁面是否顯示已完結嘅拍賣，方便買家翻查歷史成交</p>
-                {/* 顯示開關 */}
+                {/* 商戶頁顯示開關 */}
                 <div className="flex items-center justify-between pt-1">
                   <div>
-                    <p className="text-sm font-medium text-gray-700">展示完結拍賣</p>
+                    <p className="text-sm font-medium text-gray-700">展示完結拍賣（商戶頁）</p>
                     <p className="text-xs text-muted-foreground">開啟後訪客可以喺你嘅商戶頁睇到歷史拍賣</p>
                   </div>
                   <Switch
@@ -1290,7 +1299,7 @@ export default function MerchantSettings() {
                     disabled={setEndedVisibility.isPending}
                   />
                 </div>
-                {/* 隱藏天數 */}
+                {/* 商戶頁隱藏天數 */}
                 {showEnded && (
                   <div className="space-y-2 pt-1 border-t border-gray-100">
                     <Label className="text-gray-700 text-sm">完結後保留顯示天數</Label>
@@ -1306,10 +1315,9 @@ export default function MerchantSettings() {
                       />
                       <span className="text-sm text-muted-foreground">日（填 0 = 永久顯示）</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">例如填 3，完結超過該日數嘅拍賣會自動從主頁及商戶頁隱藏（預設 3 日）</p>
+                    <p className="text-xs text-muted-foreground">預設 7 日，無上限</p>
                   </div>
                 )}
-                {/* 儲存按鈕 */}
                 <Button
                   onClick={() => {
                     const days = parseInt(hideAfterDays, 10);
@@ -1323,8 +1331,59 @@ export default function MerchantSettings() {
                   className="gold-gradient text-white border-0 gap-1.5"
                 >
                   {setEndedVisibility.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  儲存設定
+                  儲存商戶頁設定
                 </Button>
+
+                <div className="border-t border-gray-100 pt-4 space-y-3">
+                  <p className="text-xs text-muted-foreground font-medium text-amber-700">拍賣主頁紀錄設定</p>
+                  <p className="text-xs text-muted-foreground">控制你的完結拍賣是否在拍賣主頁保留一條紀錄連結（細條橫欄），方便用戶快速翻查</p>
+                  {/* 拍賣主頁顯示開關 */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">展示完結紀錄（拍賣主頁）</p>
+                      <p className="text-xs text-muted-foreground">開啟後完結拍賣會喺拍賣主頁保留短暫紀錄</p>
+                    </div>
+                    <Switch
+                      checked={showEndedOnMain}
+                      onCheckedChange={(checked) => setShowEndedOnMain(checked)}
+                      disabled={setMainPageEndedDisplay.isPending}
+                    />
+                  </div>
+                  {/* 拍賣主頁天數 */}
+                  {showEndedOnMain && (
+                    <div className="space-y-2 border-t border-gray-100 pt-2">
+                      <Label className="text-gray-700 text-sm">紀錄保留天數</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="7"
+                          value={mainPageDays}
+                          onChange={(e) => setMainPageDays(e.target.value)}
+                          className="w-24 text-center"
+                          disabled={setMainPageEndedDisplay.isPending}
+                        />
+                        <span className="text-sm text-muted-foreground">日（最多 7 日）</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">預設 3 日，最多 7 日</p>
+                    </div>
+                  )}
+                  <Button
+                    onClick={() => {
+                      const days = parseInt(mainPageDays, 10);
+                      if (isNaN(days) || days < 0 || days > 7) {
+                        toast.error("天數請填 0–7 之間的整數");
+                        return;
+                      }
+                      setMainPageEndedDisplay.mutate({ showEndedOnMainPage: showEndedOnMain ? 1 : 0, mainPageEndedDays: days });
+                    }}
+                    disabled={setMainPageEndedDisplay.isPending}
+                    className="gold-gradient text-white border-0 gap-1.5"
+                  >
+                    {setMainPageEndedDisplay.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    儲存主頁設定
+                  </Button>
+                </div>
               </>
             )}
           </CardContent>

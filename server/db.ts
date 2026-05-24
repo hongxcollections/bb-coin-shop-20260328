@@ -3520,13 +3520,15 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   productCategories: null as string | null,
   showEndedAuctions: 0,
   hideEndedAfterDays: 7,
+  showEndedOnMainPage: 1,
+  mainPageEndedDays: 3,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
   if (!db) return { ...MERCHANT_SETTINGS_DEFAULTS };
   try {
-    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, winnerAutoReplyMessage, offersGloballyEnabled, offerWindowDays, offerMaxPerWindow, failureLockThreshold, failureLockDays, failureLockEnabled, autoGenerateCover, autoGenerateProductCover, productCategories, showEndedAuctions, hideEndedAfterDays FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+    const result = await db.execute(sql`SELECT defaultEndDayOffset, defaultEndTime, defaultStartingPrice, defaultBidIncrement, defaultAntiSnipeEnabled, defaultAntiSnipeMinutes, defaultExtendMinutes, listingLayout, paymentInstructions, deliveryInfo, watermarkEnabled, watermarkText, watermarkOpacity, watermarkShadow, watermarkPosition, watermarkSize, fbShareTemplate, fbShareTemplateProduct, fbGroups, auctionsPerPage, productsPerPage, showSoldProducts, fbRefreshPreviewEnabled, chatAutoReplyEnabled, chatAutoReplyMessage, winnerAutoReplyMessage, offersGloballyEnabled, offerWindowDays, offerMaxPerWindow, failureLockThreshold, failureLockDays, failureLockEnabled, autoGenerateCover, autoGenerateProductCover, productCategories, showEndedAuctions, hideEndedAfterDays, showEndedOnMainPage, mainPageEndedDays FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
     const rawRows = result as unknown as [Array<Record<string, unknown>>, unknown];
     let row: Record<string, unknown> | null = null;
     if (Array.isArray(rawRows[0])) {
@@ -3573,6 +3575,8 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         productCategories: row.productCategories != null ? String(row.productCategories) : null,
         showEndedAuctions: Number(row.showEndedAuctions ?? 0),
         hideEndedAfterDays: Number(row.hideEndedAfterDays ?? 7),
+        showEndedOnMainPage: Number(row.showEndedOnMainPage ?? 1),
+        mainPageEndedDays: Number(row.mainPageEndedDays ?? 3),
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
@@ -3704,9 +3708,10 @@ export async function getRecentlyEndedForMainPage(): Promise<Array<{
       FROM auctions a
       WHERE a.status = 'ended'
         AND (a.archived = 0 OR a.archived IS NULL)
-        AND a.endTime >= DATE_SUB(NOW(), INTERVAL COALESCE(
-          (SELECT hideEndedAfterDays FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 3
-        ) DAY)
+        AND COALESCE((SELECT showEndedOnMainPage FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 1) = 1
+        AND a.endTime >= DATE_SUB(NOW(), INTERVAL LEAST(COALESCE(
+          (SELECT mainPageEndedDays FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 3
+        ), 7) DAY)
       ORDER BY a.endTime DESC
       LIMIT 200
     `);
@@ -3730,6 +3735,17 @@ export async function getRecentlyEndedForMainPage(): Promise<Array<{
     console.error('[getRecentlyEndedForMainPage] error:', err);
     return [];
   }
+}
+
+export async function setMainPageEndedDisplay(userId: number, showEndedOnMainPage: number, mainPageEndedDays: number): Promise<void> {
+  await ensureMerchantSettingsTable();
+  const db = await getDb();
+  if (!db) throw new Error('DB unavailable');
+  await db.execute(sql`
+    INSERT INTO merchant_settings (userId, showEndedOnMainPage, mainPageEndedDays)
+    VALUES (${userId}, ${showEndedOnMainPage}, ${mainPageEndedDays})
+    ON DUPLICATE KEY UPDATE showEndedOnMainPage = ${showEndedOnMainPage}, mainPageEndedDays = ${mainPageEndedDays}, updatedAt = CURRENT_TIMESTAMP
+  `);
 }
 
 export async function setMerchantListingLayout(userId: number, listingLayout: string): Promise<void> {
