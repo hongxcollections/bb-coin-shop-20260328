@@ -9745,7 +9745,9 @@ EXAMPLE OUTPUT (exact format):
         merged.sort((a, b) => {
           const ta = new Date(a.createdAt).getTime();
           const tb = new Date(b.createdAt).getTime();
-          return input.sort === "new" ? tb - ta : ta - tb;
+          if (ta !== tb) return input.sort === "new" ? tb - ta : ta - tb;
+          /* Same-second tiebreak: higher id = later insertion = treat as newer */
+          return input.sort === "new" ? b.id - a.id : a.id - b.id;
         });
         return { items: merged, totalBids: merged.length };
       }),
