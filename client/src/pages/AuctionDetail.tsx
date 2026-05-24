@@ -16,6 +16,7 @@ import { getCurrencySymbol } from "./AdminAuctions";
 import Header from "@/components/Header";
 import { MembershipBenefitsDialog, useMembershipBenefitsDialog } from "@/components/MembershipBenefitsDialog";
 import { useSeoMeta } from "@/lib/useSeoMeta";
+import { useConfirm } from "@/components/ui/confirm-provider";
 import { ShareMenu } from "@/components/ShareMenu";
 import ImageLightbox from "@/components/ImageLightbox";
 import ChatButton from "@/components/ChatButton";
@@ -120,6 +121,7 @@ export default function AuctionDetail() {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [showBidConfirm, setShowBidConfirm] = useState(false);
   const [pendingBidAmount, setPendingBidAmount] = useState(0);
+  const confirm = useConfirm();
   const [showProxyConfirm, setShowProxyConfirm] = useState(false);
   const [pendingProxyAmount, setPendingProxyAmount] = useState(0);
   const memberBenefits = useMembershipBenefitsDialog();
@@ -416,6 +418,16 @@ export default function AuctionDetail() {
           return;
         }
       } catch {}
+    }
+    // 如有 active 代理出價，先提示用戶
+    if (myProxy?.isActive) {
+      const ok = await confirm({
+        title: "你已設有代理出價",
+        description: `你的代理出價上限為 ${currencySymbol}${Number(myProxy.maxAmount).toLocaleString()}，系統會自動為你出價。確定還要手動出價 ${currencySymbol}${amount.toLocaleString()}？`,
+        confirmText: "確定手動出價",
+        cancelText: "取消",
+      });
+      if (!ok) return;
     }
     // 顯示確認彈窗
     setPendingBidAmount(amount);

@@ -5,6 +5,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
 import { Switch } from "@/components/ui/switch";
+import { useConfirm } from "@/components/ui/confirm-provider";
 
 interface AuctionFbPanelProps {
   open: boolean;
@@ -162,6 +163,7 @@ export function AuctionFbPanel({
   /* isPrivileged is finalised after items are known — see below */
   const curr = (!currency || currency === "HKD") ? "HK$" : currency;
   const sellerDisplayName = sellerName ?? "商戶";
+  const confirm = useConfirm();
 
   const [sort, setSort] = useState<"new" | "old">("new");
   const [showSortSheet, setShowSortSheet] = useState(false);
@@ -404,13 +406,22 @@ export function AuctionFbPanel({
     if (!replyText.trim()) return;
     replyBidMutation.mutate({ bidId, content: replyText.trim() });
   };
-  const handleBuyerBid = () => {
+  const handleBuyerBid = async () => {
     if (!isAuthenticated) { window.location.href = getLoginUrl(); return; }
     if (isEnded) { toast.error("此拍賣已結束"); return; }
     const amount = parseInt(bidInput, 10);
     if (!amount || amount <= 0) { toast.error("請輸入有效出價金額"); return; }
     const minBid = bidCount > 0 ? currentPrice + bidIncrement : currentPrice;
     if (amount < minBid) { toast.error(`出價最低 ${curr}${minBid.toLocaleString()}`); return; }
+    if (myProxy?.isActive) {
+      const ok = await confirm({
+        title: "你已設有代理出價",
+        description: `你的代理出價上限為 ${curr}${Number(myProxy.maxAmount).toLocaleString()}，系統會自動為你出價。確定還要手動出價 ${curr}${amount.toLocaleString()}？`,
+        confirmText: "確定手動出價",
+        cancelText: "取消",
+      });
+      if (!ok) return;
+    }
     placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: isAnonymous ? 1 : 0 });
   };
   const handleSetProxy = () => {
