@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Send, ThumbsUp, ThumbsDown, X, Truck, User } from "lucide-react";
+import { Send, ThumbsUp, ThumbsDown, X, Truck, User, EyeOff, Eye, PenLine } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
+import { Switch } from "@/components/ui/switch";
 
 interface AuctionFbPanelProps {
   open: boolean;
@@ -171,6 +172,9 @@ export function AuctionFbPanel({
   const [particles, setParticles] = useState<{ id: number; bidId: number; dir: "up" | "down" }[]>([]);
   const pidRef = useRef(0);
   const [paymentInfoOpen, setPaymentInfoOpen] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [customBidOpen, setCustomBidOpen] = useState(false);
+  const [customBidStr, setCustomBidStr] = useState("");
 
   /* ── Drag-to-close (down + right) ── */
   const [dragY, setDragY] = useState(0);
@@ -274,6 +278,26 @@ export function AuctionFbPanel({
     { merchantUserId: createdBy! },
     { enabled: !!createdBy && open }
   );
+  const { data: defaultAnonData } = trpc.users.getDefaultAnonymous.useQuery(undefined, {
+    enabled: isAuthenticated && open,
+  });
+  const { data: autoBidStatus } = trpc.loyalty.myAutoBidStatus.useQuery(undefined, {
+    enabled: isAuthenticated && open,
+  });
+  const canUseAnonymous = autoBidStatus?.canUseAnonymous ?? false;
+  const memberLevel = autoBidStatus?.level ?? "bronze";
+
+  useEffect(() => {
+    if (defaultAnonData !== undefined) {
+      setIsAnonymous((defaultAnonData as { defaultAnonymous: number }).defaultAnonymous === 1);
+    }
+  }, [defaultAnonData]);
+  useEffect(() => {
+    if (autoBidStatus && !canUseAnonymous && isAnonymous) {
+      setIsAnonymous(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoBidStatus]);
 
   const broadcastMutation = trpc.auctionFbPanel.postMerchantBroadcast.useMutation({
     onSuccess: () => { setMerchantInput(""); setMerchantSentSuccess(true); utils.auctionFbPanel.getPanel.invalidate(); toast.success("廣播訊息已發送"); },
@@ -290,6 +314,8 @@ export function AuctionFbPanel({
   const placeBid = trpc.auctions.placeBid.useMutation({
     onSuccess: () => {
       setBidInput("");
+      setCustomBidStr("");
+      setCustomBidOpen(false);
       utils.auctionFbPanel.getPanel.invalidate();
       toast.success("出價成功！");
       setTimeout(() => {
@@ -360,8 +386,18 @@ export function AuctionFbPanel({
     if (isEnded) { toast.error("此拍賣已結束"); return; }
     const amount = parseInt(bidInput, 10);
     if (!amount || amount <= 0) { toast.error("請輸入有效出價金額"); return; }
-    if (amount <= currentPrice) { toast.error(`出價必須高於 ${curr}${currentPrice.toLocaleString()}`); return; }
-    placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: 0 });
+    const minBid = bidCount > 0 ? currentPrice + bidIncrement : currentPrice;
+    if (amount < minBid) { toast.error(`出價最低 ${curr}${minBid.toLocaleString()}`); return; }
+    placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: isAnonymous ? 1 : 0 });
+  };
+  const handleCustomBid = () => {
+    if (!isAuthenticated) { window.location.href = getLoginUrl(); return; }
+    if (isEnded) { toast.error("此拍賣已結束"); return; }
+    const amount = parseInt(customBidStr, 10);
+    if (!amount || amount <= 0) { toast.error("請輸入有效出價金額"); return; }
+    const minBid = bidCount > 0 ? currentPrice + bidIncrement : currentPrice;
+    if (amount < minBid) { toast.error(`出價最低 ${curr}${minBid.toLocaleString()}`); return; }
+    placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: isAnonymous ? 1 : 0 });
   };
   const handleMerchantSend = () => {
     if (!merchantInput.trim()) return;
@@ -371,7 +407,7 @@ export function AuctionFbPanel({
     if (!isAuthenticated) { toast.info("請先登入先可以出價"); return; }
     if (isEnded) { toast.error("此拍賣已結束"); return; }
     if (isMerchant) { toast.warning("商戶不可對自己的拍賣出價"); return; }
-    placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: 0 });
+    placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: isAnonymous ? 1 : 0 });
   };
 
   if (!open) return null;
@@ -641,6 +677,44 @@ export function AuctionFbPanel({
             </div>
           )}
 
+          {/* 自訂出價 + 匿名 compact row — buyer only, active auction */}
+          {!isEnded && !isMerchant && isAuthenticated && (
+            <div className="px-3 pb-1.5 flex items-center gap-2 bg-white shrink-0">
+              {/* 自訂出價 */}
+              <button
+                onClick={() => { setCustomBidStr(""); setCustomBidOpen(true); }}
+                className="flex items-center gap-1 px-3 py-1 rounded-full border border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 text-[12px] font-medium transition-colors"
+              >
+                <PenLine className="w-3 h-3" />
+                自訂出價
+              </button>
+              {/* 匿名 toggle */}
+              <button
+                onClick={() => {
+                  if (!canUseAnonymous) {
+                    toast.info(memberLevel === "bronze"
+                      ? "匿名出價功能僅限銀牌或以上會員"
+                      : "匿名出價暫時關閉");
+                    return;
+                  }
+                  setIsAnonymous(v => !v);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[12px] font-medium transition-colors ${
+                  isAnonymous
+                    ? "bg-slate-100 border-slate-300 text-slate-700"
+                    : "bg-gray-50 border-gray-300 text-gray-500 hover:bg-gray-100"
+                }`}
+              >
+                {isAnonymous ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                {isAnonymous ? "匿名中" : "匿名"}
+                <Switch
+                  checked={isAnonymous && canUseAnonymous}
+                  className="pointer-events-none scale-75 data-[state=checked]:bg-slate-500"
+                />
+              </button>
+            </div>
+          )}
+
           {/* Bottom input */}
           <div className="border-t border-gray-200 px-3 py-2 flex items-center gap-2 bg-white shrink-0">
             <Avatar name={user?.name ?? "?"} photoUrl={myAvatarUrl} size="sm" />
@@ -685,6 +759,47 @@ export function AuctionFbPanel({
           </div>
         </div>
       </div>
+
+      {/* Custom bid popup */}
+      {customBidOpen && (
+        <div className="fixed inset-0 z-[75] flex items-center justify-center px-6" onClick={() => setCustomBidOpen(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative z-10 w-full max-w-xs bg-white rounded-2xl shadow-2xl p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-gray-800 text-[15px]">自訂出價</h3>
+              <button onClick={() => setCustomBidOpen(false)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100">
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+            <p className="text-[11px] text-gray-500 mb-3">
+              {(() => {
+                const minBid = bidCount > 0 ? currentPrice + bidIncrement : currentPrice;
+                return `最低出價：${curr}${minBid.toLocaleString()}`;
+              })()}
+              {isAnonymous && <span className="ml-2 text-slate-500">· 匿名出價</span>}
+            </p>
+            <div className="flex items-center bg-gray-100 rounded-xl px-3 py-2.5 mb-4">
+              <span className="text-sm text-gray-500 shrink-0 mr-1">{curr}</span>
+              <input
+                className="flex-1 bg-transparent text-base font-bold focus:outline-none placeholder-gray-400"
+                inputMode="numeric"
+                placeholder="輸入金額"
+                value={customBidStr}
+                onChange={(e) => { if (/^\d*$/.test(e.target.value)) setCustomBidStr(e.target.value); }}
+                onKeyDown={(e) => { if (e.key === "Enter") handleCustomBid(); }}
+                autoFocus
+              />
+            </div>
+            <button
+              onClick={handleCustomBid}
+              disabled={!customBidStr || placeBid.isPending}
+              className="w-full py-2.5 rounded-xl bg-[#1877f2] text-white font-bold text-sm disabled:opacity-40 active:bg-[#1565d8] transition-colors"
+            >
+              {placeBid.isPending ? "出價中..." : "確認出價"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Payment info sheet */}
       {paymentInfoOpen && (
