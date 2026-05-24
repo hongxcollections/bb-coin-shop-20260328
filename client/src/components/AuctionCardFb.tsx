@@ -186,10 +186,15 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
     setParticles(p => [...p, id]);
   };
 
+  const isViewerWinner = !!(highestBidderId && currentUserId && highestBidderId === currentUserId);
+
   const reactionLabel = (() => {
     if (bidCount === 0) return null;
-    if (highestBidderId && currentUserId && highestBidderId === currentUserId) {
+    if (isViewerWinner) {
       return <span className="text-xs text-gray-500">👍 我本人 {bidCount > 1 ? `和 ${bidCount - 1} 人` : ""}</span>;
+    }
+    if (isEnded && highestBidderId) {
+      return <span className="text-xs text-gray-500">👍 得標用戶*** {bidCount > 1 ? `和 ${bidCount - 1} 人` : ""}</span>;
     }
     if (highestBidderName) {
       return <span className="text-xs text-gray-500">👍 {highestBidderName} {bidCount > 1 ? `和 ${bidCount - 1} 人` : ""}</span>;

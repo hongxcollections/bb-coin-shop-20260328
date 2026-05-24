@@ -62,9 +62,16 @@ function FloatingParticle({ dir, onDone }: { dir: "up" | "down"; onDone: () => v
   );
 }
 
-function Avatar({ name, photoUrl, size = "md", isParticipant = false }: { name: string; photoUrl?: string | null; size?: "sm" | "md" | "lg"; isParticipant?: boolean }) {
+function Avatar({ name, photoUrl, size = "md", isParticipant = false, isWinnerAnon = false }: { name: string; photoUrl?: string | null; size?: "sm" | "md" | "lg"; isParticipant?: boolean; isWinnerAnon?: boolean }) {
   const sz = size === "sm" ? "w-7 h-7 text-xs" : size === "lg" ? "w-11 h-11 text-base" : "w-9 h-9 text-sm";
   const iconSz = size === "sm" ? "w-4 h-4" : size === "lg" ? "w-6 h-6" : "w-5 h-5";
+  if (isWinnerAnon) {
+    return (
+      <div className={`${sz} rounded-full bg-amber-400 flex items-center justify-center text-white shrink-0`}>
+        <User className={iconSz} />
+      </div>
+    );
+  }
   if (isParticipant) {
     return (
       <div className={`${sz} rounded-full bg-gray-300 flex items-center justify-center text-gray-500 shrink-0`}>
@@ -451,8 +458,16 @@ export function AuctionFbPanel({
 
               /* Bid item — isMyBid comes from server */
               const isLeading = Number(item.rawAmount) === maxBidAmount && maxBidAmount > 0;
-              /* When auction ended: non-leading bidders show as "參與用戶" with unified icon */
+              /* When auction ended: non-leading bidders → "參與用戶"; winner viewed by non-winner → "得標用戶***" */
               const isOtherBidder = isEnded && !isLeading && !item.isAnonymous;
+              const isWinnerAnon = isEnded && isLeading && !item.isAnonymous && (!user || String(user?.id) !== String(item.userId));
+              const displayedName = item.isAnonymous
+                ? "匿名用戶"
+                : isWinnerAnon
+                ? "得標用戶***"
+                : isOtherBidder
+                ? "參與用戶"
+                : item.userName;
               return (
                 <div key={`bid-${item.id}`} className={isLeading ? "border-l-[3px] border-red-500 pl-2 -ml-2" : ""}>
                   <div className="flex items-start gap-3">
@@ -461,12 +476,13 @@ export function AuctionFbPanel({
                       photoUrl={item.isAnonymous ? null : item.photoUrl}
                       size="lg"
                       isParticipant={isOtherBidder}
+                      isWinnerAnon={isWinnerAnon}
                     />
                     <div className="flex-1 min-w-0">
                       {/* name · time */}
                       <div className="flex items-center gap-1 flex-wrap">
                         <span className="text-[14px] font-bold text-gray-900">
-                          {item.isAnonymous ? "匿名用戶" : (isOtherBidder ? "參與用戶" : item.userName)}
+                          {displayedName}
                         </span>
                         <span className="text-gray-400 text-[12px]">·</span>
                         <span className="text-[12px] text-gray-500">{timeAgo(item.createdAt)}</span>
