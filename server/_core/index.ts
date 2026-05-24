@@ -1928,11 +1928,12 @@ Output ONLY the JSON, nothing else.`;
       const db = await getDb();
       if (!db) return;
       const rows: any = await db.execute(sqlTag.raw(`
-        SELECT id, title, createdBy, highestBidderId
-        FROM auctions
-        WHERE status = 'ended'
-          AND highestBidderId IS NOT NULL
-          AND winnerAutoReplySentAt IS NULL
+        SELECT a.id, a.title, a.createdBy, a.highestBidderId,
+          (SELECT b.id FROM bids b WHERE b.auctionId = a.id ORDER BY b.bidAmount DESC LIMIT 1) AS winnerBidId
+        FROM auctions a
+        WHERE a.status = 'ended'
+          AND a.highestBidderId IS NOT NULL
+          AND a.winnerAutoReplySentAt IS NULL
         LIMIT 20
       `));
       const ended: any[] = Array.isArray(rows[0]) ? rows[0] : (Array.isArray(rows) ? rows as any[] : []);
@@ -1946,7 +1947,13 @@ Output ONLY the JSON, nothing else.`;
           const settings = await getMerchantSettings(Number(a.createdBy));
           const message = (settings as any).winnerAutoReplyMessage?.trim() || '恭喜成功得標！請聯繫商戶確認交收事宜🤝';
           const { auctionComments } = await import('../../drizzle/schema');
-          await db.insert(auctionComments).values({ auctionId: Number(a.id), userId: Number(a.createdBy), content: message });
+          const winnerBidId = a.winnerBidId != null ? Number(a.winnerBidId) : null;
+          await db.insert(auctionComments).values({
+            auctionId: Number(a.id),
+            userId: Number(a.createdBy),
+            content: message,
+            ...(winnerBidId ? { replyToBidId: winnerBidId } : {}),
+          });
           await sendPushToUser(Number(a.highestBidderId), {
             title: `🏆 恭喜得標：${String(a.title).slice(0, 40)}`,
             body: message.slice(0, 120),

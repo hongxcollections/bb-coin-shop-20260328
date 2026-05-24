@@ -9646,9 +9646,7 @@ EXAMPLE OUTPUT (exact format):
             u.name AS userName,
             COALESCE(NULLIF(TRIM(ma.merchantIcon),''), NULLIF(TRIM(u.photoUrl),'')) AS photoUrl,
             c.content, NULL AS rawAmount,
-            0 AS isAnonymous, c.replyToBidId,
-            (SELECT createdBy FROM auctions WHERE id = c.auctionId LIMIT 1) AS auctionCreatedBy,
-            c.createdAt
+            0 AS isAnonymous, c.replyToBidId, c.createdAt
           FROM auctionComments c
           LEFT JOIN users u ON u.id = c.userId
           LEFT JOIN merchantApplications ma ON ma.userId = c.userId AND ma.status = 'approved'
@@ -9693,8 +9691,7 @@ EXAMPLE OUTPUT (exact format):
             rawAmount: null as null,
             isAnonymous: false,
             isMyBid: false,
-            /* Merchant's own comments always top-level (no nesting under bids) */
-            replyToBidId: Number(r.userId) === Number(r.auctionCreatedBy) ? null : (r.replyToBidId != null ? Number(r.replyToBidId) : null),
+            replyToBidId: r.replyToBidId != null ? Number(r.replyToBidId) : null,
             createdAt: normDate(r.createdAt),
           })),
         ];
