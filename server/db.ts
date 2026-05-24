@@ -3532,7 +3532,7 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   showEndedAuctions: 0,
   hideEndedAfterDays: 7,
   showEndedOnMainPage: 1,
-  mainPageEndedDays: 2,
+  mainPageEndedDays: 7,
   showUnsoldEnded: 0,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
@@ -3551,7 +3551,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
     if (row && typeof row === 'object') {
       // Fetch new columns separately with fallback — guards against columns not yet existing on older DBs
       let showEndedOnMainPage = 1;
-      let mainPageEndedDays = 2;
+      let mainPageEndedDays = 7;
       let showUnsoldEnded = 0;
       try {
         const r2 = await db.execute(sql`SELECT showEndedOnMainPage, mainPageEndedDays, showUnsoldEnded FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
@@ -3749,8 +3749,8 @@ export async function getRecentlyEndedForMainPage(): Promise<Array<{
         AND (a.archived = 0 OR a.archived IS NULL)
         AND COALESCE((SELECT showEndedOnMainPage FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 1) = 1
         AND a.endTime >= DATE_SUB(NOW(), INTERVAL LEAST(COALESCE(
-          (SELECT mainPageEndedDays FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 2
-        ), 5) DAY)
+          (SELECT mainPageEndedDays FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 7
+        ), 30) DAY)
         AND NOT (a.highestBidderId IS NULL AND COALESCE((SELECT showUnsoldEnded FROM merchant_settings WHERE userId = a.createdBy LIMIT 1), 0) = 0)
       ORDER BY a.endTime DESC
       LIMIT 200`

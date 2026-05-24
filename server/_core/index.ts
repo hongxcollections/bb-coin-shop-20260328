@@ -1158,54 +1158,6 @@ async function startServer() {
     res.json({ status: 'ok', ts: new Date().toISOString(), nodeEnv: process.env.NODE_ENV });
   });
 
-  // ── 臨時診斷 endpoint：查 production slim bar 問題 ─────────────────────────
-  app.get('/api/diag-slim', async (req, res) => {
-    if (req.headers['x-diag-token'] !== 'bb-diag-2026') return res.status(403).json({ error: 'forbidden' });
-    try {
-      const { getRawPool } = await import('../db');
-      const pool = await getRawPool();
-      if (!pool) return res.json({ error: 'no pool' });
-
-      const [cols] = await pool.execute(
-        `SELECT COLUMN_NAME, COLUMN_DEFAULT FROM information_schema.COLUMNS
-         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'merchant_settings'
-         AND COLUMN_NAME IN ('showEndedOnMainPage','mainPageEndedDays','showUnsoldEnded','showEndedAuctions')`
-      );
-
-      const [cnt] = await pool.execute(
-        `SELECT COUNT(*) as total,
-          SUM(CASE WHEN highestBidderId IS NOT NULL THEN 1 ELSE 0 END) as withBidder,
-          SUM(CASE WHEN highestBidderId IS NULL THEN 1 ELSE 0 END) as noBidder,
-          MIN(endTime) as oldest, MAX(endTime) as newest, NOW() as dbNow
-         FROM auctions WHERE status='ended' AND (archived=0 OR archived IS NULL)
-         AND endTime >= DATE_SUB(NOW(), INTERVAL 14 DAY)`
-      );
-
-      const [ms] = await pool.execute(
-        `SELECT userId, showEndedAuctions, showEndedOnMainPage, mainPageEndedDays, showUnsoldEnded FROM merchant_settings LIMIT 20`
-      ).catch(() => [[]] as any);
-
-      let fullQueryRows: any[] = [];
-      let fullQueryError = null;
-      try {
-        const [r] = await pool.execute(
-          `SELECT a.id, a.title, a.endTime FROM auctions a
-           WHERE a.status='ended' AND (a.archived=0 OR a.archived IS NULL)
-           AND COALESCE((SELECT showEndedOnMainPage FROM merchant_settings WHERE userId=a.createdBy LIMIT 1),1)=1
-           AND a.endTime >= DATE_SUB(NOW(), INTERVAL LEAST(COALESCE((SELECT mainPageEndedDays FROM merchant_settings WHERE userId=a.createdBy LIMIT 1),2),5) DAY)
-           AND NOT (a.highestBidderId IS NULL AND COALESCE((SELECT showUnsoldEnded FROM merchant_settings WHERE userId=a.createdBy LIMIT 1),0)=0)
-           ORDER BY a.endTime DESC LIMIT 10`
-        );
-        fullQueryRows = r as any[];
-      } catch (e: any) { fullQueryError = e.message; }
-
-      res.json({ cols, cnt, ms, fullQueryRows, fullQueryError, dbUrl: process.env.BB_DATABASE_URL ? process.env.BB_DATABASE_URL.replace(/:\/\/.*@/, '://[REDACTED]@') : 'none' });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-  // ── end 臨時診斷 ────────────────────────────────────────────────────────────
-
   // Dev/Sandbox mock login (non-production only)
   registerDevLoginRoutes(app);
 
