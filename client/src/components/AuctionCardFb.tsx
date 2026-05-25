@@ -27,6 +27,7 @@ export interface AuctionCardFbProps {
   antiSnipeEnabled?: number;
   antiSnipeMinutes?: number;
   extendMinutes?: number;
+  description?: string | null;
   onLinkClick?: () => void;
 }
 
@@ -174,12 +175,13 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
     auctionId, title, images = [], endTime, createdAt, currentPrice, currency,
     isEnded, bidCount = 0, highestBidderName, currentUserId, highestBidderId,
     sellerName, sellerPhotoUrl, createdBy, bidIncrement = 30, shareTemplate,
-    antiSnipeEnabled, antiSnipeMinutes, extendMinutes, onLinkClick,
+    antiSnipeEnabled, antiSnipeMinutes, extendMinutes, description, onLinkClick,
   } = props;
 
   const { user } = useAuth();
   const [panelOpen, setPanelOpen] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
   const [particles, setParticles] = useState<number[]>([]);
   const pidRef = useRef(0);
   const curr = currency === "HKD" || !currency ? "HK$" : currency;
@@ -241,6 +243,22 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
       {/* Title + price row */}
       <div className="px-3 pb-2">
         <TruncatedText text={title} />
+        {description && description.trim() && (
+          descExpanded ? (
+            <div className="mt-1">
+              <p className="text-[13px] text-gray-700 whitespace-pre-line leading-relaxed">{description}</p>
+              <button
+                className="text-[10px] text-gray-400 mt-0.5"
+                onClick={(e) => { e.stopPropagation(); setDescExpanded(false); }}
+              >收起</button>
+            </div>
+          ) : (
+            <button
+              className="text-[10px] text-gray-400 mt-0.5 block"
+              onClick={(e) => { e.stopPropagation(); setDescExpanded(true); }}
+            >更多...</button>
+          )
+        )}
         {!isEnded && (
           <div className="flex flex-col items-end mt-1.5 gap-0.5">
             <div className="flex items-center gap-1 text-[11px] text-gray-600">

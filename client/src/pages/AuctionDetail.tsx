@@ -544,6 +544,7 @@ export default function AuctionDetail() {
             antiSnipeEnabled={(auction as any).antiSnipeEnabled}
             antiSnipeMinutes={(auction as any).antiSnipeMinutes}
             extendMinutes={(auction as any).extendMinutes}
+            description={(auction as any).description ?? null}
           />
         </div>
       </div>

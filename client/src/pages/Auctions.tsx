@@ -525,6 +525,7 @@ export default function Auctions() {
                     antiSnipeEnabled={(auction as { antiSnipeEnabled?: number }).antiSnipeEnabled}
                     antiSnipeMinutes={(auction as { antiSnipeMinutes?: number }).antiSnipeMinutes}
                     extendMinutes={(auction as { extendMinutes?: number }).extendMinutes}
+                    description={(auction as { description?: string | null }).description}
                     onLinkClick={saveScrollPosition}
                   />
                 ) : (
