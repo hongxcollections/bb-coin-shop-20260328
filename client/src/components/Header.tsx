@@ -33,27 +33,30 @@ export default function Header() {
             </div>
           </div>
 
-          {/* Right: user avatar + name */}
+          {/* Right: user avatar + name — aligned near bottom of nav */}
           {isAuthenticated && user && (
-            <Link href="/profile" className="no-underline flex items-center gap-2">
+            <Link
+              href="/profile"
+              className="no-underline flex items-center gap-1.5 self-end pb-2"
+            >
               {user.photoUrl ? (
                 <img
                   src={user.photoUrl}
                   alt={user.name ?? ""}
                   className="rounded-full object-cover flex-shrink-0"
-                  style={{ width: "28px", height: "28px" }}
+                  style={{ width: "12px", height: "12px" }}
                 />
               ) : (
                 <div
                   className="rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ width: "28px", height: "28px", background: "#F5DEB3" }}
+                  style={{ width: "12px", height: "12px", background: "#F5DEB3" }}
                 >
-                  <User size={14} style={{ color: "#E07B00" }} />
+                  <User size={7} style={{ color: "#E07B00" }} />
                 </div>
               )}
               <span
-                className="font-medium leading-none max-w-[120px] truncate"
-                style={{ fontSize: "13px", color: "#333" }}
+                className="font-medium leading-none max-w-[100px] truncate"
+                style={{ fontSize: "8px", color: "#333" }}
               >
                 {user.name ?? "用戶"}
               </span>
