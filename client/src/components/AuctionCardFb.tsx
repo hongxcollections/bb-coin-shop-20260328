@@ -143,7 +143,7 @@ function FbPhotoGrid({ images, bidCount, onPhotoClick }: {
   );
 }
 
-function TruncatedText({ text }: { text: string }) {
+function TruncatedText({ text, suffix }: { text: string; suffix?: React.ReactNode }) {
   const [expanded, setExpanded] = useState(false);
   const LIMIT = 80;
   if (text.length <= LIMIT || expanded) {
@@ -156,6 +156,7 @@ function TruncatedText({ text }: { text: string }) {
             onClick={(e) => { e.stopPropagation(); setExpanded(false); }}
           > 收起</button>
         )}
+        {suffix}
       </p>
     );
   }
@@ -166,6 +167,7 @@ function TruncatedText({ text }: { text: string }) {
         className="text-gray-500 ml-1 text-xs font-medium"
         onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
       >...更多</button>
+      {suffix}
     </p>
   );
 }
@@ -242,22 +244,24 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
 
       {/* Title + price row */}
       <div className="px-3 pb-2">
-        <TruncatedText text={title} />
-        {description && description.trim() && (
-          descExpanded ? (
-            <div className="mt-1">
-              <p className="text-[13px] text-gray-700 whitespace-pre-line leading-relaxed">{description}</p>
+        <TruncatedText
+          text={title}
+          suffix={description && description.trim() ? (
+            descExpanded ? (
               <button
-                className="text-[10px] text-gray-400 mt-0.5"
+                className="text-[13px] text-gray-400 font-normal ml-1"
                 onClick={(e) => { e.stopPropagation(); setDescExpanded(false); }}
               >收起</button>
-            </div>
-          ) : (
-            <button
-              className="text-[10px] text-gray-400 mt-0.5 block"
-              onClick={(e) => { e.stopPropagation(); setDescExpanded(true); }}
-            >更多...</button>
-          )
+            ) : (
+              <button
+                className="text-[13px] text-gray-400 font-normal ml-1"
+                onClick={(e) => { e.stopPropagation(); setDescExpanded(true); }}
+              >更多...</button>
+            )
+          ) : undefined}
+        />
+        {description && description.trim() && descExpanded && (
+          <p className="text-[13px] text-gray-700 whitespace-pre-line leading-relaxed mt-1">{description}</p>
         )}
         {!isEnded && (
           <div className="flex flex-col items-end mt-1.5 gap-0.5">
