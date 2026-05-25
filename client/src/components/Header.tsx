@@ -1,9 +1,17 @@
 import { Link } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
 import { User } from "lucide-react";
 
 export default function Header() {
   const { user, isAuthenticated } = useAuth();
+
+  const { data: merchantApp } = trpc.merchants.myApplication.useQuery(undefined, {
+    enabled: isAuthenticated && !user?.photoUrl,
+    retry: false,
+  });
+
+  const avatarUrl = user?.photoUrl || merchantApp?.merchantIcon || null;
 
   return (
     <>
@@ -39,19 +47,19 @@ export default function Header() {
               href="/profile"
               className="no-underline flex items-center gap-1.5 self-end pb-2"
             >
-              {user.photoUrl ? (
+              {avatarUrl ? (
                 <img
-                  src={user.photoUrl}
+                  src={avatarUrl}
                   alt={user.name ?? ""}
                   className="rounded-full object-cover flex-shrink-0"
-                  style={{ width: "12px", height: "12px" }}
+                  style={{ width: "15px", height: "15px" }}
                 />
               ) : (
                 <div
                   className="rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ width: "12px", height: "12px", background: "#F5DEB3" }}
+                  style={{ width: "15px", height: "15px", background: "#F5DEB3" }}
                 >
-                  <User size={7} style={{ color: "#E07B00" }} />
+                  <User size={9} style={{ color: "#E07B00" }} />
                 </div>
               )}
               <span
