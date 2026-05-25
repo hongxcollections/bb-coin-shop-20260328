@@ -9,16 +9,6 @@ interface AdSenseAdProps {
   className?: string;
 }
 
-function injectAdSenseScript(publisherId: string) {
-  if (document.querySelector(`script[data-adsense="${publisherId}"]`)) return;
-  const script = document.createElement("script");
-  script.async = true;
-  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${publisherId}`;
-  script.crossOrigin = "anonymous";
-  script.setAttribute("data-adsense", publisherId);
-  document.head.appendChild(script);
-}
-
 export default function AdSenseAd({ slot, format = "auto", width, height, className = "" }: AdSenseAdProps) {
   const { data: settings } = trpc.siteSettings.getAll.useQuery();
   const s = (settings as Record<string, string> | undefined) ?? {};
@@ -27,8 +17,7 @@ export default function AdSenseAd({ slot, format = "auto", width, height, classN
   const pushed = useRef(false);
 
   useEffect(() => {
-    if (!enabled || !publisherId) return;
-    injectAdSenseScript(publisherId);
+    if (!enabled) return;
     if (pushed.current) return;
     pushed.current = true;
     try {
@@ -36,7 +25,7 @@ export default function AdSenseAd({ slot, format = "auto", width, height, classN
       w.adsbygoogle = w.adsbygoogle || [];
       w.adsbygoogle.push({});
     } catch {}
-  }, [enabled, publisherId]);
+  }, [enabled]);
 
   if (!enabled) return null;
 
