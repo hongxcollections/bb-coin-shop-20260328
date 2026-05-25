@@ -5172,8 +5172,68 @@ export const appRouter = router({
         if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
         }
+
+        // 確認前先取訂單資料，用於通知買家
+        const db = await getDb();
+        let orderSnap: any = null;
+        if (db) {
+          const rows = await db.execute(sql`SELECT * FROM productOrders WHERE id = ${input.orderId} LIMIT 1`);
+          orderSnap = ((rows[0] as any[])[0]) ?? null;
+        }
+
         const result = await confirmProductOrder(input.orderId, ctx.user.id, input.finalPrice);
         if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
+
+        // 確認成交後通知買家（push + email），fire-and-forget
+        if (orderSnap) {
+          (async () => {
+            try {
+              const buyerId = orderSnap.buyerId;
+              const productTitle = orderSnap.title ?? '商品';
+              const currency = orderSnap.currency ?? 'HKD';
+              const unitPrice = input.finalPrice ?? parseFloat(String(orderSnap.price));
+              const quantity = parseInt(String(orderSnap.quantity)) || 1;
+              const siteBase = getEmailOrigin(ctx.req as any);
+              const orderUrl = `${siteBase}/merchant-products`;
+
+              // Push 通知買家
+              sendPushToUser(buyerId, {
+                title: '✅ 訂單已確認成交',
+                body: `${productTitle}${quantity > 1 ? ` ×${quantity}` : ''} ${currency} $${(unitPrice * quantity).toLocaleString()}，請安排付款及交收`,
+                url: orderUrl,
+                tag: `order-confirmed-${input.orderId}`,
+              }).catch(() => {});
+
+              // Email 通知買家（若有 email）
+              const buyer = await getUserById(buyerId);
+              if (buyer?.email) {
+                const settings = await getNotificationSettings();
+                const merchantSettings = await getMerchantSettings(ctx.user.id);
+                const merchantApp = await getMerchantApplicationByUser(ctx.user.id);
+                const { sendProductOrderConfirmedEmail } = await import('./email');
+                await sendProductOrderConfirmedEmail({
+                  to: buyer.email,
+                  senderName: settings.senderName,
+                  senderEmail: settings.senderEmail,
+                  userName: buyer.name ?? `會員 #${buyerId}`,
+                  productTitle,
+                  orderId: input.orderId,
+                  finalPrice: unitPrice,
+                  quantity,
+                  currency,
+                  orderUrl,
+                  paymentInstructions: merchantSettings.paymentInstructions ?? settings.paymentInstructions ?? null,
+                  deliveryInfo: merchantSettings.deliveryInfo ?? settings.deliveryInfo ?? null,
+                  merchantName: merchantApp?.merchantName ?? null,
+                  merchantWhatsapp: merchantApp?.whatsapp ?? null,
+                });
+              }
+            } catch (e) {
+              console.error('[confirm product order] notification failed', e);
+            }
+          })();
+        }
+
         return { success: true };
       }),
 

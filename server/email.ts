@@ -384,6 +384,84 @@ export async function sendOtpFallbackEmail(params: OtpFallbackEmailParams): Prom
   });
 }
 
+// ─── Email: product order confirmed (buyer notification) ─────────────────────
+
+export interface ProductOrderConfirmedEmailParams extends EmailOptions {
+  userName: string;
+  productTitle: string;
+  orderId: number;
+  finalPrice: number;
+  quantity: number;
+  currency: string;
+  orderUrl: string;
+  paymentInstructions?: string | null;
+  deliveryInfo?: string | null;
+  merchantName?: string | null;
+  merchantWhatsapp?: string | null;
+}
+
+export async function sendProductOrderConfirmedEmail(params: ProductOrderConfirmedEmailParams): Promise<boolean> {
+  const { to, senderName, senderEmail, userName, productTitle, orderId, finalPrice, quantity, currency, orderUrl, paymentInstructions, deliveryInfo, merchantName, merchantWhatsapp } = params;
+
+  const defaultPayment = '接受付款方式：FPS、八達通、微信支付、支付寶、BOCPay、Visa\n請聯絡 hongxcollections 安排付款。';
+  const defaultDelivery = '建議順豐到付（買家承擔運費），或歡迎來店自取（請提前聯絡預約）。';
+
+  const paymentHtml = nl2br(paymentInstructions || defaultPayment);
+  const deliveryHtml = nl2br(deliveryInfo || defaultDelivery);
+  const displayMerchantName = merchantName || 'hongxcollections';
+  const totalPrice = finalPrice * quantity;
+
+  let contactHtml = '';
+  if (merchantWhatsapp) {
+    const waNumber = merchantWhatsapp.replace(/\D/g, '');
+    const waMessage = encodeURIComponent(`您好，我在 hongxcollections 購買了「${productTitle}」（訂單 #${orderId}），想查詢付款及交收安排，謝謝！`);
+    const waUrl = `https://wa.me/${waNumber}?text=${waMessage}`;
+    contactHtml = `
+    <div style="margin-top:24px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px 20px;">
+      <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#15803d;">📞 聯絡商戶</p>
+      <p style="margin:0 0 12px;font-size:13px;color:#166534;">如有查詢，歡迎直接聯絡 <strong>${displayMerchantName}</strong></p>
+      <a href="${waUrl}" style="display:inline-block;background:#25d366;color:#fff;text-decoration:none;padding:9px 20px;border-radius:6px;font-size:13px;font-weight:600;">
+        💬 WhatsApp 聯絡商戶
+      </a>
+    </div>`;
+  } else {
+    contactHtml = `<p style="margin-top:20px;font-size:13px;color:#6b7280;">如有任何查詢，請聯絡商戶 <strong>${displayMerchantName}</strong>。</p>`;
+  }
+
+  const body = `
+    <h2>✅ 您的訂單已確認成交！</h2>
+    <p>親愛的 <strong>${userName}</strong>，</p>
+    <p>商戶已確認您的訂單，請盡快安排付款及交收。</p>
+
+    <div class="highlight">
+      <div class="label">商品</div>
+      <div style="font-size:16px;font-weight:600;color:#333;margin-top:4px;">${productTitle}</div>
+    </div>
+    <div class="highlight">
+      <div class="label">訂單編號</div>
+      <div style="font-size:15px;color:#333;margin-top:4px;">#${orderId}</div>
+    </div>
+    <div class="highlight">
+      <div class="label">成交金額</div>
+      <div class="value">${currency} ${totalPrice.toLocaleString()}${quantity > 1 ? ` （${currency} ${finalPrice.toLocaleString()} × ${quantity}）` : ''}</div>
+    </div>
+
+    <h2 style="margin-top:24px;font-size:16px;color:#92400e;">💳 付款方式</h2>
+    <div style="background:#f0fdf4;border-left:4px solid #16a34a;border-radius:4px;padding:12px 16px;margin:8px 0;font-size:14px;line-height:1.8;">
+      ${paymentHtml}
+    </div>
+
+    <h2 style="margin-top:20px;font-size:16px;color:#92400e;">📦 交收安排</h2>
+    <div style="background:#eff6ff;border-left:4px solid #3b82f6;border-radius:4px;padding:12px 16px;margin:8px 0;font-size:14px;line-height:1.8;">
+      ${deliveryHtml}
+    </div>
+
+    ${contactHtml}
+    <a href="${orderUrl}" class="btn" style="margin-top:20px;">查看訂單詳情 →</a>
+  `;
+  return sendEmail({ to, senderName, senderEmail, subject: `✅ 【訂單確認】${productTitle} — ${currency} ${totalPrice.toLocaleString()}`, html: baseLayout("訂單確認通知", body) });
+}
+
 // ─── Internal send ────────────────────────────────────────────────────────────
 
 async function sendEmail(opts: {
