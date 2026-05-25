@@ -246,22 +246,18 @@ export function AuctionCardFb(props: AuctionCardFbProps) {
       <div className="px-3 pb-2">
         <TruncatedText
           text={title}
-          suffix={description && description.trim() ? (
-            descExpanded ? (
-              <button
-                className="text-[13px] text-gray-400 font-normal ml-1"
-                onClick={(e) => { e.stopPropagation(); setDescExpanded(false); }}
-              >收起</button>
-            ) : (
-              <button
-                className="text-[13px] text-gray-400 font-normal ml-1"
-                onClick={(e) => { e.stopPropagation(); setDescExpanded(true); }}
-              >更多...</button>
-            )
+          suffix={description && description.trim() && !descExpanded ? (
+            <button
+              className="text-[13px] text-gray-400 font-normal ml-1"
+              onClick={(e) => { e.stopPropagation(); setDescExpanded(true); }}
+            >更多...</button>
           ) : undefined}
         />
         {description && description.trim() && descExpanded && (
-          <p className="text-[13px] text-gray-700 whitespace-pre-line leading-relaxed mt-1">{description}</p>
+          <p
+            className="text-[13px] text-gray-700 whitespace-pre-line leading-relaxed mt-1 cursor-pointer"
+            onClick={(e) => { e.stopPropagation(); setDescExpanded(false); }}
+          >{description}</p>
         )}
         {!isEnded && (
           <div className="flex flex-col items-end mt-1.5 gap-0.5">
