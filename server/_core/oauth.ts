@@ -136,6 +136,7 @@ export function registerOAuthRoutes(app: Express) {
       console.log(`[Facebook OAuth] User login - openId: ${openId}, name: ${userInfo.name}, hasEmail: ${!!userInfo.email}`);
       // 只在用戶尚未有 email 時才填入 FB email，避免覆蓋用戶手動設定的 email
       const existing = await db.getUserByOpenId(openId);
+      const isNewUser = !existing;
       const emailToSave = existing?.email ? undefined : (userInfo.email ?? null);
       await db.upsertUser({
         openId,
@@ -145,6 +146,18 @@ export function registerOAuthRoutes(app: Express) {
         lastSignedIn: new Date(),
         photoUrl: userInfo.picture?.data?.url ?? null,
       });
+      // 新用戶自動升銀會員
+      if (isNewUser) {
+        try {
+          const newUser = await db.getUserByOpenId(openId);
+          if (newUser?.id) {
+            await db.setUserMemberLevel(newUser.id, 'silver');
+            console.log(`[Facebook OAuth] New user auto-upgraded to silver: userId=${newUser.id}`);
+          }
+        } catch (e) {
+          console.error('[Facebook OAuth] Failed to set silver level for new user', e);
+        }
+      }
       const sessionToken = await sdk.createSessionToken(openId, {
         name: userInfo.name || "",
         expiresInMs: ONE_YEAR_MS,

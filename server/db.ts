@@ -888,7 +888,9 @@ export async function updateUserEmail(userId: number, email: string): Promise<bo
   try {
     const db = await getDb();
     if (!db) return false;
-    await db.update(users).set({ email }).where(eq(users.id, userId));
+    // 空字串代表清除電郵
+    const value = email.trim() === '' ? null : email.trim();
+    await db.update(users).set({ email: value } as Record<string, unknown>).where(eq(users.id, userId));
     return true;
   } catch (error) {
     console.error("[Database] Failed to update user email:", error);

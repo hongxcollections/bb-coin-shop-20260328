@@ -417,7 +417,7 @@ export default function Profile() {
                 />
                 <Button
                   onClick={() => updateEmail.mutate({ email: emailInput })}
-                  disabled={updateEmail.isPending || !emailInput.trim()}
+                  disabled={updateEmail.isPending}
                   className={emailSaved ? "bg-emerald-500 hover:bg-emerald-600 text-white" : "gold-gradient text-white border-0"}
                 >
                   {emailSaved ? (

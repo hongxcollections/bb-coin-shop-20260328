@@ -1240,7 +1240,7 @@ export const appRouter = router({
         return { success: true };
       }),
     updateEmail: protectedProcedure
-      .input(z.object({ email: z.string().email() }))
+      .input(z.object({ email: z.union([z.string().email(), z.literal('')]) }))
       .mutation(async ({ input, ctx }) => {
         const ok = await updateUserEmail(ctx.user.id, input.email);
         if (!ok) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update email' });
