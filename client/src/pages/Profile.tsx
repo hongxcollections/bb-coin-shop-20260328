@@ -212,6 +212,25 @@ export default function Profile() {
       {/* Navigation */}
       <Header />
       <div className="container pt-8 pb-28 max-w-3xl">
+        {/* Facebook 用戶補填電郵提示 */}
+        {(user as any)?.loginMethod === 'facebook' && !user?.email && (
+          <div className="mb-5 flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <Mail className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-blue-800">請補填電郵地址</p>
+              <p className="text-xs text-blue-600 mt-0.5">你以 Facebook 登入，但未有電郵地址。成交後系統無法發送通知，請在下方填寫電郵。</p>
+            </div>
+            <button
+              onClick={() => {
+                const el = document.getElementById('email-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="flex-shrink-0 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 px-3 py-1.5 rounded-lg"
+            >
+              去填寫
+            </button>
+          </div>
+        )}
         {/* Profile Header */}
         <Card className="mb-6 border-amber-100 overflow-hidden">
           <MemberHeroBanner
@@ -374,7 +393,7 @@ export default function Profile() {
         })()}
 
         {/* Email Notification Settings */}
-        <Card className="mb-6 border-amber-100">
+        <Card id="email-section" className="mb-6 border-amber-100">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Mail className="w-4 h-4 text-amber-600" />
