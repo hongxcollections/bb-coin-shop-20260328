@@ -6,6 +6,34 @@ import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 import { ENV } from "./env";
 
+// ─── Facebook OAuth helpers ──────────────────────────────────────────────────
+
+async function exchangeFacebookCode(code: string, redirectUri: string): Promise<string> {
+  const params = new URLSearchParams({
+    code,
+    client_id: ENV.facebookAppId,
+    client_secret: ENV.facebookAppSecret,
+    redirect_uri: redirectUri,
+  });
+  const { data } = await axios.get<{ access_token: string }>(
+    `https://graph.facebook.com/v19.0/oauth/access_token?${params.toString()}`
+  );
+  return data.access_token;
+}
+
+interface FacebookUserInfo {
+  id: string;
+  name: string;
+  picture?: { data?: { url?: string } };
+}
+
+async function getFacebookUserInfo(accessToken: string): Promise<FacebookUserInfo> {
+  const { data } = await axios.get<FacebookUserInfo>(
+    `https://graph.facebook.com/v19.0/me?fields=id,name,picture&access_token=${accessToken}`
+  );
+  return data;
+}
+
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
   return typeof value === "string" ? value : undefined;
@@ -59,6 +87,73 @@ async function getGoogleUserInfo(accessToken: string): Promise<GoogleUserInfo> {
 const GOOGLE_OAUTH_NEW_USER_ENABLED = false;
 
 export function registerOAuthRoutes(app: Express) {
+  // ─── Facebook Login: redirect to FB OAuth ────────────────────────────────
+  app.get("/api/auth/facebook", async (req: Request, res: Response) => {
+    const enabled = await db.getSiteSetting("facebookLoginEnabled");
+    if (enabled !== "true") {
+      res.redirect(302, "/login?error=" + encodeURIComponent("Facebook 登入功能未開啟"));
+      return;
+    }
+    if (!ENV.facebookAppId) {
+      res.redirect(302, "/login?error=" + encodeURIComponent("Facebook 登入未設定"));
+      return;
+    }
+    const forwardedProto = req.headers["x-forwarded-proto"];
+    const protocol = typeof forwardedProto === "string" ? forwardedProto.split(",")[0].trim() : req.protocol;
+    const host = req.get("host");
+    const redirectUri = `${protocol}://${host}/api/auth/facebook/callback`;
+    const params = new URLSearchParams({
+      client_id: ENV.facebookAppId,
+      redirect_uri: redirectUri,
+      scope: "public_profile",
+      response_type: "code",
+    });
+    res.redirect(302, `https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`);
+  });
+
+  // ─── Facebook Login: handle callback ─────────────────────────────────────
+  app.get("/api/auth/facebook/callback", async (req: Request, res: Response) => {
+    const code = getQueryParam(req, "code");
+    const fbError = getQueryParam(req, "error");
+    if (fbError || !code) {
+      res.redirect(302, "/login?error=" + encodeURIComponent("Facebook 登入取消或失敗，請重試"));
+      return;
+    }
+    try {
+      const enabled = await db.getSiteSetting("facebookLoginEnabled");
+      if (enabled !== "true") {
+        res.redirect(302, "/login?error=" + encodeURIComponent("Facebook 登入功能未開啟"));
+        return;
+      }
+      const forwardedProto = req.headers["x-forwarded-proto"];
+      const protocol = typeof forwardedProto === "string" ? forwardedProto.split(",")[0].trim() : req.protocol;
+      const host = req.get("host");
+      const redirectUri = `${protocol}://${host}/api/auth/facebook/callback`;
+      const accessToken = await exchangeFacebookCode(code, redirectUri);
+      const userInfo = await getFacebookUserInfo(accessToken);
+      const openId = `facebook_${userInfo.id}`;
+      console.log(`[Facebook OAuth] User login - openId: ${openId}, name: ${userInfo.name}`);
+      await db.upsertUser({
+        openId,
+        name: userInfo.name || null,
+        email: null,
+        loginMethod: "facebook",
+        lastSignedIn: new Date(),
+        photoUrl: userInfo.picture?.data?.url ?? null,
+      });
+      const sessionToken = await sdk.createSessionToken(openId, {
+        name: userInfo.name || "",
+        expiresInMs: ONE_YEAR_MS,
+      });
+      const cookieOptions = getSessionCookieOptions(req);
+      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      res.redirect(302, "/");
+    } catch (err) {
+      console.error("[Facebook OAuth] Callback failed", err);
+      res.redirect(302, "/login?error=" + encodeURIComponent("Facebook 登入失敗，請稍後再試"));
+    }
+  });
+
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");

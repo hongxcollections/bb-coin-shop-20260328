@@ -3,6 +3,7 @@ import { Eye, EyeOff, Mail, Phone, Lock, User, ShieldCheck, ChevronDown, Bell, B
 import ImageLightbox from "@/components/ImageLightbox";
 import Header from "@/components/Header";
 import { useToast } from "@/contexts/ToastContext";
+import { trpc } from "@/lib/trpc";
 
 const COUNTRIES = [
   { code: "+852", flag: "🇭🇰", name: "香港" },
@@ -83,6 +84,31 @@ function validatePhoneFormat(countryCode: string, local: string): string | null 
       if (d.length < 6) return "電話號碼位數不足，請重新確認";
   }
   return null;
+}
+
+function FacebookLoginButton() {
+  const { data: settings } = trpc.siteSettings.getAll.useQuery();
+  const s = (settings as Record<string, string> | undefined) ?? {};
+  if (s.facebookLoginEnabled !== "true") return null;
+  return (
+    <div className="mt-4">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="flex-1 h-px" style={{ background: "#E5E5E5" }} />
+        <span className="text-xs" style={{ color: "#aaa" }}>或</span>
+        <div className="flex-1 h-px" style={{ background: "#E5E5E5" }} />
+      </div>
+      <a
+        href="/api/auth/facebook"
+        className="flex items-center justify-center gap-3 w-full py-3 rounded-2xl font-semibold text-sm text-white transition-opacity active:opacity-80"
+        style={{ background: "#1877F2", textDecoration: "none" }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+          <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.886v2.267h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>
+        </svg>
+        用 Facebook 登入
+      </a>
+    </div>
+  );
 }
 
 export default function Login() {
@@ -1259,6 +1285,9 @@ export default function Login() {
             </button>
           </form>
         )}
+
+        {/* Facebook Login Button — shown only in login mode when enabled */}
+        {mode === "login" && <FacebookLoginButton />}
 
         {/* Switch mode link */}
         {mode !== "forgot" && !(isPhoneRegister && step === "otp") && (

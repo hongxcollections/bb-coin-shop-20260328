@@ -43,6 +43,8 @@ export default function AdminSiteSettings() {
   const [fbBatchShareEnabled, setFbBatchShareEnabled] = useState(true);
   // FB 風格拍賣版面 開關（預設關閉）
   const [fbViewEnabled, setFbViewEnabled] = useState(false);
+  // Facebook 登入 開關（預設關閉）
+  const [facebookLoginEnabled, setFacebookLoginEnabled] = useState(false);
 
   // 全站公告
   const [announcementEnabled, setAnnouncementEnabled] = useState(false);
@@ -158,6 +160,7 @@ export default function AdminSiteSettings() {
     if (s.aiVideoScriptEnabled !== undefined) setAiVideoScriptEnabled(s.aiVideoScriptEnabled !== "false");
     if (s.fbBatchShareEnabled !== undefined) setFbBatchShareEnabled(s.fbBatchShareEnabled !== "false");
     if (s.fbViewEnabled !== undefined) setFbViewEnabled(s.fbViewEnabled === "true");
+    if (s.facebookLoginEnabled !== undefined) setFacebookLoginEnabled(s.facebookLoginEnabled === "true");
     if (s.announcementEnabled) setAnnouncementEnabled(s.announcementEnabled === "true");
     if (s.announcementText) setAnnouncementText(s.announcementText);
     if (s.homeWelcomeEnabled) setHomeWelcomeEnabled(s.homeWelcomeEnabled === "true");
@@ -379,7 +382,7 @@ export default function AdminSiteSettings() {
                     </Label>
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-3 py-2">
+                <div className="flex items-center justify-between gap-3 py-2 border-b">
                   <div>
                     <p className="font-medium text-sm">📘 Facebook 風格拍賣版面</p>
                     <p className="text-xs text-muted-foreground">開啟後用戶可在拍賣列表切換至 FB 卡片版面（預設關閉）</p>
@@ -394,6 +397,26 @@ export default function AdminSiteSettings() {
                     />
                     <Label className="cursor-pointer text-xs">
                       {fbViewEnabled
+                        ? <span className="text-emerald-600 font-semibold">已開啟</span>
+                        : <span className="text-muted-foreground">已關閉</span>}
+                    </Label>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-3 py-2">
+                  <div>
+                    <p className="font-medium text-sm">🔵 Facebook 登入（一鍵授權）</p>
+                    <p className="text-xs text-muted-foreground">開啟後登入頁顯示「用 Facebook 登入」按鈕，用戶毋須輸入手機即可登入（預設關閉，建議先 UAT 測試）</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={facebookLoginEnabled}
+                      onCheckedChange={(v) => {
+                        setFacebookLoginEnabled(v);
+                        setSetting.mutate({ key: 'facebookLoginEnabled', value: v ? "true" : "false" });
+                      }}
+                    />
+                    <Label className="cursor-pointer text-xs">
+                      {facebookLoginEnabled
                         ? <span className="text-emerald-600 font-semibold">已開啟</span>
                         : <span className="text-muted-foreground">已關閉</span>}
                     </Label>

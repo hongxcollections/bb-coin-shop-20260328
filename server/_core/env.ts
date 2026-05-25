@@ -29,6 +29,8 @@ export const ENV = {
   webhookSecret: process.env.WEBHOOK_SECRET ?? "",
   googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+  facebookAppId: process.env.FACEBOOK_APP_ID ?? "",
+  facebookAppSecret: process.env.FACEBOOK_APP_SECRET ?? "",
   s3AccessKey: process.env.S3_ACCESS_KEY ?? "",
   s3SecretKey: process.env.S3_SECRET_KEY ?? "",
   s3Bucket: process.env.S3_BUCKET ?? "",
