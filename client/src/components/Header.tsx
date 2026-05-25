@@ -1,14 +1,17 @@
 import { Link } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { User } from "lucide-react";
 
 export default function Header() {
+  const { user, isAuthenticated } = useAuth();
+
   return (
     <>
       <nav className="nav-glass fixed top-0 left-0 right-0 z-50">
-        <div className="container flex items-center px-4" style={{ height: "64px" }}>
-          <div className="flex items-center gap-1.5 w-full">
-            {/* 💰 icon */}
+        <div className="container flex items-center justify-between px-4" style={{ height: "64px" }}>
+          {/* Left: logo */}
+          <div className="flex items-center gap-1.5">
             <span className="text-xl leading-none" style={{ marginTop: "-2px" }}>💰</span>
-            {/* 兩行文字區域 */}
             <div className="flex flex-col items-end">
               <Link href="/" className="no-underline">
                 <span className="gold-gradient-text font-bold text-lg leading-none tracking-tight">
@@ -29,6 +32,33 @@ export default function Header() {
               </span>
             </div>
           </div>
+
+          {/* Right: user avatar + name */}
+          {isAuthenticated && user && (
+            <Link href="/profile" className="no-underline flex items-center gap-2">
+              {user.photoUrl ? (
+                <img
+                  src={user.photoUrl}
+                  alt={user.name ?? ""}
+                  className="rounded-full object-cover flex-shrink-0"
+                  style={{ width: "28px", height: "28px" }}
+                />
+              ) : (
+                <div
+                  className="rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ width: "28px", height: "28px", background: "#F5DEB3" }}
+                >
+                  <User size={14} style={{ color: "#E07B00" }} />
+                </div>
+              )}
+              <span
+                className="font-medium leading-none max-w-[120px] truncate"
+                style={{ fontSize: "13px", color: "#333" }}
+              >
+                {user.name ?? "用戶"}
+              </span>
+            </Link>
+          )}
         </div>
       </nav>
       {/* Spacer for fixed nav */}
