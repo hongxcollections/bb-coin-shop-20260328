@@ -24,12 +24,13 @@ async function exchangeFacebookCode(code: string, redirectUri: string): Promise<
 interface FacebookUserInfo {
   id: string;
   name: string;
+  email?: string;
   picture?: { data?: { url?: string } };
 }
 
 async function getFacebookUserInfo(accessToken: string): Promise<FacebookUserInfo> {
   const { data } = await axios.get<FacebookUserInfo>(
-    `https://graph.facebook.com/v19.0/me?fields=id,name,picture&access_token=${accessToken}`
+    `https://graph.facebook.com/v19.0/me?fields=id,name,email,picture&access_token=${accessToken}`
   );
   return data;
 }
@@ -105,7 +106,7 @@ export function registerOAuthRoutes(app: Express) {
     const params = new URLSearchParams({
       client_id: ENV.facebookAppId,
       redirect_uri: redirectUri,
-      scope: "public_profile",
+      scope: "public_profile,email",
       response_type: "code",
     });
     res.redirect(302, `https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`);
@@ -132,11 +133,14 @@ export function registerOAuthRoutes(app: Express) {
       const accessToken = await exchangeFacebookCode(code, redirectUri);
       const userInfo = await getFacebookUserInfo(accessToken);
       const openId = `facebook_${userInfo.id}`;
-      console.log(`[Facebook OAuth] User login - openId: ${openId}, name: ${userInfo.name}`);
+      console.log(`[Facebook OAuth] User login - openId: ${openId}, name: ${userInfo.name}, hasEmail: ${!!userInfo.email}`);
+      // 只在用戶尚未有 email 時才填入 FB email，避免覆蓋用戶手動設定的 email
+      const existing = await db.getUserByOpenId(openId);
+      const emailToSave = existing?.email ? undefined : (userInfo.email ?? null);
       await db.upsertUser({
         openId,
         name: userInfo.name || null,
-        email: null,
+        ...(emailToSave !== undefined ? { email: emailToSave } : {}),
         loginMethod: "facebook",
         lastSignedIn: new Date(),
         photoUrl: userInfo.picture?.data?.url ?? null,
