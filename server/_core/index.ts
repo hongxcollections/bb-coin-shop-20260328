@@ -1731,6 +1731,51 @@ Output ONLY the JSON, nothing else.`;
     })
   );
 
+  // ── 私隱政策 & 資料刪除（Facebook App 審核用）──────────────────────────────
+  app.get('/privacy', (_req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>私隱政策 — 大BB錢幣店</title><style>body{font-family:sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#333;line-height:1.8}h1{color:#b45309}h2{color:#92400e;margin-top:2em}</style></head><body>
+<h1>私隱政策</h1>
+<p>最後更新：2026年5月</p>
+<p>大BB錢幣店（hongxcollections.com）尊重用戶私隱，本政策說明我們如何收集、使用及保護你的個人資料。</p>
+<h2>收集的資料</h2>
+<ul><li>帳戶資料：姓名、電郵地址、電話號碼、個人照片</li><li>登入方式：Google 或 Facebook 帳戶資料（僅限公開資料）</li><li>交易資料：出價紀錄、訂單、付款狀態</li><li>裝置資料：IP 地址、瀏覽器類型</li></ul>
+<h2>使用目的</h2>
+<ul><li>提供拍賣平台服務及處理交易</li><li>發送出價通知、得標通知及訂單確認</li><li>改善網站功能及用戶體驗</li></ul>
+<h2>資料分享</h2>
+<p>我們不會將你的個人資料出售予第三方。我們只會在法律要求或提供服務所需的情況下分享資料。</p>
+<h2>資料保留</h2>
+<p>我們保留帳戶資料，直至你要求刪除帳號為止。</p>
+<h2>你的權利</h2>
+<p>你可以隨時要求查閱、修改或刪除你的個人資料，請聯絡我們：<a href="mailto:ywkyee@gmail.com">ywkyee@gmail.com</a></p>
+<h2>Facebook 登入</h2>
+<p>如你使用 Facebook 登入，我們只會獲取你的公開資料（姓名及個人照片）。我們不會儲存你的 Facebook 密碼。你可以隨時於 Facebook 設定撤銷本平台的授權。</p>
+<h2>聯絡我們</h2>
+<p>如有任何私隱問題，請電郵至：<a href="mailto:ywkyee@gmail.com">ywkyee@gmail.com</a></p>
+</body></html>`);
+  });
+
+  app.get('/data-deletion', (_req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>資料刪除說明 — 大BB錢幣店</title><style>body{font-family:sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#333;line-height:1.8}h1{color:#b45309}h2{color:#92400e;margin-top:2em}.steps{background:#fef3c7;border-left:4px solid #f59e0b;padding:16px 20px;border-radius:4px}</style></head><body>
+<h1>用戶資料刪除說明</h1>
+<p>大BB錢幣店（hongxcollections.com）遵守 Facebook 平台政策，為用戶提供資料刪除途徑。</p>
+<h2>如何申請刪除你的資料</h2>
+<div class="steps">
+<p><strong>方法一：</strong>登入帳戶後，前往「個人資料」→「帳戶設定」，選擇「刪除帳號」。</p>
+<p><strong>方法二：</strong>發送電郵至 <a href="mailto:ywkyee@gmail.com">ywkyee@gmail.com</a>，標題填寫「申請刪除資料」，並提供你的帳戶電郵或電話號碼。</p>
+</div>
+<h2>刪除範圍</h2>
+<ul><li>你的帳戶資料（姓名、電郵、電話）</li><li>你的出價及交易紀錄</li><li>你的通知設定及偏好</li><li>你的 Facebook 登入關聯</li></ul>
+<h2>處理時間</h2>
+<p>我們將在收到申請後 30 日內完成資料刪除，並以電郵通知你。</p>
+<h2>撤銷 Facebook 授權</h2>
+<p>你可以隨時前往 <a href="https://www.facebook.com/settings?tab=applications" target="_blank">Facebook 設定 → 應用程式與網站</a>，移除「大BB錢幣店」的授權。移除後，你下次登入需要重新授權或使用其他方式登入。</p>
+<h2>聯絡我們</h2>
+<p>如有疑問，請電郵至：<a href="mailto:ywkyee@gmail.com">ywkyee@gmail.com</a></p>
+</body></html>`);
+  });
+
   // ── 動態 sitemap.xml ───────────────────────────────────────────────────────
   app.get('/sitemap.xml', async (_req, res) => {
     try {
