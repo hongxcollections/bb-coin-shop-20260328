@@ -106,7 +106,7 @@ export function registerOAuthRoutes(app: Express) {
     const params = new URLSearchParams({
       client_id: ENV.facebookAppId,
       redirect_uri: redirectUri,
-      scope: "public_profile,email",
+      scope: "public_profile",
       response_type: "code",
     });
     res.redirect(302, `https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`);
