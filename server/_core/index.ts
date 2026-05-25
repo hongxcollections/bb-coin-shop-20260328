@@ -1731,7 +1731,31 @@ Output ONLY the JSON, nothing else.`;
     })
   );
 
-  // ── 資料刪除說明（Facebook App 審核用）──────────────────────────────────────
+  // ── 私隱政策 & 資料刪除（Facebook App 審核用，伺服器直接回傳 HTML）─────────
+  // 必須用 Express 路由而非 React SPA，因 Facebook 機器人不執行 JavaScript
+  app.get('/privacy', (_req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>私隱政策 — 大BB錢幣店</title><style>body{font-family:sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#333;line-height:1.8}h1{color:#b45309}h2{color:#92400e;margin-top:2em}a{color:#b45309}</style></head><body>
+<h1>私隱政策</h1>
+<p>最後更新：2026年5月</p>
+<p>大BB錢幣店（hongxcollections.com）尊重用戶私隱，本政策說明我們如何收集、使用及保護你的個人資料。</p>
+<h2>收集的資料</h2>
+<ul><li>帳戶資料：姓名、電郵地址、電話號碼、個人照片</li><li>登入方式：Google 或 Facebook 帳戶資料（僅限公開資料）</li><li>交易資料：出價紀錄、訂單、付款狀態</li><li>裝置資料：IP 地址、瀏覽器類型</li></ul>
+<h2>使用目的</h2>
+<ul><li>提供拍賣平台服務及處理交易</li><li>發送出價通知、得標通知及訂單確認</li><li>改善網站功能及用戶體驗</li></ul>
+<h2>資料分享</h2>
+<p>我們不會將你的個人資料出售予第三方。我們只會在法律要求或提供服務所需的情況下分享資料。</p>
+<h2>資料保留</h2>
+<p>我們保留帳戶資料，直至你要求刪除帳號為止。</p>
+<h2>你的權利</h2>
+<p>你可以隨時要求查閱、修改或刪除你的個人資料，請聯絡我們：<a href="mailto:ywkyee@gmail.com">ywkyee@gmail.com</a></p>
+<h2>Facebook 登入</h2>
+<p>如你使用 Facebook 登入，我們只會獲取你的公開資料（姓名及個人照片）。我們不會儲存你的 Facebook 密碼。你可以隨時於 Facebook 設定撤銷本平台的授權。</p>
+<h2>聯絡我們</h2>
+<p>如有任何私隱問題，請電郵至：<a href="mailto:ywkyee@gmail.com">ywkyee@gmail.com</a></p>
+</body></html>`);
+  });
+
   app.get('/data-deletion', (_req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(`<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>資料刪除說明 — 大BB錢幣店</title><style>body{font-family:sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#333;line-height:1.8}h1{color:#b45309}h2{color:#92400e;margin-top:2em}.steps{background:#fef3c7;border-left:4px solid #f59e0b;padding:16px 20px;border-radius:4px}</style></head><body>
