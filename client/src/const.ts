@@ -5,7 +5,7 @@ export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 // 現階段網站只接受手機號碼註冊；登入入口統一去 /login 頁面（手機表單）
 // 若需重新啟用 Google OAuth，將 GOOGLE_LOGIN_ENABLED 改為 true，
 // 並同步更新 server/_core/oauth.ts 的 GOOGLE_OAUTH_NEW_USER_ENABLED
-const GOOGLE_LOGIN_ENABLED = false;
+const GOOGLE_LOGIN_ENABLED = true;
 
 export const getLoginUrl = (returnPath?: string) => {
   // 全部入口統一去 /login（手機表單）
