@@ -672,6 +672,17 @@ export default function MerchantDashboard() {
               </div>
             </div>
           </Link>
+          <Link href="/merchant/group-auctions">
+            <div className="rounded-2xl bg-white border border-orange-100 p-4 flex items-center gap-3 hover:border-orange-300 hover:bg-orange-50/50 transition-colors cursor-pointer">
+              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
+                <Layers className="w-5 h-5 text-orange-500" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-orange-900">團購拍賣</p>
+                <p className="text-xs text-gray-400 mt-0.5">CSV 批量開拍 · 實時出價</p>
+              </div>
+            </div>
+          </Link>
           <Link href="/merchant/journal">
             <div className="rounded-2xl bg-white border border-amber-100 p-4 flex items-center gap-3 hover:border-amber-300 hover:bg-amber-50/50 transition-colors cursor-pointer">
               <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">

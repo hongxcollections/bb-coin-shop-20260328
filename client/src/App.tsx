@@ -74,6 +74,10 @@ import MerchantSessions from "./pages/MerchantSessions";
 import MerchantSessionEdit from "./pages/MerchantSessionEdit";
 import MerchantSessionPublic from "./pages/MerchantSessionPublic";
 import MerchantSessionPrint from "./pages/MerchantSessionPrint";
+import GroupAuctionList from "./pages/GroupAuctionList";
+import GroupAuctionEdit from "./pages/GroupAuctionEdit";
+import GroupAuctionBidPage from "./pages/GroupAuctionBidPage";
+import GroupAuctionFlyer from "./pages/GroupAuctionFlyer";
 import MerchantStore from "./pages/MerchantStore";
 import MerchantProductDetail from "./pages/MerchantProductDetail";
 import CoinAnalysis from "./pages/CoinAnalysis";
@@ -228,6 +232,11 @@ function Router() {
       <Route path={"/merchant/sessions/:id/print/invoice/:winnerId"} component={MerchantSessionPrint} />
       <Route path={"/merchant/sessions/:id"} component={MerchantSessionEdit} />
       <Route path={"/s/:userId/:slug"} component={MerchantSessionPublic} />
+      <Route path={"/merchant/group-auctions/new"} component={GroupAuctionEdit} />
+      <Route path={"/merchant/group-auctions/:id"} component={GroupAuctionEdit} />
+      <Route path={"/merchant/group-auctions"} component={GroupAuctionList} />
+      <Route path={"/group/:roundId/flyer"} component={GroupAuctionFlyer} />
+      <Route path={"/group/:roundId"} component={GroupAuctionBidPage} />
       <Route path={"/coin-analysis"} component={CoinAnalysis} />
       <Route path={"/messages"} component={Messages} />
       <Route path={"/messages/:roomId"} component={ChatRoom} />

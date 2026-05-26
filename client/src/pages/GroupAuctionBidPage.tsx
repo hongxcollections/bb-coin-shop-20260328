@@ -1,0 +1,293 @@
+import { useState, useEffect } from "react";
+import { useParams, useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { toast } from "sonner";
+import { Clock, ChevronUp, ExternalLink, Trophy, AlertCircle } from "lucide-react";
+
+type ColumnDef = { key: string; label: string; role: string; showOnBidPage?: boolean };
+
+function fmtDate(d: string | Date | null) {
+  if (!d) return "—";
+  const dt = new Date(d);
+  return `${dt.getMonth() + 1}月${dt.getDate()}日 ${dt.getHours().toString().padStart(2, "0")}:${dt.getMinutes().toString().padStart(2, "0")}`;
+}
+
+function useCountdown(endAt: string | null | undefined) {
+  const [text, setText] = useState("");
+  useEffect(() => {
+    if (!endAt) { setText("—"); return; }
+    const tick = () => {
+      const diff = new Date(endAt).getTime() - Date.now();
+      if (diff <= 0) { setText("已截止"); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      if (h > 0) setText(`${h}h ${m}m ${s}s`);
+      else if (m > 0) setText(`${m}m ${s}s`);
+      else setText(`${s}s`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [endAt]);
+  return text;
+}
+
+export default function GroupAuctionBidPage() {
+  const params = useParams<{ roundId: string }>();
+  const roundId = parseInt(params.roundId, 10);
+  const [, setLocation] = useLocation();
+  const { user, isAuthenticated } = useAuth();
+  const [biddingItem, setBiddingItem] = useState<number | null>(null);
+  const [customAmount, setCustomAmount] = useState("");
+  const countdown = useCountdown(undefined);
+
+  const { data, isLoading, refetch, error } = trpc.groupAuctions.getRound.useQuery(
+    { roundId },
+    { refetchInterval: 5000, enabled: !isNaN(roundId) }
+  );
+
+  const placeBidMut = trpc.groupAuctions.placeBid.useMutation({
+    onSuccess: (r) => {
+      if (r.isBuyNow) {
+        toast.success(`直購成功！HK$${r.finalAmount}`);
+      } else {
+        toast.success(`出價 HK$${r.finalAmount} 成功`);
+      }
+      setBiddingItem(null);
+      setCustomAmount("");
+      refetch();
+    },
+    onError: (e) => toast.error(e.message || "出價失敗"),
+  });
+
+  const round = data?.round;
+  const items = data?.items ?? [];
+  const roundCountdown = useCountdown(round?.endAt as string | null | undefined);
+
+  const columns: ColumnDef[] = (() => {
+    try { return JSON.parse(round?.columnsJson ?? "[]"); } catch { return []; }
+  })();
+  const displayCols = columns.filter(c => c.showOnBidPage !== false && c.role !== "startPrice" && c.role !== "buyNowPrice" && c.role !== "bidIncrement");
+  const titleCol = columns.find(c => c.role === "itemTitle");
+
+  function getItemData(item: any): Record<string, string> {
+    try { return JSON.parse(item.dataJson); } catch { return {}; }
+  }
+
+  function handleBid(itemId: number, amount: number) {
+    if (!isAuthenticated) {
+      toast.error("請先登入才可出價");
+      setLocation("/login");
+      return;
+    }
+    placeBidMut.mutate({ itemId, amount });
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-400 text-sm">載入中...</p>
+      </div>
+    );
+  }
+
+  if (error || !round) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="text-center">
+          <AlertCircle className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">場次不存在或未發布</p>
+        </div>
+      </div>
+    );
+  }
+
+  const isEnded = round.status === "ended";
+  const commRate = parseFloat(String(round.buyerCommissionRate));
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-6">
+      {/* 頂部 Banner */}
+      <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 pt-10 pb-4">
+        {round.coverImage && (
+          <img src={round.coverImage} className="w-full h-32 object-cover rounded-xl mb-3 opacity-80" />
+        )}
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-xs opacity-80">{round.periodNumber ? `第 ${round.periodNumber} 期` : "團購拍賣"}</p>
+            <h1 className="text-lg font-bold leading-tight">{round.title}</h1>
+          </div>
+          <a href={`/group/${roundId}/flyer`} target="_blank"
+            className="flex items-center gap-1 text-xs bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg flex-shrink-0">
+            <ExternalLink className="w-3 h-3" /> 廣告頁
+          </a>
+        </div>
+
+        {/* 倒數 */}
+        <div className="mt-3 flex items-center gap-2">
+          <div className={`flex items-center gap-1.5 text-sm font-bold px-3 py-1 rounded-full ${
+            isEnded ? "bg-gray-800/40" : "bg-white/20"
+          }`}>
+            <Clock className="w-3.5 h-3.5" />
+            {isEnded ? "已結拍" : roundCountdown}
+          </div>
+          <span className="text-xs opacity-70">結拍：{fmtDate(round.endAt)}</span>
+        </div>
+
+        {/* 統計 */}
+        <div className="flex gap-4 mt-2 text-xs opacity-80">
+          <span>共 {items.length} 件</span>
+          <span>成交 {items.filter(i => i.status === "sold").length} 件</span>
+          <span>進行中 {items.filter(i => i.status === "active").length} 件</span>
+        </div>
+      </div>
+
+      {/* 拍賣須知 */}
+      {round.description && (
+        <div className="mx-4 mt-3 bg-amber-50 border border-amber-100 rounded-xl p-3">
+          <p className="text-xs font-semibold text-amber-800 mb-1">拍賣須知</p>
+          <p className="text-xs text-amber-700 whitespace-pre-line">{round.description}</p>
+        </div>
+      )}
+
+      {/* 商品列表 */}
+      <div className="px-4 mt-3 space-y-2">
+        {items.map((item, idx) => {
+          const data = getItemData(item);
+          const title = titleCol ? data[titleCol.key] : `商品 ${idx + 1}`;
+          const isMine = user && item.topBidderId === user.id;
+          const isActive = item.status === "active" && !isEnded;
+          const effectiveIncrement = item.bidIncrement > 0 ? item.bidIncrement : round.defaultBidIncrement;
+          const nextBid = item.topBidderId
+            ? (item.currentPrice as number) + effectiveIncrement
+            : item.startPrice;
+          const isExpanded = biddingItem === item.id;
+
+          let borderColor = "border-gray-100";
+          if (item.status === "sold") borderColor = "border-green-100";
+          else if (isMine) borderColor = "border-amber-200";
+
+          return (
+            <div key={item.id} className={`bg-white rounded-2xl border ${borderColor} shadow-sm overflow-hidden`}>
+              <div className="p-3">
+                <div className="flex items-start gap-2">
+                  <span className="text-xs text-gray-400 w-6 text-right flex-shrink-0 mt-0.5">{idx + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 leading-tight">{title || "—"}</p>
+                    {/* 自由欄位 */}
+                    {displayCols.filter(c => c.role === "customText").length > 0 && (
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {displayCols.filter(c => c.role === "customText").map(c => data[c.key]).filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                  {item.status === "sold" && (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex-shrink-0">成交</span>
+                  )}
+                  {item.status === "unsold" && (
+                    <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0">流拍</span>
+                  )}
+                </div>
+
+                {/* 出價狀態行 */}
+                <div className="flex items-center gap-3 mt-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-amber-600">HK${item.currentPrice?.toLocaleString()}</span>
+                      {item.startPrice !== item.currentPrice && (
+                        <span className="text-xs text-gray-400">起 HK${item.startPrice}</span>
+                      )}
+                    </div>
+                    {item.topBidderName && (
+                      <div className="flex items-center gap-1 text-xs mt-0.5">
+                        <Trophy className="w-3 h-3 text-amber-400" />
+                        <span className={isMine ? "text-amber-600 font-medium" : "text-gray-500"}>
+                          {isMine ? "你領先" : item.topBidderName}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {isActive && (
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => handleBid(item.id, nextBid)}
+                        disabled={placeBidMut.isPending}
+                        className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-xl"
+                      >
+                        +1口<br />
+                        <span className="text-[10px] font-normal">${nextBid}</span>
+                      </button>
+                      <button
+                        onClick={() => handleBid(item.id, nextBid + effectiveIncrement)}
+                        disabled={placeBidMut.isPending}
+                        className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-xl"
+                      >
+                        +2口<br />
+                        <span className="text-[10px] font-normal">${nextBid + effectiveIncrement}</span>
+                      </button>
+                      <button
+                        onClick={() => setBiddingItem(isExpanded ? null : item.id)}
+                        className="bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs px-2 py-2 rounded-xl"
+                      >
+                        <ChevronUp className={`w-4 h-4 transition-transform ${isExpanded ? "" : "rotate-180"}`} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* 傭金提示 */}
+                {isActive && commRate > 0 && (
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    成交後含 {(commRate * 100).toFixed(1)}% 傭金，應付 HK${Math.ceil(nextBid * (1 + commRate))}
+                  </p>
+                )}
+              </div>
+
+              {/* 自訂出價展開 */}
+              {isExpanded && isActive && (
+                <div className="border-t border-gray-50 px-3 pb-3 pt-2">
+                  <p className="text-xs text-gray-500 mb-2">自訂出價（最少 HK${nextBid}）</p>
+                  <div className="flex gap-2">
+                    <input
+                      className="flex-1 px-3 py-2 text-sm outline-none"
+                      style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                      placeholder={`最少 ${nextBid}`}
+                      value={customAmount}
+                      onChange={e => setCustomAmount(e.target.value)}
+                    />
+                    <button
+                      onClick={() => {
+                        const amt = parseInt(customAmount, 10);
+                        if (!amt || amt < nextBid) { toast.error(`最少 HK$${nextBid}`); return; }
+                        handleBid(item.id, amt);
+                      }}
+                      disabled={placeBidMut.isPending}
+                      className="bg-amber-500 hover:bg-amber-600 text-white text-sm px-4 py-2 rounded-xl font-medium"
+                    >
+                      出價
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 底部 */}
+      {!isAuthenticated && !isEnded && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3">
+          <button
+            onClick={() => setLocation("/login")}
+            className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 rounded-2xl"
+          >
+            登入 / 註冊 以出價
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

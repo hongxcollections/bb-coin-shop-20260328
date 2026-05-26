@@ -7,7 +7,7 @@ import { z } from "zod";
 import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, sendWinnerAutoReply, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner, saveCoinAnalysisHistory, getUserCoinAnalysisHistory, deleteCoinAnalysisHistory, updateCoinAnalysisHistoryImage, searchRelatedAuctions, setMerchantPageSizes } from "./db";
 import type { AdTargetType } from "./db";
 import type { Auction } from "../drizzle/schema";
-import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids, merchantAuctionSessions, merchantAuctionSessionItems, communitySeederDrafts, auctionComments } from "../drizzle/schema";
+import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids, merchantAuctionSessions, merchantAuctionSessionItems, communitySeederDrafts, auctionComments, groupAuctionRounds, groupAuctionColumnTemplates, groupAuctionImages, groupAuctionItems, groupAuctionBids } from "../drizzle/schema";
 import { sanitizeUserText } from "./_core/sanitize";
 import { eq, sql } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon, checkAndUpdateAuctionStatus } from "./auctions";
@@ -9896,6 +9896,659 @@ EXAMPLE OUTPUT (exact format):
           });
         }
         return { success: true };
+      }),
+  }),
+
+  // ─── 團購拍賣（Group Auction）────────────────────────────────────────────────
+  groupAuctions: router({
+
+    /** 工具函數：確認係 approved 商戶 */
+
+    // ── Column Templates ────────────────────────────────────────────────────
+
+    /** 商戶：列出自己所有欄位模板 */
+    listTemplates: protectedProcedure.query(async ({ ctx }) => {
+      const app = await getMerchantApplicationByUser(ctx.user.id);
+      if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: '只限商戶會員' });
+      }
+      const db = await getDb();
+      const { desc } = await import('drizzle-orm');
+      return db.select().from(groupAuctionColumnTemplates)
+        .where(eq(groupAuctionColumnTemplates.merchantUserId, ctx.user.id))
+        .orderBy(desc(groupAuctionColumnTemplates.createdAt));
+    }),
+
+    /** 商戶：儲存欄位模板 */
+    saveTemplate: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive().optional(),
+        name: z.string().min(1).max(100),
+        columnsJson: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只限商戶會員' });
+        }
+        const db = await getDb();
+        if (input.id) {
+          const [existing] = await db.select().from(groupAuctionColumnTemplates)
+            .where(eq(groupAuctionColumnTemplates.id, input.id)).limit(1);
+          if (!existing || existing.merchantUserId !== ctx.user.id) {
+            throw new TRPCError({ code: 'NOT_FOUND', message: 'Template 不存在' });
+          }
+          await db.update(groupAuctionColumnTemplates)
+            .set({ name: input.name, columnsJson: input.columnsJson })
+            .where(eq(groupAuctionColumnTemplates.id, input.id));
+          return { id: input.id };
+        } else {
+          const [result] = await db.insert(groupAuctionColumnTemplates).values({
+            merchantUserId: ctx.user.id,
+            name: input.name,
+            columnsJson: input.columnsJson,
+          });
+          return { id: (result as any).insertId as number };
+        }
+      }),
+
+    /** 商戶：刪除欄位模板 */
+    deleteTemplate: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [existing] = await db.select().from(groupAuctionColumnTemplates)
+          .where(eq(groupAuctionColumnTemplates.id, input.id)).limit(1);
+        if (!existing || existing.merchantUserId !== ctx.user.id) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Template 不存在' });
+        }
+        await db.delete(groupAuctionColumnTemplates)
+          .where(eq(groupAuctionColumnTemplates.id, input.id));
+        return { success: true };
+      }),
+
+    // ── Rounds (場次) ────────────────────────────────────────────────────────
+
+    /** 商戶：列出自己所有場次 */
+    myListRounds: protectedProcedure.query(async ({ ctx }) => {
+      const app = await getMerchantApplicationByUser(ctx.user.id);
+      if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: '只限商戶會員' });
+      }
+      const db = await getDb();
+      const { desc } = await import('drizzle-orm');
+      return db.select().from(groupAuctionRounds)
+        .where(eq(groupAuctionRounds.merchantUserId, ctx.user.id))
+        .orderBy(desc(groupAuctionRounds.createdAt));
+    }),
+
+    /** 商戶：取得單一場次詳情（含商品 + 圖片集） */
+    getMine: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        const db = await getDb();
+        const { asc } = await import('drizzle-orm');
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.id)).limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        const items = await db.select().from(groupAuctionItems)
+          .where(eq(groupAuctionItems.roundId, input.id))
+          .orderBy(asc(groupAuctionItems.displayOrder), asc(groupAuctionItems.id));
+        const images = await db.select().from(groupAuctionImages)
+          .where(eq(groupAuctionImages.roundId, input.id))
+          .orderBy(asc(groupAuctionImages.displayOrder), asc(groupAuctionImages.id));
+        return { round, items, images };
+      }),
+
+    /** 商戶：建立新場次 */
+    createRound: protectedProcedure
+      .input(z.object({
+        title: z.string().min(1).max(200),
+        periodNumber: z.string().max(40).optional(),
+        description: z.string().optional(),
+        coverImage: z.string().optional(),
+        startAt: z.string().optional(),
+        endAt: z.string().optional(),
+        defaultBidIncrement: z.number().int().min(1).default(50),
+        buyerCommissionRate: z.number().min(0).max(1).default(0),
+        antiSnipeMinutes: z.number().int().min(0).default(5),
+        antiSnipeExtendMinutes: z.number().int().min(0).default(5),
+        antiSnipeMode: z.enum(['none', 'per_item', 'whole_round']).default('per_item'),
+        columnsJson: z.string().optional(),
+        columnTemplateId: z.number().int().positive().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只限商戶會員' });
+        }
+        const db = await getDb();
+        const [result] = await db.insert(groupAuctionRounds).values({
+          merchantUserId: ctx.user.id,
+          title: input.title,
+          periodNumber: input.periodNumber ?? null,
+          description: input.description ?? null,
+          coverImage: input.coverImage ?? null,
+          startAt: input.startAt ? new Date(input.startAt) : null,
+          endAt: input.endAt ? new Date(input.endAt) : null,
+          defaultBidIncrement: input.defaultBidIncrement,
+          buyerCommissionRate: String(input.buyerCommissionRate),
+          antiSnipeMinutes: input.antiSnipeMinutes,
+          antiSnipeExtendMinutes: input.antiSnipeExtendMinutes,
+          antiSnipeMode: input.antiSnipeMode,
+          columnsJson: input.columnsJson ?? null,
+          columnTemplateId: input.columnTemplateId ?? null,
+        });
+        return { id: (result as any).insertId as number };
+      }),
+
+    /** 商戶：更新場次設定（draft 或 published 均可改，ended 不可） */
+    updateRound: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        title: z.string().min(1).max(200).optional(),
+        periodNumber: z.string().max(40).optional(),
+        description: z.string().optional(),
+        coverImage: z.string().nullable().optional(),
+        startAt: z.string().nullable().optional(),
+        endAt: z.string().nullable().optional(),
+        defaultBidIncrement: z.number().int().min(1).optional(),
+        buyerCommissionRate: z.number().min(0).max(1).optional(),
+        antiSnipeMinutes: z.number().int().min(0).optional(),
+        antiSnipeExtendMinutes: z.number().int().min(0).optional(),
+        antiSnipeMode: z.enum(['none', 'per_item', 'whole_round']).optional(),
+        columnsJson: z.string().optional(),
+        columnTemplateId: z.number().int().positive().nullable().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.id)).limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        if (round.status === 'ended') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '已結拍場次不可修改' });
+        }
+        const patch: Record<string, any> = {};
+        if (input.title !== undefined) patch.title = input.title;
+        if (input.periodNumber !== undefined) patch.periodNumber = input.periodNumber;
+        if (input.description !== undefined) patch.description = input.description;
+        if (input.coverImage !== undefined) patch.coverImage = input.coverImage;
+        if (input.startAt !== undefined) patch.startAt = input.startAt ? new Date(input.startAt) : null;
+        if (input.endAt !== undefined) patch.endAt = input.endAt ? new Date(input.endAt) : null;
+        if (input.defaultBidIncrement !== undefined) patch.defaultBidIncrement = input.defaultBidIncrement;
+        if (input.buyerCommissionRate !== undefined) patch.buyerCommissionRate = String(input.buyerCommissionRate);
+        if (input.antiSnipeMinutes !== undefined) patch.antiSnipeMinutes = input.antiSnipeMinutes;
+        if (input.antiSnipeExtendMinutes !== undefined) patch.antiSnipeExtendMinutes = input.antiSnipeExtendMinutes;
+        if (input.antiSnipeMode !== undefined) patch.antiSnipeMode = input.antiSnipeMode;
+        if (input.columnsJson !== undefined) patch.columnsJson = input.columnsJson;
+        if (input.columnTemplateId !== undefined) patch.columnTemplateId = input.columnTemplateId;
+        await db.update(groupAuctionRounds).set(patch).where(eq(groupAuctionRounds.id, input.id));
+        return { success: true };
+      }),
+
+    /** 商戶：發布場次（draft → published） */
+    publishRound: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.id)).limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        if (round.status !== 'draft') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只有 draft 場次可以發布' });
+        }
+        await db.update(groupAuctionRounds)
+          .set({ status: 'published' })
+          .where(eq(groupAuctionRounds.id, input.id));
+        return { success: true };
+      }),
+
+    /** 商戶：手動結拍 */
+    endRound: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.id)).limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        if (round.status === 'ended') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '場次已結拍' });
+        }
+        await db.update(groupAuctionRounds)
+          .set({ status: 'ended' })
+          .where(eq(groupAuctionRounds.id, input.id));
+        // 所有仍 active 商品標為 unsold 或 sold（根據有否出價）
+        const items = await db.select().from(groupAuctionItems)
+          .where(eq(groupAuctionItems.roundId, input.id));
+        for (const item of items) {
+          if (item.status === 'active') {
+            if (item.winnerId) {
+              await db.update(groupAuctionItems)
+                .set({ status: 'sold' })
+                .where(eq(groupAuctionItems.id, item.id));
+            } else {
+              await db.update(groupAuctionItems)
+                .set({ status: 'unsold' })
+                .where(eq(groupAuctionItems.id, item.id));
+            }
+          }
+        }
+        return { success: true };
+      }),
+
+    /** 商戶：刪除 draft 場次 */
+    deleteRound: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.id)).limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        if (round.status === 'published') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '已發布場次不可刪除，請先手動結拍' });
+        }
+        await db.delete(groupAuctionBids).where(eq(groupAuctionBids.roundId, input.id));
+        await db.delete(groupAuctionItems).where(eq(groupAuctionItems.roundId, input.id));
+        await db.delete(groupAuctionImages).where(eq(groupAuctionImages.roundId, input.id));
+        await db.delete(groupAuctionRounds).where(eq(groupAuctionRounds.id, input.id));
+        return { success: true };
+      }),
+
+    // ── Images ────────────────────────────────────────────────────────────────
+
+    /** 商戶：取得圖片上載 presigned URL */
+    getImageUploadUrl: protectedProcedure
+      .input(z.object({
+        roundId: z.number().int().positive(),
+        filename: z.string(),
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round || round.merchantUserId !== ctx.user.id) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        const ext = input.filename.split('.').pop()?.toLowerCase() || 'jpg';
+        const key = `group-auction/${input.roundId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { url: uploadUrl, publicUrl } = await storageSignPut(key, input.mimeType);
+        return { uploadUrl, publicUrl, s3Key: key };
+      }),
+
+    /** 商戶：記錄已上載圖片到 DB */
+    recordImage: protectedProcedure
+      .input(z.object({
+        roundId: z.number().int().positive(),
+        s3Key: z.string(),
+        url: z.string(),
+        displayOrder: z.number().int().default(0),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round || round.merchantUserId !== ctx.user.id) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        const [result] = await db.insert(groupAuctionImages).values({
+          roundId: input.roundId,
+          s3Key: input.s3Key,
+          url: input.url,
+          displayOrder: input.displayOrder,
+        });
+        return { id: (result as any).insertId as number };
+      }),
+
+    /** 商戶：刪除場次圖片 */
+    deleteImage: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [img] = await db.select().from(groupAuctionImages)
+          .where(eq(groupAuctionImages.id, input.id)).limit(1);
+        if (!img) throw new TRPCError({ code: 'NOT_FOUND', message: '圖片不存在' });
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, img.roundId)).limit(1);
+        if (!round || round.merchantUserId !== ctx.user.id) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        await db.delete(groupAuctionImages).where(eq(groupAuctionImages.id, input.id));
+        return { success: true };
+      }),
+
+    /** 商戶：更新圖片排序 */
+    reorderImages: protectedProcedure
+      .input(z.object({
+        roundId: z.number().int().positive(),
+        orderedIds: z.array(z.number().int().positive()),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round || round.merchantUserId !== ctx.user.id) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        for (let i = 0; i < input.orderedIds.length; i++) {
+          await db.update(groupAuctionImages)
+            .set({ displayOrder: i })
+            .where(eq(groupAuctionImages.id, input.orderedIds[i]));
+        }
+        return { success: true };
+      }),
+
+    // ── Items ────────────────────────────────────────────────────────────────
+
+    /** 商戶：批量 import 商品（CSV parse 後呼叫） */
+    importItems: protectedProcedure
+      .input(z.object({
+        roundId: z.number().int().positive(),
+        items: z.array(z.object({
+          dataJson: z.string(),
+          startPrice: z.number().int().min(0),
+          bidIncrement: z.number().int().min(0).default(0),
+          buyNowPrice: z.number().int().positive().optional(),
+        })),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round || round.merchantUserId !== ctx.user.id) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        if (round.status === 'ended') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '已結拍場次不可匯入商品' });
+        }
+        // 取得目前最大 displayOrder
+        const existingItems = await db.select({ displayOrder: groupAuctionItems.displayOrder })
+          .from(groupAuctionItems).where(eq(groupAuctionItems.roundId, input.roundId));
+        const maxOrder = existingItems.length > 0
+          ? Math.max(...existingItems.map(i => i.displayOrder))
+          : -1;
+        for (let i = 0; i < input.items.length; i++) {
+          const item = input.items[i];
+          await db.insert(groupAuctionItems).values({
+            roundId: input.roundId,
+            displayOrder: maxOrder + 1 + i,
+            dataJson: item.dataJson,
+            startPrice: item.startPrice,
+            bidIncrement: item.bidIncrement,
+            buyNowPrice: item.buyNowPrice ?? null,
+          });
+        }
+        return { imported: input.items.length };
+      }),
+
+    /** 商戶：更新單件商品 */
+    updateItem: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        dataJson: z.string().optional(),
+        startPrice: z.number().int().min(0).optional(),
+        bidIncrement: z.number().int().min(0).optional(),
+        buyNowPrice: z.number().int().positive().nullable().optional(),
+        imageIdsJson: z.string().nullable().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [item] = await db.select().from(groupAuctionItems)
+          .where(eq(groupAuctionItems.id, input.id)).limit(1);
+        if (!item) throw new TRPCError({ code: 'NOT_FOUND', message: '商品不存在' });
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, item.roundId)).limit(1);
+        if (!round || round.merchantUserId !== ctx.user.id) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        const patch: Record<string, any> = {};
+        if (input.dataJson !== undefined) patch.dataJson = input.dataJson;
+        if (input.startPrice !== undefined) patch.startPrice = input.startPrice;
+        if (input.bidIncrement !== undefined) patch.bidIncrement = input.bidIncrement;
+        if (input.buyNowPrice !== undefined) patch.buyNowPrice = input.buyNowPrice;
+        if (input.imageIdsJson !== undefined) patch.imageIdsJson = input.imageIdsJson;
+        await db.update(groupAuctionItems).set(patch).where(eq(groupAuctionItems.id, input.id));
+        return { success: true };
+      }),
+
+    /** 商戶：刪除商品 */
+    deleteItem: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [item] = await db.select().from(groupAuctionItems)
+          .where(eq(groupAuctionItems.id, input.id)).limit(1);
+        if (!item) throw new TRPCError({ code: 'NOT_FOUND', message: '商品不存在' });
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, item.roundId)).limit(1);
+        if (!round || round.merchantUserId !== ctx.user.id) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        await db.delete(groupAuctionBids).where(eq(groupAuctionBids.itemId, input.id));
+        await db.delete(groupAuctionItems).where(eq(groupAuctionItems.id, input.id));
+        return { success: true };
+      }),
+
+    /** 商戶：更新商品排序 */
+    reorderItems: protectedProcedure
+      .input(z.object({
+        roundId: z.number().int().positive(),
+        orderedIds: z.array(z.number().int().positive()),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round || round.merchantUserId !== ctx.user.id) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        for (let i = 0; i < input.orderedIds.length; i++) {
+          await db.update(groupAuctionItems)
+            .set({ displayOrder: i })
+            .where(eq(groupAuctionItems.id, input.orderedIds[i]));
+        }
+        return { success: true };
+      }),
+
+    /** 商戶：結拍後匯出結果（兩種格式） */
+    exportResults: protectedProcedure
+      .input(z.object({
+        roundId: z.number().int().positive(),
+        format: z.enum(['by_order', 'by_buyer']).default('by_order'),
+      }))
+      .query(async ({ input, ctx }) => {
+        const db = await getDb();
+        const { asc } = await import('drizzle-orm');
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        const items = await db.select().from(groupAuctionItems)
+          .where(eq(groupAuctionItems.roundId, input.roundId))
+          .orderBy(asc(groupAuctionItems.displayOrder));
+        // 拉買家名字
+        const winnerIds = [...new Set(items.filter(i => i.winnerId).map(i => i.winnerId as number))];
+        let winnerMap: Record<number, string> = {};
+        if (winnerIds.length > 0) {
+          const { users } = await import('../drizzle/schema');
+          const { inArray } = await import('drizzle-orm');
+          const winners = await db.select({ id: users.id, name: users.name })
+            .from(users).where(inArray(users.id, winnerIds));
+          winnerMap = Object.fromEntries(winners.map(w => [w.id, w.name ?? '']));
+        }
+        const commRate = parseFloat(String(round.buyerCommissionRate));
+        const rows = items.map((item, idx) => {
+          const data = (() => { try { return JSON.parse(item.dataJson); } catch { return {}; } })();
+          const finalPrice = item.finalPrice ?? 0;
+          const commission = Math.ceil(finalPrice * commRate);
+          const total = finalPrice + commission;
+          const buyerName = item.winnerId ? (winnerMap[item.winnerId] ?? '') : '';
+          return {
+            order: idx + 1,
+            ...data,
+            startPrice: item.startPrice,
+            finalPrice: item.status === 'sold' ? finalPrice : null,
+            commissionRate: commRate > 0 ? `${(commRate * 100).toFixed(1)}%` : '',
+            commission: commRate > 0 && item.status === 'sold' ? commission : null,
+            total: commRate > 0 && item.status === 'sold' ? total : (item.status === 'sold' ? finalPrice : null),
+            buyerName,
+            status: item.status === 'sold' ? '已成交' : item.status === 'unsold' ? '流拍' : '進行中',
+          };
+        });
+        if (input.format === 'by_buyer') {
+          rows.sort((a, b) => (a.buyerName || 'zzz').localeCompare(b.buyerName || 'zzz'));
+        }
+        return { round, rows, columnsJson: round.columnsJson };
+      }),
+
+    // ── Public ────────────────────────────────────────────────────────────────
+
+    /** 公開：取得場次詳情 + 商品 + 每件最高出價 */
+    getRound: publicProcedure
+      .input(z.object({ roundId: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        const { asc, desc } = await import('drizzle-orm');
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round || round.status === 'draft') {
+          throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在或未發布' });
+        }
+        const items = await db.select().from(groupAuctionItems)
+          .where(eq(groupAuctionItems.roundId, input.roundId))
+          .orderBy(asc(groupAuctionItems.displayOrder), asc(groupAuctionItems.id));
+        const images = await db.select().from(groupAuctionImages)
+          .where(eq(groupAuctionImages.roundId, input.roundId))
+          .orderBy(asc(groupAuctionImages.displayOrder));
+        // 拉每件商品最高出價 + 出價者名字
+        const itemsWithBids = await Promise.all(items.map(async (item) => {
+          const [topBid] = await db.select().from(groupAuctionBids)
+            .where(eq(groupAuctionBids.itemId, item.id))
+            .orderBy(desc(groupAuctionBids.amount), desc(groupAuctionBids.id))
+            .limit(1);
+          let topBidderName: string | null = null;
+          if (topBid) {
+            const { users } = await import('../drizzle/schema');
+            const [u] = await db.select({ name: users.name }).from(users)
+              .where(eq(users.id, topBid.userId)).limit(1);
+            topBidderName = u?.name ?? null;
+          }
+          return {
+            ...item,
+            currentPrice: topBid?.amount ?? item.startPrice,
+            topBidderId: topBid?.userId ?? null,
+            topBidderName,
+            bidCount: await db.select({ cnt: sql`COUNT(*)` }).from(groupAuctionBids)
+              .where(eq(groupAuctionBids.itemId, item.id))
+              .then(r => Number((r[0] as any)?.cnt ?? 0)),
+          };
+        }));
+        return { round, items: itemsWithBids, images };
+      }),
+
+    /** 公開（需登入）：出價 */
+    placeBid: protectedProcedure
+      .input(z.object({
+        itemId: z.number().int().positive(),
+        amount: z.number().int().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const { desc } = await import('drizzle-orm');
+        const [item] = await db.select().from(groupAuctionItems)
+          .where(eq(groupAuctionItems.id, input.itemId)).limit(1);
+        if (!item) throw new TRPCError({ code: 'NOT_FOUND', message: '商品不存在' });
+        if (item.status !== 'active') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '此商品已結拍' });
+        }
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, item.roundId)).limit(1);
+        if (!round || round.status !== 'published') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '場次未開拍或已結拍' });
+        }
+        // 結拍時間檢查（per item endAt 優先，否則用場次 endAt）
+        const endAt = item.endAt ?? round.endAt;
+        if (endAt && new Date() > new Date(endAt)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '此商品已截止出價' });
+        }
+        // 最高出價
+        const [topBid] = await db.select().from(groupAuctionBids)
+          .where(eq(groupAuctionBids.itemId, input.itemId))
+          .orderBy(desc(groupAuctionBids.amount), desc(groupAuctionBids.id))
+          .limit(1);
+        const currentPrice = topBid?.amount ?? item.startPrice;
+        const effectiveIncrement = item.bidIncrement > 0 ? item.bidIncrement : round.defaultBidIncrement;
+        const minBid = topBid ? currentPrice + effectiveIncrement : item.startPrice;
+        if (input.amount < minBid) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `出價最少 $${minBid}（目前 $${currentPrice} + 每口 $${effectiveIncrement}）`,
+          });
+        }
+        // 封頂價：直接得標
+        const isBuyNow = item.buyNowPrice != null && input.amount >= item.buyNowPrice;
+        const finalAmount = isBuyNow ? item.buyNowPrice! : input.amount;
+        // 寫出價記錄
+        await db.insert(groupAuctionBids).values({
+          itemId: input.itemId,
+          roundId: item.roundId,
+          userId: ctx.user.id,
+          amount: finalAmount,
+        });
+        // 更新商品快取
+        const itemPatch: Record<string, any> = {
+          finalPrice: finalAmount,
+          winnerId: ctx.user.id,
+        };
+        if (isBuyNow) {
+          itemPatch.status = 'sold';
+        }
+        await db.update(groupAuctionItems).set(itemPatch).where(eq(groupAuctionItems.id, input.itemId));
+        // Anti-snipe：whole_round 模式，延長場次 endAt
+        if (!isBuyNow && round.antiSnipeMode === 'whole_round' && round.endAt && round.antiSnipeMinutes > 0) {
+          const endMs = new Date(round.endAt).getTime();
+          const nowMs = Date.now();
+          const bufferMs = round.antiSnipeMinutes * 60 * 1000;
+          if (endMs - nowMs < bufferMs) {
+            const newEnd = new Date(nowMs + round.antiSnipeExtendMinutes * 60 * 1000);
+            await db.update(groupAuctionRounds)
+              .set({ endAt: newEnd })
+              .where(eq(groupAuctionRounds.id, round.id));
+          }
+        }
+        // Anti-snipe：per_item 模式，延長此商品 endAt
+        if (!isBuyNow && round.antiSnipeMode === 'per_item' && round.antiSnipeMinutes > 0) {
+          const itemEndAt = item.endAt ?? round.endAt;
+          if (itemEndAt) {
+            const endMs = new Date(itemEndAt).getTime();
+            const nowMs = Date.now();
+            const bufferMs = round.antiSnipeMinutes * 60 * 1000;
+            if (endMs - nowMs < bufferMs) {
+              const newEnd = new Date(nowMs + round.antiSnipeExtendMinutes * 60 * 1000);
+              await db.update(groupAuctionItems)
+                .set({ endAt: newEnd })
+                .where(eq(groupAuctionItems.id, input.itemId));
+            }
+          }
+        }
+        return { success: true, isBuyNow, finalAmount };
       }),
   }),
 });

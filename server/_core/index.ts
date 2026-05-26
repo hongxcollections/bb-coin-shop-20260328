@@ -1020,6 +1020,88 @@ async function bootstrapMissingColumns() {
     );
   }
 
+  // ─── 團購拍賣（Group Auction）──────────────────────────────────────────────
+  await alter(`CREATE TABLE IF NOT EXISTS \`groupAuctionRounds\` (
+    \`id\` int NOT NULL AUTO_INCREMENT,
+    \`merchantUserId\` int NOT NULL,
+    \`title\` varchar(200) NOT NULL,
+    \`periodNumber\` varchar(40) NULL,
+    \`description\` text NULL,
+    \`coverImage\` varchar(500) NULL,
+    \`startAt\` timestamp NULL,
+    \`endAt\` timestamp NULL,
+    \`antiSnipeMinutes\` int NOT NULL DEFAULT 5,
+    \`antiSnipeExtendMinutes\` int NOT NULL DEFAULT 5,
+    \`antiSnipeMode\` enum('none','per_item','whole_round') NOT NULL DEFAULT 'per_item',
+    \`defaultBidIncrement\` int NOT NULL DEFAULT 50,
+    \`buyerCommissionRate\` decimal(5,4) NOT NULL DEFAULT 0,
+    \`status\` enum('draft','published','ended') NOT NULL DEFAULT 'draft',
+    \`columnTemplateId\` int NULL,
+    \`columnsJson\` text NULL,
+    \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`updatedAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (\`id\`),
+    INDEX \`idx_gar_merchant\` (\`merchantUserId\`),
+    INDEX \`idx_gar_status\` (\`status\`),
+    INDEX \`idx_gar_endAt\` (\`endAt\`)
+  )`, 'Ensured groupAuctionRounds table');
+
+  await alter(`CREATE TABLE IF NOT EXISTS \`groupAuctionColumnTemplates\` (
+    \`id\` int NOT NULL AUTO_INCREMENT,
+    \`merchantUserId\` int NOT NULL,
+    \`name\` varchar(100) NOT NULL,
+    \`columnsJson\` text NOT NULL,
+    \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`updatedAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (\`id\`),
+    INDEX \`idx_gact_merchant\` (\`merchantUserId\`)
+  )`, 'Ensured groupAuctionColumnTemplates table');
+
+  await alter(`CREATE TABLE IF NOT EXISTS \`groupAuctionImages\` (
+    \`id\` int NOT NULL AUTO_INCREMENT,
+    \`roundId\` int NOT NULL,
+    \`s3Key\` varchar(500) NOT NULL,
+    \`url\` varchar(500) NOT NULL,
+    \`displayOrder\` int NOT NULL DEFAULT 0,
+    \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (\`id\`),
+    INDEX \`idx_gai_round\` (\`roundId\`)
+  )`, 'Ensured groupAuctionImages table');
+
+  await alter(`CREATE TABLE IF NOT EXISTS \`groupAuctionItems\` (
+    \`id\` int NOT NULL AUTO_INCREMENT,
+    \`roundId\` int NOT NULL,
+    \`displayOrder\` int NOT NULL DEFAULT 0,
+    \`dataJson\` text NOT NULL,
+    \`imageIdsJson\` text NULL,
+    \`startPrice\` int NOT NULL,
+    \`bidIncrement\` int NOT NULL DEFAULT 0,
+    \`buyNowPrice\` int NULL,
+    \`status\` enum('active','sold','unsold') NOT NULL DEFAULT 'active',
+    \`finalPrice\` int NULL,
+    \`winnerId\` int NULL,
+    \`endAt\` timestamp NULL,
+    \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`updatedAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (\`id\`),
+    INDEX \`idx_gait_round\` (\`roundId\`),
+    INDEX \`idx_gait_status\` (\`status\`),
+    INDEX \`idx_gait_winner\` (\`winnerId\`)
+  )`, 'Ensured groupAuctionItems table');
+
+  await alter(`CREATE TABLE IF NOT EXISTS \`groupAuctionBids\` (
+    \`id\` int NOT NULL AUTO_INCREMENT,
+    \`itemId\` int NOT NULL,
+    \`roundId\` int NOT NULL,
+    \`userId\` int NOT NULL,
+    \`amount\` int NOT NULL,
+    \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (\`id\`),
+    INDEX \`idx_gab_item\` (\`itemId\`),
+    INDEX \`idx_gab_round\` (\`roundId\`),
+    INDEX \`idx_gab_user\` (\`userId\`)
+  )`, 'Ensured groupAuctionBids table');
+
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
 }

@@ -754,4 +754,111 @@ export const auctionComments = mysqlTable("auctionComments", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type AuctionComment = typeof auctionComments.$inferSelect;
+
+// ─── 團購拍賣（Group Auction）────────────────────────────────────────────────
+
+/**
+ * 場次主表：一個商戶可建立多個團購拍賣場次
+ */
+export const groupAuctionRounds = mysqlTable("groupAuctionRounds", {
+  id: int("id").autoincrement().primaryKey(),
+  merchantUserId: int("merchantUserId").notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  periodNumber: varchar("periodNumber", { length: 40 }),
+  description: text("description"),
+  coverImage: varchar("coverImage", { length: 500 }),
+  startAt: timestamp("startAt"),
+  endAt: timestamp("endAt"),
+  // 延時模式：結束前 X 分鐘有新出價，延長 Y 分鐘
+  antiSnipeMinutes: int("antiSnipeMinutes").default(5).notNull(),
+  antiSnipeExtendMinutes: int("antiSnipeExtendMinutes").default(5).notNull(),
+  antiSnipeMode: mysqlEnum("antiSnipeMode", ["none", "per_item", "whole_round"]).default("per_item").notNull(),
+  // 每口加價幅度（場次預設，可 per item 覆寫）
+  defaultBidIncrement: int("defaultBidIncrement").default(50).notNull(),
+  // 傭金設定
+  buyerCommissionRate: decimal("buyerCommissionRate", { precision: 5, scale: 4 }).default("0").notNull(),
+  // 場次狀態
+  status: mysqlEnum("status", ["draft", "published", "ended"]).default("draft").notNull(),
+  // 使用的欄位 template id（可 null，代表自訂）
+  columnTemplateId: int("columnTemplateId"),
+  // 欄位定義 JSON（每個場次獨立儲存一份，方便欄位與 import data 對應）
+  columnsJson: text("columnsJson"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type GroupAuctionRound = typeof groupAuctionRounds.$inferSelect;
+export type InsertGroupAuctionRound = typeof groupAuctionRounds.$inferInsert;
+
+/**
+ * 欄位 Template：商戶可儲存常用欄位設定供重用
+ * columnsJson 格式：JSON array of { key, label, role, required, type, showOnBidPage }
+ * role 枚舉：itemTitle | startPrice | buyNowPrice | bidIncrement | imageRef | customText
+ */
+export const groupAuctionColumnTemplates = mysqlTable("groupAuctionColumnTemplates", {
+  id: int("id").autoincrement().primaryKey(),
+  merchantUserId: int("merchantUserId").notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  columnsJson: text("columnsJson").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type GroupAuctionColumnTemplate = typeof groupAuctionColumnTemplates.$inferSelect;
+export type InsertGroupAuctionColumnTemplate = typeof groupAuctionColumnTemplates.$inferInsert;
+
+/**
+ * 場次圖片集：商戶一次過上載多張圖片
+ */
+export const groupAuctionImages = mysqlTable("groupAuctionImages", {
+  id: int("id").autoincrement().primaryKey(),
+  roundId: int("roundId").notNull(),
+  s3Key: varchar("s3Key", { length: 500 }).notNull(),
+  url: varchar("url", { length: 500 }).notNull(),
+  displayOrder: int("displayOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type GroupAuctionImage = typeof groupAuctionImages.$inferSelect;
+export type InsertGroupAuctionImage = typeof groupAuctionImages.$inferInsert;
+
+/**
+ * 場次商品：每一件拍賣品
+ * dataJson 儲存商戶自定欄位的值，格式與 columnsJson 的 key 對應
+ * imageIds: JSON array of groupAuctionImages.id
+ */
+export const groupAuctionItems = mysqlTable("groupAuctionItems", {
+  id: int("id").autoincrement().primaryKey(),
+  roundId: int("roundId").notNull(),
+  displayOrder: int("displayOrder").default(0).notNull(),
+  // 商品欄位資料（JSON object，key = columnsJson 的 key）
+  dataJson: text("dataJson").notNull(),
+  // 關聯圖片 ids（JSON array of groupAuctionImages.id）
+  imageIdsJson: text("imageIdsJson"),
+  // 快取：起拍價、每口加價（從 dataJson 提取，方便查詢）
+  startPrice: int("startPrice").notNull(),
+  bidIncrement: int("bidIncrement").default(0).notNull(),
+  buyNowPrice: int("buyNowPrice"),
+  // 狀態
+  status: mysqlEnum("status", ["active", "sold", "unsold"]).default("active").notNull(),
+  // 結拍後快取：成交價、買家
+  finalPrice: int("finalPrice"),
+  winnerId: int("winnerId"),
+  endAt: timestamp("endAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type GroupAuctionItem = typeof groupAuctionItems.$inferSelect;
+export type InsertGroupAuctionItem = typeof groupAuctionItems.$inferInsert;
+
+/**
+ * 出價記錄
+ */
+export const groupAuctionBids = mysqlTable("groupAuctionBids", {
+  id: int("id").autoincrement().primaryKey(),
+  itemId: int("itemId").notNull(),
+  roundId: int("roundId").notNull(),
+  userId: int("userId").notNull(),
+  amount: int("amount").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type GroupAuctionBid = typeof groupAuctionBids.$inferSelect;
+export type InsertGroupAuctionBid = typeof groupAuctionBids.$inferInsert;
 export type InsertAuctionComment = typeof auctionComments.$inferInsert;
