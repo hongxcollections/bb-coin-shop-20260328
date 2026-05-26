@@ -85,7 +85,7 @@ async function getGoogleUserInfo(accessToken: string): Promise<GoogleUserInfo> {
 // 現階段網站只接受手機號碼註冊。
 // - GOOGLE_OAUTH_NEW_USER_ENABLED = false：Google OAuth 唔可以開新帳號（已存在嘅 Google 用戶仍然可以登入）
 // - 若需重新啟用，將下方常數改為 true，並同步更新 client/src/const.ts 嘅 getLoginUrl()
-const GOOGLE_OAUTH_NEW_USER_ENABLED = false;
+const GOOGLE_OAUTH_NEW_USER_ENABLED = true;
 
 export function registerOAuthRoutes(app: Express) {
   // ─── Facebook Login: redirect to FB OAuth ────────────────────────────────
@@ -197,16 +197,16 @@ export function registerOAuthRoutes(app: Express) {
 
         const openId = `google_${userInfo.sub}`;
 
-        // ─── 守衛：Google OAuth 唔可以開新帳號 ──────────────────────────────────
-        // 只允許「已存在嘅 Google 用戶」登入，新嘅 Google 帳號一律 reject
         const existing = await db.getUserByOpenId(openId);
+        const isNewGoogleUser = !existing;
+
         if (!existing && !GOOGLE_OAUTH_NEW_USER_ENABLED) {
           console.warn(`[OAuth] Blocked new Google registration - openId: ${openId}, email: ${userInfo.email}`);
           res.redirect(302, "/login?error=" + encodeURIComponent("Google 註冊功能暫時停用，請使用手機號碼註冊"));
           return;
         }
 
-        console.log(`[OAuth] Existing Google user logged in - openId: ${openId}, email: ${userInfo.email}, name: ${userInfo.name}`);
+        console.log(`[OAuth] Google user login - openId: ${openId}, email: ${userInfo.email}, name: ${userInfo.name}, isNew: ${isNewGoogleUser}`);
 
         await db.upsertUser({
           openId,
@@ -216,6 +216,19 @@ export function registerOAuthRoutes(app: Express) {
           lastSignedIn: new Date(),
           photoUrl: userInfo.picture ?? null,
         });
+
+        // 新用戶自動升銀會員
+        if (isNewGoogleUser) {
+          try {
+            const newUser = await db.getUserByOpenId(openId);
+            if (newUser?.id) {
+              await db.setUserMemberLevel(newUser.id, 'silver');
+              console.log(`[OAuth] New Google user auto-upgraded to silver: userId=${newUser.id}`);
+            }
+          } catch (e) {
+            console.error('[OAuth] Failed to set silver level for new Google user', e);
+          }
+        }
 
         // 註：早鳥領取只對電話註冊（/api/auth/register with phone）生效，Google OAuth 唔會觸發。
 
