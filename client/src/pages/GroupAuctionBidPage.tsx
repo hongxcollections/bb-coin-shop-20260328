@@ -262,8 +262,8 @@ export default function GroupAuctionBidPage() {
                 {isActive && commRate > 0 && (
                   <p className="text-[10px] text-gray-400 mt-1">
                     {isMine
-                      ? `你現時領先 HK$${item.currentPrice}，含 ${(commRate * 100).toFixed(1)}% 傭金 需付 HK$${Math.round(Number(item.currentPrice) * (1 + Number(commRate)) + 1e-9)}`
-                      : `+1口 HK$${nextBid}，含 ${(commRate * 100).toFixed(1)}% 傭金 需付 HK$${Math.round(Number(nextBid) * (1 + Number(commRate)) + 1e-9)}`
+                      ? `你現時領先 HK$${item.currentPrice}，含 ${(commRate * 100).toFixed(1)}% 傭金 需付 HK$${(Number(item.currentPrice) * (1 + Number(commRate))).toFixed(1)}`
+                      : `+1口 HK$${nextBid}，含 ${(commRate * 100).toFixed(1)}% 傭金 需付 HK$${(Number(nextBid) * (1 + Number(commRate))).toFixed(1)}`
                     }
                   </p>
                 )}
