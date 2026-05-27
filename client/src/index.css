@@ -746,6 +746,14 @@
 
 
 /* ─── isMine bid card shimmer (scanner/photocopier sweep) ─────────────── */
+@keyframes red-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.animate-red-flash {
+  animation: red-flash 0.75s ease-in-out infinite;
+}
+
 @keyframes amber-shimmer {
   0%, 15%   { transform: translateX(-100%); }
   60%, 100% { transform: translateX(200%); }

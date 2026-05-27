@@ -46,6 +46,7 @@ export default function GroupAuctionBidPage() {
   const [customAmount, setCustomAmount] = useState("");
   const [filter, setFilter] = useState<"all" | "bid" | "nobid">("all");
   const [showDesc, setShowDesc] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
   const countdown = useCountdown(undefined);
   const headerRef = useRef<HTMLDivElement>(null);
   const [headerHeight, setHeaderHeight] = useState(160);
@@ -85,6 +86,11 @@ export default function GroupAuctionBidPage() {
   function getItemData(item: any): Record<string, string> {
     try { return JSON.parse(item.dataJson); } catch { return {}; }
   }
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     const el = headerRef.current;
@@ -238,6 +244,14 @@ export default function GroupAuctionBidPage() {
             : item.startPrice;
           const isExpanded = biddingItem === item.id;
           const nextBidInCurr = Math.ceil(nextBid * currRate);
+          const itemEndMs = item.endAt ? new Date(item.endAt as string).getTime() : null;
+          const showItemTimer = round.antiSnipeMode === "per_item" && itemEndMs !== null && isActive;
+          const itemSecsLeft = showItemTimer ? Math.max(0, Math.floor((itemEndMs! - now) / 1000)) : 0;
+          const timerMins = Math.floor(itemSecsLeft / 60);
+          const timerSecs = itemSecsLeft % 60;
+          const timerStr = `${timerMins}:${String(timerSecs).padStart(2, "0")}`;
+          const timerRed = showItemTimer && itemSecsLeft <= 300;
+          const timerFlash = showItemTimer && itemSecsLeft <= 180;
 
           let cardClass = "rounded-2xl overflow-hidden border";
           let cardStyle: React.CSSProperties = {};
@@ -248,7 +262,16 @@ export default function GroupAuctionBidPage() {
           } else { cardClass += " bg-white border-gray-100 shadow-sm"; }
 
           return (
-            <div key={item.id} className={`relative ${cardClass}`} style={cardStyle}>
+            <div key={item.id} className="relative">
+              {showItemTimer && (
+                <div
+                  className={`absolute right-3 z-10 flex items-center gap-1 px-2 py-[2px] text-[11px] font-mono font-semibold rounded-full border bg-white${timerFlash ? " animate-red-flash" : ""}`}
+                  style={{ top: "-9px", color: timerRed ? "#dc2626" : "#f59e0b", borderColor: timerRed ? "#fca5a5" : "#fde68a" }}
+                >
+                  ⏱ {timerStr}
+                </div>
+              )}
+              <div className={`relative ${cardClass}`} style={cardStyle}>
               {isMine && isActive && (
                 <div className="absolute inset-0 rounded-2xl animate-amber-shimmer pointer-events-none" />
               )}
@@ -354,6 +377,7 @@ export default function GroupAuctionBidPage() {
                   </div>
                 </div>
               )}
+              </div>
             </div>
           );
         })}
