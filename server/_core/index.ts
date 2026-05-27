@@ -1046,6 +1046,13 @@ async function bootstrapMissingColumns() {
     INDEX \`idx_gar_endAt\` (\`endAt\`)
   )`, 'Ensured groupAuctionRounds table');
 
+  if (!(await check('groupAuctionRounds', 'displayCurrencies'))) {
+    await alter(
+      `ALTER TABLE \`groupAuctionRounds\` ADD COLUMN \`displayCurrencies\` varchar(100) NOT NULL DEFAULT 'HKD,CNY'`,
+      'Added displayCurrencies to groupAuctionRounds'
+    );
+  }
+
   await alter(`CREATE TABLE IF NOT EXISTS \`groupAuctionColumnTemplates\` (
     \`id\` int NOT NULL AUTO_INCREMENT,
     \`merchantUserId\` int NOT NULL,

@@ -46,7 +46,7 @@ export default function GroupAuctionBidPage() {
   const [customAmount, setCustomAmount] = useState("");
   const [filter, setFilter] = useState<"all" | "bid" | "nobid">("all");
   const [showDesc, setShowDesc] = useState(true);
-  const [currency, setCurrency] = useState<"HKD" | "CNY" | "USD">("CNY");
+  const [currency, setCurrency] = useState("CNY");
   const countdown = useCountdown(undefined);
   const headerRef = useRef<HTMLDivElement>(null);
   const [headerHeight, setHeaderHeight] = useState(160);
@@ -83,6 +83,11 @@ export default function GroupAuctionBidPage() {
   })();
   const displayCols = columns.filter(c => c.showOnBidPage !== false && c.role !== "startPrice" && c.role !== "buyNowPrice" && c.role !== "bidIncrement");
   const titleCol = columns.find(c => c.role === "itemTitle");
+  const currencyList = (() => {
+    const raw = ((round as any)?.displayCurrencies ?? "HKD,CNY")
+      .split(",").map((s: string) => s.trim()).filter((s: string) => s in CURR_RATES);
+    return raw.length > 0 ? raw : ["HKD", "CNY"];
+  })();
 
   function getItemData(item: any): Record<string, string> {
     try { return JSON.parse(item.dataJson); } catch { return {}; }
@@ -191,11 +196,11 @@ export default function GroupAuctionBidPage() {
           </div>
           <div className="flex gap-1 flex-shrink-0 ml-1">
             <button
-              onClick={() => setCurrency(c => c === "HKD" ? "CNY" : c === "CNY" ? "USD" : "HKD")}
+              onClick={() => setCurrency(c => { const i = currencyList.indexOf(c); return currencyList[(i + 1) % currencyList.length]; })}
               className="text-[11px] px-1.5 py-0.5 font-medium border border-gray-200 bg-gray-50 text-gray-600"
               style={{ borderRadius: "5px" }}
             >{currency}</button>
-            {round.description && (
+            {(round.description || round.antiSnipeMode !== 'none') && (
               <button
                 onClick={() => setShowDesc(v => !v)}
                 className="text-[11px] px-1.5 py-0.5 font-medium border border-amber-200 bg-amber-50 text-amber-700"
@@ -210,9 +215,19 @@ export default function GroupAuctionBidPage() {
       <div style={{ height: headerHeight }} />
 
       {/* 拍賣須知（可收起） */}
-      {round.description && showDesc && (
+      {(round.description || round.antiSnipeMode !== 'none') && showDesc && (
         <div className="mx-[3px] mt-[3px] bg-amber-50 border border-amber-100 rounded-xl p-3">
-          <p className="text-xs text-amber-700 whitespace-pre-line">{round.description}</p>
+          {round.description && (
+            <p className="text-xs text-amber-700 whitespace-pre-line">{round.description}</p>
+          )}
+          {round.antiSnipeMode !== 'none' && (
+            <p className={`text-xs text-amber-600 font-medium${round.description ? ' mt-[3px]' : ''}`}>
+              {round.antiSnipeMode === 'per_item'
+                ? `單件延時：出價時間距結束少於 ${round.antiSnipeMinutes} 分鐘，商品自動延長 ${round.antiSnipeExtendMinutes} 分鐘`
+                : `全場延時：出價時間距結束少於 ${round.antiSnipeMinutes} 分鐘，全場自動延長 ${round.antiSnipeExtendMinutes} 分鐘`
+              }
+            </p>
+          )}
         </div>
       )}
 

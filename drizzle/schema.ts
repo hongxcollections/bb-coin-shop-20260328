@@ -783,6 +783,7 @@ export const groupAuctionRounds = mysqlTable("groupAuctionRounds", {
   columnTemplateId: int("columnTemplateId"),
   // 欄位定義 JSON（每個場次獨立儲存一份，方便欄位與 import data 對應）
   columnsJson: text("columnsJson"),
+  displayCurrencies: varchar("displayCurrencies", { length: 100 }).default("HKD,CNY").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

@@ -10023,6 +10023,7 @@ EXAMPLE OUTPUT (exact format):
         antiSnipeMinutes: z.number().int().min(0).default(5),
         antiSnipeExtendMinutes: z.number().int().min(0).default(5),
         antiSnipeMode: z.enum(['none', 'per_item', 'whole_round']).default('per_item'),
+        displayCurrencies: z.string().max(100).default('HKD,CNY'),
         columnsJson: z.string().optional(),
         columnTemplateId: z.number().int().positive().optional(),
       }))
@@ -10045,6 +10046,7 @@ EXAMPLE OUTPUT (exact format):
           antiSnipeMinutes: input.antiSnipeMinutes,
           antiSnipeExtendMinutes: input.antiSnipeExtendMinutes,
           antiSnipeMode: input.antiSnipeMode,
+          displayCurrencies: input.displayCurrencies,
           columnsJson: input.columnsJson ?? null,
           columnTemplateId: input.columnTemplateId ?? null,
         });
@@ -10066,6 +10068,7 @@ EXAMPLE OUTPUT (exact format):
         antiSnipeMinutes: z.number().int().min(0).optional(),
         antiSnipeExtendMinutes: z.number().int().min(0).optional(),
         antiSnipeMode: z.enum(['none', 'per_item', 'whole_round']).optional(),
+        displayCurrencies: z.string().max(100).optional(),
         columnsJson: z.string().optional(),
         columnTemplateId: z.number().int().positive().nullable().optional(),
       }))
@@ -10092,6 +10095,7 @@ EXAMPLE OUTPUT (exact format):
         if (input.antiSnipeMinutes !== undefined) patch.antiSnipeMinutes = input.antiSnipeMinutes;
         if (input.antiSnipeExtendMinutes !== undefined) patch.antiSnipeExtendMinutes = input.antiSnipeExtendMinutes;
         if (input.antiSnipeMode !== undefined) patch.antiSnipeMode = input.antiSnipeMode;
+        if (input.displayCurrencies !== undefined) patch.displayCurrencies = input.displayCurrencies;
         if (input.columnsJson !== undefined) patch.columnsJson = input.columnsJson;
         if (input.columnTemplateId !== undefined) patch.columnTemplateId = input.columnTemplateId;
         await db.update(groupAuctionRounds).set(patch).where(eq(groupAuctionRounds.id, input.id));
