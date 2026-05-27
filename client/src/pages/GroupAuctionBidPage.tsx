@@ -45,6 +45,7 @@ export default function GroupAuctionBidPage() {
   const countdown = useCountdown(undefined);
   const headerRef = useRef<HTMLDivElement>(null);
   const [headerHeight, setHeaderHeight] = useState(160);
+  const pendingBidRef = useRef<{ title: string; itemNumber: number } | null>(null);
 
   const { data, isLoading, refetch, error } = trpc.groupAuctions.getRound.useQuery(
     { roundId },
@@ -53,11 +54,14 @@ export default function GroupAuctionBidPage() {
 
   const placeBidMut = trpc.groupAuctions.placeBid.useMutation({
     onSuccess: (r) => {
+      const info = pendingBidRef.current;
+      const label = info ? `${info.itemNumber}. ${info.title}\n` : "";
       if (r.isBuyNow) {
-        toast.success(`直購成功！HK$${r.finalAmount}`);
+        toast.success(`${label}直購成功！HK$${r.finalAmount}`);
       } else {
-        toast.success(`出價 HK$${r.finalAmount} 成功`);
+        toast.success(`${label}出價 HK$${r.finalAmount} 成功`);
       }
+      pendingBidRef.current = null;
       setBiddingItem(null);
       setCustomAmount("");
       refetch();
@@ -88,12 +92,13 @@ export default function GroupAuctionBidPage() {
     return () => ro.disconnect();
   }, []);
 
-  function handleBid(itemId: number, amount: number) {
+  function handleBid(itemId: number, amount: number, itemTitle?: string, itemNumber?: number) {
     if (!isAuthenticated) {
       toast.error("請先登入才可出價");
       setLocation("/login");
       return;
     }
+    pendingBidRef.current = { title: itemTitle ?? "", itemNumber: itemNumber ?? 0 };
     placeBidMut.mutate({ itemId, amount });
   }
 
@@ -118,6 +123,10 @@ export default function GroupAuctionBidPage() {
 
   const isEnded = round.status === "ended";
   const commRate = parseFloat(String(round.buyerCommissionRate));
+  const myTotalAmount = user
+    ? items.filter(i => i.topBidderId === user.id)
+        .reduce((sum, i) => sum + Number(i.currentPrice) * (1 + commRate), 0)
+    : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-6">
@@ -142,10 +151,18 @@ export default function GroupAuctionBidPage() {
             </div>
             <span className="text-xs opacity-70">結拍：{fmtDate(round.endAt)}</span>
           </div>
-          <div className="flex gap-4 mt-1.5 text-xs opacity-80">
-            <span>共 {items.length} 件</span>
-            <span>成交 {items.filter(i => i.status === "sold").length} 件</span>
-            <span>進行中 {items.filter(i => i.status === "active").length} 件</span>
+          <div className="flex items-center justify-between mt-1.5">
+            <div className="flex gap-3 text-xs opacity-80">
+              <span>共 {items.length} 件</span>
+              <span>成交 {items.filter(i => i.status === "sold").length} 件</span>
+              <span>進行中 {items.filter(i => i.status === "active").length} 件</span>
+            </div>
+            {user && myTotalAmount > 0 && (
+              <div className="text-right leading-tight">
+                <p className="text-[10px] opacity-75">總需付</p>
+                <p style={{ fontSize: "20px" }} className="font-bold leading-none">HK${myTotalAmount.toFixed(1)}</p>
+              </div>
+            )}
           </div>
         </div>
         {/* 篩選列（無重複倒數） */}
@@ -167,14 +184,14 @@ export default function GroupAuctionBidPage() {
 
       {/* 拍賣須知 */}
       {round.description && (
-        <div className="mx-4 mt-3 bg-amber-50 border border-amber-100 rounded-xl p-3">
+        <div className="mx-[3px] mt-3 bg-amber-50 border border-amber-100 rounded-xl p-3">
           <p className="text-xs font-semibold text-amber-800 mb-1">拍賣須知</p>
           <p className="text-xs text-amber-700 whitespace-pre-line">{round.description}</p>
         </div>
       )}
 
       {/* 商品列表 */}
-      <div className="px-4 mt-3 space-y-2 pb-20">
+      <div className="px-[3px] mt-3 space-y-2 pb-20">
         {items.filter(item => {
           if (filter === "bid") return item.topBidderId !== null;
           if (filter === "nobid") return item.topBidderId === null;
@@ -245,7 +262,7 @@ export default function GroupAuctionBidPage() {
                   {isActive && (
                     <div className="flex gap-1.5 flex-shrink-0">
                       <button
-                        onClick={() => handleBid(item.id, nextBid)}
+                        onClick={() => handleBid(item.id, nextBid, title, idx + 1)}
                         disabled={placeBidMut.isPending}
                         className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-xl"
                       >
@@ -253,7 +270,7 @@ export default function GroupAuctionBidPage() {
                         <span className="text-[10px] font-normal">${nextBid}</span>
                       </button>
                       <button
-                        onClick={() => handleBid(item.id, nextBid + effectiveIncrement)}
+                        onClick={() => handleBid(item.id, nextBid + effectiveIncrement, title, idx + 1)}
                         disabled={placeBidMut.isPending}
                         className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-xl"
                       >
@@ -297,7 +314,7 @@ export default function GroupAuctionBidPage() {
                       onClick={() => {
                         const amt = parseInt(customAmount, 10);
                         if (!amt || amt < nextBid) { toast.error(`最少 HK$${nextBid}`); return; }
-                        handleBid(item.id, amt);
+                        handleBid(item.id, amt, title, idx + 1);
                       }}
                       disabled={placeBidMut.isPending}
                       className="bg-amber-500 hover:bg-amber-600 text-white text-sm px-4 py-2 rounded-xl font-medium"
