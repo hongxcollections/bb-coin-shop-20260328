@@ -252,6 +252,12 @@ export default function GroupAuctionBidPage() {
           const timerStr = `${timerMins}:${String(timerSecs).padStart(2, "0")}`;
           const timerRed = showItemTimer && itemSecsLeft <= 300;
           const timerFlash = showItemTimer && itemSecsLeft <= 180;
+          const roundEndMs = round.endAt ? new Date(round.endAt as string).getTime() : null;
+          const showRoundTimer = round.antiSnipeMode === "whole_round" && roundEndMs !== null && isActive;
+          const roundSecsLeft = showRoundTimer ? Math.max(0, Math.floor((roundEndMs! - now) / 1000)) : 0;
+          const roundTimerStr = `${Math.floor(roundSecsLeft / 60)}:${String(roundSecsLeft % 60).padStart(2, "0")}`;
+          const roundTimerRed = showRoundTimer && roundSecsLeft <= 300;
+          const roundTimerFlash = showRoundTimer && roundSecsLeft <= 180;
 
           let cardClass = "rounded-2xl overflow-hidden border";
           let cardStyle: React.CSSProperties = {};
@@ -263,17 +269,25 @@ export default function GroupAuctionBidPage() {
 
           return (
             <div key={item.id} className="relative">
-              {showItemTimer && (
+              {showRoundTimer && (
                 <div
-                  className={`absolute right-3 z-10 flex items-center gap-1 px-2 py-[2px] text-[11px] font-mono font-semibold rounded-full border bg-white${timerFlash ? " animate-red-flash" : ""}`}
-                  style={{ top: "-9px", color: timerRed ? "#dc2626" : "#f59e0b", borderColor: timerRed ? "#fca5a5" : "#fde68a" }}
+                  className={`absolute right-3 z-10 flex items-center gap-1 px-2 py-[2px] text-[11px] font-mono font-semibold rounded-full border bg-white${roundTimerFlash ? " animate-red-flash" : ""}`}
+                  style={{ top: "-9px", color: roundTimerRed ? "#dc2626" : "#f59e0b", borderColor: roundTimerRed ? "#fca5a5" : "#fde68a" }}
                 >
-                  ⏱ {timerStr}
+                  ⏱ {roundTimerStr}
                 </div>
               )}
               <div className={`relative ${cardClass}`} style={cardStyle}>
               {isMine && isActive && (
                 <div className="absolute inset-0 rounded-2xl animate-amber-shimmer pointer-events-none" />
+              )}
+              {showItemTimer && (
+                <div
+                  className={`absolute top-1 right-2 z-10 flex items-center gap-0.5 px-1.5 py-[1px] text-[10px] font-mono font-semibold rounded-full bg-white/90${timerFlash ? " animate-red-flash" : ""}`}
+                  style={{ color: timerRed ? "#dc2626" : "#f59e0b" }}
+                >
+                  ⏱ {timerStr}
+                </div>
               )}
               <div className="p-3">
                 {/* Row 1: 順序號碼 + 商品名稱 + 商品號碼 + 狀態 同一行 */}
