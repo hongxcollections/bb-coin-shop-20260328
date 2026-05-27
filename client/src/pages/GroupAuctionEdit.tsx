@@ -189,6 +189,10 @@ export default function GroupAuctionEdit() {
     }
     setImages(roundData.images.map(img => ({ id: img.id, url: img.url, s3Key: img.s3Key })));
     setItems(roundData.items);
+    // 已結拍的場次自動跳到成績紀錄 tab
+    if (roundData.round?.status === "ended") {
+      setTab("results");
+    }
   }, [roundData]);
 
   // ── 儲存基本設定 ──
@@ -342,13 +346,15 @@ export default function GroupAuctionEdit() {
   const isEnded = round?.status === "ended";
   const inputStyle = { background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" };
 
-  const TABS = [
-    { key: "basic", label: "基本設定" },
-    { key: "columns", label: "欄位設定" },
-    { key: "images", label: "圖片集", disabled: isNew },
-    { key: "items", label: "商品管理", disabled: isNew },
-    { key: "results", label: "成績紀錄", disabled: !isEnded },
-  ] as const;
+  type TabKey = "basic" | "columns" | "images" | "items" | "results";
+  const TABS: { key: TabKey; label: string; disabled?: boolean }[] = isEnded
+    ? [{ key: "results", label: "成績紀錄" }]
+    : [
+      { key: "basic", label: "基本設定" },
+      { key: "columns", label: "欄位設定" },
+      { key: "images", label: "圖片集", disabled: isNew },
+      { key: "items", label: "商品管理", disabled: isNew },
+    ];
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -1006,27 +1012,32 @@ export default function GroupAuctionEdit() {
           const commRate = parseFloat(String(round?.buyerCommissionRate ?? "0")) || 0;
           const commPct = Math.round(commRate * 100);
 
-          const soldItems = [...items.filter(it => (it as any).topBidderId)].sort((a, b) => {
-            const ap = (a as any).currentPrice ?? 0;
-            const bp = (b as any).currentPrice ?? 0;
+          // Use correct DB fields: status='sold'/'unsold', winnerId, finalPrice, dataJson
+          const soldItems = [...items.filter(it => (it as any).status === 'sold')].sort((a, b) => {
+            const ap = (a as any).finalPrice ?? 0;
+            const bp = (b as any).finalPrice ?? 0;
             return resultSortDir === "desc" ? bp - ap : ap - bp;
           });
-          const unsoldItems = items.filter(it => !(it as any).topBidderId);
+          const unsoldItems = items.filter(it => (it as any).status === 'unsold');
 
           const winnerMap = new Map<number, { name: string }>();
           items.forEach(it => {
-            const uid = (it as any).topBidderId as number | null;
-            if (uid && !winnerMap.has(uid)) winnerMap.set(uid, { name: (it as any).topBidderName ?? `用戶${uid}` });
+            const uid = (it as any).winnerId as number | null;
+            if (uid && !winnerMap.has(uid)) winnerMap.set(uid, { name: (it as any).winnerName ?? `用戶${uid}` });
           });
           const winners = [...winnerMap.entries()];
 
           const filteredSold = resultBuyerId
-            ? soldItems.filter(it => (it as any).topBidderId === resultBuyerId)
+            ? soldItems.filter(it => (it as any).winnerId === resultBuyerId)
             : soldItems;
 
-          const totalAllAmt = soldItems.reduce((s, it) => s + ((it as any).currentPrice ?? 0), 0);
-          const filteredAmt = filteredSold.reduce((s, it) => s + ((it as any).currentPrice ?? 0), 0);
+          const totalAllAmt = soldItems.reduce((s, it) => s + ((it as any).finalPrice ?? 0), 0);
+          const filteredAmt = filteredSold.reduce((s, it) => s + ((it as any).finalPrice ?? 0), 0);
           const filteredComm = Math.round(filteredAmt * commRate);
+
+          function parseData(it: any) {
+            try { return JSON.parse(it.dataJson || "{}"); } catch { return {}; }
+          }
 
           const TD = 'style="border:1px solid #ddd;padding:5px 8px"';
           const TDR = 'style="border:1px solid #ddd;padding:5px 8px;text-align:right"';
@@ -1037,21 +1048,21 @@ export default function GroupAuctionEdit() {
 
           function buildPrintHtml(uid: number | null) {
             const targetItems = uid !== null
-              ? soldItems.filter(it => (it as any).topBidderId === uid)
+              ? soldItems.filter(it => (it as any).winnerId === uid)
               : soldItems;
             const buyerLabel = uid !== null ? (winnerMap.get(uid)?.name ?? "") : "全場";
             const colTh = showCols.map(c => `<th ${TH}>${c.label}</th>`).join("");
             const commTh = commRate > 0 ? `<th ${THR}>傭金(${commPct}%)</th>` : "";
             const soldRows = targetItems.map(it => {
-              const d = ((it as any).data ?? {}) as Record<string, any>;
-              const price = (it as any).currentPrice ?? 0;
+              const d = parseData(it);
+              const price = (it as any).finalPrice ?? 0;
               const comm = Math.round(price * commRate);
               const colTd = showCols.map(c => `<td ${TD}>${d[c.key] ?? "—"}</td>`).join("");
               const commTd = commRate > 0 ? `<td ${TDR}>HK$${comm.toLocaleString()}</td>` : "";
-              const buyerTd = uid === null ? `<td ${TD}>${(it as any).topBidderName ?? ""}</td>` : "";
+              const buyerTd = uid === null ? `<td ${TD}>${(it as any).winnerName ?? ""}</td>` : "";
               return `<tr>${colTd}<td ${TDR}>HK$${price.toLocaleString()}</td>${commTd}<td ${TDBR}>HK$${(price + comm).toLocaleString()}</td>${buyerTd}</tr>`;
             }).join("");
-            const totalAmt = targetItems.reduce((s, it) => s + ((it as any).currentPrice ?? 0), 0);
+            const totalAmt = targetItems.reduce((s, it) => s + ((it as any).finalPrice ?? 0), 0);
             const totalComm = Math.round(totalAmt * commRate);
             const fspan = showCols.length + (uid === null ? 1 : 0);
             const buyerColTh = uid === null ? `<th ${TH}>買家</th>` : "";
@@ -1062,7 +1073,7 @@ export default function GroupAuctionEdit() {
             if (!uid && unsoldItems.length > 0) {
               const uColTh = showCols.map(c => `<th ${TH}>${c.label}</th>`).join("");
               const uRows = unsoldItems.map(it => {
-                const d = ((it as any).data ?? {}) as Record<string, any>;
+                const d = parseData(it);
                 const colTd = showCols.map(c => `<td ${TD}>${d[c.key] ?? "—"}</td>`).join("");
                 return `<tr>${colTd}<td ${TDR} style="color:#999">HK$${((it as any).startPrice ?? 0).toLocaleString()}</td></tr>`;
               }).join("");
@@ -1117,7 +1128,7 @@ export default function GroupAuctionEdit() {
                   成交價：{resultSortDir === "desc" ? "高→低" : "低→高"}
                 </button>
                 <div className="ml-auto flex gap-2">
-                  <ExportCsvButton roundId={roundId!} format="by_buyer" label="匯出 CSV" columns={columns} />
+                  <ExportCsvButton roundId={roundId!} format="by_buyer" label="匯出 CSV" columns={columns} buyerId={resultBuyerId} />
                   <button
                     onClick={() => doPrint(resultBuyerId)}
                     className="flex items-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-xl"
@@ -1136,7 +1147,7 @@ export default function GroupAuctionEdit() {
                   全部 ({soldItems.length})
                 </button>
                 {winners.map(([uid, w]) => {
-                  const cnt = soldItems.filter(it => (it as any).topBidderId === uid).length;
+                  const cnt = soldItems.filter(it => (it as any).winnerId === uid).length;
                   return (
                     <button
                       key={uid}
@@ -1169,10 +1180,10 @@ export default function GroupAuctionEdit() {
                   <p className="text-xs font-semibold text-gray-500 mb-2">有成交商品 ({filteredSold.length})</p>
                   <div className="space-y-2">
                     {filteredSold.map(it => {
-                      const d = ((it as any).data ?? {}) as Record<string, any>;
-                      const price = (it as any).currentPrice ?? 0;
+                      const d = parseData(it);
+                      const price = (it as any).finalPrice ?? 0;
                       const comm = Math.round(price * commRate);
-                      const buyer = (it as any).topBidderName ?? "";
+                      const buyer = (it as any).winnerName ?? "";
                       return (
                         <div key={(it as any).id} className="bg-white rounded-xl border border-gray-100 p-3">
                           <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
@@ -1204,7 +1215,7 @@ export default function GroupAuctionEdit() {
                   <p className="text-xs font-semibold text-gray-400 mb-2">流拍商品 ({unsoldItems.length})</p>
                   <div className="space-y-2">
                     {unsoldItems.map(it => {
-                      const d = ((it as any).data ?? {}) as Record<string, any>;
+                      const d = parseData(it);
                       const startPrice = (it as any).startPrice ?? 0;
                       return (
                         <div key={(it as any).id} className="bg-gray-50 rounded-xl border border-gray-100 p-3 opacity-70">
@@ -1236,11 +1247,11 @@ export default function GroupAuctionEdit() {
 }
 
 // ── 匯出 CSV 按鈕 ────────────────────────────────────────────────────────────
-function ExportCsvButton({ roundId, format, label, columns }: {
-  roundId: number; format: "by_order" | "by_buyer"; label: string; columns: ColumnDef[];
+function ExportCsvButton({ roundId, format, label, columns, buyerId }: {
+  roundId: number; format: "by_order" | "by_buyer"; label: string; columns: ColumnDef[]; buyerId?: number | null;
 }) {
-  const { data, refetch } = trpc.groupAuctions.exportResults.useQuery(
-    { roundId, format },
+  const { refetch } = trpc.groupAuctions.exportResults.useQuery(
+    { roundId, format, buyerId: buyerId ?? undefined },
     { enabled: false }
   );
 

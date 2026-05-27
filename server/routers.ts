@@ -10006,7 +10006,21 @@ EXAMPLE OUTPUT (exact format):
             .where(eq(groupAuctionBids.itemId, item.id));
           return { ...item, bidCount: Number((rows[0] as any)?.cnt ?? 0) };
         }));
-        return { round, items: itemsWithBidCount, images };
+        // 加入得標買家姓名（winnerId → winnerName）
+        const winnerIds = [...new Set(itemsWithBidCount.filter(i => i.winnerId).map(i => i.winnerId as number))];
+        let winnerMap: Record<number, string> = {};
+        if (winnerIds.length > 0) {
+          const { users: usersTable } = await import('../drizzle/schema');
+          const { inArray: inArr } = await import('drizzle-orm');
+          const winners = await db.select({ id: usersTable.id, name: usersTable.name })
+            .from(usersTable).where(inArr(usersTable.id, winnerIds));
+          winnerMap = Object.fromEntries(winners.map(w => [w.id, w.name ?? '']));
+        }
+        const itemsWithWinners = itemsWithBidCount.map(item => ({
+          ...item,
+          winnerName: item.winnerId ? (winnerMap[item.winnerId] ?? '') : null,
+        }));
+        return { round, items: itemsWithWinners, images };
       }),
 
     /** 商戶：建立新場次 */
@@ -10409,6 +10423,7 @@ EXAMPLE OUTPUT (exact format):
       .input(z.object({
         roundId: z.number().int().positive(),
         format: z.enum(['by_order', 'by_buyer']).default('by_order'),
+        buyerId: z.number().int().positive().optional(),
       }))
       .query(async ({ input, ctx }) => {
         const db = await getDb();
@@ -10454,7 +10469,10 @@ EXAMPLE OUTPUT (exact format):
         if (input.format === 'by_buyer') {
           rows.sort((a, b) => (a.buyerName || 'zzz').localeCompare(b.buyerName || 'zzz'));
         }
-        return { round, rows, columnsJson: round.columnsJson };
+        const filteredRows = input.buyerId
+          ? rows.filter((_, idx) => items[idx]?.winnerId === input.buyerId)
+          : rows;
+        return { round, rows: filteredRows, columnsJson: round.columnsJson };
       }),
 
     // ── Public ────────────────────────────────────────────────────────────────
