@@ -841,6 +841,10 @@ export default function GroupAuctionEdit() {
                         }
                       }}>
                         <p className="text-sm font-medium text-gray-800 truncate">{title || "—"}</p>
+                        {/* 顯示所有 customText 欄位（描述等） */}
+                        {columns.filter(c => c.role === "customText" && data[c.key]).map(c => (
+                          <p key={c.key} className="text-xs text-gray-500 truncate">{data[c.key]}</p>
+                        ))}
                         <p className="text-xs text-gray-400">
                           起拍 HK${item.startPrice}
                           {item.buyNowPrice ? ` | 封頂 HK$${item.buyNowPrice}` : ""}
