@@ -211,7 +211,7 @@ export default function GroupAuctionBidPage() {
 
       {/* 拍賣須知（可收起） */}
       {round.description && showDesc && (
-        <div className="mx-[3px] mt-2 bg-amber-50 border border-amber-100 rounded-xl p-3">
+        <div className="mx-[3px] mt-[3px] bg-amber-50 border border-amber-100 rounded-xl p-3">
           <p className="text-xs text-amber-700 whitespace-pre-line">{round.description}</p>
         </div>
       )}
@@ -247,16 +247,15 @@ export default function GroupAuctionBidPage() {
                 <div className="absolute inset-0 rounded-2xl animate-amber-shimmer pointer-events-none" />
               )}
               <div className="p-3">
-                {/* 標題行（無號碼） */}
-                <div className="flex items-start gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 leading-tight">{title || "—"}</p>
-                    {displayCols.filter(c => c.role === "customText").length > 0 && (
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {displayCols.filter(c => c.role === "customText").map(c => data[c.key]).filter(Boolean).join(" · ")}
-                      </p>
-                    )}
-                  </div>
+                {/* Row 1: 順序號碼 + 商品名稱 + 商品號碼 + 狀態 同一行 */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-400 flex-shrink-0">{idx + 1}</span>
+                  <p className="text-sm font-semibold text-gray-900 leading-tight flex-1 min-w-0 truncate">{title || "—"}</p>
+                  {displayCols.filter(c => c.role === "customText").length > 0 && (
+                    <span className="text-xs text-gray-400 flex-shrink-0">
+                      {displayCols.filter(c => c.role === "customText").map(c => data[c.key]).filter(Boolean).join(" · ")}
+                    </span>
+                  )}
                   {item.status === "sold" && (
                     <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex-shrink-0">成交</span>
                   )}
@@ -265,9 +264,8 @@ export default function GroupAuctionBidPage() {
                   )}
                 </div>
 
-                {/* 出價行：號碼同價格拍齊 */}
-                <div className="flex items-center gap-1.5 mt-2">
-                  <span className="text-xs text-gray-400 w-6 text-right flex-shrink-0">{idx + 1}</span>
+                {/* Row 2: HK$ 從左齊（同順序號碼左邊拍齊） */}
+                <div className="flex items-center gap-2 mt-1.5">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-bold text-amber-600">{displayPrice(item.currentPrice)}</span>
