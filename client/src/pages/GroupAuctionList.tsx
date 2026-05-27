@@ -125,10 +125,16 @@ export default function GroupAuctionList() {
                 </div>
 
                 <div className="flex items-center gap-2 mt-3 flex-wrap">
-                  <Link href={`/merchant/group-auctions/${r.id}`}>
-                    <button className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg">
-                      <Pencil className="w-3 h-3" />
-                      管理
+                  <Link href={r.status === "ended"
+                    ? `/merchant/group-auctions/${r.id}?tab=results`
+                    : `/merchant/group-auctions/${r.id}`}>
+                    <button className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg ${
+                      r.status === "ended"
+                        ? "bg-blue-50 hover:bg-blue-100 text-blue-700"
+                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                    }`}>
+                      {r.status === "ended" ? <Archive className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
+                      {r.status === "ended" ? "成績紀錄" : "管理"}
                     </button>
                   </Link>
 

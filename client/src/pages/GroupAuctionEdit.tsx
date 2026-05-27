@@ -67,7 +67,12 @@ export default function GroupAuctionEdit() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const confirm = useConfirm();
-  const [tab, setTab] = useState<"basic" | "columns" | "images" | "items" | "results">("basic");
+  const tabParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null;
+  const [tab, setTab] = useState<"basic" | "columns" | "images" | "items" | "results">(
+    (["basic", "columns", "images", "items", "results"] as const).includes(tabParam as any) ? tabParam as any : "basic"
+  );
+  const [resultSortDir, setResultSortDir] = useState<"desc" | "asc">("desc");
+  const [resultBuyerId, setResultBuyerId] = useState<number | null>(null);
 
   // ── 基本設定 state ──
   const [basic, setBasic] = useState({
@@ -997,89 +1002,230 @@ export default function GroupAuctionEdit() {
 
         {/* ── 成績紀錄 Tab ── */}
         {tab === "results" && (() => {
-          const titleCol = columns.find(c => c.role === "itemTitle");
-          const winnerMap = new Map<number, { name: string; wonItems: typeof items }>();
+          const showCols = columns.filter(c => c.showOnBidPage);
+          const commRate = parseFloat(String(round?.buyerCommissionRate ?? "0")) || 0;
+          const commPct = Math.round(commRate * 100);
+
+          const soldItems = [...items.filter(it => (it as any).topBidderId)].sort((a, b) => {
+            const ap = (a as any).currentPrice ?? 0;
+            const bp = (b as any).currentPrice ?? 0;
+            return resultSortDir === "desc" ? bp - ap : ap - bp;
+          });
+          const unsoldItems = items.filter(it => !(it as any).topBidderId);
+
+          const winnerMap = new Map<number, { name: string }>();
           items.forEach(it => {
             const uid = (it as any).topBidderId as number | null;
-            if (!uid) return;
-            if (!winnerMap.has(uid)) {
-              winnerMap.set(uid, { name: (it as any).topBidderName ?? `用戶${uid}`, wonItems: [] });
-            }
-            winnerMap.get(uid)!.wonItems.push(it);
+            if (uid && !winnerMap.has(uid)) winnerMap.set(uid, { name: (it as any).topBidderName ?? `用戶${uid}` });
           });
           const winners = [...winnerMap.entries()];
 
-          function buildHtml(uid: number | null) {
-            const entries: [number, { name: string; wonItems: typeof items }][] =
-              uid !== null ? [[uid, winnerMap.get(uid)!]] : winners;
-            let body = "";
-            entries.forEach(([, entry]) => {
-              const rows = entry.wonItems.map((it, i) => {
+          const filteredSold = resultBuyerId
+            ? soldItems.filter(it => (it as any).topBidderId === resultBuyerId)
+            : soldItems;
+
+          const totalAllAmt = soldItems.reduce((s, it) => s + ((it as any).currentPrice ?? 0), 0);
+          const filteredAmt = filteredSold.reduce((s, it) => s + ((it as any).currentPrice ?? 0), 0);
+          const filteredComm = Math.round(filteredAmt * commRate);
+
+          const TD = 'style="border:1px solid #ddd;padding:5px 8px"';
+          const TDR = 'style="border:1px solid #ddd;padding:5px 8px;text-align:right"';
+          const TDB = 'style="border:1px solid #ddd;padding:5px 8px;font-weight:bold"';
+          const TDBR = 'style="border:1px solid #ddd;padding:5px 8px;font-weight:bold;text-align:right"';
+          const TH = 'style="border:1px solid #ddd;padding:5px 8px;background:#f5f5f5;text-align:left"';
+          const THR = 'style="border:1px solid #ddd;padding:5px 8px;background:#f5f5f5;text-align:right"';
+
+          function buildPrintHtml(uid: number | null) {
+            const targetItems = uid !== null
+              ? soldItems.filter(it => (it as any).topBidderId === uid)
+              : soldItems;
+            const buyerLabel = uid !== null ? (winnerMap.get(uid)?.name ?? "") : "全場";
+            const colTh = showCols.map(c => `<th ${TH}>${c.label}</th>`).join("");
+            const commTh = commRate > 0 ? `<th ${THR}>傭金(${commPct}%)</th>` : "";
+            const soldRows = targetItems.map(it => {
+              const d = ((it as any).data ?? {}) as Record<string, any>;
+              const price = (it as any).currentPrice ?? 0;
+              const comm = Math.round(price * commRate);
+              const colTd = showCols.map(c => `<td ${TD}>${d[c.key] ?? "—"}</td>`).join("");
+              const commTd = commRate > 0 ? `<td ${TDR}>HK$${comm.toLocaleString()}</td>` : "";
+              const buyerTd = uid === null ? `<td ${TD}>${(it as any).topBidderName ?? ""}</td>` : "";
+              return `<tr>${colTd}<td ${TDR}>HK$${price.toLocaleString()}</td>${commTd}<td ${TDBR}>HK$${(price + comm).toLocaleString()}</td>${buyerTd}</tr>`;
+            }).join("");
+            const totalAmt = targetItems.reduce((s, it) => s + ((it as any).currentPrice ?? 0), 0);
+            const totalComm = Math.round(totalAmt * commRate);
+            const fspan = showCols.length + (uid === null ? 1 : 0);
+            const buyerColTh = uid === null ? `<th ${TH}>買家</th>` : "";
+            const commFoot = commRate > 0 ? `<td ${TDBR}>HK$${totalComm.toLocaleString()}</td>` : "";
+            const soldTfoot = `<tfoot><tr><td colspan="${fspan}" ${TDB}>合計 ${targetItems.length} 件</td><td ${TDBR}>HK$${totalAmt.toLocaleString()}</td>${commFoot}<td ${TDBR}>HK$${(totalAmt + totalComm).toLocaleString()}</td></tr></tfoot>`;
+
+            let unsoldSection = "";
+            if (!uid && unsoldItems.length > 0) {
+              const uColTh = showCols.map(c => `<th ${TH}>${c.label}</th>`).join("");
+              const uRows = unsoldItems.map(it => {
                 const d = ((it as any).data ?? {}) as Record<string, any>;
-                const title = titleCol ? (d[titleCol.key] ?? `商品${i + 1}`) : `商品${i + 1}`;
-                return `<tr><td>${i + 1}</td><td>${title}</td><td style="text-align:right">HK$${((it as any).currentPrice ?? 0).toLocaleString()}</td></tr>`;
+                const colTd = showCols.map(c => `<td ${TD}>${d[c.key] ?? "—"}</td>`).join("");
+                return `<tr>${colTd}<td ${TDR} style="color:#999">HK$${((it as any).startPrice ?? 0).toLocaleString()}</td></tr>`;
               }).join("");
-              const total = entry.wonItems.reduce((s, it) => s + ((it as any).currentPrice ?? 0), 0);
-              body += `<div style="margin-bottom:28px;page-break-inside:avoid"><h3 style="margin:0 0 6px">${entry.name}</h3><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#f5f5f5"><th style="border:1px solid #ccc;padding:5px 8px;text-align:left">#</th><th style="border:1px solid #ccc;padding:5px 8px;text-align:left">商品</th><th style="border:1px solid #ccc;padding:5px 8px;text-align:right">成交價</th></tr></thead><tbody>${rows.replace(/<td>/g, '<td style="border:1px solid #ccc;padding:5px 8px">')}</tbody><tfoot><tr><td colspan="2" style="border:1px solid #ccc;padding:5px 8px;font-weight:bold">合計 ${entry.wonItems.length} 件</td><td style="border:1px solid #ccc;padding:5px 8px;font-weight:bold;text-align:right">HK$${total.toLocaleString()}</td></tr></tfoot></table></div>`;
-            });
-            return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${round?.title} 得標摘要</title><style>body{font-family:sans-serif;padding:20px}@media print{body{padding:8px}div{page-break-inside:avoid}}</style></head><body><h2 style="margin-bottom:16px">${round?.title} — 得標摘要</h2>${body}</body></html>`;
+              unsoldSection = `<h3 style="margin:28px 0 8px">流拍商品（${unsoldItems.length} 件）</h3><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${uColTh}<th ${THR}>起拍價</th></tr></thead><tbody>${uRows}</tbody></table>`;
+            }
+            return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${round?.title} 成績紀錄</title><style>body{font-family:sans-serif;padding:20px;font-size:13px}h2,h3{margin-bottom:8px}table{width:100%;border-collapse:collapse}@media print{body{padding:8px}}</style></head><body><h2>${round?.title} — 成績紀錄（${buyerLabel}）</h2><p style="color:#666;margin-bottom:16px">有成交 ${targetItems.length} 件 · 成交額 HK$${totalAmt.toLocaleString()}${commRate > 0 ? ` · 傭金 HK$${totalComm.toLocaleString()} · 合計 HK$${(totalAmt + totalComm).toLocaleString()}` : ""}</p><h3>有成交商品</h3><table><thead><tr>${colTh}<th ${THR}>成交價</th>${commTh}<th ${THR}>合計</th>${buyerColTh}</tr></thead><tbody>${soldRows}</tbody>${soldTfoot}</table>${unsoldSection}</body></html>`;
           }
 
           function doPrint(uid: number | null) {
             const w = window.open("", "_blank");
             if (!w) { toast.error("請允許彈出視窗"); return; }
-            w.document.write(buildHtml(uid));
+            w.document.write(buildPrintHtml(uid));
             w.document.close();
             setTimeout(() => w.print(), 300);
           }
 
           return (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-700">
-                  {winners.length} 位得標買家 · {items.filter(it => (it as any).topBidderId).length} 件得標
-                </p>
-                <button
-                  onClick={() => doPrint(null)}
-                  className="flex items-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-xl"
-                >
-                  <Download className="w-3 h-3" /> 打印全場
-                </button>
+            <div className="space-y-4">
+              {/* Summary */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
+                  <p className="text-xl font-bold text-green-600">{soldItems.length}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">有成交</p>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
+                  <p className="text-xl font-bold text-gray-300">{unsoldItems.length}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">流拍</p>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
+                  <p className="text-xl font-bold text-amber-600">{winners.length}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">買家</p>
+                </div>
               </div>
-              {winners.length === 0 && (
+              {totalAllAmt > 0 && (
+                <div className="bg-white rounded-xl border border-gray-100 p-3">
+                  <p className="text-xs text-gray-400 mb-1">全場成交統計</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    成交 HK${totalAllAmt.toLocaleString()}
+                    {commRate > 0 && (
+                      <span className="text-gray-500 font-normal"> + 傭金({commPct}%) HK${Math.round(totalAllAmt * commRate).toLocaleString()} = <span className="text-amber-700 font-bold">HK${(totalAllAmt + Math.round(totalAllAmt * commRate)).toLocaleString()}</span></span>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {/* Controls */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => setResultSortDir(d => d === "desc" ? "asc" : "desc")}
+                  className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg"
+                >
+                  成交價：{resultSortDir === "desc" ? "高→低" : "低→高"}
+                </button>
+                <div className="ml-auto flex gap-2">
+                  <ExportCsvButton roundId={roundId!} format="by_buyer" label="匯出 CSV" columns={columns} />
+                  <button
+                    onClick={() => doPrint(resultBuyerId)}
+                    className="flex items-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-xl"
+                  >
+                    <Download className="w-3 h-3" /> {resultBuyerId ? "打印此買家" : "打印全場"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Buyer filter pills */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setResultBuyerId(null)}
+                  className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${!resultBuyerId ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                >
+                  全部 ({soldItems.length})
+                </button>
+                {winners.map(([uid, w]) => {
+                  const cnt = soldItems.filter(it => (it as any).topBidderId === uid).length;
+                  return (
+                    <button
+                      key={uid}
+                      onClick={() => setResultBuyerId(resultBuyerId === uid ? null : uid)}
+                      className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${resultBuyerId === uid ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                    >
+                      {w.name} ({cnt})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Selected buyer summary bar */}
+              {resultBuyerId && (
+                <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                  <p className="text-sm font-semibold text-amber-900">{winnerMap.get(resultBuyerId)?.name}</p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    得標 {filteredSold.length} 件 · 成交 HK${filteredAmt.toLocaleString()}
+                    {commRate > 0 && ` · 傭金 HK$${filteredComm.toLocaleString()} · 合計 HK$${(filteredAmt + filteredComm).toLocaleString()}`}
+                  </p>
+                </div>
+              )}
+
+              {/* Sold items */}
+              {filteredSold.length === 0 && soldItems.length === 0 && (
                 <div className="text-center py-10 text-gray-400 text-sm">此場次暫無得標紀錄</div>
               )}
-              {winners.map(([uid, entry]) => {
-                const total = entry.wonItems.reduce((s, it) => s + ((it as any).currentPrice ?? 0), 0);
-                return (
-                  <div key={uid} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 text-sm">{entry.name}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">得標 {entry.wonItems.length} 件 · 合計 HK${total.toLocaleString()}</p>
-                      </div>
-                      <button
-                        onClick={() => doPrint(uid)}
-                        className="flex items-center gap-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-xl flex-shrink-0"
-                      >
-                        <Download className="w-3 h-3" /> 打印 / PDF
-                      </button>
-                    </div>
-                    <div className="mt-3 space-y-0.5">
-                      {entry.wonItems.map((it, i) => {
-                        const d = ((it as any).data ?? {}) as Record<string, any>;
-                        const title = titleCol ? (d[titleCol.key] ?? `商品${i + 1}`) : `商品${i + 1}`;
-                        return (
-                          <div key={(it as any).id} className="flex items-center justify-between text-xs text-gray-600 py-1.5 border-b border-gray-50 last:border-0">
-                            <span className="truncate">{i + 1}. {title}</span>
-                            <span className="font-mono ml-2 flex-shrink-0 text-gray-700">HK${((it as any).currentPrice ?? 0).toLocaleString()}</span>
+              {filteredSold.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-2">有成交商品 ({filteredSold.length})</p>
+                  <div className="space-y-2">
+                    {filteredSold.map(it => {
+                      const d = ((it as any).data ?? {}) as Record<string, any>;
+                      const price = (it as any).currentPrice ?? 0;
+                      const comm = Math.round(price * commRate);
+                      const buyer = (it as any).topBidderName ?? "";
+                      return (
+                        <div key={(it as any).id} className="bg-white rounded-xl border border-gray-100 p-3">
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
+                            {showCols.map(c => (
+                              <div key={c.key} className="text-xs">
+                                <span className="text-gray-400">{c.label}：</span>
+                                <span className="text-gray-800">{d[c.key] ?? "—"}</span>
+                              </div>
+                            ))}
                           </div>
-                        );
-                      })}
-                    </div>
+                          <div className="flex items-center justify-between flex-wrap gap-1 pt-1.5 border-t border-gray-50">
+                            {!resultBuyerId && <span className="text-xs text-gray-400">買家：{buyer}</span>}
+                            <div className="text-xs ml-auto text-right">
+                              <span className="text-gray-600">HK${price.toLocaleString()}</span>
+                              {commRate > 0 && <span className="text-gray-400"> + 傭({commPct}%) HK${comm.toLocaleString()}</span>}
+                              <span className="font-bold text-gray-900 ml-1">= HK${(price + comm).toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </div>
+              )}
+
+              {/* Unsold items */}
+              {!resultBuyerId && unsoldItems.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 mb-2">流拍商品 ({unsoldItems.length})</p>
+                  <div className="space-y-2">
+                    {unsoldItems.map(it => {
+                      const d = ((it as any).data ?? {}) as Record<string, any>;
+                      const startPrice = (it as any).startPrice ?? 0;
+                      return (
+                        <div key={(it as any).id} className="bg-gray-50 rounded-xl border border-gray-100 p-3 opacity-70">
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                            {showCols.map(c => (
+                              <div key={c.key} className="text-xs">
+                                <span className="text-gray-400">{c.label}：</span>
+                                <span className="text-gray-600">{d[c.key] ?? "—"}</span>
+                              </div>
+                            ))}
+                            <div className="text-xs">
+                              <span className="text-gray-400">起拍：</span>
+                              <span className="text-gray-400">HK${startPrice.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })()}
