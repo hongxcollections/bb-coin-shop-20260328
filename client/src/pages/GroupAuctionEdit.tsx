@@ -8,7 +8,7 @@ import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
 import {
   ChevronLeft, Plus, Trash2, ArrowUp, ArrowDown, Upload,
-  Save, FileSpreadsheet, Eye, Printer, Download, GripVertical,
+  Save, FileSpreadsheet, Download, GripVertical, Pencil, CheckSquare, Square, X,
 } from "lucide-react";
 
 // ── 型別定義 ────────────────────────────────────────────────────────────────
@@ -104,6 +104,12 @@ export default function GroupAuctionEdit() {
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [csvRows, setCsvRows] = useState<string[][]>([]);
   const [csvMapping, setCsvMapping] = useState<Record<string, string>>({});
+  // 批量刪除
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
+  // 行內編輯
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
+  const [editFields, setEditFields] = useState<Record<string, string>>({});
 
   // ── tRPC ──
   const { data: roundData, isLoading, refetch } = trpc.groupAuctions.getMine.useQuery(
@@ -134,12 +140,21 @@ export default function GroupAuctionEdit() {
     onError: (e) => toast.error(e.message || "匯入失敗"),
   });
   const updateItemMut = trpc.groupAuctions.updateItem.useMutation({
-    onSuccess: () => refetch(),
+    onSuccess: () => { setEditingItemId(null); refetch(); },
     onError: (e) => toast.error(e.message || "更新失敗"),
   });
   const deleteItemMut = trpc.groupAuctions.deleteItem.useMutation({
     onSuccess: () => { toast.success("已刪除"); refetch(); },
     onError: (e) => toast.error(e.message || "刪除失敗"),
+  });
+  const batchDeleteItemsMut = trpc.groupAuctions.batchDeleteItems.useMutation({
+    onSuccess: (r) => {
+      toast.success(`已刪除 ${r.deleted} 件`);
+      setSelectedIds(new Set());
+      setSelectMode(false);
+      refetch();
+    },
+    onError: (e) => toast.error(e.message || "批量刪除失敗"),
   });
   const reorderItemsMut = trpc.groupAuctions.reorderItems.useMutation({
     onError: (e) => toast.error(e.message || "排序失敗"),
@@ -238,20 +253,34 @@ export default function GroupAuctionEdit() {
     }
   }
 
-  // ── CSV 解析 ──
+  // ── CSV 解析（支援半形逗號、全形逗號、Tab） ──
   function parseCsv(text: string) {
-    const lines = text.trim().split(/\r?\n/);
+    const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
     if (lines.length < 2) { toast.error("CSV 至少要有標題行和一行資料"); return; }
-    const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
-    const rows = lines.slice(1).map(l => l.split(",").map(c => c.trim().replace(/^"|"$/g, "")));
+    // 自動偵測分隔符：優先 Tab，其次半形逗號，最後全形逗號
+    const firstLine = lines[0];
+    const delim = firstLine.includes("\t") ? "\t"
+      : firstLine.includes(",") ? ","
+      : "，";
+    const splitLine = (l: string) =>
+      l.split(delim).map(c => c.trim().replace(/^"|"$/g, ""));
+    const headers = splitLine(firstLine);
+    // 過濾全空行
+    const rows = lines.slice(1)
+      .map(splitLine)
+      .filter(r => r.some(c => c !== ""));
     setCsvHeaders(headers);
     setCsvRows(rows);
+    // 自動配對欄位（完全匹配 > 包含匹配 > 起頭匹配）
     const mapping: Record<string, string> = {};
     columns.forEach(col => {
-      const match = headers.find(h =>
-        h === col.label || h.toLowerCase().includes(col.label.toLowerCase())
+      const exact = headers.find(h => h === col.label);
+      const contains = headers.find(h =>
+        h.toLowerCase().includes(col.label.toLowerCase()) ||
+        col.label.toLowerCase().includes(h.toLowerCase())
       );
-      if (match) mapping[col.key] = match;
+      const matched = exact ?? contains ?? undefined;
+      if (matched) mapping[col.key] = matched;
     });
     setCsvMapping(mapping);
   }
@@ -638,13 +667,63 @@ export default function GroupAuctionEdit() {
         {/* ── 商品管理 Tab ── */}
         {tab === "items" && roundId && (
           <div className="space-y-4">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowCsvImport(true)}
-                className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-3 py-2 rounded-xl"
-              >
-                <FileSpreadsheet className="w-4 h-4" /> 匯入 CSV
-              </button>
+            {/* 工具列 */}
+            <div className="flex flex-wrap gap-2 items-center">
+              {!selectMode ? (
+                <>
+                  <button
+                    onClick={() => setShowCsvImport(true)}
+                    className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-3 py-2 rounded-xl"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" /> 匯入 CSV
+                  </button>
+                  {!isEnded && items.length > 0 && (
+                    <button
+                      onClick={() => setSelectMode(true)}
+                      className="flex items-center gap-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-xl"
+                    >
+                      <CheckSquare className="w-4 h-4" /> 批量刪除
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      if (selectedIds.size === items.length) {
+                        setSelectedIds(new Set());
+                      } else {
+                        setSelectedIds(new Set(items.map(i => i.id)));
+                      }
+                    }}
+                    className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-xl"
+                  >
+                    {selectedIds.size === items.length ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                    {selectedIds.size === items.length ? "取消全選" : `全選 (${items.length})`}
+                  </button>
+                  {selectedIds.size > 0 && (
+                    <button
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: "批量刪除",
+                          description: `確認刪除選中的 ${selectedIds.size} 件商品？出價記錄一併刪除。`,
+                        });
+                        if (ok) batchDeleteItemsMut.mutate({ roundId: roundId!, ids: Array.from(selectedIds) });
+                      }}
+                      disabled={batchDeleteItemsMut.isPending}
+                      className="flex items-center gap-1.5 text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-xl"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> 刪除 {selectedIds.size} 件
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setSelectMode(false); setSelectedIds(new Set()); }}
+                    className="flex items-center gap-1 text-xs text-gray-500 px-3 py-1.5 rounded-xl bg-gray-100"
+                  >
+                    <X className="w-3.5 h-3.5" /> 取消
+                  </button>
+                </>
+              )}
               {round?.status === "ended" && (
                 <>
                   <ExportCsvButton roundId={roundId} format="by_order" label="匯出（序號）" columns={columns} />
@@ -657,16 +736,22 @@ export default function GroupAuctionEdit() {
             {showCsvImport && (
               <div className="bg-white rounded-2xl border border-amber-100 p-4 space-y-3">
                 <p className="text-sm font-semibold text-gray-700">匯入 CSV</p>
-                <p className="text-xs text-gray-500">貼上 CSV 內容（第一行為標題行）</p>
+                <p className="text-xs text-gray-500">貼上 CSV 內容（第一行為標題行，支援半形逗號、全形逗號、Tab）</p>
                 <textarea
                   className="w-full px-3 py-2 text-xs outline-none resize-none font-mono"
                   style={inputStyle}
                   rows={6}
-                  placeholder={"品名,評分,號碼,起拍價\n五星車工,67E,123456789,2888"}
+                  placeholder={"品名,描述,起拍\n生肖馬年,J098003688,100"}
                   value={csvText}
-                  onChange={e => { setCsvText(e.target.value); if (csvHeaders.length === 0) parseCsv(e.target.value); }}
+                  onChange={e => { setCsvText(e.target.value); }}
                   onBlur={() => csvText && parseCsv(csvText)}
                 />
+                <button
+                  onClick={() => csvText && parseCsv(csvText)}
+                  className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg"
+                >
+                  解析
+                </button>
 
                 {csvHeaders.length > 0 && (
                   <div>
@@ -687,7 +772,7 @@ export default function GroupAuctionEdit() {
                         </div>
                       ))}
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">預覽前 3 行：{csvRows.slice(0, 3).map(r => r.join(" | ")).join(" / ")}</p>
+                    <p className="text-xs text-gray-400 mt-2">識別到 {csvRows.length} 行 · 預覽：{csvRows[0]?.join(" | ")}</p>
                   </div>
                 )}
 
@@ -717,27 +802,157 @@ export default function GroupAuctionEdit() {
                 const data = (() => { try { return JSON.parse(item.dataJson); } catch { return {}; } })();
                 const titleCol = columns.find(c => c.role === "itemTitle");
                 const title = titleCol ? data[titleCol.key] : `商品 ${idx + 1}`;
+                const hasBids = !!item.topBidderId;
+                const isEditing = editingItemId === item.id;
+                const isSelected = selectedIds.has(item.id);
+
                 return (
-                  <div key={item.id} className="bg-white rounded-xl border border-gray-100 p-3 flex items-center gap-3">
-                    <span className="text-xs text-gray-400 w-6 text-center flex-shrink-0">{idx + 1}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{title || "—"}</p>
-                      <p className="text-xs text-gray-400">
-                        起拍 HK${item.startPrice}
-                        {item.buyNowPrice ? ` | 封頂 HK$${item.buyNowPrice}` : ""}
-                        {item.status !== "active" && ` | ${item.status === "sold" ? "✓ 已成交" : "流拍"}`}
-                      </p>
+                  <div key={item.id}
+                    className={`bg-white rounded-xl border p-3 transition-colors ${
+                      isSelected ? "border-red-300 bg-red-50" : "border-gray-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {/* 多選 checkbox */}
+                      {selectMode && (
+                        <button
+                          onClick={() => {
+                            const next = new Set(selectedIds);
+                            if (next.has(item.id)) next.delete(item.id);
+                            else next.add(item.id);
+                            setSelectedIds(next);
+                          }}
+                          className="flex-shrink-0"
+                        >
+                          {isSelected
+                            ? <CheckSquare className="w-4 h-4 text-red-500" />
+                            : <Square className="w-4 h-4 text-gray-300" />
+                          }
+                        </button>
+                      )}
+
+                      <span className="text-xs text-gray-400 w-6 text-center flex-shrink-0">{idx + 1}</span>
+
+                      <div className="flex-1 min-w-0" onClick={() => {
+                        if (selectMode) {
+                          const next = new Set(selectedIds);
+                          if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+                          setSelectedIds(next);
+                        }
+                      }}>
+                        <p className="text-sm font-medium text-gray-800 truncate">{title || "—"}</p>
+                        <p className="text-xs text-gray-400">
+                          起拍 HK${item.startPrice}
+                          {item.buyNowPrice ? ` | 封頂 HK$${item.buyNowPrice}` : ""}
+                          {hasBids && <span className="text-amber-600 ml-1">• 有出價</span>}
+                          {item.status !== "active" && ` | ${item.status === "sold" ? "✓ 已成交" : "流拍"}`}
+                        </p>
+                      </div>
+
+                      {!selectMode && !isEnded && (
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => {
+                              if (isEditing) { setEditingItemId(null); return; }
+                              setEditingItemId(item.id);
+                              const ef: Record<string, string> = {};
+                              columns.forEach(c => { ef[c.key] = data[c.key] ?? ""; });
+                              ef.__startPrice = String(item.startPrice);
+                              ef.__buyNowPrice = item.buyNowPrice ? String(item.buyNowPrice) : "";
+                              ef.__bidIncrement = item.bidIncrement ? String(item.bidIncrement) : "";
+                              setEditFields(ef);
+                            }}
+                            className="p-1.5 text-blue-400 hover:text-blue-600"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              const ok = await confirm({ title: "刪除商品", description: "確認刪除？出價記錄一併刪除。" });
+                              if (ok) deleteItemMut.mutate({ id: item.id });
+                            }}
+                            className="p-1.5 text-red-400 hover:text-red-600"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    {!isEnded && (
-                      <button
-                        onClick={async () => {
-                          const ok = await confirm({ title: "刪除商品", description: "確認刪除？出價記錄一併刪除。" });
-                          if (ok) deleteItemMut.mutate({ id: item.id });
-                        }}
-                        className="p-1.5 text-red-400 hover:text-red-600 flex-shrink-0"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+
+                    {/* 行內編輯展開 */}
+                    {isEditing && (
+                      <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+                        {columns.map(col => (
+                          <div key={col.key} className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500 w-20 flex-shrink-0">{col.label}</span>
+                            <input
+                              className="flex-1 px-2 py-1 text-sm outline-none"
+                              style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "8px" }}
+                              value={editFields[col.key] ?? ""}
+                              onChange={e => setEditFields(p => ({ ...p, [col.key]: e.target.value }))}
+                            />
+                          </div>
+                        ))}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 w-20 flex-shrink-0">起拍價</span>
+                          <input
+                            className="flex-1 px-2 py-1 text-sm outline-none"
+                            style={{ background: hasBids ? "#f9fafb" : "#fff", border: "1px solid #E5E5E5", borderRadius: "8px", color: hasBids ? "#9ca3af" : undefined }}
+                            disabled={hasBids}
+                            placeholder={hasBids ? "已有出價，不可修改" : ""}
+                            value={editFields.__startPrice ?? ""}
+                            onChange={e => setEditFields(p => ({ ...p, __startPrice: e.target.value }))}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 w-20 flex-shrink-0">封頂價</span>
+                          <input
+                            className="flex-1 px-2 py-1 text-sm outline-none"
+                            style={{ background: hasBids ? "#f9fafb" : "#fff", border: "1px solid #E5E5E5", borderRadius: "8px", color: hasBids ? "#9ca3af" : undefined }}
+                            disabled={hasBids}
+                            placeholder={hasBids ? "已有出價，不可修改" : "留空 = 無封頂"}
+                            value={editFields.__buyNowPrice ?? ""}
+                            onChange={e => setEditFields(p => ({ ...p, __buyNowPrice: e.target.value }))}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 w-20 flex-shrink-0">每口加價</span>
+                          <input
+                            className="flex-1 px-2 py-1 text-sm outline-none"
+                            style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "8px" }}
+                            placeholder="留空 = 用場次預設"
+                            value={editFields.__bidIncrement ?? ""}
+                            onChange={e => setEditFields(p => ({ ...p, __bidIncrement: e.target.value }))}
+                          />
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            onClick={() => {
+                              const colData: Record<string, string> = {};
+                              columns.forEach(c => { colData[c.key] = editFields[c.key] ?? ""; });
+                              const patch: any = { id: item.id, dataJson: JSON.stringify(colData) };
+                              if (!hasBids) {
+                                patch.startPrice = parseInt(editFields.__startPrice || "0", 10) || 0;
+                                const buyNow = editFields.__buyNowPrice ? parseInt(editFields.__buyNowPrice, 10) : null;
+                                patch.buyNowPrice = buyNow && buyNow > 0 ? buyNow : null;
+                              }
+                              const inc = parseInt(editFields.__bidIncrement || "0", 10);
+                              patch.bidIncrement = inc > 0 ? inc : 0;
+                              updateItemMut.mutate(patch);
+                            }}
+                            disabled={updateItemMut.isPending}
+                            className="flex-1 bg-amber-500 text-white text-xs py-1.5 rounded-lg"
+                          >
+                            儲存
+                          </button>
+                          <button
+                            onClick={() => setEditingItemId(null)}
+                            className="px-4 text-xs text-gray-500 py-1.5 rounded-lg bg-gray-100"
+                          >
+                            取消
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 );

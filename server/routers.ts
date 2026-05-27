@@ -10296,7 +10296,7 @@ EXAMPLE OUTPUT (exact format):
         return { imported: input.items.length };
       }),
 
-    /** 商戶：更新單件商品 */
+    /** 商戶：更新單件商品（有出價時不可改價格） */
     updateItem: protectedProcedure
       .input(z.object({
         id: z.number().int().positive(),
@@ -10316,14 +10316,19 @@ EXAMPLE OUTPUT (exact format):
         if (!round || round.merchantUserId !== ctx.user.id) {
           throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
         }
+        // 有出價紀錄時，拒絕修改價格欄位
+        const hasBids = item.topBidderId !== null;
+        if (hasBids && (input.startPrice !== undefined || input.buyNowPrice !== undefined)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '此商品已有出價，不能修改起拍價或封頂價' });
+        }
         const patch: Record<string, any> = {};
         if (input.dataJson !== undefined) patch.dataJson = input.dataJson;
-        if (input.startPrice !== undefined) patch.startPrice = input.startPrice;
+        if (!hasBids && input.startPrice !== undefined) patch.startPrice = input.startPrice;
         if (input.bidIncrement !== undefined) patch.bidIncrement = input.bidIncrement;
-        if (input.buyNowPrice !== undefined) patch.buyNowPrice = input.buyNowPrice;
+        if (!hasBids && input.buyNowPrice !== undefined) patch.buyNowPrice = input.buyNowPrice;
         if (input.imageIdsJson !== undefined) patch.imageIdsJson = input.imageIdsJson;
         await db.update(groupAuctionItems).set(patch).where(eq(groupAuctionItems.id, input.id));
-        return { success: true };
+        return { success: true, hasBids };
       }),
 
     /** 商戶：刪除商品 */
@@ -10342,6 +10347,28 @@ EXAMPLE OUTPUT (exact format):
         await db.delete(groupAuctionBids).where(eq(groupAuctionBids.itemId, input.id));
         await db.delete(groupAuctionItems).where(eq(groupAuctionItems.id, input.id));
         return { success: true };
+      }),
+
+    /** 商戶：批量刪除商品 */
+    batchDeleteItems: protectedProcedure
+      .input(z.object({
+        roundId: z.number().int().positive(),
+        ids: z.array(z.number().int().positive()).min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round || round.merchantUserId !== ctx.user.id) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        for (const id of input.ids) {
+          await db.delete(groupAuctionBids).where(eq(groupAuctionBids.itemId, id));
+          await db.delete(groupAuctionItems).where(
+            and(eq(groupAuctionItems.id, id), eq(groupAuctionItems.roundId, input.roundId))
+          );
+        }
+        return { deleted: input.ids.length };
       }),
 
     /** 商戶：更新商品排序 */
