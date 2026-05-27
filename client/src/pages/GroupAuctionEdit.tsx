@@ -67,7 +67,7 @@ export default function GroupAuctionEdit() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const confirm = useConfirm();
-  const [tab, setTab] = useState<"basic" | "columns" | "images" | "items">("basic");
+  const [tab, setTab] = useState<"basic" | "columns" | "images" | "items" | "results">("basic");
 
   // ── 基本設定 state ──
   const [basic, setBasic] = useState({
@@ -204,6 +204,13 @@ export default function GroupAuctionEdit() {
       columnsJson: JSON.stringify(columns),
     };
     if (!payload.title) { toast.error("請輸入場次名稱"); return; }
+    if (payload.startAt && payload.endAt) {
+      const diffMs = new Date(payload.endAt).getTime() - new Date(payload.startAt).getTime();
+      if (diffMs < 60 * 60 * 1000) {
+        toast.error("結拍時間必須比開拍時間至少遲一小時");
+        return;
+      }
+    }
     if (isNew) {
       createMut.mutate(payload);
     } else {
@@ -335,6 +342,7 @@ export default function GroupAuctionEdit() {
     { key: "columns", label: "欄位設定" },
     { key: "images", label: "圖片集", disabled: isNew },
     { key: "items", label: "商品管理", disabled: isNew },
+    { key: "results", label: "成績紀錄", disabled: !isEnded },
   ] as const;
 
   return (
@@ -986,6 +994,95 @@ export default function GroupAuctionEdit() {
             </div>
           </div>
         )}
+
+        {/* ── 成績紀錄 Tab ── */}
+        {tab === "results" && (() => {
+          const titleCol = columns.find(c => c.role === "itemTitle");
+          const winnerMap = new Map<number, { name: string; wonItems: typeof items }>();
+          items.forEach(it => {
+            const uid = (it as any).topBidderId as number | null;
+            if (!uid) return;
+            if (!winnerMap.has(uid)) {
+              winnerMap.set(uid, { name: (it as any).topBidderName ?? `用戶${uid}`, wonItems: [] });
+            }
+            winnerMap.get(uid)!.wonItems.push(it);
+          });
+          const winners = [...winnerMap.entries()];
+
+          function buildHtml(uid: number | null) {
+            const entries: [number, { name: string; wonItems: typeof items }][] =
+              uid !== null ? [[uid, winnerMap.get(uid)!]] : winners;
+            let body = "";
+            entries.forEach(([, entry]) => {
+              const rows = entry.wonItems.map((it, i) => {
+                const d = ((it as any).data ?? {}) as Record<string, any>;
+                const title = titleCol ? (d[titleCol.key] ?? `商品${i + 1}`) : `商品${i + 1}`;
+                return `<tr><td>${i + 1}</td><td>${title}</td><td style="text-align:right">HK$${((it as any).currentPrice ?? 0).toLocaleString()}</td></tr>`;
+              }).join("");
+              const total = entry.wonItems.reduce((s, it) => s + ((it as any).currentPrice ?? 0), 0);
+              body += `<div style="margin-bottom:28px;page-break-inside:avoid"><h3 style="margin:0 0 6px">${entry.name}</h3><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#f5f5f5"><th style="border:1px solid #ccc;padding:5px 8px;text-align:left">#</th><th style="border:1px solid #ccc;padding:5px 8px;text-align:left">商品</th><th style="border:1px solid #ccc;padding:5px 8px;text-align:right">成交價</th></tr></thead><tbody>${rows.replace(/<td>/g, '<td style="border:1px solid #ccc;padding:5px 8px">')}</tbody><tfoot><tr><td colspan="2" style="border:1px solid #ccc;padding:5px 8px;font-weight:bold">合計 ${entry.wonItems.length} 件</td><td style="border:1px solid #ccc;padding:5px 8px;font-weight:bold;text-align:right">HK$${total.toLocaleString()}</td></tr></tfoot></table></div>`;
+            });
+            return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${round?.title} 得標摘要</title><style>body{font-family:sans-serif;padding:20px}@media print{body{padding:8px}div{page-break-inside:avoid}}</style></head><body><h2 style="margin-bottom:16px">${round?.title} — 得標摘要</h2>${body}</body></html>`;
+          }
+
+          function doPrint(uid: number | null) {
+            const w = window.open("", "_blank");
+            if (!w) { toast.error("請允許彈出視窗"); return; }
+            w.document.write(buildHtml(uid));
+            w.document.close();
+            setTimeout(() => w.print(), 300);
+          }
+
+          return (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-gray-700">
+                  {winners.length} 位得標買家 · {items.filter(it => (it as any).topBidderId).length} 件得標
+                </p>
+                <button
+                  onClick={() => doPrint(null)}
+                  className="flex items-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-xl"
+                >
+                  <Download className="w-3 h-3" /> 打印全場
+                </button>
+              </div>
+              {winners.length === 0 && (
+                <div className="text-center py-10 text-gray-400 text-sm">此場次暫無得標紀錄</div>
+              )}
+              {winners.map(([uid, entry]) => {
+                const total = entry.wonItems.reduce((s, it) => s + ((it as any).currentPrice ?? 0), 0);
+                return (
+                  <div key={uid} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm">{entry.name}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">得標 {entry.wonItems.length} 件 · 合計 HK${total.toLocaleString()}</p>
+                      </div>
+                      <button
+                        onClick={() => doPrint(uid)}
+                        className="flex items-center gap-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-xl flex-shrink-0"
+                      >
+                        <Download className="w-3 h-3" /> 打印 / PDF
+                      </button>
+                    </div>
+                    <div className="mt-3 space-y-0.5">
+                      {entry.wonItems.map((it, i) => {
+                        const d = ((it as any).data ?? {}) as Record<string, any>;
+                        const title = titleCol ? (d[titleCol.key] ?? `商品${i + 1}`) : `商品${i + 1}`;
+                        return (
+                          <div key={(it as any).id} className="flex items-center justify-between text-xs text-gray-600 py-1.5 border-b border-gray-50 last:border-0">
+                            <span className="truncate">{i + 1}. {title}</span>
+                            <span className="font-mono ml-2 flex-shrink-0 text-gray-700">HK${((it as any).currentPrice ?? 0).toLocaleString()}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
       <BottomNav />
     </div>

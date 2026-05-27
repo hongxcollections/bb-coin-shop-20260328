@@ -24,6 +24,7 @@ export default function GroupAuctionList() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const confirm = useConfirm();
+  const [activeTab, setActiveTab] = useState<"published" | "draft" | "ended">("published");
 
   const { data: rounds, isLoading, refetch } = trpc.groupAuctions.myListRounds.useQuery(undefined, {
     enabled: !!user,
@@ -63,19 +64,40 @@ export default function GroupAuctionList() {
           </div>
         </div>
 
+        {/* Tabs */}
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-4">
+          {(["published", "draft", "ended"] as const).map(tab => {
+            const labels = { published: "Live", draft: "草稿", ended: "已結拍" };
+            const count = rounds?.filter(r => r.status === tab).length ?? 0;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`flex-1 text-xs py-1.5 rounded-lg font-medium transition-colors ${
+                  activeTab === tab ? "bg-white text-amber-700 shadow-sm" : "text-gray-500"
+                }`}
+              >
+                {labels[tab]}{count > 0 ? ` (${count})` : ""}
+              </button>
+            );
+          })}
+        </div>
+
         {isLoading && (
           <div className="text-center py-12 text-gray-400 text-sm">載入中...</div>
         )}
 
-        {!isLoading && (!rounds || rounds.length === 0) && (
+        {!isLoading && rounds?.filter(r => r.status === activeTab).length === 0 && (
           <div className="text-center py-16 text-gray-400">
             <Archive className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">未有場次，點「新建場次」開始</p>
+            <p className="text-sm">
+              {activeTab === "published" ? "未有進行中場次" : activeTab === "draft" ? "未有草稿場次" : "未有已結拍場次"}
+            </p>
           </div>
         )}
 
         <div className="space-y-3">
-          {rounds?.map((r) => {
+          {rounds?.filter(r => r.status === activeTab).map((r) => {
             const sl = statusLabel(r.status);
             return (
               <div key={r.id} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">

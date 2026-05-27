@@ -140,7 +140,10 @@ export default function GroupAuctionBidPage() {
     const h = Math.floor(startSecsLeft / 3600);
     const m = Math.floor((startSecsLeft % 3600) / 60);
     const s = startSecsLeft % 60;
-    return h > 0 ? `${h}h ${m}m ${s}s 後開拍` : m > 0 ? `${m}m ${s}s 後開拍` : `${s}s 後開拍`;
+    const hh = h.toString().padStart(2, "0");
+    const mm = m.toString().padStart(2, "0");
+    const ss = s.toString().padStart(2, "0");
+    return `距離開拍時間 ${hh}:${mm}:${ss}`;
   })();
   const currency = (((round as any).displayCurrencies ?? "CNY").split(",")[0].trim()) || "CNY";
   const currSym = CURR_SYMS[currency] ?? "HK$";
@@ -224,8 +227,8 @@ export default function GroupAuctionBidPage() {
       {/* 尚未開拍提示 */}
       {!isStarted && round.startAt && (
         <div className="mx-[3px] mt-[20px] bg-sky-50 border border-sky-200 rounded-xl p-3 text-center">
-          <p className="text-sm font-bold text-sky-700">場次尚未開拍</p>
-          <p className="text-xs text-sky-500 mt-1">開拍時間：{fmtDate(round.startAt as string)}</p>
+          <p className="text-sm font-bold text-sky-700">場次預展</p>
+          <p className="text-xs text-sky-500 mt-1">開拍時間：{fmtDate(round.startAt as string)} 至 {fmtDate(round.endAt as string)}</p>
           <p className="text-xs text-sky-600 font-mono font-semibold mt-1">{startCdStr}</p>
         </div>
       )}
