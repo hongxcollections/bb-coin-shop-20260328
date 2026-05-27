@@ -71,7 +71,7 @@ export function SessionShareMenu({ merchantUserId, slug, title, merchantName, en
     if (navigator.share) {
       try {
         await navigator.clipboard.writeText(shareText).catch(() => {});
-        await navigator.share({ title, text: shareText, url: sessionUrl });
+        await navigator.share({ title, text: shareText.replace("\n" + sessionUrl, "").trim(), url: sessionUrl });
         toast.success("已開啟系統分享選單", { description: shareText, duration: 5000 });
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== "AbortError") {
@@ -326,7 +326,7 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
     if (navigator.share) {
       try {
         await navigator.clipboard.writeText(shareText).catch(() => {});
-        await navigator.share({ title, text: shareText, url: productUrl });
+        await navigator.share({ title, text: shareText.replace("\n" + productUrl, "").trim(), url: productUrl });
         toast.success("已開啟系統分享選單，可選擇 Messenger / FB 群組 / WhatsApp 等", { description: shareText, duration: 5000 });
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== "AbortError") {
@@ -489,7 +489,7 @@ export function CollectionShareMenu({ postId, title, iconOnly }: CollectionShare
     if (navigator.share) {
       try {
         await navigator.clipboard.writeText(shareText).catch(() => {});
-        await navigator.share({ title, text: shareText, url: postUrl });
+        await navigator.share({ title, text: shareText.replace("\n" + postUrl, "").trim(), url: postUrl });
         toast.success("已開啟系統分享選單", { description: shareText, duration: 5000 });
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== "AbortError") {
