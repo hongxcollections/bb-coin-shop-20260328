@@ -82,7 +82,7 @@ export default function GroupAuctionEdit() {
     antiSnipeMinutes: "5",
     antiSnipeExtendMinutes: "5",
     antiSnipeMode: "per_item" as "none" | "per_item" | "whole_round",
-    displayCurrencies: "HKD,CNY",
+    displayCurrencies: "CNY",
   });
 
   // ── 欄位設定 state ──
@@ -177,7 +177,7 @@ export default function GroupAuctionEdit() {
       antiSnipeMinutes: String(r.antiSnipeMinutes),
       antiSnipeExtendMinutes: String(r.antiSnipeExtendMinutes),
       antiSnipeMode: r.antiSnipeMode,
-      displayCurrencies: (r as any).displayCurrencies ?? "HKD,CNY",
+      displayCurrencies: ((r as any).displayCurrencies ?? "CNY").split(",")[0].trim() || "CNY",
     });
     if (r.columnsJson) {
       try { setColumns(JSON.parse(r.columnsJson)); } catch {}
@@ -496,28 +496,20 @@ export default function GroupAuctionEdit() {
             </div>
 
             <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
-              <p className="text-xs font-semibold text-gray-600">出價頁貨幣顯示</p>
-              <p className="text-xs text-gray-400">買家可在出價頁切換顯示貨幣（以 HKD 為底換算）。勾選越前，預設顯示越優先</p>
+              <p className="text-xs font-semibold text-gray-600">出價頁加價幣種</p>
+              <p className="text-xs text-gray-400">買家出價頁所有金額顯示的幣種（以 HKD 換算），預設人民幣</p>
               <div className="flex flex-wrap gap-3">
-                {(["HKD", "CNY", "USD", "JPY", "GBP", "EUR"] as const).map(cur => {
-                  const list = basic.displayCurrencies.split(",").map(s => s.trim()).filter(Boolean);
-                  const checked = list.includes(cur);
-                  return (
-                    <label key={cur} className="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={e => {
-                          const updated = [...list];
-                          if (e.target.checked) { if (!updated.includes(cur)) updated.push(cur); }
-                          else { const idx = updated.indexOf(cur); if (idx !== -1) updated.splice(idx, 1); }
-                          setBasic(p => ({ ...p, displayCurrencies: updated.join(",") || "HKD" }));
-                        }}
-                      />
-                      <span className="text-sm text-gray-700">{cur}</span>
-                    </label>
-                  );
-                })}
+                {(["HKD", "CNY", "USD", "JPY", "GBP", "EUR"] as const).map(cur => (
+                  <label key={cur} className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="displayCurrency"
+                      checked={basic.displayCurrencies === cur}
+                      onChange={() => setBasic(p => ({ ...p, displayCurrencies: cur }))}
+                    />
+                    <span className="text-sm text-gray-700">{cur}</span>
+                  </label>
+                ))}
               </div>
             </div>
 

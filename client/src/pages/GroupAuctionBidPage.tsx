@@ -34,8 +34,8 @@ function useCountdown(endAt: string | null | undefined) {
   return text;
 }
 
-const CURR_RATES: Record<string, number> = { HKD: 1, CNY: 0.92, USD: 0.128 };
-const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$" };
+const CURR_RATES: Record<string, number> = { HKD: 1, CNY: 0.92, USD: 0.128, JPY: 19.8, GBP: 0.101, EUR: 0.119 };
+const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "CN¥", USD: "US$", JPY: "JP¥", GBP: "£", EUR: "€" };
 
 export default function GroupAuctionBidPage() {
   const params = useParams<{ roundId: string }>();
@@ -46,7 +46,6 @@ export default function GroupAuctionBidPage() {
   const [customAmount, setCustomAmount] = useState("");
   const [filter, setFilter] = useState<"all" | "bid" | "nobid">("all");
   const [showDesc, setShowDesc] = useState(true);
-  const [currency, setCurrency] = useState("CNY");
   const countdown = useCountdown(undefined);
   const headerRef = useRef<HTMLDivElement>(null);
   const [headerHeight, setHeaderHeight] = useState(160);
@@ -83,20 +82,8 @@ export default function GroupAuctionBidPage() {
   })();
   const displayCols = columns.filter(c => c.showOnBidPage !== false && c.role !== "startPrice" && c.role !== "buyNowPrice" && c.role !== "bidIncrement");
   const titleCol = columns.find(c => c.role === "itemTitle");
-  const currencyList = (() => {
-    const raw = ((round as any)?.displayCurrencies ?? "HKD,CNY")
-      .split(",").map((s: string) => s.trim()).filter((s: string) => s in CURR_RATES);
-    return raw.length > 0 ? raw : ["HKD", "CNY"];
-  })();
-
   function getItemData(item: any): Record<string, string> {
     try { return JSON.parse(item.dataJson); } catch { return {}; }
-  }
-
-  function displayPrice(hkdAmt: number | null | undefined): string {
-    if (hkdAmt == null) return "—";
-    const v = Number(hkdAmt) * CURR_RATES[currency];
-    return `${CURR_SYMS[currency]}${v % 1 === 0 ? v.toLocaleString() : v.toFixed(1)}`;
   }
 
   useEffect(() => {
@@ -138,6 +125,14 @@ export default function GroupAuctionBidPage() {
   }
 
   const isEnded = round.status === "ended";
+  const currency = (((round as any).displayCurrencies ?? "CNY").split(",")[0].trim()) || "CNY";
+  const currSym = CURR_SYMS[currency] ?? "HK$";
+  const currRate = CURR_RATES[currency] ?? 1;
+  function displayPrice(hkdAmt: number | null | undefined): string {
+    if (hkdAmt == null) return "—";
+    const v = Number(hkdAmt) * currRate;
+    return `${currSym}${v % 1 === 0 ? v.toLocaleString() : v.toFixed(1)}`;
+  }
   const commRate = parseFloat(String(round.buyerCommissionRate));
   const myTotalAmount = user
     ? items.filter(i => i.topBidderId === user.id)
@@ -195,11 +190,6 @@ export default function GroupAuctionBidPage() {
             </button>
           </div>
           <div className="flex gap-1 flex-shrink-0 ml-1">
-            <button
-              onClick={() => setCurrency(c => { const i = currencyList.indexOf(c); return currencyList[(i + 1) % currencyList.length]; })}
-              className="text-[11px] px-1.5 py-0.5 font-medium border border-gray-200 bg-gray-50 text-gray-600"
-              style={{ borderRadius: "5px" }}
-            >{currency}</button>
             {(round.description || round.antiSnipeMode !== 'none') && (
               <button
                 onClick={() => setShowDesc(v => !v)}
@@ -216,7 +206,7 @@ export default function GroupAuctionBidPage() {
 
       {/* 拍賣須知（可收起） */}
       {(round.description || round.antiSnipeMode !== 'none') && showDesc && (
-        <div className="mx-[3px] mt-[3px] bg-amber-50 border border-amber-100 rounded-xl p-3">
+        <div className="mx-[3px] mt-[10px] bg-amber-50 border border-amber-100 rounded-xl p-3">
           {round.description && (
             <p className="text-xs text-amber-700 whitespace-pre-line">{round.description}</p>
           )}
@@ -340,7 +330,7 @@ export default function GroupAuctionBidPage() {
               {/* 自訂出價展開 */}
               {isExpanded && isActive && (
                 <div className="border-t border-gray-50 px-3 pb-3 pt-2">
-                  <p className="text-xs text-gray-500 mb-2">自訂出價（最少 HK${nextBid}）</p>
+                  <p className="text-xs text-gray-500 mb-2">自訂出價（最少 {currSym}{nextBid}）</p>
                   <div className="flex gap-2">
                     <input
                       className="flex-1 px-3 py-2 text-sm outline-none"
@@ -352,7 +342,7 @@ export default function GroupAuctionBidPage() {
                     <button
                       onClick={() => {
                         const amt = parseInt(customAmount, 10);
-                        if (!amt || amt < nextBid) { toast.error(`最少 HK$${nextBid}`); return; }
+                        if (!amt || amt < nextBid) { toast.error(`最少 ${currSym}${nextBid}`); return; }
                         handleBid(item.id, amt, title, idx + 1);
                       }}
                       disabled={placeBidMut.isPending}
