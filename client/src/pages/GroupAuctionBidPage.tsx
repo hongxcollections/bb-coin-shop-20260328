@@ -222,7 +222,7 @@ export default function GroupAuctionBidPage() {
       )}
 
       {/* 商品列表 */}
-      <div className="px-[3px] mt-3 space-y-2 pb-20">
+      <div className="px-[3px] mt-[20px] space-y-2 pb-20">
         {items.filter(item => {
           if (filter === "bid") return item.topBidderId !== null;
           if (filter === "nobid") return item.topBidderId === null;
@@ -237,6 +237,7 @@ export default function GroupAuctionBidPage() {
             ? (item.currentPrice as number) + effectiveIncrement
             : item.startPrice;
           const isExpanded = biddingItem === item.id;
+          const nextBidInCurr = Math.ceil(nextBid * currRate);
 
           let cardClass = "rounded-2xl overflow-hidden border";
           let cardStyle: React.CSSProperties = {};
@@ -330,20 +331,20 @@ export default function GroupAuctionBidPage() {
               {/* 自訂出價展開 */}
               {isExpanded && isActive && (
                 <div className="border-t border-gray-50 px-3 pb-3 pt-2">
-                  <p className="text-xs text-gray-500 mb-2">自訂出價（最少 {currSym}{nextBid}）</p>
+                  <p className="text-xs text-gray-500 mb-2">自訂出價（最少 {currSym}{nextBidInCurr}）</p>
                   <div className="flex gap-2">
                     <input
                       className="flex-1 px-3 py-2 text-sm outline-none"
                       style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
-                      placeholder={`最少 ${nextBid}`}
+                      placeholder={`最少 ${nextBidInCurr}`}
                       value={customAmount}
                       onChange={e => setCustomAmount(e.target.value)}
                     />
                     <button
                       onClick={() => {
                         const amt = parseInt(customAmount, 10);
-                        if (!amt || amt < nextBid) { toast.error(`最少 ${currSym}${nextBid}`); return; }
-                        handleBid(item.id, amt, title, idx + 1);
+                        if (!amt || amt < nextBidInCurr) { toast.error(`最少 ${currSym}${nextBidInCurr}`); return; }
+                        handleBid(item.id, Math.round(amt / currRate), title, idx + 1);
                       }}
                       disabled={placeBidMut.isPending}
                       className="bg-amber-500 hover:bg-amber-600 text-white text-sm px-4 py-2 rounded-xl font-medium"
