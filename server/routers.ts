@@ -10000,7 +10000,13 @@ EXAMPLE OUTPUT (exact format):
         const images = await db.select().from(groupAuctionImages)
           .where(eq(groupAuctionImages.roundId, input.id))
           .orderBy(asc(groupAuctionImages.displayOrder), asc(groupAuctionImages.id));
-        return { round, items, images };
+        // 每件商品加入出價計數
+        const itemsWithBidCount = await Promise.all(items.map(async (item) => {
+          const rows = await db.select({ cnt: sql`COUNT(*)` }).from(groupAuctionBids)
+            .where(eq(groupAuctionBids.itemId, item.id));
+          return { ...item, bidCount: Number((rows[0] as any)?.cnt ?? 0) };
+        }));
+        return { round, items: itemsWithBidCount, images };
       }),
 
     /** 商戶：建立新場次 */
@@ -10316,8 +10322,10 @@ EXAMPLE OUTPUT (exact format):
         if (!round || round.merchantUserId !== ctx.user.id) {
           throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
         }
-        // 有出價紀錄時，拒絕修改價格欄位
-        const hasBids = item.topBidderId !== null;
+        // 查詢是否有出價記錄
+        const bidRows = await db.select({ cnt: sql`COUNT(*)` }).from(groupAuctionBids)
+          .where(eq(groupAuctionBids.itemId, input.id));
+        const hasBids = Number((bidRows[0] as any)?.cnt ?? 0) > 0;
         if (hasBids && (input.startPrice !== undefined || input.buyNowPrice !== undefined)) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '此商品已有出價，不能修改起拍價或封頂價' });
         }

@@ -802,7 +802,7 @@ export default function GroupAuctionEdit() {
                 const data = (() => { try { return JSON.parse(item.dataJson); } catch { return {}; } })();
                 const titleCol = columns.find(c => c.role === "itemTitle");
                 const title = titleCol ? data[titleCol.key] : `商品 ${idx + 1}`;
-                const hasBids = !!item.topBidderId;
+                const hasBids = (item.bidCount ?? 0) > 0;
                 const isEditing = editingItemId === item.id;
                 const isSelected = selectedIds.has(item.id);
 
@@ -886,7 +886,8 @@ export default function GroupAuctionEdit() {
                     {/* 行內編輯展開 */}
                     {isEditing && (
                       <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
-                        {columns.map(col => (
+                        {/* 只渲染 customText / imageRef 角色的欄位，價格欄位下方單獨處理 */}
+                        {columns.filter(c => c.role !== "startPrice" && c.role !== "buyNowPrice" && c.role !== "bidIncrement").map(col => (
                           <div key={col.key} className="flex items-center gap-2">
                             <span className="text-xs text-gray-500 w-20 flex-shrink-0">{col.label}</span>
                             <input
