@@ -45,7 +45,7 @@ export default function GroupAuctionBidPage() {
 
   const { data, isLoading, refetch, error } = trpc.groupAuctions.getRound.useQuery(
     { roundId },
-    { refetchInterval: 5000, enabled: !isNaN(roundId) }
+    { refetchInterval: 3000, refetchOnMount: true, refetchOnWindowFocus: true, enabled: !isNaN(roundId) }
   );
 
   const placeBidMut = trpc.groupAuctions.placeBid.useMutation({
@@ -241,7 +241,10 @@ export default function GroupAuctionBidPage() {
                 {/* 傭金提示 */}
                 {isActive && commRate > 0 && (
                   <p className="text-[10px] text-gray-400 mt-1">
-                    成交後含 {(commRate * 100).toFixed(1)}% 傭金，應付 HK${Math.ceil(nextBid * (1 + commRate))}
+                    {isMine
+                      ? `你現時領先 HK$${item.currentPrice}，含 ${(commRate * 100).toFixed(1)}% 傭金需付 HK$${Math.ceil((item.currentPrice as number) * (1 + commRate))}`
+                      : `+1口 HK$${nextBid}，含 ${(commRate * 100).toFixed(1)}% 傭金需付 HK$${Math.ceil(nextBid * (1 + commRate))}`
+                    }
                   </p>
                 )}
               </div>
