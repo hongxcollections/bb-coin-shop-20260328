@@ -1797,6 +1797,13 @@ export async function topUpDeposit(userId: number, amount: number, description: 
 
     await db.update(sellerDeposits).set({ balance: newBalance.toFixed(2) }).where(eq(sellerDeposits.userId, userId));
 
+    // Auto-restore isActive if merchant was auto-suspended and balance now meets required threshold
+    const required = parseFloat(deposit.requiredDeposit.toString());
+    if (!deposit.isActive && newBalance >= required) {
+      await db.update(sellerDeposits).set({ isActive: 1 }).where(eq(sellerDeposits.userId, userId));
+      console.log(`[Deposit] Merchant ${userId} balance $${newBalance.toFixed(2)} >= required $${required} after top-up — listing automatically re-enabled`);
+    }
+
     await db.insert(depositTransactions).values({
       depositId: deposit.id,
       userId,
@@ -2044,6 +2051,13 @@ export async function adjustDeposit(userId: number, amount: number, description:
     const newBalance = currentBalance + amount;
 
     await db.update(sellerDeposits).set({ balance: newBalance.toFixed(2) }).where(eq(sellerDeposits.userId, userId));
+
+    // Auto-restore isActive if merchant was auto-suspended and balance now meets required threshold
+    const required = parseFloat(deposit.requiredDeposit.toString());
+    if (!deposit.isActive && newBalance >= required) {
+      await db.update(sellerDeposits).set({ isActive: 1 }).where(eq(sellerDeposits.userId, userId));
+      console.log(`[Deposit] Merchant ${userId} balance $${newBalance.toFixed(2)} >= required $${required} after adjustment — listing automatically re-enabled`);
+    }
 
     await db.insert(depositTransactions).values({
       depositId: deposit.id,
