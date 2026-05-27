@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -43,6 +43,8 @@ export default function GroupAuctionBidPage() {
   const [customAmount, setCustomAmount] = useState("");
   const [filter, setFilter] = useState<"all" | "bid" | "nobid">("all");
   const countdown = useCountdown(undefined);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(160);
 
   const { data, isLoading, refetch, error } = trpc.groupAuctions.getRound.useQuery(
     { roundId },
@@ -77,6 +79,15 @@ export default function GroupAuctionBidPage() {
     try { return JSON.parse(item.dataJson); } catch { return {}; }
   }
 
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setHeaderHeight(el.offsetHeight));
+    ro.observe(el);
+    setHeaderHeight(el.offsetHeight);
+    return () => ro.disconnect();
+  }, []);
+
   function handleBid(itemId: number, amount: number) {
     if (!isAuthenticated) {
       toast.error("請先登入才可出價");
@@ -110,15 +121,10 @@ export default function GroupAuctionBidPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-6">
-      {/* 封面圖（非 sticky，往上捲走） */}
-      {round.coverImage && (
-        <img src={round.coverImage} className="w-full h-32 object-cover opacity-80" />
-      )}
-
-      {/* Sticky 標題欄 + 篩選列（合為一個 sticky 塊） */}
-      <div className="sticky top-0 z-20">
+      {/* Fixed 標題欄 + 篩選列 */}
+      <div ref={headerRef} className="fixed top-0 left-0 right-0 z-30">
         {/* 橙色 Banner */}
-        <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 pt-10 pb-3">
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 pt-3 pb-3">
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="text-xs opacity-80">{round.periodNumber ? `第 ${round.periodNumber} 期` : "團購拍賣"}</p>
@@ -156,6 +162,9 @@ export default function GroupAuctionBidPage() {
         </div>
       </div>
 
+      {/* Fixed header 佔位 spacer */}
+      <div style={{ height: headerHeight }} />
+
       {/* 拍賣須知 */}
       {round.description && (
         <div className="mx-4 mt-3 bg-amber-50 border border-amber-100 rounded-xl p-3">
@@ -181,15 +190,15 @@ export default function GroupAuctionBidPage() {
             : item.startPrice;
           const isExpanded = biddingItem === item.id;
 
-          let cardClass = "bg-white rounded-2xl shadow-sm overflow-hidden border";
-          if (item.status === "sold") cardClass += " border-green-100";
-          else if (isMine) cardClass += " border-amber-300 border-2";
-          else cardClass += " border-gray-100";
+          let cardClass = "rounded-2xl shadow-sm overflow-hidden border";
+          if (item.status === "sold") cardClass += " bg-white border-green-100";
+          else if (isMine) cardClass += " bg-amber-50 border-amber-400 border-2 shadow-md shadow-amber-100";
+          else cardClass += " bg-white border-gray-100";
 
           return (
             <div key={item.id} className={`relative ${cardClass}`}>
               {isMine && isActive && (
-                <div className="absolute inset-0 rounded-2xl bg-amber-50/50 animate-pulse pointer-events-none" />
+                <div className="absolute inset-0 rounded-2xl animate-amber-glow pointer-events-none" />
               )}
               <div className="p-3">
                 <div className="flex items-start gap-2">

@@ -745,6 +745,22 @@
 }
 
 
+/* ─── isMine bid card glow animation ──────────────────────────────────── */
+@keyframes amber-glow {
+  0%, 100% {
+    background-color: rgba(254, 243, 199, 0.55);
+    box-shadow: inset 0 0 0 2px rgba(245, 158, 11, 0.25);
+  }
+  50% {
+    background-color: rgba(253, 211, 77, 0.45);
+    box-shadow: inset 0 0 0 2px rgba(245, 158, 11, 0.55), 0 0 14px 2px rgba(245, 158, 11, 0.18);
+  }
+}
+.animate-amber-glow {
+  animation: amber-glow 1.8s ease-in-out infinite;
+}
+/* ─────────────────────────────────────────────────────────────────────── */
+
 /* ─── Sonner toast base — 引用 --popup-* 變數，與客服 popup 同一風格 ───── */
 [data-sonner-toast].bb-toast-err,
 [data-sonner-toast].bb-toast-success,
