@@ -41,6 +41,7 @@ export default function GroupAuctionBidPage() {
   const { user, isAuthenticated } = useAuth();
   const [biddingItem, setBiddingItem] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
+  const [filter, setFilter] = useState<"all" | "bid" | "nobid">("all");
   const countdown = useCountdown(undefined);
 
   const { data, isLoading, refetch, error } = trpc.groupAuctions.getRound.useQuery(
@@ -144,6 +145,34 @@ export default function GroupAuctionBidPage() {
         </div>
       </div>
 
+      {/* Sticky 統計 + 篩選欄 */}
+      <div className="sticky top-0 z-20 bg-white border-b border-gray-100 shadow-sm px-4 py-2 flex items-center gap-2">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 flex-shrink-0">
+          <Clock className="w-3 h-3" />
+          {isEnded ? "已結拍" : roundCountdown}
+        </div>
+        <div className="flex-1 flex items-center gap-1.5 justify-end overflow-x-auto">
+          <button
+            onClick={() => setFilter("all")}
+            className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "all" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}
+          >
+            全部 {items.length}件
+          </button>
+          <button
+            onClick={() => setFilter("bid")}
+            className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "bid" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}
+          >
+            已出價 {items.filter(i => i.topBidderId !== null).length}件
+          </button>
+          <button
+            onClick={() => setFilter("nobid")}
+            className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "nobid" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}
+          >
+            未出價 {items.filter(i => i.topBidderId === null).length}件
+          </button>
+        </div>
+      </div>
+
       {/* 拍賣須知 */}
       {round.description && (
         <div className="mx-4 mt-3 bg-amber-50 border border-amber-100 rounded-xl p-3">
@@ -154,7 +183,11 @@ export default function GroupAuctionBidPage() {
 
       {/* 商品列表 */}
       <div className="px-4 mt-3 space-y-2">
-        {items.map((item, idx) => {
+        {items.filter(item => {
+          if (filter === "bid") return item.topBidderId !== null;
+          if (filter === "nobid") return item.topBidderId === null;
+          return true;
+        }).map((item, idx) => {
           const data = getItemData(item);
           const title = titleCol ? data[titleCol.key] : `商品 ${idx + 1}`;
           const isMine = user && item.topBidderId === user.id;
@@ -242,8 +275,8 @@ export default function GroupAuctionBidPage() {
                 {isActive && commRate > 0 && (
                   <p className="text-[10px] text-gray-400 mt-1">
                     {isMine
-                      ? `你現時領先 HK$${item.currentPrice}，含 ${(commRate * 100).toFixed(1)}% 傭金需付 HK$${Math.ceil((item.currentPrice as number) * (1 + commRate))}`
-                      : `+1口 HK$${nextBid}，含 ${(commRate * 100).toFixed(1)}% 傭金需付 HK$${Math.ceil(nextBid * (1 + commRate))}`
+                      ? `你現時領先 HK$${item.currentPrice}，含 ${(commRate * 100).toFixed(1)}% 傭金 需付 HK$${Math.round((item.currentPrice as number) * (1 + commRate))}`
+                      : `+1口 HK$${nextBid}，含 ${(commRate * 100).toFixed(1)}% 傭金 需付 HK$${Math.round(nextBid * (1 + commRate))}`
                     }
                   </p>
                 )}
