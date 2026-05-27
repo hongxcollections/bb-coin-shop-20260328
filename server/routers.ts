@@ -10543,6 +10543,9 @@ EXAMPLE OUTPUT (exact format):
         if (!round || round.status !== 'published') {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '場次未開拍或已結拍' });
         }
+        if (round.startAt && new Date() < new Date(round.startAt)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '場次尚未開拍' });
+        }
         // 結拍時間檢查（per item endAt 優先，否則用場次 endAt）
         const endAt = item.endAt ?? round.endAt;
         if (endAt && new Date() > new Date(endAt)) {

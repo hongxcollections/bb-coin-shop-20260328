@@ -131,6 +131,17 @@ export default function GroupAuctionBidPage() {
   }
 
   const isEnded = round.status === "ended";
+  const isStarted = !round.startAt || new Date(round.startAt as string).getTime() <= now;
+  const startSecsLeft = !isStarted && round.startAt
+    ? Math.max(0, Math.floor((new Date(round.startAt as string).getTime() - now) / 1000))
+    : 0;
+  const startCdStr = (() => {
+    if (isStarted || !round.startAt) return "";
+    const h = Math.floor(startSecsLeft / 3600);
+    const m = Math.floor((startSecsLeft % 3600) / 60);
+    const s = startSecsLeft % 60;
+    return h > 0 ? `${h}h ${m}m ${s}s 後開拍` : m > 0 ? `${m}m ${s}s 後開拍` : `${s}s 後開拍`;
+  })();
   const currency = (((round as any).displayCurrencies ?? "CNY").split(",")[0].trim()) || "CNY";
   const currSym = CURR_SYMS[currency] ?? "HK$";
   const currRate = CURR_RATES[currency] ?? 1;
@@ -210,6 +221,15 @@ export default function GroupAuctionBidPage() {
       {/* Fixed header 佔位 spacer */}
       <div style={{ height: headerHeight }} />
 
+      {/* 尚未開拍提示 */}
+      {!isStarted && round.startAt && (
+        <div className="mx-[3px] mt-[20px] bg-sky-50 border border-sky-200 rounded-xl p-3 text-center">
+          <p className="text-sm font-bold text-sky-700">場次尚未開拍</p>
+          <p className="text-xs text-sky-500 mt-1">開拍時間：{fmtDate(round.startAt as string)}</p>
+          <p className="text-xs text-sky-600 font-mono font-semibold mt-1">{startCdStr}</p>
+        </div>
+      )}
+
       {/* 拍賣須知（可收起） */}
       {(round.description || round.antiSnipeMode !== 'none') && showDesc && (
         <div className="mx-[3px] mt-[20px] bg-amber-50 border border-amber-100 rounded-xl p-3">
@@ -237,7 +257,7 @@ export default function GroupAuctionBidPage() {
           const data = getItemData(item);
           const title = titleCol ? data[titleCol.key] : `商品 ${idx + 1}`;
           const isMine = user && item.topBidderId === user.id;
-          const isActive = item.status === "active" && !isEnded;
+          const isActive = item.status === "active" && !isEnded && isStarted;
           const effectiveIncrement = item.bidIncrement > 0 ? item.bidIncrement : round.defaultBidIncrement;
           const nextBid = item.topBidderId
             ? (item.currentPrice as number) + effectiveIncrement
