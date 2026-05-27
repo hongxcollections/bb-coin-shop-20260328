@@ -110,64 +110,47 @@ export default function GroupAuctionBidPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-6">
-      {/* 頂部 Banner */}
-      <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 pt-10 pb-4">
-        {round.coverImage && (
-          <img src={round.coverImage} className="w-full h-32 object-cover rounded-xl mb-3 opacity-80" />
-        )}
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-xs opacity-80">{round.periodNumber ? `第 ${round.periodNumber} 期` : "團購拍賣"}</p>
-            <h1 className="text-lg font-bold leading-tight">{round.title}</h1>
+      {/* 封面圖（非 sticky，往上捲走） */}
+      {round.coverImage && (
+        <img src={round.coverImage} className="w-full h-32 object-cover opacity-80" />
+      )}
+
+      {/* Sticky 標題欄 + 篩選列（合為一個 sticky 塊） */}
+      <div className="sticky top-0 z-20">
+        {/* 橙色 Banner */}
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 pt-10 pb-3">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-xs opacity-80">{round.periodNumber ? `第 ${round.periodNumber} 期` : "團購拍賣"}</p>
+              <h1 className="text-lg font-bold leading-tight">{round.title}</h1>
+            </div>
+            <a href={`/group/${roundId}/flyer`} target="_blank"
+              className="flex items-center gap-1 text-xs bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg flex-shrink-0">
+              <ExternalLink className="w-3 h-3" /> 廣告頁
+            </a>
           </div>
-          <a href={`/group/${roundId}/flyer`} target="_blank"
-            className="flex items-center gap-1 text-xs bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg flex-shrink-0">
-            <ExternalLink className="w-3 h-3" /> 廣告頁
-          </a>
-        </div>
-
-        {/* 倒數 */}
-        <div className="mt-3 flex items-center gap-2">
-          <div className={`flex items-center gap-1.5 text-sm font-bold px-3 py-1 rounded-full ${
-            isEnded ? "bg-gray-800/40" : "bg-white/20"
-          }`}>
-            <Clock className="w-3.5 h-3.5" />
-            {isEnded ? "已結拍" : roundCountdown}
+          <div className="mt-2 flex items-center gap-2">
+            <div className={`flex items-center gap-1.5 text-sm font-bold px-3 py-1 rounded-full ${isEnded ? "bg-gray-800/40" : "bg-white/20"}`}>
+              <Clock className="w-3.5 h-3.5" />
+              {isEnded ? "已結拍" : roundCountdown}
+            </div>
+            <span className="text-xs opacity-70">結拍：{fmtDate(round.endAt)}</span>
           </div>
-          <span className="text-xs opacity-70">結拍：{fmtDate(round.endAt)}</span>
+          <div className="flex gap-4 mt-1.5 text-xs opacity-80">
+            <span>共 {items.length} 件</span>
+            <span>成交 {items.filter(i => i.status === "sold").length} 件</span>
+            <span>進行中 {items.filter(i => i.status === "active").length} 件</span>
+          </div>
         </div>
-
-        {/* 統計 */}
-        <div className="flex gap-4 mt-2 text-xs opacity-80">
-          <span>共 {items.length} 件</span>
-          <span>成交 {items.filter(i => i.status === "sold").length} 件</span>
-          <span>進行中 {items.filter(i => i.status === "active").length} 件</span>
-        </div>
-      </div>
-
-      {/* Sticky 統計 + 篩選欄 */}
-      <div className="sticky top-0 z-20 bg-white border-b border-gray-100 shadow-sm px-4 py-2 flex items-center gap-2">
-        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 flex-shrink-0">
-          <Clock className="w-3 h-3" />
-          {isEnded ? "已結拍" : roundCountdown}
-        </div>
-        <div className="flex-1 flex items-center gap-1.5 justify-end overflow-x-auto">
-          <button
-            onClick={() => setFilter("all")}
-            className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "all" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}
-          >
+        {/* 篩選列（無重複倒數） */}
+        <div className="bg-white border-b border-gray-100 shadow-sm px-4 py-2 flex items-center gap-1.5 overflow-x-auto">
+          <button onClick={() => setFilter("all")} className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "all" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
             全部 {items.length}件
           </button>
-          <button
-            onClick={() => setFilter("bid")}
-            className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "bid" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}
-          >
+          <button onClick={() => setFilter("bid")} className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "bid" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
             已出價 {items.filter(i => i.topBidderId !== null).length}件
           </button>
-          <button
-            onClick={() => setFilter("nobid")}
-            className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "nobid" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}
-          >
+          <button onClick={() => setFilter("nobid")} className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "nobid" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
             未出價 {items.filter(i => i.topBidderId === null).length}件
           </button>
         </div>
@@ -182,7 +165,7 @@ export default function GroupAuctionBidPage() {
       )}
 
       {/* 商品列表 */}
-      <div className="px-4 mt-3 space-y-2">
+      <div className="px-4 mt-3 space-y-2 pb-20">
         {items.filter(item => {
           if (filter === "bid") return item.topBidderId !== null;
           if (filter === "nobid") return item.topBidderId === null;
@@ -198,12 +181,16 @@ export default function GroupAuctionBidPage() {
             : item.startPrice;
           const isExpanded = biddingItem === item.id;
 
-          let borderColor = "border-gray-100";
-          if (item.status === "sold") borderColor = "border-green-100";
-          else if (isMine) borderColor = "border-amber-200";
+          let cardClass = "bg-white rounded-2xl shadow-sm overflow-hidden border";
+          if (item.status === "sold") cardClass += " border-green-100";
+          else if (isMine) cardClass += " border-amber-300 border-2";
+          else cardClass += " border-gray-100";
 
           return (
-            <div key={item.id} className={`bg-white rounded-2xl border ${borderColor} shadow-sm overflow-hidden`}>
+            <div key={item.id} className={`relative ${cardClass}`}>
+              {isMine && isActive && (
+                <div className="absolute inset-0 rounded-2xl bg-amber-50/50 animate-pulse pointer-events-none" />
+              )}
               <div className="p-3">
                 <div className="flex items-start gap-2">
                   <span className="text-xs text-gray-400 w-6 text-right flex-shrink-0 mt-0.5">{idx + 1}</span>
@@ -275,8 +262,8 @@ export default function GroupAuctionBidPage() {
                 {isActive && commRate > 0 && (
                   <p className="text-[10px] text-gray-400 mt-1">
                     {isMine
-                      ? `你現時領先 HK$${item.currentPrice}，含 ${(commRate * 100).toFixed(1)}% 傭金 需付 HK$${Math.round((item.currentPrice as number) * (1 + commRate))}`
-                      : `+1口 HK$${nextBid}，含 ${(commRate * 100).toFixed(1)}% 傭金 需付 HK$${Math.round(nextBid * (1 + commRate))}`
+                      ? `你現時領先 HK$${item.currentPrice}，含 ${(commRate * 100).toFixed(1)}% 傭金 需付 HK$${Math.round(Number(item.currentPrice) * (1 + Number(commRate)) + 1e-9)}`
+                      : `+1口 HK$${nextBid}，含 ${(commRate * 100).toFixed(1)}% 傭金 需付 HK$${Math.round(Number(nextBid) * (1 + Number(commRate)) + 1e-9)}`
                     }
                   </p>
                 )}

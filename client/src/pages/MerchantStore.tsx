@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShareMenu, ProductShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
 import { AuctionCard } from "@/components/AuctionCard";
-import { Store, MessageCircle, Package, Gavel, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, Clock, Tag, Share2, QrCode, CalendarClock, ShoppingCart, CheckCircle2, Loader2, X } from "lucide-react";
+import { Store, MessageCircle, Package, Gavel, Layers, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, Clock, Tag, Share2, QrCode, CalendarClock, ShoppingCart, CheckCircle2, Loader2, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { buildWhatsAppUrl, sanitizeUserText, parseCategories } from "@/lib/utils";
@@ -598,6 +598,10 @@ export default function MerchantStore() {
     { merchantUserId: userId },
     { enabled: userId > 0 }
   );
+  const { data: activeGroupRounds = [] } = trpc.groupAuctions.listPublicRoundsByMerchant.useQuery(
+    { merchantUserId: userId },
+    { enabled: userId > 0 }
+  );
   const activeSessions = (merchantSessions as any[]).filter((s) => s.status === "published" && new Date(s.endAt).getTime() > Date.now());
   const endedSessions = (merchantSessions as any[]).filter((s) => s.status === "ended" || (s.status === "published" && new Date(s.endAt).getTime() <= Date.now()));
   const merchantInfo = (allMerchants as any[]).find((m: any) => m.userId === userId);
@@ -830,7 +834,7 @@ export default function MerchantStore() {
               )}
 
               {/* 專場 tabs — 進行中 / 往屆（永遠顯示兩個 tab） */}
-              {(activeSessions.length > 0 || endedSessions.length > 0) && (
+              {(activeSessions.length > 0 || endedSessions.length > 0 || (activeGroupRounds as any[]).length > 0) && (
                 <div className="border-t border-dashed border-amber-200 pt-2.5">
                   {/* Tab bar */}
                   <div className="flex rounded-lg overflow-hidden border border-amber-200 mb-2">
@@ -840,7 +844,7 @@ export default function MerchantStore() {
                       className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] font-bold transition-colors ${sessionTab === "active" ? "bg-amber-500 text-white" : "bg-white text-amber-600 hover:bg-amber-50"}`}
                     >
                       <CalendarClock className="w-2.5 h-2.5" />
-                      進行中專場{activeSessions.length > 0 ? `（${activeSessions.length}）` : ""}
+                      進行中專場/團拍{(activeSessions.length + (activeGroupRounds as any[]).length) > 0 ? `（${activeSessions.length + (activeGroupRounds as any[]).length}）` : ""}
                     </button>
                     <button
                       type="button"
@@ -855,9 +859,10 @@ export default function MerchantStore() {
                   {/* 進行中 tab */}
                   {sessionTab === "active" && (
                     <div className="space-y-1.5">
-                      {activeSessions.length === 0 ? (
-                        <p className="text-[11px] text-center text-gray-400 py-3">暫無進行中專場</p>
-                      ) : activeSessions.map((s: any) => (
+                      {activeSessions.length === 0 && (activeGroupRounds as any[]).length === 0 ? (
+                        <p className="text-[11px] text-center text-gray-400 py-3">暫無進行中專場 / 團拍</p>
+                      ) : null}
+                      {activeSessions.map((s: any) => (
                         <Link key={s.id} href={`/s/${userId}/${s.slug}`}>
                           <a className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-amber-50/50 hover:from-amber-100 hover:to-amber-100/70 border border-amber-200 rounded-lg px-2.5 py-1.5 transition-all group">
                             {s.coverImage ? (
@@ -870,6 +875,20 @@ export default function MerchantStore() {
                             <span className="text-xs font-semibold text-amber-800 truncate flex-1 min-w-0">{sanitizeUserText(s.title)}</span>
                             <span className="text-[10px] font-semibold text-amber-700 bg-white/70 px-1.5 py-px rounded border border-amber-200/60 shrink-0">{s.itemCount ?? 0} 件</span>
                             <ChevronLeft className="w-3 h-3 text-amber-500 shrink-0 rotate-180" />
+                          </a>
+                        </Link>
+                      ))}
+                      {(activeGroupRounds as any[]).map((r: any) => (
+                        <Link key={`gr-${r.id}`} href={`/group/${r.id}`}>
+                          <a className="flex items-center gap-2 bg-gradient-to-r from-orange-50 to-orange-50/50 hover:from-orange-100 hover:to-orange-100/70 border border-orange-200 rounded-lg px-2.5 py-1.5 transition-all group">
+                            <div className="w-6 h-6 rounded bg-orange-100 border border-orange-200 flex items-center justify-center shrink-0">
+                              <Layers className="w-3 h-3 text-orange-500" />
+                            </div>
+                            <span className="text-xs font-semibold text-orange-800 truncate flex-1 min-w-0">
+                              {r.periodNumber ? `第 ${r.periodNumber} 期 ` : ""}{sanitizeUserText(r.title)}
+                            </span>
+                            <span className="text-[10px] font-semibold text-orange-600 bg-white/70 px-1.5 py-px rounded border border-orange-200/60 shrink-0">團拍</span>
+                            <ChevronLeft className="w-3 h-3 text-orange-400 shrink-0 rotate-180" />
                           </a>
                         </Link>
                       ))}
