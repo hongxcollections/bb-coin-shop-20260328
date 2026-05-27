@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -190,15 +190,18 @@ export default function GroupAuctionBidPage() {
             : item.startPrice;
           const isExpanded = biddingItem === item.id;
 
-          let cardClass = "rounded-2xl shadow-sm overflow-hidden border";
-          if (item.status === "sold") cardClass += " bg-white border-green-100";
-          else if (isMine) cardClass += " bg-amber-50 border-amber-400 border-2 shadow-md shadow-amber-100";
-          else cardClass += " bg-white border-gray-100";
+          let cardClass = "rounded-2xl overflow-hidden border";
+          let cardStyle: React.CSSProperties = {};
+          if (item.status === "sold") { cardClass += " bg-white border-green-100 shadow-sm"; }
+          else if (isMine) {
+            cardClass += " bg-amber-50 border-amber-300";
+            cardStyle = { boxShadow: "3px 4px 0 rgba(251,191,36,0.28), 4px 6px 14px rgba(245,158,11,0.10)" };
+          } else { cardClass += " bg-white border-gray-100 shadow-sm"; }
 
           return (
-            <div key={item.id} className={`relative ${cardClass}`}>
+            <div key={item.id} className={`relative ${cardClass}`} style={cardStyle}>
               {isMine && isActive && (
-                <div className="absolute inset-0 rounded-2xl animate-amber-glow pointer-events-none" />
+                <div className="absolute inset-0 rounded-2xl animate-amber-shimmer pointer-events-none" />
               )}
               <div className="p-3">
                 <div className="flex items-start gap-2">

@@ -745,19 +745,21 @@
 }
 
 
-/* ─── isMine bid card glow animation ──────────────────────────────────── */
-@keyframes amber-glow {
-  0%, 100% {
-    background-color: rgba(254, 243, 199, 0.55);
-    box-shadow: inset 0 0 0 2px rgba(245, 158, 11, 0.25);
-  }
-  50% {
-    background-color: rgba(253, 211, 77, 0.45);
-    box-shadow: inset 0 0 0 2px rgba(245, 158, 11, 0.55), 0 0 14px 2px rgba(245, 158, 11, 0.18);
-  }
+/* ─── isMine bid card shimmer (scanner/photocopier sweep) ─────────────── */
+@keyframes amber-shimmer {
+  0%, 15%   { transform: translateX(-100%); }
+  60%, 100% { transform: translateX(200%); }
 }
-.animate-amber-glow {
-  animation: amber-glow 1.8s ease-in-out infinite;
+.animate-amber-shimmer {
+  animation: amber-shimmer 4s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(251, 191, 36, 0.28) 45%,
+    rgba(255, 215, 80, 0.38) 50%,
+    rgba(251, 191, 36, 0.28) 55%,
+    transparent 100%
+  );
 }
 /* ─────────────────────────────────────────────────────────────────────── */
 
