@@ -34,6 +34,9 @@ function useCountdown(endAt: string | null | undefined) {
   return text;
 }
 
+const CURR_RATES: Record<string, number> = { HKD: 1, CNY: 0.92, USD: 0.128 };
+const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$" };
+
 export default function GroupAuctionBidPage() {
   const params = useParams<{ roundId: string }>();
   const roundId = parseInt(params.roundId, 10);
@@ -42,6 +45,8 @@ export default function GroupAuctionBidPage() {
   const [biddingItem, setBiddingItem] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
   const [filter, setFilter] = useState<"all" | "bid" | "nobid">("all");
+  const [showDesc, setShowDesc] = useState(true);
+  const [currency, setCurrency] = useState<"HKD" | "CNY" | "USD">("CNY");
   const countdown = useCountdown(undefined);
   const headerRef = useRef<HTMLDivElement>(null);
   const [headerHeight, setHeaderHeight] = useState(160);
@@ -81,6 +86,12 @@ export default function GroupAuctionBidPage() {
 
   function getItemData(item: any): Record<string, string> {
     try { return JSON.parse(item.dataJson); } catch { return {}; }
+  }
+
+  function displayPrice(hkdAmt: number | null | undefined): string {
+    if (hkdAmt == null) return "—";
+    const v = Number(hkdAmt) * CURR_RATES[currency];
+    return `${CURR_SYMS[currency]}${v % 1 === 0 ? v.toLocaleString() : v.toFixed(1)}`;
   }
 
   useEffect(() => {
@@ -160,32 +171,47 @@ export default function GroupAuctionBidPage() {
             {user && myTotalAmount > 0 && (
               <div className="text-right leading-tight">
                 <p className="text-[10px] opacity-75">總需付</p>
-                <p style={{ fontSize: "20px" }} className="font-bold leading-none">HK${myTotalAmount.toFixed(1)}</p>
+                <p style={{ fontSize: "20px" }} className="font-bold leading-none">{displayPrice(myTotalAmount)}</p>
               </div>
             )}
           </div>
         </div>
-        {/* 篩選列（無重複倒數） */}
-        <div className="bg-white border-b border-gray-100 shadow-sm px-4 py-2 flex items-center gap-1.5 overflow-x-auto">
-          <button onClick={() => setFilter("all")} className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "all" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
-            全部 {items.length}件
-          </button>
-          <button onClick={() => setFilter("bid")} className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "bid" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
-            已出價 {items.filter(i => i.topBidderId !== null).length}件
-          </button>
-          <button onClick={() => setFilter("nobid")} className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "nobid" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
-            未出價 {items.filter(i => i.topBidderId === null).length}件
-          </button>
+        {/* 篩選列 + 貨幣 + 須知 */}
+        <div className="bg-white border-b border-gray-100 shadow-sm px-2 py-2 flex items-center gap-1.5">
+          <div className="flex gap-1.5 overflow-x-auto flex-1 min-w-0">
+            <button onClick={() => setFilter("all")} className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "all" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
+              全部 {items.length}件
+            </button>
+            <button onClick={() => setFilter("bid")} className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "bid" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
+              已出價 {items.filter(i => i.topBidderId !== null).length}件
+            </button>
+            <button onClick={() => setFilter("nobid")} className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "nobid" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
+              未出價 {items.filter(i => i.topBidderId === null).length}件
+            </button>
+          </div>
+          <div className="flex gap-1 flex-shrink-0 ml-1">
+            <button
+              onClick={() => setCurrency(c => c === "HKD" ? "CNY" : c === "CNY" ? "USD" : "HKD")}
+              className="text-[11px] px-1.5 py-0.5 font-medium border border-gray-200 bg-gray-50 text-gray-600"
+              style={{ borderRadius: "5px" }}
+            >{currency}</button>
+            {round.description && (
+              <button
+                onClick={() => setShowDesc(v => !v)}
+                className="text-[11px] px-1.5 py-0.5 font-medium border border-amber-200 bg-amber-50 text-amber-700"
+                style={{ borderRadius: "5px" }}
+              >須知{showDesc ? "▲" : "▼"}</button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Fixed header 佔位 spacer */}
       <div style={{ height: headerHeight }} />
 
-      {/* 拍賣須知 */}
-      {round.description && (
-        <div className="mx-[3px] mt-3 bg-amber-50 border border-amber-100 rounded-xl p-3">
-          <p className="text-xs font-semibold text-amber-800 mb-1">拍賣須知</p>
+      {/* 拍賣須知（可收起） */}
+      {round.description && showDesc && (
+        <div className="mx-[3px] mt-2 bg-amber-50 border border-amber-100 rounded-xl p-3">
           <p className="text-xs text-amber-700 whitespace-pre-line">{round.description}</p>
         </div>
       )}
@@ -221,11 +247,10 @@ export default function GroupAuctionBidPage() {
                 <div className="absolute inset-0 rounded-2xl animate-amber-shimmer pointer-events-none" />
               )}
               <div className="p-3">
+                {/* 標題行（無號碼） */}
                 <div className="flex items-start gap-2">
-                  <span className="text-xs text-gray-400 w-6 text-right flex-shrink-0 mt-0.5">{idx + 1}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 leading-tight">{title || "—"}</p>
-                    {/* 自由欄位 */}
                     {displayCols.filter(c => c.role === "customText").length > 0 && (
                       <p className="text-xs text-gray-500 mt-0.5">
                         {displayCols.filter(c => c.role === "customText").map(c => data[c.key]).filter(Boolean).join(" · ")}
@@ -240,13 +265,14 @@ export default function GroupAuctionBidPage() {
                   )}
                 </div>
 
-                {/* 出價狀態行 */}
-                <div className="flex items-center gap-3 mt-2">
-                  <div className="flex-1">
+                {/* 出價行：號碼同價格拍齊 */}
+                <div className="flex items-center gap-1.5 mt-2">
+                  <span className="text-xs text-gray-400 w-6 text-right flex-shrink-0">{idx + 1}</span>
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-lg font-bold text-amber-600">HK${item.currentPrice?.toLocaleString()}</span>
+                      <span className="text-lg font-bold text-amber-600">{displayPrice(item.currentPrice)}</span>
                       {item.startPrice !== item.currentPrice && (
-                        <span className="text-xs text-gray-400">起 HK${item.startPrice}</span>
+                        <span className="text-xs text-gray-400">起 {displayPrice(item.startPrice)}</span>
                       )}
                     </div>
                     {item.topBidderName && (
@@ -262,20 +288,20 @@ export default function GroupAuctionBidPage() {
                   {isActive && (
                     <div className="flex gap-1.5 flex-shrink-0">
                       <button
-                        onClick={() => handleBid(item.id, nextBid, title, idx + 1)}
-                        disabled={placeBidMut.isPending}
-                        className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-xl"
-                      >
-                        +1口<br />
-                        <span className="text-[10px] font-normal">${nextBid}</span>
-                      </button>
-                      <button
                         onClick={() => handleBid(item.id, nextBid + effectiveIncrement, title, idx + 1)}
                         disabled={placeBidMut.isPending}
                         className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-xl"
                       >
                         +2口<br />
-                        <span className="text-[10px] font-normal">${nextBid + effectiveIncrement}</span>
+                        <span className="text-[10px] font-normal">{displayPrice(nextBid + effectiveIncrement)}</span>
+                      </button>
+                      <button
+                        onClick={() => handleBid(item.id, nextBid, title, idx + 1)}
+                        disabled={placeBidMut.isPending}
+                        className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-xl"
+                      >
+                        +1口<br />
+                        <span className="text-[10px] font-normal">{displayPrice(nextBid)}</span>
                       </button>
                       <button
                         onClick={() => setBiddingItem(isExpanded ? null : item.id)}
@@ -291,8 +317,8 @@ export default function GroupAuctionBidPage() {
                 {isActive && commRate > 0 && (
                   <p className="text-[10px] text-gray-400 mt-1">
                     {isMine
-                      ? `你現時領先 HK$${item.currentPrice}，含 ${(commRate * 100).toFixed(1)}% 傭金 需付 HK$${(Number(item.currentPrice) * (1 + Number(commRate))).toFixed(1)}`
-                      : `+1口 HK$${nextBid}，含 ${(commRate * 100).toFixed(1)}% 傭金 需付 HK$${(Number(nextBid) * (1 + Number(commRate))).toFixed(1)}`
+                      ? `你現時領先 ${displayPrice(item.currentPrice)}，含 ${(commRate * 100).toFixed(1)}% 傭金 需付 ${displayPrice(Number(item.currentPrice) * (1 + commRate))}`
+                      : `+1口 ${displayPrice(nextBid)}，含 ${(commRate * 100).toFixed(1)}% 傭金 需付 ${displayPrice(Number(nextBid) * (1 + commRate))}`
                     }
                   </p>
                 )}
