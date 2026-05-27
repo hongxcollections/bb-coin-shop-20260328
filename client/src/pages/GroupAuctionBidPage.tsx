@@ -35,7 +35,7 @@ function useCountdown(endAt: string | null | undefined) {
 }
 
 const CURR_RATES: Record<string, number> = { HKD: 1, CNY: 0.92, USD: 0.128, JPY: 19.8, GBP: 0.101, EUR: 0.119 };
-const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "CN¥", USD: "US$", JPY: "JP¥", GBP: "£", EUR: "€" };
+const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$", JPY: "JP¥", GBP: "£", EUR: "€" };
 
 export default function GroupAuctionBidPage() {
   const params = useParams<{ roundId: string }>();
@@ -144,7 +144,7 @@ export default function GroupAuctionBidPage() {
       {/* Fixed 標題欄 + 篩選列 */}
       <div ref={headerRef} className="fixed top-0 left-0 right-0 z-30">
         {/* 橙色 Banner */}
-        <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 pt-3 pb-3">
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 pt-[15px] pb-3">
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="text-xs opacity-80">{round.periodNumber ? `第 ${round.periodNumber} 期` : "團購拍賣"}</p>
@@ -206,7 +206,7 @@ export default function GroupAuctionBidPage() {
 
       {/* 拍賣須知（可收起） */}
       {(round.description || round.antiSnipeMode !== 'none') && showDesc && (
-        <div className="mx-[3px] mt-[10px] bg-amber-50 border border-amber-100 rounded-xl p-3">
+        <div className="mx-[3px] mt-[20px] bg-amber-50 border border-amber-100 rounded-xl p-3">
           {round.description && (
             <p className="text-xs text-amber-700 whitespace-pre-line">{round.description}</p>
           )}

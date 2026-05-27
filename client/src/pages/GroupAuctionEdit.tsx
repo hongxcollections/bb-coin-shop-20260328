@@ -446,7 +446,7 @@ export default function GroupAuctionEdit() {
               <p className="text-xs font-semibold text-gray-600">出價規則</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">每口加價（HK$）</label>
+                  <label className="text-xs text-gray-500 mb-1 block">每口加價（{({"HKD":"HK$","CNY":"¥","USD":"US$","JPY":"¥","GBP":"£","EUR":"€"} as Record<string,string>)[basic.displayCurrencies] ?? "HK$"}）</label>
                   <input className="w-full px-3 py-2 text-sm outline-none" style={inputStyle}
                     value={basic.defaultBidIncrement}
                     onChange={e => setBasic(p => ({ ...p, defaultBidIncrement: e.target.value }))} />
