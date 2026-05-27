@@ -222,7 +222,7 @@ export default function GroupAuctionBidPage() {
       )}
 
       {/* 商品列表 */}
-      <div className="px-[3px] mt-[20px] space-y-2 pb-20">
+      <div className="px-[3px] mt-[40px] space-y-2 pb-20">
         {items.filter(item => {
           if (filter === "bid") return item.topBidderId !== null;
           if (filter === "nobid") return item.topBidderId === null;
