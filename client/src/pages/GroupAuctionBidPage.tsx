@@ -4,6 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 import { Clock, ChevronUp, ExternalLink, Trophy, AlertCircle } from "lucide-react";
+import ImageLightbox from "@/components/ImageLightbox";
 
 type ColumnDef = { key: string; label: string; role: string; showOnBidPage?: boolean };
 
@@ -45,6 +46,9 @@ export default function GroupAuctionBidPage() {
   const [biddingItem, setBiddingItem] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  // ── 推廣圖片 lightbox ──
+  const [promoLbIdx, setPromoLbIdx] = useState<number | null>(null);
   const [filter, setFilter] = useState<"all" | "bid" | "nobid">("all");
   const [showDesc, setShowDesc] = useState(true);
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
@@ -242,21 +246,19 @@ export default function GroupAuctionBidPage() {
           </div>
         </div>
 
-        {/* 推廣圖片列（菱形 30×30，banner 下方） */}
+        {/* 推廣圖片列（圓形 30×30，banner 下方） */}
         {promoUrls.length > 0 && (
           <div className="flex items-center gap-2 px-3 py-2 bg-white/90 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {promoUrls.map((url, i) => (
-              <div
+              <button
                 key={i}
-                className="flex-shrink-0 overflow-hidden"
-                style={{ width: 30, height: 30, borderRadius: 6, transform: "rotate(45deg)" }}
+                type="button"
+                className="flex-shrink-0 overflow-hidden rounded-full"
+                style={{ width: 30, height: 30 }}
+                onClick={() => setPromoLbIdx(i)}
               >
-                <img
-                  src={url}
-                  alt=""
-                  style={{ width: "100%", height: "100%", objectFit: "cover", transform: "rotate(-45deg) scale(1.45)" }}
-                />
-              </div>
+                <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              </button>
             ))}
           </div>
         )}
@@ -540,6 +542,16 @@ export default function GroupAuctionBidPage() {
           );
         })}
       </div>
+
+      {/* 推廣圖片 Lightbox */}
+      {promoLbIdx !== null && promoUrls.length > 0 && (
+        <ImageLightbox
+          images={promoUrls}
+          initialIndex={promoLbIdx}
+          alt="場次推廣圖片"
+          onClose={() => setPromoLbIdx(null)}
+        />
+      )}
 
       {/* Lightbox */}
       {lightboxUrl && (
