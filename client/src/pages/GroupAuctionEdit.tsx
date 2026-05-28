@@ -11,13 +11,7 @@ import {
   Save, FileSpreadsheet, Download, GripVertical, Pencil, CheckSquare, Square, X,
 } from "lucide-react";
 
-// ── 貨幣換算（同 bid page 一致） ─────────────────────────────────────────────
-const CURR_RATES: Record<string, number> = { HKD: 1, CNY: 0.92, USD: 0.128, JPY: 19.8, GBP: 0.101, EUR: 0.119 };
 const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$", JPY: "JP¥", GBP: "£", EUR: "€" };
-/** 將商戶輸入（所選貨幣）轉換為 DB 儲存值（HKD）*/
-function toHkd(amountInCurr: number, currRate: number) { return Math.round(amountInCurr / currRate); }
-/** 將 DB 值（HKD）轉換為所選貨幣顯示 */
-function fromHkd(hkd: number, currRate: number) { return Math.round(hkd * currRate); }
 
 // ── 型別定義 ────────────────────────────────────────────────────────────────
 type ColumnRole = "itemTitle" | "startPrice" | "buyNowPrice" | "bidIncrement" | "imageRef" | "customText";
@@ -185,12 +179,10 @@ export default function GroupAuctionEdit() {
       coverImage: r.coverImage ?? "",
       startAt: r.startAt ? formatDateTimeLocal(new Date(r.startAt)) : "",
       endAt: r.endAt ? formatDateTimeLocal(new Date(r.endAt)) : "",
-      // defaultBidIncrement 在 DB 以 HKD 儲存，load 時轉為所選貨幣顯示
       ...((() => {
         const loadedCurr = ((r as any).displayCurrencies ?? "CNY").split(",")[0].trim() || "CNY";
-        const loadRate = CURR_RATES[loadedCurr] ?? 1;
         return {
-          defaultBidIncrement: String(fromHkd(r.defaultBidIncrement, loadRate)),
+          defaultBidIncrement: String(r.defaultBidIncrement),
           displayCurrencies: loadedCurr,
         };
       })()),
@@ -219,7 +211,7 @@ export default function GroupAuctionEdit() {
       coverImage: basic.coverImage || undefined,
       startAt: basic.startAt ? new Date(basic.startAt).toISOString() : undefined,
       endAt: basic.endAt ? new Date(basic.endAt).toISOString() : undefined,
-      defaultBidIncrement: toHkd(parseInt(basic.defaultBidIncrement, 10) || 50, currRate),
+      defaultBidIncrement: parseInt(basic.defaultBidIncrement, 10) || 50,
       buyerCommissionRate: (parseFloat(basic.buyerCommissionRate) || 0) / 100,
       antiSnipeMinutes: parseInt(basic.antiSnipeMinutes, 10) || 0,
       antiSnipeExtendMinutes: parseInt(basic.antiSnipeExtendMinutes, 10) || 5,
@@ -334,16 +326,15 @@ export default function GroupAuctionEdit() {
       });
       const startPriceCsvHeader = csvMapping[priceCol.key];
       const startPriceIdx = startPriceCsvHeader ? csvHeaders.indexOf(startPriceCsvHeader) : -1;
-      // 商戶輸入係所選貨幣，需除以 currRate 換算回 HKD 儲存
-      const startPrice = toHkd(startPriceIdx >= 0 ? parseInt(row[startPriceIdx] ?? "0", 10) || 0 : 0, currRate);
+      const startPrice = startPriceIdx >= 0 ? parseInt(row[startPriceIdx] ?? "0", 10) || 0 : 0;
       const buyNowCol = columns.find(c => c.role === "buyNowPrice");
       const buyNowHeader = buyNowCol ? csvMapping[buyNowCol.key] : undefined;
       const buyNowIdx = buyNowHeader ? csvHeaders.indexOf(buyNowHeader) : -1;
-      const buyNowPrice = buyNowIdx >= 0 && row[buyNowIdx] ? toHkd(parseInt(row[buyNowIdx], 10) || 0, currRate) || undefined : undefined;
+      const buyNowPrice = buyNowIdx >= 0 && row[buyNowIdx] ? parseInt(row[buyNowIdx], 10) || undefined : undefined;
       const incCol = columns.find(c => c.role === "bidIncrement");
       const incHeader = incCol ? csvMapping[incCol.key] : undefined;
       const incIdx = incHeader ? csvHeaders.indexOf(incHeader) : -1;
-      const bidIncrement = toHkd(incIdx >= 0 && row[incIdx] ? parseInt(row[incIdx], 10) || 0 : 0, currRate);
+      const bidIncrement = incIdx >= 0 && row[incIdx] ? parseInt(row[incIdx], 10) || 0 : 0;
       return { dataJson: JSON.stringify(data), startPrice, bidIncrement, buyNowPrice };
     });
     importItemsMut.mutate({ roundId, items });
@@ -372,8 +363,6 @@ export default function GroupAuctionEdit() {
       { key: "items", label: "商品管理", disabled: isNew },
     ];
 
-  // 貨幣：所選貨幣對應 rate 及符號（HKD rate=1 表示不換算）
-  const currRate = CURR_RATES[basic.displayCurrencies] ?? 1;
   const currSym = CURR_SYMS[basic.displayCurrencies] ?? "HK$";
 
   return (
@@ -906,8 +895,8 @@ export default function GroupAuctionEdit() {
                           <p key={c.key} className="text-xs text-gray-500 truncate">{data[c.key]}</p>
                         ))}
                         <p className="text-xs text-gray-400">
-                          起拍 {currSym}{fromHkd(item.startPrice, currRate)}
-                          {item.buyNowPrice ? ` | 封頂 ${currSym}${fromHkd(item.buyNowPrice, currRate)}` : ""}
+                          起拍 {currSym}{item.startPrice}
+                          {item.buyNowPrice ? ` | 封頂 ${currSym}${item.buyNowPrice}` : ""}
                           {hasBids && <span className="text-amber-600 ml-1">• 有出價</span>}
                           {item.status !== "active" && ` | ${item.status === "sold" ? "✓ 已成交" : "流拍"}`}
                         </p>
@@ -921,10 +910,9 @@ export default function GroupAuctionEdit() {
                               setEditingItemId(item.id);
                               const ef: Record<string, string> = {};
                               columns.forEach(c => { ef[c.key] = data[c.key] ?? ""; });
-                              // DB 儲存 HKD，edit 時轉為所選貨幣顯示
-                              ef.__startPrice = String(fromHkd(item.startPrice, currRate));
-                              ef.__buyNowPrice = item.buyNowPrice ? String(fromHkd(item.buyNowPrice, currRate)) : "";
-                              ef.__bidIncrement = item.bidIncrement ? String(fromHkd(item.bidIncrement, currRate)) : "";
+                              ef.__startPrice = String(item.startPrice);
+                              ef.__buyNowPrice = item.buyNowPrice ? String(item.buyNowPrice) : "";
+                              ef.__bidIncrement = item.bidIncrement ? String(item.bidIncrement) : "";
                               setEditFields(ef);
                             }}
                             className="p-1.5 text-blue-400 hover:text-blue-600"
@@ -998,12 +986,11 @@ export default function GroupAuctionEdit() {
                               columns.forEach(c => { colData[c.key] = editFields[c.key] ?? ""; });
                               const patch: any = { id: item.id, dataJson: JSON.stringify(colData) };
                               if (!hasBids) {
-                                // 用戶輸入所選貨幣，存入 DB 換算回 HKD
-                                patch.startPrice = toHkd(parseInt(editFields.__startPrice || "0", 10) || 0, currRate);
+                                patch.startPrice = parseInt(editFields.__startPrice || "0", 10) || 0;
                                 const buyNowRaw = editFields.__buyNowPrice ? parseInt(editFields.__buyNowPrice, 10) : null;
-                                patch.buyNowPrice = buyNowRaw && buyNowRaw > 0 ? toHkd(buyNowRaw, currRate) : null;
+                                patch.buyNowPrice = buyNowRaw && buyNowRaw > 0 ? buyNowRaw : null;
                               }
-                              const inc = toHkd(parseInt(editFields.__bidIncrement || "0", 10), currRate);
+                              const inc = parseInt(editFields.__bidIncrement || "0", 10);
                               patch.bidIncrement = inc > 0 ? inc : 0;
                               updateItemMut.mutate(patch);
                             }}

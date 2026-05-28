@@ -34,7 +34,7 @@ function useCountdown(endAt: string | null | undefined) {
   return text;
 }
 
-const CURR_RATES: Record<string, number> = { HKD: 1, CNY: 0.92, USD: 0.128, JPY: 19.8, GBP: 0.101, EUR: 0.119 };
+
 const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$", JPY: "JP¥", GBP: "£", EUR: "€" };
 
 export default function GroupAuctionBidPage() {
@@ -152,11 +152,9 @@ export default function GroupAuctionBidPage() {
   })();
   const currency = (((round as any).displayCurrencies ?? "CNY").split(",")[0].trim()) || "CNY";
   const currSym = CURR_SYMS[currency] ?? "HK$";
-  const currRate = CURR_RATES[currency] ?? 1;
-  function displayPrice(hkdAmt: number | null | undefined): string {
-    if (hkdAmt == null) return "—";
-    const v = Math.round(Number(hkdAmt) * currRate);
-    return `${currSym}${v.toLocaleString()}`;
+  function displayPrice(amt: number | null | undefined): string {
+    if (amt == null) return "—";
+    return `${currSym}${Math.round(Number(amt)).toLocaleString()}`;
   }
   const commRate = parseFloat(String(round.buyerCommissionRate));
   const myTotalAmount = user
@@ -272,11 +270,7 @@ export default function GroupAuctionBidPage() {
             ? (item.currentPrice as number) + effectiveIncrement
             : (item.startPrice > 0 ? item.startPrice : effectiveIncrement);
           const isExpanded = biddingItem === item.id;
-          const nextBidInCurr = Math.ceil(nextBid * currRate);
-          // +2口：先在顯示貨幣加法，再 convert 返 HKD，避免 HKD rounding 累積誤差（e.g. ¥50+¥50=¥99）
-          const incrementInCurr = Math.round(effectiveIncrement * currRate);
-          const bid2Curr = Math.round(nextBid * currRate) + incrementInCurr;
-          const bid2AmtHkd = Math.round(bid2Curr / currRate);
+          const nextBidInCurr = nextBid;
           // per_item 倒數：用 item.endAt（anti-snipe 延長後）或 round.endAt 作兜底
           const effectiveItemEndAt = (item.endAt ?? round.endAt) as string | null;
           const itemEndMs = effectiveItemEndAt ? new Date(effectiveItemEndAt).getTime() : null;
@@ -378,12 +372,12 @@ export default function GroupAuctionBidPage() {
                   {isActive && (
                     <div className="flex gap-1.5 flex-shrink-0">
                       <button
-                        onClick={() => handleBid(item.id, bid2AmtHkd, title, idx + 1)}
+                        onClick={() => handleBid(item.id, nextBid + effectiveIncrement, title, idx + 1)}
                         disabled={placeBidMut.isPending}
                         className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-xl"
                       >
                         +2口<br />
-                        <span className="text-[10px] font-normal">{displayPrice(bid2AmtHkd)}</span>
+                        <span className="text-[10px] font-normal">{displayPrice(nextBid + effectiveIncrement)}</span>
                       </button>
                       <button
                         onClick={() => handleBid(item.id, nextBid, title, idx + 1)}
@@ -430,7 +424,7 @@ export default function GroupAuctionBidPage() {
                       onClick={() => {
                         const amt = parseInt(customAmount, 10);
                         if (!amt || amt < nextBidInCurr) { toast.error(`最少 ${currSym}${nextBidInCurr}`); return; }
-                        handleBid(item.id, Math.round(amt / currRate), title, idx + 1);
+                        handleBid(item.id, amt, title, idx + 1);
                       }}
                       disabled={placeBidMut.isPending}
                       className="bg-amber-500 hover:bg-amber-600 text-white text-sm px-4 py-2 rounded-xl font-medium"
