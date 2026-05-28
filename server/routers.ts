@@ -10556,29 +10556,41 @@ EXAMPLE OUTPUT (exact format):
         const images = await db.select().from(groupAuctionImages)
           .where(eq(groupAuctionImages.roundId, input.roundId))
           .orderBy(asc(groupAuctionImages.displayOrder));
-        // 拉每件商品最高出價 + 出價者名字
-        const itemsWithBids = await Promise.all(items.map(async (item) => {
-          const [topBid] = await db.select().from(groupAuctionBids)
-            .where(eq(groupAuctionBids.itemId, item.id))
-            .orderBy(desc(groupAuctionBids.amount), desc(groupAuctionBids.id))
-            .limit(1);
-          let topBidderName: string | null = null;
-          if (topBid) {
-            const { users } = await import('../drizzle/schema');
-            const [u] = await db.select({ name: users.name }).from(users)
-              .where(eq(users.id, topBid.userId)).limit(1);
-            topBidderName = u?.name ?? null;
-          }
+        // 批量拉所有商品出價（一次 query，避免 N+1）
+        if (items.length === 0) return { round, items: [], images };
+        const { inArray } = await import('drizzle-orm');
+        const itemIds = items.map(i => i.id);
+
+        const allBids = await db.select().from(groupAuctionBids)
+          .where(inArray(groupAuctionBids.itemId, itemIds))
+          .orderBy(desc(groupAuctionBids.amount), desc(groupAuctionBids.id));
+
+        const topBidByItem = new Map<number, typeof allBids[0]>();
+        const bidCountByItem = new Map<number, number>();
+        for (const bid of allBids) {
+          if (!topBidByItem.has(bid.itemId)) topBidByItem.set(bid.itemId, bid);
+          bidCountByItem.set(bid.itemId, (bidCountByItem.get(bid.itemId) ?? 0) + 1);
+        }
+
+        const { users } = await import('../drizzle/schema');
+        const bidderUserIds = [...new Set([...topBidByItem.values()].map(b => b.userId))];
+        const bidderNameById = new Map<number, string>();
+        if (bidderUserIds.length > 0) {
+          const bidderRows = await db.select({ id: users.id, name: users.name })
+            .from(users).where(inArray(users.id, bidderUserIds));
+          for (const row of bidderRows) bidderNameById.set(row.id, row.name ?? '');
+        }
+
+        const itemsWithBids = items.map(item => {
+          const topBid = topBidByItem.get(item.id);
           return {
             ...item,
             currentPrice: topBid?.amount ?? item.startPrice,
             topBidderId: topBid?.userId ?? null,
-            topBidderName,
-            bidCount: await db.select({ cnt: sql`COUNT(*)` }).from(groupAuctionBids)
-              .where(eq(groupAuctionBids.itemId, item.id))
-              .then(r => Number((r[0] as any)?.cnt ?? 0)),
+            topBidderName: topBid ? (bidderNameById.get(topBid.userId) ?? null) : null,
+            bidCount: bidCountByItem.get(item.id) ?? 0,
           };
-        }));
+        });
         return { round, items: itemsWithBids, images };
       }),
 

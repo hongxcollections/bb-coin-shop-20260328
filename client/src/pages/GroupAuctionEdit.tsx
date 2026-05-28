@@ -289,24 +289,28 @@ export default function GroupAuctionEdit() {
     }
   }
 
-  // ── 上載場次推廣圖片（只存 URL，不記入 groupAuctionImages） ──
+  // ── 上載場次推廣圖片（並行上載，只存 URL，不記入 groupAuctionImages） ──
   async function handlePromoUpload(files: FileList) {
     if (!roundId) { toast.error("請先儲存場次"); return; }
     const remain = 10 - promoImages.length;
     if (remain <= 0) { toast.info("最多上載 10 張推廣圖片"); return; }
     setUploadingPromo(true);
-    const newUrls: string[] = [];
     try {
       const count = Math.min(files.length, remain);
-      for (let i = 0; i < count; i++) {
-        const file = files[i];
-        const { uploadUrl, publicUrl } = await getImageUploadUrlMut.mutateAsync({
+      const fileArray = Array.from(files).slice(0, count);
+      // 並行取 presigned URL
+      const presigned = await Promise.all(
+        fileArray.map(file => getImageUploadUrlMut.mutateAsync({
           roundId, filename: `promo_${file.name}`, mimeType: file.type,
-        });
-        if (!uploadUrl) throw new Error("取得上載 URL 失敗");
-        await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-        newUrls.push(publicUrl);
-      }
+        }))
+      );
+      // 並行上載至 S3
+      await Promise.all(
+        presigned.map(({ uploadUrl }, i) =>
+          fetch(uploadUrl, { method: "PUT", body: fileArray[i], headers: { "Content-Type": fileArray[i].type } })
+        )
+      );
+      const newUrls = presigned.map(r => r.publicUrl);
       setPromoImages(prev => [...prev, ...newUrls]);
       toast.success(`已上載 ${newUrls.length} 張推廣圖片，記得儲存設定`);
     } catch (e: any) {

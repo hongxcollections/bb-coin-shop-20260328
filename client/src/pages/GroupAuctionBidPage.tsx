@@ -278,7 +278,7 @@ export default function GroupAuctionBidPage() {
             </button>
           </div>
           <div className="flex gap-1 flex-shrink-0 ml-1">
-            {(round.description || round.antiSnipeMode !== 'none') && (
+            {(round.description || round.antiSnipeMode !== 'none' || round.defaultBidIncrement > 0 || commRate > 0) && (
               <button
                 onClick={() => setShowDesc(v => !v)}
                 className="text-[11px] px-1.5 py-0.5 font-medium border border-amber-200 bg-amber-50 text-amber-700"
@@ -302,7 +302,7 @@ export default function GroupAuctionBidPage() {
       )}
 
       {/* 拍賣須知（可收起） */}
-      {(round.description || round.antiSnipeMode !== 'none') && showDesc && (
+      {(round.description || round.antiSnipeMode !== 'none' || round.defaultBidIncrement > 0 || commRate > 0) && showDesc && (
         <div className="mx-[3px] mt-[20px] bg-amber-50 border border-amber-100 rounded-xl p-3">
           {round.description && (
             <p className="text-xs text-amber-700 whitespace-pre-line">{round.description}</p>
@@ -315,6 +315,9 @@ export default function GroupAuctionBidPage() {
               }
             </p>
           )}
+          <p className={`text-xs text-amber-600${(round.description || round.antiSnipeMode !== 'none') ? ' mt-[3px]' : ''}`}>
+            每口加幅：{displayPrice(round.defaultBidIncrement)}{commRate > 0 ? `　買家傭金：${(commRate * 100) % 1 === 0 ? (commRate * 100).toFixed(0) : (commRate * 100).toFixed(1)}%` : ''}
+          </p>
         </div>
       )}
 
@@ -461,7 +464,7 @@ export default function GroupAuctionBidPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-bold text-amber-600">{displayPrice(item.currentPrice)}</span>
-                      <span className="text-[8px] text-gray-400">起 {displayPrice(item.startPrice)}</span>
+                      <span className="text-[8px] text-gray-400">起 {displayPrice(item.startPrice)} +{displayPrice(effectiveIncrement)}</span>
                     </div>
                     {item.topBidderName && (
                       <div className="flex items-center gap-1 text-xs mt-0.5">
