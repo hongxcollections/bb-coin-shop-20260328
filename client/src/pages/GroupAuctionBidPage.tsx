@@ -387,7 +387,7 @@ export default function GroupAuctionBidPage() {
                           src={url}
                           alt=""
                           className="flex-shrink-0 rounded-md object-cover cursor-pointer"
-                          style={{ width: 40, height: 40 }}
+                          style={{ width: 25, height: 25 }}
                           onClick={e => { e.stopPropagation(); setLightboxUrl(url); }}
                         />
                       ))}
