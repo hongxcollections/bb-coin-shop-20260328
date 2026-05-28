@@ -107,6 +107,11 @@ export default function GroupAuctionBidPage() {
       setLocation("/login");
       return;
     }
+    // 商戶不可為自己的場次出價
+    if (user && round && user.id === (round as any).merchantUserId) {
+      toast.error("商戶不可為自己的場次出價");
+      return;
+    }
     pendingBidRef.current = { title: itemTitle ?? "", itemNumber: itemNumber ?? 0 };
     placeBidMut.mutate({ itemId, amount });
   }

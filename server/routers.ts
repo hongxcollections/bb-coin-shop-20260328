@@ -10564,6 +10564,10 @@ EXAMPLE OUTPUT (exact format):
         if (round.startAt && new Date() < new Date(round.startAt)) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '場次尚未開拍' });
         }
+        // 商戶不可為自己的場次出價
+        if (round.merchantUserId === ctx.user.id) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '商戶不可為自己的場次出價' });
+        }
         // 結拍時間檢查（per item endAt 優先，否則用場次 endAt）
         const endAt = item.endAt ?? round.endAt;
         if (endAt && new Date() > new Date(endAt)) {
