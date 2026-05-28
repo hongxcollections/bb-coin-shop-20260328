@@ -3,6 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Printer, List, Grid3X3 } from "lucide-react";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 type ColumnDef = { key: string; label: string; role: string; showOnBidPage?: boolean };
 
@@ -16,11 +17,15 @@ export default function GroupAuctionFlyer() {
   const params = useParams<{ roundId: string }>();
   const roundId = parseInt(params.roundId, 10);
   const [mode, setMode] = useState<"list" | "grid">("list");
+  const { isAuthenticated } = useAuth();
 
   const { data, isLoading, error } = trpc.groupAuctions.getRound.useQuery(
     { roundId },
     { enabled: !isNaN(roundId) }
   );
+  const { data: isMerchant } = trpc.merchants.isMerchant.useQuery(undefined, {
+    enabled: isAuthenticated,
+  });
 
   const round = data?.round;
   const items = data?.items ?? [];
@@ -48,16 +53,20 @@ export default function GroupAuctionFlyer() {
           className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg ${mode === "list" ? "bg-amber-500 text-white" : "bg-white text-gray-600 border"}`}>
           <List className="w-3 h-3" /> 清單版
         </button>
-        <button
-          onClick={() => setMode("grid")}
-          className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg ${mode === "grid" ? "bg-amber-500 text-white" : "bg-white text-gray-600 border"}`}>
-          <Grid3X3 className="w-3 h-3" /> 圖片版
-        </button>
-        <button
-          onClick={() => window.print()}
-          className="ml-auto flex items-center gap-1 text-xs bg-gray-800 text-white px-3 py-1.5 rounded-lg">
-          <Printer className="w-3 h-3" /> 列印 / 儲存 PDF
-        </button>
+        {isMerchant && (
+          <button
+            onClick={() => setMode("grid")}
+            className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg ${mode === "grid" ? "bg-amber-500 text-white" : "bg-white text-gray-600 border"}`}>
+            <Grid3X3 className="w-3 h-3" /> 圖片版
+          </button>
+        )}
+        {isMerchant && (
+          <button
+            onClick={() => window.print()}
+            className="ml-auto flex items-center gap-1 text-xs bg-gray-800 text-white px-3 py-1.5 rounded-lg">
+            <Printer className="w-3 h-3" /> 列印 / 儲存 PDF
+          </button>
+        )}
       </div>
 
       {/* 廣告單張主體 */}
