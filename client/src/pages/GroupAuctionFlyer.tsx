@@ -86,51 +86,44 @@ export default function GroupAuctionFlyer() {
         {/* 清單版 */}
         {mode === "list" && (
           <div>
-            <div className="grid grid-cols-2 gap-x-6">
-              {[0, 1].map(col => (
-                <div key={col}>
-                  {/* 標題行 */}
+            <div>
+              {/* 標題行 */}
+              <div
+                className="grid text-xs font-semibold text-white px-2 py-1 rounded-lg mb-1"
+                style={{
+                  background: "linear-gradient(90deg, #f59e0b, #ef4444)",
+                  gridTemplateColumns: `2rem 1fr ${customCols.length > 0 ? "4rem" : ""} 4rem`,
+                }}
+              >
+                <span>序</span>
+                <span>品名</span>
+                {customCols.length > 0 && <span>{customCols[0]?.label}</span>}
+                <span className="text-right">起拍</span>
+              </div>
+              {items.map((item, idx) => {
+                const data = (() => { try { return JSON.parse(item.dataJson); } catch { return {}; } })();
+                const title = titleCol ? data[titleCol.key] : "";
+                const customVal = customCols.length > 0 ? data[customCols[0].key] : "";
+                return (
                   <div
-                    className="grid text-xs font-semibold text-white px-2 py-1 rounded-lg mb-1"
+                    key={item.id}
+                    className="grid text-xs px-2 py-1 border-b border-gray-100"
                     style={{
-                      background: "linear-gradient(90deg, #f59e0b, #ef4444)",
                       gridTemplateColumns: `2rem 1fr ${customCols.length > 0 ? "4rem" : ""} 4rem`,
+                      background: idx % 2 === 0 ? "#fafafa" : "white",
                     }}
                   >
-                    <span>序</span>
-                    <span>品名</span>
-                    {customCols.length > 0 && <span>{customCols[0]?.label}</span>}
-                    <span className="text-right">起拍</span>
+                    <span className="text-gray-400">{idx + 1}</span>
+                    <span className="truncate text-gray-800">{title}</span>
+                    {customCols.length > 0 && (
+                      <span className="text-gray-500">{customVal}</span>
+                    )}
+                    <span className="text-right text-amber-700 font-semibold">
+                      ${item.startPrice}
+                    </span>
                   </div>
-                  {items
-                    .filter((_, i) => i % 2 === col)
-                    .map((item, subIdx) => {
-                      const data = (() => { try { return JSON.parse(item.dataJson); } catch { return {}; } })();
-                      const title = titleCol ? data[titleCol.key] : "";
-                      const customVal = customCols.length > 0 ? data[customCols[0].key] : "";
-                      const realIdx = subIdx * 2 + col;
-                      return (
-                        <div
-                          key={item.id}
-                          className="grid text-xs px-2 py-1 border-b border-gray-100"
-                          style={{
-                            gridTemplateColumns: `2rem 1fr ${customCols.length > 0 ? "4rem" : ""} 4rem`,
-                            background: realIdx % 4 < 2 ? "#fafafa" : "white",
-                          }}
-                        >
-                          <span className="text-gray-400">{realIdx + 1}</span>
-                          <span className="truncate text-gray-800">{title}</span>
-                          {customCols.length > 0 && (
-                            <span className="text-gray-500">{customVal}</span>
-                          )}
-                          <span className="text-right text-amber-700 font-semibold">
-                            ${item.startPrice}
-                          </span>
-                        </div>
-                      );
-                    })}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
