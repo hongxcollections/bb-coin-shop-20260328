@@ -272,14 +272,20 @@ export default function GroupAuctionBidPage() {
             : item.startPrice;
           const isExpanded = biddingItem === item.id;
           const nextBidInCurr = Math.ceil(nextBid * currRate);
-          const itemEndMs = item.endAt ? new Date(item.endAt as string).getTime() : null;
-          const showItemTimer = round.antiSnipeMode === "per_item" && itemEndMs !== null && isActive;
-          const itemSecsLeft = showItemTimer ? Math.max(0, Math.floor((itemEndMs! - now) / 1000)) : 0;
+          // per_item 倒數：用 item.endAt（anti-snipe 延長後）或 round.endAt 作兜底
+          const effectiveItemEndAt = (item.endAt ?? round.endAt) as string | null;
+          const itemEndMs = effectiveItemEndAt ? new Date(effectiveItemEndAt).getTime() : null;
+          const rawItemSecsLeft = (itemEndMs !== null && isActive)
+            ? Math.max(0, Math.floor((itemEndMs - now) / 1000))
+            : null;
+          // badge 只在 ≤5 分鐘才出現
+          const showItemTimer = round.antiSnipeMode === "per_item" && rawItemSecsLeft !== null && rawItemSecsLeft <= 300;
+          const itemSecsLeft = rawItemSecsLeft ?? 0;
           const timerMins = Math.floor(itemSecsLeft / 60);
           const timerSecs = itemSecsLeft % 60;
           const timerStr = `${timerMins}:${String(timerSecs).padStart(2, "0")}`;
-          const timerRed = showItemTimer && itemSecsLeft <= 300;
-          const timerFlash = showItemTimer && itemSecsLeft <= 180;
+          const timerRed = showItemTimer; // ≤5min 已是 amber/red
+          const timerFlash = showItemTimer && itemSecsLeft <= 180; // ≤3min 閃紅
           const roundEndMs = round.endAt ? new Date(round.endAt as string).getTime() : null;
           const showRoundTimer = round.antiSnipeMode === "whole_round" && roundEndMs !== null && isActive;
           const roundSecsLeft = showRoundTimer ? Math.max(0, Math.floor((roundEndMs! - now) / 1000)) : 0;
