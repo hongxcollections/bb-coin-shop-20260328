@@ -87,17 +87,14 @@ export default function GroupAuctionBidPage() {
     let urls: string[] = [];
     try { urls = JSON.parse(promoImagesJson); } catch {}
     if (urls.length === 0) return [];
-    // 隨機洗牌 + 分配位置
     const shuffled = [...urls].sort(() => Math.random() - 0.5);
-    return shuffled.map((url, i) => {
-      const col = i % 5;
-      const row = Math.floor(i / 5);
-      const baseX = col * 20 + Math.random() * 8;
-      const baseY = row * 40 + Math.random() * 15;
-      const size = 38 + Math.random() * 24;
-      const rot = (Math.random() - 0.5) * 18;
-      const opacity = 0.10 + Math.random() * 0.07;
-      return { url, x: baseX, y: baseY, size, rot, opacity };
+    return shuffled.map((url) => {
+      const x = Math.random() * 90;
+      const y = Math.random() * 80;
+      const size = 70 + Math.random() * 60;
+      const rot = (Math.random() - 0.5) * 30;
+      const opacity = 0.10 + Math.random() * 0.08;
+      return { url, x, y, size, rot, opacity };
     });
   }, [promoImagesJson]);
 
