@@ -773,6 +773,8 @@ export const groupAuctionRounds = mysqlTable("groupAuctionRounds", {
   antiSnipeMinutes: int("antiSnipeMinutes").default(5).notNull(),
   antiSnipeExtendMinutes: int("antiSnipeExtendMinutes").default(5).notNull(),
   antiSnipeMode: mysqlEnum("antiSnipeMode", ["none", "per_item", "whole_round"]).default("per_item").notNull(),
+  // 開拍至結拍最短時間（分鐘），0 = 不設限
+  minDurationMinutes: int("minDurationMinutes").default(60).notNull(),
   // 每口加價幅度（場次預設，可 per item 覆寫）
   defaultBidIncrement: int("defaultBidIncrement").default(50).notNull(),
   // 傭金設定

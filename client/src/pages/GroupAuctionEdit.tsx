@@ -90,6 +90,7 @@ export default function GroupAuctionEdit() {
     antiSnipeExtendMinutes: "5",
     antiSnipeMode: "per_item" as "none" | "per_item" | "whole_round",
     displayCurrencies: "CNY",
+    minDurationMinutes: "60",
   });
 
   // ── 欄位設定 state ──
@@ -184,6 +185,7 @@ export default function GroupAuctionEdit() {
         return {
           defaultBidIncrement: String(r.defaultBidIncrement),
           displayCurrencies: loadedCurr,
+          minDurationMinutes: String((r as any).minDurationMinutes ?? 60),
         };
       })()),
       buyerCommissionRate: String(parseFloat(String(r.buyerCommissionRate)) * 100),
@@ -217,13 +219,14 @@ export default function GroupAuctionEdit() {
       antiSnipeExtendMinutes: parseInt(basic.antiSnipeExtendMinutes, 10) || 5,
       antiSnipeMode: basic.antiSnipeMode,
       displayCurrencies: basic.displayCurrencies || "HKD,CNY",
+      minDurationMinutes: parseInt(basic.minDurationMinutes, 10) || 0,
       columnsJson: JSON.stringify(columns),
     };
     if (!payload.title) { toast.error("請輸入場次名稱"); return; }
-    if (payload.startAt && payload.endAt) {
+    if (payload.minDurationMinutes > 0 && payload.startAt && payload.endAt) {
       const diffMs = new Date(payload.endAt).getTime() - new Date(payload.startAt).getTime();
-      if (diffMs < 60 * 60 * 1000) {
-        toast.error("結拍時間必須比開拍時間至少遲一小時");
+      if (diffMs < payload.minDurationMinutes * 60 * 1000) {
+        toast.error(`結拍時間必須比開拍時間至少遲 ${payload.minDurationMinutes} 分鐘`);
         return;
       }
     }
@@ -486,6 +489,13 @@ export default function GroupAuctionEdit() {
                     value={basic.buyerCommissionRate}
                     onChange={e => setBasic(p => ({ ...p, buyerCommissionRate: e.target.value }))} />
                 </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">開拍至結拍最短距離（分鐘，0 = 不設限）</label>
+                <input className="w-full px-3 py-2 text-sm outline-none" style={inputStyle}
+                  placeholder="預設 60"
+                  value={basic.minDurationMinutes}
+                  onChange={e => setBasic(p => ({ ...p, minDurationMinutes: e.target.value }))} />
               </div>
             </div>
 

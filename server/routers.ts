@@ -10038,6 +10038,7 @@ EXAMPLE OUTPUT (exact format):
         antiSnipeExtendMinutes: z.number().int().min(0).default(5),
         antiSnipeMode: z.enum(['none', 'per_item', 'whole_round']).default('per_item'),
         displayCurrencies: z.string().max(100).default('HKD,CNY'),
+        minDurationMinutes: z.number().int().min(0).default(60),
         columnsJson: z.string().optional(),
         columnTemplateId: z.number().int().positive().optional(),
       }))
@@ -10045,6 +10046,13 @@ EXAMPLE OUTPUT (exact format):
         const app = await getMerchantApplicationByUser(ctx.user.id);
         if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
           throw new TRPCError({ code: 'FORBIDDEN', message: '只限商戶會員' });
+        }
+        // 驗證：開拍至結拍最短時間
+        if (input.minDurationMinutes > 0 && input.startAt && input.endAt) {
+          const diffMs = new Date(input.endAt).getTime() - new Date(input.startAt).getTime();
+          if (diffMs < input.minDurationMinutes * 60 * 1000) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: `結拍時間必須比開拍時間至少遲 ${input.minDurationMinutes} 分鐘` });
+          }
         }
         const db = await getDb();
         const [result] = await db.insert(groupAuctionRounds).values({
@@ -10061,6 +10069,7 @@ EXAMPLE OUTPUT (exact format):
           antiSnipeExtendMinutes: input.antiSnipeExtendMinutes,
           antiSnipeMode: input.antiSnipeMode,
           displayCurrencies: input.displayCurrencies,
+          minDurationMinutes: input.minDurationMinutes,
           columnsJson: input.columnsJson ?? null,
           columnTemplateId: input.columnTemplateId ?? null,
         });
@@ -10083,6 +10092,7 @@ EXAMPLE OUTPUT (exact format):
         antiSnipeExtendMinutes: z.number().int().min(0).optional(),
         antiSnipeMode: z.enum(['none', 'per_item', 'whole_round']).optional(),
         displayCurrencies: z.string().max(100).optional(),
+        minDurationMinutes: z.number().int().min(0).optional(),
         columnsJson: z.string().optional(),
         columnTemplateId: z.number().int().positive().nullable().optional(),
       }))
@@ -10097,6 +10107,18 @@ EXAMPLE OUTPUT (exact format):
         if (round.status === 'ended') {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '已結拍場次不可修改' });
         }
+        // 驗證：開拍至結拍最短時間
+        const effectiveMin = input.minDurationMinutes ?? ((round as any).minDurationMinutes ?? 60);
+        if (effectiveMin > 0) {
+          const effectiveStart = input.startAt !== undefined ? (input.startAt ? new Date(input.startAt) : null) : round.startAt;
+          const effectiveEnd = input.endAt !== undefined ? (input.endAt ? new Date(input.endAt) : null) : round.endAt;
+          if (effectiveStart && effectiveEnd) {
+            const diffMs = effectiveEnd.getTime() - effectiveStart.getTime();
+            if (diffMs < effectiveMin * 60 * 1000) {
+              throw new TRPCError({ code: 'BAD_REQUEST', message: `結拍時間必須比開拍時間至少遲 ${effectiveMin} 分鐘` });
+            }
+          }
+        }
         const patch: Record<string, any> = {};
         if (input.title !== undefined) patch.title = input.title;
         if (input.periodNumber !== undefined) patch.periodNumber = input.periodNumber;
@@ -10110,6 +10132,7 @@ EXAMPLE OUTPUT (exact format):
         if (input.antiSnipeExtendMinutes !== undefined) patch.antiSnipeExtendMinutes = input.antiSnipeExtendMinutes;
         if (input.antiSnipeMode !== undefined) patch.antiSnipeMode = input.antiSnipeMode;
         if (input.displayCurrencies !== undefined) patch.displayCurrencies = input.displayCurrencies;
+        if (input.minDurationMinutes !== undefined) patch.minDurationMinutes = input.minDurationMinutes;
         if (input.columnsJson !== undefined) patch.columnsJson = input.columnsJson;
         if (input.columnTemplateId !== undefined) patch.columnTemplateId = input.columnTemplateId;
         await db.update(groupAuctionRounds).set(patch).where(eq(groupAuctionRounds.id, input.id));

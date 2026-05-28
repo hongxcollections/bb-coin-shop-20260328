@@ -1052,6 +1052,12 @@ async function bootstrapMissingColumns() {
       'Added displayCurrencies to groupAuctionRounds'
     );
   }
+  if (!(await check('groupAuctionRounds', 'minDurationMinutes'))) {
+    await alter(
+      `ALTER TABLE \`groupAuctionRounds\` ADD COLUMN \`minDurationMinutes\` int NOT NULL DEFAULT 60`,
+      'Added minDurationMinutes to groupAuctionRounds'
+    );
+  }
 
   await alter(`CREATE TABLE IF NOT EXISTS \`groupAuctionColumnTemplates\` (
     \`id\` int NOT NULL AUTO_INCREMENT,
