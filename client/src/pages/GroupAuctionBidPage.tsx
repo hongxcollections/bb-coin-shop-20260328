@@ -155,8 +155,8 @@ export default function GroupAuctionBidPage() {
   const currRate = CURR_RATES[currency] ?? 1;
   function displayPrice(hkdAmt: number | null | undefined): string {
     if (hkdAmt == null) return "—";
-    const v = Number(hkdAmt) * currRate;
-    return `${currSym}${v % 1 === 0 ? v.toLocaleString() : v.toFixed(1)}`;
+    const v = Math.round(Number(hkdAmt) * currRate);
+    return `${currSym}${v.toLocaleString()}`;
   }
   const commRate = parseFloat(String(round.buyerCommissionRate));
   const myTotalAmount = user
