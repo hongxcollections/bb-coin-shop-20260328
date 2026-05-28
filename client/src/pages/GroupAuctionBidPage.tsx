@@ -371,7 +371,7 @@ export default function GroupAuctionBidPage() {
                 </div>
 
                 {/* Row 2: HK$ 從左齊（同順序號碼左邊拍齊） */}
-                <div className={`flex items-center gap-2 ${title && title.length > 10 ? "mt-[8px]" : "mt-1.5"}`}>
+                <div className={`flex items-center gap-2 ${title && title.length > 10 ? "mt-[12px]" : "mt-1.5"}`}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-bold text-amber-600">{displayPrice(item.currentPrice)}</span>
