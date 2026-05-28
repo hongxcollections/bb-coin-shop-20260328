@@ -10234,7 +10234,7 @@ EXAMPLE OUTPUT (exact format):
         }
         const ext = input.filename.split('.').pop()?.toLowerCase() || 'jpg';
         const key = `group-auction/${input.roundId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { url: uploadUrl, publicUrl } = await storageSignPut(key, input.mimeType);
+        const { uploadUrl, finalUrl: publicUrl } = await storageSignPut(key, input.mimeType);
         return { uploadUrl, publicUrl, s3Key: key };
       }),
 

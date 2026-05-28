@@ -139,6 +139,7 @@ export default function GroupAuctionEdit() {
     onSuccess: () => { toast.success("Template 已儲存"); setShowSaveTemplate(false); },
     onError: (e) => toast.error(e.message || "儲存失敗"),
   });
+  const getImageUploadUrlMut = trpc.groupAuctions.getImageUploadUrl.useMutation();
   const recordImageMut = trpc.groupAuctions.recordImage.useMutation();
   const deleteImageMut = trpc.groupAuctions.deleteImage.useMutation({
     onSuccess: () => refetch(),
@@ -260,16 +261,9 @@ export default function GroupAuctionEdit() {
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const res = await fetch("/api/trpc/groupAuctions.getImageUploadUrl", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            json: { roundId, filename: file.name, mimeType: file.type },
-          }),
+        const { uploadUrl, publicUrl, s3Key } = await getImageUploadUrlMut.mutateAsync({
+          roundId, filename: file.name, mimeType: file.type,
         });
-        const json = await res.json();
-        const { uploadUrl, publicUrl, s3Key } = json?.result?.data?.json ?? {};
         if (!uploadUrl) throw new Error("取得上載 URL 失敗");
         await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
         const img = await recordImageMut.mutateAsync({
