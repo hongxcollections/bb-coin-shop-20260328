@@ -7,6 +7,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
 import { Plus, ChevronLeft, Pencil, Trash2, Globe, Archive, Clock } from "lucide-react";
+import { GroupAuctionShareMenu } from "@/components/ShareMenu";
 
 function statusLabel(s: string) {
   if (s === "draft") return { text: "草稿", cls: "bg-gray-100 text-gray-600" };
@@ -145,6 +146,14 @@ export default function GroupAuctionList() {
                         出價頁
                       </button>
                     </Link>
+                  )}
+
+                  {r.status === "published" && (
+                    <GroupAuctionShareMenu
+                      roundId={r.id}
+                      title={r.title}
+                      endAt={r.endAt}
+                    />
                   )}
 
                   {r.status === "draft" && (
