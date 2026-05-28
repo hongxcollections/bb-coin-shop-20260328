@@ -18,17 +18,14 @@ export default function GroupAuctionFlyer() {
   const params = useParams<{ roundId: string }>();
   const roundId = parseInt(params.roundId, 10);
   const [mode, setMode] = useState<"list" | "grid">("list");
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const { data, isLoading, error } = trpc.groupAuctions.getRound.useQuery(
     { roundId },
     { enabled: !isNaN(roundId) }
   );
-  const { data: isMerchant } = trpc.merchants.isMerchant.useQuery(undefined, {
-    enabled: isAuthenticated,
-  });
-
   const round = data?.round;
+  const isOwner = !!(user && round && Number(user.id) === Number(round.merchantUserId));
   const items = data?.items ?? [];
   const bidUrl = typeof window !== "undefined" ? `${window.location.origin}/group/${roundId}` : `/group/${roundId}`;
 
@@ -55,12 +52,12 @@ export default function GroupAuctionFlyer() {
           <List className="w-3 h-3" /> 清單版
         </button>
         <button
-          onClick={() => isMerchant ? setMode("grid") : toast.info("此功能只開放給商戶會員")}
+          onClick={() => isOwner ? setMode("grid") : toast.info("此功能只開放給本場次商戶")}
           className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg ${mode === "grid" ? "bg-amber-500 text-white" : "bg-white text-gray-600 border"}`}>
           <Grid3X3 className="w-3 h-3" /> 圖片版
         </button>
         <button
-          onClick={() => isMerchant ? window.print() : toast.info("此功能只開放給商戶會員")}
+          onClick={() => isOwner ? window.print() : toast.info("此功能只開放給本場次商戶")}
           className="ml-auto flex items-center gap-1 text-xs bg-gray-800 text-white px-3 py-1.5 rounded-lg">
           <Printer className="w-3 h-3" /> 列印 / 儲存 PDF
         </button>
