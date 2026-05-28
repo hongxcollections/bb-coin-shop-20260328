@@ -345,10 +345,10 @@ export default function GroupAuctionBidPage() {
                           onClick={e => { e.stopPropagation(); setExpandedItems(s => { const n = new Set(s); n.delete(item.id); return n; }); }}
                         >{title}</p>
                       ) : (
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900 leading-tight overflow-hidden whitespace-nowrap">{title}</p>
+                        <div className="flex items-baseline gap-1">
+                          <p className="text-sm font-semibold text-gray-900 leading-tight overflow-hidden whitespace-nowrap" style={{ maxWidth: "80%" }}>{title}</p>
                           <button
-                            className="text-[10px] text-amber-500 leading-tight mt-0.5"
+                            className="text-[10px] text-amber-500 flex-shrink-0 whitespace-nowrap leading-tight"
                             onClick={e => { e.stopPropagation(); setExpandedItems(s => new Set([...s, item.id])); }}
                           >...更多</button>
                         </div>
@@ -371,7 +371,7 @@ export default function GroupAuctionBidPage() {
                 </div>
 
                 {/* Row 2: HK$ 從左齊（同順序號碼左邊拍齊） */}
-                <div className={`flex items-center gap-2 ${title && title.length > 10 ? "mt-[10px]" : "mt-1.5"}`}>
+                <div className={`flex items-center gap-2 ${title && title.length > 10 ? "mt-[8px]" : "mt-1.5"}`}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-bold text-amber-600">{displayPrice(item.currentPrice)}</span>
