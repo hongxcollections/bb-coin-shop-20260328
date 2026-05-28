@@ -273,6 +273,10 @@ export default function GroupAuctionBidPage() {
             : (item.startPrice > 0 ? item.startPrice : effectiveIncrement);
           const isExpanded = biddingItem === item.id;
           const nextBidInCurr = Math.ceil(nextBid * currRate);
+          // +2口：先在顯示貨幣加法，再 convert 返 HKD，避免 HKD rounding 累積誤差（e.g. ¥50+¥50=¥99）
+          const incrementInCurr = Math.round(effectiveIncrement * currRate);
+          const bid2Curr = Math.round(nextBid * currRate) + incrementInCurr;
+          const bid2AmtHkd = Math.round(bid2Curr / currRate);
           // per_item 倒數：用 item.endAt（anti-snipe 延長後）或 round.endAt 作兜底
           const effectiveItemEndAt = (item.endAt ?? round.endAt) as string | null;
           const itemEndMs = effectiveItemEndAt ? new Date(effectiveItemEndAt).getTime() : null;
@@ -293,6 +297,11 @@ export default function GroupAuctionBidPage() {
           const roundTimerStr = `${Math.floor(roundSecsLeft / 60)}:${String(roundSecsLeft % 60).padStart(2, "0")}`;
           const roundTimerRed = showRoundTimer && roundSecsLeft <= 300;
           const roundTimerFlash = showRoundTimer && roundSecsLeft <= 180;
+          // 商品是否已結束（時間到 or 狀態非 active，用於顯示「已結束」badge）
+          const isItemEffectivelyEnded = isStarted && (
+            item.status !== "active" || isEnded ||
+            (round.antiSnipeMode === "per_item" && itemEndMs !== null && now >= itemEndMs)
+          );
 
           let cardClass = "rounded-2xl overflow-hidden border";
           let cardStyle: React.CSSProperties = {};
@@ -316,7 +325,12 @@ export default function GroupAuctionBidPage() {
               {isMine && isActive && (
                 <div className="absolute inset-0 rounded-2xl animate-amber-shimmer pointer-events-none" />
               )}
-              {showItemTimer && (
+              {isItemEffectivelyEnded && (
+                <div className="absolute top-1 right-2 z-10 flex items-center px-1.5 py-[1px] text-[10px] font-semibold rounded-full bg-gray-100 text-gray-500">
+                  已結束
+                </div>
+              )}
+              {showItemTimer && !isItemEffectivelyEnded && (
                 <div
                   className={`absolute top-1 right-2 z-10 flex items-center gap-0.5 px-1.5 py-[1px] text-[10px] font-mono font-semibold rounded-full bg-white/90${timerFlash ? " animate-red-flash" : ""}`}
                   style={{ color: timerRed ? "#dc2626" : "#f59e0b" }}
@@ -364,12 +378,12 @@ export default function GroupAuctionBidPage() {
                   {isActive && (
                     <div className="flex gap-1.5 flex-shrink-0">
                       <button
-                        onClick={() => handleBid(item.id, nextBid + effectiveIncrement, title, idx + 1)}
+                        onClick={() => handleBid(item.id, bid2AmtHkd, title, idx + 1)}
                         disabled={placeBidMut.isPending}
                         className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-xl"
                       >
                         +2口<br />
-                        <span className="text-[10px] font-normal">{displayPrice(nextBid + effectiveIncrement)}</span>
+                        <span className="text-[10px] font-normal">{displayPrice(bid2AmtHkd)}</span>
                       </button>
                       <button
                         onClick={() => handleBid(item.id, nextBid, title, idx + 1)}
