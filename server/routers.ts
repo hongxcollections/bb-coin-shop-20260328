@@ -10580,7 +10580,9 @@ EXAMPLE OUTPUT (exact format):
           .limit(1);
         const currentPrice = topBid?.amount ?? item.startPrice;
         const effectiveIncrement = item.bidIncrement > 0 ? item.bidIncrement : round.defaultBidIncrement;
-        const minBid = topBid ? currentPrice + effectiveIncrement : item.startPrice;
+        // startPrice=0 時第一口必須至少 effectiveIncrement（避免出價 0）
+        const firstBidMin = item.startPrice > 0 ? item.startPrice : effectiveIncrement;
+        const minBid = topBid ? currentPrice + effectiveIncrement : firstBidMin;
         if (input.amount < minBid) {
           throw new TRPCError({
             code: 'BAD_REQUEST',

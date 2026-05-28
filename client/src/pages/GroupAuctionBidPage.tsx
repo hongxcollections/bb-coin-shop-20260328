@@ -62,9 +62,9 @@ export default function GroupAuctionBidPage() {
       const info = pendingBidRef.current;
       const label = info ? `${info.itemNumber}. ${info.title}\n` : "";
       if (r.isBuyNow) {
-        toast.success(`${label}直購成功！HK$${r.finalAmount}`);
+        toast.success(`${label}直購成功！${displayPrice(r.finalAmount)}`);
       } else {
-        toast.success(`${label}出價 HK$${r.finalAmount} 成功`);
+        toast.success(`${label}出價 ${displayPrice(r.finalAmount)} 成功`);
       }
       pendingBidRef.current = null;
       setBiddingItem(null);
@@ -160,7 +160,7 @@ export default function GroupAuctionBidPage() {
   }
   const commRate = parseFloat(String(round.buyerCommissionRate));
   const myTotalAmount = user
-    ? items.filter(i => i.topBidderId === user.id)
+    ? items.filter(i => Number(i.topBidderId) === Number(user.id))
         .reduce((sum, i) => sum + Number(i.currentPrice) * (1 + commRate), 0)
     : 0;
 
@@ -264,12 +264,13 @@ export default function GroupAuctionBidPage() {
         }).map((item, idx) => {
           const data = getItemData(item);
           const title = titleCol ? data[titleCol.key] : `商品 ${idx + 1}`;
-          const isMine = user && item.topBidderId === user.id;
+          const isMine = user && Number(item.topBidderId) === Number(user.id);
           const isActive = item.status === "active" && !isEnded && isStarted;
           const effectiveIncrement = item.bidIncrement > 0 ? item.bidIncrement : round.defaultBidIncrement;
+          // startPrice=0 時，第一口 = effectiveIncrement（避免出價 0）
           const nextBid = item.topBidderId
             ? (item.currentPrice as number) + effectiveIncrement
-            : item.startPrice;
+            : (item.startPrice > 0 ? item.startPrice : effectiveIncrement);
           const isExpanded = biddingItem === item.id;
           const nextBidInCurr = Math.ceil(nextBid * currRate);
           // per_item 倒數：用 item.endAt（anti-snipe 延長後）或 round.endAt 作兜底
