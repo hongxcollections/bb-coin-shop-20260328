@@ -12,9 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { Plus, Calendar, Eye, Trash2, Send, ChevronLeft, Lock, Globe, Pencil, Layers, Archive } from "lucide-react";
+import { Plus, Calendar, Eye, Trash2, Send, ChevronLeft, Lock, Globe, Pencil, Layers, Archive, QrCode } from "lucide-react";
 import { CoverImageUpload } from "@/components/CoverImageUpload";
 import { SessionShareMenu } from "@/components/ShareMenu";
+import { SessionPosterModal } from "@/components/SessionPosterModal";
 
 function formatDateTimeLocal(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0");
@@ -63,6 +64,7 @@ export default function MerchantSessions() {
   });
 
   const [tab, setTab] = useState<"active" | "ended">("active");
+  const [posterSession, setPosterSession] = useState<any | null>(null);
   const activeSessions = (sessions || []).filter((s: any) => s.status !== "ended");
   const endedSessions = (sessions || []).filter((s: any) => s.status === "ended");
   const visibleSessions = tab === "active" ? activeSessions : endedSessions;
@@ -203,6 +205,14 @@ export default function MerchantSessions() {
                       <Button size="sm" variant="outline"><Eye className="w-3.5 h-3.5 mr-1" /> 查看公開頁</Button>
                     </a>
                   )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                    onClick={() => setPosterSession(s)}
+                  >
+                    <QrCode className="w-3.5 h-3.5 mr-1" /> 入場海報
+                  </Button>
                   {s.status !== "draft" && user?.id && (
                     <SessionShareMenu
                       merchantUserId={user.id}
@@ -301,6 +311,15 @@ export default function MerchantSessions() {
       </Dialog>
 
       <BottomNav />
+
+      {posterSession && user?.id && (
+        <SessionPosterModal
+          open={!!posterSession}
+          onClose={() => setPosterSession(null)}
+          session={posterSession}
+          merchantUserId={user.id}
+        />
+      )}
     </div>
   );
 }
