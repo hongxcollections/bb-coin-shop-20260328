@@ -10095,6 +10095,7 @@ EXAMPLE OUTPUT (exact format):
         minDurationMinutes: z.number().int().min(0).optional(),
         columnsJson: z.string().optional(),
         columnTemplateId: z.number().int().positive().nullable().optional(),
+        promoImagesJson: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const db = await getDb();
@@ -10135,6 +10136,7 @@ EXAMPLE OUTPUT (exact format):
         if (input.minDurationMinutes !== undefined) patch.minDurationMinutes = input.minDurationMinutes;
         if (input.columnsJson !== undefined) patch.columnsJson = input.columnsJson;
         if (input.columnTemplateId !== undefined) patch.columnTemplateId = input.columnTemplateId;
+        if (input.promoImagesJson !== undefined) patch.promoImagesJson = input.promoImagesJson;
         await db.update(groupAuctionRounds).set(patch).where(eq(groupAuctionRounds.id, input.id));
         return { success: true };
       }),

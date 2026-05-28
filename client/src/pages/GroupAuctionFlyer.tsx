@@ -27,6 +27,8 @@ export default function GroupAuctionFlyer() {
   const round = data?.round;
   const isOwner = !!(user && round && Number(user.id) === Number(round.merchantUserId));
   const items = data?.items ?? [];
+  const flyerImages = data?.images ?? [];
+  const flyerImageMap = new Map(flyerImages.map((img: any) => [img.id as number, img.url as string]));
   const bidUrl = typeof window !== "undefined" ? `${window.location.origin}/group/${roundId}` : `/group/${roundId}`;
 
   const columns: ColumnDef[] = (() => {
@@ -137,12 +139,11 @@ export default function GroupAuctionFlyer() {
             {items.map((item, idx) => {
               const data = (() => { try { return JSON.parse(item.dataJson); } catch { return {}; } })();
               const title = titleCol ? data[titleCol.key] : "";
-              const images = data?.images ?? [];
               const imgUrl = (() => {
                 try {
-                  const ids: number[] = JSON.parse(item.imageIdsJson ?? "[]");
-                  const poolImg = data?.images?.[0];
-                  return poolImg ?? null;
+                  const ids: number[] = JSON.parse((item as any).imageIdsJson ?? "[]");
+                  if (ids.length === 0) return null;
+                  return flyerImageMap.get(ids[0]) ?? null;
                 } catch { return null; }
               })();
               return (

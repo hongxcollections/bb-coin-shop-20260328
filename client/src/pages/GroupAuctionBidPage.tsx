@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -81,6 +81,25 @@ export default function GroupAuctionBidPage() {
   const roundImages = data?.images ?? [];
   const imageMap = new Map(roundImages.map((img: any) => [img.id as number, img.url as string]));
   const roundCountdown = useCountdown(round?.endAt as string | null | undefined);
+
+  const promoImagesJson = (round as any)?.promoImagesJson ?? "[]";
+  const promoLayout = useMemo(() => {
+    let urls: string[] = [];
+    try { urls = JSON.parse(promoImagesJson); } catch {}
+    if (urls.length === 0) return [];
+    // 隨機洗牌 + 分配位置
+    const shuffled = [...urls].sort(() => Math.random() - 0.5);
+    return shuffled.map((url, i) => {
+      const col = i % 5;
+      const row = Math.floor(i / 5);
+      const baseX = col * 20 + Math.random() * 8;
+      const baseY = row * 40 + Math.random() * 15;
+      const size = 38 + Math.random() * 24;
+      const rot = (Math.random() - 0.5) * 18;
+      const opacity = 0.10 + Math.random() * 0.07;
+      return { url, x: baseX, y: baseY, size, rot, opacity };
+    });
+  }, [promoImagesJson]);
 
   const columns: ColumnDef[] = (() => {
     try { return JSON.parse(round?.columnsJson ?? "[]"); } catch { return []; }
@@ -171,8 +190,26 @@ export default function GroupAuctionBidPage() {
       {/* Fixed 標題欄 + 篩選列 */}
       <div ref={headerRef} className="fixed top-0 left-0 right-0 z-30">
         {/* 橙色 Banner */}
-        <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 pt-[15px] pb-3">
-          <div className="flex items-start justify-between gap-2">
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 pt-[15px] pb-3 mx-2 mt-2 rounded-2xl relative overflow-hidden">
+          {/* 推廣圖片背景 */}
+          {promoLayout.map((p, i) => (
+            <img
+              key={i}
+              src={p.url}
+              alt=""
+              aria-hidden="true"
+              className="absolute object-cover rounded-lg pointer-events-none select-none"
+              style={{
+                left: `${p.x}%`,
+                top: `${p.y}%`,
+                width: p.size,
+                height: p.size,
+                opacity: p.opacity,
+                transform: `rotate(${p.rot}deg)`,
+              }}
+            />
+          ))}
+          <div className="flex items-start justify-between gap-2 relative z-10">
             <div>
               <p className="text-xs opacity-80">{round.periodNumber ? `第 ${round.periodNumber} 期` : "團購拍賣"}</p>
               <h1 className="text-lg font-bold leading-tight">{round.title}</h1>
@@ -182,14 +219,14 @@ export default function GroupAuctionBidPage() {
               <ExternalLink className="w-3 h-3" /> 廣告頁
             </a>
           </div>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex items-center gap-2 relative z-10">
             <div className={`flex items-center gap-1.5 text-sm font-bold px-3 py-1 rounded-full ${isEnded ? "bg-gray-800/40" : "bg-white/20"}`}>
               <Clock className="w-3.5 h-3.5" />
               {isEnded ? "已結拍" : roundCountdown}
             </div>
             <span className="text-xs opacity-70">結拍：{fmtDate(round.endAt)}</span>
           </div>
-          <div className="flex items-center justify-between mt-1.5">
+          <div className="flex items-center justify-between mt-1.5 relative z-10">
             <div className="flex gap-3 text-xs opacity-80">
               <span>共 {items.length} 件</span>
               <span>成交 {items.filter(i => i.status === "sold").length} 件</span>

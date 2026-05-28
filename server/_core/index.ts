@@ -1058,6 +1058,12 @@ async function bootstrapMissingColumns() {
       'Added minDurationMinutes to groupAuctionRounds'
     );
   }
+  if (!(await check('groupAuctionRounds', 'promoImagesJson'))) {
+    await alter(
+      `ALTER TABLE \`groupAuctionRounds\` ADD COLUMN \`promoImagesJson\` text NULL`,
+      'Added promoImagesJson to groupAuctionRounds'
+    );
+  }
 
   await alter(`CREATE TABLE IF NOT EXISTS \`groupAuctionColumnTemplates\` (
     \`id\` int NOT NULL AUTO_INCREMENT,

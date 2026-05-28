@@ -106,6 +106,11 @@ export default function GroupAuctionEdit() {
   const [uploadingImages, setUploadingImages] = useState(false);
   const imageFileRef = useRef<HTMLInputElement>(null);
 
+  // ── 場次推廣圖片 state（存 URL，最多 10 張）──
+  const [promoImages, setPromoImages] = useState<string[]>([]);
+  const [uploadingPromo, setUploadingPromo] = useState(false);
+  const promoFileRef = useRef<HTMLInputElement>(null);
+
   // ── 商品 state ──
   const [items, setItems] = useState<any[]>([]);
   const [csvText, setCsvText] = useState("");
@@ -205,6 +210,7 @@ export default function GroupAuctionEdit() {
     }
     setImages(roundData.images.map(img => ({ id: img.id, url: img.url, s3Key: img.s3Key })));
     setItems(roundData.items);
+    try { setPromoImages(JSON.parse((roundData.round as any).promoImagesJson ?? "[]")); } catch { setPromoImages([]); }
     // 已結拍的場次自動跳到成績紀錄 tab
     if (roundData.round?.status === "ended") {
       setTab("results");
@@ -228,6 +234,7 @@ export default function GroupAuctionEdit() {
       displayCurrencies: basic.displayCurrencies || "HKD,CNY",
       minDurationMinutes: parseInt(basic.minDurationMinutes, 10) || 0,
       columnsJson: JSON.stringify(columns),
+      promoImagesJson: JSON.stringify(promoImages),
     };
     if (!payload.title) { toast.error("請輸入場次名稱"); return; }
     if (payload.minDurationMinutes > 0 && payload.startAt && payload.endAt) {
@@ -279,6 +286,34 @@ export default function GroupAuctionEdit() {
     } finally {
       setUploadingImages(false);
       refetch();
+    }
+  }
+
+  // ── 上載場次推廣圖片（只存 URL，不記入 groupAuctionImages） ──
+  async function handlePromoUpload(files: FileList) {
+    if (!roundId) { toast.error("請先儲存場次"); return; }
+    const remain = 10 - promoImages.length;
+    if (remain <= 0) { toast.info("最多上載 10 張推廣圖片"); return; }
+    setUploadingPromo(true);
+    const newUrls: string[] = [];
+    try {
+      const count = Math.min(files.length, remain);
+      for (let i = 0; i < count; i++) {
+        const file = files[i];
+        const { uploadUrl, publicUrl } = await getImageUploadUrlMut.mutateAsync({
+          roundId, filename: `promo_${file.name}`, mimeType: file.type,
+        });
+        if (!uploadUrl) throw new Error("取得上載 URL 失敗");
+        await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+        newUrls.push(publicUrl);
+      }
+      setPromoImages(prev => [...prev, ...newUrls]);
+      toast.success(`已上載 ${newUrls.length} 張推廣圖片，記得儲存設定`);
+    } catch (e: any) {
+      toast.error(e.message || "上載失敗");
+    } finally {
+      setUploadingPromo(false);
+      if (promoFileRef.current) promoFileRef.current.value = "";
     }
   }
 
@@ -550,6 +585,38 @@ export default function GroupAuctionEdit() {
                 ))}
               </div>
             </div>
+
+            {/* 場次推廣圖片（用作 live banner 背景）*/}
+            {!isNew && (
+              <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+                <p className="text-xs font-semibold text-gray-600">場次推廣圖片（最多 10 張，將顯示於出價頁橙色橫幅）</p>
+                <input ref={promoFileRef} type="file" accept="image/*" multiple className="hidden"
+                  onChange={e => e.target.files && handlePromoUpload(e.target.files)} />
+                {promoImages.length < 10 && (
+                  <button
+                    onClick={() => promoFileRef.current?.click()}
+                    disabled={uploadingPromo}
+                    className="flex items-center gap-2 w-full justify-center border-2 border-dashed border-amber-200 text-amber-600 hover:border-amber-400 rounded-xl py-3 text-sm"
+                  >
+                    <Upload className="w-4 h-4" />
+                    {uploadingPromo ? "上載中..." : `點擊上載（已 ${promoImages.length}/10 張）`}
+                  </button>
+                )}
+                {promoImages.length > 0 && (
+                  <div className="grid grid-cols-5 gap-2">
+                    {promoImages.map((url, i) => (
+                      <div key={i} className="relative group">
+                        <img src={url} alt="" className="w-full aspect-square object-cover rounded-xl" />
+                        <button
+                          onClick={() => setPromoImages(p => p.filter((_, j) => j !== i))}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <button
               onClick={handleSaveBasic}
