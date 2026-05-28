@@ -339,7 +339,7 @@ export default function GroupAuctionBidPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 leading-tight line-clamp-1">{title || "—"}</p>
                     {title && title.length > 10 && (
-                      <p className="text-[8px] font-medium text-gray-600 leading-tight break-all mt-0.5">{title}</p>
+                      <p className="text-[12px] font-medium text-gray-600 leading-tight break-all mt-0.5">{title}</p>
                     )}
                   </div>
                   {displayCols.filter(c => c.role === "customText").length > 0 && (
