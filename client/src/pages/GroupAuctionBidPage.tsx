@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -55,7 +55,7 @@ export default function GroupAuctionBidPage() {
   const [now, setNow] = useState(() => Date.now());
   const countdown = useCountdown(undefined);
   const headerRef = useRef<HTMLDivElement>(null);
-  const [headerHeight, setHeaderHeight] = useState(160);
+  const [headerHeight, setHeaderHeight] = useState(200);
   const pendingBidRef = useRef<{ title: string; itemNumber: number } | null>(null);
 
   const { data, isLoading, refetch, error } = trpc.groupAuctions.getRound.useQuery(
@@ -120,14 +120,15 @@ export default function GroupAuctionBidPage() {
     return () => clearInterval(id);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = headerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => setHeaderHeight(el.offsetHeight));
     ro.observe(el);
     setHeaderHeight(el.offsetHeight);
     return () => ro.disconnect();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round?.id, promoUrls.length]);
 
   function handleBid(itemId: number, amount: number, itemTitle?: string, itemNumber?: number) {
     if (!isAuthenticated) {
