@@ -475,6 +475,13 @@ export default function GroupAuctionEdit() {
                     value={basic.endAt} onChange={e => setBasic(p => ({ ...p, endAt: e.target.value }))} />
                 </div>
               </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">開拍至結拍最短距離（分鐘，0 = 不設限）</label>
+                <input className="w-full px-3 py-2 text-sm outline-none" style={inputStyle}
+                  placeholder="預設 60"
+                  value={basic.minDurationMinutes}
+                  onChange={e => setBasic(p => ({ ...p, minDurationMinutes: e.target.value }))} />
+              </div>
             </div>
 
             <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
@@ -493,13 +500,6 @@ export default function GroupAuctionEdit() {
                     value={basic.buyerCommissionRate}
                     onChange={e => setBasic(p => ({ ...p, buyerCommissionRate: e.target.value }))} />
                 </div>
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">開拍至結拍最短距離（分鐘，0 = 不設限）</label>
-                <input className="w-full px-3 py-2 text-sm outline-none" style={inputStyle}
-                  placeholder="預設 60"
-                  value={basic.minDurationMinutes}
-                  onChange={e => setBasic(p => ({ ...p, minDurationMinutes: e.target.value }))} />
               </div>
             </div>
 
