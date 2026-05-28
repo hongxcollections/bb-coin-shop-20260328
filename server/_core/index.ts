@@ -1761,6 +1761,26 @@ Output ONLY the JSON, nothing else.`;
     }
   });
 
+  // ── OG 圖片代理（團拍場次）：對應 groupAuctionRounds.coverImage ──
+  app.get('/api/og-image-group/:roundId', async (req, res) => {
+    try {
+      const roundId = parseInt(req.params.roundId, 10);
+      if (isNaN(roundId) || roundId <= 0) { res.status(400).send('Invalid round ID'); return; }
+      const { getGroupAuctionRoundForOg } = await import('../db');
+      const round = await getGroupAuctionRoundForOg(roundId);
+      if (!round || !round.coverImage || round.status === 'draft') {
+        res.status(404).send('No image'); return;
+      }
+      const result = await fetchAllowlistedImage(round.coverImage);
+      if (!result.ok) { res.status(result.status).send(result.reason); return; }
+      const cropped = await cropToOgSize(result.buf);
+      sendImageResponse(res, 'image/jpeg', cropped);
+    } catch (err) {
+      console.error('[OG Image Group Proxy] Error:', err);
+      res.status(500).send('Error');
+    }
+  });
+
   // ── OG 圖片代理（商戶專場）：對應 merchantAuctionSessions.coverImage ──
   app.get('/api/og-image-session/:sessionId', async (req, res) => {
     try {

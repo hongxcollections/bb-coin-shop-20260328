@@ -219,10 +219,84 @@ async function injectSessionOgMeta(html: string, reqPath: string, protocol: stri
   }
 }
 
+async function injectGroupAuctionOgMeta(html: string, reqPath: string, protocol: string, host: string): Promise<string | null> {
+  const m = reqPath.match(/^\/group\/(\d+)$/);
+  if (!m) return null;
+  try {
+    const roundId = parseInt(m[1], 10);
+    const { getGroupAuctionRoundForOg } = await import("../db");
+    const round = await getGroupAuctionRoundForOg(roundId);
+    if (!round || round.status === "draft") return null;
+
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const rawTitle = round.title.replace(/\s+/g, " ").trim();
+    const titleForOg = rawTitle.length > 25 ? rawTitle.slice(0, 25) + "…" : rawTitle;
+
+    // 結束時間只用 M月D日（唔用括號+中文時間詞，避免 FB silent drop）
+    let endStr = "";
+    if (round.endAt) {
+      const d = new Date(round.endAt);
+      if (!isNaN(d.getTime())) endStr = `${d.getMonth() + 1}月${d.getDate()}日`;
+    }
+
+    const ogTitle = [
+      titleForOg,
+      `共${round.itemCount}件`,
+      endStr ? `結拍${endStr}` : null,
+      "hongxcollections.com",
+    ].filter(Boolean).join(" | ");
+
+    const ogDesc = `團購拍賣 | ${rawTitle} | ${round.itemCount} 件拍賣品${endStr ? ` | 結拍 ${endStr}` : ""} | 香港錢幣拍賣`;
+
+    const fullUrl = `${protocol}://${host}${reqPath}`;
+    const ogImageUrl = round.coverImage ? `${protocol}://${host}/api/og-image-group/${roundId}` : "";
+    const imgMime = "image/jpeg";
+
+    const ogMeta = [
+      `<meta property="og:type" content="website" />`,
+      `<meta property="og:site_name" content="hongxcollections" />`,
+      `<meta property="og:title" content="${esc(ogTitle)}" />`,
+      `<meta property="og:description" content="${esc(ogDesc)}" />`,
+      `<meta property="og:url" content="${esc(fullUrl)}" />`,
+      `<meta property="og:locale" content="zh_HK" />`,
+      ogImageUrl ? `<meta property="og:image" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:secure_url" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:type" content="${imgMime}" />` : "",
+      ogImageUrl ? `<meta property="og:image:width" content="1200" />` : "",
+      ogImageUrl ? `<meta property="og:image:height" content="630" />` : "",
+      `<meta name="twitter:card" content="${ogImageUrl ? "summary_large_image" : "summary"}" />`,
+      `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
+      `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
+      ogImageUrl ? `<meta name="twitter:image" content="${esc(ogImageUrl)}" />` : "",
+      `<link rel="canonical" href="${esc(fullUrl)}" />`,
+      `<title>${esc(ogTitle)}</title>`,
+    ].filter(Boolean).join("\n    ");
+
+    let result = html
+      .replace(/<title>[^<]*<\/title>/gi, "")
+      .replace(/<meta\s+(?:property|name)="(?:og:|twitter:)[^"]*"[^>]*\/?>/gi, "")
+      .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "")
+      .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "");
+    const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+    result = viewportRe.test(result)
+      ? result.replace(viewportRe, (mm) => `${mm}\n    ${ogMeta}`)
+      : result.replace("</head>", () => `    ${ogMeta}\n  </head>`);
+    console.log(`[OG Meta] Injected for group auction /group/${roundId}: title="${ogTitle}"`);
+    return result;
+  } catch (err) {
+    console.error("[OG Meta] Group auction inject error:", err);
+    return null;
+  }
+}
+
 async function injectOgMeta(html: string, reqPath: string, protocol: string, host: string): Promise<string | null> {
   // Merchant auction session 公開頁
   const sessionInjected = await injectSessionOgMeta(html, reqPath, protocol, host);
   if (sessionInjected) return sessionInjected;
+
+  // 團拍場次公開頁
+  const groupInjected = await injectGroupAuctionOgMeta(html, reqPath, protocol, host);
+  if (groupInjected) return groupInjected;
 
   const auctionMatch = reqPath.match(/^\/auctions\/(\d+)$/);
   if (!auctionMatch) return null;

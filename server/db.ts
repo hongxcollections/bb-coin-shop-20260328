@@ -1,7 +1,7 @@
 import { eq, ne, desc, asc, and, or, gte, lte, gt, sql, inArray, isNull, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2/promise";
-import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, depositTierChangeRequests, merchantProducts, MerchantProduct, featuredListings, FeaturedListing, auctionChatRooms, auctionChatMessages, AuctionChatRoom, AuctionChatMessage, auctionChatMessageReactions, AuctionChatMessageReaction, merchantAuctionSessions } from "../drizzle/schema";
+import { InsertUser, users, auctions, InsertAuction, auctionImages, InsertAuctionImage, bids, InsertBid, Auction, proxyBids, proxyBidLogs, notificationSettings, NotificationSettings, favorites, siteSettings, sellerDeposits, depositTransactions, subscriptionPlans, userSubscriptions, merchantApplications, InsertMerchantApplication, commissionRefundRequests, depositTopUpRequests, depositTierPresets, depositTierChangeRequests, merchantProducts, MerchantProduct, featuredListings, FeaturedListing, auctionChatRooms, auctionChatMessages, AuctionChatRoom, AuctionChatMessage, auctionChatMessageReactions, AuctionChatMessageReaction, merchantAuctionSessions, groupAuctionRounds, groupAuctionItems } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { pingAuctionOg, pingProductOg } from './_core/facebook-og-refresh';
 
@@ -7309,6 +7309,28 @@ export async function getMessageRoomId(messageId: number): Promise<number | null
 }
 
 /** Helper: 攞專場 cover image URL（供 og-image-session proxy 用）。 */
+export async function getGroupAuctionRoundForOg(roundId: number): Promise<{ title: string; coverImage: string | null; endAt: Date | null; status: string; itemCount: number } | null> {
+  try {
+    const db = await getDb();
+    if (!db) return null;
+    const rows = await db
+      .select({ title: groupAuctionRounds.title, coverImage: groupAuctionRounds.coverImage, endAt: groupAuctionRounds.endAt, status: groupAuctionRounds.status })
+      .from(groupAuctionRounds)
+      .where(eq(groupAuctionRounds.id, roundId))
+      .limit(1);
+    if (!rows[0]) return null;
+    const countRows = await db
+      .select({ cnt: sql`COUNT(*)` })
+      .from(groupAuctionItems)
+      .where(eq(groupAuctionItems.roundId, roundId));
+    const itemCount = Number((countRows[0] as any)?.cnt ?? 0);
+    return { ...rows[0], itemCount };
+  } catch (e) {
+    console.error('[db] getGroupAuctionRoundForOg error:', e);
+    return null;
+  }
+}
+
 export async function getSessionCoverImage(sessionId: number): Promise<{ coverImage: string | null; status: string } | null> {
   try {
     const db = await getDb();
