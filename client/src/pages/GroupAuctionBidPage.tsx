@@ -46,6 +46,7 @@ export default function GroupAuctionBidPage() {
   const [customAmount, setCustomAmount] = useState("");
   const [filter, setFilter] = useState<"all" | "bid" | "nobid">("all");
   const [showDesc, setShowDesc] = useState(true);
+  const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
   const [now, setNow] = useState(() => Date.now());
   const countdown = useCountdown(undefined);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -337,9 +338,26 @@ export default function GroupAuctionBidPage() {
                 <div className="flex items-start gap-1.5">
                   <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">{idx + 1}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 leading-tight line-clamp-1">{title || "—"}</p>
-                    {title && title.length > 10 && (
-                      <p className="text-[12px] font-medium text-gray-600 leading-tight break-all mt-0.5">{title}</p>
+                    {title && title.length > 10 ? (
+                      expandedItems.has(item.id) ? (
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900 leading-tight break-all">{title}</p>
+                          <button
+                            className="text-[10px] text-amber-500 leading-tight mt-0.5"
+                            onClick={e => { e.stopPropagation(); setExpandedItems(s => { const n = new Set(s); n.delete(item.id); return n; }); }}
+                          >收起</button>
+                        </div>
+                      ) : (
+                        <div className="flex items-baseline gap-0.5">
+                          <p className="text-sm font-semibold text-gray-900 leading-tight line-clamp-1 min-w-0">{title}</p>
+                          <button
+                            className="text-[10px] text-amber-500 flex-shrink-0 whitespace-nowrap leading-tight"
+                            onClick={e => { e.stopPropagation(); setExpandedItems(s => new Set([...s, item.id])); }}
+                          >...更多</button>
+                        </div>
+                      )
+                    ) : (
+                      <p className="text-sm font-semibold text-gray-900 leading-tight">{title || "—"}</p>
                     )}
                   </div>
                   {displayCols.filter(c => c.role === "customText").length > 0 && (

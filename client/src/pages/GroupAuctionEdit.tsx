@@ -375,7 +375,7 @@ export default function GroupAuctionEdit() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <Header />
-      <div className="max-w-2xl mx-auto px-4 pt-4">
+      <div className="max-w-2xl mx-auto px-[3px] pt-4">
         <div className="flex items-center gap-2 mb-4">
           <button onClick={() => setLocation("/merchant/group-auctions")} className="text-gray-500">
             <ChevronLeft className="w-5 h-5" />

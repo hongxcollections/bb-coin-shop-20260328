@@ -42,7 +42,7 @@ export default function GroupAuctionFlyer() {
   return (
     <div className="min-h-screen bg-white">
       {/* 工具列（不列印） */}
-      <div className="print:hidden flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-100">
+      <div className="print:hidden flex items-center gap-2 px-[3px] py-3 bg-gray-50 border-b border-gray-100">
         <button
           onClick={() => setMode("list")}
           className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg ${mode === "list" ? "bg-amber-500 text-white" : "bg-white text-gray-600 border"}`}>
@@ -61,7 +61,7 @@ export default function GroupAuctionFlyer() {
       </div>
 
       {/* 廣告單張主體 */}
-      <div className="max-w-2xl mx-auto px-6 py-8" style={{ fontFamily: "system-ui, sans-serif" }}>
+      <div className="max-w-2xl mx-auto px-[3px] py-8" style={{ fontFamily: "system-ui, sans-serif" }}>
         {/* 標題區 */}
         <div className="text-center mb-6">
           {round.coverImage && (
