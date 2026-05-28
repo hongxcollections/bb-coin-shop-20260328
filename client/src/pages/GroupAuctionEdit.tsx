@@ -8,7 +8,7 @@ import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
 import {
   ChevronLeft, Plus, Trash2, ArrowUp, ArrowDown, Upload,
-  Save, FileSpreadsheet, Download, GripVertical, Pencil, CheckSquare, Square, X,
+  Save, FileSpreadsheet, Download, GripVertical, Pencil, CheckSquare, Square, X, Check, ZoomIn,
 } from "lucide-react";
 
 const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$", JPY: "JP¥", GBP: "£", EUR: "€" };
@@ -119,6 +119,8 @@ export default function GroupAuctionEdit() {
   // 行內編輯
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [editFields, setEditFields] = useState<Record<string, string>>({});
+  const [editImageIds, setEditImageIds] = useState<number[]>([]);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   // ── tRPC ──
   const { data: roundData, isLoading, refetch } = trpc.groupAuctions.getMine.useQuery(
@@ -937,6 +939,9 @@ export default function GroupAuctionEdit() {
                               ef.__buyNowPrice = item.buyNowPrice ? String(item.buyNowPrice) : "";
                               ef.__bidIncrement = item.bidIncrement ? String(item.bidIncrement) : "";
                               setEditFields(ef);
+                              let ids: number[] = [];
+                              try { ids = JSON.parse((item as any).imageIdsJson ?? "[]"); } catch {}
+                              setEditImageIds(ids);
                             }}
                             className="p-1.5 text-blue-400 hover:text-blue-600"
                           >
@@ -1002,12 +1007,51 @@ export default function GroupAuctionEdit() {
                             onChange={e => setEditFields(p => ({ ...p, __bidIncrement: e.target.value }))}
                           />
                         </div>
+                        {/* 圖片選擇器 */}
+                        {images.length > 0 && (
+                          <div className="pt-1">
+                            <p className="text-xs text-gray-500 mb-1.5">關聯圖片（最多 10 張，點選）</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {images.map(img => {
+                                const sel = editImageIds.includes(img.id);
+                                return (
+                                  <button
+                                    key={img.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (sel) {
+                                        setEditImageIds(p => p.filter(id => id !== img.id));
+                                      } else if (editImageIds.length < 10) {
+                                        setEditImageIds(p => [...p, img.id]);
+                                      } else {
+                                        toast.info("最多可選 10 張圖片");
+                                      }
+                                    }}
+                                    className="relative flex-shrink-0"
+                                    style={{ width: 48, height: 48 }}
+                                  >
+                                    <img src={img.url} alt="" className="w-full h-full object-cover rounded-lg" style={{ border: sel ? "2px solid #f59e0b" : "2px solid #e5e7eb" }} />
+                                    {sel && (
+                                      <div className="absolute inset-0 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                                        <Check className="w-3.5 h-3.5 text-amber-600" />
+                                      </div>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {editImageIds.length > 0 && (
+                              <p className="text-[10px] text-amber-600 mt-1">已選 {editImageIds.length} 張</p>
+                            )}
+                          </div>
+                        )}
+
                         <div className="flex gap-2 pt-1">
                           <button
                             onClick={() => {
                               const colData: Record<string, string> = {};
                               columns.forEach(c => { colData[c.key] = editFields[c.key] ?? ""; });
-                              const patch: any = { id: item.id, dataJson: JSON.stringify(colData) };
+                              const patch: any = { id: item.id, dataJson: JSON.stringify(colData), imageIdsJson: JSON.stringify(editImageIds) };
                               if (!hasBids) {
                                 patch.startPrice = parseInt(editFields.__startPrice || "0", 10) || 0;
                                 const buyNowRaw = editFields.__buyNowPrice ? parseInt(editFields.__buyNowPrice, 10) : null;
@@ -1274,6 +1318,19 @@ export default function GroupAuctionEdit() {
         })()}
       </div>
       <BottomNav />
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/85 flex items-center justify-center"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <img src={lightboxUrl} alt="" className="max-w-full max-h-full object-contain rounded-lg" style={{ maxHeight: "90vh", maxWidth: "95vw" }} />
+          <button className="absolute top-4 right-4 text-white/70 hover:text-white" onClick={() => setLightboxUrl(null)}>
+            <X className="w-7 h-7" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -44,6 +44,7 @@ export default function GroupAuctionBidPage() {
   const { user, isAuthenticated } = useAuth();
   const [biddingItem, setBiddingItem] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "bid" | "nobid">("all");
   const [showDesc, setShowDesc] = useState(true);
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
@@ -77,6 +78,8 @@ export default function GroupAuctionBidPage() {
 
   const round = data?.round;
   const items = data?.items ?? [];
+  const roundImages = data?.images ?? [];
+  const imageMap = new Map(roundImages.map((img: any) => [img.id as number, img.url as string]));
   const roundCountdown = useCountdown(round?.endAt as string | null | undefined);
 
   const columns: ColumnDef[] = (() => {
@@ -370,6 +373,28 @@ export default function GroupAuctionBidPage() {
                   )}
                 </div>
 
+                {/* 關聯圖片縮圖行 */}
+                {(() => {
+                  let ids: number[] = [];
+                  try { ids = JSON.parse((item as any).imageIdsJson ?? "[]"); } catch {}
+                  const urls = ids.map(id => imageMap.get(id)).filter(Boolean) as string[];
+                  if (urls.length === 0) return null;
+                  return (
+                    <div className="flex gap-1 mt-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+                      {urls.map((url, i) => (
+                        <img
+                          key={i}
+                          src={url}
+                          alt=""
+                          className="flex-shrink-0 rounded-md object-cover cursor-pointer"
+                          style={{ width: 40, height: 40 }}
+                          onClick={e => { e.stopPropagation(); setLightboxUrl(url); }}
+                        />
+                      ))}
+                    </div>
+                  );
+                })()}
+
                 {/* Row 2: HK$ 從左齊（同順序號碼左邊拍齊） */}
                 <div className={`flex items-center gap-2 ${title && title.length > 10 ? "mt-[12px]" : "mt-1.5"}`}>
                   <div className="flex-1 min-w-0">
@@ -457,6 +482,22 @@ export default function GroupAuctionBidPage() {
           );
         })}
       </div>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/85 flex items-center justify-center"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <img src={lightboxUrl} alt="" className="object-contain rounded-lg" style={{ maxHeight: "90vh", maxWidth: "95vw" }} />
+          <button
+            className="absolute top-4 right-4 text-white/70 hover:text-white"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <span style={{ fontSize: 28, lineHeight: 1 }}>✕</span>
+          </button>
+        </div>
+      )}
 
       {/* 底部 */}
       {!isAuthenticated && !isEnded && (
