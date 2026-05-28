@@ -10441,6 +10441,22 @@ EXAMPLE OUTPUT (exact format):
         return { success: true };
       }),
 
+    /** 商戶：將場次所有商品的每口加價重設為 0（改用場次預設值） */
+    resetItemBidIncrements: protectedProcedure
+      .input(z.object({ roundId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round || (round.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin')) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        await db.update(groupAuctionItems)
+          .set({ bidIncrement: 0 })
+          .where(eq(groupAuctionItems.roundId, input.roundId));
+        return { success: true };
+      }),
+
     /** 商戶：結拍後匯出結果（兩種格式） */
     exportResults: protectedProcedure
       .input(z.object({

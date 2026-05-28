@@ -168,6 +168,10 @@ export default function GroupAuctionEdit() {
   const reorderItemsMut = trpc.groupAuctions.reorderItems.useMutation({
     onError: (e) => toast.error(e.message || "排序失敗"),
   });
+  const resetBidIncrementsMut = trpc.groupAuctions.resetItemBidIncrements.useMutation({
+    onSuccess: () => { toast.success("所有商品每口加價已重設為場次預設"); refetch(); },
+    onError: (e) => toast.error(e.message || "重設失敗"),
+  });
 
   // ── 載入現有場次資料 ──
   useEffect(() => {
@@ -742,6 +746,21 @@ export default function GroupAuctionEdit() {
                       className="flex items-center gap-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-xl"
                     >
                       <CheckSquare className="w-4 h-4" /> 批量刪除
+                    </button>
+                  )}
+                  {items.length > 0 && (
+                    <button
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: "重設所有商品每口加價",
+                          description: `將所有商品的個別每口加價清除，改用場次預設值（${basic.defaultBidIncrement || round?.defaultBidIncrement}）。此操作不可撤銷。`,
+                        });
+                        if (ok) resetBidIncrementsMut.mutate({ roundId: roundId! });
+                      }}
+                      disabled={resetBidIncrementsMut.isPending}
+                      className="flex items-center gap-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-xl"
+                    >
+                      套用場次預設加價至所有商品
                     </button>
                   )}
                 </>
