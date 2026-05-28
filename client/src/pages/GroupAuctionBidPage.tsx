@@ -40,7 +40,7 @@ const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$", J
 export default function GroupAuctionBidPage() {
   const params = useParams<{ roundId: string }>();
   const roundId = parseInt(params.roundId, 10);
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user, isAuthenticated } = useAuth();
   const [biddingItem, setBiddingItem] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
@@ -104,7 +104,7 @@ export default function GroupAuctionBidPage() {
   function handleBid(itemId: number, amount: number, itemTitle?: string, itemNumber?: number) {
     if (!isAuthenticated) {
       toast.error("請先登入才可出價");
-      setLocation("/login");
+      setLocation(`/login?from=${encodeURIComponent(location)}`);
       return;
     }
     // 商戶不可為自己的場次出價
@@ -435,7 +435,7 @@ export default function GroupAuctionBidPage() {
       {!isAuthenticated && !isEnded && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3">
           <button
-            onClick={() => setLocation("/login")}
+            onClick={() => setLocation(`/login?from=${encodeURIComponent(location)}`)}
             className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 rounded-2xl"
           >
             登入 / 註冊 以出價
