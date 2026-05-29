@@ -1341,7 +1341,7 @@ export default function GroupAuctionEdit() {
                 }
                 function renderItems(itemList: typeof soldItems, showBuyer: boolean) {
                   return (
-                    <div className="space-y-[5px] p-1">
+                    <div style={{ display: "flex", flexDirection: "column", gap: "5px", padding: "4px" }}>
                       {itemList.map((it) => {
                         const d = parseData(it);
                         const price = (it as any).finalPrice ?? 0;
@@ -1404,7 +1404,7 @@ export default function GroupAuctionEdit() {
               {!resultBuyerId && unsoldItems.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-gray-400 mb-2">流拍商品 ({unsoldItems.length})</p>
-                  <div className="space-y-[5px] p-1">
+                  <div style={{ display: "flex", flexDirection: "column", gap: "5px", padding: "4px" }}>
                     {unsoldItems.map(it => {
                       const d = parseData(it);
                       const startPrice = (it as any).startPrice ?? 0;
