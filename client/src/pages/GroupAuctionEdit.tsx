@@ -659,8 +659,8 @@ export default function GroupAuctionEdit() {
                         <img src={url} alt="" className="w-full aspect-square object-cover rounded-xl" />
                         <button
                           onClick={() => setPromoImages(p => p.filter((_, j) => j !== i))}
-                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-[11px] flex items-center justify-center shadow"
-                        >✕</button>
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center shadow"
+                        ><Trash2 className="w-3 h-3" /></button>
                       </div>
                     ))}
                   </div>

@@ -278,8 +278,8 @@ function ImageUploadZone({
             <div key={`up-${i}`} className="relative aspect-square rounded-md overflow-hidden border bg-muted">
               <img src={img.url} alt="" className="w-full h-full object-cover" />
               <button onClick={() => onRemoveUploaded(i)}
-                className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5">
-                <X className="w-3 h-3 text-white" />
+                className="absolute top-0.5 right-0.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center shadow hover:bg-red-600">
+                <Trash2 className="w-3 h-3" />
               </button>
             </div>
           ))}
@@ -304,8 +304,8 @@ function ImageUploadZone({
                 </div>
               )}
               <button onClick={() => onRemovePending(i)}
-                className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5">
-                <X className="w-3 h-3 text-white" />
+                className="absolute top-0.5 right-0.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center shadow hover:bg-red-600">
+                <Trash2 className="w-3 h-3" />
               </button>
             </div>
           ))}
