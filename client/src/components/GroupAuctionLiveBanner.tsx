@@ -199,7 +199,7 @@ export function GroupAuctionLiveBanner({ round }: { round: LiveRound }) {
     ? `${endDate.getMonth() + 1}月${endDate.getDate()}日 ${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}`
     : null;
 
-  const promoImgs = (round.promoImages ?? []).slice(0, 5);
+  const promoImgs = (round.promoImages ?? []).slice(0, 8);
 
   // 同 GroupAuctionBidPage 一樣：隨機排列推廣圖作 banner 背景裝飾
   const promoLayout = React.useMemo(() => {
@@ -297,7 +297,7 @@ export function GroupAuctionLiveBanner({ round }: { round: LiveRound }) {
 
       {/* 圓圈圖片列：rowGap 已由外層 flex-col 控制為 5px，圖片之間亦 5px */}
       {promoImgs.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "row", gap: "5px", overflowX: "auto", scrollbarWidth: "none", paddingLeft: 4 }}>
+        <div style={{ display: "flex", flexDirection: "row", gap: "5px", overflowX: "auto", scrollbarWidth: "none", paddingLeft: 4, justifyContent: "flex-end" }}>
           {promoImgs.map((url, i) => (
             <button
               key={i}
