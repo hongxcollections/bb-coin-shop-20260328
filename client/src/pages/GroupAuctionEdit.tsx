@@ -461,19 +461,6 @@ export default function GroupAuctionEdit() {
           )}
         </div>
 
-        {/* 結拍後快速連結 */}
-        {round?.status === "ended" && roundId && (
-          <div className="flex gap-2 mb-4">
-            <a href={`/merchant/group-auctions/${roundId}/export?format=by_order`}
-              className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-xl">
-              <Download className="w-3 h-3" /> 匯出 CSV（序號）
-            </a>
-            <a href={`/merchant/group-auctions/${roundId}/export?format=by_buyer`}
-              className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-xl">
-              <Download className="w-3 h-3" /> 匯出 CSV（買家）
-            </a>
-          </div>
-        )}
 
         {/* Tabs */}
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-4">
@@ -927,12 +914,6 @@ export default function GroupAuctionEdit() {
                   >
                     <X className="w-3.5 h-3.5" /> 取消
                   </button>
-                </>
-              )}
-              {round?.status === "ended" && (
-                <>
-                  <ExportCsvButton roundId={roundId} format="by_order" label="匯出（序號）" columns={columns} />
-                  <ExportCsvButton roundId={roundId} format="by_buyer" label="匯出（買家）" columns={columns} />
                 </>
               )}
             </div>
