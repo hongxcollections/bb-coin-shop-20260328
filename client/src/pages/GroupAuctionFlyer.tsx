@@ -181,7 +181,7 @@ export default function GroupAuctionFlyer() {
             )}
           </div>
           <div className="flex flex-col items-center gap-1 flex-shrink-0">
-            <QRCodeSVG value={bidUrl} size={80} />
+            <QRCodeSVG value={bidUrl} size={80} fgColor="#92400e" />
             <p className="text-[10px] text-gray-500 text-center">長按識別二維碼<br />進入出價頁</p>
           </div>
         </div>

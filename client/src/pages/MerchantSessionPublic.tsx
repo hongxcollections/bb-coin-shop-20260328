@@ -231,7 +231,7 @@ export default function MerchantSessionPublic() {
             </DialogHeader>
             <div className="flex flex-col items-center gap-3 py-2">
               <div id="session-qr-svg-wrap" className="bg-white p-3 rounded-lg border border-gray-200">
-                <QRCodeSVG value={`https://hongxcollections.com/s/${merchantUserId}/${slug}`} size={200} level="M" />
+                <QRCodeSVG value={`https://hongxcollections.com/s/${merchantUserId}/${slug}`} size={200} level="M" fgColor="#92400e" />
               </div>
               <p className="text-[11px] text-gray-500 text-center break-all px-2">https://hongxcollections.com/s/{merchantUserId}/{slug}</p>
               <p className="text-xs text-gray-600 text-center">用手機掃 QR Code 即可入場</p>
