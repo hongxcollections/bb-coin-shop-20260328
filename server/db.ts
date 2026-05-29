@@ -7314,7 +7314,13 @@ export async function getGroupAuctionRoundForOg(roundId: number): Promise<{ titl
     const db = await getDb();
     if (!db) return null;
     const rows = await db
-      .select({ title: groupAuctionRounds.title, coverImage: groupAuctionRounds.coverImage, endAt: groupAuctionRounds.endAt, status: groupAuctionRounds.status })
+      .select({
+        title: groupAuctionRounds.title,
+        coverImage: groupAuctionRounds.coverImage,
+        promoImagesJson: groupAuctionRounds.promoImagesJson,
+        endAt: groupAuctionRounds.endAt,
+        status: groupAuctionRounds.status,
+      })
       .from(groupAuctionRounds)
       .where(eq(groupAuctionRounds.id, roundId))
       .limit(1);
@@ -7324,7 +7330,15 @@ export async function getGroupAuctionRoundForOg(roundId: number): Promise<{ titl
       .from(groupAuctionItems)
       .where(eq(groupAuctionItems.roundId, roundId));
     const itemCount = Number((countRows[0] as any)?.cnt ?? 0);
-    return { ...rows[0], itemCount };
+    // coverImage 優先；若無則 fallback 至 promoImagesJson 第一張
+    let effectiveCoverImage = rows[0].coverImage;
+    if (!effectiveCoverImage && rows[0].promoImagesJson) {
+      try {
+        const promoUrls: string[] = JSON.parse(rows[0].promoImagesJson);
+        if (promoUrls.length > 0) effectiveCoverImage = promoUrls[0];
+      } catch { /* ignore */ }
+    }
+    return { title: rows[0].title, coverImage: effectiveCoverImage, endAt: rows[0].endAt, status: rows[0].status, itemCount };
   } catch (e) {
     console.error('[db] getGroupAuctionRoundForOg error:', e);
     return null;
