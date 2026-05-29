@@ -355,13 +355,13 @@ export default function GroupAuctionEdit() {
 
   // ── CSV 解析（支援半形逗號、全形逗號、Tab） ──
   function parseCsv(text: string) {
-    const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+    // 先把全形逗號統一轉半形，確保混用時正常解析
+    const normalized = text.replace(/，/g, ",");
+    const lines = normalized.trim().split(/\r?\n/).filter(l => l.trim());
     if (lines.length < 2) { toast.error("CSV 至少要有標題行和一行資料"); return; }
-    // 自動偵測分隔符：優先 Tab，其次半形逗號，最後全形逗號
+    // 自動偵測分隔符：優先 Tab，其次半形逗號
     const firstLine = lines[0];
-    const delim = firstLine.includes("\t") ? "\t"
-      : firstLine.includes(",") ? ","
-      : "，";
+    const delim = firstLine.includes("\t") ? "\t" : ",";
     const splitLine = (l: string) =>
       l.split(delim).map(c => c.trim().replace(/^"|"$/g, ""));
     const headers = splitLine(firstLine);
@@ -941,7 +941,7 @@ export default function GroupAuctionEdit() {
             {showCsvImport && (
               <div className="bg-white rounded-2xl border border-amber-100 p-4 space-y-3">
                 <p className="text-sm font-semibold text-gray-700">匯入 CSV</p>
-                <p className="text-xs text-gray-500">貼上 CSV 內容（第一行為標題行，支援半形逗號、全形逗號、Tab）</p>
+                <p className="text-xs text-gray-500">貼上 CSV 內容（第一行為標題行，支援逗號「,」「，」及 Tab 分隔）</p>
                 <textarea
                   className="w-full px-3 py-2 text-xs outline-none resize-none font-mono"
                   style={inputStyle}
