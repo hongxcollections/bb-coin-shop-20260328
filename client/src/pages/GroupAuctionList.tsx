@@ -33,6 +33,8 @@ export default function GroupAuctionList() {
     enabled: !!user,
   });
 
+  const { data: merchantApp } = trpc.merchants.myApplication.useQuery(undefined, { enabled: !!user });
+
   const deleteMut = trpc.groupAuctions.deleteRound.useMutation({
     onSuccess: () => { toast.success("已刪除"); refetch(); },
     onError: (e) => toast.error(e.message || "刪除失敗"),
@@ -217,8 +219,8 @@ export default function GroupAuctionList() {
           open={!!posterRound}
           onClose={() => setPosterRound(null)}
           round={posterRound}
-          merchantName={(user as any)?.name}
-          merchantAvatar={(user as any)?.photoUrl}
+          merchantName={(merchantApp as any)?.merchantName ?? (user as any)?.name}
+          merchantAvatar={(merchantApp as any)?.merchantIcon || (user as any)?.photoUrl}
         />
       )}
     </div>

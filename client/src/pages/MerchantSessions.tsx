@@ -50,6 +50,7 @@ export default function MerchantSessions() {
   });
 
   const { data: merchantSettings } = trpc.merchants.getSettings.useQuery(undefined, { enabled: !!user });
+  const { data: merchantApp } = trpc.merchants.myApplication.useQuery(undefined, { enabled: !!user });
 
   useEffect(() => {
     if (!merchantSettings) return;
@@ -318,8 +319,8 @@ export default function MerchantSessions() {
           onClose={() => setPosterSession(null)}
           session={{ ...posterSession, startAt: posterSession.createdAt }}
           merchantUserId={user.id}
-          merchantName={(user as any)?.name}
-          merchantAvatar={(user as any)?.photoUrl}
+          merchantName={(merchantApp as any)?.merchantName ?? (user as any)?.name}
+          merchantAvatar={(merchantApp as any)?.merchantIcon || (user as any)?.photoUrl}
         />
       )}
     </div>

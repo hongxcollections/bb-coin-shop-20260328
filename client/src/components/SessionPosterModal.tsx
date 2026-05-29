@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { QRCodeSVG } from "qrcode.react";
-import { Copy, Check } from "lucide-react";
+import { QRCodeCanvas } from "qrcode.react";
+import { Copy, Check, Download } from "lucide-react";
 import { toast } from "sonner";
 
 interface SessionPosterProps {
@@ -31,6 +31,7 @@ function fmtDate(d: string | Date | null | undefined) {
 export function SessionPosterModal({ open, onClose, session, merchantUserId, merchantName, merchantAvatar }: SessionPosterProps) {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedMsg, setCopiedMsg] = useState(false);
+  const qrRef = useRef<HTMLCanvasElement>(null);
 
   const fullUrl = `https://hongxcollections.com/s/${merchantUserId}/${session.slug}`;
   const shortUrl = `hongxcollections.com/s/${merchantUserId}/${session.slug}`;
@@ -59,6 +60,16 @@ export function SessionPosterModal({ open, onClose, session, merchantUserId, mer
       toast.success("推廣訊息已複製，可直接貼入微信群");
       setTimeout(() => setCopiedMsg(false), 2500);
     });
+  }
+
+  function downloadQr() {
+    const canvas = qrRef.current;
+    if (!canvas) return;
+    const url = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `qr-session-${session.slug}.png`;
+    a.click();
   }
 
   return (
@@ -117,7 +128,7 @@ export function SessionPosterModal({ open, onClose, session, merchantUserId, mer
           {/* QR Code */}
           <div className="bg-white flex justify-center pb-3 pt-2">
             <div className="p-2 rounded-xl inline-block" style={{ border: "1.5px solid #fde68a" }}>
-              <QRCodeSVG value={fullUrl} size={136} fgColor="#92400e" bgColor="#ffffff" level="M" />
+              <QRCodeCanvas ref={qrRef} value={fullUrl} size={136} fgColor="#92400e" bgColor="#ffffff" level="M" />
             </div>
           </div>
 
@@ -137,6 +148,10 @@ export function SessionPosterModal({ open, onClose, session, merchantUserId, mer
 
         {/* ── 快捷操作按鈕 ── */}
         <div className="px-4 pb-4 flex flex-col gap-2">
+          <Button variant="outline" className="w-full text-sm h-9" onClick={downloadQr}>
+            <Download className="w-4 h-4 mr-2" />
+            下載 QR Code
+          </Button>
           <Button variant="outline" className="w-full text-sm h-9" onClick={copyLink}>
             {copiedLink ? <Check className="w-4 h-4 mr-2 text-green-600" /> : <Copy className="w-4 h-4 mr-2" />}
             複製專場連結
