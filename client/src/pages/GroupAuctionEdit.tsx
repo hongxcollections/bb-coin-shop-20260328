@@ -649,11 +649,11 @@ export default function GroupAuctionEdit() {
                 {promoImages.length > 0 && (
                   <div className="grid grid-cols-5 gap-2">
                     {promoImages.map((url, i) => (
-                      <div key={i} className="relative group">
+                      <div key={i} className="relative">
                         <img src={url} alt="" className="w-full aspect-square object-cover rounded-xl" />
                         <button
                           onClick={() => setPromoImages(p => p.filter((_, j) => j !== i))}
-                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-[11px] flex items-center justify-center shadow"
                         >✕</button>
                       </div>
                     ))}
