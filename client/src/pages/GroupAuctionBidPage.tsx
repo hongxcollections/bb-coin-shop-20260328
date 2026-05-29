@@ -326,14 +326,34 @@ export default function GroupAuctionBidPage() {
       {/* 尚未開拍提示 */}
       {!isStarted && round.startAt && (
         <div className="mx-[3px] mt-[20px] border border-sky-200 rounded-xl p-3 text-center relative overflow-hidden" style={{ background: "linear-gradient(180deg, #f0f9ff 0%, #bae6fd 100%)" }}>
+          {/* 宣傳圖片背景（同頂部 banner 方式） */}
+          {promoLayout.map((p, i) => (
+            <img
+              key={i}
+              src={p.url}
+              alt=""
+              aria-hidden="true"
+              className="absolute object-cover rounded-lg pointer-events-none select-none"
+              style={{
+                left: `${p.x}%`,
+                top: `${p.y}%`,
+                width: p.size,
+                height: p.size,
+                opacity: p.opacity,
+                transform: `rotate(${p.rot}deg)`,
+              }}
+            />
+          ))}
           {/* 由左至右緩慢閃亮效果 */}
           <div
             className="shimmer-slide absolute inset-0 pointer-events-none"
             style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)" }}
           />
-          <p className="text-sm font-bold text-sky-700">場次預展</p>
-          <p className="text-xs text-sky-500 mt-1">開拍時間：{fmtDate(round.startAt as string)} 至 {fmtDate(round.endAt as string)}</p>
-          <p className="text-xs text-sky-600 font-mono font-semibold mt-1">{startCdStr}</p>
+          <div className="relative z-10">
+            <p className="text-sm font-bold text-sky-700">場次預展</p>
+            <p className="text-xs text-sky-500 mt-1">開拍時間：{fmtDate(round.startAt as string)} 至 {fmtDate(round.endAt as string)}</p>
+            <p className="text-xs text-sky-600 font-mono font-semibold mt-1">{startCdStr}</p>
+          </div>
         </div>
       )}
 
@@ -352,7 +372,7 @@ export default function GroupAuctionBidPage() {
             </p>
           )}
           <p className={`text-xs text-amber-600${(round.description || round.antiSnipeMode !== 'none') ? ' mt-[3px]' : ''}`}>
-            每口加幅：{displayPrice(round.defaultBidIncrement)}{commRate > 0 ? `　買家傭金：${(commRate * 100) % 1 === 0 ? (commRate * 100).toFixed(0) : (commRate * 100).toFixed(1)}%` : ''}
+            每口加幅：{displayPrice(round.defaultBidIncrement)}（或個別加幅設定可能不同）{commRate > 0 ? `　買家傭金：${(commRate * 100) % 1 === 0 ? (commRate * 100).toFixed(0) : (commRate * 100).toFixed(1)}%` : ''}
           </p>
         </div>
       )}
