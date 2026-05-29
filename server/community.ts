@@ -200,7 +200,7 @@ export async function listCollectionPosts(input: {
       cp.displayAuthor,
       cp.createdAt,
       u.name AS authorName,
-      COALESCE(NULLIF(TRIM(u.photoUrl),''), NULLIF(TRIM((SELECT ma2.merchantIcon FROM merchantApplications ma2 WHERE ma2.userId = cp.userId AND ma2.status = 'approved' ORDER BY ma2.id DESC LIMIT 1)),'')) AS authorPhoto,
+      COALESCE(NULLIF(TRIM((SELECT ma2.merchantIcon FROM merchantApplications ma2 WHERE ma2.userId = cp.userId AND ma2.status = 'approved' ORDER BY ma2.id DESC LIMIT 1)),''), NULLIF(TRIM(u.photoUrl),'')) AS authorPhoto,
       u.memberLevel AS authorMemberLevel,
       (SELECT cpi.imageUrl FROM collectionPostImages cpi WHERE cpi.postId = cp.id ORDER BY cpi.displayOrder, cpi.id LIMIT 1) AS coverImage,
       (SELECT COUNT(*) FROM collectionPostImages cpi WHERE cpi.postId = cp.id) AS imageCount
@@ -282,8 +282,19 @@ export async function getCollectionPostDetail(postId: number, viewerUserId: numb
     .where(eq(collectionPostImages.postId, postId))
     .orderBy(collectionPostImages.displayOrder, collectionPostImages.id);
 
-  // author info
-  const authorRowsRaw: any = await db.execute(sql`SELECT id, name, photoUrl, memberLevel FROM users WHERE id = ${post.userId} LIMIT 1`);
+  // author info（商戶優先用 merchantIcon，否則用 users.photoUrl）
+  const authorRowsRaw: any = await db.execute(sql`
+    SELECT u.id, u.name,
+      COALESCE(
+        NULLIF(TRIM(ma.merchantIcon), ''),
+        NULLIF(TRIM(u.photoUrl), '')
+      ) AS photoUrl,
+      u.memberLevel
+    FROM users u
+    LEFT JOIN merchantApplications ma ON ma.userId = u.id AND ma.status = 'approved'
+    WHERE u.id = ${post.userId}
+    LIMIT 1
+  `);
   const authorRows = (Array.isArray(authorRowsRaw) ? authorRowsRaw[0] : authorRowsRaw) as any[];
   const author = authorRows?.[0] ?? null;
 
