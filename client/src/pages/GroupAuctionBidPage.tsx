@@ -196,7 +196,7 @@ export default function GroupAuctionBidPage() {
       {/* Fixed 標題欄 + 篩選列 */}
       <div ref={headerRef} className="fixed top-0 left-0 right-0 z-30">
         {/* 橙色 Banner */}
-        <div className="text-white px-4 pt-[15px] pb-3 mx-2 mt-2 rounded-2xl relative overflow-hidden" style={{ background: "linear-gradient(90deg, #ea580c 0%, #f97316 40%, #fb923c 70%, #fbbf24 100%)" }}>
+        <div className="text-white px-4 pt-[15px] pb-3 mx-2 rounded-2xl relative overflow-hidden" style={{ background: "linear-gradient(90deg, #ea580c 0%, #f97316 40%, #fb923c 70%, #fbbf24 100%)" }}>
           {/* 推廣圖片背景 */}
           {promoLayout.map((p, i) => (
             <img
