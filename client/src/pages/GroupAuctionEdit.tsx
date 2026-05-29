@@ -7,7 +7,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
 import {
-  ChevronLeft, Plus, Trash2, ArrowUp, ArrowDown, Upload,
+  ChevronLeft, ChevronDown, Plus, Trash2, ArrowUp, ArrowDown, Upload,
   Save, FileSpreadsheet, Download, GripVertical, Pencil, CheckSquare, Square, X, Check, ZoomIn,
 } from "lucide-react";
 
@@ -75,6 +75,7 @@ export default function GroupAuctionEdit() {
   );
   const [resultSortDir, setResultSortDir] = useState<"desc" | "asc">("desc");
   const [resultBuyerId, setResultBuyerId] = useState<number | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   // ── 基本設定 state ──
   const [basic, setBasic] = useState({
@@ -1316,94 +1317,94 @@ export default function GroupAuctionEdit() {
                 >
                   成交價：{resultSortDir === "desc" ? "高→低" : "低→高"}
                 </button>
-                {resultBuyerId && (
+                <div className="ml-auto">
                   <button
-                    onClick={() => setResultBuyerId(null)}
-                    className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-500 px-3 py-1.5 rounded-lg"
-                  >
-                    取消
-                  </button>
-                )}
-                <div className="ml-auto flex gap-2">
-                  <button
-                    onClick={() => doPrint(resultBuyerId)}
+                    onClick={() => doPrint(null)}
                     className="flex items-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-xl"
                   >
-                    <Download className="w-3 h-3" /> {resultBuyerId ? "打印此買家" : "打印全場"}
+                    <Download className="w-3 h-3" /> 打印全場
                   </button>
                 </div>
               </div>
 
-              {/* Buyer filter pills */}
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setResultBuyerId(null)}
-                  className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${!resultBuyerId ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
-                >
-                  全部 ({soldItems.length})
-                </button>
-                {winners.map(([uid, w]) => {
-                  const cnt = soldItems.filter(it => (it as any).winnerId === uid).length;
-                  return (
-                    <button
-                      key={uid}
-                      onClick={() => setResultBuyerId(resultBuyerId === uid ? null : uid)}
-                      className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${resultBuyerId === uid ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
-                    >
-                      {w.name} ({cnt})
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Selected buyer summary bar */}
-              {resultBuyerId && (
-                <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-                  <p className="text-sm font-semibold text-amber-900">{winnerMap.get(resultBuyerId)?.name}</p>
-                  <p className="text-xs text-amber-700 mt-0.5">
-                    得標 {filteredSold.length} 件 · 成交 HK${filteredAmt.toLocaleString()}
-                    {commRate > 0 && ` · 買家傭金 HK$${filteredComm.toLocaleString()} · 合計 HK$${(filteredAmt + filteredComm).toLocaleString()}`}
-                  </p>
-                </div>
-              )}
-
-              {/* Sold items */}
-              {filteredSold.length === 0 && soldItems.length === 0 && (
+              {/* Sold items — accordion per buyer */}
+              {soldItems.length === 0 && (
                 <div className="text-center py-10 text-gray-400 text-sm">此場次暫無得標紀錄</div>
               )}
-              {filteredSold.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-2">有成交商品 ({filteredSold.length})</p>
-                  <div className="space-y-[3px]">
-                    {filteredSold.map(it => {
-                      const d = parseData(it);
-                      const price = (it as any).finalPrice ?? 0;
-                      const comm = Math.round(price * commRate);
-                      const buyer = (it as any).winnerName ?? "";
-                      return (
-                        <div key={(it as any).id} className="bg-white rounded-xl border border-green-300 p-3">
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
-                            {showCols.map(c => (
-                              <div key={c.key} className="text-xs">
-                                <span className="text-gray-400">{c.label}：</span>
-                                <span className="text-gray-800">{d[c.key] ?? "—"}</span>
+              {soldItems.length > 0 && (() => {
+                function toggleSection(key: string) {
+                  setCollapsedSections(prev => {
+                    const next = new Set(prev);
+                    if (next.has(key)) next.delete(key); else next.add(key);
+                    return next;
+                  });
+                }
+                function renderItems(itemList: typeof soldItems, showBuyer: boolean) {
+                  return (
+                    <div className="space-y-[3px] p-2">
+                      {itemList.map(it => {
+                        const d = parseData(it);
+                        const price = (it as any).finalPrice ?? 0;
+                        const comm = Math.round(price * commRate);
+                        const buyer = (it as any).winnerName ?? "";
+                        return (
+                          <div key={(it as any).id} className="bg-white rounded-xl border border-green-300 p-3">
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
+                              {showCols.map(c => (
+                                <div key={c.key} className="text-xs">
+                                  <span className="text-gray-400">{c.label}：</span>
+                                  <span className="text-gray-800">{d[c.key] ?? "—"}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex items-center justify-between flex-wrap gap-1 pt-1.5 border-t border-gray-50">
+                              {showBuyer && <span className="text-xs text-gray-400">買家：{buyer}</span>}
+                              <div className="text-xs ml-auto text-right">
+                                <span className="text-gray-600">HK${price.toLocaleString()}</span>
+                                {commRate > 0 && <span className="text-gray-400"> + 買家傭({commPct}%) HK${comm.toLocaleString()}</span>}
+                                <span className="font-bold text-gray-900 ml-1">= HK${(price + comm).toLocaleString()}</span>
                               </div>
-                            ))}
-                          </div>
-                          <div className="flex items-center justify-between flex-wrap gap-1 pt-1.5 border-t border-gray-50">
-                            {!resultBuyerId && <span className="text-xs text-gray-400">買家：{buyer}</span>}
-                            <div className="text-xs ml-auto text-right">
-                              <span className="text-gray-600">HK${price.toLocaleString()}</span>
-                              {commRate > 0 && <span className="text-gray-400"> + 買家傭({commPct}%) HK${comm.toLocaleString()}</span>}
-                              <span className="font-bold text-gray-900 ml-1">= HK${(price + comm).toLocaleString()}</span>
                             </div>
                           </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+                const sections: { key: string; label: string; items: typeof soldItems; showBuyer: boolean }[] = [
+                  { key: "all", label: `全部 (${soldItems.length})`, items: soldItems, showBuyer: true },
+                  ...winners.map(([uid, w]) => {
+                    const buyerItems = soldItems.filter(it => (it as any).winnerId === uid);
+                    const buyerAmt = buyerItems.reduce((s, it) => s + ((it as any).finalPrice ?? 0), 0);
+                    const buyerComm = Math.round(buyerAmt * commRate);
+                    return {
+                      key: String(uid),
+                      label: `${w.name} (${buyerItems.length})${commRate > 0 ? ` · HK$${buyerAmt.toLocaleString()} + 傭 HK$${buyerComm.toLocaleString()} = HK$${(buyerAmt + buyerComm).toLocaleString()}` : ` · 成交 HK$${buyerAmt.toLocaleString()}`}`,
+                      items: buyerItems,
+                      showBuyer: false,
+                    };
+                  }),
+                ];
+                return (
+                  <div className="space-y-2">
+                    {sections.map(sec => {
+                      const isCollapsed = collapsedSections.has(sec.key);
+                      return (
+                        <div key={sec.key} className="border border-gray-200 rounded-xl overflow-hidden">
+                          <button
+                            onClick={() => toggleSection(sec.key)}
+                            className="w-full flex items-center justify-between px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-left"
+                          >
+                            <span className="text-xs font-semibold text-gray-700">{sec.label}</span>
+                            <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-150 ${isCollapsed ? "-rotate-90" : ""}`} />
+                          </button>
+                          {!isCollapsed && renderItems(sec.items, sec.showBuyer)}
                         </div>
                       );
                     })}
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Unsold items */}
               {!resultBuyerId && unsoldItems.length > 0 && (
