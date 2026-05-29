@@ -10627,6 +10627,19 @@ EXAMPLE OUTPUT (exact format):
         if (!round || round.status === 'draft') {
           throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在或未發布' });
         }
+        // 拉商戶 name + icon
+        const { merchantApplications } = await import('../drizzle/schema');
+        const [merchantRow] = await db.select({
+          merchantName: merchantApplications.merchantName,
+          merchantIcon: merchantApplications.merchantIcon,
+        }).from(merchantApplications)
+          .where(eq(merchantApplications.userId, round.merchantUserId))
+          .limit(1);
+        const roundWithMerchant = {
+          ...round,
+          merchantName: merchantRow?.merchantName ?? null,
+          merchantIcon: merchantRow?.merchantIcon ?? null,
+        };
         const items = await db.select().from(groupAuctionItems)
           .where(eq(groupAuctionItems.roundId, input.roundId))
           .orderBy(asc(groupAuctionItems.displayOrder), asc(groupAuctionItems.id));
@@ -10634,7 +10647,7 @@ EXAMPLE OUTPUT (exact format):
           .where(eq(groupAuctionImages.roundId, input.roundId))
           .orderBy(asc(groupAuctionImages.displayOrder));
         // 批量拉所有商品出價（一次 query，避免 N+1）
-        if (items.length === 0) return { round, items: [], images };
+        if (items.length === 0) return { round: roundWithMerchant, items: [], images };
         const { inArray } = await import('drizzle-orm');
         const itemIds = items.map(i => i.id);
 
@@ -10668,7 +10681,7 @@ EXAMPLE OUTPUT (exact format):
             bidCount: bidCountByItem.get(item.id) ?? 0,
           };
         });
-        return { round, items: itemsWithBids, images };
+        return { round: roundWithMerchant, items: itemsWithBids, images };
       }),
 
     /** 公開（需登入）：出價 */

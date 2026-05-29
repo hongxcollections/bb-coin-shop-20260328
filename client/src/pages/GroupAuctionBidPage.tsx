@@ -215,35 +215,66 @@ export default function GroupAuctionBidPage() {
               }}
             />
           ))}
-          <div className="flex items-start justify-between gap-2 relative z-10">
-            <div>
-              <p className="text-xs opacity-80">{round.periodNumber ? `第 ${round.periodNumber} 期` : "團購拍賣"}</p>
-              <h1 className="text-lg font-bold leading-tight">{round.title}</h1>
-            </div>
-            <a href={`/group/${roundId}/flyer`} target="_blank"
-              className="flex items-center gap-1 text-xs bg-white/20 hover:bg-white/30 px-2 py-1 rounded-lg flex-shrink-0">
-              <ExternalLink className="w-3 h-3" /> 廣告頁
-            </a>
-          </div>
-          <div className="mt-2 flex items-center gap-2 relative z-10">
-            <div className={`flex items-center gap-1.5 text-sm font-bold px-3 py-1 rounded-full ${isEnded ? "bg-gray-800/40" : "bg-white/20"}`}>
-              <Clock className="w-3.5 h-3.5" />
-              {isEnded ? "已結拍" : roundCountdown}
-            </div>
-            <span className="text-xs opacity-70">結拍：{fmtDate(round.endAt)}</span>
-          </div>
-          <div className="flex items-center justify-between mt-1.5 relative z-10">
-            <div className="flex gap-3 text-xs opacity-80">
-              <span>共 {items.length} 件</span>
-              <span>成交 {items.filter(i => i.status === "sold").length} 件</span>
-              <span>進行中 {items.filter(i => i.status === "active").length} 件</span>
-            </div>
-            {user && myTotalAmount > 0 && (
-              <div className="text-right leading-tight">
-                <p className="text-[10px] opacity-75">總需付</p>
-                <p style={{ fontSize: "20px" }} className="font-bold leading-none">{displayPrice(myTotalAmount)}</p>
+          <div className="relative z-10">
+            {/* 商戶頭像 + 名稱 */}
+            {(round as any).merchantName && (
+              <div className="flex items-center gap-1.5 mb-2">
+                {(round as any).merchantIcon ? (
+                  <img
+                    src={(round as any).merchantIcon}
+                    alt=""
+                    className="w-5 h-5 rounded-full object-cover border border-white/40 shrink-0"
+                  />
+                ) : (
+                  <div className="w-5 h-5 rounded-full bg-white/30 shrink-0" />
+                )}
+                <span className="text-white/90 text-[11px] font-semibold truncate max-w-[160px]">
+                  {(round as any).merchantName}
+                </span>
               </div>
             )}
+
+            {/* Badge + 廣告頁 */}
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="inline-flex items-center gap-1 bg-black/20 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full tracking-widest uppercase">
+                🛒 {round.periodNumber ? `第 ${round.periodNumber} 期` : "團購拍賣"}
+              </span>
+              <a href={`/group/${roundId}/flyer`} target="_blank"
+                className="text-white/75 text-[11px] font-medium flex items-center gap-1">
+                廣告頁 <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            {/* 場次名稱 */}
+            <h1 className="text-white font-extrabold text-[18px] leading-snug mb-2.5 drop-shadow-sm">
+              {round.title}
+            </h1>
+
+            {/* 倒數 + 結拍時間 */}
+            <div className="flex items-center gap-2 flex-wrap mb-2">
+              <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-black tracking-tight text-white ${isEnded ? "bg-gray-800/40" : "bg-black/25"}`}>
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                {isEnded ? "已結拍" : roundCountdown}
+              </div>
+              <span className="text-white/85 text-[11px] font-semibold">
+                結拍：{fmtDate(round.endAt)}
+              </span>
+            </div>
+
+            {/* 統計 + 總需付 */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4 text-white/90 text-[12px] font-semibold">
+                <span>共 <strong className="text-white text-[13px]">{items.length}</strong> 件</span>
+                <span>成交 <strong className="text-white text-[13px]">{items.filter(i => i.status === "sold").length}</strong> 件</span>
+                <span>進行中 <strong className="text-white text-[13px]">{items.filter(i => i.status === "active").length}</strong> 件</span>
+              </div>
+              {user && myTotalAmount > 0 && (
+                <div className="text-right leading-tight">
+                  <p className="text-white/75 text-[10px]">總需付</p>
+                  <p style={{ fontSize: "20px" }} className="text-white font-bold leading-none">{displayPrice(myTotalAmount)}</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
