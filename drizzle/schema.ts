@@ -253,6 +253,7 @@ export const depositTransactions = mysqlTable("deposit_transactions", {
   balanceAfter: decimal("balanceAfter", { precision: 12, scale: 2 }).notNull(),
   description: text("description"),
   relatedAuctionId: int("relatedAuctionId"),
+  relatedGroupAuctionRoundId: int("relatedGroupAuctionRoundId"),
   createdBy: int("createdBy"), // admin who performed the action
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

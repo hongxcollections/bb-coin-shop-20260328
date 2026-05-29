@@ -82,6 +82,14 @@ async function bootstrapMissingColumns() {
     }
   };
 
+  // deposit_transactions: 新增團拍場次關聯欄
+  if (!(await check('deposit_transactions', 'relatedGroupAuctionRoundId'))) {
+    await alter(
+      'ALTER TABLE `deposit_transactions` ADD COLUMN `relatedGroupAuctionRoundId` int NULL',
+      'Added relatedGroupAuctionRoundId to deposit_transactions'
+    );
+  }
+
   // seller_deposits
   if (!(await check('seller_deposits', 'warningDeposit'))) {
     await alter(
@@ -2104,6 +2112,64 @@ Output ONLY the JSON, nothing else.`;
       }
     } catch (err) {
       console.error('[Scheduler] auto-end sessions error:', err);
+    }
+  }, 5 * 60 * 1000);
+
+  // ── 團拍場次自動結拍（每 5 分鐘掃描 endAt < now 且 status='published'）───────
+  setInterval(async () => {
+    try {
+      const db = await (await import('../db')).getDb();
+      if (!db) return;
+      const { groupAuctionRounds, groupAuctionItems } = await import('../../drizzle/schema');
+      const { eq, and, lt, inArray } = await import('drizzle-orm');
+      const { autoDeductGroupAuctionCommission } = await import('../db');
+
+      const now = new Date();
+      const toEnd = await db
+        .select({ id: groupAuctionRounds.id })
+        .from(groupAuctionRounds)
+        .where(
+          and(
+            eq(groupAuctionRounds.status, 'published'),
+            lt(groupAuctionRounds.endAt, now)
+          )
+        );
+
+      if (toEnd.length === 0) return;
+
+      const ids = toEnd.map(r => r.id);
+
+      // 標記場次為 ended
+      await db.update(groupAuctionRounds)
+        .set({ status: 'ended' })
+        .where(inArray(groupAuctionRounds.id, ids));
+
+      // 每個場次：active 商品按有否出價標 sold / unsold
+      for (const { id } of toEnd) {
+        try {
+          const items = await db
+            .select({ id: groupAuctionItems.id, winnerId: groupAuctionItems.winnerId, status: groupAuctionItems.status })
+            .from(groupAuctionItems)
+            .where(and(eq(groupAuctionItems.roundId, id), eq(groupAuctionItems.status, 'active')));
+
+          for (const item of items) {
+            await db.update(groupAuctionItems)
+              .set({ status: item.winnerId ? 'sold' : 'unsold' })
+              .where(eq(groupAuctionItems.id, item.id));
+          }
+
+          // 扣傭金（冪等，重複跑安全）
+          await autoDeductGroupAuctionCommission(id).catch(err =>
+            console.error(`[Scheduler] GroupAuction commission deduction failed for round ${id}:`, err)
+          );
+
+          console.log(`[Scheduler] Auto-ended group auction round #${id}`);
+        } catch (e) {
+          console.error(`[Scheduler] Failed to process group auction round ${id}:`, e);
+        }
+      }
+    } catch (err) {
+      console.error('[Scheduler] auto-end group auction rounds error:', err);
     }
   }, 5 * 60 * 1000);
 

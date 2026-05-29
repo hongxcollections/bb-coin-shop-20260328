@@ -11,7 +11,7 @@ import { merchantApplications as merchantAppsTable, merchantProducts as merchant
 import { sanitizeUserText } from "./_core/sanitize";
 import { eq, sql, and } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon, checkAndUpdateAuctionStatus } from "./auctions";
-import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, getRecentRegistrations, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, deleteUserSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, approveOnboardingApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, setMerchantEndedAuctionVisibility, getEndedAuctionsByMerchant, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, adminSetSubscriptionEndDate, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, computeTierSwitchDiff, requestTierChange, listMyTierChangeRequests, listAllTierChangeRequests, reviewTierChangeRequest, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, requestCancelProductOrder, withdrawCancelRequest, respondCancelRequest, deleteBuyerOrder, deleteMerchantOrder, getHiddenProductOrdersByBuyer, getHiddenProductOrdersByMerchant, restoreBuyerOrder, restoreMerchantOrder, countHiddenProductOrdersByBuyer, countHiddenProductOrdersByMerchant, assertBuyerNotLockedFromMerchant, getBuyerLockFromMerchant, setMerchantFailureLock, getMerchantAuctionOrders, confirmMerchantAuctionOrder, cancelMerchantAuctionOrder, countPendingMerchantAuctionOrders, countMerchantAuctionOrdersByStatus, countMerchantProductOrdersByStatus, countBuyerPendingWonAuctions, countBuyerAcceptedOffers, cancelBuyerOffer, hideBuyerOffer, hideMerchantOffer, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS, toggleMessageReaction, listReactionsForRoom, listReactionsForMessage, upsertChatAutoReply, getLastMerchantOrAutoReplyAt, searchChatMessagesInRoom, searchChatMessagesAcrossMyRooms, setAutoGenerateCover, setAutoGenerateProductCover, setMerchantCategories, setMerchantOffersEnabled, setMerchantOfferLimits, createProductOffer, countRecentBuyerOffersForProduct, getProductOfferById, getActiveBuyerOfferForProduct, listOffersForBuyer, listOffersForMerchant, countPendingOffersForMerchant, respondProductOffer, markOfferPurchased, claimAcceptedOffer, releaseClaimedOffer, getUserMemberLevel, getRecentlyEndedForMainPage, setMainPageEndedDisplay, setShowUnsoldEnded } from "./db";
+import { getNotificationSettings, upsertNotificationSettings, updateUserEmail, updateUserName, updateUserPhotoUrl, updateUserNotificationPrefs, getUserById, getUserPublicStats, getAllUsers, getRecentRegistrations, setUserMemberLevel, getOrCreateSellerDeposit, getAllSellerDeposits, topUpDeposit, deductCommission, refundCommission, updateSellerDepositSettings, getDepositTransactions, getAllDepositTransactions, canSellerList, adjustDeposit, getActiveSubscriptionPlans, getAllSubscriptionPlans, getSubscriptionPlanById, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, createUserSubscription, getUserActiveSubscription, getUserSubscriptions, getAllUserSubscriptions, approveSubscription, rejectSubscription, cancelSubscription, deleteUserSubscription, getSubscriptionStats, getExpiringSoonSubscriptions, adminUpdateSubscriptionEndDate, getAllUsersExtended, adminUpdateUser, adminSetMerchantFbRefreshPreview, adminSetUserPassword, countMerchantVideosThisMonth, getUserMonthlyVideoQuota, getUserMaxVideoSeconds, clearMustChangePassword, deleteUserAndData, getWonAuctionsByUser, adminGetUserStats, createMerchantApplication, getMerchantApplicationByUser, getAllMerchantApplications, reviewMerchantApplication, approveOnboardingApplication, getWonOrdersByCreator, getMerchantSettings, upsertMerchantSettings, upsertMerchantFbGroups, upsertWatermarkSettings, setMerchantListingLayout, setMerchantEndedAuctionVisibility, getEndedAuctionsByMerchant, updateMerchantProfile, autoDeductCommissionOnAuctionEnd, autoDeductGroupAuctionCommission, getListingQuotaInfo, deductListingQuota, deductListingQuotaBulk, adminSetSubscriptionQuota, adminSetSubscriptionEndDate, createRefundRequest, getMyRefundRequests, getAllRefundRequests, reviewRefundRequest, purgeMerchantAuctionData, cleanOrphanMerchantData, revokeMerchantStatus, createDepositTopUpRequest, getMyDepositTopUpRequests, getAllDepositTopUpRequests, reviewDepositTopUpRequest, listDepositTierPresets, upsertDepositTierPreset, deleteDepositTierPreset, computeTierSwitchDiff, requestTierChange, listMyTierChangeRequests, listAllTierChangeRequests, reviewTierChangeRequest, listMerchantProducts, getMerchantProduct, createMerchantProduct, updateMerchantProduct, deleteMerchantProduct, listApprovedMerchants, exportPackagesData, importPackagesData, createProductOrder, getProductOrdersByMerchant, getProductOrdersByBuyer, getAllProductOrders, confirmProductOrder, cancelProductOrder, requestCancelProductOrder, withdrawCancelRequest, respondCancelRequest, deleteBuyerOrder, deleteMerchantOrder, getHiddenProductOrdersByBuyer, getHiddenProductOrdersByMerchant, restoreBuyerOrder, restoreMerchantOrder, countHiddenProductOrdersByBuyer, countHiddenProductOrdersByMerchant, assertBuyerNotLockedFromMerchant, getBuyerLockFromMerchant, setMerchantFailureLock, getMerchantAuctionOrders, confirmMerchantAuctionOrder, cancelMerchantAuctionOrder, countPendingMerchantAuctionOrders, countMerchantAuctionOrdersByStatus, countMerchantProductOrdersByStatus, countBuyerPendingWonAuctions, countBuyerAcceptedOffers, cancelBuyerOffer, hideBuyerOffer, hideMerchantOffer, createFeaturedListing, getActiveFeaturedListings, getMerchantFeaturedListings, getAllFeaturedListings, cancelFeaturedListing, getFeaturedSlotStatus, purgeActiveFeaturedListings, FEATURED_TIER_PRICES, FEATURED_TIER_LABELS, MAX_FEATURED_SLOTS, toggleMessageReaction, listReactionsForRoom, listReactionsForMessage, upsertChatAutoReply, getLastMerchantOrAutoReplyAt, searchChatMessagesInRoom, searchChatMessagesAcrossMyRooms, setAutoGenerateCover, setAutoGenerateProductCover, setMerchantCategories, setMerchantOffersEnabled, setMerchantOfferLimits, createProductOffer, countRecentBuyerOffersForProduct, getProductOfferById, getActiveBuyerOfferForProduct, listOffersForBuyer, listOffersForMerchant, countPendingOffersForMerchant, respondProductOffer, markOfferPurchased, claimAcceptedOffer, releaseClaimedOffer, getUserMemberLevel, getRecentlyEndedForMainPage, setMainPageEndedDisplay, setShowUnsoldEnded } from "./db";
 import { storagePut, storageSignPut } from "./storage";
 import {
   createCollectionPost,
@@ -10194,6 +10194,10 @@ EXAMPLE OUTPUT (exact format):
             }
           }
         }
+        // 扣傭金（冪等，fire-and-forget）
+        autoDeductGroupAuctionCommission(input.id).catch(err =>
+          console.error('[endRound] commission deduction error:', err)
+        );
         return { success: true };
       }),
 
@@ -10689,6 +10693,91 @@ EXAMPLE OUTPUT (exact format):
           }
         }
         return { success: true, isBuyNow, finalAmount };
+      }),
+
+    /** 商戶：查看場次傭金匯報（只限本人或 admin） */
+    getCommissionSummary: protectedProcedure
+      .input(z.object({ roundId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db
+          .select({
+            id: groupAuctionRounds.id,
+            title: groupAuctionRounds.title,
+            periodNumber: groupAuctionRounds.periodNumber,
+            endAt: groupAuctionRounds.endAt,
+            buyerCommissionRate: groupAuctionRounds.buyerCommissionRate,
+            merchantUserId: groupAuctionRounds.merchantUserId,
+            columnsJson: groupAuctionRounds.columnsJson,
+          })
+          .from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId))
+          .limit(1);
+
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+
+        const items = await db
+          .select({
+            id: groupAuctionItems.id,
+            displayOrder: groupAuctionItems.displayOrder,
+            dataJson: groupAuctionItems.dataJson,
+            finalPrice: groupAuctionItems.finalPrice,
+            status: groupAuctionItems.status,
+          })
+          .from(groupAuctionItems)
+          .where(
+            and(
+              eq(groupAuctionItems.roundId, input.roundId),
+              eq(groupAuctionItems.status, 'sold')
+            )
+          )
+          .orderBy(groupAuctionItems.displayOrder);
+
+        const rate = parseFloat(String(round.buyerCommissionRate));
+
+        // 嘗試從 columnsJson 找 itemTitle 欄位的 key
+        let titleKey = '';
+        try {
+          const cols: any[] = JSON.parse(round.columnsJson ?? '[]');
+          const titleCol = cols.find((c: any) => c.role === 'itemTitle');
+          if (titleCol) titleKey = titleCol.key;
+        } catch {}
+
+        const soldItems = items.map((item) => {
+          let name = `#${item.displayOrder + 1}`;
+          try {
+            const data: Record<string, unknown> = JSON.parse(item.dataJson ?? '{}');
+            if (titleKey && data[titleKey]) {
+              name = String(data[titleKey]);
+            } else {
+              const firstStr = Object.values(data).find(v => typeof v === 'string' && (v as string).trim());
+              if (firstStr) name = String(firstStr);
+            }
+          } catch {}
+          const finalPrice = item.finalPrice ?? 0;
+          const commission = parseFloat((finalPrice * rate).toFixed(2));
+          return { id: item.id, order: item.displayOrder + 1, name, finalPrice, commission };
+        });
+
+        const totalSales = soldItems.reduce((s, i) => s + i.finalPrice, 0);
+        const totalCommission = parseFloat(soldItems.reduce((s, i) => s + i.commission, 0).toFixed(2));
+
+        return {
+          round: {
+            id: round.id,
+            title: round.title,
+            periodNumber: round.periodNumber,
+            endAt: round.endAt,
+            buyerCommissionRate: rate,
+          },
+          soldItems,
+          totalSales,
+          totalCommission,
+          soldCount: soldItems.length,
+        };
       }),
   }),
 });

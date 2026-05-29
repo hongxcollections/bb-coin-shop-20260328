@@ -4256,6 +4256,103 @@ export async function autoDeductCommissionOnAuctionEnd(auctionId: number): Promi
   return { deducted: true, amount: commission, newBalance, belowWarning };
 }
 
+/**
+ * 團拍場次結束後：按 buyerCommissionRate 計算成交傭金，扣入商戶保證金。
+ * 冪等：同一 roundId 只扣一次（以 relatedGroupAuctionRoundId 去重）。
+ */
+export async function autoDeductGroupAuctionCommission(
+  roundId: number
+): Promise<{ deducted: boolean; totalCommission?: number }> {
+  const db = await getDb();
+  if (!db) return { deducted: false };
+
+  // 冪等：已扣過就跳過
+  const existing = await db
+    .select({ id: depositTransactions.id })
+    .from(depositTransactions)
+    .where(
+      and(
+        eq(depositTransactions.relatedGroupAuctionRoundId, roundId),
+        eq(depositTransactions.type, 'commission')
+      )
+    )
+    .limit(1);
+  if (existing.length > 0) return { deducted: false };
+
+  // 取場次資料
+  const [round] = await db
+    .select({
+      id: groupAuctionRounds.id,
+      merchantUserId: groupAuctionRounds.merchantUserId,
+      title: groupAuctionRounds.title,
+      periodNumber: groupAuctionRounds.periodNumber,
+      status: groupAuctionRounds.status,
+      buyerCommissionRate: groupAuctionRounds.buyerCommissionRate,
+    })
+    .from(groupAuctionRounds)
+    .where(eq(groupAuctionRounds.id, roundId))
+    .limit(1);
+
+  if (!round || round.status !== 'ended') return { deducted: false };
+
+  const rate = parseFloat(String(round.buyerCommissionRate));
+  if (rate <= 0) return { deducted: false };
+
+  // 取所有成交商品
+  const soldItems = await db
+    .select({ id: groupAuctionItems.id, finalPrice: groupAuctionItems.finalPrice })
+    .from(groupAuctionItems)
+    .where(
+      and(
+        eq(groupAuctionItems.roundId, roundId),
+        eq(groupAuctionItems.status, 'sold')
+      )
+    );
+
+  const itemsWithPrice = soldItems.filter(i => i.finalPrice && i.finalPrice > 0);
+  if (itemsWithPrice.length === 0) return { deducted: false };
+
+  const totalSales = itemsWithPrice.reduce((s, i) => s + (i.finalPrice ?? 0), 0);
+  const totalCommission = parseFloat((totalSales * rate).toFixed(2));
+  if (totalCommission <= 0) return { deducted: false };
+
+  const deposit = await getOrCreateSellerDeposit(round.merchantUserId);
+  if (!deposit) return { deducted: false };
+
+  const currentBalance = parseFloat(deposit.balance.toString());
+  const newBalance = parseFloat((currentBalance - totalCommission).toFixed(2));
+
+  const periodLabel = round.periodNumber ? `第${round.periodNumber}期 ` : '';
+  const desc = `團拍「${round.title}」${periodLabel}成交傭金（${itemsWithPrice.length}件成交，合計 $${totalSales.toLocaleString()} × ${(rate * 100).toFixed(1)}%）`;
+
+  await db.update(sellerDeposits)
+    .set({ balance: newBalance.toFixed(2) })
+    .where(eq(sellerDeposits.userId, round.merchantUserId));
+
+  await db.insert(depositTransactions).values({
+    depositId: deposit.id,
+    userId: round.merchantUserId,
+    type: 'commission',
+    amount: (-totalCommission).toFixed(2),
+    balanceAfter: newBalance.toFixed(2),
+    description: desc,
+    relatedAuctionId: null,
+    relatedGroupAuctionRoundId: roundId,
+    createdBy: null,
+  });
+
+  const required = parseFloat(deposit.requiredDeposit.toString());
+  if (newBalance < required) {
+    await db.update(sellerDeposits)
+      .set({ isActive: 0 })
+      .where(eq(sellerDeposits.userId, round.merchantUserId));
+    console.log(`[GroupCommission] Merchant ${round.merchantUserId} balance $${newBalance} below required $${required} — listing disabled`);
+  }
+
+  console.log(`[GroupCommission] Round #${roundId}: deducted $${totalCommission} (${itemsWithPrice.length} items) from merchant ${round.merchantUserId}, balance $${currentBalance} → $${newBalance}`);
+  return { deducted: true, totalCommission };
+}
+
 // ─── Deposit Tier Change (商戶轉保證金套餐) ───────────────────────────────────
 
 /**

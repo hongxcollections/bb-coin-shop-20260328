@@ -6,9 +6,10 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { Plus, ChevronLeft, Pencil, Trash2, Globe, Archive, Clock, QrCode } from "lucide-react";
+import { Plus, ChevronLeft, Pencil, Trash2, Globe, Archive, Clock, QrCode, Receipt } from "lucide-react";
 import { GroupAuctionShareMenu } from "@/components/ShareMenu";
 import { GroupAuctionPosterModal } from "@/components/GroupAuctionPosterModal";
+import { GroupAuctionCommissionModal } from "@/components/GroupAuctionCommissionModal";
 
 function statusLabel(s: string) {
   if (s === "draft") return { text: "草稿", cls: "bg-gray-100 text-gray-600" };
@@ -28,6 +29,7 @@ export default function GroupAuctionList() {
   const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<"published" | "draft" | "ended">("published");
   const [posterRound, setPosterRound] = useState<any | null>(null);
+  const [commissionRound, setCommissionRound] = useState<any | null>(null);
 
   const { data: rounds, isLoading, refetch } = trpc.groupAuctions.myListRounds.useQuery(undefined, {
     enabled: !!user,
@@ -194,6 +196,16 @@ export default function GroupAuctionList() {
                     </button>
                   )}
 
+                  {r.status === "ended" && (
+                    <button
+                      onClick={() => setCommissionRound(r)}
+                      className="flex items-center gap-1 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg"
+                    >
+                      <Receipt className="w-3 h-3" />
+                      傭金匯報
+                    </button>
+                  )}
+
                   {r.status !== "published" && (
                     <button
                       onClick={async () => {
@@ -221,6 +233,15 @@ export default function GroupAuctionList() {
           round={posterRound}
           merchantName={(merchantApp as any)?.merchantName ?? (user as any)?.name}
           merchantAvatar={(merchantApp as any)?.merchantIcon || (user as any)?.photoUrl}
+        />
+      )}
+
+      {commissionRound && (
+        <GroupAuctionCommissionModal
+          open={!!commissionRound}
+          onClose={() => setCommissionRound(null)}
+          roundId={commissionRound.id}
+          roundTitle={commissionRound.title}
         />
       )}
     </div>

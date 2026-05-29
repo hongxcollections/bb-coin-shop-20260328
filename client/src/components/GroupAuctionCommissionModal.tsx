@@ -1,0 +1,160 @@
+import { X, Printer } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  roundId: number;
+  roundTitle: string;
+}
+
+export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle }: Props) {
+  const { data, isLoading } = trpc.groupAuctions.getCommissionSummary.useQuery(
+    { roundId },
+    { enabled: open, staleTime: 60_000 }
+  );
+
+  if (!open) return null;
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const fmtDate = (d: string | Date | null | undefined) => {
+    if (!d) return "—";
+    return new Date(d).toLocaleString("zh-HK", { dateStyle: "short", timeStyle: "short" });
+  };
+
+  const fmtMoney = (n: number, decimals = 0) =>
+    n.toLocaleString("en", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+
+  return (
+    <>
+      <style>{`
+        @media print {
+          body > *:not(#ga-commission-portal) { display: none !important; }
+          #ga-commission-portal { position: fixed; inset: 0; background: white; z-index: 99999; overflow: visible; }
+          #ga-commission-portal .no-print { display: none !important; }
+          #ga-commission-portal .modal-backdrop { display: none !important; }
+          #ga-commission-portal .modal-box {
+            position: static !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            max-height: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+          }
+          #ga-commission-portal .modal-body {
+            overflow: visible !important;
+            max-height: none !important;
+          }
+        }
+      `}</style>
+
+      <div id="ga-commission-portal">
+        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="modal-box bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+
+            {/* Header */}
+            <div className="no-print flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+              <h2 className="font-bold text-gray-900 text-base">傭金匯報</h2>
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="modal-body overflow-y-auto flex-1 p-5">
+
+              {/* Info block */}
+              <div className="mb-5">
+                <h1 className="text-base font-bold text-gray-900">
+                  {data?.round.title ?? roundTitle}
+                  {data?.round.periodNumber ? ` · 第 ${data.round.periodNumber} 期` : ""}
+                </h1>
+                <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-xs text-gray-500">
+                  {data?.round.endAt && <span>結拍：{fmtDate(data.round.endAt)}</span>}
+                  <span>傭金率：{data ? (data.round.buyerCommissionRate * 100).toFixed(1) : "—"}%</span>
+                </div>
+              </div>
+
+              {isLoading && (
+                <p className="text-center text-gray-400 text-sm py-12">載入中...</p>
+              )}
+
+              {data && (
+                <>
+                  {data.soldItems.length === 0 ? (
+                    <p className="text-center text-gray-400 text-sm py-12">未有成交商品，無傭金記錄</p>
+                  ) : (
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr>
+                          <th className="text-left p-2 border border-gray-200 bg-amber-50 text-amber-800 font-semibold w-10">#</th>
+                          <th className="text-left p-2 border border-gray-200 bg-amber-50 text-amber-800 font-semibold">商品名稱</th>
+                          <th className="text-right p-2 border border-gray-200 bg-amber-50 text-amber-800 font-semibold">成交價</th>
+                          <th className="text-right p-2 border border-gray-200 bg-amber-50 text-amber-800 font-semibold">傭金</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.soldItems.map((item, idx) => (
+                          <tr key={item.id} className={idx % 2 === 0 ? "" : "bg-gray-50"}>
+                            <td className="p-2 border border-gray-200 text-gray-400 text-xs">{item.order}</td>
+                            <td className="p-2 border border-gray-200 text-gray-900">{item.name}</td>
+                            <td className="p-2 border border-gray-200 text-right text-gray-900">
+                              HK${fmtMoney(item.finalPrice)}
+                            </td>
+                            <td className="p-2 border border-gray-200 text-right text-rose-600 font-medium">
+                              HK${fmtMoney(item.commission, 2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="font-semibold">
+                          <td className="p-2 border border-gray-200 bg-amber-50 text-amber-800" colSpan={2}>
+                            合計（{data.soldCount} 件成交）
+                          </td>
+                          <td className="p-2 border border-gray-200 bg-amber-50 text-right text-amber-800">
+                            HK${fmtMoney(data.totalSales)}
+                          </td>
+                          <td className="p-2 border border-gray-200 bg-amber-50 text-right text-rose-600">
+                            HK${fmtMoney(data.totalCommission, 2)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  )}
+
+                  <p className="text-xs text-gray-400 mt-4">
+                    列印日期：{new Date().toLocaleDateString("zh-HK")} · 大BB錢幣店 hongxcollections.com
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="no-print flex justify-end gap-2 px-5 py-3 border-t border-gray-100 flex-shrink-0">
+              <button
+                onClick={handlePrint}
+                disabled={isLoading || !data}
+                className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-xl"
+              >
+                <Printer className="w-4 h-4" />
+                列印 / 下載 PDF
+              </button>
+              <button
+                onClick={onClose}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-4 py-2 rounded-xl"
+              >
+                關閉
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
