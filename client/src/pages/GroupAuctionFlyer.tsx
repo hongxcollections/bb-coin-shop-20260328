@@ -14,6 +14,12 @@ function fmtDateTime(d: string | Date | null) {
   return `${dt.getFullYear()}-${(dt.getMonth() + 1).toString().padStart(2, "0")}-${dt.getDate().toString().padStart(2, "0")} ${dt.getHours().toString().padStart(2, "0")}:${dt.getMinutes().toString().padStart(2, "0")}`;
 }
 
+function fmtDateShort(d: string | Date | null) {
+  if (!d) return "—";
+  const dt = new Date(d);
+  return `${dt.getMonth() + 1}月${dt.getDate()}日 ${dt.getHours().toString().padStart(2, "0")}:${dt.getMinutes().toString().padStart(2, "0")}`;
+}
+
 export default function GroupAuctionFlyer() {
   const params = useParams<{ roundId: string }>();
   const roundId = parseInt(params.roundId, 10);
@@ -81,9 +87,9 @@ export default function GroupAuctionFlyer() {
             </p>
             <h1 className="text-xl font-bold">【{round.title}】</h1>
           </div>
-          {round.endAt && (
+          {(round.startAt || round.endAt) && (
             <p className="text-sm text-gray-600 mt-1">
-              結拍時間：{fmtDateTime(round.endAt)}
+              開拍時間：{fmtDateShort((round as any).startAt ?? null)} 至 {fmtDateShort(round.endAt ?? null)}
             </p>
           )}
         </div>
