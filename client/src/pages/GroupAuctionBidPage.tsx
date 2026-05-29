@@ -239,7 +239,7 @@ export default function GroupAuctionBidPage() {
               <span className="inline-flex items-center gap-1 bg-black/20 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full tracking-widest uppercase">
                 🛒 {round.periodNumber ? `第 ${round.periodNumber} 期` : "團購拍賣"}
               </span>
-              <a href={`/group/${roundId}/flyer`} target="_blank"
+              <a href={`/group/${roundId}/flyer`}
                 className="text-white/75 text-[11px] font-medium flex items-center gap-1">
                 廣告頁 <ExternalLink className="w-3 h-3" />
               </a>
