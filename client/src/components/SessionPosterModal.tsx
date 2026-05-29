@@ -12,30 +12,38 @@ interface SessionPosterProps {
     title: string;
     slug: string;
     coverImage?: string | null;
+    startAt?: string | Date | null;
     endAt: string | Date;
     itemCount: number;
     description?: string | null;
   };
   merchantUserId: number | string;
+  merchantName?: string | null;
+  merchantAvatar?: string | null;
 }
 
-function fmtEndLong(d: string | Date) {
-  const date = new Date(d);
-  return `${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+function fmtDate(d: string | Date | null | undefined) {
+  if (!d) return null;
+  const dt = new Date(d);
+  return `${dt.getMonth() + 1}月${dt.getDate()}日 ${dt.getHours().toString().padStart(2, "0")}:${dt.getMinutes().toString().padStart(2, "0")}`;
 }
 
-export function SessionPosterModal({ open, onClose, session, merchantUserId }: SessionPosterProps) {
+export function SessionPosterModal({ open, onClose, session, merchantUserId, merchantName, merchantAvatar }: SessionPosterProps) {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedMsg, setCopiedMsg] = useState(false);
 
   const fullUrl = `https://hongxcollections.com/s/${merchantUserId}/${session.slug}`;
   const shortUrl = `hongxcollections.com/s/${merchantUserId}/${session.slug}`;
 
+  const startStr = fmtDate(session.startAt);
+  const endStr = fmtDate(session.endAt) ?? "待定";
+  const dateRangeStr = startStr ? `${startStr} 至 ${endStr}` : endStr;
+
   const promoMsg =
     `【${session.title}】\n` +
-    `📦 共 ${session.itemCount} 件珍藏　截拍：${fmtEndLong(session.endAt)}\n` +
+    `📦 共 ${session.itemCount} 件珍藏　拍賣 ${dateRangeStr}\n` +
     (session.description ? `${session.description}\n` : "") +
-    `\n直接網頁出價！首次用電話號碼登記（30秒），之後每場自動登入，出價即時生效，唔需要再留言 +幾號！\n\n${fullUrl}`;
+    `\n直接網頁出價！首次用手機登記（30秒），之後每場自動登入，出價實時生效，不需要再留言 +序號商品！\n\n${fullUrl}`;
 
   function copyLink() {
     navigator.clipboard.writeText(fullUrl).then(() => {
@@ -62,13 +70,28 @@ export function SessionPosterModal({ open, onClose, session, merchantUserId }: S
 
         {/* ── 海報本體（長按截圖用）── */}
         <div className="mx-4 rounded-2xl overflow-hidden border border-amber-200 shadow-md">
-          {/* 頂部橙色帶 */}
+          {/* 頂部橙色帶：商戶頭像 + 名稱 */}
           <div
-            className="flex items-center justify-between px-4 py-2"
+            className="flex items-center justify-between px-3 py-2"
             style={{ background: "linear-gradient(90deg, #d97706 0%, #f59e0b 100%)" }}
           >
-            <span className="text-white text-[10px] font-semibold tracking-wide">香港錢幣拍賣</span>
-            <span className="text-white/70 text-[9px]">hongxcollections.com</span>
+            <div className="flex items-center gap-1.5">
+              {merchantAvatar ? (
+                <img
+                  src={merchantAvatar}
+                  alt="商戶頭像"
+                  className="w-5 h-5 rounded-full object-cover border border-white/40"
+                />
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-white/25 flex items-center justify-center text-[9px] text-white font-bold flex-shrink-0">
+                  {(merchantName ?? "商").charAt(0)}
+                </div>
+              )}
+              <span className="text-white text-[10px] font-semibold leading-tight max-w-[120px] truncate">
+                {merchantName ?? "商戶"}
+              </span>
+            </div>
+            <span className="text-white/60 text-[9px] flex-shrink-0">hongxcollections.com</span>
           </div>
 
           {/* 封面圖 */}
@@ -87,16 +110,13 @@ export function SessionPosterModal({ open, onClose, session, merchantUserId }: S
             <h2 className="text-[15px] font-bold text-amber-900 leading-snug">{session.title}</h2>
             <div className="flex items-center justify-center gap-3 text-[10px] text-gray-500 mt-1">
               <span>📦 {session.itemCount} 件商品</span>
-              <span>截拍 {fmtEndLong(session.endAt)}</span>
+              <span>拍賣 {dateRangeStr}</span>
             </div>
           </div>
 
           {/* QR Code */}
           <div className="bg-white flex justify-center pb-3 pt-2">
-            <div
-              className="p-2 rounded-xl inline-block"
-              style={{ border: "1.5px solid #fde68a" }}
-            >
+            <div className="p-2 rounded-xl inline-block" style={{ border: "1.5px solid #fde68a" }}>
               <QRCodeSVG value={fullUrl} size={136} fgColor="#92400e" bgColor="#ffffff" level="M" />
             </div>
           </div>
@@ -109,7 +129,7 @@ export function SessionPosterModal({ open, onClose, session, merchantUserId }: S
 
           {/* 底部提示 */}
           <div className="bg-amber-50 border-t border-amber-100 px-4 py-2 text-center">
-            <p className="text-[10px] text-amber-600">首次用電話號碼登記（30秒），之後自動登入</p>
+            <p className="text-[10px] text-amber-600">首次用手機登記（30秒），之後自動登入</p>
           </div>
         </div>
 
@@ -118,9 +138,7 @@ export function SessionPosterModal({ open, onClose, session, merchantUserId }: S
         {/* ── 快捷操作按鈕 ── */}
         <div className="px-4 pb-4 flex flex-col gap-2">
           <Button variant="outline" className="w-full text-sm h-9" onClick={copyLink}>
-            {copiedLink
-              ? <Check className="w-4 h-4 mr-2 text-green-600" />
-              : <Copy className="w-4 h-4 mr-2" />}
+            {copiedLink ? <Check className="w-4 h-4 mr-2 text-green-600" /> : <Copy className="w-4 h-4 mr-2" />}
             複製專場連結
           </Button>
           <Button
@@ -128,9 +146,7 @@ export function SessionPosterModal({ open, onClose, session, merchantUserId }: S
             style={{ background: "linear-gradient(90deg, #d97706, #f59e0b)", color: "#fff" }}
             onClick={copyMsg}
           >
-            {copiedMsg
-              ? <Check className="w-4 h-4 mr-2" />
-              : <Copy className="w-4 h-4 mr-2" />}
+            {copiedMsg ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
             複製微信推廣訊息
           </Button>
         </div>

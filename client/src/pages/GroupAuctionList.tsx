@@ -217,6 +217,8 @@ export default function GroupAuctionList() {
           open={!!posterRound}
           onClose={() => setPosterRound(null)}
           round={posterRound}
+          merchantName={(user as any)?.name}
+          merchantAvatar={(user as any)?.photoUrl}
         />
       )}
     </div>

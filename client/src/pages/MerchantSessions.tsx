@@ -316,8 +316,10 @@ export default function MerchantSessions() {
         <SessionPosterModal
           open={!!posterSession}
           onClose={() => setPosterSession(null)}
-          session={posterSession}
+          session={{ ...posterSession, startAt: posterSession.createdAt }}
           merchantUserId={user.id}
+          merchantName={(user as any)?.name}
+          merchantAvatar={(user as any)?.photoUrl}
         />
       )}
     </div>
