@@ -109,6 +109,7 @@ export default function GroupAuctionEdit() {
   // ── 場次推廣圖片 state（存 URL，最多 10 張）──
   const [promoImages, setPromoImages] = useState<string[]>([]);
   const [uploadingPromo, setUploadingPromo] = useState(false);
+  const [promoUploadProgress, setPromoUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const promoFileRef = useRef<HTMLInputElement>(null);
 
   // ── 商品 state ──
@@ -289,34 +290,59 @@ export default function GroupAuctionEdit() {
     }
   }
 
-  // ── 上載場次推廣圖片（並行上載，只存 URL，不記入 groupAuctionImages） ──
+  // ── 壓縮圖片至最大 1200px / JPEG 0.82（client-side，大圖由 5MB 縮至 ~150KB）──
+  function compressImage(file: File, maxPx = 1200, quality = 0.82): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let { width, height } = img;
+        if (width > maxPx || height > maxPx) {
+          if (width >= height) { height = Math.round((height / width) * maxPx); width = maxPx; }
+          else { width = Math.round((width / height) * maxPx); height = maxPx; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("壓縮失敗")), "image/jpeg", quality);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("圖片讀取失敗")); };
+      img.src = url;
+    });
+  }
+
+  // ── 上載場次推廣圖片（壓縮後逐張上載，顯示進度）──
   async function handlePromoUpload(files: FileList) {
     if (!roundId) { toast.error("請先儲存場次"); return; }
     const remain = 10 - promoImages.length;
     if (remain <= 0) { toast.info("最多上載 10 張推廣圖片"); return; }
+    const count = Math.min(files.length, remain);
+    const fileArray = Array.from(files).slice(0, count);
     setUploadingPromo(true);
+    setPromoUploadProgress({ done: 0, total: count });
+    const newUrls: string[] = [];
     try {
-      const count = Math.min(files.length, remain);
-      const fileArray = Array.from(files).slice(0, count);
-      // 並行取 presigned URL
-      const presigned = await Promise.all(
-        fileArray.map(file => getImageUploadUrlMut.mutateAsync({
-          roundId, filename: `promo_${file.name}`, mimeType: file.type,
-        }))
-      );
-      // 並行上載至 S3
-      await Promise.all(
-        presigned.map(({ uploadUrl }, i) =>
-          fetch(uploadUrl, { method: "PUT", body: fileArray[i], headers: { "Content-Type": fileArray[i].type } })
-        )
-      );
-      const newUrls = presigned.map(r => r.publicUrl);
+      for (let i = 0; i < fileArray.length; i++) {
+        const file = fileArray[i];
+        // 壓縮
+        const compressed = await compressImage(file);
+        // 取 presigned URL
+        const { uploadUrl, publicUrl } = await getImageUploadUrlMut.mutateAsync({
+          roundId, filename: `promo_${file.name}`, mimeType: "image/jpeg",
+        });
+        // 上載壓縮後的 blob
+        await fetch(uploadUrl, { method: "PUT", body: compressed, headers: { "Content-Type": "image/jpeg" } });
+        newUrls.push(publicUrl);
+        setPromoUploadProgress({ done: i + 1, total: count });
+      }
       setPromoImages(prev => [...prev, ...newUrls]);
       toast.success(`已上載 ${newUrls.length} 張推廣圖片，記得儲存設定`);
     } catch (e: any) {
       toast.error(e.message || "上載失敗");
     } finally {
       setUploadingPromo(false);
+      setPromoUploadProgress(null);
       if (promoFileRef.current) promoFileRef.current.value = "";
     }
   }
@@ -597,14 +623,28 @@ export default function GroupAuctionEdit() {
                 <input ref={promoFileRef} type="file" accept="image/*" multiple className="hidden"
                   onChange={e => e.target.files && handlePromoUpload(e.target.files)} />
                 {promoImages.length < 10 && (
-                  <button
-                    onClick={() => promoFileRef.current?.click()}
-                    disabled={uploadingPromo}
-                    className="flex items-center gap-2 w-full justify-center border-2 border-dashed border-amber-200 text-amber-600 hover:border-amber-400 rounded-xl py-3 text-sm"
-                  >
-                    <Upload className="w-4 h-4" />
-                    {uploadingPromo ? "上載中..." : `點擊上載（已 ${promoImages.length}/10 張）`}
-                  </button>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => promoFileRef.current?.click()}
+                      disabled={uploadingPromo}
+                      className="flex items-center gap-2 w-full justify-center border-2 border-dashed border-amber-200 text-amber-600 hover:border-amber-400 rounded-xl py-3 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      <Upload className="w-4 h-4" />
+                      {uploadingPromo
+                        ? promoUploadProgress
+                          ? `壓縮上載中 ${promoUploadProgress.done}／${promoUploadProgress.total} 張...`
+                          : "準備中..."
+                        : `點擊上載（已 ${promoImages.length}/10 張）`}
+                    </button>
+                    {uploadingPromo && promoUploadProgress && (
+                      <div className="w-full bg-amber-100 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-amber-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${Math.round((promoUploadProgress.done / promoUploadProgress.total) * 100)}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
                 )}
                 {promoImages.length > 0 && (
                   <div className="grid grid-cols-5 gap-2">
