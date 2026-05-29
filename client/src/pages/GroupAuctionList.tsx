@@ -23,6 +23,12 @@ function fmtDate(d: string | Date | null) {
   return `${dt.getMonth() + 1}/${dt.getDate()} ${dt.getHours().toString().padStart(2, "0")}:${dt.getMinutes().toString().padStart(2, "0")}`;
 }
 
+function fmtDateShort(d: string | Date | null) {
+  if (!d) return "—";
+  const dt = new Date(d);
+  return `${dt.getMonth() + 1}月${dt.getDate()}日 ${dt.getHours().toString().padStart(2, "0")}:${dt.getMinutes().toString().padStart(2, "0")}`;
+}
+
 export default function GroupAuctionList() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -156,7 +162,9 @@ export default function GroupAuctionList() {
                     <p className="font-semibold text-gray-900 mt-1 truncate">{r.title}</p>
                     <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
                       <Clock className="w-3 h-3" />
-                      {r.endAt ? `結拍：${fmtDate(r.endAt)}` : "未設結拍時間"}
+                      {r.startAt || r.endAt
+                        ? `開拍時間：${fmtDateShort(r.startAt ?? null)} 至 ${fmtDateShort(r.endAt ?? null)}`
+                        : "未設開拍時間"}
                     </div>
                   </div>
                 </div>
