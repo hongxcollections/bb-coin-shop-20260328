@@ -104,6 +104,7 @@ export default function GroupAuctionEdit() {
   // ── 圖片集 state ──
   const [images, setImages] = useState<{ id: number; url: string; s3Key: string }[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [imageUploadProgress, setImageUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const imageFileRef = useRef<HTMLInputElement>(null);
 
   // ── 場次推廣圖片 state（存 URL，最多 10 張）──
@@ -267,25 +268,30 @@ export default function GroupAuctionEdit() {
   // ── 上載圖片 ──
   async function handleImageUpload(files: FileList) {
     if (!roundId) { toast.error("請先儲存場次"); return; }
+    const count = files.length;
     setUploadingImages(true);
+    setImageUploadProgress({ done: 0, total: count });
     try {
-      for (let i = 0; i < files.length; i++) {
+      for (let i = 0; i < count; i++) {
         const file = files[i];
+        const compressed = await compressImage(file);
         const { uploadUrl, publicUrl, s3Key } = await getImageUploadUrlMut.mutateAsync({
-          roundId, filename: file.name, mimeType: file.type,
+          roundId, filename: file.name, mimeType: "image/jpeg",
         });
         if (!uploadUrl) throw new Error("取得上載 URL 失敗");
-        await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+        await fetch(uploadUrl, { method: "PUT", body: compressed, headers: { "Content-Type": "image/jpeg" } });
         const img = await recordImageMut.mutateAsync({
           roundId, s3Key, url: publicUrl, displayOrder: images.length + i,
         });
         setImages(prev => [...prev, { id: img.id, url: publicUrl, s3Key }]);
+        setImageUploadProgress({ done: i + 1, total: count });
       }
-      toast.success(`已上載 ${files.length} 張圖片`);
+      toast.success(`已上載 ${count} 張圖片`);
     } catch (e: any) {
       toast.error(e.message || "上載失敗");
     } finally {
       setUploadingImages(false);
+      setImageUploadProgress(null);
       refetch();
     }
   }
@@ -796,14 +802,28 @@ export default function GroupAuctionEdit() {
               <p className="text-xs font-semibold text-gray-600 mb-3">場次圖片集（可配給商品）</p>
               <input ref={imageFileRef} type="file" accept="image/*" multiple className="hidden"
                 onChange={e => e.target.files && handleImageUpload(e.target.files)} />
-              <button
-                onClick={() => imageFileRef.current?.click()}
-                disabled={uploadingImages}
-                className="flex items-center gap-2 w-full justify-center border-2 border-dashed border-amber-200 text-amber-600 hover:border-amber-400 rounded-xl py-4 text-sm"
-              >
-                <Upload className="w-4 h-4" />
-                {uploadingImages ? "上載中..." : "點擊上載圖片（可多選）"}
-              </button>
+              <div className="space-y-2">
+                <button
+                  onClick={() => imageFileRef.current?.click()}
+                  disabled={uploadingImages}
+                  className="flex items-center gap-2 w-full justify-center border-2 border-dashed border-amber-200 text-amber-600 hover:border-amber-400 rounded-xl py-4 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <Upload className="w-4 h-4" />
+                  {uploadingImages
+                    ? imageUploadProgress
+                      ? `壓縮上載中 ${imageUploadProgress.done}／${imageUploadProgress.total} 張...`
+                      : "準備中..."
+                    : "點擊上載圖片（可多選）"}
+                </button>
+                {uploadingImages && imageUploadProgress && (
+                  <div className="w-full bg-amber-100 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-amber-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.round((imageUploadProgress.done / imageUploadProgress.total) * 100)}%` }}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {images.length > 0 && (
