@@ -220,8 +220,8 @@ export function GroupAuctionLiveBanner({ round }: { round: LiveRound }) {
     <div style={{ display: "flex", flexDirection: "column", rowGap: "5px" }}>
       <Link href={`/group/${round.id}`}>
         <a
-          className="block relative overflow-hidden rounded-2xl shadow-lg cursor-pointer active:scale-[0.985] transition-transform"
-          style={{ background: "linear-gradient(135deg, #ea580c 0%, #f97316 40%, #fb923c 70%, #fbbf24 100%)" }}
+          className="block relative overflow-hidden rounded-2xl shadow-lg cursor-pointer active:scale-[0.985] transition-transform border border-amber-200"
+          style={{ background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fef3c7 100%)" }}
         >
           {/* 推廣圖片背景（同 GroupAuctionBidPage 同款散落效果） */}
           {promoLayout.map((p, i) => (
@@ -250,46 +250,46 @@ export function GroupAuctionLiveBanner({ round }: { round: LiveRound }) {
                   <img
                     src={round.merchantAvatar}
                     alt=""
-                    className="w-5 h-5 rounded-full object-cover border border-white/40 shrink-0"
+                    className="w-5 h-5 rounded-full object-cover border border-amber-300 shrink-0"
                   />
                 ) : (
-                  <div className="w-5 h-5 rounded-full bg-white/30 shrink-0" />
+                  <div className="w-5 h-5 rounded-full bg-amber-200 shrink-0" />
                 )}
-                <span className="text-white/90 text-[11px] font-semibold truncate max-w-[160px]">
+                <span className="text-amber-800 text-[11px] font-semibold truncate max-w-[160px]">
                   {round.merchantName}
                 </span>
               </div>
             )}
 
             <div className="flex items-center justify-between mb-1.5">
-              <span className="inline-flex items-center gap-1 bg-black/20 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full tracking-widest uppercase">
+              <span className="inline-flex items-center gap-1 bg-amber-500/20 text-amber-900 text-[10px] font-bold px-2.5 py-0.5 rounded-full tracking-widest uppercase">
                 🛒 團購拍賣
               </span>
-              <span className="text-white/75 text-[11px] font-medium flex items-center gap-1">
+              <span className="text-amber-700 text-[11px] font-medium flex items-center gap-1">
                 廣告頁 <ExternalLink className="w-3 h-3" />
               </span>
             </div>
 
-            <h3 className="text-white font-extrabold text-[18px] leading-snug mb-2.5 drop-shadow-sm">
+            <h3 className="text-amber-900 font-extrabold text-[18px] leading-snug mb-2.5">
               {round.title}
             </h3>
 
             <div className="flex items-center gap-2 flex-wrap mb-2">
-              <div className="inline-flex items-center gap-1.5 bg-black/25 text-white px-2.5 py-1 rounded-full text-sm font-black tracking-tight">
+              <div className="inline-flex items-center gap-1.5 bg-amber-500/25 text-amber-900 px-2.5 py-1 rounded-full text-sm font-black tracking-tight">
                 <Clock className="w-3.5 h-3.5 shrink-0" />
                 <Countdown endAt={round.endAt} />
               </div>
               {endStr && (
-                <span className="text-white/85 text-[11px] font-semibold">
+                <span className="text-amber-800 text-[11px] font-semibold">
                   結拍：{endStr}
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-4 text-white/90 text-[12px] font-semibold">
-              <span>共 <strong className="text-white text-[13px]">{round.totalItems}</strong> 件</span>
-              <span>成交 <strong className="text-white text-[13px]">{round.soldItems}</strong> 件</span>
-              <span>進行中 <strong className="text-white text-[13px]">{round.activeItems}</strong> 件</span>
+            <div className="flex items-center gap-4 text-amber-800 text-[12px] font-semibold">
+              <span>共 <strong className="text-amber-900 text-[13px]">{round.totalItems}</strong> 件</span>
+              <span>成交 <strong className="text-amber-900 text-[13px]">{round.soldItems}</strong> 件</span>
+              <span>進行中 <strong className="text-amber-900 text-[13px]">{round.activeItems}</strong> 件</span>
             </div>
           </div>
         </a>
