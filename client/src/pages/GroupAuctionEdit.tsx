@@ -1342,14 +1342,14 @@ export default function GroupAuctionEdit() {
                 function renderItems(itemList: typeof soldItems, showBuyer: boolean) {
                   return (
                     <div className="divide-y divide-gray-100">
-                      {itemList.map((it, idx) => {
+                      {itemList.map((it) => {
                         const d = parseData(it);
                         const price = (it as any).finalPrice ?? 0;
                         const comm = Math.round(price * commRate);
                         const buyer = (it as any).winnerName ?? "";
                         return (
                           <div key={(it as any).id} className="flex items-center gap-2 px-3 py-2 text-xs min-w-0">
-                            <span className="text-gray-400 font-mono w-5 flex-shrink-0 text-right">{idx + 1}</span>
+                            <span className="text-gray-400 font-mono w-5 flex-shrink-0 text-right">{(it as any).displayOrder}</span>
                             {showCols.map(c => (
                               <span key={c.key} className="text-gray-700 truncate">{d[c.key] ?? "—"}</span>
                             ))}
