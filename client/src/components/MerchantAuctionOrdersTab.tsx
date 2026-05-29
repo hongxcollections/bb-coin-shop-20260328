@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Gavel, CheckCircle2, XCircle, Clock, ImageIcon } from "lucide-react";
+import { Gavel, CheckCircle2, XCircle, Clock, ImageIcon, RotateCcw } from "lucide-react";
 
 const STATUS_LABELS: Record<string, string> = { pending: "待確認", confirmed: "已確認", cancelled: "已取消" };
 const STATUS_COLORS: Record<string, string> = {
@@ -107,6 +107,15 @@ export function MerchantAuctionOrdersTab() {
       utils.auctionOrders.myPendingCount.invalidate();
       utils.auctionOrders.myMerchantStatusCounts.invalidate();
       setActionDialog(null);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const markAsUnsold = trpc.auctionOrders.markAsUnsold.useMutation({
+    onSuccess: () => {
+      toast.success("已設為流拍，拍賣已放回「流拍」欄");
+      utils.auctionOrders.myMerchant.invalidate();
+      utils.auctionOrders.myMerchantStatusCounts.invalidate();
+      utils.merchants.myAuctions.invalidate();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -258,10 +267,20 @@ export function MerchantAuctionOrdersTab() {
                   </p>
                 )}
                 {o.status === "cancelled" && (
-                  <p className="text-xs text-gray-500">
-                    已取消{o.cancelledAt ? `於 ${new Date(o.cancelledAt).toLocaleDateString("zh-HK")}` : ""}
-                    {o.cancelReason ? ` · ${o.cancelReason}` : ""}
-                  </p>
+                  <div className="flex items-center justify-between gap-2 pt-0.5">
+                    <p className="text-xs text-gray-400 flex-1">
+                      已取消{o.cancelledAt ? `於 ${new Date(o.cancelledAt).toLocaleDateString("zh-HK")}` : ""}
+                      {o.cancelReason ? ` · ${o.cancelReason}` : ""}
+                    </p>
+                    <button
+                      onClick={() => markAsUnsold.mutate({ auctionId: o.auctionId })}
+                      disabled={markAsUnsold.isPending}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-gray-500 text-xs font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors disabled:opacity-60 shrink-0"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      設為流拍
+                    </button>
+                  </div>
                 )}
               </div>
             );

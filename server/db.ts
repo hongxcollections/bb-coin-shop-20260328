@@ -5791,6 +5791,23 @@ export async function cancelMerchantAuctionOrder(auctionId: number, merchantId: 
   return { ok: true };
 }
 
+export async function markAuctionAsUnsold(auctionId: number, merchantId: number, isAdmin = false): Promise<{ ok: boolean; error?: string }> {
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT id, createdBy, auctionOrderStatus, startingPrice FROM auctions WHERE id = ? LIMIT 1`,
+    [auctionId]
+  );
+  const a = (rows ?? [])[0];
+  if (!a) return { ok: false, error: '找不到此拍賣' };
+  if (!isAdmin && a.createdBy !== merchantId) return { ok: false, error: '無權操作' };
+  if (a.auctionOrderStatus !== 'cancelled') return { ok: false, error: '只有已取消的訂單可設為流拍' };
+  await pool.execute(
+    `UPDATE auctions SET highestBidderId = NULL, auctionOrderStatus = NULL, currentPrice = startingPrice WHERE id = ?`,
+    [auctionId]
+  );
+  return { ok: true };
+}
+
 export async function countBuyerPendingWonAuctions(userId: number): Promise<number> {
   const pool = await getRawPool();
   const [rows]: any = await pool.execute(

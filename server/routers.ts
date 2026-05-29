@@ -5509,6 +5509,21 @@ export const appRouter = router({
         if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
         return { success: true };
       }),
+
+    /** 商戶：已取消訂單設為流拍（清除 highestBidderId + auctionOrderStatus，放回流拍 tab） */
+    markAsUnsold: protectedProcedure
+      .input(z.object({ auctionId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        const isAdmin = ctx.user.role === 'admin';
+        if (!isAdmin && app?.status !== 'approved') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        const { markAuctionAsUnsold } = await import('./db');
+        const result = await markAuctionAsUnsold(input.auctionId, ctx.user.id, isAdmin);
+        if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
+        return { success: true };
+      }),
   }),
 
   // 拍賣成交紀錄管理
