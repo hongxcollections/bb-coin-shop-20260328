@@ -92,6 +92,15 @@ export default function GroupAuctionFlyer() {
               開拍時間：{fmtDateShort((round as any).startAt ?? null)} 至 {fmtDateShort(round.endAt ?? null)}
             </p>
           )}
+          <a
+            href={bidUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="print:hidden inline-flex items-center gap-1.5 mt-2 px-4 py-1.5 rounded-full text-sm font-semibold text-white"
+            style={{ background: "linear-gradient(90deg, #ea580c 0%, #f97316 60%, #fbbf24 100%)" }}
+          >
+            進入拍賣頁面 →
+          </a>
         </div>
 
         {/* 清單版 */}
