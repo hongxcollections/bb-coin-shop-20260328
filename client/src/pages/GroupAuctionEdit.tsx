@@ -1344,8 +1344,6 @@ export default function GroupAuctionEdit() {
                   </button>
                 )}
                 <div className="ml-auto flex gap-2">
-                  <ExportCsvButton roundId={roundId!} format="by_order" label="匯出CSV序號" columns={columns} buyerId={resultBuyerId} />
-                  <ExportCsvButton roundId={roundId!} format="by_buyer" label="匯出CSV買家" columns={columns} buyerId={resultBuyerId} />
                   <button
                     onClick={() => doPrint(resultBuyerId)}
                     className="flex items-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-xl"
@@ -1402,7 +1400,7 @@ export default function GroupAuctionEdit() {
                       const comm = Math.round(price * commRate);
                       const buyer = (it as any).winnerName ?? "";
                       return (
-                        <div key={(it as any).id} className="bg-white rounded-xl border border-yellow-200 p-3">
+                        <div key={(it as any).id} className="bg-white rounded-xl border border-green-300 p-3">
                           <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
                             {showCols.map(c => (
                               <div key={c.key} className="text-xs">
