@@ -62,13 +62,70 @@ export function GroupAuctionPosterModal({ open, onClose, round, merchantName, me
   }
 
   function downloadQr() {
-    const canvas = qrRef.current;
-    if (!canvas) return;
-    const url = canvas.toDataURL("image/png");
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `qr-group-${round.id}.png`;
-    a.click();
+    const qrCanvas = qrRef.current;
+    if (!qrCanvas) return;
+
+    const scale = 3;
+    const size = 200 * scale;
+    const pad = 24 * scale;
+    const merchantH = 22 * scale;
+    const titleH = 18 * scale;
+    const poweredH = 8 * scale;
+    const gapAfterQR = 8 * scale;
+    const gapLine = 4 * scale;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = size + pad * 2;
+    canvas.height = pad + size + gapAfterQR + merchantH + gapLine + titleH + gapLine + poweredH + pad;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // 畫 QR code（保持琥珀色，從 QRCodeCanvas 複製過來）
+    ctx.drawImage(qrCanvas, 0, 0, qrCanvas.width, qrCanvas.height, pad, pad, size, size);
+
+    const merchantText = merchantName || "商戶";
+    const titleText = round.title || "";
+    const rightX = pad + size;
+    const merchantY = pad + size + gapAfterQR + merchantH / 2;
+    const titleY = pad + size + gapAfterQR + merchantH + gapLine + titleH / 2;
+    const poweredY = pad + size + gapAfterQR + merchantH + gapLine + titleH + gapLine + poweredH / 2;
+
+    const makeGoldGradient = (y: number) => {
+      const g = ctx.createLinearGradient(0, y - 10 * scale, 0, y + 10 * scale);
+      g.addColorStop(0, "#f59e0b");
+      g.addColorStop(0.5, "#d97706");
+      g.addColorStop(1, "#92400e");
+      return g;
+    };
+
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "right";
+    // 第一行：商戶名稱
+    ctx.font = `bold ${18 * scale}px -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif`;
+    ctx.fillStyle = makeGoldGradient(merchantY);
+    ctx.fillText(merchantText, rightX, merchantY);
+    // 第二行：團拍名稱
+    ctx.font = `bold ${15 * scale}px -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif`;
+    ctx.fillStyle = makeGoldGradient(titleY);
+    ctx.fillText(titleText, rightX, titleY);
+    // 第三行：Powered by
+    ctx.font = `${3 * scale}px -apple-system, BlinkMacSystemFont, sans-serif`;
+    ctx.fillStyle = makeGoldGradient(poweredY);
+    ctx.fillText("Powered by hongxcollections.com", rightX, poweredY);
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `qr-group-${round.id}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, "image/png");
   }
 
   return (
