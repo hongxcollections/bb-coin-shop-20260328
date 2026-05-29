@@ -10557,6 +10557,38 @@ EXAMPLE OUTPUT (exact format):
 
     // ── Public ────────────────────────────────────────────────────────────────
 
+    /** 公開：拍賣主頁 Live Banner — 所有 published 且未過期嘅場次 + stats */
+    getActiveLiveRounds: publicProcedure.query(async () => {
+      const db = await getDb();
+      const rawRows: any = await db.execute(sql`
+        SELECT
+          r.id, r.title, r.periodNumber, r.endAt, r.coverImage, r.promoImagesJson,
+          r.merchantUserId, r.status,
+          COUNT(i.id)                                                    AS totalItems,
+          SUM(CASE WHEN i.status = 'sold'   THEN 1 ELSE 0 END)          AS soldItems,
+          SUM(CASE WHEN i.status = 'active' THEN 1 ELSE 0 END)          AS activeItems
+        FROM groupAuctionRounds r
+        LEFT JOIN groupAuctionItems i ON i.roundId = r.id
+        WHERE r.status = 'published'
+          AND (r.endAt IS NULL OR r.endAt > NOW())
+        GROUP BY r.id
+        ORDER BY r.createdAt DESC
+      `);
+      const rows = (Array.isArray(rawRows) ? rawRows[0] : rawRows) as any[];
+      return rows.map((r: any) => ({
+        id:             Number(r.id),
+        title:          String(r.title),
+        periodNumber:   r.periodNumber  ? String(r.periodNumber)  : null,
+        endAt:          r.endAt         ? new Date(r.endAt).toISOString() : null,
+        coverImage:     r.coverImage    ? String(r.coverImage)    : null,
+        promoImages:    (() => { try { return JSON.parse(r.promoImagesJson ?? "[]"); } catch { return []; } })(),
+        merchantUserId: Number(r.merchantUserId),
+        totalItems:     Number(r.totalItems  ?? 0),
+        soldItems:      Number(r.soldItems   ?? 0),
+        activeItems:    Number(r.activeItems ?? 0),
+      }));
+    }),
+
     /** 公開：列出某商戶進行中（published）的場次 */
     listPublicRoundsByMerchant: publicProcedure
       .input(z.object({ merchantUserId: z.number().int().positive() }))

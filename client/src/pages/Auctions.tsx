@@ -25,6 +25,7 @@ import { AuctionCard } from "@/components/AuctionCard";
 import { AuctionCardFb } from "@/components/AuctionCardFb";
 import Header from "@/components/Header";
 import AdSenseAd from "@/components/AdSenseAd";
+import { GroupAuctionLiveBanner } from "@/components/GroupAuctionLiveBanner";
 
 function AuctionImageOverlay({ endTime }: { endTime: Date | string }) {
   const [txt, setTxt] = useState("");
@@ -104,6 +105,11 @@ export default function Auctions() {
   const { data: recentlyEnded } = trpc.auctions.listRecentEnded.useQuery(undefined, {
     refetchInterval: 30000,
     staleTime: 15000,
+  });
+
+  const { data: liveRounds } = trpc.groupAuctions.getActiveLiveRounds.useQuery(undefined, {
+    refetchInterval: 60000,
+    staleTime: 30000,
   });
 
   // 查詢當前用戶曾出價的拍賣 ID（只喺 myBids filter 時用）
@@ -438,6 +444,15 @@ export default function Auctions() {
             )}
           </div>
         </div>
+
+        {/* ── 團拍 Live Banner ── */}
+        {(liveRounds ?? []).length > 0 && (
+          <div className="flex flex-col gap-4 mb-3">
+            {(liveRounds ?? []).map((round) => (
+              <GroupAuctionLiveBanner key={round.id} round={round} />
+            ))}
+          </div>
+        )}
 
         {/* Auction List - Compact Left Image Right Content */}
         {isLoading ? (
