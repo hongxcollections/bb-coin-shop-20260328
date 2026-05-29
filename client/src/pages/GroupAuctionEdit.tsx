@@ -1335,8 +1335,17 @@ export default function GroupAuctionEdit() {
                 >
                   成交價：{resultSortDir === "desc" ? "高→低" : "低→高"}
                 </button>
+                {resultBuyerId && (
+                  <button
+                    onClick={() => setResultBuyerId(null)}
+                    className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-500 px-3 py-1.5 rounded-lg"
+                  >
+                    取消
+                  </button>
+                )}
                 <div className="ml-auto flex gap-2">
-                  <ExportCsvButton roundId={roundId!} format="by_buyer" label="匯出 CSV" columns={columns} buyerId={resultBuyerId} />
+                  <ExportCsvButton roundId={roundId!} format="by_order" label="匯出CSV序號" columns={columns} buyerId={resultBuyerId} />
+                  <ExportCsvButton roundId={roundId!} format="by_buyer" label="匯出CSV買家" columns={columns} buyerId={resultBuyerId} />
                   <button
                     onClick={() => doPrint(resultBuyerId)}
                     className="flex items-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-xl"
@@ -1386,14 +1395,14 @@ export default function GroupAuctionEdit() {
               {filteredSold.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-gray-500 mb-2">有成交商品 ({filteredSold.length})</p>
-                  <div className="space-y-2">
+                  <div className="space-y-[3px]">
                     {filteredSold.map(it => {
                       const d = parseData(it);
                       const price = (it as any).finalPrice ?? 0;
                       const comm = Math.round(price * commRate);
                       const buyer = (it as any).winnerName ?? "";
                       return (
-                        <div key={(it as any).id} className="bg-white rounded-xl border border-gray-100 p-3">
+                        <div key={(it as any).id} className="bg-white rounded-xl border border-yellow-200 p-3">
                           <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
                             {showCols.map(c => (
                               <div key={c.key} className="text-xs">
