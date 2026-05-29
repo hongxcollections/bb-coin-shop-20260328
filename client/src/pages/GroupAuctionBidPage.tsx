@@ -325,7 +325,7 @@ export default function GroupAuctionBidPage() {
 
       {/* 尚未開拍提示 */}
       {!isStarted && round.startAt && (
-        <div className="mx-[3px] mt-[20px] bg-sky-50 border border-sky-200 rounded-xl p-3 text-center relative overflow-hidden">
+        <div className="mx-[3px] mt-[20px] border border-sky-200 rounded-xl p-3 text-center relative overflow-hidden" style={{ background: "linear-gradient(180deg, #f0f9ff 0%, #bae6fd 100%)" }}>
           {/* 由左至右緩慢閃亮效果 */}
           <div
             className="shimmer-slide absolute inset-0 pointer-events-none"
