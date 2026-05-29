@@ -6,8 +6,9 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { Plus, ChevronLeft, Pencil, Trash2, Globe, Archive, Clock } from "lucide-react";
+import { Plus, ChevronLeft, Pencil, Trash2, Globe, Archive, Clock, QrCode } from "lucide-react";
 import { GroupAuctionShareMenu } from "@/components/ShareMenu";
+import { GroupAuctionPosterModal } from "@/components/GroupAuctionPosterModal";
 
 function statusLabel(s: string) {
   if (s === "draft") return { text: "草稿", cls: "bg-gray-100 text-gray-600" };
@@ -26,6 +27,7 @@ export default function GroupAuctionList() {
   const [, setLocation] = useLocation();
   const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<"published" | "draft" | "ended">("published");
+  const [posterRound, setPosterRound] = useState<any | null>(null);
 
   const { data: rounds, isLoading, refetch } = trpc.groupAuctions.myListRounds.useQuery(undefined, {
     enabled: !!user,
@@ -148,6 +150,14 @@ export default function GroupAuctionList() {
                     </Link>
                   )}
 
+                  <button
+                    onClick={() => setPosterRound(r)}
+                    className="flex items-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-lg"
+                  >
+                    <QrCode className="w-3 h-3" />
+                    入場海報
+                  </button>
+
                   {r.status === "published" && (
                     <GroupAuctionShareMenu
                       roundId={r.id}
@@ -201,6 +211,14 @@ export default function GroupAuctionList() {
         </div>
       </div>
       <BottomNav />
+
+      {posterRound && (
+        <GroupAuctionPosterModal
+          open={!!posterRound}
+          onClose={() => setPosterRound(null)}
+          round={posterRound}
+        />
+      )}
     </div>
   );
 }
