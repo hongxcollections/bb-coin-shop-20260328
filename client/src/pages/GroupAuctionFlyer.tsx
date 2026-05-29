@@ -94,8 +94,6 @@ export default function GroupAuctionFlyer() {
           )}
           <a
             href={bidUrl}
-            target="_blank"
-            rel="noopener noreferrer"
             className="print:hidden inline-flex items-center gap-1.5 mt-2 px-4 py-1.5 rounded-full text-sm font-semibold text-white"
             style={{ background: "linear-gradient(90deg, #ea580c 0%, #f97316 60%, #fbbf24 100%)" }}
           >
