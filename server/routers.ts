@@ -10696,7 +10696,7 @@ EXAMPLE OUTPUT (exact format):
       }),
 
     /** 商戶：查看場次傭金匯報（只限本人或 admin） */
-    getCommissionSummary: protectedProcedure
+    getBuyerCommissionSummary: protectedProcedure
       .input(z.object({ roundId: z.number().int().positive() }))
       .query(async ({ input, ctx }) => {
         const db = await getDb();
@@ -10738,7 +10738,6 @@ EXAMPLE OUTPUT (exact format):
 
         const rate = parseFloat(String(round.buyerCommissionRate));
 
-        // 嘗試從 columnsJson 找 itemTitle 欄位的 key
         let titleKey = '';
         try {
           const cols: any[] = JSON.parse(round.columnsJson ?? '[]');
@@ -10771,7 +10770,91 @@ EXAMPLE OUTPUT (exact format):
             title: round.title,
             periodNumber: round.periodNumber,
             endAt: round.endAt,
-            buyerCommissionRate: rate,
+            commissionRate: rate,
+          },
+          soldItems,
+          totalSales,
+          totalCommission,
+          soldCount: soldItems.length,
+        };
+      }),
+
+    getPlatformCommissionSummary: protectedProcedure
+      .input(z.object({ roundId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db
+          .select({
+            id: groupAuctionRounds.id,
+            title: groupAuctionRounds.title,
+            periodNumber: groupAuctionRounds.periodNumber,
+            endAt: groupAuctionRounds.endAt,
+            merchantUserId: groupAuctionRounds.merchantUserId,
+            columnsJson: groupAuctionRounds.columnsJson,
+          })
+          .from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId))
+          .limit(1);
+
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+
+        // 取平台傭金率（商戶保證金入面嘅 commissionRate）
+        const deposit = await getOrCreateSellerDeposit(round.merchantUserId);
+        const rate = deposit ? parseFloat(String(deposit.commissionRate)) : 0;
+
+        const items = await db
+          .select({
+            id: groupAuctionItems.id,
+            displayOrder: groupAuctionItems.displayOrder,
+            dataJson: groupAuctionItems.dataJson,
+            finalPrice: groupAuctionItems.finalPrice,
+            status: groupAuctionItems.status,
+          })
+          .from(groupAuctionItems)
+          .where(
+            and(
+              eq(groupAuctionItems.roundId, input.roundId),
+              eq(groupAuctionItems.status, 'sold')
+            )
+          )
+          .orderBy(groupAuctionItems.displayOrder);
+
+        let titleKey = '';
+        try {
+          const cols: any[] = JSON.parse(round.columnsJson ?? '[]');
+          const titleCol = cols.find((c: any) => c.role === 'itemTitle');
+          if (titleCol) titleKey = titleCol.key;
+        } catch {}
+
+        const soldItems = items.map((item) => {
+          let name = `#${item.displayOrder + 1}`;
+          try {
+            const data: Record<string, unknown> = JSON.parse(item.dataJson ?? '{}');
+            if (titleKey && data[titleKey]) {
+              name = String(data[titleKey]);
+            } else {
+              const firstStr = Object.values(data).find(v => typeof v === 'string' && (v as string).trim());
+              if (firstStr) name = String(firstStr);
+            }
+          } catch {}
+          const finalPrice = item.finalPrice ?? 0;
+          const commission = parseFloat((finalPrice * rate).toFixed(2));
+          return { id: item.id, order: item.displayOrder + 1, name, finalPrice, commission };
+        });
+
+        const totalSales = soldItems.reduce((s, i) => s + i.finalPrice, 0);
+        const totalCommission = parseFloat(soldItems.reduce((s, i) => s + i.commission, 0).toFixed(2));
+
+        return {
+          round: {
+            id: round.id,
+            title: round.title,
+            periodNumber: round.periodNumber,
+            endAt: round.endAt,
+            commissionRate: rate,
           },
           soldItems,
           totalSales,

@@ -4295,7 +4295,11 @@ export async function autoDeductGroupAuctionCommission(
 
   if (!round || round.status !== 'ended') return { deducted: false };
 
-  const rate = parseFloat(String(round.buyerCommissionRate));
+  // 取商戶保證金以獲得平台傭金率
+  const deposit = await getOrCreateSellerDeposit(round.merchantUserId);
+  if (!deposit) return { deducted: false };
+
+  const rate = parseFloat(String(deposit.commissionRate));
   if (rate <= 0) return { deducted: false };
 
   // 取所有成交商品
@@ -4316,14 +4320,11 @@ export async function autoDeductGroupAuctionCommission(
   const totalCommission = parseFloat((totalSales * rate).toFixed(2));
   if (totalCommission <= 0) return { deducted: false };
 
-  const deposit = await getOrCreateSellerDeposit(round.merchantUserId);
-  if (!deposit) return { deducted: false };
-
   const currentBalance = parseFloat(deposit.balance.toString());
   const newBalance = parseFloat((currentBalance - totalCommission).toFixed(2));
 
   const periodLabel = round.periodNumber ? `第${round.periodNumber}期 ` : '';
-  const desc = `團拍「${round.title}」${periodLabel}成交傭金（${itemsWithPrice.length}件成交，合計 $${totalSales.toLocaleString()} × ${(rate * 100).toFixed(1)}%）`;
+  const desc = `平台傭金 — 團拍「${round.title}」${periodLabel}（${itemsWithPrice.length}件成交，合計 $${totalSales.toLocaleString()} × ${(rate * 100).toFixed(1)}%）`;
 
   await db.update(sellerDeposits)
     .set({ balance: newBalance.toFixed(2) })

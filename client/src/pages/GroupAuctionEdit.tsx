@@ -1199,7 +1199,7 @@ export default function GroupAuctionEdit() {
               : soldItems;
             const buyerLabel = uid !== null ? (winnerMap.get(uid)?.name ?? "") : "全場";
             const colTh = showCols.map(c => `<th ${TH}>${c.label}</th>`).join("");
-            const commTh = commRate > 0 ? `<th ${THR}>傭金(${commPct}%)</th>` : "";
+            const commTh = commRate > 0 ? `<th ${THR}>買家傭金(${commPct}%)</th>` : "";
             const soldRows = targetItems.map(it => {
               const d = parseData(it);
               const price = (it as any).finalPrice ?? 0;
@@ -1226,7 +1226,7 @@ export default function GroupAuctionEdit() {
               }).join("");
               unsoldSection = `<h3 style="margin:28px 0 8px">流拍商品（${unsoldItems.length} 件）</h3><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${uColTh}<th ${THR}>起拍價</th></tr></thead><tbody>${uRows}</tbody></table>`;
             }
-            return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${round?.title} 成績紀錄</title><style>body{font-family:sans-serif;padding:20px;font-size:13px}h2,h3{margin-bottom:8px}table{width:100%;border-collapse:collapse}@media print{body{padding:8px}}</style></head><body><h2>${round?.title} — 成績紀錄（${buyerLabel}）</h2><p style="color:#666;margin-bottom:16px">有成交 ${targetItems.length} 件 · 成交額 HK$${totalAmt.toLocaleString()}${commRate > 0 ? ` · 傭金 HK$${totalComm.toLocaleString()} · 合計 HK$${(totalAmt + totalComm).toLocaleString()}` : ""}</p><h3>有成交商品</h3><table><thead><tr>${colTh}<th ${THR}>成交價</th>${commTh}<th ${THR}>合計</th>${buyerColTh}</tr></thead><tbody>${soldRows}</tbody>${soldTfoot}</table>${unsoldSection}</body></html>`;
+            return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${round?.title} 成績紀錄</title><style>body{font-family:sans-serif;padding:20px;font-size:13px}h2,h3{margin-bottom:8px}table{width:100%;border-collapse:collapse}@media print{body{padding:8px}}</style></head><body><h2>${round?.title} — 成績紀錄（${buyerLabel}）</h2><p style="color:#666;margin-bottom:16px">有成交 ${targetItems.length} 件 · 成交額 HK$${totalAmt.toLocaleString()}${commRate > 0 ? ` · 買家傭金 HK$${totalComm.toLocaleString()} · 合計 HK$${(totalAmt + totalComm).toLocaleString()}` : ""}</p><h3>有成交商品</h3><table><thead><tr>${colTh}<th ${THR}>成交價</th>${commTh}<th ${THR}>合計</th>${buyerColTh}</tr></thead><tbody>${soldRows}</tbody>${soldTfoot}</table>${unsoldSection}</body></html>`;
           }
 
           function doPrint(uid: number | null) {
@@ -1260,7 +1260,7 @@ export default function GroupAuctionEdit() {
                   <p className="text-sm font-semibold text-gray-900">
                     成交 HK${totalAllAmt.toLocaleString()}
                     {commRate > 0 && (
-                      <span className="text-gray-500 font-normal"> + 傭金({commPct}%) HK${Math.round(totalAllAmt * commRate).toLocaleString()} = <span className="text-amber-700 font-bold">HK${(totalAllAmt + Math.round(totalAllAmt * commRate)).toLocaleString()}</span></span>
+                      <span className="text-gray-500 font-normal"> + 買家傭金({commPct}%) HK${Math.round(totalAllAmt * commRate).toLocaleString()} = <span className="text-amber-700 font-bold">HK${(totalAllAmt + Math.round(totalAllAmt * commRate)).toLocaleString()}</span></span>
                     )}
                   </p>
                 </div>
@@ -1313,7 +1313,7 @@ export default function GroupAuctionEdit() {
                   <p className="text-sm font-semibold text-amber-900">{winnerMap.get(resultBuyerId)?.name}</p>
                   <p className="text-xs text-amber-700 mt-0.5">
                     得標 {filteredSold.length} 件 · 成交 HK${filteredAmt.toLocaleString()}
-                    {commRate > 0 && ` · 傭金 HK$${filteredComm.toLocaleString()} · 合計 HK$${(filteredAmt + filteredComm).toLocaleString()}`}
+                    {commRate > 0 && ` · 買家傭金 HK$${filteredComm.toLocaleString()} · 合計 HK$${(filteredAmt + filteredComm).toLocaleString()}`}
                   </p>
                 </div>
               )}
@@ -1345,7 +1345,7 @@ export default function GroupAuctionEdit() {
                             {!resultBuyerId && <span className="text-xs text-gray-400">買家：{buyer}</span>}
                             <div className="text-xs ml-auto text-right">
                               <span className="text-gray-600">HK${price.toLocaleString()}</span>
-                              {commRate > 0 && <span className="text-gray-400"> + 傭({commPct}%) HK${comm.toLocaleString()}</span>}
+                              {commRate > 0 && <span className="text-gray-400"> + 買家傭({commPct}%) HK${comm.toLocaleString()}</span>}
                               <span className="font-bold text-gray-900 ml-1">= HK${(price + comm).toLocaleString()}</span>
                             </div>
                           </div>
@@ -1420,7 +1420,7 @@ function ExportCsvButton({ roundId, format, label, columns, buyerId }: {
       const rows = r.data?.rows;
       if (!rows || rows.length === 0) { toast.error("暫無結果資料"); return; }
       const cols = columns.map(c => c.label);
-      const extraCols = ["起拍價", "成交價", "傭金率", "傭金", "應付總額", "買家", "狀態"];
+      const extraCols = ["起拍價", "成交價", "買家傭金率", "買家傭金", "應付總額", "買家", "狀態"];
       const header = [...cols, ...extraCols].join(",");
       const lines = rows.map((row: any) => {
         const colVals = columns.map(c => {

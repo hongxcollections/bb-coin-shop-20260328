@@ -30,6 +30,7 @@ export default function GroupAuctionList() {
   const [activeTab, setActiveTab] = useState<"published" | "draft" | "ended">("published");
   const [posterRound, setPosterRound] = useState<any | null>(null);
   const [commissionRound, setCommissionRound] = useState<any | null>(null);
+  const [platformCommissionRound, setPlatformCommissionRound] = useState<any | null>(null);
 
   const { data: rounds, isLoading, refetch } = trpc.groupAuctions.myListRounds.useQuery(undefined, {
     enabled: !!user,
@@ -197,13 +198,22 @@ export default function GroupAuctionList() {
                   )}
 
                   {r.status === "ended" && (
-                    <button
-                      onClick={() => setCommissionRound(r)}
-                      className="flex items-center gap-1 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg"
-                    >
-                      <Receipt className="w-3 h-3" />
-                      傭金匯報
-                    </button>
+                    <>
+                      <button
+                        onClick={() => setCommissionRound(r)}
+                        className="flex items-center gap-1 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg"
+                      >
+                        <Receipt className="w-3 h-3" />
+                        買家傭金
+                      </button>
+                      <button
+                        onClick={() => setPlatformCommissionRound(r)}
+                        className="flex items-center gap-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg"
+                      >
+                        <Receipt className="w-3 h-3" />
+                        平台傭金
+                      </button>
+                    </>
                   )}
 
                   {r.status !== "published" && (
@@ -242,6 +252,16 @@ export default function GroupAuctionList() {
           onClose={() => setCommissionRound(null)}
           roundId={commissionRound.id}
           roundTitle={commissionRound.title}
+          type="buyer"
+        />
+      )}
+      {platformCommissionRound && (
+        <GroupAuctionCommissionModal
+          open={!!platformCommissionRound}
+          onClose={() => setPlatformCommissionRound(null)}
+          roundId={platformCommissionRound.id}
+          roundTitle={platformCommissionRound.title}
+          type="platform"
         />
       )}
     </div>

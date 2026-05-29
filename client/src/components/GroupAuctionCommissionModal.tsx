@@ -6,13 +6,25 @@ interface Props {
   onClose: () => void;
   roundId: number;
   roundTitle: string;
+  type?: "buyer" | "platform";
 }
 
-export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle }: Props) {
-  const { data, isLoading } = trpc.groupAuctions.getCommissionSummary.useQuery(
+export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle, type = "buyer" }: Props) {
+  const buyerResult = trpc.groupAuctions.getBuyerCommissionSummary.useQuery(
     { roundId },
-    { enabled: open, staleTime: 60_000 }
+    { enabled: open && type === "buyer", staleTime: 60_000 }
   );
+  const platformResult = trpc.groupAuctions.getPlatformCommissionSummary.useQuery(
+    { roundId },
+    { enabled: open && type === "platform", staleTime: 60_000 }
+  );
+
+  const isLoading = type === "buyer" ? buyerResult.isLoading : platformResult.isLoading;
+  const data = type === "buyer" ? buyerResult.data : platformResult.data;
+
+  const title = type === "buyer" ? "買家傭金匯報" : "平台傭金匯報";
+  const rateLabel = type === "buyer" ? "買家傭金率" : "平台傭金率";
+  const commLabel = type === "buyer" ? "買家傭金" : "平台傭金";
 
   if (!open) return null;
 
@@ -58,7 +70,7 @@ export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle
 
             {/* Header */}
             <div className="no-print flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
-              <h2 className="font-bold text-gray-900 text-base">傭金匯報</h2>
+              <h2 className="font-bold text-gray-900 text-base">{title}</h2>
               <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
@@ -75,7 +87,7 @@ export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle
                 </h1>
                 <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-xs text-gray-500">
                   {data?.round.endAt && <span>結拍：{fmtDate(data.round.endAt)}</span>}
-                  <span>傭金率：{data ? (data.round.buyerCommissionRate * 100).toFixed(1) : "—"}%</span>
+                  <span>{rateLabel}：{data ? (data.round.commissionRate * 100).toFixed(1) : "—"}%</span>
                 </div>
               </div>
 
@@ -94,11 +106,11 @@ export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle
                           <th className="text-left p-2 border border-gray-200 bg-amber-50 text-amber-800 font-semibold w-10">#</th>
                           <th className="text-left p-2 border border-gray-200 bg-amber-50 text-amber-800 font-semibold">商品名稱</th>
                           <th className="text-right p-2 border border-gray-200 bg-amber-50 text-amber-800 font-semibold">成交價</th>
-                          <th className="text-right p-2 border border-gray-200 bg-amber-50 text-amber-800 font-semibold">傭金</th>
+                          <th className="text-right p-2 border border-gray-200 bg-amber-50 text-amber-800 font-semibold">{commLabel}</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {data.soldItems.map((item, idx) => (
+                        {data.soldItems.map((item: { id: number; order: number; name: string; finalPrice: number; commission: number }, idx: number) => (
                           <tr key={item.id} className={idx % 2 === 0 ? "" : "bg-gray-50"}>
                             <td className="p-2 border border-gray-200 text-gray-400 text-xs">{item.order}</td>
                             <td className="p-2 border border-gray-200 text-gray-900">{item.name}</td>
