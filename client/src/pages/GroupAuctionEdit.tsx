@@ -1341,7 +1341,7 @@ export default function GroupAuctionEdit() {
                 }
                 function renderItems(itemList: typeof soldItems, showBuyer: boolean) {
                   return (
-                    <div className="divide-y divide-gray-100">
+                    <div className="space-y-[5px] p-1">
                       {itemList.map((it) => {
                         const d = parseData(it);
                         const price = (it as any).finalPrice ?? 0;
@@ -1349,7 +1349,7 @@ export default function GroupAuctionEdit() {
                         const buyer = (it as any).winnerName ?? "";
                         return (
                           <div key={(it as any).id} className="flex items-center gap-2 px-3 py-2 text-xs min-w-0">
-                            <span className="text-gray-400 font-mono w-5 flex-shrink-0 text-right">{(it as any).displayOrder}</span>
+                            <span className="text-gray-400 font-mono w-5 flex-shrink-0 text-right">{(it as any).displayOrder + 1}</span>
                             {showCols.map(c => (
                               <span key={c.key} className="text-gray-700 truncate">{d[c.key] ?? "—"}</span>
                             ))}
@@ -1404,24 +1404,17 @@ export default function GroupAuctionEdit() {
               {!resultBuyerId && unsoldItems.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-gray-400 mb-2">流拍商品 ({unsoldItems.length})</p>
-                  <div className="space-y-2">
+                  <div className="space-y-[5px] p-1">
                     {unsoldItems.map(it => {
                       const d = parseData(it);
                       const startPrice = (it as any).startPrice ?? 0;
                       return (
-                        <div key={(it as any).id} className="bg-gray-50 rounded-xl border border-gray-100 p-3 opacity-70">
-                          <div className="flex flex-wrap gap-x-4 gap-y-1">
-                            {showCols.map(c => (
-                              <div key={c.key} className="text-xs">
-                                <span className="text-gray-400">{c.label}：</span>
-                                <span className="text-gray-600">{d[c.key] ?? "—"}</span>
-                              </div>
-                            ))}
-                            <div className="text-xs">
-                              <span className="text-gray-400">起拍：</span>
-                              <span className="text-gray-400">HK${startPrice.toLocaleString()}</span>
-                            </div>
-                          </div>
+                        <div key={(it as any).id} className="flex items-center gap-2 px-3 py-2 text-xs min-w-0 bg-gray-50 rounded-lg opacity-70">
+                          <span className="text-gray-400 font-mono w-5 flex-shrink-0 text-right">{(it as any).displayOrder + 1}</span>
+                          {showCols.map(c => (
+                            <span key={c.key} className="text-gray-600 truncate">{d[c.key] ?? "—"}</span>
+                          ))}
+                          <span className="ml-auto flex-shrink-0 text-gray-400 whitespace-nowrap">起拍 HK${startPrice.toLocaleString()}</span>
                         </div>
                       );
                     })}
