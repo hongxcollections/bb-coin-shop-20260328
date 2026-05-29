@@ -201,21 +201,46 @@ export function GroupAuctionLiveBanner({ round }: { round: LiveRound }) {
 
   const promoImgs = (round.promoImages ?? []).slice(0, 5);
 
+  // 同 GroupAuctionBidPage 一樣：隨機排列推廣圖作 banner 背景裝飾
+  const promoLayout = React.useMemo(() => {
+    if (promoImgs.length === 0) return [];
+    const shuffled = [...promoImgs].sort(() => Math.random() - 0.5);
+    return shuffled.map((url) => ({
+      url,
+      x:       Math.random() * 90,
+      y:       Math.random() * 80,
+      size:    70 + Math.random() * 60,
+      rot:     (Math.random() - 0.5) * 30,
+      opacity: 0.10 + Math.random() * 0.08,
+    }));
+  }, [round.id]);
+
   return (
-    <>
+    // 用 flex-col + rowGap 精確控制 banner 同下方圖片間距
+    <div style={{ display: "flex", flexDirection: "column", rowGap: "5px" }}>
       <Link href={`/group/${round.id}`}>
         <a
           className="block relative overflow-hidden rounded-2xl shadow-lg cursor-pointer active:scale-[0.985] transition-transform"
           style={{ background: "linear-gradient(135deg, #ea580c 0%, #f97316 40%, #fb923c 70%, #fbbf24 100%)" }}
         >
-          {round.coverImage && (
+          {/* 推廣圖片背景（同 GroupAuctionBidPage 同款散落效果） */}
+          {promoLayout.map((p, i) => (
             <img
-              src={round.coverImage}
+              key={i}
+              src={p.url}
               alt=""
-              className="absolute inset-0 w-full h-full object-cover"
-              style={{ opacity: 0.22, filter: "blur(3px)", transform: "scale(1.05)" }}
+              aria-hidden="true"
+              className="absolute object-cover rounded-lg pointer-events-none select-none"
+              style={{
+                left:    `${p.x}%`,
+                top:     `${p.y}%`,
+                width:   p.size,
+                height:  p.size,
+                opacity: p.opacity,
+                transform: `rotate(${p.rot}deg)`,
+              }}
             />
-          )}
+          ))}
 
           <div className="relative z-10 px-4 pt-3.5 pb-3.5">
             {/* 商戶頭像 + 名稱 */}
@@ -270,17 +295,18 @@ export function GroupAuctionLiveBanner({ round }: { round: LiveRound }) {
         </a>
       </Link>
 
+      {/* 圓圈圖片列：rowGap 已由外層 flex-col 控制為 5px，圖片之間亦 5px */}
       {promoImgs.length > 0 && (
-        <div className="flex px-1 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none", gap: "5px", marginTop: "5px" }}>
+        <div style={{ display: "flex", flexDirection: "row", gap: "5px", overflowX: "auto", scrollbarWidth: "none", paddingLeft: 4 }}>
           {promoImgs.map((url, i) => (
             <button
               key={i}
               type="button"
               className="shrink-0 rounded-full overflow-hidden border-[2px] border-amber-400 shadow-sm active:scale-95 transition-transform bg-amber-100"
-              style={{ width: 30, height: 30 }}
+              style={{ width: 30, height: 30, flexShrink: 0 }}
               onClick={() => setLightboxIdx(i)}
             >
-              <img src={url} alt="" className="w-full h-full object-cover" />
+              <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </button>
           ))}
         </div>
@@ -293,6 +319,6 @@ export function GroupAuctionLiveBanner({ round }: { round: LiveRound }) {
           onClose={() => setLightboxIdx(null)}
         />
       )}
-    </>
+    </div>
   );
 }
