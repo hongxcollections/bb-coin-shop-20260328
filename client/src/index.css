@@ -871,3 +871,12 @@
   50%  { opacity: 0.85; transform: translateX(-50%) translateY(40px) scale(1.4); }
   100% { opacity: 0; transform: translateX(-50%) translateY(80px) scale(0.8); }
 }
+
+/* ── Group Auction Pre-show Shimmer ── */
+@keyframes shimmer-slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+.shimmer-slide {
+  animation: shimmer-slide 2.8s ease-in-out infinite;
+}

@@ -325,7 +325,12 @@ export default function GroupAuctionBidPage() {
 
       {/* 尚未開拍提示 */}
       {!isStarted && round.startAt && (
-        <div className="mx-[3px] mt-[20px] bg-sky-50 border border-sky-200 rounded-xl p-3 text-center">
+        <div className="mx-[3px] mt-[20px] bg-sky-50 border border-sky-200 rounded-xl p-3 text-center relative overflow-hidden">
+          {/* 由左至右緩慢閃亮效果 */}
+          <div
+            className="shimmer-slide absolute inset-0 pointer-events-none"
+            style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)" }}
+          />
           <p className="text-sm font-bold text-sky-700">場次預展</p>
           <p className="text-xs text-sky-500 mt-1">開拍時間：{fmtDate(round.startAt as string)} 至 {fmtDate(round.endAt as string)}</p>
           <p className="text-xs text-sky-600 font-mono font-semibold mt-1">{startCdStr}</p>
