@@ -251,12 +251,13 @@ export function GroupAuctionLiveBanner({ round }: { round: LiveRound }) {
       </Link>
 
       {promoImgs.length > 0 && (
-        <div className="flex gap-2.5 px-1 mt-2.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+        <div className="flex px-1 mt-2.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none", gap: "5px" }}>
           {promoImgs.map((url, i) => (
             <button
               key={i}
               type="button"
-              className="shrink-0 w-[60px] h-[60px] rounded-full overflow-hidden border-[2.5px] border-amber-400 shadow-md active:scale-95 transition-transform bg-amber-100"
+              className="shrink-0 rounded-full overflow-hidden border-[2px] border-amber-400 shadow-sm active:scale-95 transition-transform bg-amber-100"
+              style={{ width: 30, height: 30 }}
               onClick={() => setLightboxIdx(i)}
             >
               <img src={url} alt="" className="w-full h-full object-cover" />
