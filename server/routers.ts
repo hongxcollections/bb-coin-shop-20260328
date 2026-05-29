@@ -10222,6 +10222,41 @@ EXAMPLE OUTPUT (exact format):
         return { success: true };
       }),
 
+    archiveRound: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.id)).limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        if (round.status !== 'ended') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只有已結拍場次可以封存' });
+        }
+        await db.update(groupAuctionRounds)
+          .set({ isArchived: 1 })
+          .where(eq(groupAuctionRounds.id, input.id));
+        return { success: true };
+      }),
+
+    unarchiveRound: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.id)).limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        await db.update(groupAuctionRounds)
+          .set({ isArchived: 0 })
+          .where(eq(groupAuctionRounds.id, input.id));
+        return { success: true };
+      }),
+
     // ── Images ────────────────────────────────────────────────────────────────
 
     /** 商戶：取得圖片上載 presigned URL */

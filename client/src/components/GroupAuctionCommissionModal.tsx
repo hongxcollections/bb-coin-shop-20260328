@@ -44,10 +44,12 @@ export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle
     <>
       <style>{`
         @media print {
-          body > *:not(#ga-commission-portal) { display: none !important; }
-          #ga-commission-portal { position: fixed; inset: 0; background: white; z-index: 99999; overflow: visible; }
+          body * { visibility: hidden !important; }
+          #ga-commission-portal,
+          #ga-commission-portal * { visibility: visible !important; }
+          #ga-commission-portal { position: fixed; inset: 0; background: white; z-index: 99999; }
           #ga-commission-portal .no-print { display: none !important; }
-          #ga-commission-portal .modal-backdrop { display: none !important; }
+          #ga-commission-portal .modal-backdrop { background: transparent !important; position: static !important; display: block !important; }
           #ga-commission-portal .modal-box {
             position: static !important;
             box-shadow: none !important;

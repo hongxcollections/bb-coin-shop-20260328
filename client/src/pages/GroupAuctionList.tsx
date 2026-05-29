@@ -27,7 +27,7 @@ export default function GroupAuctionList() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const confirm = useConfirm();
-  const [activeTab, setActiveTab] = useState<"published" | "draft" | "ended">("published");
+  const [activeTab, setActiveTab] = useState<"published" | "draft" | "ended" | "archived">("published");
   const [posterRound, setPosterRound] = useState<any | null>(null);
   const [commissionRound, setCommissionRound] = useState<any | null>(null);
   const [platformCommissionRound, setPlatformCommissionRound] = useState<any | null>(null);
@@ -53,6 +53,16 @@ export default function GroupAuctionList() {
     onError: (e) => toast.error(e.message || "結拍失敗"),
   });
 
+  const archiveMut = trpc.groupAuctions.archiveRound.useMutation({
+    onSuccess: () => { toast.success("已封存"); refetch(); },
+    onError: (e) => toast.error(e.message || "封存失敗"),
+  });
+
+  const unarchiveMut = trpc.groupAuctions.unarchiveRound.useMutation({
+    onSuccess: () => { toast.success("已取消封存"); refetch(); },
+    onError: (e) => toast.error(e.message || "取消封存失敗"),
+  });
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <Header />
@@ -74,9 +84,13 @@ export default function GroupAuctionList() {
 
         {/* Tabs */}
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-4">
-          {(["published", "draft", "ended"] as const).map(tab => {
-            const labels = { published: "Live", draft: "草稿", ended: "已結拍" };
-            const count = rounds?.filter(r => r.status === tab).length ?? 0;
+          {(["published", "draft", "ended", "archived"] as const).map(tab => {
+            const labels = { published: "Live", draft: "草稿", ended: "已結拍", archived: "封存" };
+            const count = tab === "archived"
+              ? rounds?.filter(r => r.status === "ended" && r.isArchived).length ?? 0
+              : tab === "ended"
+              ? rounds?.filter(r => r.status === "ended" && !r.isArchived).length ?? 0
+              : rounds?.filter(r => r.status === tab).length ?? 0;
             return (
               <button
                 key={tab}
@@ -95,17 +109,32 @@ export default function GroupAuctionList() {
           <div className="text-center py-12 text-gray-400 text-sm">載入中...</div>
         )}
 
-        {!isLoading && rounds?.filter(r => r.status === activeTab).length === 0 && (
-          <div className="text-center py-16 text-gray-400">
-            <Archive className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">
-              {activeTab === "published" ? "未有進行中場次" : activeTab === "draft" ? "未有草稿場次" : "未有已結拍場次"}
-            </p>
-          </div>
-        )}
+        {!isLoading && (() => {
+          const visible = activeTab === "archived"
+            ? rounds?.filter(r => r.status === "ended" && r.isArchived)
+            : activeTab === "ended"
+            ? rounds?.filter(r => r.status === "ended" && !r.isArchived)
+            : rounds?.filter(r => r.status === activeTab);
+          if ((visible?.length ?? 0) > 0) return null;
+          const emptyMsg: Record<string, string> = {
+            published: "未有進行中場次", draft: "未有草稿場次",
+            ended: "未有已結拍場次", archived: "未有封存場次",
+          };
+          return (
+            <div className="text-center py-16 text-gray-400">
+              <Archive className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">{emptyMsg[activeTab]}</p>
+            </div>
+          );
+        })()}
 
         <div className="space-y-3">
-          {rounds?.filter(r => r.status === activeTab).map((r) => {
+          {(activeTab === "archived"
+            ? rounds?.filter(r => r.status === "ended" && r.isArchived)
+            : activeTab === "ended"
+            ? rounds?.filter(r => r.status === "ended" && !r.isArchived)
+            : rounds?.filter(r => r.status === activeTab)
+          )?.map((r) => {
             const sl = statusLabel(r.status);
             return (
               <div key={r.id} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
@@ -213,10 +242,30 @@ export default function GroupAuctionList() {
                         <Receipt className="w-3 h-3" />
                         平台傭金
                       </button>
+                      {!r.isArchived ? (
+                        <button
+                          onClick={async () => {
+                            const ok = await confirm({ title: "封存場次", description: "封存後場次會移至封存tab，可隨時取消封存。確認？" });
+                            if (ok) archiveMut.mutate({ id: r.id });
+                          }}
+                          className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-500 px-3 py-1.5 rounded-lg"
+                        >
+                          <Archive className="w-3 h-3" />
+                          封存
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => unarchiveMut.mutate({ id: r.id })}
+                          className="flex items-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 px-3 py-1.5 rounded-lg"
+                        >
+                          <Archive className="w-3 h-3" />
+                          取消封存
+                        </button>
+                      )}
                     </>
                   )}
 
-                  {r.status !== "published" && (
+                  {r.status === "draft" && (
                     <button
                       onClick={async () => {
                         const ok = await confirm({ title: "刪除場次", description: "刪除後不可恢復，所有商品及出價記錄一併刪除。確認？" });

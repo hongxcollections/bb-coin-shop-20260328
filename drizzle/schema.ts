@@ -789,6 +789,8 @@ export const groupAuctionRounds = mysqlTable("groupAuctionRounds", {
   displayCurrencies: varchar("displayCurrencies", { length: 100 }).default("HKD,CNY").notNull(),
   // 場次推廣圖片（JSON array of S3 URLs，最多 10 張，用作 live banner 背景）
   promoImagesJson: text("promoImagesJson"),
+  // 封存（已結拍場次可封存，隱藏於主列表）
+  isArchived: int("isArchived").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
