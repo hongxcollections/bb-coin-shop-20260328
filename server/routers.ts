@@ -10557,7 +10557,7 @@ EXAMPLE OUTPUT (exact format):
 
     // ── Public ────────────────────────────────────────────────────────────────
 
-    /** 公開：拍賣主頁 Live Banner — 所有 published 且未過期嘅場次 + stats */
+    /** 公開：拍賣主頁 Live Banner — 所有 published 且未過期嘅場次 + stats + 商戶資料 */
     getActiveLiveRounds: publicProcedure.query(async () => {
       const db = await getDb();
       const rawRows: any = await db.execute(sql`
@@ -10566,12 +10566,16 @@ EXAMPLE OUTPUT (exact format):
           r.merchantUserId, r.status,
           COUNT(i.id)                                                    AS totalItems,
           SUM(CASE WHEN i.status = 'sold'   THEN 1 ELSE 0 END)          AS soldItems,
-          SUM(CASE WHEN i.status = 'active' THEN 1 ELSE 0 END)          AS activeItems
+          SUM(CASE WHEN i.status = 'active' THEN 1 ELSE 0 END)          AS activeItems,
+          ma.merchantName,
+          COALESCE(NULLIF(TRIM(ma.merchantIcon),''), NULLIF(TRIM(u.photoUrl),'')) AS merchantAvatar
         FROM groupAuctionRounds r
         LEFT JOIN groupAuctionItems i ON i.roundId = r.id
+        LEFT JOIN merchantApplications ma ON ma.userId = r.merchantUserId AND ma.status = 'approved'
+        LEFT JOIN users u ON u.id = r.merchantUserId
         WHERE r.status = 'published'
           AND (r.endAt IS NULL OR r.endAt > NOW())
-        GROUP BY r.id
+        GROUP BY r.id, ma.merchantName, ma.merchantIcon, u.photoUrl
         ORDER BY r.createdAt DESC
       `);
       const rows = (Array.isArray(rawRows) ? rawRows[0] : rawRows) as any[];
@@ -10583,6 +10587,8 @@ EXAMPLE OUTPUT (exact format):
         coverImage:     r.coverImage    ? String(r.coverImage)    : null,
         promoImages:    (() => { try { return JSON.parse(r.promoImagesJson ?? "[]"); } catch { return []; } })(),
         merchantUserId: Number(r.merchantUserId),
+        merchantName:   r.merchantName  ? String(r.merchantName)  : null,
+        merchantAvatar: r.merchantAvatar ? String(r.merchantAvatar) : null,
         totalItems:     Number(r.totalItems  ?? 0),
         soldItems:      Number(r.soldItems   ?? 0),
         activeItems:    Number(r.activeItems ?? 0),

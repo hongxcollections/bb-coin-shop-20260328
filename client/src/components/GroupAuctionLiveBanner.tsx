@@ -10,6 +10,8 @@ export interface LiveRound {
   coverImage: string | null;
   promoImages: string[];
   merchantUserId: number;
+  merchantName: string | null;
+  merchantAvatar: string | null;
   totalItems: number;
   soldItems: number;
   activeItems: number;
@@ -216,6 +218,24 @@ export function GroupAuctionLiveBanner({ round }: { round: LiveRound }) {
           )}
 
           <div className="relative z-10 px-4 pt-3.5 pb-3.5">
+            {/* 商戶頭像 + 名稱 */}
+            {round.merchantName && (
+              <div className="flex items-center gap-1.5 mb-2">
+                {round.merchantAvatar ? (
+                  <img
+                    src={round.merchantAvatar}
+                    alt=""
+                    className="w-5 h-5 rounded-full object-cover border border-white/40 shrink-0"
+                  />
+                ) : (
+                  <div className="w-5 h-5 rounded-full bg-white/30 shrink-0" />
+                )}
+                <span className="text-white/90 text-[11px] font-semibold truncate max-w-[160px]">
+                  {round.merchantName}
+                </span>
+              </div>
+            )}
+
             <div className="flex items-center justify-between mb-1.5">
               <span className="inline-flex items-center gap-1 bg-black/20 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full tracking-widest uppercase">
                 🛒 團購拍賣
@@ -251,7 +271,7 @@ export function GroupAuctionLiveBanner({ round }: { round: LiveRound }) {
       </Link>
 
       {promoImgs.length > 0 && (
-        <div className="flex px-1 mt-2.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none", gap: "5px" }}>
+        <div className="flex px-1 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none", gap: "5px", marginTop: "5px" }}>
           {promoImgs.map((url, i) => (
             <button
               key={i}
