@@ -75,7 +75,7 @@ export default function GroupAuctionEdit() {
   );
   const [resultSortDir, setResultSortDir] = useState<"desc" | "asc">("desc");
   const [resultBuyerId, setResultBuyerId] = useState<number | null>(null);
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
   // ── 基本設定 state ──
   const [basic, setBasic] = useState({
@@ -1333,7 +1333,7 @@ export default function GroupAuctionEdit() {
               )}
               {soldItems.length > 0 && (() => {
                 function toggleSection(key: string) {
-                  setCollapsedSections(prev => {
+                  setExpandedSections(prev => {
                     const next = new Set(prev);
                     if (next.has(key)) next.delete(key); else next.add(key);
                     return next;
@@ -1341,30 +1341,24 @@ export default function GroupAuctionEdit() {
                 }
                 function renderItems(itemList: typeof soldItems, showBuyer: boolean) {
                   return (
-                    <div className="space-y-[3px] p-2">
-                      {itemList.map(it => {
+                    <div className="divide-y divide-gray-100">
+                      {itemList.map((it, idx) => {
                         const d = parseData(it);
                         const price = (it as any).finalPrice ?? 0;
                         const comm = Math.round(price * commRate);
                         const buyer = (it as any).winnerName ?? "";
                         return (
-                          <div key={(it as any).id} className="bg-white rounded-xl border border-green-300 p-3">
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
-                              {showCols.map(c => (
-                                <div key={c.key} className="text-xs">
-                                  <span className="text-gray-400">{c.label}：</span>
-                                  <span className="text-gray-800">{d[c.key] ?? "—"}</span>
-                                </div>
-                              ))}
-                            </div>
-                            <div className="flex items-center justify-between flex-wrap gap-1 pt-1.5 border-t border-gray-50">
-                              {showBuyer && <span className="text-xs text-gray-400">買家：{buyer}</span>}
-                              <div className="text-xs ml-auto text-right">
-                                <span className="text-gray-600">HK${price.toLocaleString()}</span>
-                                {commRate > 0 && <span className="text-gray-400"> + 買家傭({commPct}%) HK${comm.toLocaleString()}</span>}
-                                <span className="font-bold text-gray-900 ml-1">= HK${(price + comm).toLocaleString()}</span>
-                              </div>
-                            </div>
+                          <div key={(it as any).id} className="flex items-center gap-2 px-3 py-2 text-xs min-w-0">
+                            <span className="text-gray-400 font-mono w-5 flex-shrink-0 text-right">{idx + 1}</span>
+                            {showCols.map(c => (
+                              <span key={c.key} className="text-gray-700 truncate">{d[c.key] ?? "—"}</span>
+                            ))}
+                            {showBuyer && <span className="text-gray-400 flex-shrink-0 truncate max-w-[5rem]">{buyer}</span>}
+                            <span className="ml-auto flex-shrink-0 text-right whitespace-nowrap">
+                              <span className="text-gray-600">HK${price.toLocaleString()}</span>
+                              {commRate > 0 && <span className="text-gray-400"> +{comm.toLocaleString()}</span>}
+                              <span className="font-bold text-gray-900"> ={( price + comm).toLocaleString()}</span>
+                            </span>
                           </div>
                         );
                       })}
@@ -1388,7 +1382,7 @@ export default function GroupAuctionEdit() {
                 return (
                   <div className="space-y-2">
                     {sections.map(sec => {
-                      const isCollapsed = collapsedSections.has(sec.key);
+                      const isExpanded = expandedSections.has(sec.key);
                       return (
                         <div key={sec.key} className="border border-gray-200 rounded-xl overflow-hidden">
                           <button
@@ -1396,9 +1390,9 @@ export default function GroupAuctionEdit() {
                             className="w-full flex items-center justify-between px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-left"
                           >
                             <span className="text-xs font-semibold text-gray-700">{sec.label}</span>
-                            <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-150 ${isCollapsed ? "-rotate-90" : ""}`} />
+                            <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-150 ${isExpanded ? "" : "-rotate-90"}`} />
                           </button>
-                          {!isCollapsed && renderItems(sec.items, sec.showBuyer)}
+                          {isExpanded && renderItems(sec.items, sec.showBuyer)}
                         </div>
                       );
                     })}
