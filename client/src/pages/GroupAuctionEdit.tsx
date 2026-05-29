@@ -1341,14 +1341,14 @@ export default function GroupAuctionEdit() {
                 }
                 function renderItems(itemList: typeof soldItems, showBuyer: boolean) {
                   return (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "5px", padding: "4px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "5px", padding: "4px", background: "#f3f4f6" }}>
                       {itemList.map((it) => {
                         const d = parseData(it);
                         const price = (it as any).finalPrice ?? 0;
                         const comm = Math.round(price * commRate);
                         const buyer = (it as any).winnerName ?? "";
                         return (
-                          <div key={(it as any).id} className="flex items-center gap-2 px-3 py-2 text-xs min-w-0">
+                          <div key={(it as any).id} className="flex items-center gap-2 px-3 py-2 text-xs min-w-0 bg-white rounded-lg">
                             <span className="text-gray-400 font-mono w-5 flex-shrink-0 text-right">{(it as any).displayOrder + 1}</span>
                             {showCols.map(c => (
                               <span key={c.key} className="text-gray-700 truncate">{d[c.key] ?? "—"}</span>
@@ -1404,12 +1404,12 @@ export default function GroupAuctionEdit() {
               {!resultBuyerId && unsoldItems.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-gray-400 mb-2">流拍商品 ({unsoldItems.length})</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "5px", padding: "4px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "5px", padding: "4px", background: "#f3f4f6" }}>
                     {unsoldItems.map(it => {
                       const d = parseData(it);
                       const startPrice = (it as any).startPrice ?? 0;
                       return (
-                        <div key={(it as any).id} className="flex items-center gap-2 px-3 py-2 text-xs min-w-0 bg-gray-50 rounded-lg opacity-70">
+                        <div key={(it as any).id} className="flex items-center gap-2 px-3 py-2 text-xs min-w-0 bg-white rounded-lg opacity-60">
                           <span className="text-gray-400 font-mono w-5 flex-shrink-0 text-right">{(it as any).displayOrder + 1}</span>
                           {showCols.map(c => (
                             <span key={c.key} className="text-gray-600 truncate">{d[c.key] ?? "—"}</span>
