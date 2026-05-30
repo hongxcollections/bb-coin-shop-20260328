@@ -528,11 +528,18 @@ export default function GroupAuctionBidPage() {
                       <span className="text-[8px] text-gray-400">起 {displayPrice(item.startPrice)} +{displayPrice(effectiveIncrement)}</span>
                     </div>
                     {item.topBidderName && (
-                      <div className="flex items-center gap-1 text-xs mt-0.5">
-                        <Trophy className="w-3 h-3 text-amber-400" />
-                        <span className={isMine ? "text-amber-600 font-medium" : "text-gray-500"}>
-                          {isMine ? "你領先" : item.topBidderName}
-                        </span>
+                      <div className="flex items-center justify-between gap-1 text-xs mt-0.5">
+                        <div className="flex items-center gap-1">
+                          <Trophy className="w-3 h-3 text-amber-400" />
+                          <span className={isMine ? "text-amber-600 font-medium" : "text-gray-500"}>
+                            {isMine ? "你領先" : item.topBidderName}
+                          </span>
+                        </div>
+                        {item.status === "sold" && (item as any).buyNowPrice != null && Number((item as any).finalPrice) === (item as any).buyNowPrice && (
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca" }}>
+                            已封頂价{displayPrice((item as any).buyNowPrice)}成交
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -591,14 +598,6 @@ export default function GroupAuctionBidPage() {
                       : `+1口 ${displayPrice(nextBid)}，含 ${(commRate * 100).toFixed(1)}% 買家傭金 需付 ${displayPrice(Number(nextBid) * (1 + commRate))}`
                     }
                   </p>
-                )}
-                {/* 封頂成交標籤（底部右對齊） */}
-                {item.status === "sold" && (item as any).buyNowPrice != null && Number((item as any).finalPrice) === (item as any).buyNowPrice && (
-                  <div className="flex justify-end mt-1.5">
-                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca" }}>
-                      已封頂价{displayPrice((item as any).buyNowPrice)}成交
-                    </span>
-                  </div>
                 )}
               </div>
 
