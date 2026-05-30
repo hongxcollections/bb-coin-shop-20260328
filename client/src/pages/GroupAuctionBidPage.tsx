@@ -543,7 +543,7 @@ export default function GroupAuctionBidPage() {
                             if (!isAuthenticated) { toast.error("請先登入才可出價"); setLocation(`/login?from=${encodeURIComponent(location)}`); return; }
                             if (user && round && user.id === (round as any).merchantUserId) { toast.error("商戶不可為自己的場次出價"); return; }
                             const extraCols = columns
-                              .filter(c => c.role !== "startPrice" && c.role !== "buyNowPrice" && c.role !== "bidIncrement" && c.role !== "itemTitle")
+                              .filter(c => c.role !== "startPrice" && c.role !== "buyNowPrice" && c.role !== "bidIncrement")
                               .map(c => data[c.key]).filter(Boolean).join(" · ");
                             setCapConfirm({ itemId: item.id, amount: (item as any).buyNowPrice, title: title ?? "", itemNumber: idx + 1, extraCols });
                           }}
@@ -631,11 +631,9 @@ export default function GroupAuctionBidPage() {
             <h3 className="text-sm font-bold text-gray-900 mb-3">確認以封頂價得標</h3>
             <div className="rounded-xl p-3 mb-3" style={{ background: "#fff7ed", border: "1px solid #fed7aa" }}>
               <p className="text-xs text-gray-600 mb-1">商品 {capConfirm.itemNumber}</p>
-              <p className="text-sm font-semibold text-gray-900 leading-snug">{capConfirm.title || "—"}</p>
-              {capConfirm.extraCols && (
-                <p className="text-xs text-gray-500 mt-0.5 mb-2">{capConfirm.extraCols}</p>
-              )}
-              {!capConfirm.extraCols && <div className="mb-2" />}
+              <p className="text-sm font-semibold text-gray-900 leading-snug mb-2" style={{ wordBreak: "break-all" }}>
+                {capConfirm.extraCols || capConfirm.title || "—"}
+              </p>
               <p className="text-xs text-gray-500 mb-0.5">封頂成交價</p>
               <p className="text-xl font-black" style={{ color: "#dc2626" }}>{displayPrice(capConfirm.amount)}</p>
             </div>
