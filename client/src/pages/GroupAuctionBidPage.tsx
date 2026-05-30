@@ -488,7 +488,9 @@ export default function GroupAuctionBidPage() {
                       {displayCols.filter(c => c.role === "customText").map(c => data[c.key]).filter(Boolean).join(" · ")}
                     </span>
                   )}
-                  {item.status === "sold" && (
+                  {item.status === "sold" && !(
+                    (item as any).buyNowPrice != null && Number((item as any).finalPrice) === (item as any).buyNowPrice
+                  ) && (
                     <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex-shrink-0">成交</span>
                   )}
                   {item.status === "unsold" && (
@@ -589,6 +591,14 @@ export default function GroupAuctionBidPage() {
                       : `+1口 ${displayPrice(nextBid)}，含 ${(commRate * 100).toFixed(1)}% 買家傭金 需付 ${displayPrice(Number(nextBid) * (1 + commRate))}`
                     }
                   </p>
+                )}
+                {/* 封頂成交標籤（底部右對齊） */}
+                {item.status === "sold" && (item as any).buyNowPrice != null && Number((item as any).finalPrice) === (item as any).buyNowPrice && (
+                  <div className="flex justify-end mt-1.5">
+                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca" }}>
+                      已封頂价{displayPrice((item as any).buyNowPrice)}成交
+                    </span>
+                  </div>
                 )}
               </div>
 
