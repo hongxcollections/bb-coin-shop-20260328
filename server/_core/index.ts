@@ -1857,6 +1857,20 @@ Output ONLY the JSON, nothing else.`;
     }
   });
 
+  // Image proxy：server-side fetch 解決前端 canvas CORS 問題
+  app.get('/api/img-proxy', async (req, res) => {
+    const url = req.query.url as string;
+    if (!url || !/^https?:\/\//.test(url)) { res.status(400).send('Bad url'); return; }
+    try {
+      const upstream = await fetch(url);
+      const ct = upstream.headers.get('content-type') || 'image/jpeg';
+      res.setHeader('Content-Type', ct);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      const buf = Buffer.from(await upstream.arrayBuffer());
+      res.send(buf);
+    } catch { res.status(502).send('Fetch failed'); }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

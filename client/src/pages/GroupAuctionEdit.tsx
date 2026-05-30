@@ -1247,33 +1247,34 @@ export default function GroupAuctionEdit() {
               ? soldItems.filter(it => (it as any).winnerId === uid)
               : soldItems;
             const buyerLabel = uid !== null ? (winnerMap.get(uid)?.name ?? "") : "全場";
-            const colTh = showCols.map(c => `<th ${TH}>${c.label}</th>`).join("");
+            const printCols = showCols.filter(c => c.role !== "startPrice");
+            const colTh = printCols.map(c => `<th ${TH}>${c.label}</th>`).join("");
             const commTh = commRate > 0 ? `<th ${THR}>買家傭金(${commPct}%)</th>` : "";
             const soldRows = targetItems.map(it => {
               const d = parseData(it);
               const price = (it as any).finalPrice ?? 0;
               const comm = Math.round(price * commRate);
-              const colTd = showCols.map(c => `<td ${TD}>${d[c.key] ?? "—"}</td>`).join("");
+              const colTd = printCols.map(c => `<td ${TD}>${d[c.key] ?? "—"}</td>`).join("");
               const commTd = commRate > 0 ? `<td ${TDR}>HK$${comm.toLocaleString()}</td>` : "";
               const buyerTd = uid === null ? `<td ${TD}>${(it as any).winnerName ?? ""}</td>` : "";
               return `<tr>${colTd}<td ${TDR}>HK$${price.toLocaleString()}</td>${commTd}<td ${TDBR}>HK$${(price + comm).toLocaleString()}</td>${buyerTd}</tr>`;
             }).join("");
             const totalAmt = targetItems.reduce((s, it) => s + ((it as any).finalPrice ?? 0), 0);
             const totalComm = Math.round(totalAmt * commRate);
-            const fspan = showCols.length + (uid === null ? 1 : 0);
+            const fspan = printCols.length + (uid === null ? 1 : 0);
             const buyerColTh = uid === null ? `<th ${TH}>買家</th>` : "";
             const commFoot = commRate > 0 ? `<td ${TDBR}>HK$${totalComm.toLocaleString()}</td>` : "";
             const soldTfoot = `<tfoot><tr><td colspan="${fspan}" ${TDB}>合計 ${targetItems.length} 件</td><td ${TDBR}>HK$${totalAmt.toLocaleString()}</td>${commFoot}<td ${TDBR}>HK$${(totalAmt + totalComm).toLocaleString()}</td></tr></tfoot>`;
 
             let unsoldSection = "";
             if (!uid && unsoldItems.length > 0) {
-              const uColTh = showCols.map(c => `<th ${TH}>${c.label}</th>`).join("");
+              const uColTh = printCols.map(c => `<th ${TH}>${c.label}</th>`).join("");
               const uRows = unsoldItems.map(it => {
                 const d = parseData(it);
-                const colTd = showCols.map(c => `<td ${TD}>${d[c.key] ?? "—"}</td>`).join("");
-                return `<tr>${colTd}<td ${TDR} style="color:#999">HK$${((it as any).startPrice ?? 0).toLocaleString()}</td></tr>`;
+                const colTd = printCols.map(c => `<td ${TD}>${d[c.key] ?? "—"}</td>`).join("");
+                return `<tr>${colTd}</tr>`;
               }).join("");
-              unsoldSection = `<h3 style="margin:28px 0 8px">流拍商品（${unsoldItems.length} 件）</h3><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${uColTh}<th ${THR}>起拍價</th></tr></thead><tbody>${uRows}</tbody></table>`;
+              unsoldSection = `<h3 style="margin:28px 0 8px">流拍商品（${unsoldItems.length} 件）</h3><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${uColTh}</tr></thead><tbody>${uRows}</tbody></table>`;
             }
             return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${round?.title} 成績紀錄</title><style>body{font-family:sans-serif;padding:20px;font-size:13px}h2,h3{margin-bottom:8px}table{width:100%;border-collapse:collapse}@media print{body{padding:8px}}</style></head><body><h2>${round?.title} — 成績紀錄（${buyerLabel}）</h2><p style="color:#666;margin-bottom:16px">有成交 ${targetItems.length} 件 · 成交額 HK$${totalAmt.toLocaleString()}${commRate > 0 ? ` · 買家傭金 HK$${totalComm.toLocaleString()} · 合計 HK$${(totalAmt + totalComm).toLocaleString()}` : ""}</p><h3>有成交商品</h3><table><thead><tr>${colTh}<th ${THR}>成交價</th>${commTh}<th ${THR}>合計</th>${buyerColTh}</tr></thead><tbody>${soldRows}</tbody>${soldTfoot}</table>${unsoldSection}</body></html>`;
           }
@@ -1452,30 +1453,18 @@ export default function GroupAuctionEdit() {
                 async function saveImage() {
                   if (!invoiceRef.current) return;
                   try {
-                    // 先將所有外部圖片轉 base64，避免 canvas CORS 問題
-                    const imgs = Array.from(invoiceRef.current.querySelectorAll('img'));
-                    const origSrcs = imgs.map(img => img.src);
-                    await Promise.all(imgs.map(async (img) => {
-                      try {
-                        const resp = await fetch(img.src, { mode: 'cors', cache: 'force-cache' });
-                        const blob = await resp.blob();
-                        const b64 = await new Promise<string>(resolve => {
-                          const reader = new FileReader();
-                          reader.onload = () => resolve(reader.result as string);
-                          reader.readAsDataURL(blob);
-                        });
-                        img.src = b64;
-                      } catch { /* 保留原 src，toPng 繼續嘗試 */ }
-                    }));
                     const { toPng } = await import('html-to-image');
                     const dataUrl = await toPng(invoiceRef.current, { backgroundColor: '#ffffff', pixelRatio: 2 });
-                    // 還原 src
-                    imgs.forEach((img, i) => { img.src = origSrcs[i]; });
                     const a = document.createElement('a');
                     a.download = `成交單-${buyerName}.png`;
                     a.href = dataUrl;
                     a.click();
-                  } catch { toast.error("儲存圖片失敗"); }
+                  } catch (e) { toast.error("儲存圖片失敗"); }
+                }
+
+                function proxyUrl(url: string | null | undefined) {
+                  if (!url) return null;
+                  return `/api/img-proxy?url=${encodeURIComponent(url)}`;
                 }
 
                 return (
@@ -1496,11 +1485,11 @@ export default function GroupAuctionEdit() {
                         </div>
                         {/* 買家行 */}
                         {(() => {
-                          const buyerPhotoUrl = winnerMap.get(invoiceBuyerId)?.photoUrl ?? null;
+                          const buyerProxySrc = proxyUrl(winnerMap.get(invoiceBuyerId)?.photoUrl);
                           return (
                             <div className="mb-3 flex items-center gap-2">
-                              {buyerPhotoUrl
-                                ? <img src={buyerPhotoUrl} crossOrigin="anonymous" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                              {buyerProxySrc
+                                ? <img src={buyerProxySrc} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
                                 : <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-blue-600">{buyerName.charAt(0) || "?"}</div>
                               }
                               <p className="text-sm font-semibold text-gray-900">{buyerName}</p>
@@ -1538,12 +1527,13 @@ export default function GroupAuctionEdit() {
                         </div>
                         {/* 商戶行 */}
                         {(() => {
-                          const merchantAvatarSrc = (myApp as any)?.merchantIcon || (user as any)?.photoUrl || null;
+                          const merchantRawSrc = (myApp as any)?.merchantIcon || (user as any)?.photoUrl || null;
+                          const merchantProxySrc = proxyUrl(merchantRawSrc);
                           const merchantDisplayName = myApp?.merchantName || user?.name || "";
                           return (
                             <div style={{ marginTop: "18px" }} className="flex items-center justify-center gap-1.5">
-                              {merchantAvatarSrc
-                                ? <img src={merchantAvatarSrc} crossOrigin="anonymous" style={{ width: "10px", height: "10px" }} className="rounded-full object-cover flex-shrink-0" />
+                              {merchantProxySrc
+                                ? <img src={merchantProxySrc} style={{ width: "10px", height: "10px" }} className="rounded-full object-cover flex-shrink-0" />
                                 : <div style={{ width: "10px", height: "10px", fontSize: "6px" }} className="rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 font-bold text-amber-700">{merchantDisplayName.charAt(0) || "?"}</div>
                               }
                               <p style={{ fontSize: "10px" }} className="text-gray-400">{merchantDisplayName}</p>
