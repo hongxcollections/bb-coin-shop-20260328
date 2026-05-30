@@ -80,6 +80,8 @@ export default function GroupAuctionEdit() {
   const invoiceRef = useRef<HTMLDivElement>(null);
   const [showAllInvoice, setShowAllInvoice] = useState(false);
   const allInvoiceRef = useRef<HTMLDivElement>(null);
+  const [invoicePreviewUrl, setInvoicePreviewUrl] = useState<string | null>(null);
+  const [invoicePreviewFilename, setInvoicePreviewFilename] = useState("");
 
   // ── 基本設定 state ──
   const [basic, setBasic] = useState({
@@ -1458,10 +1460,8 @@ export default function GroupAuctionEdit() {
                   try {
                     const { toPng } = await import('html-to-image');
                     const dataUrl = await toPng(invoiceRef.current, { backgroundColor: '#ffffff', pixelRatio: 2 });
-                    const a = document.createElement('a');
-                    a.download = `成交單-${buyerName}.png`;
-                    a.href = dataUrl;
-                    a.click();
+                    setInvoicePreviewFilename(`成交單-${buyerName}.png`);
+                    setInvoicePreviewUrl(dataUrl);
                   } catch (e) { toast.error("儲存圖片失敗"); }
                 }
 
@@ -1588,10 +1588,8 @@ export default function GroupAuctionEdit() {
                   try {
                     const { toPng } = await import('html-to-image');
                     const dataUrl = await toPng(allInvoiceRef.current, { backgroundColor: '#ffffff', pixelRatio: 2 });
-                    const a = document.createElement('a');
-                    a.download = `全場成交單-${round?.title ?? ''}.png`;
-                    a.href = dataUrl;
-                    a.click();
+                    setInvoicePreviewFilename(`全場成交單-${round?.title ?? ''}.png`);
+                    setInvoicePreviewUrl(dataUrl);
                   } catch { toast.error("儲存圖片失敗"); }
                 }
 
@@ -1717,6 +1715,36 @@ export default function GroupAuctionEdit() {
       <BottomNav />
 
       {/* Lightbox */}
+      {/* 成交單圖片預覽 */}
+      {invoicePreviewUrl && (
+        <div className="fixed inset-0 z-[10000] bg-black/90 flex flex-col items-center justify-center p-4">
+          <div className="w-full max-w-sm flex flex-col items-center gap-3">
+            <img
+              src={invoicePreviewUrl}
+              alt="成交單"
+              className="w-full rounded-2xl shadow-2xl object-contain"
+              style={{ maxHeight: "70vh" }}
+            />
+            <p className="text-white/60 text-xs text-center">長按圖片儲存至相冊</p>
+            <div className="flex gap-3 w-full">
+              <a
+                href={invoicePreviewUrl}
+                download={invoicePreviewFilename}
+                className="flex-1 flex items-center justify-center gap-1.5 text-sm bg-white/15 hover:bg-white/25 text-white px-4 py-2.5 rounded-xl"
+              >
+                <Download className="w-4 h-4" /> 下載
+              </a>
+              <button
+                onClick={() => setInvoicePreviewUrl(null)}
+                className="flex-1 text-sm bg-white/10 hover:bg-white/20 text-white/80 px-4 py-2.5 rounded-xl"
+              >
+                關閉
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {lightboxUrl && (
         <div
           className="fixed inset-0 z-[9999] bg-black/85 flex items-center justify-center"
