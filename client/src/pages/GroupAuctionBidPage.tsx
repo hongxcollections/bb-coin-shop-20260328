@@ -45,6 +45,7 @@ export default function GroupAuctionBidPage() {
   const { user, isAuthenticated } = useAuth();
   const [biddingItem, setBiddingItem] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
+  const [capConfirm, setCapConfirm] = useState<{ itemId: number; amount: number; title: string; itemNumber: number } | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   // ── 推廣圖片 lightbox ──
@@ -423,8 +424,10 @@ export default function GroupAuctionBidPage() {
 
           let cardClass = "rounded-2xl overflow-hidden border";
           let cardStyle: React.CSSProperties = {};
-          if (item.status === "sold") { cardClass += " bg-white border-green-100 shadow-sm"; }
-          else if (isMine) {
+          if (item.status === "sold") {
+            cardClass += " border-gray-200";
+            cardStyle = { background: "#ebebeb", opacity: 0.78 };
+          } else if (isMine) {
             cardClass += " bg-amber-50 border-amber-300";
             cardStyle = { boxShadow: "3px 4px 0 rgba(251,191,36,0.28), 4px 6px 14px rgba(245,158,11,0.10)" };
           } else { cardClass += " bg-white border-gray-100 shadow-sm"; }
@@ -534,6 +537,21 @@ export default function GroupAuctionBidPage() {
 
                   {isActive && (
                     <div className="flex gap-1.5 flex-shrink-0">
+                      {(item as any).buyNowPrice != null && (
+                        <button
+                          onClick={() => {
+                            if (!isAuthenticated) { toast.error("請先登入才可出價"); setLocation(`/login?from=${encodeURIComponent(location)}`); return; }
+                            if (user && round && user.id === (round as any).merchantUserId) { toast.error("商戶不可為自己的場次出價"); return; }
+                            setCapConfirm({ itemId: item.id, amount: (item as any).buyNowPrice, title: title ?? "", itemNumber: idx + 1 });
+                          }}
+                          disabled={placeBidMut.isPending}
+                          className="text-white text-xs font-bold px-2 py-2 rounded-xl"
+                          style={{ background: "linear-gradient(135deg,#dc2626,#b91c1c)" }}
+                        >
+                          封頂<br />
+                          <span className="text-[10px] font-normal">{displayPrice((item as any).buyNowPrice)}</span>
+                        </button>
+                      )}
                       <button
                         onClick={() => handleBid(item.id, nextBid + effectiveIncrement, title, idx + 1)}
                         disabled={placeBidMut.isPending}
@@ -602,6 +620,38 @@ export default function GroupAuctionBidPage() {
           );
         })}
       </div>
+
+      {/* 封頂價確認 Dialog */}
+      {capConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.55)" }} onClick={() => setCapConfirm(null)}>
+          <div className="bg-white rounded-2xl p-5 w-full max-w-xs shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-gray-900 mb-3">確認以封頂價得標</h3>
+            <div className="rounded-xl p-3 mb-3" style={{ background: "#fff7ed", border: "1px solid #fed7aa" }}>
+              <p className="text-xs text-gray-600 mb-1">商品 {capConfirm.itemNumber}</p>
+              <p className="text-sm font-semibold text-gray-900 leading-snug mb-2">{capConfirm.title || "—"}</p>
+              <p className="text-xs text-gray-500 mb-0.5">封頂成交價</p>
+              <p className="text-xl font-black" style={{ color: "#dc2626" }}>{displayPrice(capConfirm.amount)}</p>
+            </div>
+            <p className="text-[11px] text-gray-400 mb-4">確認後商品即時得標，無法取消。</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCapConfirm(null)}
+                className="flex-1 py-2.5 text-sm text-gray-600 rounded-xl"
+                style={{ background: "#f3f4f6" }}
+              >取消</button>
+              <button
+                onClick={() => {
+                  handleBid(capConfirm.itemId, capConfirm.amount, capConfirm.title, capConfirm.itemNumber);
+                  setCapConfirm(null);
+                }}
+                disabled={placeBidMut.isPending}
+                className="flex-1 py-2.5 text-sm text-white font-semibold rounded-xl"
+                style={{ background: "linear-gradient(135deg,#dc2626,#b91c1c)" }}
+              >確認得標</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 推廣圖片 Lightbox */}
       {promoLbIdx !== null && promoUrls.length > 0 && (

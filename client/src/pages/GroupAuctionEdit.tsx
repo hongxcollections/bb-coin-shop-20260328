@@ -1108,6 +1108,16 @@ export default function GroupAuctionEdit() {
                           />
                         </div>
                         <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 w-20 flex-shrink-0">每口加價（{currSym}）</span>
+                          <input
+                            className="flex-1 px-2 py-1 text-sm outline-none"
+                            style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "8px" }}
+                            placeholder="留空 = 用場次預設"
+                            value={editFields.__bidIncrement ?? ""}
+                            onChange={e => setEditFields(p => ({ ...p, __bidIncrement: e.target.value }))}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
                           <span className="text-xs text-gray-500 w-20 flex-shrink-0">封頂價（{currSym}）</span>
                           <input
                             className="flex-1 px-2 py-1 text-sm outline-none"
@@ -1131,16 +1141,6 @@ export default function GroupAuctionEdit() {
                             </p>
                           );
                         })()}
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500 w-20 flex-shrink-0">每口加價（{currSym}）</span>
-                          <input
-                            className="flex-1 px-2 py-1 text-sm outline-none"
-                            style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "8px" }}
-                            placeholder="留空 = 用場次預設"
-                            value={editFields.__bidIncrement ?? ""}
-                            onChange={e => setEditFields(p => ({ ...p, __bidIncrement: e.target.value }))}
-                          />
-                        </div>
                         {/* 圖片選擇器 */}
                         {images.length > 0 && (
                           <div className="pt-1">
