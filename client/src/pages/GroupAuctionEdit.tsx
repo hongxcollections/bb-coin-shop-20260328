@@ -78,6 +78,8 @@ export default function GroupAuctionEdit() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [invoiceBuyerId, setInvoiceBuyerId] = useState<number | null>(null);
   const invoiceRef = useRef<HTMLDivElement>(null);
+  const [showAllInvoice, setShowAllInvoice] = useState(false);
+  const allInvoiceRef = useRef<HTMLDivElement>(null);
 
   // ── 基本設定 state ──
   const [basic, setBasic] = useState({
@@ -1324,7 +1326,13 @@ export default function GroupAuctionEdit() {
                 >
                   成交價：{resultSortDir === "desc" ? "高→低" : "低→高"}
                 </button>
-                <div className="ml-auto">
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    onClick={() => setShowAllInvoice(true)}
+                    className="flex items-center gap-1 text-xs bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1.5 rounded-xl"
+                  >
+                    <Download className="w-3 h-3" /> 全場成交單
+                  </button>
                   <button
                     onClick={() => doPrint(null)}
                     className="flex items-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-xl"
@@ -1502,13 +1510,14 @@ export default function GroupAuctionEdit() {
                             const d = parseData(it);
                             const price = (it as any).finalPrice ?? 0;
                             const comm = Math.round(price * commRate);
+                            const colVals = showCols
+                              .filter(c => c.role !== "startPrice" && d[c.key] != null && d[c.key] !== "")
+                              .map(c => d[c.key]);
                             return (
                               <div key={(it as any).id} className="flex items-start gap-2 text-xs py-1.5 border-b border-gray-100">
                                 <span className="text-gray-400 font-mono w-5 text-right flex-shrink-0 mt-0.5">{(it as any).displayOrder + 1}</span>
                                 <div className="flex-1 min-w-0">
-                                  {showCols.filter(c => c.role !== "startPrice").map(c => (
-                                    <span key={c.key} className="text-gray-800">{d[c.key] ?? "—"} </span>
-                                  ))}
+                                  <span className="text-gray-800">{colVals.join(" · ") || "—"}</span>
                                 </div>
                                 <div className="text-right flex-shrink-0">
                                   <p className="text-gray-700 font-medium">HK${price.toLocaleString()}</p>
@@ -1559,6 +1568,124 @@ export default function GroupAuctionEdit() {
                           onClick={() => setInvoiceBuyerId(null)}
                           className="flex-shrink-0 text-gray-400 hover:text-gray-600 px-2"
                         >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* 全場成交單 popup */}
+              {showAllInvoice && (() => {
+                const now2 = new Date();
+                const dateStr2 = `${now2.getFullYear()}-${String(now2.getMonth()+1).padStart(2,'0')}-${String(now2.getDate()).padStart(2,'0')}`;
+                const allPrintCols = showCols.filter(c => c.role !== "startPrice");
+                const grandAmt = soldItems.reduce((s, it) => s + ((it as any).finalPrice ?? 0), 0);
+                const grandComm = Math.round(grandAmt * commRate);
+                const buyerIds2 = Array.from(winnerMap.keys());
+                const merchantRawSrc2 = (myApp as any)?.merchantIcon || (user as any)?.photoUrl || null;
+                const merchantProxySrc2 = merchantRawSrc2 ? `/api/img-proxy?url=${encodeURIComponent(merchantRawSrc2)}` : null;
+                const merchantDisplayName2 = myApp?.merchantName || user?.name || "";
+
+                async function saveAllImage() {
+                  if (!allInvoiceRef.current) return;
+                  try {
+                    const { toPng } = await import('html-to-image');
+                    const dataUrl = await toPng(allInvoiceRef.current, { backgroundColor: '#ffffff', pixelRatio: 2 });
+                    const a = document.createElement('a');
+                    a.download = `全場成交單-${round?.title ?? ''}.png`;
+                    a.href = dataUrl;
+                    a.click();
+                  } catch { toast.error("儲存圖片失敗"); }
+                }
+
+                function printAll() {
+                  const html = buildPrintHtml(null);
+                  const w = window.open("", "_blank");
+                  if (!w) { toast.error("請允許彈出視窗"); return; }
+                  w.document.write(html);
+                  w.document.close();
+                  w.focus();
+                  setTimeout(() => { w.print(); }, 400);
+                }
+
+                return (
+                  <div className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col max-h-[90vh]">
+                      <div ref={allInvoiceRef} className="p-5 overflow-y-auto flex-1 bg-white rounded-t-2xl">
+                        <div className="text-center mb-4 pb-3 border-b border-gray-200">
+                          <p className="text-sm font-bold text-gray-900">{round?.title}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">全場成交單 · {dateStr2}</p>
+                        </div>
+                        {buyerIds2.map(uid => {
+                          const winner = winnerMap.get(uid);
+                          const bName = winner?.name ?? `#${uid}`;
+                          const bProxySrc = winner?.photoUrl ? `/api/img-proxy?url=${encodeURIComponent(winner.photoUrl)}` : null;
+                          const bItems = soldItems.filter(it => (it as any).winnerId === uid);
+                          const bAmt = bItems.reduce((s, it) => s + ((it as any).finalPrice ?? 0), 0);
+                          const bComm = Math.round(bAmt * commRate);
+                          return (
+                            <div key={uid} className="mb-5 pb-4 border-b border-gray-100 last:border-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                {bProxySrc
+                                  ? <img src={bProxySrc} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+                                  : <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 text-[9px] font-bold text-blue-600">{bName.charAt(0) || "?"}</div>
+                                }
+                                <p className="text-xs font-semibold text-gray-900">{bName}</p>
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                {bItems.map(it => {
+                                  const d = parseData(it);
+                                  const price = (it as any).finalPrice ?? 0;
+                                  const comm = Math.round(price * commRate);
+                                  const colVals = allPrintCols
+                                    .filter(c => d[c.key] != null && d[c.key] !== "")
+                                    .map(c => d[c.key]);
+                                  return (
+                                    <div key={(it as any).id} className="flex items-start gap-2 text-xs py-1 border-b border-gray-50">
+                                      <span className="text-gray-400 font-mono w-4 text-right flex-shrink-0">{(it as any).displayOrder + 1}</span>
+                                      <span className="flex-1 min-w-0 text-gray-800">{colVals.join(" · ") || "—"}</span>
+                                      <div className="text-right flex-shrink-0">
+                                        <p className="text-gray-700 font-medium">HK${price.toLocaleString()}</p>
+                                        {commRate > 0 && <p className="text-gray-400" style={{ fontSize: "10px" }}>傭 HK${comm.toLocaleString()}</p>}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <div className="text-right mt-1.5">
+                                <p className="text-xs text-gray-600 font-medium">
+                                  小計 ({bItems.length} 件){" "}
+                                  <span className="text-amber-700 font-bold">HK${(bAmt + bComm).toLocaleString()}</span>
+                                  {commRate > 0 && <span className="text-gray-400 font-normal ml-1">（含傭 HK${bComm.toLocaleString()}）</span>}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <div className="pt-2 border-t-2 border-gray-300 text-right">
+                          <p className="text-sm text-gray-700 font-medium whitespace-nowrap">
+                            全場合計 <span style={{ fontSize: "8px" }} className="text-gray-400 font-normal">({soldItems.length} 件)</span>{" "}
+                            <span className="text-lg font-bold text-amber-700">HK${(grandAmt + grandComm).toLocaleString()}</span>
+                          </p>
+                        </div>
+                        <div style={{ marginTop: "18px" }} className="flex items-center justify-center gap-1.5">
+                          {merchantProxySrc2
+                            ? <img src={merchantProxySrc2} style={{ width: "10px", height: "10px" }} className="rounded-full object-cover flex-shrink-0" />
+                            : <div style={{ width: "10px", height: "10px", fontSize: "6px" }} className="rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 font-bold text-amber-700">{merchantDisplayName2.charAt(0) || "?"}</div>
+                          }
+                          <p style={{ fontSize: "10px" }} className="text-gray-400">{merchantDisplayName2}</p>
+                        </div>
+                      </div>
+                      <div className="px-4 py-3 border-t flex gap-2 flex-shrink-0">
+                        <button onClick={saveAllImage} className="flex-1 flex items-center justify-center gap-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl">
+                          <Download className="w-3.5 h-3.5" /> 儲存圖片
+                        </button>
+                        <button onClick={printAll} className="flex-1 flex items-center justify-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-2 rounded-xl">
+                          <Download className="w-3.5 h-3.5" /> 列印
+                        </button>
+                        <button onClick={() => setShowAllInvoice(false)} className="flex-shrink-0 text-gray-400 hover:text-gray-600 px-2">
                           <X className="w-4 h-4" />
                         </button>
                       </div>
