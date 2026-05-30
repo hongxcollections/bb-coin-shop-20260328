@@ -138,6 +138,7 @@ export default function GroupAuctionEdit() {
     { enabled: !!roundId && !!user }
   );
   const { data: templates } = trpc.groupAuctions.listTemplates.useQuery(undefined, { enabled: !!user });
+  const { data: myApp } = trpc.merchants.myApplication.useQuery(undefined, { enabled: !!user });
 
   const createMut = trpc.groupAuctions.createRound.useMutation({
     onSuccess: (d) => { toast.success("場次已建立"); setLocation(`/merchant/group-auctions/${d.id}`); },
@@ -1473,11 +1474,15 @@ export default function GroupAuctionEdit() {
                           <p className="text-sm font-bold text-gray-900">{round?.title}</p>
                           <p className="text-xs text-gray-400 mt-0.5">成交單 · {dateStr}</p>
                         </div>
-                        <div className="mb-3 flex items-baseline gap-2">
-                          <p className="text-[10px] text-gray-400 uppercase tracking-wide flex-shrink-0">買家</p>
-                          <p className="text-sm font-semibold text-gray-900">{buyerName}</p>
+                        <div className="mb-3 flex items-center gap-2">
+                          <p className="text-[10px] text-gray-400 uppercase tracking-wide flex-shrink-0">商戶</p>
+                          {(user as any)?.photoUrl
+                            ? <img src={(user as any).photoUrl} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                            : <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-amber-700">{(myApp?.merchantName || user?.name || "?").charAt(0)}</div>
+                          }
+                          <p className="text-sm font-semibold text-gray-900">{myApp?.merchantName || user?.name}</p>
                         </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "3px", marginBottom: "16px" }}>
                           {buyerItems.map(it => {
                             const d = parseData(it);
                             const price = (it as any).finalPrice ?? 0;
@@ -1498,19 +1503,13 @@ export default function GroupAuctionEdit() {
                             );
                           })}
                         </div>
-                        <div className="pt-2 border-t border-gray-300">
-                          {commRate > 0 && (
-                            <p className="text-xs text-gray-400 mb-1">
-                              {buyerItems.length} 件 · 成交 HK${buyerAmt.toLocaleString()} + 傭金 HK${buyerComm.toLocaleString()}
-                            </p>
-                          )}
-                          {commRate === 0 && (
-                            <p className="text-xs text-gray-400 mb-1">{buyerItems.length} 件</p>
-                          )}
-                          <div className="flex items-baseline justify-between">
-                            <p className="text-xs text-gray-500 flex-shrink-0">應付合計</p>
-                            <p className="text-lg font-bold text-amber-700">HK${(buyerAmt + buyerComm).toLocaleString()}</p>
-                          </div>
+                        <div className="pt-2 border-t border-gray-300 text-right">
+                          <p className="text-xs text-gray-400 mb-0.5">
+                            {buyerItems.length} 件{commRate > 0 ? ` · 成交 HK$${buyerAmt.toLocaleString()} + 傭金 HK$${buyerComm.toLocaleString()}` : ""}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            應付合計 <span className="text-lg font-bold text-amber-700">HK${(buyerAmt + buyerComm).toLocaleString()}</span>
+                          </p>
                         </div>
                       </div>
                       {/* Action buttons */}
