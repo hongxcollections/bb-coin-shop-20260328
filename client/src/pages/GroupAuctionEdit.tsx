@@ -1476,10 +1476,12 @@ export default function GroupAuctionEdit() {
                         </div>
                         <div className="mb-3 flex items-center gap-2">
                           <p className="text-[10px] text-gray-400 uppercase tracking-wide flex-shrink-0">商戶</p>
-                          {(user as any)?.photoUrl
-                            ? <img src={(user as any).photoUrl} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
-                            : <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-amber-700">{(myApp?.merchantName || user?.name || "?").charAt(0)}</div>
-                          }
+                          {(() => {
+                            const avatarSrc = (myApp as any)?.merchantIcon || (user as any)?.photoUrl;
+                            return avatarSrc
+                              ? <img src={avatarSrc} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                              : <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-amber-700">{(myApp?.merchantName || user?.name || "?").charAt(0)}</div>;
+                          })()}
                           <p className="text-sm font-semibold text-gray-900">{myApp?.merchantName || user?.name}</p>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: "3px", marginBottom: "16px" }}>
@@ -1504,11 +1506,11 @@ export default function GroupAuctionEdit() {
                           })}
                         </div>
                         <div className="pt-2 border-t border-gray-300 text-right">
-                          <p className="text-xs text-gray-400 mb-0.5">
+                          <p className="text-xs text-gray-400 mb-1">
                             {buyerItems.length} 件{commRate > 0 ? ` · 成交 HK$${buyerAmt.toLocaleString()} + 傭金 HK$${buyerComm.toLocaleString()}` : ""}
                           </p>
-                          <p className="text-xs text-gray-500">
-                            應付合計 <span className="text-lg font-bold text-amber-700">HK${(buyerAmt + buyerComm).toLocaleString()}</span>
+                          <p className="text-sm text-gray-700 font-medium">
+                            ({buyerItems.length} 件) 應付合計 <span className="text-lg font-bold text-amber-700">HK${(buyerAmt + buyerComm).toLocaleString()}</span>
                           </p>
                         </div>
                       </div>
