@@ -1474,16 +1474,14 @@ export default function GroupAuctionEdit() {
                           <p className="text-sm font-bold text-gray-900">{round?.title}</p>
                           <p className="text-xs text-gray-400 mt-0.5">成交單 · {dateStr}</p>
                         </div>
+                        {/* 買家行 */}
                         <div className="mb-3 flex items-center gap-2">
-                          <p className="text-[10px] text-gray-400 uppercase tracking-wide flex-shrink-0">商戶</p>
-                          {(() => {
-                            const avatarSrc = (myApp as any)?.merchantIcon || (user as any)?.photoUrl;
-                            return avatarSrc
-                              ? <img src={avatarSrc} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
-                              : <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-amber-700">{(myApp?.merchantName || user?.name || "?").charAt(0)}</div>;
-                          })()}
-                          <p className="text-sm font-semibold text-gray-900">{myApp?.merchantName || user?.name}</p>
+                          <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-blue-600">
+                            {buyerName.charAt(0) || "?"}
+                          </div>
+                          <p className="text-sm font-semibold text-gray-900">{buyerName}</p>
                         </div>
+                        {/* 成交明細 */}
                         <div style={{ display: "flex", flexDirection: "column", gap: "3px", marginBottom: "16px" }}>
                           {buyerItems.map(it => {
                             const d = parseData(it);
@@ -1505,13 +1503,22 @@ export default function GroupAuctionEdit() {
                             );
                           })}
                         </div>
+                        {/* 合計行 */}
                         <div className="pt-2 border-t border-gray-300 text-right">
-                          <p className="text-xs text-gray-400 mb-1">
-                            {buyerItems.length} 件{commRate > 0 ? ` · 成交 HK$${buyerAmt.toLocaleString()} + 傭金 HK$${buyerComm.toLocaleString()}` : ""}
+                          <p className="text-sm text-gray-700 font-medium whitespace-nowrap">
+                            應付合計 <span style={{ fontSize: "8px" }} className="text-gray-400 font-normal">({buyerItems.length} 件)</span>{" "}
+                            <span className="text-lg font-bold text-amber-700">HK${(buyerAmt + buyerComm).toLocaleString()}</span>
                           </p>
-                          <p className="text-sm text-gray-700 font-medium">
-                            ({buyerItems.length} 件) 應付合計 <span className="text-lg font-bold text-amber-700">HK${(buyerAmt + buyerComm).toLocaleString()}</span>
-                          </p>
+                        </div>
+                        {/* 商戶行 */}
+                        <div style={{ marginTop: "18px" }} className="flex items-center justify-center gap-1.5">
+                          {(() => {
+                            const avatarSrc = (myApp as any)?.merchantIcon || (user as any)?.photoUrl;
+                            return avatarSrc
+                              ? <img src={avatarSrc} style={{ width: "10px", height: "10px" }} className="rounded-full object-cover flex-shrink-0" />
+                              : <div style={{ width: "10px", height: "10px", fontSize: "6px" }} className="rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 font-bold text-amber-700">{(myApp?.merchantName || user?.name || "?").charAt(0)}</div>;
+                          })()}
+                          <p style={{ fontSize: "10px" }} className="text-gray-400">{myApp?.merchantName || user?.name}</p>
                         </div>
                       </div>
                       {/* Action buttons */}
