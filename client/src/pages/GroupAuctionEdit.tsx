@@ -1491,7 +1491,7 @@ export default function GroupAuctionEdit() {
                               <div key={(it as any).id} className="flex items-start gap-2 text-xs py-1.5 border-b border-gray-100">
                                 <span className="text-gray-400 font-mono w-5 text-right flex-shrink-0 mt-0.5">{(it as any).displayOrder + 1}</span>
                                 <div className="flex-1 min-w-0">
-                                  {showCols.map(c => (
+                                  {showCols.filter(c => c.role !== "startPrice").map(c => (
                                     <span key={c.key} className="text-gray-800">{d[c.key] ?? "—"} </span>
                                   ))}
                                 </div>
@@ -1510,14 +1510,11 @@ export default function GroupAuctionEdit() {
                             <span className="text-lg font-bold text-amber-700">HK${(buyerAmt + buyerComm).toLocaleString()}</span>
                           </p>
                         </div>
-                        {/* 商戶行 */}
+                        {/* 商戶行（純文字，避免外部圖片影響儲存） */}
                         <div style={{ marginTop: "18px" }} className="flex items-center justify-center gap-1.5">
-                          {(() => {
-                            const avatarSrc = (myApp as any)?.merchantIcon || (user as any)?.photoUrl;
-                            return avatarSrc
-                              ? <img src={avatarSrc} style={{ width: "10px", height: "10px" }} className="rounded-full object-cover flex-shrink-0" />
-                              : <div style={{ width: "10px", height: "10px", fontSize: "6px" }} className="rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 font-bold text-amber-700">{(myApp?.merchantName || user?.name || "?").charAt(0)}</div>;
-                          })()}
+                          <div style={{ width: "10px", height: "10px", fontSize: "6px" }} className="rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 font-bold text-amber-700">
+                            {(myApp?.merchantName || user?.name || "?").charAt(0)}
+                          </div>
                           <p style={{ fontSize: "10px" }} className="text-gray-400">{myApp?.merchantName || user?.name}</p>
                         </div>
                       </div>
