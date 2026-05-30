@@ -1039,6 +1039,7 @@ export default function GroupAuctionEdit() {
                         {columns.filter(c => c.role === "customText" && data[c.key]).map(c => (
                           <p key={c.key} className="text-xs text-gray-500 truncate">{data[c.key]}</p>
                         ))}
+                        <hr className="my-1 border-gray-100" />
                         <p className="text-xs text-gray-400">
                           {`起拍 ${currSym}${item.startPrice} • +${item.bidIncrement || parseInt(basic.defaultBidIncrement, 10) || 50} • ${item.buyNowPrice ? `封${item.buyNowPrice}` : "無封頂"}`}
                           {(() => {
@@ -1057,6 +1058,8 @@ export default function GroupAuctionEdit() {
                         <div className="flex gap-1 flex-shrink-0">
                           <button
                             onClick={() => {
+                              const isBuyNowSold = item.status === "sold" && item.buyNowPrice != null && Number((item as any).finalPrice) === item.buyNowPrice;
+                              if (isBuyNowSold) return;
                               if (isEditing) { setEditingItemId(null); return; }
                               setEditingItemId(item.id);
                               const ef: Record<string, string> = {};
@@ -1069,7 +1072,8 @@ export default function GroupAuctionEdit() {
                               try { ids = JSON.parse((item as any).imageIdsJson ?? "[]"); } catch {}
                               setEditImageIds(ids);
                             }}
-                            className="p-1.5 text-blue-400 hover:text-blue-600"
+                            disabled={item.status === "sold" && item.buyNowPrice != null && Number((item as any).finalPrice) === item.buyNowPrice}
+                            className="p-1.5 text-blue-400 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
