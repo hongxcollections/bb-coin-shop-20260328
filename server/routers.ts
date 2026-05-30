@@ -10023,17 +10023,18 @@ EXAMPLE OUTPUT (exact format):
         }));
         // 加入得標買家姓名（winnerId → winnerName）
         const winnerIds = [...new Set(itemsWithBidCount.filter(i => i.winnerId).map(i => i.winnerId as number))];
-        let winnerMap: Record<number, string> = {};
+        let winnerMap: Record<number, { name: string; photoUrl: string | null }> = {};
         if (winnerIds.length > 0) {
           const { users: usersTable } = await import('../drizzle/schema');
           const { inArray: inArr } = await import('drizzle-orm');
-          const winners = await db.select({ id: usersTable.id, name: usersTable.name })
+          const winners = await db.select({ id: usersTable.id, name: usersTable.name, photoUrl: usersTable.photoUrl })
             .from(usersTable).where(inArr(usersTable.id, winnerIds));
-          winnerMap = Object.fromEntries(winners.map(w => [w.id, w.name ?? '']));
+          winnerMap = Object.fromEntries(winners.map(w => [w.id, { name: w.name ?? '', photoUrl: w.photoUrl ?? null }]));
         }
         const itemsWithWinners = itemsWithBidCount.map(item => ({
           ...item,
-          winnerName: item.winnerId ? (winnerMap[item.winnerId] ?? '') : null,
+          winnerName: item.winnerId ? (winnerMap[item.winnerId]?.name ?? '') : null,
+          winnerPhotoUrl: item.winnerId ? (winnerMap[item.winnerId]?.photoUrl ?? null) : null,
         }));
         return { round, items: itemsWithWinners, images };
       }),

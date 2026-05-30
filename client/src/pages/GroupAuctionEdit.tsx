@@ -1213,10 +1213,13 @@ export default function GroupAuctionEdit() {
           });
           const unsoldItems = items.filter(it => (it as any).status === 'unsold');
 
-          const winnerMap = new Map<number, { name: string }>();
+          const winnerMap = new Map<number, { name: string; photoUrl: string | null }>();
           items.forEach(it => {
             const uid = (it as any).winnerId as number | null;
-            if (uid && !winnerMap.has(uid)) winnerMap.set(uid, { name: (it as any).winnerName ?? `用戶${uid}` });
+            if (uid && !winnerMap.has(uid)) winnerMap.set(uid, {
+              name: (it as any).winnerName ?? `用戶${uid}`,
+              photoUrl: (it as any).winnerPhotoUrl ?? null,
+            });
           });
           const winners = [...winnerMap.entries()];
 
@@ -1449,8 +1452,25 @@ export default function GroupAuctionEdit() {
                 async function saveImage() {
                   if (!invoiceRef.current) return;
                   try {
+                    // 先將所有外部圖片轉 base64，避免 canvas CORS 問題
+                    const imgs = Array.from(invoiceRef.current.querySelectorAll('img'));
+                    const origSrcs = imgs.map(img => img.src);
+                    await Promise.all(imgs.map(async (img) => {
+                      try {
+                        const resp = await fetch(img.src, { mode: 'cors', cache: 'force-cache' });
+                        const blob = await resp.blob();
+                        const b64 = await new Promise<string>(resolve => {
+                          const reader = new FileReader();
+                          reader.onload = () => resolve(reader.result as string);
+                          reader.readAsDataURL(blob);
+                        });
+                        img.src = b64;
+                      } catch { /* 保留原 src，toPng 繼續嘗試 */ }
+                    }));
                     const { toPng } = await import('html-to-image');
                     const dataUrl = await toPng(invoiceRef.current, { backgroundColor: '#ffffff', pixelRatio: 2 });
+                    // 還原 src
+                    imgs.forEach((img, i) => { img.src = origSrcs[i]; });
                     const a = document.createElement('a');
                     a.download = `成交單-${buyerName}.png`;
                     a.href = dataUrl;
@@ -1475,12 +1495,18 @@ export default function GroupAuctionEdit() {
                           <p className="text-xs text-gray-400 mt-0.5">成交單 · {dateStr}</p>
                         </div>
                         {/* 買家行 */}
-                        <div className="mb-3 flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-blue-600">
-                            {buyerName.charAt(0) || "?"}
-                          </div>
-                          <p className="text-sm font-semibold text-gray-900">{buyerName}</p>
-                        </div>
+                        {(() => {
+                          const buyerPhotoUrl = winnerMap.get(invoiceBuyerId)?.photoUrl ?? null;
+                          return (
+                            <div className="mb-3 flex items-center gap-2">
+                              {buyerPhotoUrl
+                                ? <img src={buyerPhotoUrl} crossOrigin="anonymous" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                                : <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-blue-600">{buyerName.charAt(0) || "?"}</div>
+                              }
+                              <p className="text-sm font-semibold text-gray-900">{buyerName}</p>
+                            </div>
+                          );
+                        })()}
                         {/* 成交明細 */}
                         <div style={{ display: "flex", flexDirection: "column", gap: "3px", marginBottom: "16px" }}>
                           {buyerItems.map(it => {
@@ -1510,13 +1536,20 @@ export default function GroupAuctionEdit() {
                             <span className="text-lg font-bold text-amber-700">HK${(buyerAmt + buyerComm).toLocaleString()}</span>
                           </p>
                         </div>
-                        {/* 商戶行（純文字，避免外部圖片影響儲存） */}
-                        <div style={{ marginTop: "18px" }} className="flex items-center justify-center gap-1.5">
-                          <div style={{ width: "10px", height: "10px", fontSize: "6px" }} className="rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 font-bold text-amber-700">
-                            {(myApp?.merchantName || user?.name || "?").charAt(0)}
-                          </div>
-                          <p style={{ fontSize: "10px" }} className="text-gray-400">{myApp?.merchantName || user?.name}</p>
-                        </div>
+                        {/* 商戶行 */}
+                        {(() => {
+                          const merchantAvatarSrc = (myApp as any)?.merchantIcon || (user as any)?.photoUrl || null;
+                          const merchantDisplayName = myApp?.merchantName || user?.name || "";
+                          return (
+                            <div style={{ marginTop: "18px" }} className="flex items-center justify-center gap-1.5">
+                              {merchantAvatarSrc
+                                ? <img src={merchantAvatarSrc} crossOrigin="anonymous" style={{ width: "10px", height: "10px" }} className="rounded-full object-cover flex-shrink-0" />
+                                : <div style={{ width: "10px", height: "10px", fontSize: "6px" }} className="rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 font-bold text-amber-700">{merchantDisplayName.charAt(0) || "?"}</div>
+                              }
+                              <p style={{ fontSize: "10px" }} className="text-gray-400">{merchantDisplayName}</p>
+                            </div>
+                          );
+                        })()}
                       </div>
                       {/* Action buttons */}
                       <div className="px-4 py-3 border-t flex gap-2 flex-shrink-0">
