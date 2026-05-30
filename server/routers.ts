@@ -10015,11 +10015,23 @@ EXAMPLE OUTPUT (exact format):
         const images = await db.select().from(groupAuctionImages)
           .where(eq(groupAuctionImages.roundId, input.id))
           .orderBy(asc(groupAuctionImages.displayOrder), asc(groupAuctionImages.id));
-        // 每件商品加入出價計數
-        const itemsWithBidCount = await Promise.all(items.map(async (item) => {
-          const rows = await db.select({ cnt: sql`COUNT(*)` }).from(groupAuctionBids)
-            .where(eq(groupAuctionBids.itemId, item.id));
-          return { ...item, bidCount: Number((rows[0] as any)?.cnt ?? 0) };
+        // 每件商品加入出價計數 + 最高出價（批量）
+        const { desc: descOrd, inArray: inArrBid } = await import('drizzle-orm');
+        const allBidRows = items.length > 0
+          ? await db.select().from(groupAuctionBids)
+              .where(inArrBid(groupAuctionBids.itemId, items.map(i => i.id)))
+              .orderBy(descOrd(groupAuctionBids.amount), descOrd(groupAuctionBids.id))
+          : [];
+        const topBidAmtByItem = new Map<number, number>();
+        const bidCntByItem = new Map<number, number>();
+        for (const bid of allBidRows) {
+          if (!topBidAmtByItem.has(bid.itemId)) topBidAmtByItem.set(bid.itemId, bid.amount);
+          bidCntByItem.set(bid.itemId, (bidCntByItem.get(bid.itemId) ?? 0) + 1);
+        }
+        const itemsWithBidCount = items.map(item => ({
+          ...item,
+          bidCount: bidCntByItem.get(item.id) ?? 0,
+          currentPrice: topBidAmtByItem.get(item.id) ?? item.startPrice,
         }));
         // 加入得標買家姓名（winnerId → winnerName）
         const winnerIds = [...new Set(itemsWithBidCount.filter(i => i.winnerId).map(i => i.winnerId as number))];
