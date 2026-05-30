@@ -1041,8 +1041,8 @@ export default function GroupAuctionEdit() {
                         ))}
                         <p className="text-xs text-gray-400">
                           起拍 {currSym}{item.startPrice}
-                          {` | 加幅 ${currSym}${item.bidIncrement || parseInt(basic.defaultBidIncrement, 10) || 50}`}
-                          {item.buyNowPrice ? ` | 封頂 ${currSym}${item.buyNowPrice}` : ""}
+                          {` | +${item.bidIncrement || parseInt(basic.defaultBidIncrement, 10) || 50}`}
+                          {item.buyNowPrice ? ` | 封頂 ${currSym}${item.buyNowPrice}` : " | 無封頂價"}
                           {hasBids && <span className="text-amber-600 ml-1">• 有出價</span>}
                           {item.status !== "active" && ` | ${item.status === "sold" ? "✓ 已成交" : "流拍"}`}
                         </p>
