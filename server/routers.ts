@@ -10427,6 +10427,16 @@ EXAMPLE OUTPUT (exact format):
         if (hasBids && (input.startPrice !== undefined || input.buyNowPrice !== undefined)) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '此商品已有出價，不能修改起拍價或封頂價' });
         }
+        // 封頂價驗證：必須 >= effectiveFirstBid + 每口價
+        if (!hasBids && input.buyNowPrice != null) {
+          const sp = input.startPrice ?? item.startPrice;
+          const inc = (input.bidIncrement !== undefined && input.bidIncrement > 0 ? input.bidIncrement : item.bidIncrement > 0 ? item.bidIncrement : round.defaultBidIncrement) || 50;
+          const effectiveFirstBid = sp > 0 ? sp : inc;
+          const minCap = effectiveFirstBid + inc;
+          if (input.buyNowPrice < minCap) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: `封頂價最少 $${minCap}（起拍 $${sp} + 每口 $${inc} × ${sp > 0 ? 1 : 2}）` });
+          }
+        }
         const patch: Record<string, any> = {};
         if (input.dataJson !== undefined) patch.dataJson = input.dataJson;
         if (!hasBids && input.startPrice !== undefined) patch.startPrice = input.startPrice;

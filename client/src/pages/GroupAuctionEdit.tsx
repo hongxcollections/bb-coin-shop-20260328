@@ -1118,6 +1118,19 @@ export default function GroupAuctionEdit() {
                             onChange={e => setEditFields(p => ({ ...p, __buyNowPrice: e.target.value }))}
                           />
                         </div>
+                        {!hasBids && (() => {
+                          const sp = parseInt(editFields.__startPrice || "0", 10) || 0;
+                          const inc = parseInt(editFields.__bidIncrement || "0", 10) || parseInt(basic.defaultBidIncrement, 10) || 50;
+                          const effectiveFirstBid = sp > 0 ? sp : inc;
+                          const minCap = effectiveFirstBid + inc;
+                          const capVal = editFields.__buyNowPrice ? parseInt(editFields.__buyNowPrice, 10) : null;
+                          const isInvalid = capVal !== null && !isNaN(capVal) && capVal < minCap;
+                          return (
+                            <p className="text-[10px] ml-[88px]" style={{ color: isInvalid ? "#ef4444" : "#9ca3af" }}>
+                              {isInvalid ? `封頂價最少 ${currSym}${minCap}` : `最少 ${currSym}${minCap}（起拍 + 每口 × ${sp > 0 ? 1 : 2}）`}
+                            </p>
+                          );
+                        })()}
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-gray-500 w-20 flex-shrink-0">每口加價（{currSym}）</span>
                           <input
@@ -1174,9 +1187,20 @@ export default function GroupAuctionEdit() {
                               columns.forEach(c => { colData[c.key] = editFields[c.key] ?? ""; });
                               const patch: any = { id: item.id, dataJson: JSON.stringify(colData), imageIdsJson: JSON.stringify(editImageIds) };
                               if (!hasBids) {
-                                patch.startPrice = parseInt(editFields.__startPrice || "0", 10) || 0;
+                                const sp = parseInt(editFields.__startPrice || "0", 10) || 0;
+                                patch.startPrice = sp;
                                 const buyNowRaw = editFields.__buyNowPrice ? parseInt(editFields.__buyNowPrice, 10) : null;
                                 patch.buyNowPrice = buyNowRaw && buyNowRaw > 0 ? buyNowRaw : null;
+                                // 封頂價校驗
+                                if (patch.buyNowPrice != null) {
+                                  const inc2 = parseInt(editFields.__bidIncrement || "0", 10) || parseInt(basic.defaultBidIncrement, 10) || 50;
+                                  const effectiveFirst = sp > 0 ? sp : inc2;
+                                  const minCap = effectiveFirst + inc2;
+                                  if (patch.buyNowPrice < minCap) {
+                                    toast.error(`封頂價最少 ${currSym}${minCap}`);
+                                    return;
+                                  }
+                                }
                               }
                               const inc = parseInt(editFields.__bidIncrement || "0", 10);
                               patch.bidIncrement = inc > 0 ? inc : 0;
