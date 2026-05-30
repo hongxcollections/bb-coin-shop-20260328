@@ -1044,7 +1044,7 @@ export default function GroupAuctionEdit() {
                           {(() => {
                             if (item.status === "sold") {
                               const atCap = item.buyNowPrice != null && Number((item as any).finalPrice) === item.buyNowPrice;
-                              return <span className="text-green-600"> • {atCap ? `✓ 封頂价${currSym}${item.buyNowPrice}成交` : "✓ 已成交"}</span>;
+                              return <span className="text-green-600"> • {atCap ? `✓ 封頂价${currSym}${item.buyNowPrice}成交` : `✓ ${currSym}${(item as any).finalPrice ?? (item as any).currentPrice}成交`}</span>;
                             }
                             if (item.status === "unsold") return <span> • 流拍</span>;
                             if (hasBids) return <span className="text-amber-600"> • 已出價 {currSym}{(item as any).currentPrice}</span>;
