@@ -1473,17 +1473,17 @@ export default function GroupAuctionEdit() {
                           <p className="text-sm font-bold text-gray-900">{round?.title}</p>
                           <p className="text-xs text-gray-400 mt-0.5">成交單 · {dateStr}</p>
                         </div>
-                        <div className="mb-3">
-                          <p className="text-[10px] text-gray-400 uppercase tracking-wide">買家</p>
-                          <p className="text-sm font-semibold text-gray-900 mt-0.5">{buyerName}</p>
+                        <div className="mb-3 flex items-baseline gap-2">
+                          <p className="text-[10px] text-gray-400 uppercase tracking-wide flex-shrink-0">買家</p>
+                          <p className="text-sm font-semibold text-gray-900">{buyerName}</p>
                         </div>
-                        <div className="space-y-2 mb-4">
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
                           {buyerItems.map(it => {
                             const d = parseData(it);
                             const price = (it as any).finalPrice ?? 0;
                             const comm = Math.round(price * commRate);
                             return (
-                              <div key={(it as any).id} className="flex items-start gap-2 text-xs py-1.5 border-b border-gray-50">
+                              <div key={(it as any).id} className="flex items-start gap-2 text-xs py-1.5 border-b border-gray-100">
                                 <span className="text-gray-400 font-mono w-5 text-right flex-shrink-0 mt-0.5">{(it as any).displayOrder + 1}</span>
                                 <div className="flex-1 min-w-0">
                                   {showCols.map(c => (
@@ -1498,17 +1498,17 @@ export default function GroupAuctionEdit() {
                             );
                           })}
                         </div>
-                        <div className="flex items-end justify-between pt-2 border-t border-gray-300">
-                          <div>
-                            <p className="text-xs text-gray-500">{buyerItems.length} 件</p>
-                            {commRate > 0 && (
-                              <p className="text-xs text-gray-400">
-                                成交 HK${buyerAmt.toLocaleString()} + 傭金 HK${buyerComm.toLocaleString()}
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs text-gray-400">應付合計</p>
+                        <div className="pt-2 border-t border-gray-300">
+                          {commRate > 0 && (
+                            <p className="text-xs text-gray-400 mb-1">
+                              {buyerItems.length} 件 · 成交 HK${buyerAmt.toLocaleString()} + 傭金 HK${buyerComm.toLocaleString()}
+                            </p>
+                          )}
+                          {commRate === 0 && (
+                            <p className="text-xs text-gray-400 mb-1">{buyerItems.length} 件</p>
+                          )}
+                          <div className="flex items-baseline justify-between">
+                            <p className="text-xs text-gray-500 flex-shrink-0">應付合計</p>
                             <p className="text-lg font-bold text-amber-700">HK${(buyerAmt + buyerComm).toLocaleString()}</p>
                           </div>
                         </div>
