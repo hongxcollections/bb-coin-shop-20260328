@@ -435,7 +435,7 @@ export default function GroupAuctionEdit() {
 
   type TabKey = "basic" | "columns" | "images" | "items" | "results";
   const TABS: { key: TabKey; label: string; disabled?: boolean }[] = isEnded
-    ? [{ key: "results", label: "成績紀錄" }]
+    ? [{ key: "results", label: "成交紀錄" }]
     : [
       { key: "basic", label: "基本設定" },
       { key: "columns", label: "欄位設定" },
@@ -1274,9 +1274,9 @@ export default function GroupAuctionEdit() {
               const uRows = unsoldItems.map(it => {
                 const d = parseData(it);
                 const colTd = printCols.map(c => `<td ${TD}>${d[c.key] ?? "—"}</td>`).join("");
-                return `<tr>${colTd}</tr>`;
+                return `<tr>${colTd}<td ${TDR} style="color:#999">HK$${((it as any).startPrice ?? 0).toLocaleString()}</td></tr>`;
               }).join("");
-              unsoldSection = `<h3 style="margin:28px 0 8px">流拍商品（${unsoldItems.length} 件）</h3><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${uColTh}</tr></thead><tbody>${uRows}</tbody></table>`;
+              unsoldSection = `<h3 style="margin:28px 0 8px">流拍商品（${unsoldItems.length} 件）</h3><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${uColTh}<th ${THR}>起拍價</th></tr></thead><tbody>${uRows}</tbody></table>`;
             }
             return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${round?.title} 成績紀錄</title><style>body{font-family:sans-serif;padding:20px;font-size:13px}h2,h3{margin-bottom:8px}table{width:100%;border-collapse:collapse}@media print{body{padding:8px}}</style></head><body><h2>${round?.title} — 成績紀錄（${buyerLabel}）</h2><p style="color:#666;margin-bottom:16px">有成交 ${targetItems.length} 件 · 成交額 HK$${totalAmt.toLocaleString()}${commRate > 0 ? ` · 買家傭金 HK$${totalComm.toLocaleString()} · 合計 HK$${(totalAmt + totalComm).toLocaleString()}` : ""}</p><h3>有成交商品</h3><table><thead><tr>${colTh}<th ${THR}>成交價</th>${commTh}<th ${THR}>合計</th>${buyerColTh}</tr></thead><tbody>${soldRows}</tbody>${soldTfoot}</table>${unsoldSection}</body></html>`;
           }
@@ -1333,12 +1333,6 @@ export default function GroupAuctionEdit() {
                   >
                     <Download className="w-3 h-3" /> 全場成交單
                   </button>
-                  <button
-                    onClick={() => doPrint(null)}
-                    className="flex items-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-xl"
-                  >
-                    <Download className="w-3 h-3" /> 打印全場
-                  </button>
                 </div>
               </div>
 
@@ -1362,12 +1356,13 @@ export default function GroupAuctionEdit() {
                         const price = (it as any).finalPrice ?? 0;
                         const comm = Math.round(price * commRate);
                         const buyer = (it as any).winnerName ?? "";
+                        const itemColVals = showCols
+                          .filter(c => c.role !== "startPrice" && d[c.key] != null && d[c.key] !== "")
+                          .map(c => d[c.key]);
                         return (
                           <div key={(it as any).id} className="flex items-center gap-2 px-3 py-2 text-xs min-w-0 bg-white rounded-lg">
                             <span className="text-gray-400 font-mono w-5 flex-shrink-0 text-right">{(it as any).displayOrder + 1}</span>
-                            {showCols.map(c => (
-                              <span key={c.key} className="text-gray-700 truncate">{d[c.key] ?? "—"}</span>
-                            ))}
+                            <span className="flex-1 min-w-0 text-gray-700 truncate">{itemColVals.join(" · ") || "—"}</span>
                             {showBuyer && <span className="text-gray-400 flex-shrink-0 truncate max-w-[5rem]">{buyer}</span>}
                             <span className="ml-auto flex-shrink-0 text-right whitespace-nowrap">
                               <span className="text-gray-600">HK${price.toLocaleString()}</span>
@@ -1436,9 +1431,9 @@ export default function GroupAuctionEdit() {
                       return (
                         <div key={(it as any).id} className="flex items-center gap-2 px-3 py-2 text-xs min-w-0 bg-white rounded-lg opacity-60">
                           <span className="text-gray-400 font-mono w-5 flex-shrink-0 text-right">{(it as any).displayOrder + 1}</span>
-                          {showCols.map(c => (
-                            <span key={c.key} className="text-gray-600 truncate">{d[c.key] ?? "—"}</span>
-                          ))}
+                          <span className="flex-1 min-w-0 text-gray-600 truncate">
+                            {showCols.filter(c => c.role !== "startPrice" && d[c.key] != null && d[c.key] !== "").map(c => d[c.key]).join(" · ") || "—"}
+                          </span>
                           <span className="ml-auto flex-shrink-0 text-gray-400 whitespace-nowrap">起拍 HK${startPrice.toLocaleString()}</span>
                         </div>
                       );
@@ -1670,6 +1665,28 @@ export default function GroupAuctionEdit() {
                             <span className="text-lg font-bold text-amber-700">HK${(grandAmt + grandComm).toLocaleString()}</span>
                           </p>
                         </div>
+                        {/* 流拍紀錄 */}
+                        {unsoldItems.length > 0 && (
+                          <div className="mt-4 pt-3 border-t border-gray-100">
+                            <p className="text-xs font-semibold text-gray-400 mb-2">流拍商品 ({unsoldItems.length})</p>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                              {unsoldItems.map(it => {
+                                const d = parseData(it);
+                                const sp = (it as any).startPrice ?? 0;
+                                const unsoldColVals = allPrintCols
+                                  .filter(c => d[c.key] != null && d[c.key] !== "")
+                                  .map(c => d[c.key]);
+                                return (
+                                  <div key={(it as any).id} className="flex items-center gap-2 text-xs py-1 opacity-60">
+                                    <span className="text-gray-400 font-mono w-4 text-right flex-shrink-0">{(it as any).displayOrder + 1}</span>
+                                    <span className="flex-1 min-w-0 text-gray-600 truncate">{unsoldColVals.join(" · ") || "—"}</span>
+                                    <span className="flex-shrink-0 text-gray-400 whitespace-nowrap">起拍 HK${sp.toLocaleString()}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                         <div style={{ marginTop: "18px" }} className="flex items-center justify-center gap-1.5">
                           {merchantProxySrc2
                             ? <img src={merchantProxySrc2} style={{ width: "10px", height: "10px" }} className="rounded-full object-cover flex-shrink-0" />
