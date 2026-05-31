@@ -456,20 +456,28 @@ export default function GroupAuctionBidPage() {
               {isMine && isActive && (
                 <div className="absolute inset-0 rounded-2xl animate-amber-shimmer pointer-events-none" />
               )}
-              {isItemEffectivelyEnded && (
-                <div className="absolute top-1 right-2 z-10 flex items-center px-1.5 py-[1px] text-[10px] font-semibold rounded-full bg-gray-100 text-gray-500">
-                  已結束
-                </div>
-              )}
-              {showItemTimer && !isItemEffectivelyEnded && (
-                <div
-                  className={`absolute top-1 right-2 z-10 flex items-center gap-0.5 px-1.5 py-[1px] text-[10px] font-mono font-semibold rounded-full bg-white/90${timerFlash ? " animate-red-flash" : ""}`}
-                  style={{ color: timerRed ? "#dc2626" : "#f59e0b" }}
-                >
-                  ⏱ {timerStr}
-                </div>
-              )}
               <div className="p-3">
+                {/* 倒數行（< 5min）或 已結束+成交/流拍 行 */}
+                {showItemTimer && !isItemEffectivelyEnded && (
+                  <div className="flex justify-end mb-1.5">
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[12px] font-mono font-bold text-white${timerFlash ? " animate-red-flash" : ""}`}
+                      style={{ background: "#dc2626" }}
+                    >
+                      ⏱ {timerStr}
+                    </span>
+                  </div>
+                )}
+                {isItemEffectivelyEnded && (
+                  <div className="flex justify-end gap-1 mb-1.5">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-600">已結束</span>
+                    {item.topBidderId !== null ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">落鎚成交</span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-500">流拍</span>
+                    )}
+                  </div>
+                )}
                 {/* Row 1: 順序號碼 + 商品名稱（全寬）+ 狀態 */}
                 <div className="flex items-start gap-1.5">
                   <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">{idx + 1}</span>
@@ -541,12 +549,12 @@ export default function GroupAuctionBidPage() {
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-bold text-amber-600">{displayPrice(item.currentPrice)}</span>
                     </div>
-                    <div className="text-[10px] text-gray-400 mt-[5px]">起 {displayPrice(item.startPrice)} +{displayPrice(effectiveIncrement)}</div>
+                    <div className="text-[10px] text-gray-400" style={{ marginTop: "5px" }}>起 {displayPrice(item.startPrice)} +{displayPrice(effectiveIncrement)}</div>
                     {item.topBidderName && (
                       <div className="flex items-center justify-between gap-1 text-xs mt-0.5">
                         <div className="flex items-center gap-1">
                           <Trophy className="w-3 h-3 text-amber-400" />
-                          <span className={isMine ? "text-amber-600 font-medium" : "text-gray-500"}>
+                          <span className={isMine ? "text-amber-600 font-medium" : "text-gray-800 font-medium"}>
                             {isMine ? "你領先" : item.topBidderName}
                           </span>
                         </div>
