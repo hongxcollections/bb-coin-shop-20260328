@@ -470,12 +470,16 @@ export default function GroupAuctionBidPage() {
                 )}
                 {isItemEffectivelyEnded && (
                   <div className="flex justify-end gap-1 mb-1.5">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-600">已結束</span>
                     {item.topBidderId !== null ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">落鎚成交</span>
+                      (item as any).buyNowPrice != null && Number((item as any).finalPrice) === (item as any).buyNowPrice ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700">落鎚封頂价{displayPrice((item as any).buyNowPrice)}成交</span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">落鎚成交</span>
+                      )
                     ) : (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-500">流拍</span>
                     )}
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-200 text-gray-600">已結束</span>
                   </div>
                 )}
                 {/* Row 1: 順序號碼 + 商品名稱（全寬）+ 狀態 */}
@@ -502,14 +506,6 @@ export default function GroupAuctionBidPage() {
                       </div>
                     )}
                   </div>
-                  {item.status === "sold" && !(
-                    (item as any).buyNowPrice != null && Number((item as any).finalPrice) === (item as any).buyNowPrice
-                  ) && (
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex-shrink-0">成交</span>
-                  )}
-                  {item.status === "unsold" && (
-                    <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0">流拍</span>
-                  )}
                 </div>
 
                 {/* 商品號碼行：右對齊，17px，深色粗體搶眼 */}
