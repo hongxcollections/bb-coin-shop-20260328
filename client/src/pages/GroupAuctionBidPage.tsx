@@ -460,7 +460,7 @@ export default function GroupAuctionBidPage() {
                 </div>
               )}
               <div className="p-3">
-                {/* Row 1: 順序號碼 + 商品名稱 + 商品號碼 + 狀態 同一行 */}
+                {/* Row 1: 順序號碼 + 商品名稱（全寬）+ 狀態 */}
                 <div className="flex items-start gap-1.5">
                   <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">{idx + 1}</span>
                   <div className="flex-1 min-w-0">
@@ -472,7 +472,7 @@ export default function GroupAuctionBidPage() {
                         >{title}</p>
                       ) : (
                         <div className="flex items-baseline gap-1">
-                          <p className="text-sm font-semibold text-gray-900 leading-tight overflow-hidden whitespace-nowrap" style={{ maxWidth: "80%" }}>{title}</p>
+                          <p className="text-sm font-semibold text-gray-900 leading-tight overflow-hidden whitespace-nowrap flex-1 min-w-0">{title}</p>
                           <button
                             className="text-[10px] text-amber-500 flex-shrink-0 whitespace-nowrap leading-tight"
                             onClick={e => { e.stopPropagation(); setExpandedItems(s => new Set([...s, item.id])); }}
@@ -483,11 +483,6 @@ export default function GroupAuctionBidPage() {
                       <p className="text-sm font-semibold text-gray-900 leading-tight">{title || "—"}</p>
                     )}
                   </div>
-                  {displayCols.filter(c => c.role === "customText").length > 0 && (
-                    <span className="text-xs text-gray-400 flex-shrink-0">
-                      {displayCols.filter(c => c.role === "customText").map(c => data[c.key]).filter(Boolean).join(" · ")}
-                    </span>
-                  )}
                   {item.status === "sold" && !(
                     (item as any).buyNowPrice != null && Number((item as any).finalPrice) === (item as any).buyNowPrice
                   ) && (
@@ -497,6 +492,15 @@ export default function GroupAuctionBidPage() {
                     <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0">流拍</span>
                   )}
                 </div>
+
+                {/* 商品號碼行：右對齊，17px，深色粗體搶眼 */}
+                {displayCols.filter(c => c.role === "customText").length > 0 && (
+                  <div className="text-right mt-0.5">
+                    <span className="text-[17px] font-bold text-gray-800">
+                      {displayCols.filter(c => c.role === "customText").map(c => data[c.key]).filter(Boolean).join(" · ")}
+                    </span>
+                  </div>
+                )}
 
                 {/* 關聯圖片縮圖行 */}
                 {(() => {
@@ -520,13 +524,13 @@ export default function GroupAuctionBidPage() {
                   );
                 })()}
 
-                {/* Row 2: HK$ 從左齊（同順序號碼左邊拍齊） */}
-                <div className={`flex items-center gap-2 ${title && title.length > 10 ? "mt-[12px]" : "mt-1.5"}`}>
+                {/* Row 2: HK$ 從左齊 */}
+                <div className="flex items-center gap-2 mt-1.5">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-bold text-amber-600">{displayPrice(item.currentPrice)}</span>
                     </div>
-                    <div className="text-[10px] text-gray-400 mt-0.5">起 {displayPrice(item.startPrice)} +{displayPrice(effectiveIncrement)}</div>
+                    <div className="text-[10px] text-gray-400 mt-[5px]">起 {displayPrice(item.startPrice)} +{displayPrice(effectiveIncrement)}</div>
                     {item.topBidderName && (
                       <div className="flex items-center justify-between gap-1 text-xs mt-0.5">
                         <div className="flex items-center gap-1">
