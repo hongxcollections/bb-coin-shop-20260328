@@ -63,7 +63,7 @@ export default function MerchantSessions() {
   const { data: sessions, isLoading, refetch } = trpc.merchantSessions.myList.useQuery(undefined, {
     enabled: !!user,
   });
-  const { data: rounds } = trpc.groupAuctions.myListRounds.useQuery(undefined, {
+  const { data: rounds, isLoading: isLoadingRounds } = trpc.groupAuctions.myListRounds.useQuery(undefined, {
     enabled: !!user,
   });
 
@@ -73,6 +73,7 @@ export default function MerchantSessions() {
   const endedSessions = (sessions || []).filter((s: any) => s.status === "ended");
   const endedRounds = (rounds || []).filter((r: any) => r.status === "ended");
   const visibleSessions = tab === "active" ? activeSessions : endedSessions;
+  const isAnyLoading = isLoading || isLoadingRounds;
 
   const createMut = trpc.merchantSessions.create.useMutation({
     onSuccess: ({ id }) => {
@@ -160,16 +161,19 @@ export default function MerchantSessions() {
           </button>
         </div>
 
-        {isLoading ? (
+        {isAnyLoading ? (
           <div className="text-center text-gray-500 py-12">載入中...</div>
-        ) : visibleSessions.length === 0 && (tab === "active" || endedRounds.length === 0) ? (
+        ) : tab === "active" && activeSessions.length === 0 ? (
           <div className="text-center bg-white rounded-2xl border border-amber-100 p-8">
-            <div className="text-5xl mb-3">{tab === "active" ? "📦" : "🗂️"}</div>
+            <div className="text-5xl mb-3">📦</div>
             <p className="text-gray-600">
-              {tab === "active"
-                ? (sessions && sessions.length > 0 ? "冇現有專場（全部已結束）" : "仲未有任何專場。撳「新建專場」開始。")
-                : "未有結束嘅項目。"}
+              {sessions && sessions.length > 0 ? "冇現有專場（全部已結束）" : "仲未有任何專場。撳「新建專場」開始。"}
             </p>
+          </div>
+        ) : tab === "ended" && endedSessions.length === 0 && endedRounds.length === 0 ? (
+          <div className="text-center bg-white rounded-2xl border border-amber-100 p-8">
+            <div className="text-5xl mb-3">🗂️</div>
+            <p className="text-gray-600">未有結束嘅項目。</p>
           </div>
         ) : (
           <div className="space-y-3">
