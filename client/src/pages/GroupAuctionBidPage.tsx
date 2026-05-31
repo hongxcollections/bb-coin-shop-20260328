@@ -84,7 +84,7 @@ export default function GroupAuctionBidPage() {
   });
 
   const round = data?.round;
-  const items = data?.items ?? [];
+  const items = useMemo(() => data?.items ?? [], [data]);
   const roundImages = data?.images ?? [];
   const imageMap = new Map(roundImages.map((img: any) => [img.id as number, img.url as string]));
   const roundCountdown = useCountdown(round?.endAt as string | null | undefined);
