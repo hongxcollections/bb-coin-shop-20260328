@@ -602,6 +602,10 @@ export default function MerchantStore() {
     { merchantUserId: userId },
     { enabled: userId > 0 }
   );
+  const { data: endedGroupRounds = [] } = trpc.groupAuctions.listEndedRoundsByMerchant.useQuery(
+    { merchantUserId: userId },
+    { enabled: userId > 0 }
+  );
   const activeSessions = (merchantSessions as any[]).filter((s) => s.status === "published" && new Date(s.endAt).getTime() > Date.now());
   const endedSessions = (merchantSessions as any[]).filter((s) => s.status === "ended" || (s.status === "published" && new Date(s.endAt).getTime() <= Date.now()));
   const merchantInfo = (allMerchants as any[]).find((m: any) => m.userId === userId);
@@ -834,7 +838,7 @@ export default function MerchantStore() {
               )}
 
               {/* 專場 tabs — 進行中 / 往屆（永遠顯示兩個 tab） */}
-              {(activeSessions.length > 0 || endedSessions.length > 0 || (activeGroupRounds as any[]).length > 0) && (
+              {(activeSessions.length > 0 || endedSessions.length > 0 || (activeGroupRounds as any[]).length > 0 || (endedGroupRounds as any[]).length > 0) && (
                 <div className="border-t border-dashed border-amber-200 pt-2.5">
                   {/* Tab bar */}
                   <div className="flex rounded-lg overflow-hidden border border-amber-200 mb-2">
@@ -852,7 +856,7 @@ export default function MerchantStore() {
                       className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] font-bold transition-colors border-l border-amber-200 ${sessionTab === "ended" ? "bg-gray-600 text-white" : "bg-white text-gray-500 hover:bg-gray-50"}`}
                     >
                       <Clock className="w-2.5 h-2.5" />
-                      往屆專場{endedSessions.length > 0 ? `（${endedSessions.length}）` : ""}
+                      往屆專場{(endedSessions.length + (endedGroupRounds as any[]).length) > 0 ? `（${endedSessions.length + (endedGroupRounds as any[]).length}）` : ""}
                     </button>
                   </div>
 
@@ -898,9 +902,10 @@ export default function MerchantStore() {
                   {/* 往屆 tab */}
                   {sessionTab === "ended" && (
                     <div className="space-y-1.5">
-                      {endedSessions.length === 0 ? (
+                      {endedSessions.length === 0 && (endedGroupRounds as any[]).length === 0 ? (
                         <p className="text-[11px] text-center text-gray-400 py-3">暫無往屆專場紀錄</p>
-                      ) : endedSessions.map((s: any) => (
+                      ) : null}
+                      {endedSessions.map((s: any) => (
                         <Link key={s.id} href={`/s/${userId}/${s.slug}`}>
                           <a className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1.5 transition-all group">
                             {s.coverImage ? (
@@ -912,6 +917,20 @@ export default function MerchantStore() {
                             )}
                             <span className="text-xs font-medium text-gray-500 truncate flex-1 min-w-0">{sanitizeUserText(s.title)}</span>
                             <span className="text-[10px] text-gray-400 bg-white px-1.5 py-px rounded border border-gray-200 shrink-0">{s.itemCount ?? 0} 件</span>
+                            <ChevronLeft className="w-3 h-3 text-gray-400 shrink-0 rotate-180" />
+                          </a>
+                        </Link>
+                      ))}
+                      {(endedGroupRounds as any[]).map((r: any) => (
+                        <Link key={`egr-${r.id}`} href={`/group/${r.id}`}>
+                          <a className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-2.5 py-1.5 transition-all group">
+                            <div className="w-6 h-6 rounded bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0">
+                              <Layers className="w-3 h-3 text-gray-400" />
+                            </div>
+                            <span className="text-xs font-medium text-gray-500 truncate flex-1 min-w-0">
+                              {r.periodNumber ? `第 ${r.periodNumber} 期 ` : ""}{sanitizeUserText(r.title)}
+                            </span>
+                            <span className="text-[10px] text-gray-400 bg-white px-1.5 py-px rounded border border-gray-200 shrink-0">團拍</span>
                             <ChevronLeft className="w-3 h-3 text-gray-400 shrink-0 rotate-180" />
                           </a>
                         </Link>

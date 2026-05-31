@@ -10654,6 +10654,27 @@ EXAMPLE OUTPUT (exact format):
           .orderBy(desc(groupAuctionRounds.createdAt));
       }),
 
+    /** 公開：取得某商戶已結束嘅場次列表 */
+    listEndedRoundsByMerchant: publicProcedure
+      .input(z.object({ merchantUserId: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        const { desc } = await import('drizzle-orm');
+        return db.select({
+          id: groupAuctionRounds.id,
+          title: groupAuctionRounds.title,
+          periodNumber: groupAuctionRounds.periodNumber,
+          endAt: groupAuctionRounds.endAt,
+          status: groupAuctionRounds.status,
+        })
+          .from(groupAuctionRounds)
+          .where(and(
+            eq(groupAuctionRounds.merchantUserId, input.merchantUserId),
+            eq(groupAuctionRounds.status, 'ended'),
+          ))
+          .orderBy(desc(groupAuctionRounds.createdAt));
+      }),
+
     /** 公開：取得場次詳情 + 商品 + 每件最高出價 */
     getRound: publicProcedure
       .input(z.object({ roundId: z.number().int().positive() }))
