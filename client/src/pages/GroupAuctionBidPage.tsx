@@ -53,6 +53,8 @@ export default function GroupAuctionBidPage() {
   const [filter, setFilter] = useState<"all" | "bid" | "nobid">("all");
   const [showDesc, setShowDesc] = useState(true);
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
+  const [overflowingTitles, setOverflowingTitles] = useState<Set<number>>(new Set());
+  const titleRefsMap = useRef<Map<number, HTMLParagraphElement | null>>(new Map());
   const [now, setNow] = useState(() => Date.now());
   const countdown = useCountdown(undefined);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -130,6 +132,14 @@ export default function GroupAuctionBidPage() {
     return () => ro.disconnect();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [round?.id, promoUrls.length]);
+
+  useLayoutEffect(() => {
+    const overflowing = new Set<number>();
+    titleRefsMap.current.forEach((el, id) => {
+      if (el && el.scrollWidth > el.clientWidth) overflowing.add(id);
+    });
+    setOverflowingTitles(overflowing);
+  }, [items]);
 
   function handleBid(itemId: number, amount: number, itemTitle?: string, itemNumber?: number) {
     if (!isAuthenticated) {
@@ -464,23 +474,24 @@ export default function GroupAuctionBidPage() {
                 <div className="flex items-start gap-1.5">
                   <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">{idx + 1}</span>
                   <div className="flex-1 min-w-0">
-                    {title && title.length > 10 ? (
-                      expandedItems.has(item.id) ? (
+                    {expandedItems.has(item.id) ? (
+                      <p
+                        className="text-sm font-semibold text-gray-900 leading-tight break-all cursor-pointer"
+                        onClick={e => { e.stopPropagation(); setExpandedItems(s => { const n = new Set(s); n.delete(item.id); return n; }); }}
+                      >{title || "—"}</p>
+                    ) : (
+                      <div className="flex items-baseline gap-1">
                         <p
-                          className="text-sm font-semibold text-gray-900 leading-tight break-all cursor-pointer"
-                          onClick={e => { e.stopPropagation(); setExpandedItems(s => { const n = new Set(s); n.delete(item.id); return n; }); }}
-                        >{title}</p>
-                      ) : (
-                        <div className="flex items-baseline gap-1">
-                          <p className="text-sm font-semibold text-gray-900 leading-tight overflow-hidden whitespace-nowrap flex-1 min-w-0">{title}</p>
+                          ref={el => { titleRefsMap.current.set(item.id, el); }}
+                          className="text-sm font-semibold text-gray-900 leading-tight overflow-hidden whitespace-nowrap flex-1 min-w-0"
+                        >{title || "—"}</p>
+                        {overflowingTitles.has(item.id) && (
                           <button
                             className="text-[10px] text-amber-500 flex-shrink-0 whitespace-nowrap leading-tight"
                             onClick={e => { e.stopPropagation(); setExpandedItems(s => new Set([...s, item.id])); }}
                           >...更多</button>
-                        </div>
-                      )
-                    ) : (
-                      <p className="text-sm font-semibold text-gray-900 leading-tight">{title || "—"}</p>
+                        )}
+                      </div>
                     )}
                   </div>
                   {item.status === "sold" && !(
