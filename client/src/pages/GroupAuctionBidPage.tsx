@@ -97,6 +97,21 @@ export default function GroupAuctionBidPage() {
   const promoLayout = useMemo(() => {
     let urls: string[] = [];
     try { urls = JSON.parse(promoImagesJson); } catch {}
+
+    if (urls.length === 0) {
+      const imgMap = new Map(roundImages.map((img: any) => [img.id as number, img.url as string]));
+      const allUrls: string[] = [];
+      for (const item of items) {
+        let ids: number[] = [];
+        try { ids = JSON.parse((item as any).imageIdsJson ?? "[]"); } catch {}
+        for (const id of ids) {
+          const url = imgMap.get(id);
+          if (url && !allUrls.includes(url)) allUrls.push(url);
+        }
+      }
+      urls = allUrls.sort(() => Math.random() - 0.5).slice(0, 5);
+    }
+
     if (urls.length === 0) return [];
     const shuffled = [...urls].sort(() => Math.random() - 0.5);
     return shuffled.map((url) => {
@@ -107,7 +122,7 @@ export default function GroupAuctionBidPage() {
       const opacity = 0.10 + Math.random() * 0.08;
       return { url, x, y, size, rot, opacity };
     });
-  }, [promoImagesJson]);
+  }, [promoImagesJson, items, roundImages]);
 
   const columns: ColumnDef[] = (() => {
     try { return JSON.parse(round?.columnsJson ?? "[]"); } catch { return []; }
