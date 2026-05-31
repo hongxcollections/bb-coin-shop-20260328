@@ -461,7 +461,7 @@ export default function GroupAuctionBidPage() {
                 {showItemTimer && !isItemEffectivelyEnded && (
                   <div className="flex justify-end mb-1.5">
                     <span
-                      className={`px-2.5 py-0.5 rounded-full text-[12px] font-mono font-bold text-white${timerFlash ? " animate-red-flash" : ""}`}
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold text-white${timerFlash ? " animate-red-flash" : ""}`}
                       style={{ background: "#dc2626" }}
                     >
                       ⏱ {timerStr}
@@ -554,11 +554,6 @@ export default function GroupAuctionBidPage() {
                             {isMine ? "你領先" : item.topBidderName}
                           </span>
                         </div>
-                        {item.status === "sold" && (item as any).buyNowPrice != null && Number((item as any).finalPrice) === (item as any).buyNowPrice && (
-                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca" }}>
-                            已封頂价{displayPrice((item as any).buyNowPrice)}成交
-                          </span>
-                        )}
                       </div>
                     )}
                   </div>
