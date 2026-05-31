@@ -63,11 +63,15 @@ export default function MerchantSessions() {
   const { data: sessions, isLoading, refetch } = trpc.merchantSessions.myList.useQuery(undefined, {
     enabled: !!user,
   });
+  const { data: rounds } = trpc.groupAuctions.myListRounds.useQuery(undefined, {
+    enabled: !!user,
+  });
 
   const [tab, setTab] = useState<"active" | "ended">("active");
   const [posterSession, setPosterSession] = useState<any | null>(null);
   const activeSessions = (sessions || []).filter((s: any) => s.status !== "ended");
   const endedSessions = (sessions || []).filter((s: any) => s.status === "ended");
+  const endedRounds = (rounds || []).filter((r: any) => r.status === "ended");
   const visibleSessions = tab === "active" ? activeSessions : endedSessions;
 
   const createMut = trpc.merchantSessions.create.useMutation({
@@ -152,25 +156,25 @@ export default function MerchantSessions() {
             data-testid="tab-ended-sessions"
           >
             <Archive className="w-3.5 h-3.5 inline mr-1" />
-            已結束 ({endedSessions.length})
+            已結束 ({endedSessions.length + endedRounds.length})
           </button>
         </div>
 
         {isLoading ? (
           <div className="text-center text-gray-500 py-12">載入中...</div>
-        ) : visibleSessions.length === 0 ? (
+        ) : visibleSessions.length === 0 && (tab === "active" || endedRounds.length === 0) ? (
           <div className="text-center bg-white rounded-2xl border border-amber-100 p-8">
             <div className="text-5xl mb-3">{tab === "active" ? "📦" : "🗂️"}</div>
             <p className="text-gray-600">
               {tab === "active"
                 ? (sessions && sessions.length > 0 ? "冇現有專場（全部已結束）" : "仲未有任何專場。撳「新建專場」開始。")
-                : "未有結束嘅專場。"}
+                : "未有結束嘅項目。"}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
             {visibleSessions.map((s) => (
-              <div key={s.id} className="bg-white border border-amber-100 rounded-2xl p-4">
+              <div key={`session-${s.id}`} className="bg-white border border-amber-100 rounded-2xl p-4">
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -250,6 +254,42 @@ export default function MerchantSessions() {
                       <Trash2 className="w-3.5 h-3.5 mr-1" /> 刪除
                     </Button>
                   )}
+                </div>
+              </div>
+            ))}
+
+            {/* 已結束 tab：顯示已結束嘅團購拍賣場次 */}
+            {tab === "ended" && endedRounds.map((r: any) => (
+              <div key={`round-${r.id}`} className="bg-white border border-orange-100 rounded-2xl p-4">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h3 className="font-semibold text-orange-900 truncate">
+                        {r.title}{r.periodNumber ? ` — 第${r.periodNumber}期` : ""}
+                      </h3>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-600">
+                        已結束
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 font-medium inline-flex items-center gap-0.5">
+                        <Layers className="w-2.5 h-2.5" /> 團購拍賣
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500 flex items-center gap-2 flex-wrap">
+                      {r.endAt && (
+                        <span className="inline-flex items-center gap-1">
+                          <Calendar className="w-3 h-3" /> 結束 {fmtEnd(r.endAt)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <Link href={`/merchant/group-auctions/${r.id}`}>
+                    <Button size="sm" variant="outline"><Eye className="w-3.5 h-3.5 mr-1" /> 查看場次</Button>
+                  </Link>
+                  <a href={`/group/${r.id}`} target="_blank" rel="noopener noreferrer">
+                    <Button size="sm" variant="outline"><Eye className="w-3.5 h-3.5 mr-1" /> 公開頁</Button>
+                  </a>
                 </div>
               </div>
             ))}
