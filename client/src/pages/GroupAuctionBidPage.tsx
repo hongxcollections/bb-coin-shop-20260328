@@ -525,8 +525,8 @@ export default function GroupAuctionBidPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-bold text-amber-600">{displayPrice(item.currentPrice)}</span>
-                      <span className="text-[8px] text-gray-400">起 {displayPrice(item.startPrice)} +{displayPrice(effectiveIncrement)}</span>
                     </div>
+                    <div className="text-[10px] text-gray-400 mt-0.5">起 {displayPrice(item.startPrice)} +{displayPrice(effectiveIncrement)}</div>
                     {item.topBidderName && (
                       <div className="flex items-center justify-between gap-1 text-xs mt-0.5">
                         <div className="flex items-center gap-1">
