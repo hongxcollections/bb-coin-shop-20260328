@@ -8,11 +8,12 @@ import {
   AlertCircle, ArrowUpRight, ArrowDownLeft, ShoppingBag, Settings,
   RotateCcw, Layers, CreditCard, PlusCircle, Send, ChevronDown, Loader2,
   Upload, X, ImageIcon, Printer, Search, HelpCircle, Package,
-  LayoutList, LayoutGrid, Grid3X3, Maximize2, Link2, Copy, Tag, QrCode, BookOpen,
+  LayoutList, LayoutGrid, Grid3X3, Maximize2, Link2, Copy, Tag, QrCode, BookOpen, Receipt,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { sanitizeUserText } from "@/lib/utils";
 import MerchantOffersDialog from "@/components/MerchantOffersDialog";
+import { GroupAuctionCommissionModal } from "@/components/GroupAuctionCommissionModal";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 const DEPOSIT_PAYMENT_METHODS = [
@@ -75,10 +77,12 @@ type TxType = {
   balanceAfter?: string | number | null;
   description?: string | null;
   relatedAuctionId?: number | null;
+  relatedGroupAuctionRoundId?: number | null;
   createdAt?: Date | string | null;
   auctionTitle?: string | null;
   auctionCurrentPrice?: string | number | null;
   auctionWinnerName?: string | null;
+  groupAuctionRoundTitle?: string | null;
 };
 
 const TX_LABEL: Record<string, string> = {
@@ -88,11 +92,16 @@ const TX_LABEL: Record<string, string> = {
   adjustment: "人工調整",
 };
 
-function TxRow({ tx, showBalance }: { tx: TxType; showBalance?: boolean }) {
+function TxRow({ tx, showBalance, onGroupCommission }: {
+  tx: TxType;
+  showBalance?: boolean;
+  onGroupCommission?: (roundId: number, roundTitle: string | null) => void;
+}) {
   const amt = parseFloat(String(tx.amount));
   const isIn = amt > 0;
   const bal = tx.balanceAfter != null ? parseFloat(String(tx.balanceAfter)) : null;
   const hasAuction = !!tx.relatedAuctionId && !!tx.auctionTitle;
+  const hasGroupRound = !!tx.relatedGroupAuctionRoundId;
   const winPrice = tx.auctionCurrentPrice != null ? parseFloat(String(tx.auctionCurrentPrice)) : null;
 
   const inner = (
@@ -110,6 +119,19 @@ function TxRow({ tx, showBalance }: { tx: TxType; showBalance?: boolean }) {
               {winPrice != null && <span className="text-gray-700 font-medium">{HKD(winPrice)}</span>}
             </div>
           </div>
+        )}
+        {hasGroupRound && onGroupCommission && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onGroupCommission(tx.relatedGroupAuctionRoundId!, tx.groupAuctionRoundTitle ?? null);
+            }}
+            className="mt-1 inline-flex items-center gap-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-lg"
+          >
+            <Receipt className="w-3 h-3" />
+            平台傭金明細
+          </button>
         )}
         {tx.createdAt && (
           <p className="text-xs text-gray-400 mt-0.5">
@@ -238,6 +260,9 @@ export default function MerchantDashboard() {
   const { isAuthenticated, loading } = useAuth();
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
+
+  // Group auction commission modal state
+  const [groupCommTarget, setGroupCommTarget] = useState<{ roundId: number; roundTitle: string | null } | null>(null);
 
   // Top-up request form state
   const [showTopUpForm, setShowTopUpForm] = useState(false);
@@ -1333,7 +1358,7 @@ export default function MerchantDashboard() {
                   return (
                     <>
                       {pageRows.map((tx, i) => (
-                        <TxRow key={start + i} tx={tx} showBalance />
+                        <TxRow key={start + i} tx={tx} showBalance onGroupCommission={(roundId, roundTitle) => setGroupCommTarget({ roundId, roundTitle })} />
                       ))}
                       {transactions.length > TX_PAGE_SIZE && (
                         <div className="flex items-center justify-between mt-3 gap-2">
@@ -1729,6 +1754,35 @@ export default function MerchantDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* 平台傭金明細 modal（場次存在） */}
+      {groupCommTarget && groupCommTarget.roundTitle !== null && (
+        <GroupAuctionCommissionModal
+          open
+          onClose={() => setGroupCommTarget(null)}
+          roundId={groupCommTarget.roundId}
+          roundTitle={groupCommTarget.roundTitle}
+          type="platform"
+        />
+      )}
+
+      {/* 場次已拆除 dialog */}
+      <AlertDialog
+        open={!!groupCommTarget && groupCommTarget.roundTitle === null}
+        onOpenChange={(open) => { if (!open) setGroupCommTarget(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>場次資料已不存在</AlertDialogTitle>
+            <AlertDialogDescription>
+              此團購拍賣場次已被商戶拆除，場次明細已無法查看。平台傭金紀錄仍保留在此保證金交易紀錄中。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setGroupCommTarget(null)}>明白</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
