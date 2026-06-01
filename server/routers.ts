@@ -10913,7 +10913,11 @@ EXAMPLE OUTPUT (exact format):
           const cols: any[] = JSON.parse(round.columnsJson ?? '[]');
           const titleCol = cols.find((c: any) => c.role === 'itemTitle');
           if (titleCol) titleKey = titleCol.key;
-          const lotCol = cols.find((c: any) => c.role === 'itemNumber' || c.label === '號碼' || c.key === 'serial');
+          const lotCol = cols.find((c: any) =>
+            c.role === 'itemNumber' ||
+            (typeof c.label === 'string' && (c.label.includes('號') || c.label.toLowerCase().includes('no'))) ||
+            c.key === 'serial'
+          );
           if (lotCol) lotNoKey = lotCol.key;
         } catch {}
 
@@ -10928,8 +10932,9 @@ EXAMPLE OUTPUT (exact format):
               const firstStr = Object.values(data).find(v => typeof v === 'string' && (v as string).trim());
               if (firstStr) name = String(firstStr);
             }
-            if (lotNoKey && data[lotNoKey] != null && String(data[lotNoKey]).trim()) {
-              lotNo = String(data[lotNoKey]).trim();
+            if (lotNoKey && data[lotNoKey] != null) {
+              const v = String(data[lotNoKey]).trim();
+              if (v) lotNo = v;
             }
           } catch {}
           const finalPrice = item.finalPrice ?? 0;
@@ -11007,7 +11012,11 @@ EXAMPLE OUTPUT (exact format):
           const cols: any[] = JSON.parse(round.columnsJson ?? '[]');
           const titleCol = cols.find((c: any) => c.role === 'itemTitle');
           if (titleCol) titleKey = titleCol.key;
-          const lotCol = cols.find((c: any) => c.role === 'itemNumber' || c.label === '號碼' || c.key === 'serial');
+          const lotCol = cols.find((c: any) =>
+            c.role === 'itemNumber' ||
+            (typeof c.label === 'string' && (c.label.includes('號') || c.label.toLowerCase().includes('no'))) ||
+            c.key === 'serial'
+          );
           if (lotCol) lotNoKey = lotCol.key;
         } catch {}
 
@@ -11022,8 +11031,9 @@ EXAMPLE OUTPUT (exact format):
               const firstStr = Object.values(data).find(v => typeof v === 'string' && (v as string).trim());
               if (firstStr) name = String(firstStr);
             }
-            if (lotNoKey && data[lotNoKey] != null && String(data[lotNoKey]).trim()) {
-              lotNo = String(data[lotNoKey]).trim();
+            if (lotNoKey && data[lotNoKey] != null) {
+              const v = String(data[lotNoKey]).trim();
+              if (v) lotNo = v;
             }
           } catch {}
           const finalPrice = item.finalPrice ?? 0;
