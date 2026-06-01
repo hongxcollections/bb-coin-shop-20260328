@@ -48,6 +48,7 @@ import { QuickBidPopover } from "@/components/QuickBidPopover";
 import Header from "@/components/Header";
 import EarlyBirdBanner from "@/components/EarlyBirdBanner";
 import { AuctionCard } from "@/components/AuctionCard";
+import { FeaturedProductSideCard, FeaturedBuyDialog } from "@/components/FeaturedProductSideCard";
 
 function AuctionImageOverlay({ endTime }: { endTime: Date | string }) {
   const [txt, setTxt] = useState("");
@@ -542,10 +543,8 @@ function CombinedHeroCarousel({
   );
 }
 
-// ── 主打商品右側浮動滑入卡 ──
-// 尺寸：精選商品卡 (~330×260) 縮 1/3 → 220×173px
-// 行為：載入 1.2s 後滑出，停留 8s 自動縮回；點卡收回，點條邊彈出
-function FeaturedProductSideCard({ products, onBuy, currentUserId }: { products: any[]; onBuy: (p: any) => void; currentUserId?: number | null }) {
+// (FeaturedProductSideCard, HomeBuyDialog, parseProductImages 已移至 @/components/FeaturedProductSideCard)
+function _REMOVED_FeaturedProductSideCard({ products, onBuy, currentUserId }: { products: any[]; onBuy: (p: any) => void; currentUserId?: number | null }) {
   const [phase, setPhase] = useState<"hidden" | "visible" | "gone">("hidden");
   const [idx, setIdx] = useState(() => Math.floor(Math.random() * Math.max(products.length, 1)));
   const touchStartX = useRef<number | null>(null);
@@ -1284,7 +1283,7 @@ export default function Home() {
   return (
     <div className="min-h-screen home-bg overflow-x-hidden">
       {/* 落單彈窗 */}
-      {buyingProduct && <HomeBuyDialog product={buyingProduct} onClose={() => setBuyingProduct(null)} />}
+      {buyingProduct && <FeaturedBuyDialog product={buyingProduct} onClose={() => setBuyingProduct(null)} />}
 
       {/* 首頁歡迎 popup */}
       {showWelcome && (

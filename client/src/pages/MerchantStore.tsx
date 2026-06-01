@@ -1,6 +1,6 @@
 import { useParams, Link, useLocation } from "wouter";
 import ChatRoomDialog from "@/components/ChatRoomDialog";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { buildWhatsAppUrl, sanitizeUserText, parseCategories } from "@/lib/utils";
 import { getCurrencySymbol } from "./AdminAuctions";
 import AdSenseAd from "@/components/AdSenseAd";
+import { FeaturedProductSideCard, FeaturedBuyDialog } from "@/components/FeaturedProductSideCard";
 
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
 
@@ -606,6 +607,28 @@ export default function MerchantStore() {
     { merchantUserId: userId },
     { enabled: userId > 0 }
   );
+
+  const { data: paidFeatured } = trpc.featuredListings.getActive.useQuery(undefined, { staleTime: 30_000, refetchInterval: 60_000 });
+  const [buyingFeaturedProduct, setBuyingFeaturedProduct] = useState<any>(null);
+  const featuredProducts = useMemo(() => {
+    const now = new Date();
+    return (paidFeatured ?? [])
+      .filter((f: any) => !f.endAt || new Date(f.endAt) > now)
+      .map((f: any) => ({
+        id: f.productId,
+        merchantId: f.merchantId,
+        title: f.productTitle,
+        merchantName: f.merchantName,
+        price: f.price,
+        currency: f.currency,
+        images: f.images,
+        whatsapp: f.whatsapp,
+        stock: f.stock,
+        _isPaid: true,
+        _endAt: f.endAt,
+      }));
+  }, [paidFeatured]);
+
   const activeSessions = (merchantSessions as any[]).filter((s) => s.status === "published" && new Date(s.endAt).getTime() > Date.now());
   const endedSessions = (merchantSessions as any[]).filter((s) => s.status === "ended" || (s.status === "published" && new Date(s.endAt).getTime() <= Date.now()));
   const merchantInfo = (allMerchants as any[]).find((m: any) => m.userId === userId);
@@ -662,6 +685,13 @@ export default function MerchantStore() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/40 via-background to-background pb-24">
       <Header />
+
+      {buyingFeaturedProduct && (
+        <FeaturedBuyDialog product={buyingFeaturedProduct} onClose={() => setBuyingFeaturedProduct(null)} />
+      )}
+      {featuredProducts.length > 0 && (
+        <FeaturedProductSideCard products={featuredProducts} onBuy={(p) => setBuyingFeaturedProduct(p)} currentUserId={user?.id} />
+      )}
 
       <div className="container max-w-lg mx-auto pt-3 space-y-3">
         {/* 返回 + 分享 */}
