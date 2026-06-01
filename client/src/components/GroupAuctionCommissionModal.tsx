@@ -67,7 +67,7 @@ export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle
       `}</style>
 
       <div id="ga-commission-portal">
-        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-[3px] pb-20">
+        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6 pb-20">
           <div className="modal-box bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
 
             {/* Header */}
@@ -116,14 +116,14 @@ export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle
                           <tr key={item.id} className={idx % 2 === 0 ? "" : "bg-gray-50"}>
                             <td className="p-2 border border-gray-200 text-gray-400 text-xs">{item.order}</td>
                             <td className="p-2 border border-gray-200 text-gray-900 text-xs">
-                              {item.name} #{item.order}
+                              {item.name} · {item.order}
                             </td>
                             <td className="p-2 border border-gray-200 text-right text-gray-900 text-xs">
                               {item.isCapped && item.buyNowPrice ? (
                                 <div className="flex items-start justify-end gap-[6px]">
                                   <span>HK${fmtMoney(item.finalPrice)}</span>
-                                  <span className="text-[10px] text-orange-500 font-medium leading-tight">
-                                    封頂<br />HK${fmtMoney(item.buyNowPrice)}
+                                  <span className="inline-block bg-orange-100 text-orange-600 text-[10px] font-semibold px-1.5 py-0.5 rounded leading-none">
+                                    封頂價
                                   </span>
                                 </div>
                               ) : (
