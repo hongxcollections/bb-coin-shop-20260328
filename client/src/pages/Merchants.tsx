@@ -8,6 +8,7 @@ import ChatRoomDialog from "@/components/ChatRoomDialog";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Store, ChevronRight, Gavel, Package, Search, X, CalendarClock, MessageCircle } from "lucide-react";
 import { useLocation } from "wouter";
+import { FeaturedProductSideCard, FeaturedBuyDialog } from "@/components/FeaturedProductSideCard";
 
 type Thumb = { url: string; type: string; id: number };
 
@@ -47,6 +48,27 @@ const RANK_BADGE: Record<number, string> = {
 export default function Merchants() {
   const { data: merchants = [], isLoading } = trpc.merchants.listApprovedMerchants.useQuery();
   const { data: activeSessions = [] } = trpc.merchantSessions.listAllActivePublic.useQuery();
+
+  const { data: paidFeatured } = trpc.featuredListings.getActive.useQuery(undefined, { staleTime: 30_000, refetchInterval: 60_000 });
+  const [buyingFeaturedProduct, setBuyingFeaturedProduct] = useState<any>(null);
+  const featuredProducts = useMemo(() => {
+    const now = new Date();
+    return (paidFeatured ?? [])
+      .filter((f: any) => !f.endAt || new Date(f.endAt) > now)
+      .map((f: any) => ({
+        id: f.productId,
+        merchantId: f.merchantId,
+        title: f.productTitle,
+        merchantName: f.merchantName,
+        price: f.price,
+        currency: f.currency,
+        images: f.images,
+        whatsapp: f.whatsapp,
+        stock: f.stock,
+        _isPaid: true,
+        _endAt: f.endAt,
+      }));
+  }, [paidFeatured]);
   const sessionsByMerchant = useMemo(() => {
     const map = new Map<number, Array<{ slug: string; title: string; endAt: string | Date; itemCount: number; coverImage?: string | null }>>();
     (activeSessions as any[]).forEach((s) => {
@@ -104,6 +126,13 @@ export default function Merchants() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/30 via-background to-background">
       <Header />
+
+      {buyingFeaturedProduct && (
+        <FeaturedBuyDialog product={buyingFeaturedProduct} onClose={() => setBuyingFeaturedProduct(null)} />
+      )}
+      {featuredProducts.length > 0 && (
+        <FeaturedProductSideCard products={featuredProducts} onBuy={(p) => setBuyingFeaturedProduct(p)} currentUserId={user?.id} />
+      )}
 
       {/* 商戶申請流程 — 細小入口 */}
       <div className="container max-w-2xl mx-auto pt-2 pb-0 flex justify-end">
