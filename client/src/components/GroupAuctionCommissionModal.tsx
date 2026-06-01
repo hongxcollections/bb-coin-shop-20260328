@@ -67,8 +67,8 @@ export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle
       `}</style>
 
       <div id="ga-commission-portal">
-        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="modal-box bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-[3px] pb-20">
+          <div className="modal-box bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
 
             {/* Header */}
             <div className="no-print flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
@@ -102,7 +102,7 @@ export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle
                   {data.soldItems.length === 0 ? (
                     <p className="text-center text-gray-400 text-sm py-12">未有成交商品，無傭金記錄</p>
                   ) : (
-                    <table className="w-full text-sm border-collapse">
+                    <table className="w-full text-xs border-collapse">
                       <thead>
                         <tr>
                           <th className="text-left p-2 border border-gray-200 bg-amber-50 text-amber-800 font-semibold w-10">#</th>
@@ -112,14 +112,25 @@ export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle
                         </tr>
                       </thead>
                       <tbody>
-                        {data.soldItems.map((item: { id: number; order: number; name: string; finalPrice: number; commission: number }, idx: number) => (
+                        {(data.soldItems as Array<{ id: number; order: number; name: string; finalPrice: number; commission: number; buyNowPrice?: number | null; isCapped?: boolean }>).map((item, idx) => (
                           <tr key={item.id} className={idx % 2 === 0 ? "" : "bg-gray-50"}>
                             <td className="p-2 border border-gray-200 text-gray-400 text-xs">{item.order}</td>
-                            <td className="p-2 border border-gray-200 text-gray-900">{item.name}</td>
-                            <td className="p-2 border border-gray-200 text-right text-gray-900">
-                              HK${fmtMoney(item.finalPrice)}
+                            <td className="p-2 border border-gray-200 text-gray-900 text-xs">
+                              {item.name} #{item.order}
                             </td>
-                            <td className="p-2 border border-gray-200 text-right text-rose-600 font-medium">
+                            <td className="p-2 border border-gray-200 text-right text-gray-900 text-xs">
+                              {item.isCapped && item.buyNowPrice ? (
+                                <div className="flex items-start justify-end gap-[6px]">
+                                  <span>HK${fmtMoney(item.finalPrice)}</span>
+                                  <span className="text-[10px] text-orange-500 font-medium leading-tight">
+                                    封頂<br />HK${fmtMoney(item.buyNowPrice)}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span>HK${fmtMoney(item.finalPrice)}</span>
+                              )}
+                            </td>
+                            <td className="p-2 border border-gray-200 text-right text-rose-600 font-medium text-xs">
                               HK${fmtMoney(item.commission, 2)}
                             </td>
                           </tr>
@@ -127,13 +138,13 @@ export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle
                       </tbody>
                       <tfoot>
                         <tr className="font-semibold">
-                          <td className="p-2 border border-gray-200 bg-amber-50 text-amber-800" colSpan={2}>
+                          <td className="p-2 border border-gray-200 bg-amber-50 text-amber-800 text-xs" colSpan={2}>
                             合計（{data.soldCount} 件成交）
                           </td>
-                          <td className="p-2 border border-gray-200 bg-amber-50 text-right text-amber-800">
+                          <td className="p-2 border border-gray-200 bg-amber-50 text-right text-amber-800 text-xs">
                             HK${fmtMoney(data.totalSales)}
                           </td>
-                          <td className="p-2 border border-gray-200 bg-amber-50 text-right text-rose-600">
+                          <td className="p-2 border border-gray-200 bg-amber-50 text-right text-rose-600 text-xs">
                             HK${fmtMoney(data.totalCommission, 2)}
                           </td>
                         </tr>

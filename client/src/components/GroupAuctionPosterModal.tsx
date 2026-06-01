@@ -130,7 +130,7 @@ export function GroupAuctionPosterModal({ open, onClose, round, merchantName, me
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-xs p-0 overflow-hidden rounded-2xl">
+      <DialogContent className="max-w-xs p-0 overflow-hidden rounded-2xl mb-20">
         <DialogHeader className="px-4 pt-4 pb-2">
           <DialogTitle className="text-base font-semibold text-amber-900">微信群入場海報</DialogTitle>
         </DialogHeader>

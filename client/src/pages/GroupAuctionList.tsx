@@ -14,7 +14,7 @@ import { GroupAuctionCommissionModal } from "@/components/GroupAuctionCommission
 function statusLabel(s: string) {
   if (s === "draft") return { text: "草稿", cls: "bg-gray-100 text-gray-600" };
   if (s === "published") return { text: "進行中", cls: "bg-green-100 text-green-700" };
-  return { text: "已結拍", cls: "bg-amber-100 text-amber-700" };
+  return { text: "已結束", cls: "bg-amber-100 text-amber-700" };
 }
 
 function fmtDate(d: string | Date | null) {
@@ -91,7 +91,7 @@ export default function GroupAuctionList() {
         {/* Tabs */}
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-4">
           {(["published", "draft", "ended", "archived"] as const).map(tab => {
-            const labels = { published: "Live", draft: "草稿", ended: "已結拍", archived: "封存" };
+            const labels = { published: "Live", draft: "草稿", ended: "已結束", archived: "封存" };
             const count = tab === "archived"
               ? rounds?.filter(r => r.status === "ended" && r.isArchived).length ?? 0
               : tab === "ended"
@@ -124,7 +124,7 @@ export default function GroupAuctionList() {
           if ((visible?.length ?? 0) > 0) return null;
           const emptyMsg: Record<string, string> = {
             published: "未有進行中場次", draft: "未有草稿場次",
-            ended: "未有已結拍場次", archived: "未有封存場次",
+            ended: "未有已結束場次", archived: "未有封存場次",
           };
           return (
             <div className="text-center py-16 text-gray-400">

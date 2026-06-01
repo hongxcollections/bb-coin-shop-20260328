@@ -10893,6 +10893,7 @@ EXAMPLE OUTPUT (exact format):
             displayOrder: groupAuctionItems.displayOrder,
             dataJson: groupAuctionItems.dataJson,
             finalPrice: groupAuctionItems.finalPrice,
+            buyNowPrice: groupAuctionItems.buyNowPrice,
             status: groupAuctionItems.status,
           })
           .from(groupAuctionItems)
@@ -10926,7 +10927,9 @@ EXAMPLE OUTPUT (exact format):
           } catch {}
           const finalPrice = item.finalPrice ?? 0;
           const commission = parseFloat((finalPrice * rate).toFixed(2));
-          return { id: item.id, order: item.displayOrder + 1, name, finalPrice, commission };
+          const buyNowPrice = item.buyNowPrice ?? null;
+          const isCapped = !!(buyNowPrice && finalPrice >= buyNowPrice);
+          return { id: item.id, order: item.displayOrder + 1, name, finalPrice, commission, buyNowPrice, isCapped };
         });
 
         const totalSales = soldItems.reduce((s, i) => s + i.finalPrice, 0);
@@ -10979,6 +10982,7 @@ EXAMPLE OUTPUT (exact format):
             displayOrder: groupAuctionItems.displayOrder,
             dataJson: groupAuctionItems.dataJson,
             finalPrice: groupAuctionItems.finalPrice,
+            buyNowPrice: groupAuctionItems.buyNowPrice,
             status: groupAuctionItems.status,
           })
           .from(groupAuctionItems)
@@ -11010,7 +11014,9 @@ EXAMPLE OUTPUT (exact format):
           } catch {}
           const finalPrice = item.finalPrice ?? 0;
           const commission = parseFloat((finalPrice * rate).toFixed(2));
-          return { id: item.id, order: item.displayOrder + 1, name, finalPrice, commission };
+          const buyNowPrice = item.buyNowPrice ?? null;
+          const isCapped = !!(buyNowPrice && finalPrice >= buyNowPrice);
+          return { id: item.id, order: item.displayOrder + 1, name, finalPrice, commission, buyNowPrice, isCapped };
         });
 
         const totalSales = soldItems.reduce((s, i) => s + i.finalPrice, 0);
