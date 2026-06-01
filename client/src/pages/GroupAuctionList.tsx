@@ -195,10 +195,10 @@ export default function GroupAuctionList() {
                   <Link href={r.status === "ended"
                     ? `/merchant/group-auctions/${r.id}?tab=results`
                     : `/merchant/group-auctions/${r.id}`}>
-                    <button className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg ${
+                    <button className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border ${
                       r.status === "ended"
-                        ? "bg-blue-50 hover:bg-blue-100 text-blue-700"
-                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                        ? "bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                        : "bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-200"
                     }`}>
                       {r.status === "ended" ? <Archive className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
                       {r.status === "ended" ? "成績紀錄" : "管理"}
@@ -282,7 +282,7 @@ export default function GroupAuctionList() {
                               const ok = await confirm({ title: "封存場次", description: "封存後場次會移至封存tab，可隨時取消封存。確認？" });
                               if (ok) archiveMut.mutate({ id: r.id });
                             }}
-                            className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-500 px-3 py-1.5 rounded-lg"
+                            className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-500 border border-gray-300 px-3 py-1.5 rounded-lg"
                           >
                             <Archive className="w-3 h-3" />
                             封存
@@ -359,70 +359,71 @@ export default function GroupAuctionList() {
         />
       )}
 
-      {/* 拆除確認 Step 1：警告 */}
-      <AlertDialog open={destroyTarget?.step === 1} onOpenChange={(open) => { if (!open) setDestroyTarget(null); }}>
+      {/* 拆除確認 — 單一 AlertDialog，step 控制內容 */}
+      <AlertDialog open={!!destroyTarget} onOpenChange={(open) => { if (!open && !destroyMut.isPending) setDestroyTarget(null); }}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>拆除場次？</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="text-sm text-gray-600 space-y-2">
-                <p>此操作不可撤銷，以下資料將被永久刪除：</p>
-                <ul className="list-disc list-inside text-gray-500 space-y-1">
-                  <li>場次資料及所有商品</li>
-                  <li>所有出價紀錄</li>
-                  <li>場次圖片</li>
-                </ul>
-                <p className="text-amber-700 font-medium">已扣除的平台傭金保留在保證金紀錄，不受影響。</p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDestroyTarget(null)}>取消</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 text-white"
-              onClick={() => setDestroyTarget(prev => prev ? { ...prev, step: 2 } : null)}
-            >
-              繼續
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* 拆除確認 Step 2：輸入場次名稱 */}
-      <AlertDialog open={destroyTarget?.step === 2} onOpenChange={(open) => { if (!open) setDestroyTarget(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>輸入場次名稱確認</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="text-sm text-gray-600 space-y-3">
-                <p>請輸入以下場次名稱以確認拆除：</p>
-                <p className="font-semibold text-gray-900 bg-gray-100 rounded-lg px-3 py-2 break-all">
-                  {destroyTarget?.round?.title}
-                </p>
-                <input
-                  className="w-full text-sm outline-none px-3 py-2"
-                  style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
-                  placeholder="輸入場次名稱..."
-                  value={destroyTarget?.inputVal ?? ""}
-                  onChange={(e) => setDestroyTarget(prev => prev ? { ...prev, inputVal: e.target.value } : null)}
-                />
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDestroyTarget(null)}>取消</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-40"
-              disabled={destroyTarget?.inputVal !== destroyTarget?.round?.title || destroyMut.isPending}
-              onClick={() => {
-                if (destroyTarget && destroyTarget.inputVal === destroyTarget.round.title) {
-                  destroyMut.mutate({ id: destroyTarget.round.id });
-                }
-              }}
-            >
-              {destroyMut.isPending ? "拆除中..." : "確認拆除"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          {destroyTarget?.step === 1 ? (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>拆除場次？</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="text-sm text-gray-600 space-y-2">
+                    <p>此操作不可撤銷，以下資料將被永久刪除：</p>
+                    <ul className="list-disc list-inside text-gray-500 space-y-1">
+                      <li>場次資料及所有商品</li>
+                      <li>所有出價紀錄</li>
+                      <li>場次圖片</li>
+                    </ul>
+                    <p className="text-amber-700 font-medium">已扣除的平台傭金保留在保證金紀錄，不受影響。</p>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setDestroyTarget(null)}>取消</AlertDialogCancel>
+                <button
+                  className="inline-flex items-center justify-center rounded-md bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2"
+                  onClick={() => setDestroyTarget(prev => prev ? { ...prev, step: 2 } : null)}
+                >
+                  繼續
+                </button>
+              </AlertDialogFooter>
+            </>
+          ) : (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>輸入場次名稱確認</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="text-sm text-gray-600 space-y-3">
+                    <p>請輸入以下場次名稱以確認拆除：</p>
+                    <p className="font-semibold text-gray-900 bg-gray-100 rounded-lg px-3 py-2 break-all">
+                      {destroyTarget?.round?.title}
+                    </p>
+                    <input
+                      className="w-full text-sm outline-none px-3 py-2"
+                      style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                      placeholder="輸入場次名稱..."
+                      value={destroyTarget?.inputVal ?? ""}
+                      onChange={(e) => setDestroyTarget(prev => prev ? { ...prev, inputVal: e.target.value } : null)}
+                    />
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setDestroyTarget(null)}>取消</AlertDialogCancel>
+                <button
+                  className="inline-flex items-center justify-center rounded-md bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 disabled:opacity-40"
+                  disabled={destroyTarget?.inputVal !== destroyTarget?.round?.title || destroyMut.isPending}
+                  onClick={() => {
+                    if (destroyTarget && destroyTarget.inputVal === destroyTarget.round.title) {
+                      destroyMut.mutate({ id: destroyTarget.round.id });
+                    }
+                  }}
+                >
+                  {destroyMut.isPending ? "拆除中..." : "確認拆除"}
+                </button>
+              </AlertDialogFooter>
+            </>
+          )}
         </AlertDialogContent>
       </AlertDialog>
     </div>
