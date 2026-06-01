@@ -454,7 +454,11 @@ export async function listCollectionPostComments(postId: number, viewerIsAdmin: 
   const rowsRaw: any = await db.execute(sql`
     SELECT
       c.id, c.postId, c.userId, c.content, c.isHidden, c.isFlagged, c.createdAt,
-      u.name AS authorName, u.photoUrl AS authorPhoto
+      u.name AS authorName,
+      COALESCE(
+        NULLIF(TRIM((SELECT ma.merchantIcon FROM merchantApplications ma WHERE ma.userId = c.userId AND ma.status = 'approved' ORDER BY ma.id DESC LIMIT 1)), ''),
+        NULLIF(TRIM(u.photoUrl), '')
+      ) AS authorPhoto
     FROM collectionPostComments c
     LEFT JOIN users u ON u.id = c.userId
     WHERE c.postId = ${postId} ${viewerIsAdmin ? sql`` : sql`AND c.isHidden = 0`}

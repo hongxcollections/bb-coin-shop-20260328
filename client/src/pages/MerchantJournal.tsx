@@ -307,14 +307,9 @@ export default function MerchantJournal() {
     try {
       const newUrls: string[] = [];
       for (const { file } of editNewImages) {
-        const base64 = await new Promise<string>((res, rej) => {
-          const r = new FileReader();
-          r.onload = () => res((r.result as string).split(",")[1]);
-          r.onerror = rej;
-          r.readAsDataURL(file);
-        });
-        const result = await uploadImage.mutateAsync({ imageData: base64, fileName: file.name, mimeType: file.type || "image/jpeg" });
-        newUrls.push(result.url);
+        const { uploadUrl, publicUrl } = await getImageUploadUrl.mutateAsync({ filename: file.name, mimeType: file.type || "image/jpeg" });
+        await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type || "image/jpeg" } });
+        newUrls.push(publicUrl);
       }
       await updateEntry.mutateAsync({
         id: entryId,
@@ -333,6 +328,7 @@ export default function MerchantJournal() {
 
   // ── Mutations ──
   const uploadImage = trpc.merchantJournal.uploadImage.useMutation();
+  const getImageUploadUrl = trpc.merchantJournal.getImageUploadUrl.useMutation();
   const createEntry = trpc.merchantJournal.create.useMutation({
     onSuccess: () => {
       utils.merchantJournal.list.invalidate();
@@ -459,14 +455,9 @@ export default function MerchantJournal() {
     try {
       const urls: string[] = [];
       for (const { file } of imageFiles) {
-        const base64 = await new Promise<string>((res, rej) => {
-          const r = new FileReader();
-          r.onload = () => res((r.result as string).split(",")[1]);
-          r.onerror = rej;
-          r.readAsDataURL(file);
-        });
-        const result = await uploadImage.mutateAsync({ imageData: base64, fileName: file.name, mimeType: file.type || "image/jpeg" });
-        urls.push(result.url);
+        const { uploadUrl, publicUrl } = await getImageUploadUrl.mutateAsync({ filename: file.name, mimeType: file.type || "image/jpeg" });
+        await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type || "image/jpeg" } });
+        urls.push(publicUrl);
       }
       const mentions = extractMentions(content.trim());
       await createEntry.mutateAsync({

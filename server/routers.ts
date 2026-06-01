@@ -9722,6 +9722,29 @@ EXAMPLE OUTPUT (exact format):
         const { url } = await storagePut(key, outBuffer, outMime);
         return { url };
       }),
+
+    getImageUploadUrl: protectedProcedure
+      .input(z.object({
+        filename: z.string().min(1).max(255),
+        mimeType: z.string().max(64).default('image/jpeg'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const pool = await getRawPool();
+        const [appRows]: any = await pool.execute(
+          "SELECT journalEnabled FROM merchantApplications WHERE userId = ? AND status = 'approved' LIMIT 1",
+          [ctx.user.id]
+        );
+        if (!Array.isArray(appRows) || appRows.length === 0 || Number(appRows[0].journalEnabled) !== 1) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '日誌功能未開通' });
+        }
+        const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+        const mime = (input.mimeType || 'image/jpeg').toLowerCase();
+        if (!allowedMimes.includes(mime)) throw new TRPCError({ code: 'BAD_REQUEST', message: `不支援此圖片格式（${mime}）` });
+        const ext = input.filename.split('.').pop()?.toLowerCase() || 'jpg';
+        const key = `merchant-journal/${ctx.user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { uploadUrl, finalUrl: publicUrl } = await storageSignPut(key, mime);
+        return { uploadUrl, publicUrl };
+      }),
   }),
 
   auctionFbPanel: router({
