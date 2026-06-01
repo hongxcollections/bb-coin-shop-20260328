@@ -67,7 +67,7 @@ export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle
       `}</style>
 
       <div id="ga-commission-portal">
-        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6 pb-20">
+        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-[6px] pb-20">
           <div className="modal-box bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
 
             {/* Header */}
@@ -112,11 +112,11 @@ export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle
                         </tr>
                       </thead>
                       <tbody>
-                        {(data.soldItems as Array<{ id: number; order: number; name: string; finalPrice: number; commission: number; buyNowPrice?: number | null; isCapped?: boolean }>).map((item, idx) => (
+                        {(data.soldItems as Array<{ id: number; order: number; name: string; lotNo?: string | null; finalPrice: number; commission: number; buyNowPrice?: number | null; isCapped?: boolean }>).map((item, idx) => (
                           <tr key={item.id} className={idx % 2 === 0 ? "" : "bg-gray-50"}>
                             <td className="p-2 border border-gray-200 text-gray-400 text-xs">{item.order}</td>
                             <td className="p-2 border border-gray-200 text-gray-900 text-xs">
-                              {item.name} · {item.order}
+                              {item.name}{item.lotNo ? ` · ${item.lotNo}` : ""}
                             </td>
                             <td className="p-2 border border-gray-200 text-right text-gray-900 text-xs">
                               {item.isCapped && item.buyNowPrice ? (

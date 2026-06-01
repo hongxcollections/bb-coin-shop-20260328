@@ -10908,14 +10908,18 @@ EXAMPLE OUTPUT (exact format):
         const rate = parseFloat(String(round.buyerCommissionRate));
 
         let titleKey = '';
+        let lotNoKey = '';
         try {
           const cols: any[] = JSON.parse(round.columnsJson ?? '[]');
           const titleCol = cols.find((c: any) => c.role === 'itemTitle');
           if (titleCol) titleKey = titleCol.key;
+          const lotCol = cols.find((c: any) => c.label === '號碼' || c.key === 'serial');
+          if (lotCol) lotNoKey = lotCol.key;
         } catch {}
 
         const soldItems = items.map((item) => {
           let name = `#${item.displayOrder + 1}`;
+          let lotNo: string | null = null;
           try {
             const data: Record<string, unknown> = JSON.parse(item.dataJson ?? '{}');
             if (titleKey && data[titleKey]) {
@@ -10924,12 +10928,15 @@ EXAMPLE OUTPUT (exact format):
               const firstStr = Object.values(data).find(v => typeof v === 'string' && (v as string).trim());
               if (firstStr) name = String(firstStr);
             }
+            if (lotNoKey && data[lotNoKey] != null && String(data[lotNoKey]).trim()) {
+              lotNo = String(data[lotNoKey]).trim();
+            }
           } catch {}
           const finalPrice = item.finalPrice ?? 0;
           const commission = parseFloat((finalPrice * rate).toFixed(2));
           const buyNowPrice = item.buyNowPrice ?? null;
           const isCapped = !!(buyNowPrice && finalPrice >= buyNowPrice);
-          return { id: item.id, order: item.displayOrder + 1, name, finalPrice, commission, buyNowPrice, isCapped };
+          return { id: item.id, order: item.displayOrder + 1, name, lotNo, finalPrice, commission, buyNowPrice, isCapped };
         });
 
         const totalSales = soldItems.reduce((s, i) => s + i.finalPrice, 0);
@@ -10995,14 +11002,18 @@ EXAMPLE OUTPUT (exact format):
           .orderBy(groupAuctionItems.displayOrder);
 
         let titleKey = '';
+        let lotNoKey = '';
         try {
           const cols: any[] = JSON.parse(round.columnsJson ?? '[]');
           const titleCol = cols.find((c: any) => c.role === 'itemTitle');
           if (titleCol) titleKey = titleCol.key;
+          const lotCol = cols.find((c: any) => c.label === '號碼' || c.key === 'serial');
+          if (lotCol) lotNoKey = lotCol.key;
         } catch {}
 
         const soldItems = items.map((item) => {
           let name = `#${item.displayOrder + 1}`;
+          let lotNo: string | null = null;
           try {
             const data: Record<string, unknown> = JSON.parse(item.dataJson ?? '{}');
             if (titleKey && data[titleKey]) {
@@ -11011,12 +11022,15 @@ EXAMPLE OUTPUT (exact format):
               const firstStr = Object.values(data).find(v => typeof v === 'string' && (v as string).trim());
               if (firstStr) name = String(firstStr);
             }
+            if (lotNoKey && data[lotNoKey] != null && String(data[lotNoKey]).trim()) {
+              lotNo = String(data[lotNoKey]).trim();
+            }
           } catch {}
           const finalPrice = item.finalPrice ?? 0;
           const commission = parseFloat((finalPrice * rate).toFixed(2));
           const buyNowPrice = item.buyNowPrice ?? null;
           const isCapped = !!(buyNowPrice && finalPrice >= buyNowPrice);
-          return { id: item.id, order: item.displayOrder + 1, name, finalPrice, commission, buyNowPrice, isCapped };
+          return { id: item.id, order: item.displayOrder + 1, name, lotNo, finalPrice, commission, buyNowPrice, isCapped };
         });
 
         const totalSales = soldItems.reduce((s, i) => s + i.finalPrice, 0);
