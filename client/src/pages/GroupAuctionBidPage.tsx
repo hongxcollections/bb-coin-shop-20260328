@@ -5,6 +5,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 import { Clock, ChevronUp, ExternalLink, Trophy, AlertCircle } from "lucide-react";
 import ImageLightbox from "@/components/ImageLightbox";
+import Header from "@/components/Header";
 
 type ColumnDef = { key: string; label: string; role: string; showOnBidPage?: boolean };
 
@@ -219,6 +220,7 @@ export default function GroupAuctionBidPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-6">
+      <Header />
       {/* Fixed 標題欄 + 篩選列 */}
       <div ref={headerRef} className="fixed top-[67px] left-0 right-0 z-30">
         {/* 橙色 Banner */}
