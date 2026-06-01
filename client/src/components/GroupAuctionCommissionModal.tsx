@@ -102,7 +102,7 @@ export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle
                   {data.soldItems.length === 0 ? (
                     <p className="text-center text-gray-400 text-sm py-12">未有成交商品，無傭金記錄</p>
                   ) : (
-                    <table className="w-full text-xs border-collapse">
+                    <table className="w-full border-collapse" style={{ fontSize: "10px" }}>
                       <thead>
                         <tr>
                           <th className="text-left p-2 border border-gray-200 bg-amber-50 text-amber-800 font-semibold w-10">#</th>
@@ -114,15 +114,15 @@ export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle
                       <tbody>
                         {(data.soldItems as Array<{ id: number; order: number; name: string; lotNo?: string | null; finalPrice: number; commission: number; buyNowPrice?: number | null; isCapped?: boolean }>).map((item, idx) => (
                           <tr key={item.id} className={idx % 2 === 0 ? "" : "bg-gray-50"}>
-                            <td className="p-2 border border-gray-200 text-gray-400 text-xs">{item.order}</td>
-                            <td className="p-2 border border-gray-200 text-gray-900 text-xs">
-                              {item.name}{item.lotNo ? ` · ${item.lotNo}` : ""}
+                            <td className="p-2 border border-gray-200 text-gray-400">{item.order}</td>
+                            <td className="p-2 border border-gray-200 text-gray-900">
+                              {item.name}{item.lotNo ? `·${item.lotNo}` : ""}
                             </td>
-                            <td className="p-2 border border-gray-200 text-right text-gray-900 text-xs">
+                            <td className="p-2 border border-gray-200 text-right text-gray-900">
                               {item.isCapped && item.buyNowPrice ? (
-                                <div className="flex items-start justify-end gap-[6px]">
+                                <div className="flex items-start justify-end gap-[3px]">
                                   <span>HK${fmtMoney(item.finalPrice)}</span>
-                                  <span className="inline-block bg-orange-100 text-orange-600 text-[10px] font-semibold px-1.5 py-0.5 rounded leading-none">
+                                  <span className="inline-block bg-orange-100 text-orange-600 font-semibold px-1 py-0.5 rounded leading-none" style={{ fontSize: "9px" }}>
                                     封頂價
                                   </span>
                                 </div>
@@ -130,7 +130,7 @@ export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle
                                 <span>HK${fmtMoney(item.finalPrice)}</span>
                               )}
                             </td>
-                            <td className="p-2 border border-gray-200 text-right text-rose-600 font-medium text-xs">
+                            <td className="p-2 border border-gray-200 text-right text-rose-600 font-medium">
                               HK${fmtMoney(item.commission, 2)}
                             </td>
                           </tr>
@@ -138,13 +138,13 @@ export function GroupAuctionCommissionModal({ open, onClose, roundId, roundTitle
                       </tbody>
                       <tfoot>
                         <tr className="font-semibold">
-                          <td className="p-2 border border-gray-200 bg-amber-50 text-amber-800 text-xs" colSpan={2}>
+                          <td className="p-2 border border-gray-200 bg-amber-50 text-amber-800" colSpan={2}>
                             合計（{data.soldCount} 件成交）
                           </td>
-                          <td className="p-2 border border-gray-200 bg-amber-50 text-right text-amber-800 text-xs">
+                          <td className="p-2 border border-gray-200 bg-amber-50 text-right text-amber-800">
                             HK${fmtMoney(data.totalSales)}
                           </td>
-                          <td className="p-2 border border-gray-200 bg-amber-50 text-right text-rose-600 text-xs">
+                          <td className="p-2 border border-gray-200 bg-amber-50 text-right text-rose-600">
                             HK${fmtMoney(data.totalCommission, 2)}
                           </td>
                         </tr>
