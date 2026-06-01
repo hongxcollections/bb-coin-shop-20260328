@@ -10913,7 +10913,7 @@ EXAMPLE OUTPUT (exact format):
           const cols: any[] = JSON.parse(round.columnsJson ?? '[]');
           const titleCol = cols.find((c: any) => c.role === 'itemTitle');
           if (titleCol) titleKey = titleCol.key;
-          const lotCol = cols.find((c: any) => c.label === '號碼' || c.key === 'serial');
+          const lotCol = cols.find((c: any) => c.role === 'itemNumber' || c.label === '號碼' || c.key === 'serial');
           if (lotCol) lotNoKey = lotCol.key;
         } catch {}
 
@@ -11007,7 +11007,7 @@ EXAMPLE OUTPUT (exact format):
           const cols: any[] = JSON.parse(round.columnsJson ?? '[]');
           const titleCol = cols.find((c: any) => c.role === 'itemTitle');
           if (titleCol) titleKey = titleCol.key;
-          const lotCol = cols.find((c: any) => c.label === '號碼' || c.key === 'serial');
+          const lotCol = cols.find((c: any) => c.role === 'itemNumber' || c.label === '號碼' || c.key === 'serial');
           if (lotCol) lotNoKey = lotCol.key;
         } catch {}
 

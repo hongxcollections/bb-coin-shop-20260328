@@ -14,7 +14,7 @@ import {
 const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$", JPY: "JP¥", GBP: "£", EUR: "€" };
 
 // ── 型別定義 ────────────────────────────────────────────────────────────────
-type ColumnRole = "itemTitle" | "startPrice" | "buyNowPrice" | "bidIncrement" | "imageRef" | "customText";
+type ColumnRole = "itemTitle" | "itemNumber" | "startPrice" | "buyNowPrice" | "bidIncrement" | "imageRef" | "customText";
 
 interface ColumnDef {
   key: string;
@@ -26,6 +26,7 @@ interface ColumnDef {
 
 const ROLE_LABELS: Record<ColumnRole, string> = {
   itemTitle: "商品名稱（必填）",
+  itemNumber: "商品號碼（必填）",
   startPrice: "起拍價（必填）",
   buyNowPrice: "封頂/直購價",
   bidIncrement: "每口加價",
@@ -38,7 +39,7 @@ const PRESET_TEMPLATES: { name: string; columns: ColumnDef[] }[] = [
     name: "綜合商品",
     columns: [
       { key: "name", label: "名稱", role: "itemTitle", required: true, showOnBidPage: true },
-      { key: "serial", label: "號碼", role: "customText", required: true, showOnBidPage: true },
+      { key: "serial", label: "號碼", role: "itemNumber", required: true, showOnBidPage: true },
       { key: "start", label: "起拍價", role: "startPrice", required: true, showOnBidPage: true },
     ],
   },
