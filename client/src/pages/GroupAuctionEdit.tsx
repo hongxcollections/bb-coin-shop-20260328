@@ -92,10 +92,9 @@ export default function GroupAuctionEdit() {
   });
 
   // ── 欄位設定 state ──
-  const [columns, setColumns] = useState<ColumnDef[]>([
-    { key: "name", label: "品名", role: "itemTitle", required: true, showOnBidPage: true },
-    { key: "start", label: "起拍價", role: "startPrice", required: true, showOnBidPage: true },
-  ]);
+  const [columns, setColumns] = useState<ColumnDef[]>(
+    PRESET_TEMPLATES[0].columns.map(c => ({ ...c, key: genKey() }))
+  );
   const [templateName, setTemplateName] = useState("");
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
 
