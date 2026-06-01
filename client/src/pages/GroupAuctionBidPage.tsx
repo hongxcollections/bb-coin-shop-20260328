@@ -349,7 +349,7 @@ export default function GroupAuctionBidPage() {
       </div>
 
       {/* Fixed header 佔位 spacer */}
-      <div style={{ height: headerHeight + 67 }} />
+      <div style={{ height: headerHeight + 3 }} />
 
       {/* 尚未開拍提示 */}
       {!isStarted && round.startAt && (
