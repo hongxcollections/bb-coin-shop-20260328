@@ -10,6 +10,16 @@ import { Plus, ChevronLeft, Pencil, Trash2, Globe, Archive, Clock, QrCode, Recei
 import { GroupAuctionShareMenu } from "@/components/ShareMenu";
 import { GroupAuctionPosterModal } from "@/components/GroupAuctionPosterModal";
 import { GroupAuctionCommissionModal } from "@/components/GroupAuctionCommissionModal";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 function statusLabel(s: string) {
   if (s === "draft") return { text: "草稿", cls: "bg-gray-100 text-gray-600" };
@@ -29,6 +39,8 @@ function fmtDateShort(d: string | Date | null) {
   return `${dt.getMonth() + 1}月${dt.getDate()}日 ${dt.getHours().toString().padStart(2, "0")}:${dt.getMinutes().toString().padStart(2, "0")}`;
 }
 
+type DestroyTarget = { round: any; step: 1 | 2; inputVal: string } | null;
+
 export default function GroupAuctionList() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -37,6 +49,7 @@ export default function GroupAuctionList() {
   const [posterRound, setPosterRound] = useState<any | null>(null);
   const [commissionRound, setCommissionRound] = useState<any | null>(null);
   const [platformCommissionRound, setPlatformCommissionRound] = useState<any | null>(null);
+  const [destroyTarget, setDestroyTarget] = useState<DestroyTarget>(null);
 
   const { data: rounds, isLoading, refetch } = trpc.groupAuctions.myListRounds.useQuery(undefined, {
     enabled: !!user,
@@ -47,6 +60,15 @@ export default function GroupAuctionList() {
   const deleteMut = trpc.groupAuctions.deleteRound.useMutation({
     onSuccess: () => { toast.success("已刪除"); refetch(); },
     onError: (e) => toast.error(e.message || "刪除失敗"),
+  });
+
+  const destroyMut = trpc.groupAuctions.destroyRound.useMutation({
+    onSuccess: () => {
+      toast.success("場次已拆除");
+      refetch();
+      setDestroyTarget(null);
+    },
+    onError: (e) => toast.error(e.message || "拆除失敗"),
   });
 
   const publishMut = trpc.groupAuctions.publishRound.useMutation({
@@ -234,6 +256,7 @@ export default function GroupAuctionList() {
                     </button>
                   )}
 
+                  {/* 已結束 + 封存 tab 共用：買家傭金 / 平台傭金 */}
                   {r.status === "ended" && (
                     <>
                       <button
@@ -250,18 +273,30 @@ export default function GroupAuctionList() {
                         <Receipt className="w-3 h-3" />
                         平台傭金
                       </button>
+
+                      {/* 已結束（非封存）：封存 + 拆除 */}
                       {!r.isArchived ? (
-                        <button
-                          onClick={async () => {
-                            const ok = await confirm({ title: "封存場次", description: "封存後場次會移至封存tab，可隨時取消封存。確認？" });
-                            if (ok) archiveMut.mutate({ id: r.id });
-                          }}
-                          className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-500 px-3 py-1.5 rounded-lg"
-                        >
-                          <Archive className="w-3 h-3" />
-                          封存
-                        </button>
+                        <>
+                          <button
+                            onClick={async () => {
+                              const ok = await confirm({ title: "封存場次", description: "封存後場次會移至封存tab，可隨時取消封存。確認？" });
+                              if (ok) archiveMut.mutate({ id: r.id });
+                            }}
+                            className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-500 px-3 py-1.5 rounded-lg"
+                          >
+                            <Archive className="w-3 h-3" />
+                            封存
+                          </button>
+                          <button
+                            onClick={() => setDestroyTarget({ round: r, step: 1, inputVal: "" })}
+                            className="flex items-center gap-1 text-xs bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            拆除
+                          </button>
+                        </>
                       ) : (
+                        /* 封存 tab：取消封存 */
                         <button
                           onClick={() => unarchiveMut.mutate({ id: r.id })}
                           className="flex items-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 px-3 py-1.5 rounded-lg"
@@ -293,6 +328,7 @@ export default function GroupAuctionList() {
       </div>
       <BottomNav />
 
+      {/* Poster modal */}
       {posterRound && (
         <GroupAuctionPosterModal
           open={!!posterRound}
@@ -303,6 +339,7 @@ export default function GroupAuctionList() {
         />
       )}
 
+      {/* Commission modals — 已結束 + 封存 tab 共用同一 component */}
       {commissionRound && (
         <GroupAuctionCommissionModal
           open={!!commissionRound}
@@ -321,6 +358,73 @@ export default function GroupAuctionList() {
           type="platform"
         />
       )}
+
+      {/* 拆除確認 Step 1：警告 */}
+      <AlertDialog open={destroyTarget?.step === 1} onOpenChange={(open) => { if (!open) setDestroyTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>拆除場次？</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-sm text-gray-600 space-y-2">
+                <p>此操作不可撤銷，以下資料將被永久刪除：</p>
+                <ul className="list-disc list-inside text-gray-500 space-y-1">
+                  <li>場次資料及所有商品</li>
+                  <li>所有出價紀錄</li>
+                  <li>場次圖片</li>
+                </ul>
+                <p className="text-amber-700 font-medium">已扣除的平台傭金保留在保證金紀錄，不受影響。</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDestroyTarget(null)}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => setDestroyTarget(prev => prev ? { ...prev, step: 2 } : null)}
+            >
+              繼續
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 拆除確認 Step 2：輸入場次名稱 */}
+      <AlertDialog open={destroyTarget?.step === 2} onOpenChange={(open) => { if (!open) setDestroyTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>輸入場次名稱確認</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-sm text-gray-600 space-y-3">
+                <p>請輸入以下場次名稱以確認拆除：</p>
+                <p className="font-semibold text-gray-900 bg-gray-100 rounded-lg px-3 py-2 break-all">
+                  {destroyTarget?.round?.title}
+                </p>
+                <input
+                  className="w-full text-sm outline-none px-3 py-2"
+                  style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                  placeholder="輸入場次名稱..."
+                  value={destroyTarget?.inputVal ?? ""}
+                  onChange={(e) => setDestroyTarget(prev => prev ? { ...prev, inputVal: e.target.value } : null)}
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDestroyTarget(null)}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-40"
+              disabled={destroyTarget?.inputVal !== destroyTarget?.round?.title || destroyMut.isPending}
+              onClick={() => {
+                if (destroyTarget && destroyTarget.inputVal === destroyTarget.round.title) {
+                  destroyMut.mutate({ id: destroyTarget.round.id });
+                }
+              }}
+            >
+              {destroyMut.isPending ? "拆除中..." : "確認拆除"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

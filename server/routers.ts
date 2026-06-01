@@ -10273,6 +10273,28 @@ EXAMPLE OUTPUT (exact format):
         return { success: true };
       }),
 
+    /** 商戶：永久拆除已結束場次（保留 depositTransactions 平台傭金紀錄） */
+    destroyRound: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.id)).limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        if (round.status !== 'ended') {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '只有已結束場次可以拆除' });
+        }
+        // 刪除所有場次資料；depositTransactions 保留（平台傭金已入帳）
+        await db.delete(groupAuctionBids).where(eq(groupAuctionBids.roundId, input.id));
+        await db.delete(groupAuctionItems).where(eq(groupAuctionItems.roundId, input.id));
+        await db.delete(groupAuctionImages).where(eq(groupAuctionImages.roundId, input.id));
+        await db.delete(groupAuctionRounds).where(eq(groupAuctionRounds.id, input.id));
+        return { success: true };
+      }),
+
     archiveRound: protectedProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
