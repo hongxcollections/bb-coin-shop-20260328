@@ -35,20 +35,10 @@ const ROLE_LABELS: Record<ColumnRole, string> = {
 
 const PRESET_TEMPLATES: { name: string; columns: ColumnDef[] }[] = [
   {
-    name: "PMG 評級幣（標準）",
+    name: "綜合商品",
     columns: [
-      { key: "name", label: "品名", role: "itemTitle", required: true, showOnBidPage: true },
-      { key: "grade", label: "評分", role: "customText", required: false, showOnBidPage: true },
-      { key: "serial", label: "號碼", role: "customText", required: false, showOnBidPage: true },
-      { key: "start", label: "起拍價", role: "startPrice", required: true, showOnBidPage: true },
-      { key: "cap", label: "封頂價", role: "buyNowPrice", required: false, showOnBidPage: true },
-    ],
-  },
-  {
-    name: "普通紙幣",
-    columns: [
-      { key: "name", label: "品名", role: "itemTitle", required: true, showOnBidPage: true },
-      { key: "desc", label: "描述", role: "customText", required: false, showOnBidPage: true },
+      { key: "name", label: "名稱", role: "itemTitle", required: true, showOnBidPage: true },
+      { key: "serial", label: "號碼", role: "customText", required: true, showOnBidPage: true },
       { key: "start", label: "起拍價", role: "startPrice", required: true, showOnBidPage: true },
     ],
   },
