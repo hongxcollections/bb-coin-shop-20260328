@@ -61,7 +61,7 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose, onSaveImage }: {
     { refetchInterval: 5000, staleTime: 0 }
   );
 
-  const round = (data as any)?.round;
+  const round = data?.round;
   const allItems: any[] = (data as any)?.items ?? [];
 
   const columns: any[] = (() => {
@@ -86,6 +86,7 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose, onSaveImage }: {
 
   const merchantIconRaw: string | null = (round as any)?.merchantIcon ?? null;
   const merchantDisplayName: string = (round as any)?.merchantName ?? "";
+  // ^ merchantIcon/merchantName are dynamically joined in getRound, not in Drizzle type
   const merchantProxySrc = merchantIconRaw ? `/api/img-proxy?url=${encodeURIComponent(merchantIconRaw)}` : null;
 
   const filtered =
@@ -296,9 +297,11 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose, onSaveImage }: {
                   <span style={{ fontSize: 12, color: "#3b82f6" }}>用戶出價 <strong>{uniqueBidders}</strong></span>
                   <span style={{ fontSize: 12, color: "#d97706" }}>總成交額 <strong>{fmtP(totalBidAmount)}</strong></span>
                 </div>
-                <p style={{ fontSize: 10, color: "#6b7280", lineHeight: 1.6, margin: 0, marginTop: 4 }}>
-                  {(round as any)?.description || ""}
-                </p>
+                {round?.description && (
+                  <p style={{ fontSize: 10, color: "#b45309", lineHeight: 1.6, margin: 0, marginTop: 4, whiteSpace: "pre-line" }}>
+                    {round.description}
+                  </p>
+                )}
               </div>
 
             </div>
