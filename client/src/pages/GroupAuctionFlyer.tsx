@@ -22,24 +22,16 @@ const COLOR_PRESETS: { key: ColorRuleKey; bg: string }[] = [
   { key: "teal",   bg: "#0f766e" },
 ];
 
-function expandChinese(kw: string): string[] {
-  return [...new Set([kw, sify(kw), tify(kw)])].filter(Boolean);
-}
-
-function getColorRuleMatch(rules: ColorRule[], itemData: Record<string, string>): { color: string; style: "bg" | "text"; weight: "bold" | "normal" } | null {
-  if (!rules.length) return null;
-  const allTextRaw = Object.values(itemData).join(" ").toLowerCase();
-  const allTextS = sify(allTextRaw);
+function getCellColorMatch(rules: ColorRule[], cellValue: string): { color: string; weight: "bold" | "normal" } | null {
+  if (!rules.length || !cellValue) return null;
+  const v = cellValue.toLowerCase();
+  const vS = sify(v);
   for (const rule of rules) {
     const rawKws = rule.keywords.split(/[,，|｜\n]/).map(k => k.trim().toLowerCase()).filter(Boolean);
     if (rawKws.length === 0) continue;
-    if (rawKws.some(kw => allTextRaw.includes(kw) || allTextS.includes(sify(kw)))) {
+    if (rawKws.some(kw => v.includes(kw) || vS.includes(sify(kw)))) {
       const preset = COLOR_PRESETS.find(p => p.key === rule.color);
-      if (preset) return {
-        color: preset.bg,
-        style: rule.style === "text" ? "text" : "bg",
-        weight: rule.weight === "normal" ? "normal" : "bold",
-      };
+      if (preset) return { color: preset.bg, weight: rule.weight === "normal" ? "normal" : "bold" };
     }
   }
   return null;
@@ -178,24 +170,26 @@ export default function GroupAuctionFlyer() {
                   const d = (() => { try { return JSON.parse(item.dataJson); } catch { return {} as Record<string, string>; } })();
                   const title = titleCol ? (d[titleCol.key] || "") : "";
                   const itemNum = itemNumCol ? (d[itemNumCol.key] || "") : "";
-                  const colorMatch = getColorRuleMatch(colorRules, d);
-                  const kwColor = colorMatch?.color;
-                  const fw = colorMatch?.weight === "bold" ? 700 : 400;
+                  const titleMatch = getCellColorMatch(colorRules, title);
+                  const numMatch = getCellColorMatch(colorRules, itemNum);
                   const rowBg = idx % 2 === 0 ? "#fafafa" : "#ffffff";
                   return (
                     <tr key={item.id} style={{ background: rowBg, borderBottom: "1px solid #f3f4f6" }}>
-                      <td style={{ padding: "6px 8px", paddingLeft: 4, whiteSpace: "nowrap", color: "#9ca3af" }}>{idx + 1}</td>
-                      <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: kwColor ?? "#1f2937", fontWeight: kwColor ? fw : 400 }}>{title || "—"}</td>
+                      <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: "#9ca3af" }}>{idx + 1}</td>
+                      <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: titleMatch?.color ?? "#1f2937", fontWeight: titleMatch?.weight === "bold" ? 700 : 400 }}>{title || "—"}</td>
                       {itemNumCol && (
-                        <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: kwColor ?? "#6b7280", fontWeight: kwColor ? fw : 400 }}>
-                          {itemNum ? `{${itemNum}}` : "—"}
+                        <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: numMatch?.color ?? "#6b7280", fontWeight: numMatch?.weight === "bold" ? 700 : 400 }}>
+                          {itemNum || "—"}
                         </td>
                       )}
-                      {customCols.map(c => (
-                        <td key={c.key} style={{ padding: "6px 8px", whiteSpace: "nowrap", color: "#6b7280" }}>
-                          {d[c.key] || "—"}
-                        </td>
-                      ))}
+                      {customCols.map(c => {
+                        const cMatch = getCellColorMatch(colorRules, d[c.key] || "");
+                        return (
+                          <td key={c.key} style={{ padding: "6px 8px", whiteSpace: "nowrap", color: cMatch?.color ?? "#6b7280", fontWeight: cMatch?.weight === "bold" ? 700 : 400 }}>
+                            {d[c.key] || "—"}
+                          </td>
+                        );
+                      })}
                       <td style={{ padding: "6px 8px", textAlign: "right", whiteSpace: "nowrap", color: "#b45309", fontWeight: 600 }}>
                         ${item.startPrice}
                       </td>
