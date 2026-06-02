@@ -67,20 +67,25 @@ const COLOR_PRESETS_LIST = [
   { key: "teal",   bg: "#0f766e" },
 ] as const;
 
-function getColorRuleMatch(rules: { id: string; keywords: string; color: string }[], itemData: Record<string, string>): { color: string; keywords: string[] } | null {
+function getColorRuleMatch(rules: { id: string; keywords: string; color: string; style?: string; weight?: string }[], itemData: Record<string, string>): { color: string; keywords: string[]; style: "bg" | "text"; weight: "bold" | "normal" } | null {
   if (!rules.length) return null;
   const allText = Object.values(itemData).join(" ").toLowerCase();
   for (const rule of rules) {
     const kws = rule.keywords.split(/[,，|｜\n]/).map(k => k.trim().toLowerCase()).filter(Boolean);
     if (kws.length > 0 && kws.some(kw => allText.includes(kw))) {
       const preset = COLOR_PRESETS_LIST.find(p => p.key === rule.color);
-      if (preset) return { color: preset.bg, keywords: kws };
+      if (preset) return {
+        color: preset.bg,
+        keywords: kws,
+        style: rule.style === "text" ? "text" : "bg",
+        weight: rule.weight === "normal" ? "normal" : "bold",
+      };
     }
   }
   return null;
 }
 
-function highlightKw(text: string, kws: string[], color: string) {
+function highlightKw(text: string, kws: string[], color: string, style: "bg" | "text" = "bg", weight: "bold" | "normal" = "bold") {
   if (!kws.length || !text) return text;
   for (const kw of kws) {
     const idx = text.toLowerCase().indexOf(kw);
@@ -88,7 +93,10 @@ function highlightKw(text: string, kws: string[], color: string) {
       return (
         <>
           {text.slice(0, idx)}
-          <span style={{ background: color, color: "#fff", padding: "0 2px", borderRadius: "3px", fontWeight: 700 }}>
+          <span style={style === "bg"
+            ? { background: color, color: "#fff", padding: "0 2px", borderRadius: "3px", fontWeight: weight === "bold" ? 700 : 400 }
+            : { color, fontWeight: weight === "bold" ? 700 : 400 }
+          }>
             {text.slice(idx, idx + kw.length)}
           </span>
           {text.slice(idx + kw.length)}
@@ -99,14 +107,17 @@ function highlightKw(text: string, kws: string[], color: string) {
   return text;
 }
 
-function highlightKwHtml(text: string, kws: string[], color: string): string {
+function highlightKwHtml(text: string, kws: string[], color: string, style: "bg" | "text" = "bg", weight: "bold" | "normal" = "bold"): string {
   if (!kws.length || !text) return text;
   for (const kw of kws) {
     const idx = text.toLowerCase().indexOf(kw);
     if (idx >= 0) {
+      const spanStyle = style === "bg"
+        ? `background:${color};color:#fff;padding:0 2px;border-radius:3px;font-weight:${weight === "bold" ? 700 : 400}`
+        : `color:${color};font-weight:${weight === "bold" ? 700 : 400}`;
       return (
         text.slice(0, idx) +
-        `<span style="background:${color};color:#fff;padding:0 2px;border-radius:3px;font-weight:700">${text.slice(idx, idx + kw.length)}</span>` +
+        `<span style="${spanStyle}">${text.slice(idx, idx + kw.length)}</span>` +
         text.slice(idx + kw.length)
       );
     }
@@ -202,11 +213,11 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
       const itemTitle = titleCol ? d[titleCol.key] : `商品 ${idx + 1}`;
       const hasBid = item.topBidderId != null;
       const colorMatch = getColorRuleMatch(colorRules, d);
-      const titleHtml = colorMatch ? highlightKwHtml(itemTitle || "—", colorMatch.keywords, colorMatch.color) : (itemTitle || "—");
+      const titleHtml = colorMatch ? highlightKwHtml(itemTitle || "—", colorMatch.keywords, colorMatch.color, colorMatch.style, colorMatch.weight) : (itemTitle || "—");
       const extraTdHtml = extraCols.length > 0
         ? extraCols.map((c: any) => {
             const cellText = d[c.key] || "—";
-            return `<td style="padding:5px 8px">${colorMatch ? highlightKwHtml(cellText, colorMatch.keywords, colorMatch.color) : cellText}</td>`;
+            return `<td style="padding:5px 8px">${colorMatch ? highlightKwHtml(cellText, colorMatch.keywords, colorMatch.color, colorMatch.style, colorMatch.weight) : cellText}</td>`;
           }).join("")
         : `<td style="padding:5px 8px;color:#9ca3af">—</td>`;
       return `<tr style="border-bottom:1px solid #f3f4f6;background:${hasBid ? "#fffdf5" : "#fff"}">
@@ -293,11 +304,11 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
             return (
               <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: hasBid ? "#fffdf5" : "#fff" }}>
                 <td style={recTdStyle}>{idx + 1}</td>
-                <td style={{ ...recTdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{colorMatch ? highlightKw(itemTitle || "—", colorMatch.keywords, colorMatch.color) : (itemTitle || "—")}</td>
+                <td style={{ ...recTdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{colorMatch ? highlightKw(itemTitle || "—", colorMatch.keywords, colorMatch.color, colorMatch.style, colorMatch.weight) : (itemTitle || "—")}</td>
                 {extraCols.length > 0
                   ? extraCols.map((c: any) => (
                       <td key={c.key} style={{ ...recTdStyle, minWidth: 80, whiteSpace: "nowrap", fontWeight: 600, color: "#374151" }}>
-                        {colorMatch ? highlightKw(d[c.key] || "—", colorMatch.keywords, colorMatch.color) : (d[c.key] || "—")}
+                        {colorMatch ? highlightKw(d[c.key] || "—", colorMatch.keywords, colorMatch.color, colorMatch.style, colorMatch.weight) : (d[c.key] || "—")}
                       </td>
                     ))
                   : <td style={{ ...recTdStyle, minWidth: 80, color: "#9ca3af" }}>—</td>
@@ -426,11 +437,11 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
                           return (
                             <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: hasBid ? "#fffdf5" : "#fff" }}>
                               <td style={recTdStyle}>{idx + 1}</td>
-                              <td style={{ ...recTdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{colorMatch ? highlightKw(itemTitle || "—", colorMatch.keywords, colorMatch.color) : (itemTitle || "—")}</td>
+                              <td style={{ ...recTdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{colorMatch ? highlightKw(itemTitle || "—", colorMatch.keywords, colorMatch.color, colorMatch.style, colorMatch.weight) : (itemTitle || "—")}</td>
                               {extraCols.length > 0
                                 ? extraCols.map((c: any) => (
                                     <td key={c.key} style={{ ...recTdStyle, minWidth: 80, whiteSpace: "nowrap", fontWeight: 600, color: "#374151" }}>
-                                      {colorMatch ? highlightKw(d[c.key] || "—", colorMatch.keywords, colorMatch.color) : (d[c.key] || "—")}
+                                      {colorMatch ? highlightKw(d[c.key] || "—", colorMatch.keywords, colorMatch.color, colorMatch.style, colorMatch.weight) : (d[c.key] || "—")}
                                     </td>
                                   ))
                                 : <td style={{ ...recTdStyle, minWidth: 80, color: "#9ca3af" }}>—</td>

@@ -50,20 +50,25 @@ const BID_COLOR_PRESETS = [
   { key: "teal",   bg: "#0f766e" },
 ] as const;
 
-function getBidColorRuleMatch(rules: { id: string; keywords: string; color: string }[], itemData: Record<string, string>): { color: string; keywords: string[] } | null {
+function getBidColorRuleMatch(rules: { id: string; keywords: string; color: string; style?: string; weight?: string }[], itemData: Record<string, string>): { color: string; keywords: string[]; style: "bg" | "text"; weight: "bold" | "normal" } | null {
   if (!rules.length) return null;
   const allText = Object.values(itemData).join(" ").toLowerCase();
   for (const rule of rules) {
     const kws = rule.keywords.split(/[,，|｜\n]/).map(k => k.trim().toLowerCase()).filter(Boolean);
     if (kws.length > 0 && kws.some(kw => allText.includes(kw))) {
       const preset = BID_COLOR_PRESETS.find(p => p.key === rule.color);
-      if (preset) return { color: preset.bg, keywords: kws };
+      if (preset) return {
+        color: preset.bg,
+        keywords: kws,
+        style: rule.style === "text" ? "text" : "bg",
+        weight: rule.weight === "normal" ? "normal" : "bold",
+      };
     }
   }
   return null;
 }
 
-function highlightBidKw(text: string, kws: string[], color: string) {
+function highlightBidKw(text: string, kws: string[], color: string, style: "bg" | "text" = "bg", weight: "bold" | "normal" = "bold") {
   if (!kws.length || !text) return text;
   for (const kw of kws) {
     const idx = text.toLowerCase().indexOf(kw);
@@ -71,7 +76,10 @@ function highlightBidKw(text: string, kws: string[], color: string) {
       return (
         <>
           {text.slice(0, idx)}
-          <span style={{ background: color, color: "#fff", padding: "0 2px", borderRadius: "3px", fontWeight: 700 }}>
+          <span style={style === "bg"
+            ? { background: color, color: "#fff", padding: "0 2px", borderRadius: "3px", fontWeight: weight === "bold" ? 700 : 400 }
+            : { color, fontWeight: weight === "bold" ? 700 : 400 }
+          }>
             {text.slice(idx, idx + kw.length)}
           </span>
           {text.slice(idx + kw.length)}
@@ -558,13 +566,13 @@ export default function GroupAuctionBidPage() {
                       <p
                         className="text-sm font-semibold text-gray-900 leading-tight break-all cursor-pointer"
                         onClick={e => { e.stopPropagation(); setExpandedItems(s => { const n = new Set(s); n.delete(item.id); return n; }); }}
-                      >{colorMatch ? highlightBidKw(title || "—", colorMatch.keywords, colorMatch.color) : (title || "—")}</p>
+                      >{colorMatch ? highlightBidKw(title || "—", colorMatch.keywords, colorMatch.color, colorMatch.style, colorMatch.weight) : (title || "—")}</p>
                     ) : (
                       <div className="flex items-baseline gap-1">
                         <p
                           ref={el => { titleRefsMap.current.set(item.id, el); }}
                           className="text-sm font-semibold text-gray-900 leading-tight overflow-hidden whitespace-nowrap flex-1 min-w-0"
-                        >{colorMatch ? highlightBidKw(title || "—", colorMatch.keywords, colorMatch.color) : (title || "—")}</p>
+                        >{colorMatch ? highlightBidKw(title || "—", colorMatch.keywords, colorMatch.color, colorMatch.style, colorMatch.weight) : (title || "—")}</p>
                         {overflowingTitles.has(item.id) && (
                           <button
                             className="text-[10px] text-amber-500 flex-shrink-0 whitespace-nowrap leading-tight"
@@ -583,7 +591,7 @@ export default function GroupAuctionBidPage() {
                       {displayCols.filter(c => c.role === "itemNumber").map((c, ci) => {
                         const val = data[c.key];
                         if (!val) return null;
-                        return <span key={c.key}>{ci > 0 ? " · " : ""}{colorMatch ? highlightBidKw(val, colorMatch.keywords, colorMatch.color) : val}</span>;
+                        return <span key={c.key}>{ci > 0 ? " · " : ""}{colorMatch ? highlightBidKw(val, colorMatch.keywords, colorMatch.color, colorMatch.style, colorMatch.weight) : val}</span>;
                       })}
                     </span>
                   </div>

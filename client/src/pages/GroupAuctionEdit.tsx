@@ -58,7 +58,7 @@ const COLOR_PRESETS = [
   { key: "teal",   label: "青", bg: "#0f766e" },
 ] as const;
 type ColorRuleKey = typeof COLOR_PRESETS[number]["key"];
-type ColorRule = { id: string; keywords: string; color: ColorRuleKey };
+type ColorRule = { id: string; keywords: string; color: ColorRuleKey; style: "bg" | "text"; weight: "bold" | "normal" };
 
 function formatDateTimeLocal(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0");
@@ -225,7 +225,10 @@ export default function GroupAuctionEdit() {
     setImages(roundData.images.map(img => ({ id: img.id, url: img.url, s3Key: img.s3Key })));
     setItems(roundData.items);
     try { setPromoImages(JSON.parse((roundData.round as any).promoImagesJson ?? "[]")); } catch { setPromoImages([]); }
-    try { setColorRules(JSON.parse((roundData.round as any).colorRulesJson ?? "[]")); } catch { setColorRules([]); }
+    try {
+      const raw: any[] = JSON.parse((roundData.round as any).colorRulesJson ?? "[]");
+      setColorRules(raw.map(r => ({ ...r, style: r.style ?? "bg", weight: r.weight ?? "bold" })));
+    } catch { setColorRules([]); }
     // 已結拍的場次自動跳到成績紀錄 tab
     if (roundData.round?.status === "ended") {
       setTab("results");
@@ -711,13 +714,27 @@ export default function GroupAuctionEdit() {
                       />
                     ))}
                   </div>
+                  <button
+                    title={rule.style === "text" ? "文字顏色模式（點擊換底色）" : "底色模式（點擊換文字顏色）"}
+                    onClick={() => setColorRules(p => p.map((r, i) => i === rIdx ? { ...r, style: r.style === "text" ? "bg" : "text" } : r))}
+                    style={{ fontSize: 11, padding: "2px 6px", borderRadius: 5, background: rule.style === "text" ? "#f3f4f6" : "#374151", color: rule.style === "text" ? "#374151" : "#fff", border: "1px solid #e5e7eb", fontWeight: 600, flexShrink: 0 }}
+                  >
+                    {rule.style === "text" ? "字" : "底"}
+                  </button>
+                  <button
+                    title={rule.weight === "normal" ? "正常字重（點擊換粗體）" : "粗體（點擊換正常）"}
+                    onClick={() => setColorRules(p => p.map((r, i) => i === rIdx ? { ...r, weight: r.weight === "normal" ? "bold" : "normal" } : r))}
+                    style={{ fontSize: 11, padding: "2px 6px", borderRadius: 5, background: rule.weight === "normal" ? "#f3f4f6" : "#374151", color: rule.weight === "normal" ? "#374151" : "#fff", border: "1px solid #e5e7eb", fontWeight: rule.weight === "normal" ? 400 : 700, flexShrink: 0 }}
+                  >
+                    {rule.weight === "normal" ? "正" : "粗"}
+                  </button>
                   <button onClick={() => setColorRules(p => p.filter((_, i) => i !== rIdx))}>
                     <X className="w-4 h-4 text-gray-400 hover:text-red-500" />
                   </button>
                 </div>
               ))}
               <button
-                onClick={() => setColorRules(p => [...p, { id: `cr_${Date.now()}`, keywords: "", color: "gold" }])}
+                onClick={() => setColorRules(p => [...p, { id: `cr_${Date.now()}`, keywords: "", color: "gold", style: "bg", weight: "bold" }])}
                 className="flex items-center gap-1.5 text-xs text-amber-600 hover:text-amber-700"
               >
                 <Plus className="w-3.5 h-3.5" /> 加入規則
