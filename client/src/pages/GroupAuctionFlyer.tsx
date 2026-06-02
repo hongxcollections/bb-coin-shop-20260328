@@ -41,6 +41,7 @@ export default function GroupAuctionFlyer() {
     try { return JSON.parse(round?.columnsJson ?? "[]"); } catch { return []; }
   })();
   const titleCol = columns.find(c => c.role === "itemTitle");
+  const itemNumCol = columns.find(c => c.role === "itemNumber");
   const customCols = columns.filter(c => c.role === "customText");
 
   if (isLoading) {
@@ -103,40 +104,40 @@ export default function GroupAuctionFlyer() {
 
         {/* 清單版 */}
         {mode === "list" && (
-          <div>
-            <div>
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" as any, margin: "0 -3px" }}>
+            <div style={{ minWidth: "max-content", padding: "0 3px" }}>
               {/* 標題行 */}
               <div
-                className="grid text-xs font-semibold text-white px-2 py-1 rounded-lg mb-1"
-                style={{
-                  background: "linear-gradient(90deg, #f59e0b, #ef4444)",
-                  gridTemplateColumns: `2rem 1fr ${customCols.length > 0 ? "4rem" : ""} 4rem`,
-                }}
+                className="flex text-xs font-semibold text-white px-2 py-1.5 rounded-lg mb-1"
+                style={{ background: "linear-gradient(90deg, #f59e0b, #ef4444)" }}
               >
-                <span>序</span>
-                <span>品名</span>
-                {customCols.length > 0 && <span>{customCols[0]?.label}</span>}
-                <span className="text-right">起拍</span>
+                <span style={{ width: 28, flexShrink: 0 }}>序</span>
+                <span style={{ width: 220, flexShrink: 0 }}>商品名稱</span>
+                {customCols.map(c => (
+                  <span key={c.key} style={{ width: 80, flexShrink: 0 }}>{c.label}</span>
+                ))}
+                <span style={{ width: 64, flexShrink: 0, textAlign: "right" }}>起拍</span>
               </div>
+              {/* 每行商品 */}
               {items.map((item, idx) => {
-                const data = (() => { try { return JSON.parse(item.dataJson); } catch { return {}; } })();
-                const title = titleCol ? data[titleCol.key] : "";
-                const customVal = customCols.length > 0 ? data[customCols[0].key] : "";
+                const d = (() => { try { return JSON.parse(item.dataJson); } catch { return {}; } })();
+                const title = titleCol ? (d[titleCol.key] || "") : "";
+                const itemNum = itemNumCol ? (d[itemNumCol.key] || "") : "";
+                const combined = title && itemNum ? `${title} • ${itemNum}` : (title || itemNum || "—");
                 return (
                   <div
                     key={item.id}
-                    className="grid text-xs px-2 py-1 border-b border-gray-100"
-                    style={{
-                      gridTemplateColumns: `2rem 1fr ${customCols.length > 0 ? "4rem" : ""} 4rem`,
-                      background: idx % 2 === 0 ? "#fafafa" : "white",
-                    }}
+                    className="flex text-xs px-2 py-1.5 border-b border-gray-100"
+                    style={{ background: idx % 2 === 0 ? "#fafafa" : "white" }}
                   >
-                    <span className="text-gray-400">{idx + 1}</span>
-                    <span className="truncate text-gray-800">{title}</span>
-                    {customCols.length > 0 && (
-                      <span className="text-gray-500">{customVal}</span>
-                    )}
-                    <span className="text-right text-amber-700 font-semibold">
+                    <span style={{ width: 28, flexShrink: 0, color: "#9ca3af" }}>{idx + 1}</span>
+                    <span style={{ width: 220, flexShrink: 0, color: "#1f2937", whiteSpace: "nowrap" }}>{combined}</span>
+                    {customCols.map(c => (
+                      <span key={c.key} style={{ width: 80, flexShrink: 0, color: "#6b7280", whiteSpace: "nowrap" }}>
+                        {d[c.key] || "—"}
+                      </span>
+                    ))}
+                    <span style={{ width: 64, flexShrink: 0, textAlign: "right", color: "#b45309", fontWeight: 600, whiteSpace: "nowrap" }}>
                       ${item.startPrice}
                     </span>
                   </div>
