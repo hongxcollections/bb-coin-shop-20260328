@@ -26,7 +26,7 @@ import {
 const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$", JPY: "JP¥", GBP: "£", EUR: "€" };
 
 const recThStyle = {
-  padding: "8px 5px",
+  padding: "8px 10px",
   textAlign: "left" as const,
   fontWeight: 600,
   color: "#92400e",
@@ -35,7 +35,7 @@ const recThStyle = {
   whiteSpace: "nowrap" as const,
 };
 const recTdStyle = {
-  padding: "7px 5px",
+  padding: "7px 10px",
   fontSize: "11px",
   verticalAlign: "middle" as const,
   color: "#374151",
