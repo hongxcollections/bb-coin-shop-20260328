@@ -184,7 +184,11 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
       </p>
       {hasRoundDates && (
         <p style={{ fontSize: 11, color: "#b45309", margin: "2px 0 0", lineHeight: 1.4 }}>
-          {startDate} — {endDate}
+          {startDate !== "—" && endDate !== "—"
+            ? `${startDate} — ${endDate}`
+            : startDate !== "—"
+            ? `開拍：${startDate}`
+            : `結拍：${endDate}`}
         </p>
       )}
       {merchantDisplayName && (
