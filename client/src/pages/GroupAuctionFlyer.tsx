@@ -5,13 +5,44 @@ import { QRCodeSVG } from "qrcode.react";
 import { Printer, List, Grid3X3 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
+import { sify, tify } from "chinese-conv";
 
 type ColumnDef = { key: string; label: string; role: string; showOnBidPage?: boolean };
+type ColorRuleKey = "gold" | "red" | "green" | "blue" | "orange" | "purple" | "pink" | "teal";
+type ColorRule = { id: string; keywords: string; color: ColorRuleKey; style?: "bg" | "text"; weight?: "bold" | "normal" };
 
-function fmtDateTime(d: string | Date | null) {
-  if (!d) return "—";
-  const dt = new Date(d);
-  return `${dt.getFullYear()}-${(dt.getMonth() + 1).toString().padStart(2, "0")}-${dt.getDate().toString().padStart(2, "0")} ${dt.getHours().toString().padStart(2, "0")}:${dt.getMinutes().toString().padStart(2, "0")}`;
+const COLOR_PRESETS: { key: ColorRuleKey; bg: string }[] = [
+  { key: "gold",   bg: "#b45309" },
+  { key: "red",    bg: "#b91c1c" },
+  { key: "green",  bg: "#15803d" },
+  { key: "blue",   bg: "#1d4ed8" },
+  { key: "orange", bg: "#c2410c" },
+  { key: "purple", bg: "#7c3aed" },
+  { key: "pink",   bg: "#be185d" },
+  { key: "teal",   bg: "#0f766e" },
+];
+
+function expandChinese(kw: string): string[] {
+  return [...new Set([kw, sify(kw), tify(kw)])].filter(Boolean);
+}
+
+function getColorRuleMatch(rules: ColorRule[], itemData: Record<string, string>): { color: string; style: "bg" | "text"; weight: "bold" | "normal" } | null {
+  if (!rules.length) return null;
+  const allTextRaw = Object.values(itemData).join(" ").toLowerCase();
+  const allTextS = sify(allTextRaw);
+  for (const rule of rules) {
+    const rawKws = rule.keywords.split(/[,，|｜\n]/).map(k => k.trim().toLowerCase()).filter(Boolean);
+    if (rawKws.length === 0) continue;
+    if (rawKws.some(kw => allTextRaw.includes(kw) || allTextS.includes(sify(kw)))) {
+      const preset = COLOR_PRESETS.find(p => p.key === rule.color);
+      if (preset) return {
+        color: preset.bg,
+        style: rule.style === "text" ? "text" : "bg",
+        weight: rule.weight === "normal" ? "normal" : "bold",
+      };
+    }
+  }
+  return null;
 }
 
 function fmtDateShort(d: string | Date | null) {
@@ -20,11 +51,16 @@ function fmtDateShort(d: string | Date | null) {
   return `${dt.getMonth() + 1}月${dt.getDate()}日 ${dt.getHours().toString().padStart(2, "0")}:${dt.getMinutes().toString().padStart(2, "0")}`;
 }
 
+function fmtCommRate(rate: number) {
+  const pct = rate * 100;
+  return `${pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(1)}%`;
+}
+
 export default function GroupAuctionFlyer() {
   const params = useParams<{ roundId: string }>();
   const roundId = parseInt(params.roundId, 10);
   const [mode, setMode] = useState<"list" | "grid">("list");
-  const { isAuthenticated, user } = useAuth();
+  const { user } = useAuth();
 
   const { data, isLoading, error } = trpc.groupAuctions.getRound.useQuery(
     { roundId },
@@ -44,6 +80,23 @@ export default function GroupAuctionFlyer() {
   const itemNumCol = columns.find(c => c.role === "itemNumber");
   const customCols = columns.filter(c => c.role === "customText");
 
+  const colorRules: ColorRule[] = (() => {
+    try { return JSON.parse((round as any)?.colorRulesJson ?? "[]"); } catch { return []; }
+  })();
+
+  const commRate = round ? parseFloat(String((round as any).buyerCommissionRate ?? 0)) : 0;
+  const hasRules = round && (round.description || (round as any).antiSnipeMode !== "none" || round.defaultBidIncrement > 0 || commRate > 0);
+
+  const thStyle = (extra?: React.CSSProperties): React.CSSProperties => ({
+    padding: "6px 8px",
+    textAlign: "left",
+    whiteSpace: "nowrap",
+    color: "#fff",
+    fontWeight: 600,
+    background: "#f97316",
+    ...extra,
+  });
+
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center text-gray-400 text-sm">載入中...</div>;
   }
@@ -54,7 +107,7 @@ export default function GroupAuctionFlyer() {
   return (
     <div className="min-h-screen bg-white">
       {/* 工具列（不列印） */}
-      <div className="print:hidden flex items-center gap-2 px-[3px] py-3 bg-gray-50 border-b border-gray-100">
+      <div className="print:hidden flex items-center gap-2 px-3 py-3 bg-gray-50 border-b border-gray-100">
         <button
           onClick={() => setMode("list")}
           className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg ${mode === "list" ? "bg-amber-500 text-white" : "bg-white text-gray-600 border"}`}>
@@ -73,9 +126,10 @@ export default function GroupAuctionFlyer() {
       </div>
 
       {/* 廣告單張主體 */}
-      <div className="max-w-2xl mx-auto px-[3px] py-8" style={{ fontFamily: "system-ui, sans-serif" }}>
+      <div className="max-w-2xl mx-auto py-6" style={{ fontFamily: "system-ui, sans-serif" }}>
+
         {/* 標題區 */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-5 px-4">
           {round.coverImage && (
             <img src={round.coverImage} className="w-full h-48 object-cover rounded-2xl mb-4" />
           )}
@@ -108,31 +162,44 @@ export default function GroupAuctionFlyer() {
             <table style={{ borderCollapse: "collapse", fontSize: 12, width: "100%" }}>
               <thead>
                 <tr>
-                  <th style={{ padding: "6px 8px", textAlign: "left", whiteSpace: "nowrap", color: "#fff", fontWeight: 600, background: "#f59e0b", borderRadius: "8px 0 0 8px" }}>序</th>
-                  <th style={{ padding: "6px 8px", textAlign: "left", whiteSpace: "nowrap", color: "#fff", fontWeight: 600, background: "linear-gradient(90deg,#f59e0b,#f97316)" }}>商品名稱</th>
+                  <th style={thStyle({ background: "#f59e0b", borderRadius: "8px 0 0 8px" })}>序</th>
+                  <th style={thStyle({ background: "linear-gradient(90deg,#f59e0b,#f97316)" })}>商品名稱</th>
+                  {itemNumCol && (
+                    <th style={thStyle()}>{itemNumCol.label || "號碼"}</th>
+                  )}
                   {customCols.map(c => (
-                    <th key={c.key} style={{ padding: "6px 8px", textAlign: "left", whiteSpace: "nowrap", color: "#fff", fontWeight: 600, background: "#f97316" }}>{c.label}</th>
+                    <th key={c.key} style={thStyle()}>{c.label}</th>
                   ))}
-                  <th style={{ padding: "6px 8px", textAlign: "right", whiteSpace: "nowrap", color: "#fff", fontWeight: 600, background: "#ef4444", borderRadius: "0 8px 8px 0" }}>起拍</th>
+                  <th style={thStyle({ background: "#ef4444", textAlign: "right", borderRadius: "0 8px 8px 0" })}>起拍</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item, idx) => {
-                  const d = (() => { try { return JSON.parse(item.dataJson); } catch { return {}; } })();
+                  const d = (() => { try { return JSON.parse(item.dataJson); } catch { return {} as Record<string, string>; } })();
                   const title = titleCol ? (d[titleCol.key] || "") : "";
                   const itemNum = itemNumCol ? (d[itemNumCol.key] || "") : "";
-                  const combined = title && itemNum ? `${title} • ${itemNum}` : (title || itemNum || "—");
-                  const rowBg = idx % 2 === 0 ? "#fafafa" : "#ffffff";
+                  const colorMatch = getColorRuleMatch(colorRules, d);
+                  const isBg = colorMatch?.style === "bg";
+                  const isText = colorMatch?.style === "text";
+                  const fw = colorMatch?.weight === "bold" ? 700 : 400;
+                  const rowBg = isBg ? colorMatch!.color : (idx % 2 === 0 ? "#fafafa" : "#ffffff");
+                  const rowTextColor = isBg ? "#fff" : undefined;
+                  const contentColor = isText ? colorMatch!.color : undefined;
                   return (
                     <tr key={item.id} style={{ background: rowBg, borderBottom: "1px solid #f3f4f6" }}>
-                      <td style={{ padding: "6px 8px", color: "#9ca3af", whiteSpace: "nowrap" }}>{idx + 1}</td>
-                      <td style={{ padding: "6px 8px", color: "#1f2937", whiteSpace: "nowrap" }}>{combined}</td>
+                      <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: isBg ? "rgba(255,255,255,0.7)" : "#9ca3af" }}>{idx + 1}</td>
+                      <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: contentColor ?? (rowTextColor ?? "#1f2937"), fontWeight: fw }}>{title || "—"}</td>
+                      {itemNumCol && (
+                        <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: contentColor ?? (rowTextColor ?? "#6b7280"), fontWeight: fw }}>
+                          {itemNum ? `{${itemNum}}` : "—"}
+                        </td>
+                      )}
                       {customCols.map(c => (
-                        <td key={c.key} style={{ padding: "6px 8px", color: "#6b7280", whiteSpace: "nowrap" }}>
+                        <td key={c.key} style={{ padding: "6px 8px", whiteSpace: "nowrap", color: contentColor ?? (rowTextColor ?? "#6b7280") }}>
                           {d[c.key] || "—"}
                         </td>
                       ))}
-                      <td style={{ padding: "6px 8px", textAlign: "right", color: "#b45309", fontWeight: 600, whiteSpace: "nowrap" }}>
+                      <td style={{ padding: "6px 8px", textAlign: "right", whiteSpace: "nowrap", color: isBg ? "rgba(255,255,255,0.9)" : "#b45309", fontWeight: 600 }}>
                         ${item.startPrice}
                       </td>
                     </tr>
@@ -145,10 +212,10 @@ export default function GroupAuctionFlyer() {
 
         {/* 圖片版（Grid） */}
         {mode === "grid" && (
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-2 px-4">
             {items.map((item, idx) => {
-              const data = (() => { try { return JSON.parse(item.dataJson); } catch { return {}; } })();
-              const title = titleCol ? data[titleCol.key] : "";
+              const d = (() => { try { return JSON.parse(item.dataJson); } catch { return {} as Record<string, string>; } })();
+              const title = titleCol ? d[titleCol.key] : "";
               const imgUrl = (() => {
                 try {
                   const ids: number[] = JSON.parse((item as any).imageIdsJson ?? "[]");
@@ -168,7 +235,7 @@ export default function GroupAuctionFlyer() {
                   <div className="p-1.5">
                     <p className="text-[10px] text-gray-700 truncate leading-tight">{title}</p>
                     {customCols.length > 0 && (
-                      <p className="text-[9px] text-gray-400">{data[customCols[0].key]}</p>
+                      <p className="text-[9px] text-gray-400">{d[customCols[0].key]}</p>
                     )}
                     <p className="text-[10px] text-amber-600 font-bold mt-0.5">HK${item.startPrice}</p>
                   </div>
@@ -179,14 +246,30 @@ export default function GroupAuctionFlyer() {
         )}
 
         {/* 拍賣須知 + QR Code */}
-        <div className="mt-8 flex gap-6 items-start">
-          <div className="flex-1">
+        <div className="mt-6 px-4 flex gap-6 items-start">
+          <div className="flex-1 space-y-1">
+            {hasRules && (
+              <p className="text-sm font-bold text-gray-800 mb-1.5">拍賣須知：</p>
+            )}
+            {/* 延遲結標設定 */}
+            {(round as any).antiSnipeMode !== "none" && (
+              <p className="text-xs text-blue-600">
+                {(round as any).antiSnipeMode === "per_item"
+                  ? `單件延時：出價時間距結束少於 ${(round as any).antiSnipeMinutes} 分鐘，商品自動延長 ${(round as any).antiSnipeExtendMinutes} 分鐘`
+                  : `全場延時：出價時間距結束少於 ${(round as any).antiSnipeMinutes} 分鐘，全場自動延長 ${(round as any).antiSnipeExtendMinutes} 分鐘`}
+              </p>
+            )}
+            {/* 每口加幅 + 傭金 */}
+            {(round.defaultBidIncrement > 0 || commRate > 0) && (
+              <p className="text-xs text-amber-700">
+                {round.defaultBidIncrement > 0 && `每口加幅：HK$${round.defaultBidIncrement}（或個別加幅設定可能不同）`}
+                {commRate > 0 && `　買家傭金：${fmtCommRate(commRate)}`}
+              </p>
+            )}
+            {/* 拍賣須知文字 */}
             {round.description && (
-              <div>
-                <p className="text-sm font-bold text-gray-800 mb-2">拍賣須知：</p>
-                <div className="text-xs text-gray-600 space-y-1 whitespace-pre-line">
-                  {round.description}
-                </div>
+              <div className="text-xs text-gray-600 whitespace-pre-line mt-1">
+                {round.description}
               </div>
             )}
           </div>
@@ -197,7 +280,7 @@ export default function GroupAuctionFlyer() {
         </div>
 
         {/* 頁腳 */}
-        <div className="mt-6 text-center text-xs text-gray-300 border-t border-gray-100 pt-3">
+        <div className="mt-6 px-4 text-center text-xs text-gray-300 border-t border-gray-100 pt-3">
           hongxcollections.com
         </div>
       </div>
