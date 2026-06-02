@@ -121,15 +121,35 @@ export default function GroupAuctionFlyer() {
     if (!flyerRef.current) return;
     setSaving(true);
     await new Promise(r => setTimeout(r, 80));
+
+    // 暫時移除 overflow 裁剪，讓完整 table 寬度可被捕捉
+    const el = flyerRef.current;
+    const overflowEls = Array.from(el.querySelectorAll<HTMLElement>("*")).filter(
+      e => e.style.overflowX === "auto" || e.style.overflow === "auto"
+    );
+    const origStyles = overflowEls.map(e => ({ x: e.style.overflowX, o: e.style.overflow }));
+    overflowEls.forEach(e => { e.style.overflowX = "visible"; e.style.overflow = "visible"; });
+
+    await new Promise(r => setTimeout(r, 40));
+
     try {
       const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(flyerRef.current, { backgroundColor: "#ffffff", pixelRatio: 3 });
+      const fullW = el.scrollWidth;
+      const fullH = el.scrollHeight;
+      const dataUrl = await toPng(el, {
+        backgroundColor: "#ffffff",
+        pixelRatio: 3,
+        width: fullW,
+        height: fullH,
+        style: { width: `${fullW}px`, height: `${fullH}px` },
+      });
       const filename = `廣告頁-${round?.title ?? "拍賣"}.png`;
       setPreviewFilename(filename);
       setPreviewUrl(dataUrl);
     } catch {
       toast.error("儲存圖片失敗");
     } finally {
+      overflowEls.forEach((e, i) => { e.style.overflowX = origStyles[i].x; e.style.overflow = origStyles[i].o; });
       setSaving(false);
     }
   }
