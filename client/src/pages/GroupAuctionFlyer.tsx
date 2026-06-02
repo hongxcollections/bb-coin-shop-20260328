@@ -1,8 +1,8 @@
 import { useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Printer, List, Grid3X3 } from "lucide-react";
+import { List, Grid3X3, Download, X } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 import { sify, tify } from "chinese-conv";
@@ -86,6 +86,10 @@ export default function GroupAuctionFlyer() {
   const params = useParams<{ roundId: string }>();
   const roundId = parseInt(params.roundId, 10);
   const [mode, setMode] = useState<"list" | "grid">("list");
+  const [saving, setSaving] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewFilename, setPreviewFilename] = useState("");
+  const flyerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
 
   const { data, isLoading, error } = trpc.groupAuctions.getRound.useQuery(
@@ -112,6 +116,23 @@ export default function GroupAuctionFlyer() {
 
   const commRate = round ? parseFloat(String((round as any).buyerCommissionRate ?? 0)) : 0;
   const hasRules = round && (round.description || (round as any).antiSnipeMode !== "none" || round.defaultBidIncrement > 0 || commRate > 0);
+
+  async function saveImage() {
+    if (!flyerRef.current) return;
+    setSaving(true);
+    await new Promise(r => setTimeout(r, 80));
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(flyerRef.current, { backgroundColor: "#ffffff", pixelRatio: 3 });
+      const filename = `廣告頁-${round?.title ?? "拍賣"}.png`;
+      setPreviewFilename(filename);
+      setPreviewUrl(dataUrl);
+    } catch {
+      toast.error("儲存圖片失敗");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const thStyle = (extra?: React.CSSProperties): React.CSSProperties => ({
     padding: "6px 8px",
@@ -145,14 +166,15 @@ export default function GroupAuctionFlyer() {
           <Grid3X3 className="w-3 h-3" /> 圖片版
         </button>
         <button
-          onClick={() => isOwner ? window.print() : toast.info("此功能只開放給本場次商戶")}
-          className="ml-auto flex items-center gap-1 text-xs bg-gray-800 text-white px-3 py-1.5 rounded-lg">
-          <Printer className="w-3 h-3" /> 列印 / 儲存 PDF
+          onClick={saveImage}
+          disabled={saving}
+          className="ml-auto flex items-center gap-1 text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg disabled:opacity-60">
+          <Download className="w-3 h-3" /> {saving ? "生成中..." : "儲存廣告頁面"}
         </button>
       </div>
 
-      {/* 廣告單張主體 */}
-      <div className="max-w-2xl mx-auto py-6" style={{ fontFamily: "system-ui, sans-serif" }}>
+      {/* 廣告單張主體（capture 範圍） */}
+      <div ref={flyerRef} className="max-w-2xl mx-auto py-6" style={{ fontFamily: "system-ui, sans-serif", background: "#fff" }}>
 
         {/* 標題區 */}
         <div className="text-center mb-5 px-4">
@@ -315,6 +337,36 @@ export default function GroupAuctionFlyer() {
           .print\\:hidden { display: none !important; }
         }
       `}</style>
+
+      {/* 儲存圖片預覽 overlay */}
+      {previewUrl && (
+        <div className="fixed inset-0 z-[10000] bg-black/90 flex flex-col items-center justify-center p-4">
+          <div className="w-full max-w-sm flex flex-col items-center gap-3">
+            <img
+              src={previewUrl}
+              alt="廣告頁面"
+              className="w-full rounded-2xl shadow-2xl object-contain"
+              style={{ maxHeight: "70vh" }}
+            />
+            <p className="text-white/60 text-xs text-center">長按圖片儲存至相冊</p>
+            <div className="flex gap-3 w-full">
+              <a
+                href={previewUrl}
+                download={previewFilename}
+                className="flex-1 flex items-center justify-center gap-1.5 text-sm bg-white/15 hover:bg-white/25 text-white px-4 py-2.5 rounded-xl"
+              >
+                <Download className="w-4 h-4" /> 下載
+              </a>
+              <button
+                onClick={() => setPreviewUrl(null)}
+                className="flex-1 flex items-center justify-center gap-1.5 text-sm bg-white/10 hover:bg-white/20 text-white/80 px-4 py-2.5 rounded-xl"
+              >
+                <X className="w-4 h-4" /> 關閉
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
