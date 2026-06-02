@@ -22,19 +22,53 @@ const COLOR_PRESETS: { key: ColorRuleKey; bg: string }[] = [
   { key: "teal",   bg: "#0f766e" },
 ];
 
-function getCellColorMatch(rules: ColorRule[], cellValue: string): { color: string; weight: "bold" | "normal" } | null {
-  if (!rules.length || !cellValue) return null;
-  const v = cellValue.toLowerCase();
-  const vS = sify(v);
+function expandChinese(kw: string): string[] {
+  return [...new Set([kw, sify(kw), tify(kw)])].filter(Boolean);
+}
+
+function getColorRuleMatch(
+  rules: ColorRule[],
+  itemData: Record<string, string>
+): { color: string; keywords: string[]; style: "bg" | "text"; weight: "bold" | "normal" } | null {
+  if (!rules.length) return null;
+  const allTextRaw = Object.values(itemData).join(" ").toLowerCase();
+  const allTextS = sify(allTextRaw);
   for (const rule of rules) {
     const rawKws = rule.keywords.split(/[,，|｜\n]/).map(k => k.trim().toLowerCase()).filter(Boolean);
     if (rawKws.length === 0) continue;
-    if (rawKws.some(kw => v.includes(kw) || vS.includes(sify(kw)))) {
+    if (rawKws.some(kw => allTextRaw.includes(kw) || allTextS.includes(sify(kw)))) {
       const preset = COLOR_PRESETS.find(p => p.key === rule.color);
-      if (preset) return { color: preset.bg, weight: rule.weight === "normal" ? "normal" : "bold" };
+      if (preset) return {
+        color: preset.bg,
+        keywords: [...new Set(rawKws.flatMap(expandChinese))],
+        style: rule.style === "text" ? "text" : "bg",
+        weight: rule.weight === "normal" ? "normal" : "bold",
+      };
     }
   }
   return null;
+}
+
+function highlightKw(text: string, kws: string[], color: string, style: "bg" | "text" = "bg", weight: "bold" | "normal" = "bold") {
+  if (!kws.length || !text) return <>{text}</>;
+  for (const kw of kws) {
+    const idx = text.toLowerCase().indexOf(kw);
+    if (idx >= 0) {
+      return (
+        <>
+          {text.slice(0, idx)}
+          <span style={style === "bg"
+            ? { background: color, color: "#fff", padding: "0 2px", borderRadius: "3px", fontWeight: weight === "bold" ? 700 : 400 }
+            : { color, fontWeight: weight === "bold" ? 700 : 400 }
+          }>
+            {text.slice(idx, idx + kw.length)}
+          </span>
+          {text.slice(idx + kw.length)}
+        </>
+      );
+    }
+  }
+  return <>{text}</>;
 }
 
 function fmtDateShort(d: string | Date | null) {
@@ -150,7 +184,7 @@ export default function GroupAuctionFlyer() {
 
         {/* 清單版 */}
         {mode === "list" && (
-          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" as any }}>
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" as any, paddingLeft: 8 }}>
             <table style={{ borderCollapse: "collapse", fontSize: 12, width: "100%" }}>
               <thead>
                 <tr>
@@ -170,26 +204,24 @@ export default function GroupAuctionFlyer() {
                   const d = (() => { try { return JSON.parse(item.dataJson); } catch { return {} as Record<string, string>; } })();
                   const title = titleCol ? (d[titleCol.key] || "") : "";
                   const itemNum = itemNumCol ? (d[itemNumCol.key] || "") : "";
-                  const titleMatch = getCellColorMatch(colorRules, title);
-                  const numMatch = getCellColorMatch(colorRules, itemNum);
+                  const colorMatch = getColorRuleMatch(colorRules, d);
                   const rowBg = idx % 2 === 0 ? "#fafafa" : "#ffffff";
                   return (
                     <tr key={item.id} style={{ background: rowBg, borderBottom: "1px solid #f3f4f6" }}>
                       <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: "#9ca3af" }}>{idx + 1}</td>
-                      <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: titleMatch?.color ?? "#1f2937", fontWeight: titleMatch?.weight === "bold" ? 700 : 400 }}>{title || "—"}</td>
+                      <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: "#1f2937" }}>
+                        {colorMatch ? highlightKw(title || "—", colorMatch.keywords, colorMatch.color, colorMatch.style, colorMatch.weight) : (title || "—")}
+                      </td>
                       {itemNumCol && (
-                        <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: numMatch?.color ?? "#6b7280", fontWeight: numMatch?.weight === "bold" ? 700 : 400 }}>
-                          {itemNum || "—"}
+                        <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: "#6b7280" }}>
+                          {colorMatch ? highlightKw(itemNum || "—", colorMatch.keywords, colorMatch.color, colorMatch.style, colorMatch.weight) : (itemNum || "—")}
                         </td>
                       )}
-                      {customCols.map(c => {
-                        const cMatch = getCellColorMatch(colorRules, d[c.key] || "");
-                        return (
-                          <td key={c.key} style={{ padding: "6px 8px", whiteSpace: "nowrap", color: cMatch?.color ?? "#6b7280", fontWeight: cMatch?.weight === "bold" ? 700 : 400 }}>
-                            {d[c.key] || "—"}
-                          </td>
-                        );
-                      })}
+                      {customCols.map(c => (
+                        <td key={c.key} style={{ padding: "6px 8px", whiteSpace: "nowrap", color: "#6b7280" }}>
+                          {colorMatch ? highlightKw(d[c.key] || "—", colorMatch.keywords, colorMatch.color, colorMatch.style, colorMatch.weight) : (d[c.key] || "—")}
+                        </td>
+                      ))}
                       <td style={{ padding: "6px 8px", textAlign: "right", whiteSpace: "nowrap", color: "#b45309", fontWeight: 600 }}>
                         ${item.startPrice}
                       </td>
