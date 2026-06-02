@@ -6,11 +6,11 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { Plus, ChevronLeft, Pencil, Trash2, Globe, Archive, Clock, QrCode, Receipt, ListOrdered } from "lucide-react";
+import { Plus, ChevronLeft, Pencil, Trash2, Globe, Archive, Clock, QrCode, Receipt, ListOrdered, X, Trophy, ChevronsUpDown, ChevronUp, ChevronDown } from "lucide-react";
 import { GroupAuctionShareMenu } from "@/components/ShareMenu";
 import { GroupAuctionPosterModal } from "@/components/GroupAuctionPosterModal";
 import { GroupAuctionCommissionModal } from "@/components/GroupAuctionCommissionModal";
-import { GroupAuctionRecordsModal } from "@/components/GroupAuctionRecordsModal";
+
 import {
   AlertDialog,
   AlertDialogContent,
@@ -21,6 +21,196 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+
+const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$", JPY: "JP¥", GBP: "£", EUR: "€" };
+
+const recThStyle = {
+  padding: "8px 10px",
+  textAlign: "left" as const,
+  fontWeight: 600,
+  color: "#92400e",
+  fontSize: "11px",
+  borderBottom: "1px solid #fde68a",
+  whiteSpace: "nowrap" as const,
+};
+const recTdStyle = {
+  padding: "7px 10px",
+  fontSize: "11px",
+  verticalAlign: "middle" as const,
+  color: "#374151",
+};
+
+type RecordsFilter = "all" | "bid" | "nobid";
+type RecordsSortDir = "none" | "asc" | "desc";
+
+function AuctionRecordsSheet({ roundId, roundTitle, onClose }: { roundId: number; roundTitle: string; onClose: () => void }) {
+  const [filter, setFilter] = useState<RecordsFilter>("all");
+  const [sortDir, setSortDir] = useState<RecordsSortDir>("none");
+
+  const { data, isLoading } = trpc.groupAuctions.getRound.useQuery(
+    { roundId },
+    { refetchInterval: 5000, staleTime: 0 }
+  );
+
+  const round = (data as any)?.round;
+  const allItems: any[] = (data as any)?.items ?? [];
+
+  const columns: any[] = (() => {
+    try { return JSON.parse(round?.columnsJson ?? "[]"); } catch { return []; }
+  })();
+  const titleCol = columns.find((c: any) => c.role === "itemTitle");
+  const extraCols = columns.filter((c: any) => c.role === "itemNumber" || c.role === "customText");
+
+  const currency = (round?.displayCurrencies ?? "HKD").split(",")[0].trim() || "HKD";
+  const sym = CURR_SYMS[currency] ?? "HK$";
+  const fmtP = (n: number | null | undefined) =>
+    n != null ? `${sym}${Math.round(Number(n)).toLocaleString()}` : "—";
+
+  const getItemData = (item: any): Record<string, string> => {
+    try { return JSON.parse(item.dataJson); } catch { return {}; }
+  };
+
+  const withBid = allItems.filter(i => i.topBidderId != null).length;
+  const noBid = allItems.filter(i => i.topBidderId == null).length;
+
+  const filtered =
+    filter === "bid" ? allItems.filter(i => i.topBidderId != null) :
+    filter === "nobid" ? allItems.filter(i => i.topBidderId == null) :
+    allItems;
+
+  const items = sortDir === "none" ? filtered : [...filtered].sort((a, b) => {
+    const na = (a.topBidderName ?? "").toLowerCase();
+    const nb = (b.topBidderName ?? "").toLowerCase();
+    if (na === nb) return 0;
+    const cmp = na < nb ? -1 : 1;
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
+  const SortIcon = sortDir === "asc" ? ChevronUp : sortDir === "desc" ? ChevronDown : ChevronsUpDown;
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50" />
+      <div
+        className="relative z-10 w-full bg-white rounded-t-2xl shadow-2xl flex flex-col"
+        style={{ maxHeight: "82vh" }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex justify-center pt-2 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 bg-gray-300 rounded-full" />
+        </div>
+
+        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 flex-shrink-0">
+          <div>
+            <p className="font-bold text-gray-900 text-sm">拍賣紀錄</p>
+            <p className="text-xs text-gray-400 mt-0.5">{round?.title ?? roundTitle}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {!isLoading && allItems.length > 0 && (
+          <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border-b border-gray-100">
+            {([ { key: "all" as RecordsFilter, label: "全部", count: allItems.length },
+                 { key: "bid" as RecordsFilter, label: "有出價", count: withBid },
+                 { key: "nobid" as RecordsFilter, label: "未出價", count: noBid },
+            ] as const).map(btn => (
+              <button
+                key={btn.key}
+                onClick={() => setFilter(btn.key)}
+                className="text-xs px-3 py-1 rounded-full transition-colors"
+                style={{
+                  background: filter === btn.key ? "#d97706" : "#f3f4f6",
+                  color: filter === btn.key ? "#fff" : "#6b7280",
+                  fontWeight: filter === btn.key ? 700 : 400,
+                }}
+              >
+                {btn.label} {btn.count}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto overflow-x-auto" style={{ scrollbarWidth: "thin" }}>
+          {isLoading && <p className="text-center text-gray-400 text-sm py-10">載入中...</p>}
+          {!isLoading && allItems.length === 0 && <p className="text-center text-gray-400 text-sm py-10">未有商品紀錄</p>}
+          {!isLoading && items.length === 0 && allItems.length > 0 && <p className="text-center text-gray-400 text-sm py-10">沒有符合條件的商品</p>}
+          {!isLoading && items.length > 0 && (
+            <table style={{ borderCollapse: "collapse", fontSize: "11px", minWidth: "max-content", width: "100%" }}>
+              <thead>
+                <tr style={{ background: "#fffbeb" }}>
+                  <th style={recThStyle}>#</th>
+                  <th style={{ ...recThStyle, minWidth: 160 }}>商品名稱</th>
+                  {extraCols.length > 0
+                    ? extraCols.map((c: any) => <th key={c.key} style={{ ...recThStyle, minWidth: 80 }}>{c.label || "號碼"}</th>)
+                    : <th style={{ ...recThStyle, minWidth: 80 }}>商品號碼</th>
+                  }
+                  <th style={{ ...recThStyle, minWidth: 80, textAlign: "right" }}>起拍價</th>
+                  <th style={{ ...recThStyle, minWidth: 90, textAlign: "right" }}>領先價錢</th>
+                  <th style={{ ...recThStyle, minWidth: 110 }}>
+                    <button
+                      className="flex items-center gap-1"
+                      style={{ color: sortDir !== "none" ? "#d97706" : "#92400e" }}
+                      onClick={() => setSortDir(d => d === "none" ? "asc" : d === "asc" ? "desc" : "none")}
+                    >
+                      領先用戶 <SortIcon className="w-3 h-3" />
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item: any, idx: number) => {
+                  const d = getItemData(item);
+                  const itemTitle = titleCol ? d[titleCol.key] : `商品 ${idx + 1}`;
+                  const hasBid = item.topBidderId != null;
+                  return (
+                    <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: hasBid ? "#fffdf5" : "#fff" }}>
+                      <td style={recTdStyle}>{idx + 1}</td>
+                      <td style={{ ...recTdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{itemTitle || "—"}</td>
+                      {extraCols.length > 0
+                        ? extraCols.map((c: any) => (
+                            <td key={c.key} style={{ ...recTdStyle, minWidth: 80, whiteSpace: "nowrap", fontWeight: 600, color: "#374151" }}>
+                              {d[c.key] || "—"}
+                            </td>
+                          ))
+                        : <td style={{ ...recTdStyle, minWidth: 80, color: "#9ca3af" }}>—</td>
+                      }
+                      <td style={{ ...recTdStyle, minWidth: 80, textAlign: "right", color: "#6b7280", whiteSpace: "nowrap" }}>
+                        {fmtP(item.startPrice)}
+                      </td>
+                      <td style={{ ...recTdStyle, minWidth: 90, textAlign: "right", fontWeight: hasBid ? 700 : 400, color: hasBid ? "#d97706" : "#d1d5db", whiteSpace: "nowrap" }}>
+                        {hasBid ? fmtP(item.currentPrice) : "—"}
+                      </td>
+                      <td style={{ ...recTdStyle, minWidth: 110, whiteSpace: "nowrap", color: hasBid ? "#374151" : "#d1d5db" }}>
+                        {hasBid ? (
+                          <span className="flex items-center gap-1">
+                            <Trophy className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                            {item.topBidderName || "—"}
+                          </span>
+                        ) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {!isLoading && allItems.length > 0 && (
+          <div className="flex-shrink-0 flex items-center gap-4 px-4 py-2 border-t border-gray-100 bg-gray-50">
+            <span className="text-xs text-gray-500">共 <strong>{allItems.length}</strong> 件</span>
+            <span className="text-xs text-emerald-600">有出價 <strong>{withBid}</strong> 件</span>
+            <span className="text-xs text-gray-400">未出價 <strong>{noBid}</strong> 件</span>
+          </div>
+        )}
+
+        <div className="h-6 flex-shrink-0" />
+      </div>
+    </div>
+  );
+}
 
 function statusLabel(s: string) {
   if (s === "draft") return { text: "草稿", cls: "bg-gray-100 text-gray-600" };
@@ -351,13 +541,11 @@ export default function GroupAuctionList() {
         />
       )}
 
-      {/* 拍賣紀錄 modal — Live tab */}
       {recordsRound && (
-        <GroupAuctionRecordsModal
-          open={!!recordsRound}
-          onClose={() => setRecordsRound(null)}
+        <AuctionRecordsSheet
           roundId={recordsRound.id}
           roundTitle={recordsRound.title}
+          onClose={() => setRecordsRound(null)}
         />
       )}
 
