@@ -10038,6 +10038,25 @@ EXAMPLE OUTPUT (exact format):
         return { id: (result as any).insertId as number };
       }),
 
+    updateColorRuleTemplate: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        name: z.string().min(1).max(100),
+        rulesJson: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [existing] = await db.select().from(groupAuctionColorRuleTemplates)
+          .where(eq(groupAuctionColorRuleTemplates.id, input.id)).limit(1);
+        if (!existing || existing.merchantUserId !== ctx.user.id) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: '範本不存在' });
+        }
+        await db.update(groupAuctionColorRuleTemplates)
+          .set({ name: input.name, rulesJson: input.rulesJson })
+          .where(eq(groupAuctionColorRuleTemplates.id, input.id));
+        return { success: true };
+      }),
+
     deleteColorRuleTemplate: protectedProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {

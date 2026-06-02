@@ -112,6 +112,7 @@ export default function GroupAuctionEdit() {
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [colorRuleTemplateName, setColorRuleTemplateName] = useState("");
   const [showSaveColorRuleTemplate, setShowSaveColorRuleTemplate] = useState(false);
+  const [colorRuleTemplateOverwriteId, setColorRuleTemplateOverwriteId] = useState<number | null>(null);
 
   // ── 圖片集 state ──
   const [images, setImages] = useState<{ id: number; url: string; s3Key: string }[]>([]);
@@ -150,8 +151,12 @@ export default function GroupAuctionEdit() {
   const { data: templates } = trpc.groupAuctions.listTemplates.useQuery(undefined, { enabled: !!user });
   const { data: colorRuleTemplates, refetch: refetchColorRuleTemplates } = trpc.groupAuctions.listColorRuleTemplates.useQuery(undefined, { enabled: !!user });
   const saveColorRuleTemplateMut = trpc.groupAuctions.saveColorRuleTemplate.useMutation({
-    onSuccess: () => { toast.success("上色範本已儲存"); setShowSaveColorRuleTemplate(false); setColorRuleTemplateName(""); refetchColorRuleTemplates(); },
+    onSuccess: () => { toast.success("上色範本已儲存"); setShowSaveColorRuleTemplate(false); setColorRuleTemplateName(""); setColorRuleTemplateOverwriteId(null); refetchColorRuleTemplates(); },
     onError: (e) => toast.error(e.message || "儲存失敗"),
+  });
+  const updateColorRuleTemplateMut = trpc.groupAuctions.updateColorRuleTemplate.useMutation({
+    onSuccess: () => { toast.success("上色範本已更新"); setShowSaveColorRuleTemplate(false); setColorRuleTemplateName(""); setColorRuleTemplateOverwriteId(null); refetchColorRuleTemplates(); },
+    onError: (e) => toast.error(e.message || "更新失敗"),
   });
   const deleteColorRuleTemplateMut = trpc.groupAuctions.deleteColorRuleTemplate.useMutation({
     onSuccess: () => { refetchColorRuleTemplates(); },
@@ -705,7 +710,7 @@ export default function GroupAuctionEdit() {
                 <p className="text-xs font-semibold text-gray-600">商品上色規則</p>
                 <span className="text-[10px] text-gray-400">首條符合規則生效</span>
               </div>
-              <p className="text-[11px] text-gray-400">根據關鍵字自動為商品行上色。多個關鍵字用逗號分隔，任一符合即上色。</p>
+              <p className="text-[11px] text-gray-400">根據關鍵字自動為商品行上色。多個關鍵字用 ｜ 分隔（逗號亦可），任一符合即上色。</p>
               {colorRules.map((rule, rIdx) => (
                 <div key={rule.id} className="rounded-xl p-2 space-y-1.5" style={{ background: "#f9fafb", border: "1px solid #f3f4f6" }}>
                   {/* 第一行：關鍵字輸入 + 刪除 */}
@@ -713,7 +718,7 @@ export default function GroupAuctionEdit() {
                     <input
                       className="flex-1 px-2.5 py-1.5 text-xs outline-none"
                       style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "10px" }}
-                      placeholder="關鍵字，逗號分隔"
+                      placeholder="關鍵字，用 ｜ 分隔"
                       value={rule.keywords}
                       onChange={e => setColorRules(p => p.map((r, i) => i === rIdx ? { ...r, keywords: e.target.value } : r))}
                     />
@@ -768,7 +773,37 @@ export default function GroupAuctionEdit() {
               {/* 儲存上色範本 */}
               {showSaveColorRuleTemplate && (
                 <div className="bg-white rounded-xl border border-blue-100 p-3 space-y-2">
-                  <p className="text-xs font-medium text-gray-700">上色範本名稱</p>
+                  {/* 覆蓋現有範本 dropdown */}
+                  {colorRuleTemplates && colorRuleTemplates.length > 0 && (
+                    <div>
+                      <p className="text-[11px] text-gray-400 mb-1">覆蓋現有範本（可選）</p>
+                      <select
+                        className="w-full px-2.5 py-1.5 text-xs outline-none"
+                        style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "10px" }}
+                        value={colorRuleTemplateOverwriteId ?? ""}
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === "") {
+                            setColorRuleTemplateOverwriteId(null);
+                            setColorRuleTemplateName("");
+                          } else {
+                            const id = Number(val);
+                            setColorRuleTemplateOverwriteId(id);
+                            const found = colorRuleTemplates.find(t => t.id === id);
+                            if (found) setColorRuleTemplateName(found.name);
+                          }
+                        }}
+                      >
+                        <option value="">── 建立新範本 ──</option>
+                        {colorRuleTemplates.map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <p className="text-xs font-medium text-gray-700">
+                    {colorRuleTemplateOverwriteId ? "更新範本名稱" : "新範本名稱"}
+                  </p>
                   <input
                     className="w-full px-3 py-1.5 text-xs outline-none"
                     style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "10px" }}
@@ -780,11 +815,16 @@ export default function GroupAuctionEdit() {
                     <button
                       onClick={() => {
                         if (!colorRuleTemplateName.trim()) { toast.error("請輸入範本名稱"); return; }
-                        saveColorRuleTemplateMut.mutate({ name: colorRuleTemplateName.trim(), rulesJson: JSON.stringify(colorRules) });
+                        const rulesJson = JSON.stringify(colorRules);
+                        if (colorRuleTemplateOverwriteId) {
+                          updateColorRuleTemplateMut.mutate({ id: colorRuleTemplateOverwriteId, name: colorRuleTemplateName.trim(), rulesJson });
+                        } else {
+                          saveColorRuleTemplateMut.mutate({ name: colorRuleTemplateName.trim(), rulesJson });
+                        }
                       }}
                       className="flex-1 bg-blue-500 text-white text-xs py-1.5 rounded-lg"
-                    >儲存</button>
-                    <button onClick={() => { setShowSaveColorRuleTemplate(false); setColorRuleTemplateName(""); }}
+                    >{colorRuleTemplateOverwriteId ? "覆蓋更新" : "儲存新範本"}</button>
+                    <button onClick={() => { setShowSaveColorRuleTemplate(false); setColorRuleTemplateName(""); setColorRuleTemplateOverwriteId(null); }}
                       className="px-3 text-xs text-gray-500 py-1.5 rounded-lg bg-gray-100">取消</button>
                   </div>
                 </div>
