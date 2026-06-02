@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { sify, tify } from "chinese-conv";
 import { createPortal } from "react-dom";
 import { Link, useLocation } from "wouter";
 import Header from "@/components/Header";
@@ -67,16 +68,25 @@ const COLOR_PRESETS_LIST = [
   { key: "teal",   bg: "#0f766e" },
 ] as const;
 
+function expandChinese(kw: string): string[] {
+  const s = sify(kw);
+  const t = tify(kw);
+  return [...new Set([kw, s, t])].filter(Boolean);
+}
+
 function getColorRuleMatch(rules: { id: string; keywords: string; color: string; style?: string; weight?: string }[], itemData: Record<string, string>): { color: string; keywords: string[]; style: "bg" | "text"; weight: "bold" | "normal" } | null {
   if (!rules.length) return null;
-  const allText = Object.values(itemData).join(" ").toLowerCase();
+  const allTextRaw = Object.values(itemData).join(" ").toLowerCase();
+  const allTextS = sify(allTextRaw);
   for (const rule of rules) {
-    const kws = rule.keywords.split(/[,，|｜\n]/).map(k => k.trim().toLowerCase()).filter(Boolean);
-    if (kws.length > 0 && kws.some(kw => allText.includes(kw))) {
+    const rawKws = rule.keywords.split(/[,，|｜\n]/).map(k => k.trim().toLowerCase()).filter(Boolean);
+    if (rawKws.length === 0) continue;
+    const matched = rawKws.some(kw => allTextRaw.includes(kw) || allTextS.includes(sify(kw)));
+    if (matched) {
       const preset = COLOR_PRESETS_LIST.find(p => p.key === rule.color);
       if (preset) return {
         color: preset.bg,
-        keywords: kws,
+        keywords: [...new Set(rawKws.flatMap(expandChinese))],
         style: rule.style === "text" ? "text" : "bg",
         weight: rule.weight === "normal" ? "normal" : "bold",
       };
