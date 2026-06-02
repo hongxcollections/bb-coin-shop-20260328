@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation } from "wouter";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
@@ -24,6 +25,13 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$", JPY: "JP¥", GBP: "£", EUR: "€" };
+const DOW_HK = ["日", "一", "二", "三", "四", "五", "六"];
+function fmtRoundDate(d: string | Date | null | undefined): string {
+  if (!d) return "—";
+  const date = new Date(d as string);
+  if (isNaN(date.getTime())) return "—";
+  return `${date.getMonth() + 1}月${date.getDate()}日（${DOW_HK[date.getDay()]}）`;
+}
 
 const recThStyle = {
   padding: "8px 10px",
@@ -46,10 +54,12 @@ const recTdStyle = {
 type RecordsFilter = "all" | "bid" | "nobid";
 type RecordsSortDir = "none" | "asc" | "desc";
 
-function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, onClose, onSaveImage }: {
+function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStartAt, roundEndAt, onClose, onSaveImage }: {
   roundId: number;
   roundTitle: string;
   roundDescription?: string | null;
+  roundStartAt?: string | Date | null;
+  roundEndAt?: string | Date | null;
   onClose: () => void;
   onSaveImage: (url: string, filename: string) => void;
 }) {
@@ -107,20 +117,12 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, onClose, o
 
   async function saveImage() {
     if (!captureRef.current) return;
-    const el = captureRef.current;
-    const parent = el.parentElement;
-    // Temporarily lift parent overflow so toPng captures full width + height
-    const prevStyle = parent ? { overflow: parent.style.overflow, maxHeight: parent.style.maxHeight } : null;
-    if (parent) { parent.style.overflow = "visible"; parent.style.maxHeight = "none"; }
     await new Promise(r => setTimeout(r, 60));
     try {
       const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(el, { backgroundColor: "#ffffff", pixelRatio: 2 });
+      const dataUrl = await toPng(captureRef.current, { backgroundColor: "#ffffff", pixelRatio: 3 });
       onSaveImage(dataUrl, `拍賣紀錄-${round?.title ?? roundTitle}.png`);
     } catch { toast.error("儲存圖片失敗"); }
-    finally {
-      if (parent && prevStyle) { parent.style.overflow = prevStyle.overflow; parent.style.maxHeight = prevStyle.maxHeight; }
-    }
   }
 
   function handlePrint() {
@@ -168,63 +170,155 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, onClose, o
     setTimeout(() => w.print(), 300);
   }
 
+  const startDate = fmtRoundDate(round?.startAt ?? roundStartAt);
+  const endDate   = fmtRoundDate(round?.endAt   ?? roundEndAt);
+  const hasRoundDates = startDate !== "—" || endDate !== "—";
+
+  const CaptureHeader = () => (
+    <div style={{ padding: "12px 16px 10px", borderBottom: "1px solid #fde68a" }}>
+      <p style={{ fontSize: 16, fontWeight: 700, color: "#92400e", lineHeight: 1.3 }}>
+        {round?.title ?? roundTitle}
+      </p>
+      {hasRoundDates && (
+        <p style={{ fontSize: 11, color: "#b45309", margin: "2px 0 0", lineHeight: 1.4 }}>
+          {startDate} — {endDate}
+        </p>
+      )}
+      {merchantDisplayName && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+          {merchantProxySrc
+            ? <img src={merchantProxySrc} style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+            : <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 9, fontWeight: 700, color: "#d97706" }}>{merchantDisplayName.charAt(0)}</div>
+          }
+          <span style={{ fontSize: 12, color: "#6b7280" }}>{merchantDisplayName}</span>
+        </div>
+      )}
+    </div>
+  );
+
+  const CaptureTable = ({ rows }: { rows: any[] }) => (
+    <div style={{ padding: "0 16px 4px" }}>
+      <table style={{ borderCollapse: "collapse", fontSize: "11px", minWidth: "max-content", width: "100%", background: "#fff" }}>
+        <thead>
+          <tr style={{ background: "#fffbeb" }}>
+            <th style={recThStyle}>#</th>
+            <th style={{ ...recThStyle, minWidth: 160 }}>商品名稱</th>
+            {extraCols.length > 0
+              ? extraCols.map((c: any) => <th key={c.key} style={{ ...recThStyle, minWidth: 80 }}>{c.label || "號碼"}</th>)
+              : <th style={{ ...recThStyle, minWidth: 80 }}>商品號碼</th>
+            }
+            <th style={{ ...recThStyle, minWidth: 80, textAlign: "right" }}>起拍價</th>
+            <th style={{ ...recThStyle, minWidth: 90, textAlign: "right" }}>領先價錢</th>
+            <th style={{ ...recThStyle, minWidth: 110, borderRight: "none" }}>領先用戶</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((item: any, idx: number) => {
+            const d = getItemData(item);
+            const itemTitle = titleCol ? d[titleCol.key] : `商品 ${idx + 1}`;
+            const hasBid = item.topBidderId != null;
+            return (
+              <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: hasBid ? "#fffdf5" : "#fff" }}>
+                <td style={recTdStyle}>{idx + 1}</td>
+                <td style={{ ...recTdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{itemTitle || "—"}</td>
+                {extraCols.length > 0
+                  ? extraCols.map((c: any) => (
+                      <td key={c.key} style={{ ...recTdStyle, minWidth: 80, whiteSpace: "nowrap", fontWeight: 600, color: "#374151" }}>
+                        {d[c.key] || "—"}
+                      </td>
+                    ))
+                  : <td style={{ ...recTdStyle, minWidth: 80, color: "#9ca3af" }}>—</td>
+                }
+                <td style={{ ...recTdStyle, minWidth: 80, textAlign: "right", color: "#6b7280", whiteSpace: "nowrap" }}>
+                  {fmtP(item.startPrice)}
+                </td>
+                <td style={{ ...recTdStyle, minWidth: 90, textAlign: "right", fontWeight: hasBid ? 700 : 400, color: hasBid ? "#d97706" : "#d1d5db", whiteSpace: "nowrap" }}>
+                  {hasBid ? fmtP(item.currentPrice) : "—"}
+                </td>
+                <td style={{ ...recTdStyle, minWidth: 110, whiteSpace: "nowrap", color: hasBid ? "#374151" : "#d1d5db", borderRight: "none" }}>
+                  {hasBid ? item.topBidderName || "—" : "—"}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const CaptureFooter = () => (
+    <div style={{ padding: "8px 16px 10px", borderTop: "1px solid #f3f4f6", background: "#f9fafb" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 16px", marginBottom: 6 }}>
+        <span style={{ fontSize: 12, color: "#059669" }}>已出價 <strong>{withBid}</strong></span>
+        <span style={{ fontSize: 12, color: "#6b7280" }}>未出價 <strong>{noBid}</strong></span>
+        <span style={{ fontSize: 12, color: "#3b82f6" }}>用戶出價 <strong>{uniqueBidders}</strong></span>
+        <span style={{ fontSize: 12, color: "#d97706" }}>總成交額 <strong>{fmtP(totalBidAmount)}</strong></span>
+      </div>
+      {(roundDescription || (round?.antiSnipeMode ?? "none") !== "none" || (round?.defaultBidIncrement ?? 0) > 0 || parseFloat(String(round?.buyerCommissionRate ?? 0)) > 0) && (
+        <div style={{ marginTop: 6, padding: "6px 8px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8 }}>
+          {roundDescription && (
+            <p style={{ fontSize: 10, color: "#b45309", lineHeight: 1.5, margin: 0, whiteSpace: "pre-line" }}>{roundDescription}</p>
+          )}
+          {(round?.antiSnipeMode ?? "none") !== "none" && (
+            <p style={{ fontSize: 10, color: "#92400e", fontWeight: 600, margin: 0, marginTop: roundDescription ? 2 : 0 }}>
+              {round?.antiSnipeMode === "per_item"
+                ? `單件延時：出價時間距結束少於 ${round?.antiSnipeMinutes} 分鐘，商品自動延長 ${round?.antiSnipeExtendMinutes} 分鐘`
+                : `全場延時：出價時間距結束少於 ${round?.antiSnipeMinutes} 分鐘，全場自動延長 ${round?.antiSnipeExtendMinutes} 分鐘`
+              }
+            </p>
+          )}
+          {((round?.defaultBidIncrement ?? 0) > 0 || parseFloat(String(round?.buyerCommissionRate ?? 0)) > 0) && (
+            <p style={{ fontSize: 10, color: "#92400e", margin: 0, marginTop: 2 }}>
+              {`每口加幅：${sym}${round?.defaultBidIncrement}（或個別加幅設定可能不同）`}
+              {parseFloat(String(round?.buyerCommissionRate ?? 0)) > 0 && `　買家傭金：${(parseFloat(String(round?.buyerCommissionRate)) * 100).toFixed(1).replace(/\.0$/, "")}%`}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-lg p-0 overflow-hidden rounded-2xl mb-20">
-        {/* Accessibility-only title */}
-        <DialogTitle className="sr-only">{round?.title ?? roundTitle}</DialogTitle>
+    <>
+      <Dialog open={true} onOpenChange={onClose}>
+        <DialogContent className="w-[95vw] max-w-lg p-0 overflow-hidden rounded-2xl mb-20 flex flex-col" style={{ maxHeight: "88vh" }}>
+          <DialogTitle className="sr-only">{round?.title ?? roundTitle}</DialogTitle>
 
-        {/* Filter tabs — NOT in image capture */}
-        {!isLoading && allItems.length > 0 && (
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 flex-shrink-0">
-            {([
-              { key: "all" as RecordsFilter, label: "全部", count: allItems.length },
-              { key: "bid" as RecordsFilter, label: "已出價", count: withBid },
-              { key: "nobid" as RecordsFilter, label: "未出價", count: noBid },
-            ] as const).map(btn => (
-              <button
-                key={btn.key}
-                onClick={() => setFilter(btn.key)}
-                className="text-xs px-3 py-1 rounded-full transition-colors"
-                style={{
-                  background: filter === btn.key ? "#d97706" : "#f3f4f6",
-                  color: filter === btn.key ? "#fff" : "#6b7280",
-                  fontWeight: filter === btn.key ? 700 : 400,
-                }}
-              >
-                {btn.label} {btn.count}
-              </button>
-            ))}
+          {/* ── FIXED: Header (title + dates + merchant) ── */}
+          <div style={{ flexShrink: 0 }}>
+            <CaptureHeader />
           </div>
-        )}
 
-        {/* Scroll container (UI only) */}
-        <div className="overflow-y-auto overflow-x-auto" style={{ maxHeight: "55vh", scrollbarWidth: "thin" as const }}>
-          {isLoading && <p className="text-center text-gray-400 text-sm py-10">載入中...</p>}
-          {!isLoading && allItems.length === 0 && <p className="text-center text-gray-400 text-sm py-10">未有商品紀錄</p>}
-
-          {/* ── captureRef: all image content (no overflow) ── */}
+          {/* ── FIXED: Filter tabs ── */}
           {!isLoading && allItems.length > 0 && (
-            <div ref={captureRef} style={{ background: "#fff" }}>
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100" style={{ flexShrink: 0 }}>
+              {([
+                { key: "all" as RecordsFilter, label: "全部", count: allItems.length },
+                { key: "bid" as RecordsFilter, label: "已出價", count: withBid },
+                { key: "nobid" as RecordsFilter, label: "未出價", count: noBid },
+              ] as const).map(btn => (
+                <button
+                  key={btn.key}
+                  onClick={() => setFilter(btn.key)}
+                  className="text-xs px-3 py-1 rounded-full transition-colors"
+                  style={{
+                    background: filter === btn.key ? "#d97706" : "#f3f4f6",
+                    color: filter === btn.key ? "#fff" : "#6b7280",
+                    fontWeight: filter === btn.key ? 700 : 400,
+                  }}
+                >
+                  {btn.label} {btn.count}
+                </button>
+              ))}
+            </div>
+          )}
 
-              {/* Header: 場次名稱 16px + 商戶頭像+名稱 12px */}
-              <div style={{ padding: "12px 16px 10px", borderBottom: "1px solid #fde68a" }}>
-                <p style={{ fontSize: 16, fontWeight: 700, color: "#92400e", lineHeight: 1.3 }}>
-                  {round?.title ?? roundTitle}
-                </p>
-                {merchantDisplayName && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                    {merchantProxySrc
-                      ? <img src={merchantProxySrc} style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
-                      : <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 9, fontWeight: 700, color: "#d97706" }}>{merchantDisplayName.charAt(0)}</div>
-                    }
-                    <span style={{ fontSize: 12, color: "#6b7280" }}>{merchantDisplayName}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Table */}
-              {items.length === 0
+          {/* ── SCROLLABLE: Table (horizontal + vertical) ── */}
+          <div style={{ flex: 1, overflowX: "auto", overflowY: "auto", minHeight: 0, scrollbarWidth: "thin" as const }}>
+            {isLoading && <p className="text-center text-gray-400 text-sm py-10">載入中...</p>}
+            {!isLoading && allItems.length === 0 && <p className="text-center text-gray-400 text-sm py-10">未有商品紀錄</p>}
+            {!isLoading && allItems.length > 0 && (
+              items.length === 0
                 ? <p className="text-center text-gray-400 text-sm py-6">沒有符合條件的商品</p>
                 : (
                   <div style={{ padding: "0 16px 4px" }}>
@@ -288,63 +382,46 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, onClose, o
                     </table>
                   </div>
                 )
-              }
+            )}
+          </div>
 
-              {/* Footer stats + 預知內容 */}
-              <div style={{ padding: "8px 16px 10px", borderTop: "1px solid #f3f4f6", background: "#f9fafb" }}>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 16px", marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, color: "#059669" }}>已出價 <strong>{withBid}</strong></span>
-                  <span style={{ fontSize: 12, color: "#6b7280" }}>未出價 <strong>{noBid}</strong></span>
-                  <span style={{ fontSize: 12, color: "#3b82f6" }}>用戶出價 <strong>{uniqueBidders}</strong></span>
-                  <span style={{ fontSize: 12, color: "#d97706" }}>總成交額 <strong>{fmtP(totalBidAmount)}</strong></span>
-                </div>
-                {/* 拍賣須知：完全照搬 BidPage 邏輯 */}
-                {(roundDescription || (round?.antiSnipeMode ?? "none") !== "none" || (round?.defaultBidIncrement ?? 0) > 0 || parseFloat(String(round?.buyerCommissionRate ?? 0)) > 0) && (
-                  <div style={{ marginTop: 6, padding: "6px 8px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8 }}>
-                    {roundDescription && (
-                      <p style={{ fontSize: 10, color: "#b45309", lineHeight: 1.5, margin: 0, whiteSpace: "pre-line" }}>{roundDescription}</p>
-                    )}
-                    {(round?.antiSnipeMode ?? "none") !== "none" && (
-                      <p style={{ fontSize: 10, color: "#92400e", fontWeight: 600, margin: 0, marginTop: roundDescription ? 2 : 0 }}>
-                        {round?.antiSnipeMode === "per_item"
-                          ? `單件延時：出價時間距結束少於 ${round?.antiSnipeMinutes} 分鐘，商品自動延長 ${round?.antiSnipeExtendMinutes} 分鐘`
-                          : `全場延時：出價時間距結束少於 ${round?.antiSnipeMinutes} 分鐘，全場自動延長 ${round?.antiSnipeExtendMinutes} 分鐘`
-                        }
-                      </p>
-                    )}
-                    {((round?.defaultBidIncrement ?? 0) > 0 || parseFloat(String(round?.buyerCommissionRate ?? 0)) > 0) && (
-                      <p style={{ fontSize: 10, color: "#92400e", margin: 0, marginTop: 2 }}>
-                        {`每口加幅：${sym}${round?.defaultBidIncrement}（或個別加幅設定可能不同）`}
-                        {parseFloat(String(round?.buyerCommissionRate ?? 0)) > 0 && `　買家傭金：${(parseFloat(String(round?.buyerCommissionRate)) * 100).toFixed(1).replace(/\.0$/, "")}%`}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-
+          {/* ── FIXED: Footer stats + 拍賣須知 ── */}
+          {!isLoading && allItems.length > 0 && (
+            <div style={{ flexShrink: 0 }}>
+              <CaptureFooter />
             </div>
           )}
-        </div>
 
-        {/* Action buttons — NOT in image */}
-        {!isLoading && allItems.length > 0 && (
-          <div className="flex gap-2 px-4 py-3 border-t border-gray-100">
-            <button
-              onClick={saveImage}
-              className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl"
-            >
-              <Download className="w-3.5 h-3.5" /> 儲存圖片
-            </button>
-            <button
-              onClick={handlePrint}
-              className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-2 rounded-xl"
-            >
-              <Printer className="w-3.5 h-3.5" /> 列印
-            </button>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+          {/* ── FIXED: Buttons ── */}
+          {!isLoading && allItems.length > 0 && (
+            <div className="flex gap-2 px-4 py-3 border-t border-gray-100" style={{ flexShrink: 0 }}>
+              <button
+                onClick={saveImage}
+                className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl"
+              >
+                <Download className="w-3.5 h-3.5" /> 儲存圖片
+              </button>
+              <button
+                onClick={handlePrint}
+                className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-2 rounded-xl"
+              >
+                <Printer className="w-3.5 h-3.5" /> 列印
+              </button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Off-screen portal: captureRef for image (all items, no overflow) ── */}
+      {!isLoading && allItems.length > 0 && createPortal(
+        <div ref={captureRef} style={{ position: "fixed", left: "-9999px", top: 0, zIndex: -1, background: "#fff" }}>
+          <CaptureHeader />
+          <CaptureTable rows={allItems} />
+          <CaptureFooter />
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
 
@@ -684,6 +761,8 @@ export default function GroupAuctionList() {
           roundId={recordsRound.id}
           roundTitle={recordsRound.title}
           roundDescription={recordsRound.description}
+          roundStartAt={(recordsRound as any).startAt}
+          roundEndAt={(recordsRound as any).endAt}
           onClose={() => setRecordsRound(null)}
           onSaveImage={(url, fn) => { setRecPreviewUrl(url); setRecPreviewFilename(fn); setRecordsRound(null); }}
         />
