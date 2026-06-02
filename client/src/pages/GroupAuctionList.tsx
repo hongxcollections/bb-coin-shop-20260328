@@ -117,12 +117,15 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
 
   async function saveImage() {
     if (!captureRef.current) return;
-    await new Promise(r => setTimeout(r, 60));
+    const el = captureRef.current;
+    el.style.display = "block";
+    await new Promise(r => setTimeout(r, 80));
     try {
       const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(captureRef.current, { backgroundColor: "#ffffff", pixelRatio: 3 });
+      const dataUrl = await toPng(el, { backgroundColor: "#ffffff", pixelRatio: 3 });
       onSaveImage(dataUrl, `拍賣紀錄-${round?.title ?? roundTitle}.png`);
     } catch { toast.error("儲存圖片失敗"); }
+    finally { el.style.display = "none"; }
   }
 
   function handlePrint() {
@@ -412,9 +415,9 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
         </DialogContent>
       </Dialog>
 
-      {/* ── Off-screen portal: captureRef for image (all items, no overflow) ── */}
+      {/* ── Portal captureRef: hidden until saveImage (display: none → block) ── */}
       {!isLoading && allItems.length > 0 && createPortal(
-        <div ref={captureRef} style={{ position: "fixed", left: "-9999px", top: 0, zIndex: -1, background: "#fff" }}>
+        <div ref={captureRef} style={{ display: "none", position: "fixed", left: 0, top: 0, zIndex: -1, background: "#fff" }}>
           <CaptureHeader />
           <CaptureTable rows={allItems} />
           <CaptureFooter />
