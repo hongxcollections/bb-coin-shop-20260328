@@ -198,37 +198,74 @@ export default function GroupAuctionFlyer() {
       {/* 廣告單張主體（capture 範圍） */}
       <div ref={flyerRef} className="max-w-2xl mx-auto py-6" style={{ fontFamily: "system-ui, sans-serif", background: "#fff" }}>
 
-        {/* 標題區 */}
-        <div className="text-center mb-5 px-4">
-          {round.coverImage && (
-            <img src={round.coverImage} className="w-full h-48 object-cover rounded-2xl mb-4" />
+        {/* Hero 標題區 */}
+        <div className="mb-4">
+          {round.coverImage ? (
+            <div className="relative">
+              <img src={round.coverImage} alt="" className="w-full object-cover" style={{ maxHeight: 220 }} />
+              <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.15) 55%, transparent 100%)" }} />
+              <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
+                {round.periodNumber && (
+                  <span className="inline-block text-[11px] text-amber-300 font-semibold mb-1.5 px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.35)" }}>
+                    第 {round.periodNumber} 期
+                  </span>
+                )}
+                <h1 className="text-white text-xl font-bold leading-snug" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
+                  {round.title}
+                </h1>
+              </div>
+            </div>
+          ) : (
+            <div className="px-4 pt-5 pb-4" style={{ background: "linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)" }}>
+              {round.periodNumber && (
+                <span className="inline-block text-[11px] text-amber-100 font-semibold mb-1.5 px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.2)" }}>
+                  第 {round.periodNumber} 期
+                </span>
+              )}
+              <h1 className="text-white text-xl font-bold leading-snug">{round.title}</h1>
+            </div>
           )}
-          <div
-            className="inline-block text-white text-center px-6 py-3 rounded-2xl mb-2"
-            style={{ background: "linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)" }}
-          >
-            <p className="text-sm opacity-90">
-              {round.periodNumber ? `第 ${round.periodNumber} 期` : "團購拍賣"}
-            </p>
-            <h1 className="text-xl font-bold">【{round.title}】</h1>
+
+          {/* 商戶 + 進入按鈕 */}
+          <div className="px-4 pt-3 flex items-center gap-3">
+            {(round as any).merchantName ? (
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                {(round as any).merchantIcon ? (
+                  <img
+                    src={`/api/img-proxy?url=${encodeURIComponent((round as any).merchantIcon)}`}
+                    alt=""
+                    className="w-8 h-8 rounded-full object-cover shrink-0"
+                    style={{ border: "2px solid #fde68a" }}
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm font-bold text-amber-700"
+                    style={{ background: "linear-gradient(135deg,#fef3c7,#fde68a)" }}>
+                    {((round as any).merchantName as string).charAt(0)}
+                  </div>
+                )}
+                <span className="text-sm font-semibold text-gray-800 truncate">{(round as any).merchantName}</span>
+              </div>
+            ) : <div className="flex-1" />}
+            <a
+              href={bidUrl}
+              className="print:hidden inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full font-semibold text-white shrink-0"
+              style={{ background: "linear-gradient(90deg,#ea580c,#f97316,#fbbf24)" }}
+            >
+              進入出價 →
+            </a>
           </div>
+
+          {/* 日期 */}
           {(round.startAt || round.endAt) && (
-            <p className="text-sm text-gray-600 mt-1">
-              開拍時間：{fmtDateShort((round as any).startAt ?? null)} 至 {fmtDateShort(round.endAt ?? null)}
+            <p className="px-4 mt-1.5 text-xs text-gray-500">
+              開拍：{fmtDateShort((round as any).startAt ?? null)} — {fmtDateShort(round.endAt ?? null)}
             </p>
           )}
-          <a
-            href={bidUrl}
-            className="print:hidden inline-flex items-center gap-1.5 mt-2 px-4 py-1.5 rounded-full text-sm font-semibold text-white"
-            style={{ background: "linear-gradient(90deg, #ea580c 0%, #f97316 60%, #fbbf24 100%)" }}
-          >
-            進入拍賣頁面 →
-          </a>
         </div>
 
         {/* 清單版 */}
         {mode === "list" && (
-          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" as any, paddingLeft: 8 }}>
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" as any, paddingLeft: 8, paddingRight: 8 }}>
             <table style={{ borderCollapse: "collapse", fontSize: 12, width: "100%" }}>
               <thead>
                 <tr>
@@ -312,43 +349,56 @@ export default function GroupAuctionFlyer() {
           </div>
         )}
 
-        {/* 拍賣須知 + QR Code */}
-        <div className="mt-6 px-4 flex gap-6 items-start">
-          <div className="flex-1 space-y-1">
-            {hasRules && (
-              <p className="text-sm font-bold text-gray-800 mb-1.5">拍賣須知：</p>
-            )}
-            {/* 拍賣須知文字（第一行） */}
-            {round.description && (
-              <div className="text-xs text-gray-600 whitespace-pre-line">
-                {round.description}
+        {/* 拍賣須知卡片 + QR */}
+        {hasRules && (
+          <div className="mx-4 mt-5 rounded-2xl overflow-hidden" style={{ border: "1px solid #fde68a" }}>
+            <div className="px-4 py-2" style={{ background: "linear-gradient(90deg,#fffbeb,#fef3c7)" }}>
+              <span className="text-xs font-bold text-amber-800">拍賣須知</span>
+            </div>
+            <div className="px-4 py-3 flex gap-4 items-start bg-white">
+              <div className="flex-1 min-w-0 space-y-1.5">
+                {round.description && (
+                  <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">{round.description}</p>
+                )}
+                {(round as any).antiSnipeMode !== "none" && (
+                  <p className="text-xs text-blue-600">
+                    {(round as any).antiSnipeMode === "per_item"
+                      ? `單件延時：出價時間距結束少於 ${(round as any).antiSnipeMinutes} 分鐘，商品自動延長 ${(round as any).antiSnipeExtendMinutes} 分鐘`
+                      : `全場延時：出價時間距結束少於 ${(round as any).antiSnipeMinutes} 分鐘，全場自動延長 ${(round as any).antiSnipeExtendMinutes} 分鐘`}
+                  </p>
+                )}
+                {(round.defaultBidIncrement > 0 || commRate > 0) && (
+                  <p className="text-xs text-amber-700">
+                    {round.defaultBidIncrement > 0 && `每口加幅：HK$${round.defaultBidIncrement}（或個別加幅設定可能不同）`}
+                    {commRate > 0 && `　買家傭金：${fmtCommRate(commRate)}`}
+                  </p>
+                )}
               </div>
-            )}
-            {/* 延遲結標設定 */}
-            {(round as any).antiSnipeMode !== "none" && (
-              <p className="text-xs text-blue-600">
-                {(round as any).antiSnipeMode === "per_item"
-                  ? `單件延時：出價時間距結束少於 ${(round as any).antiSnipeMinutes} 分鐘，商品自動延長 ${(round as any).antiSnipeExtendMinutes} 分鐘`
-                  : `全場延時：出價時間距結束少於 ${(round as any).antiSnipeMinutes} 分鐘，全場自動延長 ${(round as any).antiSnipeExtendMinutes} 分鐘`}
-              </p>
-            )}
-            {/* 每口加幅 + 傭金 */}
-            {(round.defaultBidIncrement > 0 || commRate > 0) && (
-              <p className="text-xs text-amber-700">
-                {round.defaultBidIncrement > 0 && `每口加幅：HK$${round.defaultBidIncrement}（或個別加幅設定可能不同）`}
-                {commRate > 0 && `　買家傭金：${fmtCommRate(commRate)}`}
-              </p>
-            )}
+              <div className="flex flex-col items-center gap-1 shrink-0">
+                <div className="p-1.5 rounded-xl" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
+                  <QRCodeSVG value={bidUrl} size={68} fgColor="#92400e" bgColor="#fffbeb" />
+                </div>
+                <p className="text-[9px] text-gray-400 text-center mt-0.5">掃碼出價</p>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-col items-center gap-1 flex-shrink-0">
-            <QRCodeSVG value={bidUrl} size={80} fgColor="#92400e" />
-            <p className="text-[10px] text-gray-500 text-center">長按識別二維碼<br />進入出價頁</p>
+        )}
+
+        {/* 冇須知但有 QR：獨立展示 */}
+        {!hasRules && (
+          <div className="flex flex-col items-center gap-1.5 mt-5">
+            <div className="p-2 rounded-xl" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
+              <QRCodeSVG value={bidUrl} size={72} fgColor="#92400e" bgColor="#fffbeb" />
+            </div>
+            <p className="text-[10px] text-gray-400">掃碼進入出價頁</p>
           </div>
-        </div>
+        )}
 
         {/* 頁腳 */}
-        <div className="mt-6 px-4 text-center text-xs text-gray-300 border-t border-gray-100 pt-3">
-          hongxcollections.com
+        <div className="mt-5 mx-4 pt-3 flex items-center justify-center gap-2" style={{ borderTop: "1px solid #f3f4f6" }}>
+          <div style={{ width: 20, height: 1, background: "linear-gradient(90deg,transparent,#fbbf24)" }} />
+          <span className="text-[10px] text-gray-400 tracking-widest">hongxcollections.com</span>
+          <div style={{ width: 20, height: 1, background: "linear-gradient(90deg,#fbbf24,transparent)" }} />
         </div>
       </div>
 
