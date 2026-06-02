@@ -162,7 +162,7 @@ export default function GroupAuctionFlyer() {
             <table style={{ borderCollapse: "collapse", fontSize: 12, width: "100%" }}>
               <thead>
                 <tr>
-                  <th style={thStyle({ background: "#f59e0b", borderRadius: "8px 0 0 8px" })}>序</th>
+                  <th style={thStyle({ background: "#f59e0b", borderRadius: "8px 0 0 8px", paddingLeft: 4 })}>序</th>
                   <th style={thStyle({ background: "linear-gradient(90deg,#f59e0b,#f97316)" })}>商品名稱</th>
                   {itemNumCol && (
                     <th style={thStyle()}>{itemNumCol.label || "號碼"}</th>
@@ -179,27 +179,24 @@ export default function GroupAuctionFlyer() {
                   const title = titleCol ? (d[titleCol.key] || "") : "";
                   const itemNum = itemNumCol ? (d[itemNumCol.key] || "") : "";
                   const colorMatch = getColorRuleMatch(colorRules, d);
-                  const isBg = colorMatch?.style === "bg";
-                  const isText = colorMatch?.style === "text";
+                  const kwColor = colorMatch?.color;
                   const fw = colorMatch?.weight === "bold" ? 700 : 400;
-                  const rowBg = isBg ? colorMatch!.color : (idx % 2 === 0 ? "#fafafa" : "#ffffff");
-                  const rowTextColor = isBg ? "#fff" : undefined;
-                  const contentColor = isText ? colorMatch!.color : undefined;
+                  const rowBg = idx % 2 === 0 ? "#fafafa" : "#ffffff";
                   return (
                     <tr key={item.id} style={{ background: rowBg, borderBottom: "1px solid #f3f4f6" }}>
-                      <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: isBg ? "rgba(255,255,255,0.7)" : "#9ca3af" }}>{idx + 1}</td>
-                      <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: contentColor ?? (rowTextColor ?? "#1f2937"), fontWeight: fw }}>{title || "—"}</td>
+                      <td style={{ padding: "6px 8px", paddingLeft: 4, whiteSpace: "nowrap", color: "#9ca3af" }}>{idx + 1}</td>
+                      <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: kwColor ?? "#1f2937", fontWeight: kwColor ? fw : 400 }}>{title || "—"}</td>
                       {itemNumCol && (
-                        <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: contentColor ?? (rowTextColor ?? "#6b7280"), fontWeight: fw }}>
+                        <td style={{ padding: "6px 8px", whiteSpace: "nowrap", color: kwColor ?? "#6b7280", fontWeight: kwColor ? fw : 400 }}>
                           {itemNum ? `{${itemNum}}` : "—"}
                         </td>
                       )}
                       {customCols.map(c => (
-                        <td key={c.key} style={{ padding: "6px 8px", whiteSpace: "nowrap", color: contentColor ?? (rowTextColor ?? "#6b7280") }}>
+                        <td key={c.key} style={{ padding: "6px 8px", whiteSpace: "nowrap", color: "#6b7280" }}>
                           {d[c.key] || "—"}
                         </td>
                       ))}
-                      <td style={{ padding: "6px 8px", textAlign: "right", whiteSpace: "nowrap", color: isBg ? "rgba(255,255,255,0.9)" : "#b45309", fontWeight: 600 }}>
+                      <td style={{ padding: "6px 8px", textAlign: "right", whiteSpace: "nowrap", color: "#b45309", fontWeight: 600 }}>
                         ${item.startPrice}
                       </td>
                     </tr>
@@ -251,6 +248,12 @@ export default function GroupAuctionFlyer() {
             {hasRules && (
               <p className="text-sm font-bold text-gray-800 mb-1.5">拍賣須知：</p>
             )}
+            {/* 拍賣須知文字（第一行） */}
+            {round.description && (
+              <div className="text-xs text-gray-600 whitespace-pre-line">
+                {round.description}
+              </div>
+            )}
             {/* 延遲結標設定 */}
             {(round as any).antiSnipeMode !== "none" && (
               <p className="text-xs text-blue-600">
@@ -265,12 +268,6 @@ export default function GroupAuctionFlyer() {
                 {round.defaultBidIncrement > 0 && `每口加幅：HK$${round.defaultBidIncrement}（或個別加幅設定可能不同）`}
                 {commRate > 0 && `　買家傭金：${fmtCommRate(commRate)}`}
               </p>
-            )}
-            {/* 拍賣須知文字 */}
-            {round.description && (
-              <div className="text-xs text-gray-600 whitespace-pre-line mt-1">
-                {round.description}
-              </div>
             )}
           </div>
           <div className="flex flex-col items-center gap-1 flex-shrink-0">
