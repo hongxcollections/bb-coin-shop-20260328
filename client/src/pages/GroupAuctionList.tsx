@@ -54,7 +54,7 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose, onSaveImage }: {
 }) {
   const [filter, setFilter] = useState<RecordsFilter>("all");
   const [sortDir, setSortDir] = useState<RecordsSortDir>("none");
-  const captureRef = useRef<HTMLTableElement>(null);
+  const captureRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading } = trpc.groupAuctions.getRound.useQuery(
     { roundId },
@@ -160,23 +160,12 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose, onSaveImage }: {
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] max-w-lg p-0 overflow-hidden rounded-2xl mb-20">
-        <DialogHeader className="px-4 pt-4 pb-3 border-b border-gray-100">
-          <DialogTitle style={{ fontSize: 16, fontWeight: 700, color: "#92400e", lineHeight: 1.3 }}>
-            {round?.title ?? roundTitle}
-          </DialogTitle>
-          {merchantDisplayName && (
-            <div className="flex items-center gap-1.5 mt-1">
-              {merchantProxySrc
-                ? <img src={merchantProxySrc} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
-                : <div className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 text-[9px] font-bold text-amber-700">{merchantDisplayName.charAt(0)}</div>
-              }
-              <span style={{ fontSize: 12, color: "#6b7280" }}>{merchantDisplayName}</span>
-            </div>
-          )}
-        </DialogHeader>
+        {/* Accessibility-only title */}
+        <DialogTitle className="sr-only">{round?.title ?? roundTitle}</DialogTitle>
 
+        {/* Filter tabs — NOT in image capture */}
         {!isLoading && allItems.length > 0 && (
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100">
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 flex-shrink-0">
             {([
               { key: "all" as RecordsFilter, label: "全部", count: allItems.length },
               { key: "bid" as RecordsFilter, label: "已出價", count: withBid },
@@ -198,90 +187,118 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose, onSaveImage }: {
           </div>
         )}
 
-        <div className="overflow-y-auto overflow-x-auto px-4" style={{ maxHeight: "50vh", scrollbarWidth: "thin" as const }}>
+        {/* Scroll container (UI only) */}
+        <div className="overflow-y-auto overflow-x-auto" style={{ maxHeight: "55vh", scrollbarWidth: "thin" as const }}>
           {isLoading && <p className="text-center text-gray-400 text-sm py-10">載入中...</p>}
           {!isLoading && allItems.length === 0 && <p className="text-center text-gray-400 text-sm py-10">未有商品紀錄</p>}
-          {!isLoading && items.length === 0 && allItems.length > 0 && <p className="text-center text-gray-400 text-sm py-10">沒有符合條件的商品</p>}
-          {!isLoading && items.length > 0 && (
-            <table ref={captureRef} style={{ borderCollapse: "collapse", fontSize: "11px", minWidth: "max-content", width: "100%", background: "#fff" }}>
-              <thead>
-                <tr style={{ background: "#fffbeb" }}>
-                  <th style={recThStyle}>#</th>
-                  <th style={{ ...recThStyle, minWidth: 160 }}>商品名稱</th>
-                  {extraCols.length > 0
-                    ? extraCols.map((c: any) => <th key={c.key} style={{ ...recThStyle, minWidth: 80 }}>{c.label || "號碼"}</th>)
-                    : <th style={{ ...recThStyle, minWidth: 80 }}>商品號碼</th>
-                  }
-                  <th style={{ ...recThStyle, minWidth: 80, textAlign: "right" }}>起拍價</th>
-                  <th style={{ ...recThStyle, minWidth: 90, textAlign: "right" }}>領先價錢</th>
-                  <th style={{ ...recThStyle, minWidth: 110 }}>
-                    <button
-                      className="flex items-center gap-1"
-                      style={{ color: sortDir !== "none" ? "#d97706" : "#92400e" }}
-                      onClick={() => setSortDir(d => d === "none" ? "asc" : d === "asc" ? "desc" : "none")}
-                    >
-                      領先用戶 <SortIcon className="w-3 h-3" />
-                    </button>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item: any, idx: number) => {
-                  const d = getItemData(item);
-                  const itemTitle = titleCol ? d[titleCol.key] : `商品 ${idx + 1}`;
-                  const hasBid = item.topBidderId != null;
-                  return (
-                    <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: hasBid ? "#fffdf5" : "#fff" }}>
-                      <td style={recTdStyle}>{idx + 1}</td>
-                      <td style={{ ...recTdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{itemTitle || "—"}</td>
-                      {extraCols.length > 0
-                        ? extraCols.map((c: any) => (
-                            <td key={c.key} style={{ ...recTdStyle, minWidth: 80, whiteSpace: "nowrap", fontWeight: 600, color: "#374151" }}>
-                              {d[c.key] || "—"}
-                            </td>
-                          ))
-                        : <td style={{ ...recTdStyle, minWidth: 80, color: "#9ca3af" }}>—</td>
-                      }
-                      <td style={{ ...recTdStyle, minWidth: 80, textAlign: "right", color: "#6b7280", whiteSpace: "nowrap" }}>
-                        {fmtP(item.startPrice)}
-                      </td>
-                      <td style={{ ...recTdStyle, minWidth: 90, textAlign: "right", fontWeight: hasBid ? 700 : 400, color: hasBid ? "#d97706" : "#d1d5db", whiteSpace: "nowrap" }}>
-                        {hasBid ? fmtP(item.currentPrice) : "—"}
-                      </td>
-                      <td style={{ ...recTdStyle, minWidth: 110, whiteSpace: "nowrap", color: hasBid ? "#374151" : "#d1d5db" }}>
-                        {hasBid ? (
-                          <span className="flex items-center gap-1">
-                            <Trophy className="w-3 h-3 text-amber-400 flex-shrink-0" />
-                            {item.topBidderName || "—"}
-                          </span>
-                        ) : "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+
+          {/* ── captureRef: all image content (no overflow) ── */}
+          {!isLoading && allItems.length > 0 && (
+            <div ref={captureRef} style={{ background: "#fff" }}>
+
+              {/* Header: 場次名稱 16px + 商戶頭像+名稱 12px */}
+              <div style={{ padding: "12px 16px 10px", borderBottom: "1px solid #fde68a" }}>
+                <p style={{ fontSize: 16, fontWeight: 700, color: "#92400e", lineHeight: 1.3 }}>
+                  {round?.title ?? roundTitle}
+                </p>
+                {merchantDisplayName && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                    {merchantProxySrc
+                      ? <img src={merchantProxySrc} style={{ width: 18, height: 18, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                      : <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 9, fontWeight: 700, color: "#d97706" }}>{merchantDisplayName.charAt(0)}</div>
+                    }
+                    <span style={{ fontSize: 12, color: "#6b7280" }}>{merchantDisplayName}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Table */}
+              {items.length === 0
+                ? <p className="text-center text-gray-400 text-sm py-6">沒有符合條件的商品</p>
+                : (
+                  <div style={{ padding: "0 16px 4px" }}>
+                    <table style={{ borderCollapse: "collapse", fontSize: "11px", minWidth: "max-content", width: "100%", background: "#fff" }}>
+                      <thead>
+                        <tr style={{ background: "#fffbeb" }}>
+                          <th style={recThStyle}>#</th>
+                          <th style={{ ...recThStyle, minWidth: 160 }}>商品名稱</th>
+                          {extraCols.length > 0
+                            ? extraCols.map((c: any) => <th key={c.key} style={{ ...recThStyle, minWidth: 80 }}>{c.label || "號碼"}</th>)
+                            : <th style={{ ...recThStyle, minWidth: 80 }}>商品號碼</th>
+                          }
+                          <th style={{ ...recThStyle, minWidth: 80, textAlign: "right" }}>起拍價</th>
+                          <th style={{ ...recThStyle, minWidth: 90, textAlign: "right" }}>領先價錢</th>
+                          <th style={{ ...recThStyle, minWidth: 110, borderRight: "none" }}>
+                            <button
+                              className="flex items-center gap-1"
+                              style={{ color: sortDir !== "none" ? "#d97706" : "#92400e" }}
+                              onClick={() => setSortDir(d => d === "none" ? "asc" : d === "asc" ? "desc" : "none")}
+                            >
+                              領先用戶 <SortIcon className="w-3 h-3" />
+                            </button>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((item: any, idx: number) => {
+                          const d = getItemData(item);
+                          const itemTitle = titleCol ? d[titleCol.key] : `商品 ${idx + 1}`;
+                          const hasBid = item.topBidderId != null;
+                          return (
+                            <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: hasBid ? "#fffdf5" : "#fff" }}>
+                              <td style={recTdStyle}>{idx + 1}</td>
+                              <td style={{ ...recTdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{itemTitle || "—"}</td>
+                              {extraCols.length > 0
+                                ? extraCols.map((c: any) => (
+                                    <td key={c.key} style={{ ...recTdStyle, minWidth: 80, whiteSpace: "nowrap", fontWeight: 600, color: "#374151" }}>
+                                      {d[c.key] || "—"}
+                                    </td>
+                                  ))
+                                : <td style={{ ...recTdStyle, minWidth: 80, color: "#9ca3af" }}>—</td>
+                              }
+                              <td style={{ ...recTdStyle, minWidth: 80, textAlign: "right", color: "#6b7280", whiteSpace: "nowrap" }}>
+                                {fmtP(item.startPrice)}
+                              </td>
+                              <td style={{ ...recTdStyle, minWidth: 90, textAlign: "right", fontWeight: hasBid ? 700 : 400, color: hasBid ? "#d97706" : "#d1d5db", whiteSpace: "nowrap" }}>
+                                {hasBid ? fmtP(item.currentPrice) : "—"}
+                              </td>
+                              <td style={{ ...recTdStyle, minWidth: 110, whiteSpace: "nowrap", color: hasBid ? "#374151" : "#d1d5db", borderRight: "none" }}>
+                                {hasBid ? (
+                                  <span className="flex items-center gap-1">
+                                    <Trophy className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                                    {item.topBidderName || "—"}
+                                  </span>
+                                ) : "—"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              }
+
+              {/* Footer stats + 預知內容 */}
+              <div style={{ padding: "8px 16px 10px", borderTop: "1px solid #f3f4f6", background: "#f9fafb" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 16px", marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, color: "#059669" }}>已出價 <strong>{withBid}</strong></span>
+                  <span style={{ fontSize: 12, color: "#6b7280" }}>未出價 <strong>{noBid}</strong></span>
+                  <span style={{ fontSize: 12, color: "#3b82f6" }}>用戶出價 <strong>{uniqueBidders}</strong></span>
+                  <span style={{ fontSize: 12, color: "#d97706" }}>總成交額 <strong>{fmtP(totalBidAmount)}</strong></span>
+                </div>
+                <p style={{ fontSize: 6, color: "#9ca3af", lineHeight: 1.6, margin: 0 }}>
+                  {(round as any)?.description || "—"}
+                </p>
+              </div>
+
+            </div>
           )}
         </div>
 
+        {/* Action buttons — NOT in image */}
         {!isLoading && allItems.length > 0 && (
-          <div className="px-4 pt-2 pb-0 border-t border-gray-100 bg-gray-50">
-            <div className="flex flex-wrap gap-x-4 gap-y-0.5 pb-2">
-              <span style={{ fontSize: 12, color: "#059669" }}>已出價 <strong>{withBid}</strong></span>
-              <span style={{ fontSize: 12, color: "#6b7280" }}>未出價 <strong>{noBid}</strong></span>
-              <span style={{ fontSize: 12, color: "#3b82f6" }}>用戶出價 <strong>{uniqueBidders}</strong></span>
-              <span style={{ fontSize: 12, color: "#d97706" }}>總成交額 <strong>{fmtP(totalBidAmount)}</strong></span>
-            </div>
-            {(round as any)?.description && (
-              <p style={{ fontSize: 6, color: "#9ca3af", lineHeight: 1.5, paddingBottom: 10 }}>
-                {(round as any).description}
-              </p>
-            )}
-          </div>
-        )}
-
-        {!isLoading && allItems.length > 0 && (
-          <div className="flex gap-2 px-4 pb-4 pt-2">
+          <div className="flex gap-2 px-4 py-3 border-t border-gray-100">
             <button
               onClick={saveImage}
               className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl"
