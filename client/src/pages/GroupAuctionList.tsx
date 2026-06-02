@@ -181,13 +181,16 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
 
   const CaptureHeader = () => (
     <div style={{ padding: "12px 16px 10px", borderBottom: "1px solid #fde68a" }}>
-      <p style={{ fontSize: 16, fontWeight: 700, color: "#92400e", lineHeight: 1.3 }}>
+      <span style={{ display: "inline-block", background: "#c2410c", color: "#fff", fontSize: 15, fontWeight: 700, lineHeight: 1.3, padding: "3px 10px", borderRadius: 8 }}>
         {round?.title ?? roundTitle}
-      </p>
+      </span>
       {hasRoundDates && (
-        <p style={{ fontSize: 11, color: "#b45309", margin: "2px 0 0", lineHeight: 1.4 }}>
-          {`拍賣日期 ${startDate !== "—" ? startDate : "—"} — ${endDate !== "—" ? endDate : "—"}`}
-        </p>
+        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "3px 6px", marginTop: 5 }}>
+          <span style={{ fontSize: 11, color: "#92400e", fontWeight: 600, flexShrink: 0 }}>拍賣日期</span>
+          <span style={{ fontSize: 11, color: "#b45309" }}>{startDate !== "—" ? startDate : "—"}</span>
+          <span style={{ fontSize: 11, color: "#92400e", fontWeight: 700, flexShrink: 0 }}>至</span>
+          <span style={{ fontSize: 11, color: "#b45309" }}>{endDate !== "—" ? endDate : "—"}</span>
+        </div>
       )}
       {merchantDisplayName && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
