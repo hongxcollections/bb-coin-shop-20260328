@@ -105,11 +105,20 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose, onSaveImage }: {
 
   async function saveImage() {
     if (!captureRef.current) return;
+    const el = captureRef.current;
+    const parent = el.parentElement;
+    // Temporarily lift parent overflow so toPng captures full width + height
+    const prevStyle = parent ? { overflow: parent.style.overflow, maxHeight: parent.style.maxHeight } : null;
+    if (parent) { parent.style.overflow = "visible"; parent.style.maxHeight = "none"; }
+    await new Promise(r => setTimeout(r, 60));
     try {
       const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(captureRef.current, { backgroundColor: "#ffffff", pixelRatio: 2 });
+      const dataUrl = await toPng(el, { backgroundColor: "#ffffff", pixelRatio: 2 });
       onSaveImage(dataUrl, `拍賣紀錄-${round?.title ?? roundTitle}.png`);
     } catch { toast.error("儲存圖片失敗"); }
+    finally {
+      if (parent && prevStyle) { parent.style.overflow = prevStyle.overflow; parent.style.maxHeight = prevStyle.maxHeight; }
+    }
   }
 
   function handlePrint() {
@@ -287,8 +296,8 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose, onSaveImage }: {
                   <span style={{ fontSize: 12, color: "#3b82f6" }}>用戶出價 <strong>{uniqueBidders}</strong></span>
                   <span style={{ fontSize: 12, color: "#d97706" }}>總成交額 <strong>{fmtP(totalBidAmount)}</strong></span>
                 </div>
-                <p style={{ fontSize: 6, color: "#9ca3af", lineHeight: 1.6, margin: 0 }}>
-                  {(round as any)?.description || "—"}
+                <p style={{ fontSize: 10, color: "#6b7280", lineHeight: 1.6, margin: 0, marginTop: 4 }}>
+                  {(round as any)?.description || ""}
                 </p>
               </div>
 
