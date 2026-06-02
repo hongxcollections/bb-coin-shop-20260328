@@ -1,0 +1,158 @@
+import { X, Trophy } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  roundId: number;
+  roundTitle: string;
+}
+
+const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$", JPY: "JP¥", GBP: "£", EUR: "€" };
+
+type ColumnDef = { key: string; label: string; role: string };
+
+function getItemData(item: any): Record<string, string> {
+  try { return JSON.parse(item.dataJson); } catch { return {}; }
+}
+
+export function GroupAuctionRecordsModal({ open, onClose, roundId, roundTitle }: Props) {
+  const { data, isLoading } = trpc.groupAuctions.getRound.useQuery(
+    { roundId },
+    { enabled: open, refetchInterval: 5000, staleTime: 0 }
+  );
+
+  if (!open) return null;
+
+  const round = data?.round;
+  const items: any[] = data?.items ?? [];
+
+  const columns: ColumnDef[] = (() => {
+    try { return JSON.parse(round?.columnsJson ?? "[]"); } catch { return []; }
+  })();
+  const titleCol = columns.find(c => c.role === "itemTitle");
+  const customTextCols = columns.filter(c => c.role === "customText");
+
+  const currency = ((round as any)?.displayCurrencies ?? "HKD").split(",")[0].trim() || "HKD";
+  const sym = CURR_SYMS[currency] ?? "HK$";
+
+  const fmtPrice = (n: number | null | undefined) =>
+    n != null ? `${sym}${Math.round(Number(n)).toLocaleString()}` : "—";
+
+  const withBid = items.filter(i => i.topBidderId != null).length;
+  const noBid = items.filter(i => i.topBidderId == null).length;
+
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex items-end justify-center"
+      style={{ background: "rgba(0,0,0,0.50)" }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-white w-full rounded-t-2xl shadow-2xl flex flex-col"
+        style={{ maxHeight: "80vh", paddingLeft: "5px", paddingRight: "5px" }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-2 py-3 border-b border-gray-100 flex-shrink-0">
+          <div>
+            <h2 className="font-bold text-gray-900 text-sm">拍賣紀錄</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{round?.title ?? roundTitle}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Table — 整個 table 一起橫向 scroll */}
+        <div className="flex-1 overflow-y-auto overflow-x-auto pb-20" style={{ scrollbarWidth: "thin" }}>
+          {isLoading && (
+            <p className="text-center text-gray-400 text-sm py-10">載入中...</p>
+          )}
+
+          {!isLoading && items.length === 0 && (
+            <p className="text-center text-gray-400 text-sm py-10">未有商品紀錄</p>
+          )}
+
+          {!isLoading && items.length > 0 && (
+            <table style={{ borderCollapse: "collapse", fontSize: "11px", minWidth: "max-content", width: "100%" }}>
+              <thead>
+                <tr style={{ background: "#fffbeb" }}>
+                  <th style={thStyle}>#</th>
+                  <th style={{ ...thStyle, minWidth: 160 }}>商品名稱</th>
+                  {customTextCols.map(c => (
+                    <th key={c.key} style={{ ...thStyle, minWidth: 80 }}>{c.label || "商品號碼"}</th>
+                  ))}
+                  {customTextCols.length === 0 && (
+                    <th style={{ ...thStyle, minWidth: 80 }}>商品號碼</th>
+                  )}
+                  <th style={{ ...thStyle, minWidth: 80, textAlign: "right" }}>起拍價</th>
+                  <th style={{ ...thStyle, minWidth: 90, textAlign: "right" }}>領先價錢</th>
+                  <th style={{ ...thStyle, minWidth: 100 }}>領先用戶</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, idx) => {
+                  const d = getItemData(item);
+                  const itemTitle = titleCol ? d[titleCol.key] : `商品 ${idx + 1}`;
+                  const hasBid = item.topBidderId != null;
+                  return (
+                    <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: hasBid ? "#fffdf5" : "#fff" }}>
+                      <td style={tdStyle}>{idx + 1}</td>
+                      <td style={{ ...tdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{itemTitle || "—"}</td>
+                      {customTextCols.length > 0
+                        ? customTextCols.map(c => (
+                            <td key={c.key} style={{ ...tdStyle, minWidth: 80, whiteSpace: "nowrap", fontWeight: 600, color: "#374151" }}>
+                              {d[c.key] || "—"}
+                            </td>
+                          ))
+                        : <td style={{ ...tdStyle, minWidth: 80, color: "#9ca3af" }}>—</td>
+                      }
+                      <td style={{ ...tdStyle, minWidth: 80, textAlign: "right", color: "#6b7280", whiteSpace: "nowrap" }}>
+                        {fmtPrice(item.startPrice)}
+                      </td>
+                      <td style={{ ...tdStyle, minWidth: 90, textAlign: "right", fontWeight: hasBid ? 700 : 400, color: hasBid ? "#d97706" : "#d1d5db", whiteSpace: "nowrap" }}>
+                        {hasBid ? fmtPrice(item.currentPrice) : "—"}
+                      </td>
+                      <td style={{ ...tdStyle, minWidth: 100, whiteSpace: "nowrap", color: hasBid ? "#374151" : "#d1d5db" }}>
+                        {hasBid ? (
+                          <span className="flex items-center gap-1">
+                            <Trophy className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                            {item.topBidderName || "—"}
+                          </span>
+                        ) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Footer 統計 */}
+        {!isLoading && items.length > 0 && (
+          <div className="flex-shrink-0 flex items-center gap-4 px-3 py-2 border-t border-gray-100 bg-gray-50 rounded-none">
+            <span className="text-xs text-gray-500">共 <strong>{items.length}</strong> 件</span>
+            <span className="text-xs text-emerald-600">已出價 <strong>{withBid}</strong> 件</span>
+            <span className="text-xs text-gray-400">未出價 <strong>{noBid}</strong> 件</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const thStyle: React.CSSProperties = {
+  textAlign: "left",
+  padding: "7px 10px",
+  fontWeight: 600,
+  color: "#92400e",
+  borderBottom: "1px solid #fde68a",
+  whiteSpace: "nowrap",
+};
+
+const tdStyle: React.CSSProperties = {
+  padding: "7px 10px",
+  color: "#374151",
+};

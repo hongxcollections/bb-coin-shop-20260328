@@ -6,10 +6,11 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { Plus, ChevronLeft, Pencil, Trash2, Globe, Archive, Clock, QrCode, Receipt } from "lucide-react";
+import { Plus, ChevronLeft, Pencil, Trash2, Globe, Archive, Clock, QrCode, Receipt, ListOrdered } from "lucide-react";
 import { GroupAuctionShareMenu } from "@/components/ShareMenu";
 import { GroupAuctionPosterModal } from "@/components/GroupAuctionPosterModal";
 import { GroupAuctionCommissionModal } from "@/components/GroupAuctionCommissionModal";
+import { GroupAuctionRecordsModal } from "@/components/GroupAuctionRecordsModal";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -49,6 +50,7 @@ export default function GroupAuctionList() {
   const [posterRound, setPosterRound] = useState<any | null>(null);
   const [commissionRound, setCommissionRound] = useState<any | null>(null);
   const [platformCommissionRound, setPlatformCommissionRound] = useState<any | null>(null);
+  const [recordsRound, setRecordsRound] = useState<any | null>(null);
   const [destroyTarget, setDestroyTarget] = useState<DestroyTarget>(null);
 
   const { data: rounds, isLoading, refetch } = trpc.groupAuctions.myListRounds.useQuery(undefined, {
@@ -214,6 +216,16 @@ export default function GroupAuctionList() {
                     </Link>
                   )}
 
+                  {r.status === "published" && (
+                    <button
+                      onClick={() => setRecordsRound(r)}
+                      className="flex items-center gap-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg"
+                    >
+                      <ListOrdered className="w-3 h-3" />
+                      拍賣紀錄
+                    </button>
+                  )}
+
                   <button
                     onClick={() => setPosterRound(r)}
                     className="flex items-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-lg"
@@ -336,6 +348,16 @@ export default function GroupAuctionList() {
           round={posterRound}
           merchantName={(merchantApp as any)?.merchantName ?? (user as any)?.name}
           merchantAvatar={(merchantApp as any)?.merchantIcon || (user as any)?.photoUrl}
+        />
+      )}
+
+      {/* 拍賣紀錄 modal — Live tab */}
+      {recordsRound && (
+        <GroupAuctionRecordsModal
+          open={!!recordsRound}
+          onClose={() => setRecordsRound(null)}
+          roundId={recordsRound.id}
+          roundTitle={recordsRound.title}
         />
       )}
 

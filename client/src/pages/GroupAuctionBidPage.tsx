@@ -3,7 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Clock, ChevronUp, ExternalLink, Trophy, AlertCircle, ListOrdered, X } from "lucide-react";
+import { Clock, ChevronUp, ExternalLink, Trophy, AlertCircle } from "lucide-react";
 import ImageLightbox from "@/components/ImageLightbox";
 import Header from "@/components/Header";
 
@@ -48,7 +48,6 @@ export default function GroupAuctionBidPage() {
   const [customAmount, setCustomAmount] = useState("");
   const [capConfirm, setCapConfirm] = useState<{ itemId: number; amount: number; title: string; itemNumber: number; extraCols: string } | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-  const [showRecordsModal, setShowRecordsModal] = useState(false);
 
   // ── 推廣圖片 lightbox ──
   const [promoLbIdx, setPromoLbIdx] = useState<number | null>(null);
@@ -338,14 +337,6 @@ export default function GroupAuctionBidPage() {
             </button>
           </div>
           <div className="flex gap-1 flex-shrink-0 ml-1">
-            <button
-              onClick={() => setShowRecordsModal(true)}
-              className="flex items-center gap-0.5 text-[11px] px-1.5 py-0.5 font-medium border border-blue-200 bg-blue-50 text-blue-700"
-              style={{ borderRadius: "5px" }}
-            >
-              <ListOrdered className="w-3 h-3" />
-              拍賣紀錄
-            </button>
             {(round.description || round.antiSnipeMode !== 'none' || round.defaultBidIncrement > 0 || commRate > 0) && (
               <button
                 onClick={() => setShowDesc(v => !v)}
@@ -745,84 +736,6 @@ export default function GroupAuctionBidPage() {
         </div>
       )}
 
-      {/* 拍賣紀錄 Modal */}
-      {showRecordsModal && (
-        <div
-          className="fixed inset-0 z-[9999] flex items-end justify-center"
-          style={{ background: "rgba(0,0,0,0.50)" }}
-          onClick={() => setShowRecordsModal(false)}
-        >
-          <div
-            className="bg-white w-full rounded-t-2xl shadow-2xl flex flex-col"
-            style={{ maxHeight: "80vh" }}
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
-              <div>
-                <h2 className="font-bold text-gray-900 text-sm">拍賣紀錄</h2>
-                <p className="text-xs text-gray-400 mt-0.5">{round.title}</p>
-              </div>
-              <button onClick={() => setShowRecordsModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* 欄標題 */}
-            <div className="flex-shrink-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-              <div className="flex items-center gap-0 border-b border-gray-100 bg-amber-50" style={{ minWidth: "max-content" }}>
-                <span className="text-[10px] font-semibold text-amber-700 px-3 py-2 w-10 flex-shrink-0">#</span>
-                <span className="text-[10px] font-semibold text-amber-700 px-3 py-2 w-48 flex-shrink-0">商品名稱</span>
-                <span className="text-[10px] font-semibold text-amber-700 px-3 py-2 w-28 flex-shrink-0 text-right">領先價錢</span>
-                <span className="text-[10px] font-semibold text-amber-700 px-3 py-2 w-32 flex-shrink-0">領先用戶</span>
-              </div>
-            </div>
-
-            {/* 紀錄行（每行一件，可橫向 scroll） */}
-            <div className="overflow-y-auto flex-1">
-              {items.map((item, idx) => {
-                const d = getItemData(item);
-                const itemTitle = titleCol ? d[titleCol.key] : `商品 ${idx + 1}`;
-                const isMine = user && Number(item.topBidderId) === Number(user.id);
-                return (
-                  <div
-                    key={item.id}
-                    className="overflow-x-auto border-b border-gray-100 last:border-0"
-                    style={{ scrollbarWidth: "none" }}
-                  >
-                    <div className="flex items-center" style={{ minWidth: "max-content" }}>
-                      {/* 序號 */}
-                      <span className="text-xs text-gray-400 px-3 py-2.5 w-10 flex-shrink-0">{idx + 1}</span>
-                      {/* 商品名稱 */}
-                      <span
-                        className="text-xs font-medium text-gray-800 px-3 py-2.5 w-48 flex-shrink-0 whitespace-nowrap overflow-hidden"
-                        style={{ textOverflow: "ellipsis" }}
-                      >
-                        {itemTitle || "—"}
-                      </span>
-                      {/* 領先價錢 */}
-                      <span className={`text-xs font-bold px-3 py-2.5 w-28 flex-shrink-0 text-right whitespace-nowrap ${item.topBidderId ? "text-amber-600" : "text-gray-300"}`}>
-                        {item.topBidderId ? displayPrice(item.currentPrice as number) : "—"}
-                      </span>
-                      {/* 領先用戶 */}
-                      <span className={`text-xs px-3 py-2.5 w-32 flex-shrink-0 whitespace-nowrap ${isMine ? "text-amber-600 font-semibold" : "text-gray-600"}`}>
-                        {isMine ? "你領先 🏆" : (item.topBidderName || "—")}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Footer 統計 */}
-            <div className="flex-shrink-0 flex items-center gap-4 px-4 py-2.5 border-t border-gray-100 bg-gray-50">
-              <span className="text-xs text-gray-500">共 <strong>{items.length}</strong> 件</span>
-              <span className="text-xs text-gray-500">已出價 <strong>{items.filter(i => i.topBidderId !== null).length}</strong> 件</span>
-              <span className="text-xs text-gray-500">未出價 <strong>{items.filter(i => i.topBidderId === null).length}</strong> 件</span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
