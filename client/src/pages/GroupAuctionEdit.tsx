@@ -367,15 +367,31 @@ export default function GroupAuctionEdit() {
     const rows = lines.slice(1)
       .map(splitLine)
       .filter(r => r.some(c => c !== ""));
+    // 如果 data 行比 header 多欄，自動補 header（欄N）確保可配對
+    const maxCols = rows.reduce((m, r) => Math.max(m, r.length), headers.length);
+    while (headers.length < maxCols) {
+      headers.push(`欄${headers.length + 1}`);
+    }
     setCsvHeaders(headers);
     setCsvRows(rows);
-    // 自動配對欄位（完全匹配 > 包含匹配 > 起頭匹配）
+    // 自動配對欄位（完全匹配 > 包含匹配）
+    // 別名表：CSV header 常見別名 → 系統欄位 label
+    const ALIASES: Record<string, string[]> = {
+      "名稱": ["品名", "商品名", "名"],
+      "號碼": ["號", "編號", "序號", "serial", "no"],
+      "起拍價": ["起拍", "起標價", "底價", "price", "start"],
+      "封頂價": ["封頂", "直購", "cap", "buynow"],
+    };
     const mapping: Record<string, string> = {};
     columns.forEach(col => {
-      const exact = headers.find(h => h === col.label);
+      const aliases = ALIASES[col.label] ?? [];
+      const allLabels = [col.label, ...aliases];
+      const exact = headers.find(h => allLabels.some(l => h === l));
       const contains = headers.find(h =>
-        h.toLowerCase().includes(col.label.toLowerCase()) ||
-        col.label.toLowerCase().includes(h.toLowerCase())
+        allLabels.some(l =>
+          h.toLowerCase().includes(l.toLowerCase()) ||
+          l.toLowerCase().includes(h.toLowerCase())
+        )
       );
       const matched = exact ?? contains ?? undefined;
       if (matched) mapping[col.key] = matched;
@@ -925,7 +941,7 @@ export default function GroupAuctionEdit() {
                   className="w-full px-3 py-2 text-xs outline-none resize-none font-mono"
                   style={inputStyle}
                   rows={6}
-                  placeholder={"品名,描述,起拍\n生肖馬年,J098003688,100"}
+                  placeholder={"名稱,號碼,起拍價\n1999年人民幣1元,R2Y9222201,500"}
                   value={csvText}
                   onChange={e => { setCsvText(e.target.value); }}
                   onBlur={() => csvText && parseCsv(csvText)}
