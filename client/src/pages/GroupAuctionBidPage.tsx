@@ -558,10 +558,10 @@ export default function GroupAuctionBidPage() {
                 </div>
 
                 {/* 商品號碼行：右對齊，17px，深色粗體搶眼 */}
-                {displayCols.filter(c => c.role === "customText").length > 0 && (
+                {displayCols.filter(c => c.role === "itemNumber").length > 0 && (
                   <div className="text-right mt-0.5">
                     <span className="text-[17px] font-bold text-gray-800">
-                      {displayCols.filter(c => c.role === "customText").map(c => data[c.key]).filter(Boolean).join(" · ")}
+                      {displayCols.filter(c => c.role === "itemNumber").map(c => data[c.key]).filter(Boolean).join(" · ")}
                     </span>
                   </div>
                 )}
