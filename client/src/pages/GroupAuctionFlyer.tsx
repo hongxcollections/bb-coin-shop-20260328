@@ -104,46 +104,42 @@ export default function GroupAuctionFlyer() {
 
         {/* 清單版 */}
         {mode === "list" && (
-          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" as any, margin: "0 -3px" }}>
-            <div style={{ minWidth: "max-content", padding: "0 3px" }}>
-              {/* 標題行 */}
-              <div
-                className="flex text-xs font-semibold text-white px-2 py-1.5 rounded-lg mb-1"
-                style={{ background: "linear-gradient(90deg, #f59e0b, #ef4444)" }}
-              >
-                <span style={{ width: 28, flexShrink: 0 }}>序</span>
-                <span style={{ width: 220, flexShrink: 0 }}>商品名稱</span>
-                {customCols.map(c => (
-                  <span key={c.key} style={{ width: 80, flexShrink: 0 }}>{c.label}</span>
-                ))}
-                <span style={{ width: 64, flexShrink: 0, textAlign: "right" }}>起拍</span>
-              </div>
-              {/* 每行商品 */}
-              {items.map((item, idx) => {
-                const d = (() => { try { return JSON.parse(item.dataJson); } catch { return {}; } })();
-                const title = titleCol ? (d[titleCol.key] || "") : "";
-                const itemNum = itemNumCol ? (d[itemNumCol.key] || "") : "";
-                const combined = title && itemNum ? `${title} • ${itemNum}` : (title || itemNum || "—");
-                return (
-                  <div
-                    key={item.id}
-                    className="flex text-xs px-2 py-1.5 border-b border-gray-100"
-                    style={{ background: idx % 2 === 0 ? "#fafafa" : "white" }}
-                  >
-                    <span style={{ width: 28, flexShrink: 0, color: "#9ca3af" }}>{idx + 1}</span>
-                    <span style={{ width: 220, flexShrink: 0, color: "#1f2937", whiteSpace: "nowrap" }}>{combined}</span>
-                    {customCols.map(c => (
-                      <span key={c.key} style={{ width: 80, flexShrink: 0, color: "#6b7280", whiteSpace: "nowrap" }}>
-                        {d[c.key] || "—"}
-                      </span>
-                    ))}
-                    <span style={{ width: 64, flexShrink: 0, textAlign: "right", color: "#b45309", fontWeight: 600, whiteSpace: "nowrap" }}>
-                      ${item.startPrice}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" as any }}>
+            <table style={{ borderCollapse: "collapse", fontSize: 12, width: "100%" }}>
+              <thead>
+                <tr>
+                  <th style={{ padding: "6px 8px", textAlign: "left", whiteSpace: "nowrap", color: "#fff", fontWeight: 600, background: "#f59e0b", borderRadius: "8px 0 0 8px" }}>序</th>
+                  <th style={{ padding: "6px 8px", textAlign: "left", whiteSpace: "nowrap", color: "#fff", fontWeight: 600, background: "linear-gradient(90deg,#f59e0b,#f97316)" }}>商品名稱</th>
+                  {customCols.map(c => (
+                    <th key={c.key} style={{ padding: "6px 8px", textAlign: "left", whiteSpace: "nowrap", color: "#fff", fontWeight: 600, background: "#f97316" }}>{c.label}</th>
+                  ))}
+                  <th style={{ padding: "6px 8px", textAlign: "right", whiteSpace: "nowrap", color: "#fff", fontWeight: 600, background: "#ef4444", borderRadius: "0 8px 8px 0" }}>起拍</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, idx) => {
+                  const d = (() => { try { return JSON.parse(item.dataJson); } catch { return {}; } })();
+                  const title = titleCol ? (d[titleCol.key] || "") : "";
+                  const itemNum = itemNumCol ? (d[itemNumCol.key] || "") : "";
+                  const combined = title && itemNum ? `${title} • ${itemNum}` : (title || itemNum || "—");
+                  const rowBg = idx % 2 === 0 ? "#fafafa" : "#ffffff";
+                  return (
+                    <tr key={item.id} style={{ background: rowBg, borderBottom: "1px solid #f3f4f6" }}>
+                      <td style={{ padding: "6px 8px", color: "#9ca3af", whiteSpace: "nowrap" }}>{idx + 1}</td>
+                      <td style={{ padding: "6px 8px", color: "#1f2937", whiteSpace: "nowrap" }}>{combined}</td>
+                      {customCols.map(c => (
+                        <td key={c.key} style={{ padding: "6px 8px", color: "#6b7280", whiteSpace: "nowrap" }}>
+                          {d[c.key] || "—"}
+                        </td>
+                      ))}
+                      <td style={{ padding: "6px 8px", textAlign: "right", color: "#b45309", fontWeight: 600, whiteSpace: "nowrap" }}>
+                        ${item.startPrice}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
 
