@@ -298,10 +298,27 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, onClose, o
                   <span style={{ fontSize: 12, color: "#3b82f6" }}>用戶出價 <strong>{uniqueBidders}</strong></span>
                   <span style={{ fontSize: 12, color: "#d97706" }}>總成交額 <strong>{fmtP(totalBidAmount)}</strong></span>
                 </div>
-                {roundDescription && (
-                  <p style={{ fontSize: 10, color: "#b45309", lineHeight: 1.6, margin: 0, marginTop: 4, whiteSpace: "pre-line" }}>
-                    {roundDescription}
-                  </p>
+                {/* 拍賣須知：完全照搬 BidPage 邏輯 */}
+                {(roundDescription || (round?.antiSnipeMode ?? "none") !== "none" || (round?.defaultBidIncrement ?? 0) > 0 || parseFloat(String(round?.buyerCommissionRate ?? 0)) > 0) && (
+                  <div style={{ marginTop: 6, padding: "6px 8px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8 }}>
+                    {roundDescription && (
+                      <p style={{ fontSize: 10, color: "#b45309", lineHeight: 1.5, margin: 0, whiteSpace: "pre-line" }}>{roundDescription}</p>
+                    )}
+                    {(round?.antiSnipeMode ?? "none") !== "none" && (
+                      <p style={{ fontSize: 10, color: "#92400e", fontWeight: 600, margin: 0, marginTop: roundDescription ? 2 : 0 }}>
+                        {round?.antiSnipeMode === "per_item"
+                          ? `單件延時：出價時間距結束少於 ${round?.antiSnipeMinutes} 分鐘，商品自動延長 ${round?.antiSnipeExtendMinutes} 分鐘`
+                          : `全場延時：出價時間距結束少於 ${round?.antiSnipeMinutes} 分鐘，全場自動延長 ${round?.antiSnipeExtendMinutes} 分鐘`
+                        }
+                      </p>
+                    )}
+                    {((round?.defaultBidIncrement ?? 0) > 0 || parseFloat(String(round?.buyerCommissionRate ?? 0)) > 0) && (
+                      <p style={{ fontSize: 10, color: "#92400e", margin: 0, marginTop: 2 }}>
+                        {`每口加幅：${sym}${round?.defaultBidIncrement}（或個別加幅設定可能不同）`}
+                        {parseFloat(String(round?.buyerCommissionRate ?? 0)) > 0 && `　買家傭金：${(parseFloat(String(round?.buyerCommissionRate)) * 100).toFixed(1).replace(/\.0$/, "")}%`}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
 
