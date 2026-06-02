@@ -47,6 +47,19 @@ const PRESET_TEMPLATES: { name: string; columns: ColumnDef[] }[] = [
 
 function genKey() { return `col_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`; }
 
+const COLOR_PRESETS = [
+  { key: "gold",   label: "金", bg: "#fef9c3" },
+  { key: "red",    label: "紅", bg: "#fee2e2" },
+  { key: "green",  label: "綠", bg: "#dcfce7" },
+  { key: "blue",   label: "藍", bg: "#dbeafe" },
+  { key: "orange", label: "橙", bg: "#ffedd5" },
+  { key: "purple", label: "紫", bg: "#ede9fe" },
+  { key: "pink",   label: "粉", bg: "#fce7f3" },
+  { key: "teal",   label: "青", bg: "#ccfbf1" },
+] as const;
+type ColorRuleKey = typeof COLOR_PRESETS[number]["key"];
+type ColorRule = { id: string; keywords: string; color: ColorRuleKey };
+
 function formatDateTimeLocal(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -107,6 +120,7 @@ export default function GroupAuctionEdit() {
   // ── 場次推廣圖片 state（存 URL，最多 10 張）──
   const [promoImages, setPromoImages] = useState<string[]>([]);
   const [uploadingPromo, setUploadingPromo] = useState(false);
+  const [colorRules, setColorRules] = useState<ColorRule[]>([]);
   const [promoUploadProgress, setPromoUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const promoFileRef = useRef<HTMLInputElement>(null);
 
@@ -211,6 +225,7 @@ export default function GroupAuctionEdit() {
     setImages(roundData.images.map(img => ({ id: img.id, url: img.url, s3Key: img.s3Key })));
     setItems(roundData.items);
     try { setPromoImages(JSON.parse((roundData.round as any).promoImagesJson ?? "[]")); } catch { setPromoImages([]); }
+    try { setColorRules(JSON.parse((roundData.round as any).colorRulesJson ?? "[]")); } catch { setColorRules([]); }
     // 已結拍的場次自動跳到成績紀錄 tab
     if (roundData.round?.status === "ended") {
       setTab("results");
@@ -235,6 +250,7 @@ export default function GroupAuctionEdit() {
       minDurationMinutes: parseInt(basic.minDurationMinutes, 10) || 0,
       columnsJson: JSON.stringify(columns),
       promoImagesJson: JSON.stringify(promoImages),
+      colorRulesJson: JSON.stringify(colorRules),
     };
     if (!payload.title) { toast.error("請輸入場次名稱"); return; }
     if (payload.minDurationMinutes > 0 && payload.startAt && payload.endAt) {
@@ -668,6 +684,45 @@ export default function GroupAuctionEdit() {
                 )}
               </div>
             )}
+
+            {/* 商品上色規則 */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-gray-600">商品上色規則</p>
+                <span className="text-[10px] text-gray-400">首條符合規則生效</span>
+              </div>
+              <p className="text-[11px] text-gray-400">根據關鍵字自動為商品行上色。多個關鍵字用逗號分隔，任一符合即上色。</p>
+              {colorRules.map((rule, rIdx) => (
+                <div key={rule.id} className="flex items-center gap-2">
+                  <input
+                    className="flex-1 px-2.5 py-1.5 text-xs outline-none"
+                    style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "10px" }}
+                    placeholder="關鍵字，逗號分隔"
+                    value={rule.keywords}
+                    onChange={e => setColorRules(p => p.map((r, i) => i === rIdx ? { ...r, keywords: e.target.value } : r))}
+                  />
+                  <div className="flex gap-1 flex-shrink-0">
+                    {COLOR_PRESETS.map(p => (
+                      <button
+                        key={p.key}
+                        title={p.label}
+                        onClick={() => setColorRules(prev => prev.map((r, i) => i === rIdx ? { ...r, color: p.key } : r))}
+                        style={{ width: 20, height: 20, borderRadius: 6, background: p.bg, border: rule.color === p.key ? "2px solid #d97706" : "1px solid #e5e7eb" }}
+                      />
+                    ))}
+                  </div>
+                  <button onClick={() => setColorRules(p => p.filter((_, i) => i !== rIdx))}>
+                    <X className="w-4 h-4 text-gray-400 hover:text-red-500" />
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={() => setColorRules(p => [...p, { id: `cr_${Date.now()}`, keywords: "", color: "gold" }])}
+                className="flex items-center gap-1.5 text-xs text-amber-600 hover:text-amber-700"
+              >
+                <Plus className="w-3.5 h-3.5" /> 加入規則
+              </button>
+            </div>
 
             <button
               onClick={handleSaveBasic}

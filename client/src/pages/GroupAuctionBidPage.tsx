@@ -39,6 +39,30 @@ function useCountdown(endAt: string | null | undefined) {
 
 const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$", JPY: "JP¥", GBP: "£", EUR: "€" };
 
+const BID_COLOR_PRESETS = [
+  { key: "gold",   bg: "#fef9c3" },
+  { key: "red",    bg: "#fee2e2" },
+  { key: "green",  bg: "#dcfce7" },
+  { key: "blue",   bg: "#dbeafe" },
+  { key: "orange", bg: "#ffedd5" },
+  { key: "purple", bg: "#ede9fe" },
+  { key: "pink",   bg: "#fce7f3" },
+  { key: "teal",   bg: "#ccfbf1" },
+] as const;
+
+function getBidColorRuleBg(rules: { id: string; keywords: string; color: string }[], itemData: Record<string, string>): string | null {
+  if (!rules.length) return null;
+  const allText = Object.values(itemData).join(" ").toLowerCase();
+  for (const rule of rules) {
+    const kws = rule.keywords.split(/[,，|｜\n]/).map(k => k.trim().toLowerCase()).filter(Boolean);
+    if (kws.length > 0 && kws.some(kw => allText.includes(kw))) {
+      const preset = BID_COLOR_PRESETS.find(p => p.key === rule.color);
+      return preset?.bg ?? null;
+    }
+  }
+  return null;
+}
+
 export default function GroupAuctionBidPage() {
   const params = useParams<{ roundId: string }>();
   const roundId = parseInt(params.roundId, 10);
@@ -94,6 +118,10 @@ export default function GroupAuctionBidPage() {
   const promoUrls = useMemo(() => {
     try { return (JSON.parse(promoImagesJson) as string[]).slice(0, 10); } catch { return []; }
   }, [promoImagesJson]);
+
+  const colorRules: { id: string; keywords: string; color: string }[] = useMemo(() => {
+    try { return JSON.parse((round as any)?.colorRulesJson ?? "[]"); } catch { return []; }
+  }, [(round as any)?.colorRulesJson]);
 
   const promoLayout = useMemo(() => {
     let urls: string[] = [];
@@ -449,15 +477,19 @@ export default function GroupAuctionBidPage() {
             (round.antiSnipeMode === "per_item" && itemEndMs !== null && now >= itemEndMs)
           );
 
+          const itemColorBg = item.status !== "sold" ? getBidColorRuleBg(colorRules, data) : null;
           let cardClass = "rounded-2xl overflow-hidden border";
           let cardStyle: React.CSSProperties = {};
           if (item.status === "sold") {
             cardClass += " border-gray-200";
             cardStyle = { background: "#ebebeb", opacity: 0.78 };
           } else if (isMine) {
-            cardClass += " bg-amber-50 border-amber-300";
-            cardStyle = { boxShadow: "3px 4px 0 rgba(251,191,36,0.28), 4px 6px 14px rgba(245,158,11,0.10)" };
-          } else { cardClass += " bg-white border-gray-100 shadow-sm"; }
+            cardClass += " border-amber-300";
+            cardStyle = { background: itemColorBg ?? "#fffbeb", boxShadow: "3px 4px 0 rgba(251,191,36,0.28), 4px 6px 14px rgba(245,158,11,0.10)" };
+          } else {
+            cardClass += " border-gray-100 shadow-sm";
+            cardStyle = { background: itemColorBg ?? "#ffffff" };
+          }
 
           return (
             <div key={item.id} className="relative">

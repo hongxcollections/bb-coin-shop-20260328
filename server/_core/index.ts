@@ -1078,6 +1078,12 @@ async function bootstrapMissingColumns() {
       'Added isArchived to groupAuctionRounds'
     );
   }
+  if (!(await check('groupAuctionRounds', 'colorRulesJson'))) {
+    await alter(
+      `ALTER TABLE \`groupAuctionRounds\` ADD COLUMN \`colorRulesJson\` text NULL`,
+      'Added colorRulesJson to groupAuctionRounds'
+    );
+  }
 
   await alter(`CREATE TABLE IF NOT EXISTS \`groupAuctionColumnTemplates\` (
     \`id\` int NOT NULL AUTO_INCREMENT,

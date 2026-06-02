@@ -10147,6 +10147,7 @@ EXAMPLE OUTPUT (exact format):
         columnsJson: z.string().optional(),
         columnTemplateId: z.number().int().positive().nullable().optional(),
         promoImagesJson: z.string().optional(),
+        colorRulesJson: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const db = await getDb();
@@ -10188,6 +10189,7 @@ EXAMPLE OUTPUT (exact format):
         if (input.columnsJson !== undefined) patch.columnsJson = input.columnsJson;
         if (input.columnTemplateId !== undefined) patch.columnTemplateId = input.columnTemplateId;
         if (input.promoImagesJson !== undefined) patch.promoImagesJson = input.promoImagesJson;
+        if (input.colorRulesJson !== undefined) patch.colorRulesJson = input.colorRulesJson;
         await db.update(groupAuctionRounds).set(patch).where(eq(groupAuctionRounds.id, input.id));
         return { success: true };
       }),

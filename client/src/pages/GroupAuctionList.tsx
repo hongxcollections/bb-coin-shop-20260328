@@ -56,6 +56,30 @@ const recTdStyle = {
 type RecordsFilter = "all" | "bid" | "nobid";
 type RecordsSortDir = "none" | "asc" | "desc";
 
+const COLOR_PRESETS_LIST = [
+  { key: "gold",   bg: "#fef9c3" },
+  { key: "red",    bg: "#fee2e2" },
+  { key: "green",  bg: "#dcfce7" },
+  { key: "blue",   bg: "#dbeafe" },
+  { key: "orange", bg: "#ffedd5" },
+  { key: "purple", bg: "#ede9fe" },
+  { key: "pink",   bg: "#fce7f3" },
+  { key: "teal",   bg: "#ccfbf1" },
+] as const;
+
+function getColorRuleBg(rules: { id: string; keywords: string; color: string }[], itemData: Record<string, string>): string | null {
+  if (!rules.length) return null;
+  const allText = Object.values(itemData).join(" ").toLowerCase();
+  for (const rule of rules) {
+    const kws = rule.keywords.split(/[,，|｜\n]/).map(k => k.trim().toLowerCase()).filter(Boolean);
+    if (kws.length > 0 && kws.some(kw => allText.includes(kw))) {
+      const preset = COLOR_PRESETS_LIST.find(p => p.key === rule.color);
+      return preset?.bg ?? null;
+    }
+  }
+  return null;
+}
+
 function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStartAt, roundEndAt, onClose, onSaveImage }: {
   roundId: number;
   roundTitle: string;
@@ -102,6 +126,10 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
   // ^ merchantIcon/merchantName are dynamically joined in getRound, not in Drizzle type
   const merchantProxySrc = merchantIconRaw ? `/api/img-proxy?url=${encodeURIComponent(merchantIconRaw)}` : null;
 
+  const colorRules: { id: string; keywords: string; color: string }[] = (() => {
+    try { return JSON.parse((round as any)?.colorRulesJson ?? "[]"); } catch { return []; }
+  })();
+
   const filtered =
     filter === "bid" ? allItems.filter(i => i.topBidderId != null) :
     filter === "nobid" ? allItems.filter(i => i.topBidderId == null) :
@@ -139,10 +167,11 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
       const d = getItemData(item);
       const itemTitle = titleCol ? d[titleCol.key] : `商品 ${idx + 1}`;
       const hasBid = item.topBidderId != null;
+      const colorBg = getColorRuleBg(colorRules, d);
       const extraTdHtml = extraCols.length > 0
         ? extraCols.map((c: any) => `<td style="padding:5px 8px">${d[c.key] || "—"}</td>`).join("")
         : `<td style="padding:5px 8px;color:#9ca3af">—</td>`;
-      return `<tr style="border-bottom:1px solid #f3f4f6;background:${hasBid ? "#fffdf5" : "#fff"}">
+      return `<tr style="border-bottom:1px solid #f3f4f6;background:${colorBg ?? (hasBid ? "#fffdf5" : "#fff")}">
         <td style="padding:5px 8px">${idx + 1}</td>
         <td style="padding:5px 8px">${itemTitle || "—"}</td>
         ${extraTdHtml}
@@ -223,7 +252,7 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
             const itemTitle = titleCol ? d[titleCol.key] : `商品 ${idx + 1}`;
             const hasBid = item.topBidderId != null;
             return (
-              <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: hasBid ? "#fffdf5" : "#fff" }}>
+              <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: getColorRuleBg(colorRules, d) ?? (hasBid ? "#fffdf5" : "#fff") }}>
                 <td style={recTdStyle}>{idx + 1}</td>
                 <td style={{ ...recTdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{itemTitle || "—"}</td>
                 {extraCols.length > 0
@@ -355,7 +384,7 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
                           const itemTitle = titleCol ? d[titleCol.key] : `商品 ${idx + 1}`;
                           const hasBid = item.topBidderId != null;
                           return (
-                            <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: hasBid ? "#fffdf5" : "#fff" }}>
+                            <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: getColorRuleBg(colorRules, d) ?? (hasBid ? "#fffdf5" : "#fff") }}>
                               <td style={recTdStyle}>{idx + 1}</td>
                               <td style={{ ...recTdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{itemTitle || "—"}</td>
                               {extraCols.length > 0
