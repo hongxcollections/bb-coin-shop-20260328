@@ -11,6 +11,7 @@ import { GroupAuctionShareMenu } from "@/components/ShareMenu";
 import { GroupAuctionPosterModal } from "@/components/GroupAuctionPosterModal";
 import { GroupAuctionCommissionModal } from "@/components/GroupAuctionCommissionModal";
 
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -89,32 +90,19 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose }: { roundId: number
   const SortIcon = sortDir === "asc" ? ChevronUp : sortDir === "desc" ? ChevronDown : ChevronsUpDown;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-end" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/50" />
-      <div
-        className="relative z-10 w-full bg-white rounded-t-2xl shadow-2xl flex flex-col"
-        style={{ maxHeight: "82vh" }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex justify-center pt-2 pb-1 flex-shrink-0">
-          <div className="w-10 h-1 bg-gray-300 rounded-full" />
-        </div>
-
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 flex-shrink-0">
-          <div>
-            <p className="font-bold text-gray-900 text-sm">拍賣紀錄</p>
-            <p className="text-xs text-gray-400 mt-0.5">{round?.title ?? roundTitle}</p>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="w-[95vw] max-w-lg p-0 overflow-hidden rounded-2xl mb-20">
+        <DialogHeader className="px-4 pt-4 pb-2 border-b border-gray-100">
+          <DialogTitle className="text-base font-semibold text-amber-900">拍賣紀錄</DialogTitle>
+          <p className="text-xs text-gray-400 mt-0.5">{round?.title ?? roundTitle}</p>
+        </DialogHeader>
 
         {!isLoading && allItems.length > 0 && (
-          <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border-b border-gray-100">
-            {([ { key: "all" as RecordsFilter, label: "全部", count: allItems.length },
-                 { key: "bid" as RecordsFilter, label: "有出價", count: withBid },
-                 { key: "nobid" as RecordsFilter, label: "未出價", count: noBid },
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100">
+            {([
+              { key: "all" as RecordsFilter, label: "全部", count: allItems.length },
+              { key: "bid" as RecordsFilter, label: "有出價", count: withBid },
+              { key: "nobid" as RecordsFilter, label: "未出價", count: noBid },
             ] as const).map(btn => (
               <button
                 key={btn.key}
@@ -132,7 +120,7 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose }: { roundId: number
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto overflow-x-auto" style={{ scrollbarWidth: "thin", paddingLeft: 12, paddingRight: 12 }}>
+        <div className="overflow-y-auto overflow-x-auto px-4" style={{ maxHeight: "55vh", scrollbarWidth: "thin" }}>
           {isLoading && <p className="text-center text-gray-400 text-sm py-10">載入中...</p>}
           {!isLoading && allItems.length === 0 && <p className="text-center text-gray-400 text-sm py-10">未有商品紀錄</p>}
           {!isLoading && items.length === 0 && allItems.length > 0 && <p className="text-center text-gray-400 text-sm py-10">沒有符合條件的商品</p>}
@@ -199,16 +187,14 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose }: { roundId: number
         </div>
 
         {!isLoading && allItems.length > 0 && (
-          <div className="flex-shrink-0 flex items-center gap-4 px-4 py-2 border-t border-gray-100 bg-gray-50">
+          <div className="flex items-center gap-4 px-4 py-3 border-t border-gray-100 bg-gray-50">
             <span className="text-xs text-gray-500">共 <strong>{allItems.length}</strong> 件</span>
             <span className="text-xs text-emerald-600">有出價 <strong>{withBid}</strong> 件</span>
             <span className="text-xs text-gray-400">未出價 <strong>{noBid}</strong> 件</span>
           </div>
         )}
-
-        <div className="h-6 flex-shrink-0" />
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
