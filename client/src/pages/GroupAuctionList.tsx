@@ -30,7 +30,9 @@ function fmtRoundDate(d: string | Date | null | undefined): string {
   if (!d) return "—";
   const date = new Date(d as string);
   if (isNaN(date.getTime())) return "—";
-  return `${date.getMonth() + 1}月${date.getDate()}日（${DOW_HK[date.getDay()]}）`;
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  return `${date.getMonth() + 1}月${date.getDate()}日 ${hh}:${mm}（${DOW_HK[date.getDay()]}）`;
 }
 
 const recThStyle = {
