@@ -132,7 +132,7 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose }: { roundId: number
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto overflow-x-auto" style={{ scrollbarWidth: "thin" }}>
+        <div className="flex-1 overflow-y-auto overflow-x-auto" style={{ scrollbarWidth: "thin", paddingLeft: 12, paddingRight: 12 }}>
           {isLoading && <p className="text-center text-gray-400 text-sm py-10">載入中...</p>}
           {!isLoading && allItems.length === 0 && <p className="text-center text-gray-400 text-sm py-10">未有商品紀錄</p>}
           {!isLoading && items.length === 0 && allItems.length > 0 && <p className="text-center text-gray-400 text-sm py-10">沒有符合條件的商品</p>}
