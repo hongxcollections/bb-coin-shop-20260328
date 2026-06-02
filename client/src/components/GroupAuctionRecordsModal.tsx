@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Trophy } from "lucide-react";
+import { X, Trophy, ChevronsUpDown, ChevronUp, ChevronDown } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
 interface Props {
@@ -13,6 +13,7 @@ const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$", J
 
 type ColumnDef = { key: string; label: string; role: string };
 type Filter = "all" | "bid" | "nobid";
+type SortDir = "none" | "asc" | "desc";
 
 function getItemData(item: any): Record<string, string> {
   try { return JSON.parse(item.dataJson); } catch { return {}; }
@@ -20,6 +21,7 @@ function getItemData(item: any): Record<string, string> {
 
 export function GroupAuctionRecordsModal({ open, onClose, roundId, roundTitle }: Props) {
   const [filter, setFilter] = useState<Filter>("all");
+  const [sortDir, setSortDir] = useState<SortDir>("none");
 
   const { data, isLoading } = trpc.groupAuctions.getRound.useQuery(
     { roundId },
@@ -45,11 +47,25 @@ export function GroupAuctionRecordsModal({ open, onClose, roundId, roundTitle }:
   const withBid = allItems.filter(i => i.topBidderId != null).length;
   const noBid = allItems.filter(i => i.topBidderId == null).length;
 
-  const items = filter === "bid"
+  const filtered = filter === "bid"
     ? allItems.filter(i => i.topBidderId != null)
     : filter === "nobid"
       ? allItems.filter(i => i.topBidderId == null)
       : allItems;
+
+  const items = sortDir === "none" ? filtered : [...filtered].sort((a, b) => {
+    const na = (a.topBidderName ?? "").toLowerCase();
+    const nb = (b.topBidderName ?? "").toLowerCase();
+    if (na === nb) return 0;
+    const cmp = na < nb ? -1 : 1;
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
+  function cycleSort() {
+    setSortDir(d => d === "none" ? "asc" : d === "asc" ? "desc" : "none");
+  }
+
+  const SortIcon = sortDir === "asc" ? ChevronUp : sortDir === "desc" ? ChevronDown : ChevronsUpDown;
 
   const filterBtns: { key: Filter; label: string; count: number }[] = [
     { key: "all", label: "全部", count: allItems.length },
@@ -65,16 +81,11 @@ export function GroupAuctionRecordsModal({ open, onClose, roundId, roundTitle }:
     >
       <div
         className="bg-white w-full rounded-t-2xl shadow-2xl flex flex-col"
-        style={{
-          maxHeight: "82vh",
-          paddingLeft: "5px",
-          paddingRight: "5px",
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        }}
+        style={{ maxHeight: "82vh" }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-2 py-3 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
           <div>
             <h2 className="font-bold text-gray-900 text-sm">拍賣紀錄</h2>
             <p className="text-xs text-gray-400 mt-0.5">{round?.title ?? roundTitle}</p>
@@ -86,7 +97,7 @@ export function GroupAuctionRecordsModal({ open, onClose, roundId, roundTitle }:
 
         {/* 篩選 bar */}
         {!isLoading && allItems.length > 0 && (
-          <div className="flex-shrink-0 flex items-center gap-2 px-2 py-2 border-b border-gray-100">
+          <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border-b border-gray-100">
             {filterBtns.map(btn => (
               <button
                 key={btn.key}
@@ -109,15 +120,12 @@ export function GroupAuctionRecordsModal({ open, onClose, roundId, roundTitle }:
           {isLoading && (
             <p className="text-center text-gray-400 text-sm py-10">載入中...</p>
           )}
-
           {!isLoading && allItems.length === 0 && (
             <p className="text-center text-gray-400 text-sm py-10">未有商品紀錄</p>
           )}
-
           {!isLoading && items.length === 0 && allItems.length > 0 && (
             <p className="text-center text-gray-400 text-sm py-10">沒有符合條件的商品</p>
           )}
-
           {!isLoading && items.length > 0 && (
             <table style={{ borderCollapse: "collapse", fontSize: "11px", minWidth: "max-content", width: "100%" }}>
               <thead>
@@ -132,7 +140,16 @@ export function GroupAuctionRecordsModal({ open, onClose, roundId, roundTitle }:
                   }
                   <th style={{ ...thStyle, minWidth: 80, textAlign: "right" }}>起拍價</th>
                   <th style={{ ...thStyle, minWidth: 90, textAlign: "right" }}>領先價錢</th>
-                  <th style={{ ...thStyle, minWidth: 100 }}>領先用戶</th>
+                  <th style={{ ...thStyle, minWidth: 110 }}>
+                    <button
+                      className="flex items-center gap-1"
+                      style={{ color: sortDir !== "none" ? "#d97706" : "#92400e" }}
+                      onClick={cycleSort}
+                    >
+                      領先用戶
+                      <SortIcon className="w-3 h-3" />
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -158,7 +175,7 @@ export function GroupAuctionRecordsModal({ open, onClose, roundId, roundTitle }:
                       <td style={{ ...tdStyle, minWidth: 90, textAlign: "right", fontWeight: hasBid ? 700 : 400, color: hasBid ? "#d97706" : "#d1d5db", whiteSpace: "nowrap" }}>
                         {hasBid ? fmtPrice(item.currentPrice) : "—"}
                       </td>
-                      <td style={{ ...tdStyle, minWidth: 100, whiteSpace: "nowrap", color: hasBid ? "#374151" : "#d1d5db" }}>
+                      <td style={{ ...tdStyle, minWidth: 110, whiteSpace: "nowrap", color: hasBid ? "#374151" : "#d1d5db" }}>
                         {hasBid ? (
                           <span className="flex items-center gap-1">
                             <Trophy className="w-3 h-3 text-amber-400 flex-shrink-0" />
@@ -172,19 +189,19 @@ export function GroupAuctionRecordsModal({ open, onClose, roundId, roundTitle }:
               </tbody>
             </table>
           )}
-
-          {/* safe-area spacer at end of scroll content */}
-          <div style={{ height: "16px", flexShrink: 0 }} />
         </div>
 
         {/* Footer 統計 */}
         {!isLoading && allItems.length > 0 && (
-          <div className="flex-shrink-0 flex items-center gap-4 px-3 py-2.5 border-t border-gray-100 bg-gray-50">
+          <div className="flex-shrink-0 flex items-center gap-4 px-4 py-2 border-t border-gray-100 bg-gray-50">
             <span className="text-xs text-gray-500">共 <strong>{allItems.length}</strong> 件</span>
             <span className="text-xs text-emerald-600">有出價 <strong>{withBid}</strong> 件</span>
             <span className="text-xs text-gray-400">未出價 <strong>{noBid}</strong> 件</span>
           </div>
         )}
+
+        {/* 底部固定空位 — 確保任何裝置都有空間 */}
+        <div className="flex-shrink-0 bg-white" style={{ height: "20px" }} />
       </div>
     </div>
   );
