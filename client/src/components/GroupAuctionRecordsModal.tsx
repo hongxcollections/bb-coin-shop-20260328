@@ -31,7 +31,7 @@ export function GroupAuctionRecordsModal({ open, onClose, roundId, roundTitle }:
     try { return JSON.parse(round?.columnsJson ?? "[]"); } catch { return []; }
   })();
   const titleCol = columns.find(c => c.role === "itemTitle");
-  const customTextCols = columns.filter(c => c.role === "customText");
+  const customTextCols = columns.filter(c => c.role === "itemNumber" || c.role === "customText");
 
   const currency = ((round as any)?.displayCurrencies ?? "HKD").split(",")[0].trim() || "HKD";
   const sym = CURR_SYMS[currency] ?? "HK$";
@@ -132,7 +132,7 @@ export function GroupAuctionRecordsModal({ open, onClose, roundId, roundTitle }:
 
         {/* Footer 統計 */}
         {!isLoading && items.length > 0 && (
-          <div className="flex-shrink-0 flex items-center gap-4 px-3 py-2 border-t border-gray-100 bg-gray-50 rounded-none">
+          <div className="flex-shrink-0 flex items-center gap-4 px-3 py-2 border-t border-gray-100 bg-gray-50 rounded-none" style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom, 0px))" }}>
             <span className="text-xs text-gray-500">共 <strong>{items.length}</strong> 件</span>
             <span className="text-xs text-emerald-600">已出價 <strong>{withBid}</strong> 件</span>
             <span className="text-xs text-gray-400">未出價 <strong>{noBid}</strong> 件</span>
