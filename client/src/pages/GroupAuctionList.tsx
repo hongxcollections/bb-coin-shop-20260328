@@ -611,7 +611,7 @@ export default function GroupAuctionList() {
           roundId={recordsRound.id}
           roundTitle={recordsRound.title}
           onClose={() => setRecordsRound(null)}
-          onSaveImage={(url, fn) => { setRecPreviewUrl(url); setRecPreviewFilename(fn); }}
+          onSaveImage={(url, fn) => { setRecPreviewUrl(url); setRecPreviewFilename(fn); setRecordsRound(null); }}
         />
       )}
 
