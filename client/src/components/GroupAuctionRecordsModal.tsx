@@ -74,18 +74,23 @@ export function GroupAuctionRecordsModal({ open, onClose, roundId, roundTitle }:
   ];
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-end justify-center"
-      style={{ background: "rgba(0,0,0,0.50)" }}
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-[9999] flex items-end" onClick={onClose}>
+      {/* 背景遮罩 */}
+      <div className="absolute inset-0 bg-black/50" />
+
+      {/* 底部 sheet — 跟 AuctionFbPanel 完全相同 pattern */}
       <div
-        className="bg-white w-full rounded-t-2xl shadow-2xl flex flex-col"
+        className="relative z-10 w-full bg-white rounded-t-2xl shadow-2xl flex flex-col"
         style={{ maxHeight: "82vh" }}
         onClick={e => e.stopPropagation()}
       >
+        {/* drag handle */}
+        <div className="flex justify-center pt-2 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 bg-gray-300 rounded-full" />
+        </div>
+
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 flex-shrink-0">
           <div>
             <h2 className="font-bold text-gray-900 text-sm">拍賣紀錄</h2>
             <p className="text-xs text-gray-400 mt-0.5">{round?.title ?? roundTitle}</p>
@@ -146,8 +151,7 @@ export function GroupAuctionRecordsModal({ open, onClose, roundId, roundTitle }:
                       style={{ color: sortDir !== "none" ? "#d97706" : "#92400e" }}
                       onClick={cycleSort}
                     >
-                      領先用戶
-                      <SortIcon className="w-3 h-3" />
+                      領先用戶 <SortIcon className="w-3 h-3" />
                     </button>
                   </th>
                 </tr>
@@ -200,8 +204,8 @@ export function GroupAuctionRecordsModal({ open, onClose, roundId, roundTitle }:
           </div>
         )}
 
-        {/* 底部固定空位 — 確保任何裝置都有空間 */}
-        <div className="flex-shrink-0 bg-white" style={{ height: "20px" }} />
+        {/* 底部固定空位 — 跟 AuctionFbPanel/AuctionImageLightbox 完全一樣 */}
+        <div className="h-6 flex-shrink-0" />
       </div>
     </div>
   );
