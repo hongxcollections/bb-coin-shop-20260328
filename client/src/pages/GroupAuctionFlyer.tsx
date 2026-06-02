@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { List, Grid3X3, Download, X } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
+import Header from "@/components/Header";
 import { toast } from "sonner";
 import { sify, tify } from "chinese-conv";
 
@@ -172,7 +173,8 @@ export default function GroupAuctionFlyer() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white pb-20">
+      <Header />
       {/* 工具列（不列印） */}
       <div className="print:hidden flex items-center gap-2 px-3 py-3 bg-gray-50 border-b border-gray-100">
         <button
