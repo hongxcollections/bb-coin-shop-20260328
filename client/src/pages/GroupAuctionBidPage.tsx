@@ -40,27 +40,46 @@ function useCountdown(endAt: string | null | undefined) {
 const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$", JPY: "JP¥", GBP: "£", EUR: "€" };
 
 const BID_COLOR_PRESETS = [
-  { key: "gold",   bg: "#fef9c3" },
-  { key: "red",    bg: "#fee2e2" },
-  { key: "green",  bg: "#dcfce7" },
-  { key: "blue",   bg: "#dbeafe" },
-  { key: "orange", bg: "#ffedd5" },
-  { key: "purple", bg: "#ede9fe" },
-  { key: "pink",   bg: "#fce7f3" },
-  { key: "teal",   bg: "#ccfbf1" },
+  { key: "gold",   bg: "#b45309" },
+  { key: "red",    bg: "#b91c1c" },
+  { key: "green",  bg: "#15803d" },
+  { key: "blue",   bg: "#1d4ed8" },
+  { key: "orange", bg: "#c2410c" },
+  { key: "purple", bg: "#7c3aed" },
+  { key: "pink",   bg: "#be185d" },
+  { key: "teal",   bg: "#0f766e" },
 ] as const;
 
-function getBidColorRuleBg(rules: { id: string; keywords: string; color: string }[], itemData: Record<string, string>): string | null {
+function getBidColorRuleMatch(rules: { id: string; keywords: string; color: string }[], itemData: Record<string, string>): { color: string; keywords: string[] } | null {
   if (!rules.length) return null;
   const allText = Object.values(itemData).join(" ").toLowerCase();
   for (const rule of rules) {
     const kws = rule.keywords.split(/[,，|｜\n]/).map(k => k.trim().toLowerCase()).filter(Boolean);
     if (kws.length > 0 && kws.some(kw => allText.includes(kw))) {
       const preset = BID_COLOR_PRESETS.find(p => p.key === rule.color);
-      return preset?.bg ?? null;
+      if (preset) return { color: preset.bg, keywords: kws };
     }
   }
   return null;
+}
+
+function highlightBidKw(text: string, kws: string[], color: string) {
+  if (!kws.length || !text) return text;
+  for (const kw of kws) {
+    const idx = text.toLowerCase().indexOf(kw);
+    if (idx >= 0) {
+      return (
+        <>
+          {text.slice(0, idx)}
+          <span style={{ background: color, color: "#fff", padding: "0 2px", borderRadius: "3px", fontWeight: 700 }}>
+            {text.slice(idx, idx + kw.length)}
+          </span>
+          {text.slice(idx + kw.length)}
+        </>
+      );
+    }
+  }
+  return text;
 }
 
 export default function GroupAuctionBidPage() {
@@ -477,7 +496,7 @@ export default function GroupAuctionBidPage() {
             (round.antiSnipeMode === "per_item" && itemEndMs !== null && now >= itemEndMs)
           );
 
-          const itemColorBg = item.status !== "sold" ? getBidColorRuleBg(colorRules, data) : null;
+          const colorMatch = item.status !== "sold" ? getBidColorRuleMatch(colorRules, data) : null;
           let cardClass = "rounded-2xl overflow-hidden border";
           let cardStyle: React.CSSProperties = {};
           if (item.status === "sold") {
@@ -485,10 +504,10 @@ export default function GroupAuctionBidPage() {
             cardStyle = { background: "#ebebeb", opacity: 0.78 };
           } else if (isMine) {
             cardClass += " border-amber-300";
-            cardStyle = { background: itemColorBg ?? "#fffbeb", boxShadow: "3px 4px 0 rgba(251,191,36,0.28), 4px 6px 14px rgba(245,158,11,0.10)" };
+            cardStyle = { background: "#fffbeb", boxShadow: "3px 4px 0 rgba(251,191,36,0.28), 4px 6px 14px rgba(245,158,11,0.10)" };
           } else {
             cardClass += " border-gray-100 shadow-sm";
-            cardStyle = { background: itemColorBg ?? "#ffffff" };
+            cardStyle = { background: "#ffffff" };
           }
 
           return (
@@ -539,13 +558,13 @@ export default function GroupAuctionBidPage() {
                       <p
                         className="text-sm font-semibold text-gray-900 leading-tight break-all cursor-pointer"
                         onClick={e => { e.stopPropagation(); setExpandedItems(s => { const n = new Set(s); n.delete(item.id); return n; }); }}
-                      >{title || "—"}</p>
+                      >{colorMatch ? highlightBidKw(title || "—", colorMatch.keywords, colorMatch.color) : (title || "—")}</p>
                     ) : (
                       <div className="flex items-baseline gap-1">
                         <p
                           ref={el => { titleRefsMap.current.set(item.id, el); }}
                           className="text-sm font-semibold text-gray-900 leading-tight overflow-hidden whitespace-nowrap flex-1 min-w-0"
-                        >{title || "—"}</p>
+                        >{colorMatch ? highlightBidKw(title || "—", colorMatch.keywords, colorMatch.color) : (title || "—")}</p>
                         {overflowingTitles.has(item.id) && (
                           <button
                             className="text-[10px] text-amber-500 flex-shrink-0 whitespace-nowrap leading-tight"
@@ -561,7 +580,11 @@ export default function GroupAuctionBidPage() {
                 {displayCols.filter(c => c.role === "itemNumber").length > 0 && (
                   <div className="text-right mt-0.5">
                     <span className="text-[17px] font-bold text-gray-800">
-                      {displayCols.filter(c => c.role === "itemNumber").map(c => data[c.key]).filter(Boolean).join(" · ")}
+                      {displayCols.filter(c => c.role === "itemNumber").map((c, ci) => {
+                        const val = data[c.key];
+                        if (!val) return null;
+                        return <span key={c.key}>{ci > 0 ? " · " : ""}{colorMatch ? highlightBidKw(val, colorMatch.keywords, colorMatch.color) : val}</span>;
+                      })}
                     </span>
                   </div>
                 )}

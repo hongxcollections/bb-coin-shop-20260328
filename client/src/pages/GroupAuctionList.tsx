@@ -57,27 +57,61 @@ type RecordsFilter = "all" | "bid" | "nobid";
 type RecordsSortDir = "none" | "asc" | "desc";
 
 const COLOR_PRESETS_LIST = [
-  { key: "gold",   bg: "#fef9c3" },
-  { key: "red",    bg: "#fee2e2" },
-  { key: "green",  bg: "#dcfce7" },
-  { key: "blue",   bg: "#dbeafe" },
-  { key: "orange", bg: "#ffedd5" },
-  { key: "purple", bg: "#ede9fe" },
-  { key: "pink",   bg: "#fce7f3" },
-  { key: "teal",   bg: "#ccfbf1" },
+  { key: "gold",   bg: "#b45309" },
+  { key: "red",    bg: "#b91c1c" },
+  { key: "green",  bg: "#15803d" },
+  { key: "blue",   bg: "#1d4ed8" },
+  { key: "orange", bg: "#c2410c" },
+  { key: "purple", bg: "#7c3aed" },
+  { key: "pink",   bg: "#be185d" },
+  { key: "teal",   bg: "#0f766e" },
 ] as const;
 
-function getColorRuleBg(rules: { id: string; keywords: string; color: string }[], itemData: Record<string, string>): string | null {
+function getColorRuleMatch(rules: { id: string; keywords: string; color: string }[], itemData: Record<string, string>): { color: string; keywords: string[] } | null {
   if (!rules.length) return null;
   const allText = Object.values(itemData).join(" ").toLowerCase();
   for (const rule of rules) {
     const kws = rule.keywords.split(/[,，|｜\n]/).map(k => k.trim().toLowerCase()).filter(Boolean);
     if (kws.length > 0 && kws.some(kw => allText.includes(kw))) {
       const preset = COLOR_PRESETS_LIST.find(p => p.key === rule.color);
-      return preset?.bg ?? null;
+      if (preset) return { color: preset.bg, keywords: kws };
     }
   }
   return null;
+}
+
+function highlightKw(text: string, kws: string[], color: string) {
+  if (!kws.length || !text) return text;
+  for (const kw of kws) {
+    const idx = text.toLowerCase().indexOf(kw);
+    if (idx >= 0) {
+      return (
+        <>
+          {text.slice(0, idx)}
+          <span style={{ background: color, color: "#fff", padding: "0 2px", borderRadius: "3px", fontWeight: 700 }}>
+            {text.slice(idx, idx + kw.length)}
+          </span>
+          {text.slice(idx + kw.length)}
+        </>
+      );
+    }
+  }
+  return text;
+}
+
+function highlightKwHtml(text: string, kws: string[], color: string): string {
+  if (!kws.length || !text) return text;
+  for (const kw of kws) {
+    const idx = text.toLowerCase().indexOf(kw);
+    if (idx >= 0) {
+      return (
+        text.slice(0, idx) +
+        `<span style="background:${color};color:#fff;padding:0 2px;border-radius:3px;font-weight:700">${text.slice(idx, idx + kw.length)}</span>` +
+        text.slice(idx + kw.length)
+      );
+    }
+  }
+  return text;
 }
 
 function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStartAt, roundEndAt, onClose, onSaveImage }: {
@@ -167,13 +201,17 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
       const d = getItemData(item);
       const itemTitle = titleCol ? d[titleCol.key] : `商品 ${idx + 1}`;
       const hasBid = item.topBidderId != null;
-      const colorBg = getColorRuleBg(colorRules, d);
+      const colorMatch = getColorRuleMatch(colorRules, d);
+      const titleHtml = colorMatch ? highlightKwHtml(itemTitle || "—", colorMatch.keywords, colorMatch.color) : (itemTitle || "—");
       const extraTdHtml = extraCols.length > 0
-        ? extraCols.map((c: any) => `<td style="padding:5px 8px">${d[c.key] || "—"}</td>`).join("")
+        ? extraCols.map((c: any) => {
+            const cellText = d[c.key] || "—";
+            return `<td style="padding:5px 8px">${colorMatch ? highlightKwHtml(cellText, colorMatch.keywords, colorMatch.color) : cellText}</td>`;
+          }).join("")
         : `<td style="padding:5px 8px;color:#9ca3af">—</td>`;
-      return `<tr style="border-bottom:1px solid #f3f4f6;background:${colorBg ?? (hasBid ? "#fffdf5" : "#fff")}">
+      return `<tr style="border-bottom:1px solid #f3f4f6;background:${hasBid ? "#fffdf5" : "#fff"}">
         <td style="padding:5px 8px">${idx + 1}</td>
-        <td style="padding:5px 8px">${itemTitle || "—"}</td>
+        <td style="padding:5px 8px">${titleHtml}</td>
         ${extraTdHtml}
         <td style="padding:5px 8px;text-align:right;color:#6b7280">${fmtP(item.startPrice)}</td>
         <td style="padding:5px 8px;text-align:right;${hasBid ? "font-weight:700;color:#d97706" : "color:#d1d5db"}">${hasBid ? fmtP(item.currentPrice) : "—"}</td>
@@ -251,14 +289,15 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
             const d = getItemData(item);
             const itemTitle = titleCol ? d[titleCol.key] : `商品 ${idx + 1}`;
             const hasBid = item.topBidderId != null;
+            const colorMatch = getColorRuleMatch(colorRules, d);
             return (
-              <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: getColorRuleBg(colorRules, d) ?? (hasBid ? "#fffdf5" : "#fff") }}>
+              <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: hasBid ? "#fffdf5" : "#fff" }}>
                 <td style={recTdStyle}>{idx + 1}</td>
-                <td style={{ ...recTdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{itemTitle || "—"}</td>
+                <td style={{ ...recTdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{colorMatch ? highlightKw(itemTitle || "—", colorMatch.keywords, colorMatch.color) : (itemTitle || "—")}</td>
                 {extraCols.length > 0
                   ? extraCols.map((c: any) => (
                       <td key={c.key} style={{ ...recTdStyle, minWidth: 80, whiteSpace: "nowrap", fontWeight: 600, color: "#374151" }}>
-                        {d[c.key] || "—"}
+                        {colorMatch ? highlightKw(d[c.key] || "—", colorMatch.keywords, colorMatch.color) : (d[c.key] || "—")}
                       </td>
                     ))
                   : <td style={{ ...recTdStyle, minWidth: 80, color: "#9ca3af" }}>—</td>
@@ -383,14 +422,15 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
                           const d = getItemData(item);
                           const itemTitle = titleCol ? d[titleCol.key] : `商品 ${idx + 1}`;
                           const hasBid = item.topBidderId != null;
+                          const colorMatch = getColorRuleMatch(colorRules, d);
                           return (
-                            <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: getColorRuleBg(colorRules, d) ?? (hasBid ? "#fffdf5" : "#fff") }}>
+                            <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: hasBid ? "#fffdf5" : "#fff" }}>
                               <td style={recTdStyle}>{idx + 1}</td>
-                              <td style={{ ...recTdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{itemTitle || "—"}</td>
+                              <td style={{ ...recTdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{colorMatch ? highlightKw(itemTitle || "—", colorMatch.keywords, colorMatch.color) : (itemTitle || "—")}</td>
                               {extraCols.length > 0
                                 ? extraCols.map((c: any) => (
                                     <td key={c.key} style={{ ...recTdStyle, minWidth: 80, whiteSpace: "nowrap", fontWeight: 600, color: "#374151" }}>
-                                      {d[c.key] || "—"}
+                                      {colorMatch ? highlightKw(d[c.key] || "—", colorMatch.keywords, colorMatch.color) : (d[c.key] || "—")}
                                     </td>
                                   ))
                                 : <td style={{ ...recTdStyle, minWidth: 80, color: "#9ca3af" }}>—</td>

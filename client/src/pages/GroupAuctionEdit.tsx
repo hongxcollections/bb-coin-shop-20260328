@@ -48,14 +48,14 @@ const PRESET_TEMPLATES: { name: string; columns: ColumnDef[] }[] = [
 function genKey() { return `col_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`; }
 
 const COLOR_PRESETS = [
-  { key: "gold",   label: "金", bg: "#fef9c3" },
-  { key: "red",    label: "紅", bg: "#fee2e2" },
-  { key: "green",  label: "綠", bg: "#dcfce7" },
-  { key: "blue",   label: "藍", bg: "#dbeafe" },
-  { key: "orange", label: "橙", bg: "#ffedd5" },
-  { key: "purple", label: "紫", bg: "#ede9fe" },
-  { key: "pink",   label: "粉", bg: "#fce7f3" },
-  { key: "teal",   label: "青", bg: "#ccfbf1" },
+  { key: "gold",   label: "金", bg: "#b45309" },
+  { key: "red",    label: "紅", bg: "#b91c1c" },
+  { key: "green",  label: "綠", bg: "#15803d" },
+  { key: "blue",   label: "藍", bg: "#1d4ed8" },
+  { key: "orange", label: "橙", bg: "#c2410c" },
+  { key: "purple", label: "紫", bg: "#7c3aed" },
+  { key: "pink",   label: "粉", bg: "#be185d" },
+  { key: "teal",   label: "青", bg: "#0f766e" },
 ] as const;
 type ColorRuleKey = typeof COLOR_PRESETS[number]["key"];
 type ColorRule = { id: string; keywords: string; color: ColorRuleKey };
