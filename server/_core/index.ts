@@ -1096,6 +1096,17 @@ async function bootstrapMissingColumns() {
     INDEX \`idx_gact_merchant\` (\`merchantUserId\`)
   )`, 'Ensured groupAuctionColumnTemplates table');
 
+  await alter(`CREATE TABLE IF NOT EXISTS \`groupAuctionColorRuleTemplates\` (
+    \`id\` int NOT NULL AUTO_INCREMENT,
+    \`merchantUserId\` int NOT NULL,
+    \`name\` varchar(100) NOT NULL,
+    \`rulesJson\` text NOT NULL,
+    \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`updatedAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (\`id\`),
+    INDEX \`idx_gacrt_merchant\` (\`merchantUserId\`)
+  )`, 'Ensured groupAuctionColorRuleTemplates table');
+
   await alter(`CREATE TABLE IF NOT EXISTS \`groupAuctionImages\` (
     \`id\` int NOT NULL AUTO_INCREMENT,
     \`roundId\` int NOT NULL,

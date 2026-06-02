@@ -7,7 +7,7 @@ import { z } from "zod";
 import { getDb, getAuctions, getAuctionById, getAuctionImages, getBidHistory, createAuction, addAuctionImage, placeBid as dbPlaceBid, getUserBids, getUserBidsGrouped, updateAuction, deleteAuction, deleteAuctionImage, getAuctionsByCreator, getDraftAuctions, getArchivedAuctions, getArchivedAuctionsFiltered, setProxyBid, getProxyBid, deactivateProxyBid, getProxyBidLogs, getAnonymousBids, closeExpiredAuctions, sendWinnerAutoReply, getDashboardStats, toggleFavorite, getUserFavorites, getFavoriteIds, getMyWonAuctions, getAllBidsForExport, getSiteSetting, setSiteSetting, getAllSiteSettings, getWonOrders, updatePaymentStatus, getAnyExistingImageUrl, getAdBanners, getAllAdBanners, upsertAdBanner, saveCoinAnalysisHistory, getUserCoinAnalysisHistory, deleteCoinAnalysisHistory, updateCoinAnalysisHistoryImage, searchRelatedAuctions, setMerchantPageSizes } from "./db";
 import type { AdTargetType } from "./db";
 import type { Auction } from "../drizzle/schema";
-import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids, merchantAuctionSessions, merchantAuctionSessionItems, communitySeederDrafts, auctionComments, groupAuctionRounds, groupAuctionColumnTemplates, groupAuctionImages, groupAuctionItems, groupAuctionBids } from "../drizzle/schema";
+import { merchantApplications as merchantAppsTable, merchantProducts as merchantProductsTable, auctions, bids, merchantAuctionSessions, merchantAuctionSessionItems, communitySeederDrafts, auctionComments, groupAuctionRounds, groupAuctionColumnTemplates, groupAuctionColorRuleTemplates, groupAuctionImages, groupAuctionItems, groupAuctionBids } from "../drizzle/schema";
 import { sanitizeUserText } from "./_core/sanitize";
 import { eq, sql, and } from "drizzle-orm";
 import { validateBid, placeBid, getAuctionDetails, isEndingSoon, notifyEndingSoon, notifyWon, notifyMerchantWon, checkAndUpdateAuctionStatus } from "./auctions";
@@ -10002,6 +10002,53 @@ EXAMPLE OUTPUT (exact format):
         }
         await db.delete(groupAuctionColumnTemplates)
           .where(eq(groupAuctionColumnTemplates.id, input.id));
+        return { success: true };
+      }),
+
+    // ── Color Rule Templates ──────────────────────────────────────────────────
+
+    listColorRuleTemplates: protectedProcedure.query(async ({ ctx }) => {
+      const app = await getMerchantApplicationByUser(ctx.user.id);
+      if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: '只限商戶會員' });
+      }
+      const db = await getDb();
+      const { desc } = await import('drizzle-orm');
+      return db.select().from(groupAuctionColorRuleTemplates)
+        .where(eq(groupAuctionColorRuleTemplates.merchantUserId, ctx.user.id))
+        .orderBy(desc(groupAuctionColorRuleTemplates.createdAt));
+    }),
+
+    saveColorRuleTemplate: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1).max(100),
+        rulesJson: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只限商戶會員' });
+        }
+        const db = await getDb();
+        const [result] = await db.insert(groupAuctionColorRuleTemplates).values({
+          merchantUserId: ctx.user.id,
+          name: input.name,
+          rulesJson: input.rulesJson,
+        });
+        return { id: (result as any).insertId as number };
+      }),
+
+    deleteColorRuleTemplate: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [existing] = await db.select().from(groupAuctionColorRuleTemplates)
+          .where(eq(groupAuctionColorRuleTemplates.id, input.id)).limit(1);
+        if (!existing || existing.merchantUserId !== ctx.user.id) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: '範本不存在' });
+        }
+        await db.delete(groupAuctionColorRuleTemplates)
+          .where(eq(groupAuctionColorRuleTemplates.id, input.id));
         return { success: true };
       }),
 

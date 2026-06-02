@@ -872,3 +872,16 @@ export const groupAuctionBids = mysqlTable("groupAuctionBids", {
 export type GroupAuctionBid = typeof groupAuctionBids.$inferSelect;
 export type InsertGroupAuctionBid = typeof groupAuctionBids.$inferInsert;
 export type InsertAuctionComment = typeof auctionComments.$inferInsert;
+
+/**
+ * 上色規則範本（商戶自訂，可跨場次重用）
+ */
+export const groupAuctionColorRuleTemplates = mysqlTable("groupAuctionColorRuleTemplates", {
+  id: int("id").autoincrement().primaryKey(),
+  merchantUserId: int("merchantUserId").notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  rulesJson: text("rulesJson").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type GroupAuctionColorRuleTemplate = typeof groupAuctionColorRuleTemplates.$inferSelect;

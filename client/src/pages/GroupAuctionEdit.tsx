@@ -110,6 +110,8 @@ export default function GroupAuctionEdit() {
   );
   const [templateName, setTemplateName] = useState("");
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [colorRuleTemplateName, setColorRuleTemplateName] = useState("");
+  const [showSaveColorRuleTemplate, setShowSaveColorRuleTemplate] = useState(false);
 
   // ── 圖片集 state ──
   const [images, setImages] = useState<{ id: number; url: string; s3Key: string }[]>([]);
@@ -146,6 +148,15 @@ export default function GroupAuctionEdit() {
     { enabled: !!roundId && !!user }
   );
   const { data: templates } = trpc.groupAuctions.listTemplates.useQuery(undefined, { enabled: !!user });
+  const { data: colorRuleTemplates, refetch: refetchColorRuleTemplates } = trpc.groupAuctions.listColorRuleTemplates.useQuery(undefined, { enabled: !!user });
+  const saveColorRuleTemplateMut = trpc.groupAuctions.saveColorRuleTemplate.useMutation({
+    onSuccess: () => { toast.success("上色範本已儲存"); setShowSaveColorRuleTemplate(false); setColorRuleTemplateName(""); refetchColorRuleTemplates(); },
+    onError: (e) => toast.error(e.message || "儲存失敗"),
+  });
+  const deleteColorRuleTemplateMut = trpc.groupAuctions.deleteColorRuleTemplate.useMutation({
+    onSuccess: () => { refetchColorRuleTemplates(); },
+    onError: (e) => toast.error(e.message || "刪除失敗"),
+  });
   const { data: myApp } = trpc.merchants.myApplication.useQuery(undefined, { enabled: !!user });
 
   const createMut = trpc.groupAuctions.createRound.useMutation({
@@ -696,49 +707,113 @@ export default function GroupAuctionEdit() {
               </div>
               <p className="text-[11px] text-gray-400">根據關鍵字自動為商品行上色。多個關鍵字用逗號分隔，任一符合即上色。</p>
               {colorRules.map((rule, rIdx) => (
-                <div key={rule.id} className="flex items-center gap-2">
-                  <input
-                    className="flex-1 px-2.5 py-1.5 text-xs outline-none"
-                    style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "10px" }}
-                    placeholder="關鍵字，逗號分隔"
-                    value={rule.keywords}
-                    onChange={e => setColorRules(p => p.map((r, i) => i === rIdx ? { ...r, keywords: e.target.value } : r))}
-                  />
-                  <div className="flex gap-1 flex-shrink-0">
+                <div key={rule.id} className="rounded-xl p-2 space-y-1.5" style={{ background: "#f9fafb", border: "1px solid #f3f4f6" }}>
+                  {/* 第一行：關鍵字輸入 + 刪除 */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="flex-1 px-2.5 py-1.5 text-xs outline-none"
+                      style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "10px" }}
+                      placeholder="關鍵字，逗號分隔"
+                      value={rule.keywords}
+                      onChange={e => setColorRules(p => p.map((r, i) => i === rIdx ? { ...r, keywords: e.target.value } : r))}
+                    />
+                    <button onClick={() => setColorRules(p => p.filter((_, i) => i !== rIdx))}>
+                      <X className="w-4 h-4 text-gray-400 hover:text-red-500" />
+                    </button>
+                  </div>
+                  {/* 第二行：顏色色塊 + 底/字 + 粗/正 */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {COLOR_PRESETS.map(p => (
                       <button
                         key={p.key}
                         title={p.label}
                         onClick={() => setColorRules(prev => prev.map((r, i) => i === rIdx ? { ...r, color: p.key } : r))}
-                        style={{ width: 20, height: 20, borderRadius: 6, background: p.bg, border: rule.color === p.key ? "2px solid #d97706" : "1px solid #e5e7eb" }}
+                        style={{ width: 22, height: 22, borderRadius: 6, background: p.bg, border: rule.color === p.key ? "2.5px solid #d97706" : "1px solid #e5e7eb", flexShrink: 0 }}
                       />
                     ))}
+                    <div style={{ width: 1, height: 18, background: "#e5e7eb", flexShrink: 0 }} />
+                    <button
+                      title={rule.style === "text" ? "文字顏色模式（點擊換底色）" : "底色模式（點擊換文字顏色）"}
+                      onClick={() => setColorRules(p => p.map((r, i) => i === rIdx ? { ...r, style: r.style === "text" ? "bg" : "text" } : r))}
+                      style={{ fontSize: 11, padding: "2px 7px", borderRadius: 5, background: rule.style === "text" ? "#f3f4f6" : "#374151", color: rule.style === "text" ? "#374151" : "#fff", border: "1px solid #e5e7eb", fontWeight: 600, flexShrink: 0 }}
+                    >
+                      {rule.style === "text" ? "字色" : "底色"}
+                    </button>
+                    <button
+                      title={rule.weight === "normal" ? "正常字重（點擊換粗體）" : "粗體（點擊換正常）"}
+                      onClick={() => setColorRules(p => p.map((r, i) => i === rIdx ? { ...r, weight: r.weight === "normal" ? "bold" : "normal" } : r))}
+                      style={{ fontSize: 11, padding: "2px 7px", borderRadius: 5, background: rule.weight === "normal" ? "#f3f4f6" : "#374151", color: rule.weight === "normal" ? "#374151" : "#fff", border: "1px solid #e5e7eb", fontWeight: rule.weight === "normal" ? 400 : 700, flexShrink: 0 }}
+                    >
+                      {rule.weight === "normal" ? "正常" : "粗體"}
+                    </button>
                   </div>
-                  <button
-                    title={rule.style === "text" ? "文字顏色模式（點擊換底色）" : "底色模式（點擊換文字顏色）"}
-                    onClick={() => setColorRules(p => p.map((r, i) => i === rIdx ? { ...r, style: r.style === "text" ? "bg" : "text" } : r))}
-                    style={{ fontSize: 11, padding: "2px 6px", borderRadius: 5, background: rule.style === "text" ? "#f3f4f6" : "#374151", color: rule.style === "text" ? "#374151" : "#fff", border: "1px solid #e5e7eb", fontWeight: 600, flexShrink: 0 }}
-                  >
-                    {rule.style === "text" ? "字" : "底"}
-                  </button>
-                  <button
-                    title={rule.weight === "normal" ? "正常字重（點擊換粗體）" : "粗體（點擊換正常）"}
-                    onClick={() => setColorRules(p => p.map((r, i) => i === rIdx ? { ...r, weight: r.weight === "normal" ? "bold" : "normal" } : r))}
-                    style={{ fontSize: 11, padding: "2px 6px", borderRadius: 5, background: rule.weight === "normal" ? "#f3f4f6" : "#374151", color: rule.weight === "normal" ? "#374151" : "#fff", border: "1px solid #e5e7eb", fontWeight: rule.weight === "normal" ? 400 : 700, flexShrink: 0 }}
-                  >
-                    {rule.weight === "normal" ? "正" : "粗"}
-                  </button>
-                  <button onClick={() => setColorRules(p => p.filter((_, i) => i !== rIdx))}>
-                    <X className="w-4 h-4 text-gray-400 hover:text-red-500" />
-                  </button>
                 </div>
               ))}
-              <button
-                onClick={() => setColorRules(p => [...p, { id: `cr_${Date.now()}`, keywords: "", color: "gold", style: "bg", weight: "bold" }])}
-                className="flex items-center gap-1.5 text-xs text-amber-600 hover:text-amber-700"
-              >
-                <Plus className="w-3.5 h-3.5" /> 加入規則
-              </button>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  onClick={() => setColorRules(p => [...p, { id: `cr_${Date.now()}`, keywords: "", color: "gold", style: "bg", weight: "bold" }])}
+                  className="flex items-center gap-1.5 text-xs text-amber-600 hover:text-amber-700"
+                >
+                  <Plus className="w-3.5 h-3.5" /> 加入規則
+                </button>
+                {colorRules.length > 0 && (
+                  <button
+                    onClick={() => setShowSaveColorRuleTemplate(true)}
+                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 ml-auto"
+                  >
+                    儲存為上色範本
+                  </button>
+                )}
+              </div>
+              {/* 儲存上色範本 */}
+              {showSaveColorRuleTemplate && (
+                <div className="bg-white rounded-xl border border-blue-100 p-3 space-y-2">
+                  <p className="text-xs font-medium text-gray-700">上色範本名稱</p>
+                  <input
+                    className="w-full px-3 py-1.5 text-xs outline-none"
+                    style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "10px" }}
+                    placeholder="例：PMG 評級幣上色規則"
+                    value={colorRuleTemplateName}
+                    onChange={e => setColorRuleTemplateName(e.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        if (!colorRuleTemplateName.trim()) { toast.error("請輸入範本名稱"); return; }
+                        saveColorRuleTemplateMut.mutate({ name: colorRuleTemplateName.trim(), rulesJson: JSON.stringify(colorRules) });
+                      }}
+                      className="flex-1 bg-blue-500 text-white text-xs py-1.5 rounded-lg"
+                    >儲存</button>
+                    <button onClick={() => { setShowSaveColorRuleTemplate(false); setColorRuleTemplateName(""); }}
+                      className="px-3 text-xs text-gray-500 py-1.5 rounded-lg bg-gray-100">取消</button>
+                  </div>
+                </div>
+              )}
+              {/* 載入上色範本 */}
+              {colorRuleTemplates && colorRuleTemplates.length > 0 && (
+                <div className="pt-1">
+                  <p className="text-[11px] text-gray-400 mb-1.5">載入已儲存範本：</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {colorRuleTemplates.map(t => (
+                      <div key={t.id} className="flex items-center gap-0.5">
+                        <button
+                          onClick={() => {
+                            try {
+                              const raw: any[] = JSON.parse(t.rulesJson);
+                              setColorRules(raw.map(r => ({ ...r, id: `cr_${Date.now()}_${Math.random().toString(36).slice(2,5)}`, style: r.style ?? "bg", weight: r.weight ?? "bold" })));
+                            } catch {}
+                          }}
+                          className="text-[11px] bg-blue-50 hover:bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg"
+                        >{t.name}</button>
+                        <button
+                          onClick={() => deleteColorRuleTemplateMut.mutate({ id: t.id })}
+                          className="p-0.5 text-gray-300 hover:text-red-400"
+                        ><X className="w-3 h-3" /></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <button
