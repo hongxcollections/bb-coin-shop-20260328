@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
@@ -6,7 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { Plus, ChevronLeft, Pencil, Trash2, Globe, Archive, Clock, QrCode, Receipt, ListOrdered, X, Trophy, ChevronsUpDown, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, ChevronLeft, Pencil, Trash2, Globe, Archive, Clock, QrCode, Receipt, ListOrdered, X, Trophy, ChevronsUpDown, ChevronUp, ChevronDown, Download, Printer } from "lucide-react";
 import { GroupAuctionShareMenu } from "@/components/ShareMenu";
 import { GroupAuctionPosterModal } from "@/components/GroupAuctionPosterModal";
 import { GroupAuctionCommissionModal } from "@/components/GroupAuctionCommissionModal";
@@ -26,7 +26,7 @@ import {
 const CURR_SYMS: Record<string, string> = { HKD: "HK$", CNY: "¥", USD: "US$", JPY: "JP¥", GBP: "£", EUR: "€" };
 
 const recThStyle = {
-  padding: "8px 10px",
+  padding: "8px 5px",
   textAlign: "left" as const,
   fontWeight: 600,
   color: "#92400e",
@@ -35,7 +35,7 @@ const recThStyle = {
   whiteSpace: "nowrap" as const,
 };
 const recTdStyle = {
-  padding: "7px 10px",
+  padding: "7px 5px",
   fontSize: "11px",
   verticalAlign: "middle" as const,
   color: "#374151",
@@ -47,6 +47,9 @@ type RecordsSortDir = "none" | "asc" | "desc";
 function AuctionRecordsSheet({ roundId, roundTitle, onClose }: { roundId: number; roundTitle: string; onClose: () => void }) {
   const [filter, setFilter] = useState<RecordsFilter>("all");
   const [sortDir, setSortDir] = useState<RecordsSortDir>("none");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewFilename, setPreviewFilename] = useState("");
+  const printableRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading } = trpc.groupAuctions.getRound.useQuery(
     { roundId },
@@ -89,112 +92,191 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose }: { roundId: number
 
   const SortIcon = sortDir === "asc" ? ChevronUp : sortDir === "desc" ? ChevronDown : ChevronsUpDown;
 
+  async function saveImage() {
+    if (!printableRef.current) return;
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(printableRef.current, { backgroundColor: "#ffffff", pixelRatio: 2 });
+      setPreviewFilename(`拍賣紀錄-${round?.title ?? roundTitle}.png`);
+      setPreviewUrl(dataUrl);
+    } catch { toast.error("儲存圖片失敗"); }
+  }
+
+  function handlePrint() {
+    window.print();
+  }
+
   return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-lg p-0 overflow-hidden rounded-2xl mb-20">
-        <DialogHeader className="px-4 pt-4 pb-2 border-b border-gray-100">
-          <DialogTitle className="text-base font-semibold text-amber-900">拍賣紀錄</DialogTitle>
-          <p className="text-xs text-gray-400 mt-0.5">{round?.title ?? roundTitle}</p>
-        </DialogHeader>
+    <>
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #records-printable, #records-printable * { visibility: visible !important; }
+          #records-printable {
+            position: fixed !important; inset: 0 !important;
+            background: white !important; padding: 20px !important;
+            overflow: visible !important; z-index: 99999 !important;
+          }
+        }
+      `}</style>
 
-        {!isLoading && allItems.length > 0 && (
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100">
-            {([
-              { key: "all" as RecordsFilter, label: "全部", count: allItems.length },
-              { key: "bid" as RecordsFilter, label: "有出價", count: withBid },
-              { key: "nobid" as RecordsFilter, label: "未出價", count: noBid },
-            ] as const).map(btn => (
-              <button
-                key={btn.key}
-                onClick={() => setFilter(btn.key)}
-                className="text-xs px-3 py-1 rounded-full transition-colors"
-                style={{
-                  background: filter === btn.key ? "#d97706" : "#f3f4f6",
-                  color: filter === btn.key ? "#fff" : "#6b7280",
-                  fontWeight: filter === btn.key ? 700 : 400,
-                }}
-              >
-                {btn.label} {btn.count}
-              </button>
-            ))}
-          </div>
-        )}
+      <Dialog open={true} onOpenChange={onClose}>
+        <DialogContent className="w-[95vw] max-w-lg p-0 overflow-hidden rounded-2xl mb-20">
+          <DialogHeader className="px-4 pt-4 pb-2 border-b border-gray-100">
+            <DialogTitle className="text-base font-semibold text-amber-900">拍賣紀錄</DialogTitle>
+            <p className="text-xs text-gray-400 mt-0.5">{round?.title ?? roundTitle}</p>
+          </DialogHeader>
 
-        <div className="overflow-y-auto overflow-x-auto px-4" style={{ maxHeight: "55vh", scrollbarWidth: "thin" }}>
-          {isLoading && <p className="text-center text-gray-400 text-sm py-10">載入中...</p>}
-          {!isLoading && allItems.length === 0 && <p className="text-center text-gray-400 text-sm py-10">未有商品紀錄</p>}
-          {!isLoading && items.length === 0 && allItems.length > 0 && <p className="text-center text-gray-400 text-sm py-10">沒有符合條件的商品</p>}
-          {!isLoading && items.length > 0 && (
-            <table style={{ borderCollapse: "collapse", fontSize: "11px", minWidth: "max-content", width: "100%" }}>
-              <thead>
-                <tr style={{ background: "#fffbeb" }}>
-                  <th style={recThStyle}>#</th>
-                  <th style={{ ...recThStyle, minWidth: 160 }}>商品名稱</th>
-                  {extraCols.length > 0
-                    ? extraCols.map((c: any) => <th key={c.key} style={{ ...recThStyle, minWidth: 80 }}>{c.label || "號碼"}</th>)
-                    : <th style={{ ...recThStyle, minWidth: 80 }}>商品號碼</th>
-                  }
-                  <th style={{ ...recThStyle, minWidth: 80, textAlign: "right" }}>起拍價</th>
-                  <th style={{ ...recThStyle, minWidth: 90, textAlign: "right" }}>領先價錢</th>
-                  <th style={{ ...recThStyle, minWidth: 110 }}>
-                    <button
-                      className="flex items-center gap-1"
-                      style={{ color: sortDir !== "none" ? "#d97706" : "#92400e" }}
-                      onClick={() => setSortDir(d => d === "none" ? "asc" : d === "asc" ? "desc" : "none")}
-                    >
-                      領先用戶 <SortIcon className="w-3 h-3" />
-                    </button>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item: any, idx: number) => {
-                  const d = getItemData(item);
-                  const itemTitle = titleCol ? d[titleCol.key] : `商品 ${idx + 1}`;
-                  const hasBid = item.topBidderId != null;
-                  return (
-                    <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: hasBid ? "#fffdf5" : "#fff" }}>
-                      <td style={recTdStyle}>{idx + 1}</td>
-                      <td style={{ ...recTdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{itemTitle || "—"}</td>
-                      {extraCols.length > 0
-                        ? extraCols.map((c: any) => (
-                            <td key={c.key} style={{ ...recTdStyle, minWidth: 80, whiteSpace: "nowrap", fontWeight: 600, color: "#374151" }}>
-                              {d[c.key] || "—"}
-                            </td>
-                          ))
-                        : <td style={{ ...recTdStyle, minWidth: 80, color: "#9ca3af" }}>—</td>
-                      }
-                      <td style={{ ...recTdStyle, minWidth: 80, textAlign: "right", color: "#6b7280", whiteSpace: "nowrap" }}>
-                        {fmtP(item.startPrice)}
-                      </td>
-                      <td style={{ ...recTdStyle, minWidth: 90, textAlign: "right", fontWeight: hasBid ? 700 : 400, color: hasBid ? "#d97706" : "#d1d5db", whiteSpace: "nowrap" }}>
-                        {hasBid ? fmtP(item.currentPrice) : "—"}
-                      </td>
-                      <td style={{ ...recTdStyle, minWidth: 110, whiteSpace: "nowrap", color: hasBid ? "#374151" : "#d1d5db" }}>
-                        {hasBid ? (
-                          <span className="flex items-center gap-1">
-                            <Trophy className="w-3 h-3 text-amber-400 flex-shrink-0" />
-                            {item.topBidderName || "—"}
-                          </span>
-                        ) : "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          {!isLoading && allItems.length > 0 && (
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100">
+              {([
+                { key: "all" as RecordsFilter, label: "全部", count: allItems.length },
+                { key: "bid" as RecordsFilter, label: "已出價", count: withBid },
+                { key: "nobid" as RecordsFilter, label: "未出價", count: noBid },
+              ] as const).map(btn => (
+                <button
+                  key={btn.key}
+                  onClick={() => setFilter(btn.key)}
+                  className="text-xs px-3 py-1 rounded-full transition-colors"
+                  style={{
+                    background: filter === btn.key ? "#d97706" : "#f3f4f6",
+                    color: filter === btn.key ? "#fff" : "#6b7280",
+                    fontWeight: filter === btn.key ? 700 : 400,
+                  }}
+                >
+                  {btn.label} {btn.count}
+                </button>
+              ))}
+            </div>
           )}
-        </div>
 
-        {!isLoading && allItems.length > 0 && (
-          <div className="flex items-center gap-4 px-4 py-3 border-t border-gray-100 bg-gray-50">
-            <span className="text-xs text-gray-500">共 <strong>{allItems.length}</strong> 件</span>
-            <span className="text-xs text-emerald-600">有出價 <strong>{withBid}</strong> 件</span>
-            <span className="text-xs text-gray-400">未出價 <strong>{noBid}</strong> 件</span>
+          <div
+            ref={printableRef}
+            id="records-printable"
+            className="overflow-y-auto overflow-x-auto px-4"
+            style={{ maxHeight: "50vh", scrollbarWidth: "thin" as const }}
+          >
+            {isLoading && <p className="text-center text-gray-400 text-sm py-10">載入中...</p>}
+            {!isLoading && allItems.length === 0 && <p className="text-center text-gray-400 text-sm py-10">未有商品紀錄</p>}
+            {!isLoading && items.length === 0 && allItems.length > 0 && <p className="text-center text-gray-400 text-sm py-10">沒有符合條件的商品</p>}
+            {!isLoading && items.length > 0 && (
+              <table style={{ borderCollapse: "collapse", fontSize: "11px", minWidth: "max-content", width: "100%" }}>
+                <thead>
+                  <tr style={{ background: "#fffbeb" }}>
+                    <th style={recThStyle}>#</th>
+                    <th style={{ ...recThStyle, minWidth: 160 }}>商品名稱</th>
+                    {extraCols.length > 0
+                      ? extraCols.map((c: any) => <th key={c.key} style={{ ...recThStyle, minWidth: 80 }}>{c.label || "號碼"}</th>)
+                      : <th style={{ ...recThStyle, minWidth: 80 }}>商品號碼</th>
+                    }
+                    <th style={{ ...recThStyle, minWidth: 80, textAlign: "right" }}>起拍價</th>
+                    <th style={{ ...recThStyle, minWidth: 90, textAlign: "right" }}>領先價錢</th>
+                    <th style={{ ...recThStyle, minWidth: 110 }}>
+                      <button
+                        className="flex items-center gap-1"
+                        style={{ color: sortDir !== "none" ? "#d97706" : "#92400e" }}
+                        onClick={() => setSortDir(d => d === "none" ? "asc" : d === "asc" ? "desc" : "none")}
+                      >
+                        領先用戶 <SortIcon className="w-3 h-3" />
+                      </button>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item: any, idx: number) => {
+                    const d = getItemData(item);
+                    const itemTitle = titleCol ? d[titleCol.key] : `商品 ${idx + 1}`;
+                    const hasBid = item.topBidderId != null;
+                    return (
+                      <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6", background: hasBid ? "#fffdf5" : "#fff" }}>
+                        <td style={recTdStyle}>{idx + 1}</td>
+                        <td style={{ ...recTdStyle, minWidth: 160, whiteSpace: "nowrap" }}>{itemTitle || "—"}</td>
+                        {extraCols.length > 0
+                          ? extraCols.map((c: any) => (
+                              <td key={c.key} style={{ ...recTdStyle, minWidth: 80, whiteSpace: "nowrap", fontWeight: 600, color: "#374151" }}>
+                                {d[c.key] || "—"}
+                              </td>
+                            ))
+                          : <td style={{ ...recTdStyle, minWidth: 80, color: "#9ca3af" }}>—</td>
+                        }
+                        <td style={{ ...recTdStyle, minWidth: 80, textAlign: "right", color: "#6b7280", whiteSpace: "nowrap" }}>
+                          {fmtP(item.startPrice)}
+                        </td>
+                        <td style={{ ...recTdStyle, minWidth: 90, textAlign: "right", fontWeight: hasBid ? 700 : 400, color: hasBid ? "#d97706" : "#d1d5db", whiteSpace: "nowrap" }}>
+                          {hasBid ? fmtP(item.currentPrice) : "—"}
+                        </td>
+                        <td style={{ ...recTdStyle, minWidth: 110, whiteSpace: "nowrap", color: hasBid ? "#374151" : "#d1d5db" }}>
+                          {hasBid ? (
+                            <span className="flex items-center gap-1">
+                              <Trophy className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                              {item.topBidderName || "—"}
+                            </span>
+                          ) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
-        )}
-      </DialogContent>
-    </Dialog>
+
+          {!isLoading && allItems.length > 0 && (
+            <div className="flex items-center gap-4 px-4 py-2 border-t border-gray-100 bg-gray-50">
+              <span className="text-xs text-gray-500">共 <strong>{allItems.length}</strong> 件</span>
+              <span className="text-xs text-emerald-600">已出價 <strong>{withBid}</strong> 件</span>
+              <span className="text-xs text-gray-400">未出價 <strong>{noBid}</strong> 件</span>
+            </div>
+          )}
+
+          {!isLoading && allItems.length > 0 && (
+            <div className="flex gap-2 px-4 pb-4 pt-2">
+              <button
+                onClick={saveImage}
+                className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl"
+              >
+                <Download className="w-3.5 h-3.5" /> 儲存圖片
+              </button>
+              <button
+                onClick={handlePrint}
+                className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-2 rounded-xl"
+              >
+                <Printer className="w-3.5 h-3.5" /> 列印
+              </button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {previewUrl && (
+        <div className="fixed inset-0 z-[10000] bg-black/90 flex flex-col items-center justify-center p-4">
+          <div className="w-full max-w-sm flex flex-col items-center gap-3">
+            <img
+              src={previewUrl}
+              alt="拍賣紀錄"
+              className="w-full rounded-2xl shadow-2xl object-contain"
+              style={{ maxHeight: "70vh" }}
+            />
+            <p className="text-white/60 text-xs text-center">長按圖片儲存至相冊</p>
+            <div className="flex gap-3 w-full">
+              <a
+                href={previewUrl}
+                download={previewFilename}
+                className="flex-1 flex items-center justify-center gap-1.5 text-sm bg-white/15 hover:bg-white/25 text-white px-4 py-2.5 rounded-xl"
+              >
+                <Download className="w-4 h-4" /> 下載
+              </a>
+              <button
+                onClick={() => setPreviewUrl(null)}
+                className="flex-1 text-sm bg-white/10 hover:bg-white/20 text-white/80 px-4 py-2.5 rounded-xl"
+              >
+                關閉
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
