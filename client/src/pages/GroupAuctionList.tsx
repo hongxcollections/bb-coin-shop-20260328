@@ -32,6 +32,7 @@ const recThStyle = {
   color: "#92400e",
   fontSize: "11px",
   borderBottom: "1px solid #fde68a",
+  borderRight: "1px solid #f3f4f6",
   whiteSpace: "nowrap" as const,
 };
 const recTdStyle = {
@@ -39,6 +40,7 @@ const recTdStyle = {
   fontSize: "11px",
   verticalAlign: "middle" as const,
   color: "#374151",
+  borderRight: "1px solid #f3f4f6",
 };
 
 type RecordsFilter = "all" | "bid" | "nobid";
@@ -79,6 +81,12 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose, onSaveImage }: {
 
   const withBid = allItems.filter(i => i.topBidderId != null).length;
   const noBid = allItems.filter(i => i.topBidderId == null).length;
+  const uniqueBidders = new Set(allItems.filter(i => i.topBidderId != null).map(i => i.topBidderId)).size;
+  const totalBidAmount = allItems.filter(i => i.topBidderId != null).reduce((s: number, i: any) => s + Number(i.currentPrice ?? 0), 0);
+
+  const merchantIconRaw: string | null = (round as any)?.merchantIcon ?? null;
+  const merchantDisplayName: string = (round as any)?.merchantName ?? "";
+  const merchantProxySrc = merchantIconRaw ? `/api/img-proxy?url=${encodeURIComponent(merchantIconRaw)}` : null;
 
   const filtered =
     filter === "bid" ? allItems.filter(i => i.topBidderId != null) :
@@ -152,9 +160,19 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose, onSaveImage }: {
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] max-w-lg p-0 overflow-hidden rounded-2xl mb-20">
-        <DialogHeader className="px-4 pt-4 pb-2 border-b border-gray-100">
-          <DialogTitle className="text-base font-semibold text-amber-900">拍賣紀錄</DialogTitle>
-          <p className="text-xs text-gray-400 mt-0.5">{round?.title ?? roundTitle}</p>
+        <DialogHeader className="px-4 pt-4 pb-3 border-b border-gray-100">
+          <DialogTitle style={{ fontSize: 16, fontWeight: 700, color: "#92400e", lineHeight: 1.3 }}>
+            {round?.title ?? roundTitle}
+          </DialogTitle>
+          {merchantDisplayName && (
+            <div className="flex items-center gap-1.5 mt-1">
+              {merchantProxySrc
+                ? <img src={merchantProxySrc} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+                : <div className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 text-[9px] font-bold text-amber-700">{merchantDisplayName.charAt(0)}</div>
+              }
+              <span style={{ fontSize: 12, color: "#6b7280" }}>{merchantDisplayName}</span>
+            </div>
+          )}
         </DialogHeader>
 
         {!isLoading && allItems.length > 0 && (
@@ -247,10 +265,18 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose, onSaveImage }: {
         </div>
 
         {!isLoading && allItems.length > 0 && (
-          <div className="flex items-center gap-4 px-4 py-2 border-t border-gray-100 bg-gray-50">
-            <span className="text-xs text-gray-500">共 <strong>{allItems.length}</strong> 件</span>
-            <span className="text-xs text-emerald-600">已出價 <strong>{withBid}</strong> 件</span>
-            <span className="text-xs text-gray-400">未出價 <strong>{noBid}</strong> 件</span>
+          <div className="px-4 pt-2 pb-0 border-t border-gray-100 bg-gray-50">
+            <div className="flex flex-wrap gap-x-4 gap-y-0.5 pb-2">
+              <span style={{ fontSize: 12, color: "#059669" }}>已出價 <strong>{withBid}</strong></span>
+              <span style={{ fontSize: 12, color: "#6b7280" }}>未出價 <strong>{noBid}</strong></span>
+              <span style={{ fontSize: 12, color: "#3b82f6" }}>用戶出價 <strong>{uniqueBidders}</strong></span>
+              <span style={{ fontSize: 12, color: "#d97706" }}>總成交額 <strong>{fmtP(totalBidAmount)}</strong></span>
+            </div>
+            {(round as any)?.description && (
+              <p style={{ fontSize: 6, color: "#9ca3af", lineHeight: 1.5, paddingBottom: 10 }}>
+                {(round as any).description}
+              </p>
+            )}
           </div>
         )}
 
