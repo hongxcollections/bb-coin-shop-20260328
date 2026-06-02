@@ -32,7 +32,7 @@ function fmtRoundDate(d: string | Date | null | undefined): string {
   if (isNaN(date.getTime())) return "—";
   const hh = String(date.getHours()).padStart(2, "0");
   const mm = String(date.getMinutes()).padStart(2, "0");
-  return `${date.getMonth() + 1}月${date.getDate()}日 ${hh}:${mm}（${DOW_HK[date.getDay()]}）`;
+  return `${date.getMonth() + 1}月${date.getDate()}日 ${hh}:${mm} (${DOW_HK[date.getDay()]})`;
 }
 
 const recThStyle = {
@@ -185,12 +185,9 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
         {round?.title ?? roundTitle}
       </span>
       {hasRoundDates && (
-        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "3px 6px", marginTop: 5 }}>
-          <span style={{ fontSize: 11, color: "#92400e", fontWeight: 600, flexShrink: 0 }}>拍賣日期</span>
-          <span style={{ fontSize: 11, color: "#b45309" }}>{startDate !== "—" ? startDate : "—"}</span>
-          <span style={{ fontSize: 11, color: "#92400e", fontWeight: 700, flexShrink: 0 }}>至</span>
-          <span style={{ fontSize: 11, color: "#b45309" }}>{endDate !== "—" ? endDate : "—"}</span>
-        </div>
+        <p style={{ fontSize: 11, color: "#b45309", margin: "5px 0 0", lineHeight: 1.4, whiteSpace: "nowrap" }}>
+          {`拍賣日期 ${startDate !== "—" ? startDate : "—"} - ${endDate !== "—" ? endDate : "—"}`}
+        </p>
       )}
       {merchantDisplayName && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
