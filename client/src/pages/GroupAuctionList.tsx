@@ -46,9 +46,10 @@ const recTdStyle = {
 type RecordsFilter = "all" | "bid" | "nobid";
 type RecordsSortDir = "none" | "asc" | "desc";
 
-function AuctionRecordsSheet({ roundId, roundTitle, onClose, onSaveImage }: {
+function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, onClose, onSaveImage }: {
   roundId: number;
   roundTitle: string;
+  roundDescription?: string | null;
   onClose: () => void;
   onSaveImage: (url: string, filename: string) => void;
 }) {
@@ -297,9 +298,9 @@ function AuctionRecordsSheet({ roundId, roundTitle, onClose, onSaveImage }: {
                   <span style={{ fontSize: 12, color: "#3b82f6" }}>用戶出價 <strong>{uniqueBidders}</strong></span>
                   <span style={{ fontSize: 12, color: "#d97706" }}>總成交額 <strong>{fmtP(totalBidAmount)}</strong></span>
                 </div>
-                {round?.description && (
+                {roundDescription && (
                   <p style={{ fontSize: 10, color: "#b45309", lineHeight: 1.6, margin: 0, marginTop: 4, whiteSpace: "pre-line" }}>
-                    {round.description}
+                    {roundDescription}
                   </p>
                 )}
               </div>
@@ -665,6 +666,7 @@ export default function GroupAuctionList() {
         <AuctionRecordsSheet
           roundId={recordsRound.id}
           roundTitle={recordsRound.title}
+          roundDescription={recordsRound.description}
           onClose={() => setRecordsRound(null)}
           onSaveImage={(url, fn) => { setRecPreviewUrl(url); setRecPreviewFilename(fn); setRecordsRound(null); }}
         />
