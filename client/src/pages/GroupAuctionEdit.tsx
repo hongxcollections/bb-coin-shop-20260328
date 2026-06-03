@@ -1331,34 +1331,33 @@ export default function GroupAuctionEdit() {
               const parseProxyInput = (raw: string): ProxyBidPreview[] => {
                 const lines = raw.split("\n").map(l => l.trim()).filter(Boolean);
                 return lines.map(line => {
-                  const m = line.match(/^\+?(\S+)\s+(.+)$/);
+                  const m = line.match(/^\+?(\d+)\s+(.+)$/);
                   if (!m) return null;
                   const [, numStr, name] = m;
-                  const it = items.find(i => {
-                    const d: Record<string, string> = (() => { try { return JSON.parse(i.dataJson); } catch { return {}; } })();
-                    return numCol ? String(d[numCol.key] ?? "").trim() === numStr.trim() : false;
-                  });
-                  if (!it) return { itemId: -1, itemNum: numStr, itemTitle: "找不到商品", bidderName: name.trim(), currentPrice: 0, newPrice: 0, inc: 0, error: `號碼 ${numStr} 不存在` };
+                  const seq = parseInt(numStr, 10); // 1-indexed 序號
+                  const it = seq >= 1 && seq <= items.length ? items[seq - 1] : undefined;
+                  if (!it) return { itemId: -1, itemNum: numStr, itemTitle: "找不到商品", bidderName: name.trim(), currentPrice: 0, newPrice: 0, inc: 0, error: `序號 ${numStr} 不存在（共 ${items.length} 件）` };
                   if (it.status !== "active") return { itemId: it.id, itemNum: numStr, itemTitle: titleCol ? ((() => { try { return JSON.parse(it.dataJson); } catch { return {}; } })()[titleCol.key] || "") : "", bidderName: name.trim(), currentPrice: 0, newPrice: 0, inc: 0, error: "商品已結拍" };
                   const d: Record<string, string> = (() => { try { return JSON.parse(it.dataJson); } catch { return {}; } })();
                   const ttl = titleCol ? (d[titleCol.key] || "") : "";
+                  const numVal = numCol ? (d[numCol.key] || "") : "";
                   const curPx = (it as any).currentPrice ?? it.startPrice;
                   const inc = it.bidIncrement > 0 ? it.bidIncrement : defaultInc;
                   const newPx = curPx > 0 ? curPx + inc : (it.startPrice > 0 ? it.startPrice : inc);
                   const capErr = it.buyNowPrice && newPx > it.buyNowPrice ? `新出價 $${newPx} 超封頂 $${it.buyNowPrice}` : undefined;
-                  return { itemId: it.id, itemNum: numStr, itemTitle: ttl, bidderName: name.trim(), currentPrice: curPx, newPrice: newPx, inc, error: capErr };
+                  return { itemId: it.id, itemNum: numVal || numStr, itemTitle: ttl, bidderName: name.trim(), currentPrice: curPx, newPrice: newPx, inc, error: capErr };
                 }).filter(Boolean) as ProxyBidPreview[];
               };
               const preview = proxyPreview.length > 0 ? proxyPreview : (proxyInput.trim() ? parseProxyInput(proxyInput) : []);
               const validBids = preview.filter(p => !p.error && p.itemId > 0);
               return (
                 <div className="rounded-2xl p-3 space-y-3" style={{ background: "#fff7ed", border: "1px solid #fed7aa" }}>
-                  <p className="text-xs font-semibold text-orange-700">代出價面板 — 格式：商品號碼 出價人名</p>
+                  <p className="text-xs font-semibold text-orange-700">代出價面板 — 格式：序號 出價人名（序號即商品列表左側數字）</p>
                   <textarea
                     className="w-full px-3 py-2 text-sm outline-none resize-none font-mono"
                     style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
                     rows={4}
-                    placeholder={"+22 張大文\n+8 李小明\n+15 王sir"}
+                    placeholder={"+22 張大文\n+8 李小明\n+15 王sir\n（+序號 出價人名，每行一條）"}
                     value={proxyInput}
                     onChange={e => { setProxyInput(e.target.value); setProxyPreview([]); }}
                   />
@@ -1368,7 +1367,7 @@ export default function GroupAuctionEdit() {
                         <table className="w-full text-xs border-collapse">
                           <thead>
                             <tr style={{ background: "#ffedd5" }}>
-                              <th className="px-2 py-1 text-left font-semibold text-orange-800">號碼</th>
+                              <th className="px-2 py-1 text-left font-semibold text-orange-800">序號</th>
                               <th className="px-2 py-1 text-left font-semibold text-orange-800">商品</th>
                               <th className="px-2 py-1 text-left font-semibold text-orange-800">出價人</th>
                               <th className="px-2 py-1 text-right font-semibold text-orange-800">現價</th>
