@@ -10883,8 +10883,13 @@ EXAMPLE OUTPUT (exact format):
           bidCountByItem.set(bid.itemId, (bidCountByItem.get(bid.itemId) ?? 0) + 1);
         }
 
+        // 只查非 proxy bid 的真實 user 名字（proxy bid 用 proxyName 顯示）
         const { users } = await import('../drizzle/schema');
-        const bidderUserIds = [...new Set([...topBidByItem.values()].map(b => b.userId))];
+        const bidderUserIds = [...new Set(
+          [...topBidByItem.values()]
+            .filter(b => !(b.isProxy === 1))
+            .map(b => b.userId)
+        )];
         const bidderNameById = new Map<number, string>();
         if (bidderUserIds.length > 0) {
           const bidderRows = await db.select({ id: users.id, name: users.name })
@@ -10894,11 +10899,15 @@ EXAMPLE OUTPUT (exact format):
 
         const itemsWithBids = items.map(item => {
           const topBid = topBidByItem.get(item.id);
+          const isProxy = topBid?.isProxy === 1;
           return {
             ...item,
             currentPrice: topBid?.amount ?? item.startPrice,
-            topBidderId: topBid?.userId ?? null,
-            topBidderName: topBid ? (bidderNameById.get(topBid.userId) ?? null) : null,
+            topBidderId: isProxy ? null : (topBid?.userId ?? null),
+            topBidderName: topBid
+              ? (isProxy ? ((topBid as any).proxyName ?? '代出價') : (bidderNameById.get(topBid.userId) ?? null))
+              : null,
+            topBidIsProxy: isProxy,
             bidCount: bidCountByItem.get(item.id) ?? 0,
           };
         });

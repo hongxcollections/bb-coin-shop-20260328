@@ -277,9 +277,6 @@ export default function GroupAuctionEdit() {
   const merchantProxyBidMut = trpc.groupAuctions.merchantProxyBid.useMutation({
     onSuccess: (r, vars) => {
       const ok = r.results.filter(x => x.success);
-      const fail = r.results.filter(x => !x.success);
-      if (ok.length) toast.success(`成功代出價 ${ok.length} 件`);
-      if (fail.length) toast.error(fail.map(f => f.error).join("、"));
       const newLogEntries: ProxyBidLogEntry[] = ok.map(x => {
         const it = items.find(i => i.id === x.itemId);
         const numCol = columns.find(c => c.role === "itemNumber");
@@ -288,7 +285,19 @@ export default function GroupAuctionEdit() {
         return { bidId: x.bidId!, itemId: x.itemId, itemNum: numCol ? (d[numCol.key] || "") : "", itemTitle: titleCol ? (d[titleCol.key] || "") : "", bidderName: x.bidderName!, amount: x.amount! };
       });
       setProxyLog(prev => [...newLogEntries, ...prev].slice(0, 30));
-      // 儲存出價人名到歷史
+      // Toast：每件成功出價顯示商品號碼 + 名稱
+      if (ok.length === 1) {
+        const e = newLogEntries[0];
+        const label = [e.itemNum, e.itemTitle].filter(Boolean).join(" ");
+        toast.success(`代出價成功：${label}（${e.bidderName} $${e.amount}）`);
+      } else if (ok.length > 1) {
+        const lines = newLogEntries.map(e => `${[e.itemNum, e.itemTitle].filter(Boolean).join(" ")} $${e.amount}`).join("、");
+        toast.success(`成功代出價 ${ok.length} 件（${vars.bids[0]?.bidderName}）：${lines}`);
+      }
+      if (r.results.some(x => !x.success)) {
+        toast.error(r.results.filter(x => !x.success).map(f => f.error).join("、"));
+      }
+      // 儲存出價用戶到歷史
       const name = vars.bids[0]?.bidderName;
       if (name) {
         setProxyNameHistory(prev => {
@@ -1395,7 +1404,7 @@ export default function GroupAuctionEdit() {
 
               return (
                 <div className="rounded-2xl p-3 space-y-3" style={{ background: "#fff7ed", border: "1px solid #fed7aa" }}>
-                  <p className="text-xs font-semibold text-orange-700">代出價面板</p>
+                  <p className="text-xs font-semibold text-orange-700">管理員代出價面板</p>
 
                   {/* Field 1 — 序號 */}
                   <div>
@@ -1409,9 +1418,9 @@ export default function GroupAuctionEdit() {
                     />
                   </div>
 
-                  {/* Field 2 — 出價人名 */}
+                  {/* Field 2 — 出價用戶 */}
                   <div>
-                    <p className="text-[11px] text-gray-500 mb-1">出價人名</p>
+                    <p className="text-[11px] text-gray-500 mb-1">出價用戶</p>
                     <input
                       list="proxyNameList"
                       className="w-full px-3 py-2 text-sm outline-none"
@@ -1460,7 +1469,7 @@ export default function GroupAuctionEdit() {
                     className="w-full py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40"
                     style={{ background: "linear-gradient(90deg,#ea580c,#f97316)" }}
                   >
-                    {merchantProxyBidMut.isPending ? "代出價中…" : validBids.length > 0 ? `確認代出價 ${validBids.length} 件 → ${bidderName}` : "輸入序號及出價人名"}
+                    {merchantProxyBidMut.isPending ? "代出價中…" : validBids.length > 0 ? `確認代出價 ${validBids.length} 件 → ${bidderName}` : "輸入序號及出價用戶"}
                   </button>
 
                   {/* 最近代出價記錄 */}
