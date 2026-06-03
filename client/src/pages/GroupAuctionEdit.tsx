@@ -199,11 +199,14 @@ export default function GroupAuctionEdit() {
   const [bulkBidIncrement, setBulkBidIncrement] = useState("");
   const [bulkBuyNowPrice, setBulkBuyNowPrice] = useState("");
   // 代出價
-  type ProxyBidPreview = { itemId: number; itemNum: string; itemTitle: string; bidderName: string; currentPrice: number; newPrice: number; inc: number; error?: string };
+  type ProxyBidPreview = { seq: number; itemId: number; itemNum: string; itemTitle: string; bidderName: string; currentPrice: number; newPrice: number; inc: number; error?: string };
   type ProxyBidLogEntry = { bidId: number; itemId: number; itemNum: string; itemTitle: string; bidderName: string; amount: number };
   const [proxyBidMode, setProxyBidMode] = useState(false);
-  const [proxyInput, setProxyInput] = useState("");
-  const [proxyPreview, setProxyPreview] = useState<ProxyBidPreview[]>([]);
+  const [proxySeqInput, setProxySeqInput] = useState("");
+  const [proxyBidderInput, setProxyBidderInput] = useState("");
+  const [proxyNameHistory, setProxyNameHistory] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("proxyNameHistory") || "[]"); } catch { return []; }
+  });
   const [proxyLog, setProxyLog] = useState<ProxyBidLogEntry[]>([]);
   // 行內編輯
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
@@ -272,7 +275,7 @@ export default function GroupAuctionEdit() {
     onError: (e) => toast.error(e.message || "批量刪除失敗"),
   });
   const merchantProxyBidMut = trpc.groupAuctions.merchantProxyBid.useMutation({
-    onSuccess: (r) => {
+    onSuccess: (r, vars) => {
       const ok = r.results.filter(x => x.success);
       const fail = r.results.filter(x => !x.success);
       if (ok.length) toast.success(`成功代出價 ${ok.length} 件`);
@@ -285,8 +288,16 @@ export default function GroupAuctionEdit() {
         return { bidId: x.bidId!, itemId: x.itemId, itemNum: numCol ? (d[numCol.key] || "") : "", itemTitle: titleCol ? (d[titleCol.key] || "") : "", bidderName: x.bidderName!, amount: x.amount! };
       });
       setProxyLog(prev => [...newLogEntries, ...prev].slice(0, 30));
-      setProxyPreview([]);
-      setProxyInput("");
+      // 儲存出價人名到歷史
+      const name = vars.bids[0]?.bidderName;
+      if (name) {
+        setProxyNameHistory(prev => {
+          const next = [name, ...prev.filter(n => n !== name)].slice(0, 20);
+          try { localStorage.setItem("proxyNameHistory", JSON.stringify(next)); } catch {}
+          return next;
+        });
+      }
+      setProxySeqInput("");
       refetch();
     },
     onError: (e) => toast.error(e.message || "代出價失敗"),
@@ -1328,79 +1339,131 @@ export default function GroupAuctionEdit() {
               const numCol = columns.find(c => c.role === "itemNumber");
               const titleCol = columns.find(c => c.role === "itemTitle");
               const defaultInc = parseInt(basic.defaultBidIncrement, 10) || (round?.defaultBidIncrement ?? 50);
-              const parseProxyInput = (raw: string): ProxyBidPreview[] => {
-                const lines = raw.split("\n").map(l => l.trim()).filter(Boolean);
-                return lines.map(line => {
-                  const m = line.match(/^\+?(\d+)\s+(.+)$/);
-                  if (!m) return null;
-                  const [, numStr, name] = m;
-                  const seq = parseInt(numStr, 10); // 1-indexed 序號
-                  const it = seq >= 1 && seq <= items.length ? items[seq - 1] : undefined;
-                  if (!it) return { itemId: -1, itemNum: numStr, itemTitle: "找不到商品", bidderName: name.trim(), currentPrice: 0, newPrice: 0, inc: 0, error: `序號 ${numStr} 不存在（共 ${items.length} 件）` };
-                  if (it.status !== "active") return { itemId: it.id, itemNum: numStr, itemTitle: titleCol ? ((() => { try { return JSON.parse(it.dataJson); } catch { return {}; } })()[titleCol.key] || "") : "", bidderName: name.trim(), currentPrice: 0, newPrice: 0, inc: 0, error: "商品已結拍" };
-                  const d: Record<string, string> = (() => { try { return JSON.parse(it.dataJson); } catch { return {}; } })();
-                  const ttl = titleCol ? (d[titleCol.key] || "") : "";
-                  const numVal = numCol ? (d[numCol.key] || "") : "";
-                  const curPx = (it as any).currentPrice ?? it.startPrice;
-                  const inc = it.bidIncrement > 0 ? it.bidIncrement : defaultInc;
-                  const newPx = curPx > 0 ? curPx + inc : (it.startPrice > 0 ? it.startPrice : inc);
-                  const capErr = it.buyNowPrice && newPx > it.buyNowPrice ? `新出價 $${newPx} 超封頂 $${it.buyNowPrice}` : undefined;
-                  return { itemId: it.id, itemNum: numVal || numStr, itemTitle: ttl, bidderName: name.trim(), currentPrice: curPx, newPrice: newPx, inc, error: capErr };
-                }).filter(Boolean) as ProxyBidPreview[];
+
+              // 解析序號輸入，支援多種 pattern
+              const parseSeqInput = (raw: string): number[] => {
+                const text = raw.trim();
+                if (!text) return [];
+                const seqs = new Set<number>();
+                // "32起" → 32 到最後
+                const fromMatch = text.match(/^(\d+)起$/);
+                if (fromMatch) {
+                  const start = parseInt(fromMatch[1], 10);
+                  for (let i = start; i <= items.length; i++) seqs.add(i);
+                  return [...seqs];
+                }
+                // 去掉所有 "+"，再按 逗號/頓號/空格 分割
+                const parts = text.replace(/\+/g, "").split(/[,，\s]+/).filter(Boolean);
+                for (const p of parts) {
+                  // 範圍 "1-5"
+                  const range = p.match(/^(\d+)-(\d+)$/);
+                  if (range) {
+                    const a = parseInt(range[1], 10), b = parseInt(range[2], 10);
+                    for (let i = Math.min(a, b); i <= Math.max(a, b); i++) {
+                      if (i >= 1 && i <= items.length) seqs.add(i);
+                    }
+                  } else {
+                    const n = parseInt(p, 10);
+                    if (!isNaN(n) && n >= 1 && n <= items.length) seqs.add(n);
+                  }
+                }
+                return [...seqs].sort((a, b) => a - b);
               };
-              const preview = proxyPreview.length > 0 ? proxyPreview : (proxyInput.trim() ? parseProxyInput(proxyInput) : []);
-              const validBids = preview.filter(p => !p.error && p.itemId > 0);
+
+              const seqs = parseSeqInput(proxySeqInput);
+              const bidderName = proxyBidderInput.trim();
+
+              const preview: ProxyBidPreview[] = seqs.map(seq => {
+                const it = items[seq - 1];
+                if (!it) return { seq, itemId: -1, itemNum: String(seq), itemTitle: "", bidderName, currentPrice: 0, newPrice: 0, inc: 0, error: `序號 ${seq} 不存在` };
+                if (it.status !== "active") {
+                  const d: Record<string, string> = (() => { try { return JSON.parse(it.dataJson); } catch { return {}; } })();
+                  return { seq, itemId: it.id, itemNum: numCol ? (d[numCol.key] || String(seq)) : String(seq), itemTitle: titleCol ? (d[titleCol.key] || "") : "", bidderName, currentPrice: 0, newPrice: 0, inc: 0, error: "商品已結拍" };
+                }
+                const d: Record<string, string> = (() => { try { return JSON.parse(it.dataJson); } catch { return {}; } })();
+                const ttl = titleCol ? (d[titleCol.key] || "") : "";
+                const numVal = numCol ? (d[numCol.key] || "") : "";
+                const curPx = (it as any).currentPrice ?? it.startPrice;
+                const inc = it.bidIncrement > 0 ? it.bidIncrement : defaultInc;
+                const newPx = curPx > 0 ? curPx + inc : (it.startPrice > 0 ? it.startPrice : inc);
+                const capErr = it.buyNowPrice && newPx > it.buyNowPrice ? `超封頂 $${it.buyNowPrice}` : undefined;
+                return { seq, itemId: it.id, itemNum: numVal || String(seq), itemTitle: ttl, bidderName, currentPrice: curPx, newPrice: newPx, inc, error: capErr };
+              });
+
+              const validBids = preview.filter(p => !p.error && p.itemId > 0 && bidderName);
+              const canSubmit = validBids.length > 0 && !!bidderName && !merchantProxyBidMut.isPending;
+
               return (
                 <div className="rounded-2xl p-3 space-y-3" style={{ background: "#fff7ed", border: "1px solid #fed7aa" }}>
-                  <p className="text-xs font-semibold text-orange-700">代出價面板 — 格式：序號 出價人名（序號即商品列表左側數字）</p>
-                  <textarea
-                    className="w-full px-3 py-2 text-sm outline-none resize-none font-mono"
-                    style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
-                    rows={4}
-                    placeholder={"+22 張大文\n+8 李小明\n+15 王sir\n（+序號 出價人名，每行一條）"}
-                    value={proxyInput}
-                    onChange={e => { setProxyInput(e.target.value); setProxyPreview([]); }}
-                  />
-                  {proxyInput.trim() && (
-                    <>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs border-collapse">
-                          <thead>
-                            <tr style={{ background: "#ffedd5" }}>
-                              <th className="px-2 py-1 text-left font-semibold text-orange-800">序號</th>
-                              <th className="px-2 py-1 text-left font-semibold text-orange-800">商品</th>
-                              <th className="px-2 py-1 text-left font-semibold text-orange-800">出價人</th>
-                              <th className="px-2 py-1 text-right font-semibold text-orange-800">現價</th>
-                              <th className="px-2 py-1 text-right font-semibold text-orange-800">新出價</th>
-                              <th className="px-2 py-1 text-left font-semibold text-orange-800">狀態</th>
+                  <p className="text-xs font-semibold text-orange-700">代出價面板</p>
+
+                  {/* Field 1 — 序號 */}
+                  <div>
+                    <p className="text-[11px] text-gray-500 mb-1">商品序號（左側數字）</p>
+                    <input
+                      className="w-full px-3 py-2 text-sm outline-none font-mono"
+                      style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                      placeholder="例：+1,+2  或  1-5  或  32起  或  3 7 12"
+                      value={proxySeqInput}
+                      onChange={e => setProxySeqInput(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Field 2 — 出價人名 */}
+                  <div>
+                    <p className="text-[11px] text-gray-500 mb-1">出價人名</p>
+                    <input
+                      list="proxyNameList"
+                      className="w-full px-3 py-2 text-sm outline-none"
+                      style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                      placeholder="輸入或選擇..."
+                      value={proxyBidderInput}
+                      onChange={e => setProxyBidderInput(e.target.value)}
+                    />
+                    <datalist id="proxyNameList">
+                      {proxyNameHistory.map(n => <option key={n} value={n} />)}
+                    </datalist>
+                  </div>
+
+                  {/* 預覽 table */}
+                  {seqs.length > 0 && bidderName && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs border-collapse">
+                        <thead>
+                          <tr style={{ background: "#ffedd5" }}>
+                            <th className="px-2 py-1 text-left font-semibold text-orange-800">序號</th>
+                            <th className="px-2 py-1 text-left font-semibold text-orange-800">商品</th>
+                            <th className="px-2 py-1 text-right font-semibold text-orange-800">現價</th>
+                            <th className="px-2 py-1 text-right font-semibold text-orange-800">新出價</th>
+                            <th className="px-2 py-1 text-left font-semibold text-orange-800">狀態</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {preview.map((p) => (
+                            <tr key={p.seq} style={{ borderBottom: "1px solid #fed7aa", background: p.error ? "#fef2f2" : "#fffbf7" }}>
+                              <td className="px-2 py-1 font-mono text-orange-600">{p.seq}</td>
+                              <td className="px-2 py-1 max-w-[130px] truncate">{p.itemTitle || p.itemNum || "—"}</td>
+                              <td className="px-2 py-1 text-right">{p.currentPrice > 0 ? `$${p.currentPrice}` : "—"}</td>
+                              <td className="px-2 py-1 text-right font-semibold text-orange-700">{p.error ? "—" : `$${p.newPrice}`}</td>
+                              <td className="px-2 py-1">{p.error ? <span className="text-red-500">{p.error}</span> : <span className="text-green-600">✓</span>}</td>
                             </tr>
-                          </thead>
-                          <tbody>
-                            {preview.map((p, i) => (
-                              <tr key={i} style={{ borderBottom: "1px solid #fed7aa", background: p.error ? "#fef2f2" : "#fffbf7" }}>
-                                <td className="px-2 py-1 font-mono">{p.itemNum}</td>
-                                <td className="px-2 py-1 max-w-[120px] truncate">{p.itemTitle || "—"}</td>
-                                <td className="px-2 py-1 font-medium">{p.bidderName}</td>
-                                <td className="px-2 py-1 text-right">{p.currentPrice > 0 ? `$${p.currentPrice}` : "—"}</td>
-                                <td className="px-2 py-1 text-right font-semibold text-orange-700">{p.error ? "—" : `$${p.newPrice}`}</td>
-                                <td className="px-2 py-1">{p.error ? <span className="text-red-500">{p.error}</span> : <span className="text-green-600">✓</span>}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      {validBids.length > 0 && (
-                        <button
-                          disabled={merchantProxyBidMut.isPending}
-                          onClick={() => merchantProxyBidMut.mutate({ roundId: roundId!, bids: validBids.map(p => ({ itemId: p.itemId, bidderName: p.bidderName })) })}
-                          className="w-full py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
-                          style={{ background: "linear-gradient(90deg,#ea580c,#f97316)" }}
-                        >
-                          {merchantProxyBidMut.isPending ? "代出價中…" : `確認代出價 ${validBids.length} 件`}
-                        </button>
-                      )}
-                    </>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
+
+                  {/* 確認按鈕 */}
+                  <button
+                    disabled={!canSubmit}
+                    onClick={() => merchantProxyBidMut.mutate({ roundId: roundId!, bids: validBids.map(p => ({ itemId: p.itemId, bidderName })) })}
+                    className="w-full py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40"
+                    style={{ background: "linear-gradient(90deg,#ea580c,#f97316)" }}
+                  >
+                    {merchantProxyBidMut.isPending ? "代出價中…" : validBids.length > 0 ? `確認代出價 ${validBids.length} 件 → ${bidderName}` : "輸入序號及出價人名"}
+                  </button>
+
+                  {/* 最近代出價記錄 */}
                   {proxyLog.length > 0 && (
                     <div className="space-y-1">
                       <p className="text-[11px] font-semibold text-orange-700">最近代出價記錄（可撤銷）</p>
@@ -1408,14 +1471,14 @@ export default function GroupAuctionEdit() {
                         <div key={e.bidId} className="flex items-center justify-between bg-white rounded-xl px-3 py-1.5" style={{ border: "1px solid #fed7aa" }}>
                           <span className="text-xs text-gray-700">
                             <span className="font-mono text-orange-600 mr-1">{e.itemNum}</span>
-                            <span className="text-gray-500 mr-1">{e.itemTitle}</span>
+                            <span className="text-gray-500 mr-1 max-w-[80px] truncate inline-block align-middle">{e.itemTitle}</span>
                             <span className="font-medium">{e.bidderName}</span>
                             <span className="text-gray-400 ml-1">${e.amount}</span>
                           </span>
                           <button
                             disabled={undoProxyBidMut.isPending}
                             onClick={() => undoProxyBidMut.mutate({ bidId: e.bidId })}
-                            className="text-xs text-red-500 hover:text-red-700 px-2 py-0.5 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                            className="text-xs text-red-500 hover:text-red-700 px-2 py-0.5 rounded-lg hover:bg-red-50 disabled:opacity-50 flex-shrink-0"
                           >
                             撤銷
                           </button>
