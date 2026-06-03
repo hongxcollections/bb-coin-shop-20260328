@@ -1153,8 +1153,8 @@ async function bootstrapMissingColumns() {
     INDEX \`idx_gab_round\` (\`roundId\`),
     INDEX \`idx_gab_user\` (\`userId\`)
   )`, 'Ensured groupAuctionBids table');
-  await addColumn('groupAuctionBids', 'isProxy', `ALTER TABLE \`groupAuctionBids\` ADD COLUMN \`isProxy\` INT NOT NULL DEFAULT 0`);
-  await addColumn('groupAuctionBids', 'proxyName', `ALTER TABLE \`groupAuctionBids\` ADD COLUMN \`proxyName\` VARCHAR(100) NULL`);
+  await alter(`ALTER TABLE \`groupAuctionBids\` ADD COLUMN \`isProxy\` INT NOT NULL DEFAULT 0`, 'groupAuctionBids.isProxy');
+  await alter(`ALTER TABLE \`groupAuctionBids\` ADD COLUMN \`proxyName\` VARCHAR(100) NULL`, 'groupAuctionBids.proxyName');
 
   console.log('[Bootstrap] Schema bootstrap completed');
   try { await pool.end(); } catch {}
