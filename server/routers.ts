@@ -10112,22 +10112,42 @@ EXAMPLE OUTPUT (exact format):
               .orderBy(descOrd(groupAuctionBids.amount), descOrd(groupAuctionBids.id))
           : [];
         const topBidAmtByItem = new Map<number, number>();
-        const topBidProxyByItem = new Map<number, { isProxy: number; proxyName: string | null }>();
+        const topBidProxyByItem = new Map<number, { isProxy: number; proxyName: string | null; userId: number | null }>();
         const bidCntByItem = new Map<number, number>();
         for (const bid of allBidRows) {
           if (!topBidAmtByItem.has(bid.itemId)) {
             topBidAmtByItem.set(bid.itemId, bid.amount);
-            topBidProxyByItem.set(bid.itemId, { isProxy: bid.isProxy ?? 0, proxyName: (bid as any).proxyName ?? null });
+            topBidProxyByItem.set(bid.itemId, { isProxy: bid.isProxy ?? 0, proxyName: (bid as any).proxyName ?? null, userId: bid.userId ?? null });
           }
           bidCntByItem.set(bid.itemId, (bidCntByItem.get(bid.itemId) ?? 0) + 1);
         }
-        const itemsWithBidCount = items.map(item => ({
-          ...item,
-          bidCount: bidCntByItem.get(item.id) ?? 0,
-          currentPrice: topBidAmtByItem.get(item.id) ?? item.startPrice,
-          leadingIsProxy: (topBidProxyByItem.get(item.id)?.isProxy ?? 0) === 1,
-          leadingProxyName: topBidProxyByItem.get(item.id)?.proxyName ?? null,
-        }));
+        // 批量 fetch 非代出價者嘅 name（leadingBidderName）
+        const leadingUserIds = [...new Set(
+          [...topBidProxyByItem.values()]
+            .filter(v => (v.isProxy ?? 0) === 0 && v.userId)
+            .map(v => v.userId as number)
+        )];
+        let leadingUserMap: Record<number, string> = {};
+        if (leadingUserIds.length > 0) {
+          const { users: usersTableLead } = await import('../drizzle/schema');
+          const { inArray: inArrLead } = await import('drizzle-orm');
+          const leadingUsers = await db.select({ id: usersTableLead.id, name: usersTableLead.name })
+            .from(usersTableLead).where(inArrLead(usersTableLead.id, leadingUserIds));
+          leadingUserMap = Object.fromEntries(leadingUsers.map(u => [u.id, u.name ?? '']));
+        }
+        const itemsWithBidCount = items.map(item => {
+          const topProxy = topBidProxyByItem.get(item.id);
+          const isProxy = (topProxy?.isProxy ?? 0) === 1;
+          const leadingBidderName = !isProxy && topProxy?.userId ? (leadingUserMap[topProxy.userId] ?? null) : null;
+          return {
+            ...item,
+            bidCount: bidCntByItem.get(item.id) ?? 0,
+            currentPrice: topBidAmtByItem.get(item.id) ?? item.startPrice,
+            leadingIsProxy: isProxy,
+            leadingProxyName: topProxy?.proxyName ?? null,
+            leadingBidderName,
+          };
+        });
         // 加入得標買家姓名（winnerId → winnerName）
         const winnerIds = [...new Set(itemsWithBidCount.filter(i => i.winnerId).map(i => i.winnerId as number))];
         let winnerMap: Record<number, { name: string; photoUrl: string | null }> = {};

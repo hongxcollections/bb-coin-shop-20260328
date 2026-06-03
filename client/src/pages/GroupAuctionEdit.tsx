@@ -1634,7 +1634,19 @@ export default function GroupAuctionEdit() {
                             if (hasBids) {
                               const proxyName = (item as any).leadingProxyName as string | null;
                               const isProxy = (item as any).leadingIsProxy as boolean;
-                              return <span className="text-amber-600"> • {isProxy && proxyName ? <><span className="text-orange-500 font-medium">{proxyName}（代）</span>{" "}</> : ""}領先 {currSym}{(item as any).currentPrice ?? ""}</span>;
+                              const leadingBidderName = (item as any).leadingBidderName as string | null;
+                              return (
+                                <span className="text-amber-600">
+                                  {" • "}
+                                  {isProxy && proxyName
+                                    ? <><span className="text-orange-500 font-medium">{proxyName}</span><span style={{ background: "#1e3a8a", color: "#fff", fontSize: 9, borderRadius: 5, padding: "0px 4px", lineHeight: "14px", fontWeight: 600, marginLeft: 3, marginRight: 3 }}>代</span></>
+                                    : leadingBidderName
+                                      ? <span className="font-medium">{leadingBidderName}</span>
+                                      : null
+                                  }
+                                  {" "}領先 {currSym}{(item as any).currentPrice ?? ""}
+                                </span>
+                              );
                             }
                             return null;
                           })()}
