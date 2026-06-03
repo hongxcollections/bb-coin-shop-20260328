@@ -10080,10 +10080,20 @@ EXAMPLE OUTPUT (exact format):
         throw new TRPCError({ code: 'FORBIDDEN', message: '只限商戶會員' });
       }
       const db = await getDb();
-      const { desc } = await import('drizzle-orm');
-      return db.select().from(groupAuctionRounds)
+      const { desc, inArray: inArrR, sql: sqlR } = await import('drizzle-orm');
+      const rounds = await db.select().from(groupAuctionRounds)
         .where(eq(groupAuctionRounds.merchantUserId, ctx.user.id))
         .orderBy(desc(groupAuctionRounds.createdAt));
+      if (rounds.length === 0) return rounds.map(r => ({ ...r, _itemCount: 0 }));
+      const roundIds = rounds.map(r => r.id);
+      const counts = await db.select({
+        roundId: groupAuctionItems.roundId,
+        cnt: sqlR<number>`COUNT(*)`,
+      }).from(groupAuctionItems)
+        .where(inArrR(groupAuctionItems.roundId, roundIds))
+        .groupBy(groupAuctionItems.roundId);
+      const countMap = new Map(counts.map(c => [c.roundId, Number(c.cnt)]));
+      return rounds.map(r => ({ ...r, _itemCount: countMap.get(r.id) ?? 0 }));
     }),
 
     /** 商戶：取得單一場次詳情（含商品 + 圖片集） */

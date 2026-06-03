@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { sify, tify } from "chinese-conv";
 import { createPortal } from "react-dom";
 import { Link, useLocation } from "wouter";
@@ -148,6 +148,15 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
   const [filter, setFilter] = useState<RecordsFilter>("all");
   const [sortDir, setSortDir] = useState<RecordsSortDir>("none");
   const captureRef = useRef<HTMLDivElement>(null);
+  const openedAt = useMemo(() => {
+    const d = new Date();
+    const yy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mn = String(d.getMinutes()).padStart(2, "0");
+    return `${yy}-${mm}-${dd} 星期${DOW_HK[d.getDay()]} ${hh}:${mn}`;
+  }, []);
 
   const { data, isLoading } = trpc.groupAuctions.getRound.useQuery(
     { roundId },
@@ -377,6 +386,10 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
           )}
         </div>
       )}
+      <div style={{ marginTop: 10, marginBottom: 10, textAlign: "center" }}>
+        <p style={{ fontSize: 10, color: "#9ca3af", margin: 0, lineHeight: 1.6 }}>- hongxcollections.com -</p>
+        <p style={{ fontSize: 10, color: "#9ca3af", margin: 0, lineHeight: 1.6 }}>{openedAt}</p>
+      </div>
     </div>
   );
 
@@ -701,6 +714,9 @@ export default function GroupAuctionList() {
                         ? `開拍時間：${fmtDateShort(r.startAt ?? null)} 至 ${fmtDateShort(r.endAt ?? null)}`
                         : "未設開拍時間"}
                     </div>
+                    {(r as any)._itemCount > 0 && (
+                      <p className="text-xs text-gray-400 mt-0.5">{(r as any)._itemCount} 件商品</p>
+                    )}
                   </div>
                 </div>
 
