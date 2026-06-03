@@ -10323,14 +10323,23 @@ EXAMPLE OUTPUT (exact format):
         await db.update(groupAuctionRounds)
           .set({ status: 'ended' })
           .where(eq(groupAuctionRounds.id, input.id));
-        // 所有仍 active 商品標為 unsold 或 sold（根據有否出價）
+        // 所有仍 active 商品根據出價記錄標 sold/unsold（包含代出價）
+        const { desc: _eDesc } = await import('drizzle-orm');
         const items = await db.select().from(groupAuctionItems)
           .where(eq(groupAuctionItems.roundId, input.id));
+        const allBidsE = await db.select().from(groupAuctionBids)
+          .where(eq(groupAuctionBids.roundId, input.id))
+          .orderBy(_eDesc(groupAuctionBids.amount), _eDesc(groupAuctionBids.id));
+        const topBidByItemE = new Map<number, typeof allBidsE[0]>();
+        for (const bid of allBidsE) {
+          if (!topBidByItemE.has(bid.itemId)) topBidByItemE.set(bid.itemId, bid);
+        }
         for (const item of items) {
           if (item.status === 'active') {
-            if (item.winnerId) {
+            const topBid = topBidByItemE.get(item.id);
+            if (topBid) {
               await db.update(groupAuctionItems)
-                .set({ status: 'sold' })
+                .set({ status: 'sold', finalPrice: topBid.amount, winnerId: topBid.userId })
                 .where(eq(groupAuctionItems.id, item.id));
             } else {
               await db.update(groupAuctionItems)
@@ -10344,6 +10353,48 @@ EXAMPLE OUTPUT (exact format):
           console.error('[endRound] commission deduction error:', err)
         );
         return { success: true };
+      }),
+
+    /** 商戶：重新計算已結拍場次嘅成交結果（修正代出價遺漏商品） */
+    recalcResults: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.id)).limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id && ctx.user.role !== 'admin')
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        const { desc: _rDesc } = await import('drizzle-orm');
+        const items = await db.select().from(groupAuctionItems)
+          .where(eq(groupAuctionItems.roundId, input.id));
+        const allBidsR = await db.select().from(groupAuctionBids)
+          .where(eq(groupAuctionBids.roundId, input.id))
+          .orderBy(_rDesc(groupAuctionBids.amount), _rDesc(groupAuctionBids.id));
+        const topBidByItemR = new Map<number, typeof allBidsR[0]>();
+        for (const bid of allBidsR) {
+          if (!topBidByItemR.has(bid.itemId)) topBidByItemR.set(bid.itemId, bid);
+        }
+        let fixed = 0;
+        for (const item of items) {
+          const topBid = topBidByItemR.get(item.id);
+          if (topBid) {
+            if (item.status !== 'sold' || item.finalPrice !== topBid.amount || item.winnerId !== topBid.userId) {
+              await db.update(groupAuctionItems)
+                .set({ status: 'sold', finalPrice: topBid.amount, winnerId: topBid.userId })
+                .where(eq(groupAuctionItems.id, item.id));
+              fixed++;
+            }
+          } else {
+            if (item.status !== 'unsold') {
+              await db.update(groupAuctionItems)
+                .set({ status: 'unsold', finalPrice: null, winnerId: null })
+                .where(eq(groupAuctionItems.id, item.id));
+              fixed++;
+            }
+          }
+        }
+        return { success: true, fixed };
       }),
 
     /** 商戶：刪除 draft 場次 */
@@ -11266,6 +11317,11 @@ EXAMPLE OUTPUT (exact format):
             itemId: bid.itemId, roundId: input.roundId, userId: ctx.user.id,
             amount: newAmt, isProxy: 1, proxyName: bid.bidderName,
           });
+          // 更新商品快取（令 endRound/cron 能正確標 sold，同 placeBid 保持一致）
+          await db.update(groupAuctionItems).set({
+            finalPrice: newAmt,
+            winnerId: ctx.user.id,
+          }).where(eq(groupAuctionItems.id, bid.itemId));
           results.push({ itemId: bid.itemId, success: true, bidId: (ins as any).insertId as number, amount: newAmt, bidderName: bid.bidderName });
         }
         return { results };
@@ -11291,6 +11347,17 @@ EXAMPLE OUTPUT (exact format):
           .limit(1);
         if (newerBid) throw new TRPCError({ code: 'BAD_REQUEST', message: '此出價已被後續出價覆蓋，無法撤銷' });
         await db.delete(groupAuctionBids).where(eq(groupAuctionBids.id, input.bidId));
+        // 撤銷後重新計算商品 winnerId / finalPrice
+        const { desc: _udDesc } = await import('drizzle-orm');
+        const [newTop] = await db.select()
+          .from(groupAuctionBids)
+          .where(eq(groupAuctionBids.itemId, bid.itemId))
+          .orderBy(_udDesc(groupAuctionBids.amount), _udDesc(groupAuctionBids.id))
+          .limit(1);
+        await db.update(groupAuctionItems).set({
+          finalPrice: newTop ? newTop.amount : null,
+          winnerId: newTop ? newTop.userId : null,
+        }).where(eq(groupAuctionItems.id, bid.itemId));
         return { success: true, itemId: bid.itemId };
       }),
   }),

@@ -2185,18 +2185,33 @@ Output ONLY the JSON, nothing else.`;
         .set({ status: 'ended' })
         .where(inArray(groupAuctionRounds.id, ids));
 
-      // 每個場次：active 商品按有否出價標 sold / unsold
+      // 每個場次：active 商品根據出價記錄標 sold/unsold（包含代出價）
       for (const { id } of toEnd) {
         try {
+          const { groupAuctionBids: gaBids } = await import('../../drizzle/schema');
+          const { desc: gaDesc } = await import('drizzle-orm');
           const items = await db
-            .select({ id: groupAuctionItems.id, winnerId: groupAuctionItems.winnerId, status: groupAuctionItems.status })
+            .select({ id: groupAuctionItems.id, status: groupAuctionItems.status })
             .from(groupAuctionItems)
             .where(and(eq(groupAuctionItems.roundId, id), eq(groupAuctionItems.status, 'active')));
-
+          const allBidsC = await db.select().from(gaBids)
+            .where(eq(gaBids.roundId, id))
+            .orderBy(gaDesc(gaBids.amount), gaDesc(gaBids.id));
+          const topBidByItemC = new Map<number, typeof allBidsC[0]>();
+          for (const bid of allBidsC) {
+            if (!topBidByItemC.has(bid.itemId)) topBidByItemC.set(bid.itemId, bid);
+          }
           for (const item of items) {
-            await db.update(groupAuctionItems)
-              .set({ status: item.winnerId ? 'sold' : 'unsold' })
-              .where(eq(groupAuctionItems.id, item.id));
+            const topBid = topBidByItemC.get(item.id);
+            if (topBid) {
+              await db.update(groupAuctionItems)
+                .set({ status: 'sold', finalPrice: topBid.amount, winnerId: topBid.userId })
+                .where(eq(groupAuctionItems.id, item.id));
+            } else {
+              await db.update(groupAuctionItems)
+                .set({ status: 'unsold' })
+                .where(eq(groupAuctionItems.id, item.id));
+            }
           }
 
           // 扣傭金（冪等，重複跑安全）

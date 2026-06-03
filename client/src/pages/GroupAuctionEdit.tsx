@@ -323,6 +323,13 @@ export default function GroupAuctionEdit() {
     },
     onError: (e) => toast.error(e.message || "撤銷失敗"),
   });
+  const recalcResultsMut = trpc.groupAuctions.recalcResults.useMutation({
+    onSuccess: (r) => {
+      toast.success(r.fixed > 0 ? `已修正 ${r.fixed} 件商品結果` : "結果已是最新，無需修正");
+      refetch();
+    },
+    onError: (e) => toast.error(e.message || "修正失敗"),
+  });
   const batchUpdatePricesMut = trpc.groupAuctions.batchUpdatePrices.useMutation({
     onSuccess: (r) => {
       const parts = [`已更新 ${r.updated} 件`];
@@ -1963,7 +1970,7 @@ export default function GroupAuctionEdit() {
             return uid ? `user:${uid}` : null;
           }
           const buyerMap = new Map<string, { name: string; photoUrl: string | null; isProxy: boolean }>();
-          items.forEach(it => {
+          soldItems.forEach(it => {
             const key = getBuyerKey(it);
             if (!key || buyerMap.has(key)) return;
             if ((it as any).leadingIsProxy && (it as any).leadingProxyName) {
@@ -2077,6 +2084,13 @@ export default function GroupAuctionEdit() {
                   className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg"
                 >
                   成交價：{resultSortDir === "desc" ? "高→低" : "低→高"}
+                </button>
+                <button
+                  onClick={() => recalcResultsMut.mutate({ id: round.id })}
+                  disabled={recalcResultsMut.isPending}
+                  className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg disabled:opacity-50"
+                >
+                  {recalcResultsMut.isPending ? "修正中…" : "重新計算結果"}
                 </button>
                 <div className="ml-auto flex items-center gap-2">
                   <button
