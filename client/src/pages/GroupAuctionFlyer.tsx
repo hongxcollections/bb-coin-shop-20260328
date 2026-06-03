@@ -135,7 +135,13 @@ export default function GroupAuctionFlyer() {
 
     try {
       const { toPng } = await import("html-to-image");
-      const fullW = el.scrollWidth;
+      // fullW：取所有子元素 getBoundingClientRect().right 最大值，解決 overflow visible 後 scrollWidth 唔追蹤 table 真實右邊界問題
+      const elRect = el.getBoundingClientRect();
+      const allRights = Array.from(el.querySelectorAll("*")).map(
+        c => c.getBoundingClientRect().right
+      );
+      const maxRight = Math.max(elRect.right, ...allRights);
+      const fullW = Math.ceil(maxRight - elRect.left) + 8; // +8 補右 padding
       const fullH = el.scrollHeight;
       const dataUrl = await toPng(el, {
         backgroundColor: "#ffffff",
