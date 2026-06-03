@@ -208,6 +208,7 @@ export default function GroupAuctionEdit() {
     try { return JSON.parse(localStorage.getItem("proxyNameHistory") || "[]"); } catch { return []; }
   });
   const [proxyLog, setProxyLog] = useState<ProxyBidLogEntry[]>([]);
+  const [proxySuccessBanner, setProxySuccessBanner] = useState<{ bidderName: string; items: { label: string; amount: number }[] } | null>(null);
   // 行內編輯
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [editFields, setEditFields] = useState<Record<string, string>>({});
@@ -285,14 +286,12 @@ export default function GroupAuctionEdit() {
         return { bidId: x.bidId!, itemId: x.itemId, itemNum: numCol ? (d[numCol.key] || "") : "", itemTitle: titleCol ? (d[titleCol.key] || "") : "", bidderName: x.bidderName!, amount: x.amount! };
       });
       setProxyLog(prev => [...newLogEntries, ...prev].slice(0, 30));
-      // Toast：每件成功出價顯示商品號碼 + 名稱
-      if (ok.length === 1) {
-        const e = newLogEntries[0];
-        const label = [e.itemNum, e.itemTitle].filter(Boolean).join(" ");
-        toast.success(`代出價成功：${label}（${e.bidderName} $${e.amount}）`);
-      } else if (ok.length > 1) {
-        const lines = newLogEntries.map(e => `${[e.itemNum, e.itemTitle].filter(Boolean).join(" ")} $${e.amount}`).join("、");
-        toast.success(`成功代出價 ${ok.length} 件（${vars.bids[0]?.bidderName}）：${lines}`);
+      // Banner：代出價結果顯示喺頂部（可關閉）
+      if (ok.length > 0) {
+        setProxySuccessBanner({
+          bidderName: newLogEntries[0].bidderName,
+          items: newLogEntries.map(e => ({ label: [e.itemNum, e.itemTitle].filter(Boolean).join(" "), amount: e.amount })),
+        });
       }
       if (r.results.some(x => !x.success)) {
         toast.error(r.results.filter(x => !x.success).map(f => f.error).join("、"));
@@ -1173,6 +1172,26 @@ export default function GroupAuctionEdit() {
         {/* ── 商品管理 Tab ── */}
         {tab === "items" && roundId && (
           <div className="space-y-4">
+            {/* 代出價成功 banner */}
+            {proxySuccessBanner && (
+              <div className="flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5">
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-semibold text-orange-700 mr-1.5">{proxySuccessBanner.bidderName} 代出價成功：</span>
+                  {proxySuccessBanner.items.map((it, i) => (
+                    <span key={i} className="text-xs text-orange-600">
+                      {i > 0 && <span className="mx-1 text-orange-300">|</span>}
+                      {it.label} <span className="font-medium">HK${it.amount.toLocaleString()}</span>
+                    </span>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setProxySuccessBanner(null)}
+                  className="flex-shrink-0 text-orange-400 hover:text-orange-600 mt-0.5"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
             {/* 工具列 */}
             <div className="flex gap-2 items-center overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
               {!selectMode && !bulkPriceMode ? (
