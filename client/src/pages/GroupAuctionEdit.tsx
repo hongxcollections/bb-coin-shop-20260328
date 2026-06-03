@@ -643,16 +643,25 @@ export default function GroupAuctionEdit() {
             <p style={{ fontSize: 12, fontWeight: 700, color: "var(--popup-text)", marginBottom: 5 }}>
               {proxySuccessBanner.bidderName} 代出價成功
             </p>
-            <p style={{ fontSize: 11, color: "var(--popup-desc)", lineHeight: "1.6", wordBreak: "break-word" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
               {proxySuccessBanner.items.map((it, i) => (
-                <span key={i}>
-                  {i > 0 && <span style={{ margin: "0 5px", opacity: 0.5 }}>·</span>}
-                  {[it.num, it.title].filter(Boolean).join(" ")}
-                  {" "}
-                  <span style={{ fontWeight: 600, color: "var(--popup-text)" }}>HK${it.amount.toLocaleString()}</span>
-                </span>
+                <div key={i} style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  padding: "5px 0",
+                  borderTop: i > 0 ? "1px solid rgba(255,255,255,0.25)" : "none",
+                }}>
+                  <span style={{ fontSize: 11, color: "var(--popup-desc)", minWidth: 0, flex: 1 }}>
+                    {[it.num, it.title].filter(Boolean).join("  ")}
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--popup-text)", flexShrink: 0 }}>
+                    HK${it.amount.toLocaleString()}
+                  </span>
+                </div>
               ))}
-            </p>
+            </div>
           </div>
           <button
             onClick={() => setProxySuccessBanner(null)}
