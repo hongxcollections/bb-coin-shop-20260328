@@ -9,12 +9,34 @@ interface Props {
   fullscreenOnClick?: boolean;
 }
 
-function usePinchZoom(ref: React.RefObject<HTMLElement | null>) {
-  const [scale, setScale] = useState(1);
-  const stateRef = useRef({ scale: 1, lastDist: null as number | null });
+function FullscreenLightbox({ src, alt, onClose }: { src: string; alt?: string; onClose: () => void }) {
+  const imgRef = useRef<HTMLImageElement>(null);
+  const stateRef = useRef({
+    scale: 1,
+    tx: 0,
+    ty: 0,
+    lastDist: null as number | null,
+    lastMidX: 0,
+    lastMidY: 0,
+    lastSingleX: 0,
+    lastSingleY: 0,
+    isPanning: false,
+  });
+  const [transform, setTransform] = useState({ scale: 1, tx: 0, ty: 0 });
+
+  function applyTransform() {
+    const s = stateRef.current;
+    setTransform({ scale: s.scale, tx: s.tx, ty: s.ty });
+  }
+
+  function resetTransform() {
+    const s = stateRef.current;
+    s.scale = 1; s.tx = 0; s.ty = 0;
+    applyTransform();
+  }
 
   useEffect(() => {
-    const el = ref.current;
+    const el = imgRef.current;
     if (!el) return;
 
     function getDist(t: TouchList) {
@@ -23,29 +45,67 @@ function usePinchZoom(ref: React.RefObject<HTMLElement | null>) {
       return Math.sqrt(dx * dx + dy * dy);
     }
 
+    function getMid(t: TouchList) {
+      return {
+        x: (t[0].clientX + t[1].clientX) / 2,
+        y: (t[0].clientY + t[1].clientY) / 2,
+      };
+    }
+
     function onStart(e: TouchEvent) {
+      const s = stateRef.current;
       if (e.touches.length === 2) {
-        stateRef.current.lastDist = getDist(e.touches);
+        s.lastDist = getDist(e.touches);
+        const mid = getMid(e.touches);
+        s.lastMidX = mid.x;
+        s.lastMidY = mid.y;
+        s.isPanning = false;
+      } else if (e.touches.length === 1) {
+        s.lastSingleX = e.touches[0].clientX;
+        s.lastSingleY = e.touches[0].clientY;
+        s.isPanning = true;
       }
     }
 
     function onMove(e: TouchEvent) {
-      if (e.touches.length === 2 && stateRef.current.lastDist !== null) {
-        e.preventDefault();
-        const d = getDist(e.touches);
-        const next = Math.min(6, Math.max(1, stateRef.current.scale * (d / stateRef.current.lastDist)));
-        stateRef.current.scale = next;
-        stateRef.current.lastDist = d;
-        setScale(next);
+      e.preventDefault();
+      const s = stateRef.current;
+
+      if (e.touches.length === 2 && s.lastDist !== null) {
+        const dist = getDist(e.touches);
+        const mid = getMid(e.touches);
+        const ratio = dist / s.lastDist;
+        const newScale = Math.min(8, Math.max(1, s.scale * ratio));
+
+        // translate so pinch midpoint stays fixed
+        s.tx = mid.x - (mid.x - s.tx) * (newScale / s.scale) + (mid.x - s.lastMidX);
+        s.ty = mid.y - (mid.y - s.ty) * (newScale / s.scale) + (mid.y - s.lastMidY);
+        s.scale = newScale;
+        s.lastDist = dist;
+        s.lastMidX = mid.x;
+        s.lastMidY = mid.y;
+        applyTransform();
+      } else if (e.touches.length === 1 && s.isPanning) {
+        const dx = e.touches[0].clientX - s.lastSingleX;
+        const dy = e.touches[0].clientY - s.lastSingleY;
+        s.tx += dx;
+        s.ty += dy;
+        s.lastSingleX = e.touches[0].clientX;
+        s.lastSingleY = e.touches[0].clientY;
+        applyTransform();
       }
     }
 
     function onEnd(e: TouchEvent) {
+      const s = stateRef.current;
       if (e.touches.length < 2) {
-        stateRef.current.lastDist = null;
-        if (stateRef.current.scale < 1) {
-          stateRef.current.scale = 1;
-          setScale(1);
+        s.lastDist = null;
+      }
+      if (e.touches.length === 0) {
+        s.isPanning = false;
+        if (s.scale <= 1) {
+          s.scale = 1; s.tx = 0; s.ty = 0;
+          applyTransform();
         }
       }
     }
@@ -58,20 +118,7 @@ function usePinchZoom(ref: React.RefObject<HTMLElement | null>) {
       el.removeEventListener("touchmove", onMove);
       el.removeEventListener("touchend", onEnd);
     };
-  }, [ref]);
-
-  function reset() {
-    stateRef.current.scale = 1;
-    stateRef.current.lastDist = null;
-    setScale(1);
-  }
-
-  return { scale, reset };
-}
-
-function FullscreenLightbox({ src, alt, onClose }: { src: string; alt?: string; onClose: () => void }) {
-  const imgRef = useRef<HTMLImageElement>(null);
-  const { scale, reset } = usePinchZoom(imgRef);
+  }, []);
 
   return (
     <div
@@ -83,6 +130,7 @@ function FullscreenLightbox({ src, alt, onClose }: { src: string; alt?: string; 
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        overflow: "hidden",
       }}
       onClick={onClose}
     >
@@ -103,31 +151,44 @@ function FullscreenLightbox({ src, alt, onClose }: { src: string; alt?: string; 
           justifyContent: "center",
           cursor: "pointer",
           zIndex: 1,
+          flexShrink: 0,
         }}
       >
         <X style={{ width: 18, height: 18 }} />
       </button>
-      <div style={{ overflow: "hidden", touchAction: "pan-x pan-y", maxWidth: "100vw", maxHeight: "100vh" }} onClick={e => e.stopPropagation()}>
-        <img
-          ref={imgRef}
-          src={src}
-          alt={alt}
-          style={{
-            maxWidth: "100vw",
-            maxHeight: "100vh",
-            objectFit: "contain",
-            display: "block",
-            transform: `scale(${scale})`,
-            transformOrigin: "center center",
-            userSelect: "none",
-            WebkitUserSelect: "none",
-            cursor: scale > 1 ? "zoom-out" : "default",
-          }}
-          onDoubleClick={reset}
-        />
-      </div>
-      <p style={{ position: "absolute", bottom: 24, left: 0, right: 0, textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 11, pointerEvents: "none" }}>
-        雙指縮放 · 雙擊重設 · 點擊背景關閉
+
+      <img
+        ref={imgRef}
+        src={src}
+        alt={alt}
+        style={{
+          maxWidth: "100vw",
+          maxHeight: "100vh",
+          objectFit: "contain",
+          display: "block",
+          transform: `translate(${transform.tx}px, ${transform.ty}px) scale(${transform.scale})`,
+          transformOrigin: "center center",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          touchAction: "none",
+          cursor: transform.scale > 1 ? "grab" : "default",
+          willChange: "transform",
+        }}
+        onDoubleClick={resetTransform}
+        onClick={e => e.stopPropagation()}
+      />
+
+      <p style={{
+        position: "absolute",
+        bottom: 24,
+        left: 0,
+        right: 0,
+        textAlign: "center",
+        color: "rgba(255,255,255,0.4)",
+        fontSize: 11,
+        pointerEvents: "none",
+      }}>
+        雙指縮放 · 單指拖動 · 雙擊重設 · 點擊背景關閉
       </p>
     </div>
   );
@@ -135,28 +196,21 @@ function FullscreenLightbox({ src, alt, onClose }: { src: string; alt?: string; 
 
 export function PinchZoomImage({ src, alt, className, style, fullscreenOnClick }: Props) {
   const [lightbox, setLightbox] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { scale, reset } = usePinchZoom(containerRef);
 
   return (
     <>
-      <div ref={containerRef} style={{ overflow: "hidden", touchAction: "pan-x pan-y" }}>
-        <img
-          src={src}
-          alt={alt}
-          className={className}
-          style={{
-            ...style,
-            transform: `scale(${scale})`,
-            transformOrigin: "center center",
-            userSelect: "none",
-            WebkitUserSelect: "none",
-            cursor: fullscreenOnClick ? "zoom-in" : (scale > 1 ? "zoom-out" : "default"),
-          }}
-          onDoubleClick={fullscreenOnClick ? undefined : reset}
-          onClick={fullscreenOnClick ? () => setLightbox(true) : undefined}
-        />
-      </div>
+      <img
+        src={src}
+        alt={alt}
+        className={className}
+        style={{
+          ...style,
+          cursor: fullscreenOnClick ? "zoom-in" : "default",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+        }}
+        onClick={fullscreenOnClick ? () => setLightbox(true) : undefined}
+      />
       {lightbox && <FullscreenLightbox src={src} alt={alt} onClose={() => setLightbox(false)} />}
     </>
   );
