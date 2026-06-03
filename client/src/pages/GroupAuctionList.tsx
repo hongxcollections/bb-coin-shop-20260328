@@ -387,7 +387,7 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
         </div>
       )}
       <div style={{ marginTop: 10, marginBottom: 10, textAlign: "center" }}>
-        <p style={{ fontSize: 10, color: "#9ca3af", margin: 0, lineHeight: 1.6 }}>- hongxcollections.com -</p>
+        <p style={{ fontSize: 11, color: "#9ca3af", margin: 0, lineHeight: 1.6 }}>💰 hongxcollections.com</p>
         <p style={{ fontSize: 10, color: "#9ca3af", margin: 0, lineHeight: 1.6 }}>{openedAt}</p>
       </div>
     </div>
