@@ -1,19 +1,20 @@
 import { useRef, useState, useEffect } from "react";
+import { X } from "lucide-react";
 
 interface Props {
   src: string;
   alt?: string;
   className?: string;
   style?: React.CSSProperties;
+  fullscreenOnClick?: boolean;
 }
 
-export function PinchZoomImage({ src, alt, className, style }: Props) {
+function usePinchZoom(ref: React.RefObject<HTMLElement | null>) {
   const [scale, setScale] = useState(1);
-  const containerRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef({ scale: 1, lastDist: null as number | null });
 
   useEffect(() => {
-    const el = containerRef.current;
+    const el = ref.current;
     if (!el) return;
 
     function getDist(t: TouchList) {
@@ -57,24 +58,106 @@ export function PinchZoomImage({ src, alt, className, style }: Props) {
       el.removeEventListener("touchmove", onMove);
       el.removeEventListener("touchend", onEnd);
     };
-  }, []);
+  }, [ref]);
+
+  function reset() {
+    stateRef.current.scale = 1;
+    stateRef.current.lastDist = null;
+    setScale(1);
+  }
+
+  return { scale, reset };
+}
+
+function FullscreenLightbox({ src, alt, onClose }: { src: string; alt?: string; onClose: () => void }) {
+  const imgRef = useRef<HTMLImageElement>(null);
+  const { scale, reset } = usePinchZoom(imgRef);
 
   return (
-    <div ref={containerRef} style={{ overflow: "hidden", touchAction: "pan-x pan-y" }}>
-      <img
-        src={src}
-        alt={alt}
-        className={className}
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 99999,
+        background: "rgba(0,0,0,0.96)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+      onClick={onClose}
+    >
+      <button
+        onClick={onClose}
         style={{
-          ...style,
-          transform: `scale(${scale})`,
-          transformOrigin: "center center",
-          userSelect: "none",
-          WebkitUserSelect: "none",
-          cursor: scale > 1 ? "zoom-out" : "default",
+          position: "absolute",
+          top: 16,
+          right: 16,
+          color: "rgba(255,255,255,0.7)",
+          background: "rgba(255,255,255,0.12)",
+          border: "none",
+          borderRadius: "50%",
+          width: 36,
+          height: 36,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          zIndex: 1,
         }}
-        onDoubleClick={() => { stateRef.current.scale = 1; setScale(1); }}
-      />
+      >
+        <X style={{ width: 18, height: 18 }} />
+      </button>
+      <div style={{ overflow: "hidden", touchAction: "pan-x pan-y", maxWidth: "100vw", maxHeight: "100vh" }} onClick={e => e.stopPropagation()}>
+        <img
+          ref={imgRef}
+          src={src}
+          alt={alt}
+          style={{
+            maxWidth: "100vw",
+            maxHeight: "100vh",
+            objectFit: "contain",
+            display: "block",
+            transform: `scale(${scale})`,
+            transformOrigin: "center center",
+            userSelect: "none",
+            WebkitUserSelect: "none",
+            cursor: scale > 1 ? "zoom-out" : "default",
+          }}
+          onDoubleClick={reset}
+        />
+      </div>
+      <p style={{ position: "absolute", bottom: 24, left: 0, right: 0, textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 11, pointerEvents: "none" }}>
+        雙指縮放 · 雙擊重設 · 點擊背景關閉
+      </p>
     </div>
+  );
+}
+
+export function PinchZoomImage({ src, alt, className, style, fullscreenOnClick }: Props) {
+  const [lightbox, setLightbox] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { scale, reset } = usePinchZoom(containerRef);
+
+  return (
+    <>
+      <div ref={containerRef} style={{ overflow: "hidden", touchAction: "pan-x pan-y" }}>
+        <img
+          src={src}
+          alt={alt}
+          className={className}
+          style={{
+            ...style,
+            transform: `scale(${scale})`,
+            transformOrigin: "center center",
+            userSelect: "none",
+            WebkitUserSelect: "none",
+            cursor: fullscreenOnClick ? "zoom-in" : (scale > 1 ? "zoom-out" : "default"),
+          }}
+          onDoubleClick={fullscreenOnClick ? undefined : reset}
+          onClick={fullscreenOnClick ? () => setLightbox(true) : undefined}
+        />
+      </div>
+      {lightbox && <FullscreenLightbox src={src} alt={alt} onClose={() => setLightbox(false)} />}
+    </>
   );
 }

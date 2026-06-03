@@ -882,8 +882,9 @@ export default function GroupAuctionList() {
               alt="拍賣紀錄"
               className="w-full rounded-2xl shadow-2xl object-contain"
               style={{ maxHeight: "70vh" }}
+              fullscreenOnClick
             />
-            <p className="text-white/60 text-xs text-center">長按圖片儲存至相冊 · 雙指縮放</p>
+            <p className="text-white/60 text-xs text-center">點擊圖片放大 · 長按儲存至相冊</p>
             <div className="flex gap-3 w-full">
               <a
                 href={recPreviewUrl}
