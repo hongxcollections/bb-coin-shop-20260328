@@ -10642,7 +10642,7 @@ EXAMPLE OUTPUT (exact format):
           const patch: Record<string, any> = {};
           if (input.bidIncrement !== undefined) patch.bidIncrement = input.bidIncrement;
           if (!hasBids) {
-            if (input.startingPrice !== undefined) patch.startingPrice = input.startingPrice;
+            if (input.startingPrice !== undefined) patch.startPrice = input.startingPrice;
             if (input.buyNowPrice !== undefined) patch.buyNowPrice = input.buyNowPrice;
           } else if (input.startingPrice !== undefined || input.buyNowPrice !== undefined) {
             skippedDueToBids++;
