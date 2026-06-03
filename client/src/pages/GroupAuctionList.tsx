@@ -330,7 +330,14 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
                   {hasBid ? fmtP(item.currentPrice) : "—"}
                 </td>
                 <td style={{ ...recTdStyle, minWidth: 110, whiteSpace: "nowrap", color: hasBid ? "#374151" : "#d1d5db", borderRight: "none" }}>
-                  {hasBid ? item.topBidderName || "—" : "—"}
+                  {hasBid ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      {item.topBidderName || "—"}
+                      {item.topBidIsProxy && (
+                        <span style={{ background: "#1e3a8a", color: "#fff", fontSize: 10, borderRadius: 6, padding: "0px 5px", lineHeight: "16px", fontWeight: 600, whiteSpace: "nowrap" }}>代</span>
+                      )}
+                    </span>
+                  ) : "—"}
                 </td>
               </tr>
             );
@@ -464,9 +471,12 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
                               </td>
                               <td style={{ ...recTdStyle, minWidth: 110, whiteSpace: "nowrap", color: hasBid ? "#374151" : "#d1d5db", borderRight: "none" }}>
                                 {hasBid ? (
-                                  <span className="flex items-center gap-1">
+                                  <span className="flex items-center gap-1 flex-wrap">
                                     <Trophy className="w-3 h-3 text-amber-400 flex-shrink-0" />
                                     {item.topBidderName || "—"}
+                                    {item.topBidIsProxy && (
+                                      <span style={{ background: "#1e3a8a", color: "#fff", fontSize: 10, borderRadius: 6, padding: "0px 5px", lineHeight: "16px", fontWeight: 600, whiteSpace: "nowrap" }}>代</span>
+                                    )}
                                   </span>
                                 ) : "—"}
                               </td>
