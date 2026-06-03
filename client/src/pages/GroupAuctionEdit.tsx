@@ -314,8 +314,11 @@ export default function GroupAuctionEdit() {
   });
   const undoProxyBidMut = trpc.groupAuctions.undoProxyBid.useMutation({
     onSuccess: (_, vars) => {
-      toast.success("已撤銷代出價");
-      setProxyLog(prev => prev.filter(e => e.bidId !== vars.bidId));
+      setProxyLog(prev => {
+        const entry = prev.find(e => e.bidId === vars.bidId);
+        toast.success(entry ? `已撤銷 ${entry.bidderName} 嘅代出價` : "已撤銷代出價");
+        return prev.filter(e => e.bidId !== vars.bidId);
+      });
       refetch();
     },
     onError: (e) => toast.error(e.message || "撤銷失敗"),
