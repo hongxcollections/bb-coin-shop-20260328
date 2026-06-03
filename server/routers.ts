@@ -10903,7 +10903,7 @@ EXAMPLE OUTPUT (exact format):
           return {
             ...item,
             currentPrice: topBid?.amount ?? item.startPrice,
-            topBidderId: isProxy ? null : (topBid?.userId ?? null),
+            topBidderId: isProxy ? -1 : (topBid?.userId ?? null),
             topBidderName: topBid
               ? (isProxy ? ((topBid as any).proxyName ?? '代出價') : (bidderNameById.get(topBid.userId) ?? null))
               : null,

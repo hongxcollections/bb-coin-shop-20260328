@@ -638,11 +638,28 @@ export default function GroupAuctionBidPage() {
                     <div className="text-[10px] text-gray-400" style={{ marginTop: "5px" }}>起 {displayPrice(item.startPrice)} +{displayPrice(effectiveIncrement)}</div>
                     {item.topBidderName && (
                       <div className="flex items-center justify-between gap-1 text-xs mt-0.5">
-                        <div className="flex items-center gap-1">
-                          <Trophy className="w-3 h-3 text-amber-400" />
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <Trophy className="w-3 h-3 text-amber-400 flex-shrink-0" />
                           <span className={isMine ? "text-amber-600 font-medium" : "text-gray-800 font-medium"}>
                             {isMine ? "你領先" : item.topBidderName}
                           </span>
+                          {(item as any).topBidIsProxy && (
+                            <span
+                              style={{
+                                background: "#1e3a8a",
+                                color: "#fff",
+                                fontSize: "10px",
+                                borderRadius: "6px",
+                                padding: "0px 5px",
+                                lineHeight: "16px",
+                                fontWeight: 600,
+                                letterSpacing: "0.02em",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              代
+                            </span>
+                          )}
                         </div>
                       </div>
                     )}
