@@ -207,7 +207,7 @@ export default function GroupAuctionFlyer() {
         {/* Hero 標題區 */}
         <div className="mb-4">
           {round.coverImage ? (
-            <div className="mx-4 relative rounded-2xl overflow-hidden">
+            <div className="relative rounded-2xl overflow-hidden">
               <img src={round.coverImage} alt="" className="w-full object-cover" style={{ maxHeight: 220 }} />
               <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.15) 55%, transparent 100%)" }} />
               <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
@@ -222,7 +222,7 @@ export default function GroupAuctionFlyer() {
               </div>
             </div>
           ) : (
-            <div className="mx-4 px-4 pt-5 pb-4 rounded-2xl" style={{ background: "linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)" }}>
+            <div className="px-4 pt-5 pb-4 rounded-2xl" style={{ background: "linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)" }}>
               {round.periodNumber && (
                 <span className="inline-block text-[11px] text-amber-100 font-semibold mb-1.5 px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.2)" }}>
                   第 {round.periodNumber} 期
