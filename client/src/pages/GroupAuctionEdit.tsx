@@ -1952,7 +1952,7 @@ export default function GroupAuctionEdit() {
                   <p className="text-xs text-gray-400 mt-0.5">流拍</p>
                 </div>
                 <div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
-                  <p className="text-xl font-bold text-amber-600">{winners.length}</p>
+                  <p className="text-xl font-bold text-amber-600">{buyers.length}</p>
                   <p className="text-xs text-gray-400 mt-0.5">買家</p>
                 </div>
               </div>
