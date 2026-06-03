@@ -208,6 +208,7 @@ export default function GroupAuctionEdit() {
     try { return JSON.parse(localStorage.getItem("proxyNameHistory") || "[]"); } catch { return []; }
   });
   const [proxyLog, setProxyLog] = useState<ProxyBidLogEntry[]>([]);
+  const [showProxyNameDropdown, setShowProxyNameDropdown] = useState(false);
   const [proxySuccessBanner, setProxySuccessBanner] = useState<{ bidderName: string; items: { num: string; title: string; amount: number }[] } | null>(null);
   // 行內編輯
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
@@ -1463,20 +1464,64 @@ export default function GroupAuctionEdit() {
                   </div>
 
                   {/* Field 2 — 出價用戶 */}
-                  <div>
-                    <p className="text-[11px] text-gray-500 mb-1">出價用戶</p>
-                    <input
-                      list="proxyNameList"
-                      className="w-full px-3 py-2 text-sm outline-none"
-                      style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
-                      placeholder="輸入或選擇..."
-                      value={proxyBidderInput}
-                      onChange={e => setProxyBidderInput(e.target.value)}
-                    />
-                    <datalist id="proxyNameList">
-                      {proxyNameHistory.map(n => <option key={n} value={n} />)}
-                    </datalist>
-                  </div>
+                  {(() => {
+                    const filteredNames = proxyNameHistory.filter(n =>
+                      !proxyBidderInput.trim() || n.toLowerCase().includes(proxyBidderInput.toLowerCase())
+                    );
+                    return (
+                      <div>
+                        <p className="text-[11px] text-gray-500 mb-1">出價用戶</p>
+                        <div style={{ position: "relative" }}>
+                          <input
+                            className="w-full px-3 py-2 text-sm outline-none"
+                            style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                            placeholder="輸入或選擇..."
+                            value={proxyBidderInput}
+                            onChange={e => { setProxyBidderInput(e.target.value); }}
+                            onFocus={() => setShowProxyNameDropdown(true)}
+                            onBlur={() => setTimeout(() => setShowProxyNameDropdown(false), 150)}
+                          />
+                          {showProxyNameDropdown && filteredNames.length > 0 && (
+                            <div style={{
+                              position: "absolute",
+                              top: "calc(100% + 4px)",
+                              left: 0,
+                              right: 0,
+                              background: "#fff",
+                              border: "1px solid #E5E5E5",
+                              borderRadius: 12,
+                              boxShadow: "0 4px 16px rgba(0,0,0,0.10)",
+                              zIndex: 200,
+                              maxHeight: 200,
+                              overflowY: "auto",
+                            }}>
+                              {filteredNames.map((n, i) => (
+                                <button
+                                  key={n}
+                                  type="button"
+                                  onMouseDown={e => { e.preventDefault(); setProxyBidderInput(n); setShowProxyNameDropdown(false); }}
+                                  style={{
+                                    display: "block",
+                                    width: "100%",
+                                    textAlign: "left",
+                                    padding: "9px 14px",
+                                    fontSize: 13,
+                                    color: "#374151",
+                                    background: "none",
+                                    border: "none",
+                                    borderBottom: i < filteredNames.length - 1 ? "1px solid #f3f4f6" : "none",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  {n}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* 預覽 table */}
                   {seqs.length > 0 && bidderName && (
