@@ -1154,7 +1154,7 @@ export default function GroupAuctionEdit() {
         {tab === "items" && roundId && (
           <div className="space-y-4">
             {/* 工具列 */}
-            <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex gap-2 items-center overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
               {!selectMode && !bulkPriceMode ? (
                 <>
                   <button
