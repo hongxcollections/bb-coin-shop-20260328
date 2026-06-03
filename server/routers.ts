@@ -10612,6 +10612,49 @@ EXAMPLE OUTPUT (exact format):
         return { deleted: input.ids.length };
       }),
 
+    /** 商戶：批量更新商品價格（起拍/每口/封頂） */
+    batchUpdatePrices: protectedProcedure
+      .input(z.object({
+        roundId: z.number().int().positive(),
+        ids: z.array(z.number().int().positive()).min(1),
+        startingPrice: z.number().int().min(0).optional(),
+        bidIncrement: z.number().int().min(0).optional(),
+        buyNowPrice: z.number().int().positive().nullable().optional(),
+      }).refine(d => d.startingPrice !== undefined || d.bidIncrement !== undefined || d.buyNowPrice !== undefined, {
+        message: '至少填一個價格欄位',
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round || round.merchantUserId !== ctx.user.id) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        }
+        let updated = 0;
+        let skippedDueToBids = 0;
+        for (const id of input.ids) {
+          const [item] = await db.select().from(groupAuctionItems)
+            .where(and(eq(groupAuctionItems.id, id), eq(groupAuctionItems.roundId, input.roundId))).limit(1);
+          if (!item) continue;
+          const bidRows = await db.select({ cnt: sql`COUNT(*)` }).from(groupAuctionBids)
+            .where(eq(groupAuctionBids.itemId, id));
+          const hasBids = Number((bidRows[0] as any)?.cnt ?? 0) > 0;
+          const patch: Record<string, any> = {};
+          if (input.bidIncrement !== undefined) patch.bidIncrement = input.bidIncrement;
+          if (!hasBids) {
+            if (input.startingPrice !== undefined) patch.startingPrice = input.startingPrice;
+            if (input.buyNowPrice !== undefined) patch.buyNowPrice = input.buyNowPrice;
+          } else if (input.startingPrice !== undefined || input.buyNowPrice !== undefined) {
+            skippedDueToBids++;
+          }
+          if (Object.keys(patch).length > 0) {
+            await db.update(groupAuctionItems).set(patch).where(eq(groupAuctionItems.id, id));
+            updated++;
+          }
+        }
+        return { updated, skippedDueToBids };
+      }),
+
     /** 商戶：更新商品排序 */
     reorderItems: protectedProcedure
       .input(z.object({

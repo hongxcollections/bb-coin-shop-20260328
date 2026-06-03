@@ -137,6 +137,11 @@ export default function GroupAuctionEdit() {
   // 批量刪除
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
+  // 批量改價
+  const [bulkPriceMode, setBulkPriceMode] = useState(false);
+  const [bulkStartPrice, setBulkStartPrice] = useState("");
+  const [bulkBidIncrement, setBulkBidIncrement] = useState("");
+  const [bulkBuyNowPrice, setBulkBuyNowPrice] = useState("");
   // 行內編輯
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [editFields, setEditFields] = useState<Record<string, string>>({});
@@ -202,6 +207,18 @@ export default function GroupAuctionEdit() {
       refetch();
     },
     onError: (e) => toast.error(e.message || "批量刪除失敗"),
+  });
+  const batchUpdatePricesMut = trpc.groupAuctions.batchUpdatePrices.useMutation({
+    onSuccess: (r) => {
+      const parts = [`已更新 ${r.updated} 件`];
+      if (r.skippedDueToBids > 0) parts.push(`${r.skippedDueToBids} 件因有出價跳過起拍/封頂`);
+      toast.success(parts.join("，"));
+      setSelectedIds(new Set());
+      setBulkPriceMode(false);
+      setBulkStartPrice(""); setBulkBidIncrement(""); setBulkBuyNowPrice("");
+      refetch();
+    },
+    onError: (e) => toast.error(e.message || "批量改價失敗"),
   });
   const reorderItemsMut = trpc.groupAuctions.reorderItems.useMutation({
     onError: (e) => toast.error(e.message || "排序失敗"),
@@ -1047,7 +1064,7 @@ export default function GroupAuctionEdit() {
           <div className="space-y-4">
             {/* 工具列 */}
             <div className="flex flex-wrap gap-2 items-center">
-              {!selectMode ? (
+              {!selectMode && !bulkPriceMode ? (
                 <>
                   <button
                     onClick={() => setShowCsvImport(true)}
@@ -1057,10 +1074,18 @@ export default function GroupAuctionEdit() {
                   </button>
                   {!isEnded && items.length > 0 && (
                     <button
-                      onClick={() => setSelectMode(true)}
+                      onClick={() => { setSelectMode(true); setSelectedIds(new Set()); }}
                       className="flex items-center gap-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-xl"
                     >
                       <CheckSquare className="w-4 h-4" /> 批量刪除
+                    </button>
+                  )}
+                  {items.length > 0 && (
+                    <button
+                      onClick={() => { setBulkPriceMode(true); setSelectedIds(new Set()); }}
+                      className="flex items-center gap-1.5 text-sm bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-2 rounded-xl"
+                    >
+                      <Pencil className="w-4 h-4" /> 批量改價
                     </button>
                   )}
                   {items.length > 0 && (
@@ -1079,7 +1104,7 @@ export default function GroupAuctionEdit() {
                     </button>
                   )}
                 </>
-              ) : (
+              ) : selectMode ? (
                 <>
                   <button
                     onClick={() => {
@@ -1116,8 +1141,88 @@ export default function GroupAuctionEdit() {
                     <X className="w-3.5 h-3.5" /> 取消
                   </button>
                 </>
+              ) : (
+                /* bulkPriceMode toolbar */
+                <>
+                  <button
+                    onClick={() => {
+                      if (selectedIds.size === items.length) setSelectedIds(new Set());
+                      else setSelectedIds(new Set(items.map(i => i.id)));
+                    }}
+                    className="flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-xl"
+                  >
+                    {selectedIds.size === items.length ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                    {selectedIds.size === items.length ? "取消全選" : `全選 (${items.length})`}
+                  </button>
+                  <button
+                    onClick={() => { setBulkPriceMode(false); setSelectedIds(new Set()); setBulkStartPrice(""); setBulkBidIncrement(""); setBulkBuyNowPrice(""); }}
+                    className="flex items-center gap-1 text-xs text-gray-500 px-3 py-1.5 rounded-xl bg-gray-100"
+                  >
+                    <X className="w-3.5 h-3.5" /> 取消
+                  </button>
+                </>
               )}
             </div>
+
+            {/* 批量改價 price panel */}
+            {bulkPriceMode && (
+              <div className="rounded-2xl p-3 space-y-2.5" style={{ background: "#eff6ff", border: "1px solid #bfdbfe" }}>
+                <p className="text-xs font-semibold text-blue-700">批量改價 — 留空則不修改該欄位</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <p className="text-[11px] text-gray-500 mb-1">起拍價 (HK$)</p>
+                    <input
+                      type="number"
+                      className="w-full px-2 py-1.5 text-sm outline-none"
+                      style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "10px" }}
+                      placeholder="不改"
+                      value={bulkStartPrice}
+                      onChange={e => setBulkStartPrice(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-gray-500 mb-1">每口加幅 (HK$)</p>
+                    <input
+                      type="number"
+                      className="w-full px-2 py-1.5 text-sm outline-none"
+                      style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "10px" }}
+                      placeholder="不改"
+                      value={bulkBidIncrement}
+                      onChange={e => setBulkBidIncrement(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-gray-500 mb-1">封頂價 (HK$)</p>
+                    <input
+                      type="number"
+                      className="w-full px-2 py-1.5 text-sm outline-none"
+                      style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "10px" }}
+                      placeholder="不改"
+                      value={bulkBuyNowPrice}
+                      onChange={e => setBulkBuyNowPrice(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-blue-500">已有出價的商品：起拍價及封頂價不會更改，每口加幅仍可修改</p>
+                <button
+                  disabled={selectedIds.size === 0 || batchUpdatePricesMut.isPending || (!bulkStartPrice && !bulkBidIncrement && !bulkBuyNowPrice)}
+                  onClick={() => {
+                    const payload: Parameters<typeof batchUpdatePricesMut.mutate>[0] = {
+                      roundId: roundId!,
+                      ids: Array.from(selectedIds),
+                    };
+                    if (bulkStartPrice) payload.startingPrice = parseInt(bulkStartPrice, 10);
+                    if (bulkBidIncrement) payload.bidIncrement = parseInt(bulkBidIncrement, 10);
+                    if (bulkBuyNowPrice) payload.buyNowPrice = parseInt(bulkBuyNowPrice, 10);
+                    batchUpdatePricesMut.mutate(payload);
+                  }}
+                  className="w-full py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+                  style={{ background: "linear-gradient(90deg,#2563eb,#3b82f6)" }}
+                >
+                  {batchUpdatePricesMut.isPending ? "套用中…" : `套用至已選 ${selectedIds.size} 件`}
+                </button>
+              </div>
+            )}
 
             {/* CSV Import Dialog */}
             {showCsvImport && (
@@ -1196,12 +1301,14 @@ export default function GroupAuctionEdit() {
                 return (
                   <div key={item.id}
                     className={`bg-white rounded-xl border p-3 transition-colors ${
-                      isSelected ? "border-red-300 bg-red-50" : "border-gray-100"
+                      isSelected && selectMode ? "border-red-300 bg-red-50" :
+                      isSelected && bulkPriceMode ? "border-blue-300 bg-blue-50" :
+                      "border-gray-100"
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       {/* 多選 checkbox */}
-                      {selectMode && (
+                      {(selectMode || bulkPriceMode) && (
                         <button
                           onClick={() => {
                             const next = new Set(selectedIds);
@@ -1212,7 +1319,7 @@ export default function GroupAuctionEdit() {
                           className="flex-shrink-0"
                         >
                           {isSelected
-                            ? <CheckSquare className="w-4 h-4 text-red-500" />
+                            ? <CheckSquare className={`w-4 h-4 ${bulkPriceMode ? "text-blue-500" : "text-red-500"}`} />
                             : <Square className="w-4 h-4 text-gray-300" />
                           }
                         </button>
@@ -1221,7 +1328,7 @@ export default function GroupAuctionEdit() {
                       <span className="text-xs text-gray-400 w-6 text-center flex-shrink-0">{idx + 1}</span>
 
                       <div className="flex-1 min-w-0" onClick={() => {
-                        if (selectMode) {
+                        if (selectMode || bulkPriceMode) {
                           const next = new Set(selectedIds);
                           if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
                           setSelectedIds(next);
