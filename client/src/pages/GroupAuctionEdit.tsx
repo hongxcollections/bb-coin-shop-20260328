@@ -134,9 +134,9 @@ export default function GroupAuctionEdit() {
     (["basic", "columns", "images", "items", "results"] as const).includes(tabParam as any) ? tabParam as any : "basic"
   );
   const [resultSortDir, setResultSortDir] = useState<"desc" | "asc">("desc");
-  const [resultBuyerId, setResultBuyerId] = useState<number | null>(null);
+  const [resultBuyerKey, setResultBuyerKey] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
-  const [invoiceBuyerId, setInvoiceBuyerId] = useState<number | null>(null);
+  const [invoiceBuyerKey, setInvoiceBuyerKey] = useState<string | null>(null);
   const invoiceRef = useRef<HTMLDivElement>(null);
   const [showAllInvoice, setShowAllInvoice] = useState(false);
   const allInvoiceRef = useRef<HTMLDivElement>(null);
@@ -1837,18 +1837,32 @@ export default function GroupAuctionEdit() {
           });
           const unsoldItems = items.filter(it => (it as any).status === 'unsold');
 
-          const winnerMap = new Map<number, { name: string; photoUrl: string | null }>();
-          items.forEach(it => {
-            const uid = (it as any).winnerId as number | null;
-            if (uid && !winnerMap.has(uid)) winnerMap.set(uid, {
-              name: (it as any).winnerName ?? `用戶${uid}`,
-              photoUrl: (it as any).winnerPhotoUrl ?? null,
-            });
-          });
-          const winners = [...winnerMap.entries()];
+          // Proxy badge
+          const ProxyBadge = () => (
+            <span style={{ background: "#1e3a8a", color: "#fff", fontSize: 10, borderRadius: 6, padding: "0px 5px", lineHeight: "16px", fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>代</span>
+          );
 
-          const filteredSold = resultBuyerId
-            ? soldItems.filter(it => (it as any).winnerId === resultBuyerId)
+          // buyer key: "user:N" for real bidders, "proxy:Name" for proxy bidders
+          function getBuyerKey(it: any): string | null {
+            if ((it as any).leadingIsProxy && (it as any).leadingProxyName) return `proxy:${(it as any).leadingProxyName}`;
+            const uid = (it as any).winnerId as number | null;
+            return uid ? `user:${uid}` : null;
+          }
+          const buyerMap = new Map<string, { name: string; photoUrl: string | null; isProxy: boolean }>();
+          items.forEach(it => {
+            const key = getBuyerKey(it);
+            if (!key || buyerMap.has(key)) return;
+            if ((it as any).leadingIsProxy && (it as any).leadingProxyName) {
+              buyerMap.set(key, { name: (it as any).leadingProxyName, photoUrl: null, isProxy: true });
+            } else {
+              const uid = (it as any).winnerId as number;
+              buyerMap.set(key, { name: (it as any).winnerName ?? `用戶${uid}`, photoUrl: (it as any).winnerPhotoUrl ?? null, isProxy: false });
+            }
+          });
+          const buyers = [...buyerMap.entries()];
+
+          const filteredSold = resultBuyerKey
+            ? soldItems.filter(it => getBuyerKey(it) === resultBuyerKey)
             : soldItems;
 
           const totalAllAmt = soldItems.reduce((s, it) => s + ((it as any).finalPrice ?? 0), 0);
@@ -1866,11 +1880,11 @@ export default function GroupAuctionEdit() {
           const TH = 'style="border:1px solid #ddd;padding:5px 8px;background:#f5f5f5;text-align:left"';
           const THR = 'style="border:1px solid #ddd;padding:5px 8px;background:#f5f5f5;text-align:right"';
 
-          function buildPrintHtml(uid: number | null) {
-            const targetItems = uid !== null
-              ? soldItems.filter(it => (it as any).winnerId === uid)
+          function buildPrintHtml(buyerKey: string | null) {
+            const targetItems = buyerKey !== null
+              ? soldItems.filter(it => getBuyerKey(it) === buyerKey)
               : soldItems;
-            const buyerLabel = uid !== null ? (winnerMap.get(uid)?.name ?? "") : "全場";
+            const buyerLabel = buyerKey !== null ? (buyerMap.get(buyerKey)?.name ?? "") : "全場";
             const printCols = showCols.filter(c => c.role !== "startPrice");
             const colTh = printCols.map(c => `<th ${TH}>${c.label}</th>`).join("");
             const commTh = commRate > 0 ? `<th ${THR}>買家傭金(${commPct}%)</th>` : "";
@@ -1880,18 +1894,20 @@ export default function GroupAuctionEdit() {
               const comm = Math.round(price * commRate);
               const colTd = printCols.map(c => `<td ${TD}>${d[c.key] ?? "—"}</td>`).join("");
               const commTd = commRate > 0 ? `<td ${TDR}>HK$${comm.toLocaleString()}</td>` : "";
-              const buyerTd = uid === null ? `<td ${TD}>${(it as any).winnerName ?? ""}</td>` : "";
+              const itIsProxy = !!(it as any).leadingIsProxy;
+              const itBuyerName = itIsProxy ? ((it as any).leadingProxyName ?? (it as any).winnerName ?? "") : ((it as any).winnerName ?? "");
+              const buyerTd = buyerKey === null ? `<td ${TD}>${itBuyerName}${itIsProxy ? " (代)" : ""}</td>` : "";
               return `<tr>${colTd}<td ${TDR}>HK$${price.toLocaleString()}</td>${commTd}<td ${TDBR}>HK$${(price + comm).toLocaleString()}</td>${buyerTd}</tr>`;
             }).join("");
             const totalAmt = targetItems.reduce((s, it) => s + ((it as any).finalPrice ?? 0), 0);
             const totalComm = Math.round(totalAmt * commRate);
-            const fspan = printCols.length + (uid === null ? 1 : 0);
-            const buyerColTh = uid === null ? `<th ${TH}>買家</th>` : "";
+            const fspan = printCols.length + (buyerKey === null ? 1 : 0);
+            const buyerColTh = buyerKey === null ? `<th ${TH}>買家</th>` : "";
             const commFoot = commRate > 0 ? `<td ${TDBR}>HK$${totalComm.toLocaleString()}</td>` : "";
             const soldTfoot = `<tfoot><tr><td colspan="${fspan}" ${TDB}>合計 ${targetItems.length} 件</td><td ${TDBR}>HK$${totalAmt.toLocaleString()}</td>${commFoot}<td ${TDBR}>HK$${(totalAmt + totalComm).toLocaleString()}</td></tr></tfoot>`;
 
             let unsoldSection = "";
-            if (!uid && unsoldItems.length > 0) {
+            if (!buyerKey && unsoldItems.length > 0) {
               const uColTh = printCols.map(c => `<th ${TH}>${c.label}</th>`).join("");
               const uRows = unsoldItems.map(it => {
                 const d = parseData(it);
@@ -1903,10 +1919,10 @@ export default function GroupAuctionEdit() {
             return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${round?.title} 成績紀錄</title><style>body{font-family:sans-serif;padding:20px;font-size:13px}h2,h3{margin-bottom:8px}table{width:100%;border-collapse:collapse}@media print{body{padding:8px}}</style></head><body><h2>${round?.title} — 成績紀錄（${buyerLabel}）</h2><p style="color:#666;margin-bottom:16px">有成交 ${targetItems.length} 件 · 成交額 HK$${totalAmt.toLocaleString()}${commRate > 0 ? ` · 買家傭金 HK$${totalComm.toLocaleString()} · 合計 HK$${(totalAmt + totalComm).toLocaleString()}` : ""}</p><h3>有成交商品</h3><table><thead><tr>${colTh}<th ${THR}>成交價</th>${commTh}<th ${THR}>合計</th>${buyerColTh}</tr></thead><tbody>${soldRows}</tbody>${soldTfoot}</table>${unsoldSection}</body></html>`;
           }
 
-          function doPrint(uid: number | null) {
+          function doPrint(buyerKey: string | null) {
             const w = window.open("", "_blank");
             if (!w) { toast.error("請允許彈出視窗"); return; }
-            w.document.write(buildPrintHtml(uid));
+            w.document.write(buildPrintHtml(buyerKey));
             w.document.close();
             setTimeout(() => w.print(), 300);
           }
@@ -1977,7 +1993,8 @@ export default function GroupAuctionEdit() {
                         const d = parseData(it);
                         const price = (it as any).finalPrice ?? 0;
                         const comm = Math.round(price * commRate);
-                        const buyer = (it as any).winnerName ?? "";
+                        const itemIsProxy = !!(it as any).leadingIsProxy;
+                        const effectiveBuyer = itemIsProxy ? ((it as any).leadingProxyName ?? (it as any).winnerName ?? "") : ((it as any).winnerName ?? "");
                         const itemColVals = showCols
                           .filter(c => c.role !== "startPrice" && d[c.key] != null && d[c.key] !== "")
                           .map(c => d[c.key]);
@@ -1985,7 +2002,12 @@ export default function GroupAuctionEdit() {
                           <div key={(it as any).id} className="flex items-center gap-2 px-3 py-2 text-xs min-w-0 bg-white rounded-lg">
                             <span className="text-gray-400 font-mono w-5 flex-shrink-0 text-right">{(it as any).displayOrder + 1}</span>
                             <span className="flex-1 min-w-0 text-gray-700 truncate">{itemColVals.join(" · ") || "—"}</span>
-                            {showBuyer && <span className="text-gray-400 flex-shrink-0 truncate max-w-[5rem]">{buyer}</span>}
+                            {showBuyer && (
+                              <span className="flex items-center gap-1 flex-shrink-0">
+                                <span className="text-gray-400 truncate max-w-[5rem]">{effectiveBuyer}</span>
+                                {itemIsProxy && <ProxyBadge />}
+                              </span>
+                            )}
                             <span className="ml-auto flex-shrink-0 text-right whitespace-nowrap">
                               <span className="text-gray-600">HK${price.toLocaleString()}</span>
                               {commRate > 0 && <span className="text-gray-400"> +{comm.toLocaleString()}</span>}
@@ -1997,17 +2019,18 @@ export default function GroupAuctionEdit() {
                     </div>
                   );
                 }
-                const sections: { key: string; label: string; items: typeof soldItems; showBuyer: boolean }[] = [
-                  { key: "all", label: `全部 (${soldItems.length})`, items: soldItems, showBuyer: true },
-                  ...winners.map(([uid, w]) => {
-                    const buyerItems = soldItems.filter(it => (it as any).winnerId === uid);
+                const sections: { key: string; label: string; items: typeof soldItems; showBuyer: boolean; isProxy: boolean }[] = [
+                  { key: "all", label: `全部 (${soldItems.length})`, items: soldItems, showBuyer: true, isProxy: false },
+                  ...buyers.map(([key, buyer]) => {
+                    const buyerItems = soldItems.filter(it => getBuyerKey(it) === key);
                     const buyerAmt = buyerItems.reduce((s, it) => s + ((it as any).finalPrice ?? 0), 0);
                     const buyerComm = Math.round(buyerAmt * commRate);
                     return {
-                      key: String(uid),
-                      label: `${w.name} (${buyerItems.length})${commRate > 0 ? ` · HK$${buyerAmt.toLocaleString()} + 傭 HK$${buyerComm.toLocaleString()} = HK$${(buyerAmt + buyerComm).toLocaleString()}` : ` · 成交 HK$${buyerAmt.toLocaleString()}`}`,
+                      key,
+                      label: `${buyer.name} (${buyerItems.length})${commRate > 0 ? ` · HK$${buyerAmt.toLocaleString()} + 傭 HK$${buyerComm.toLocaleString()} = HK$${(buyerAmt + buyerComm).toLocaleString()}` : ` · 成交 HK$${buyerAmt.toLocaleString()}`}`,
                       items: buyerItems,
                       showBuyer: false,
+                      isProxy: buyer.isProxy,
                     };
                   }),
                 ];
@@ -2022,12 +2045,15 @@ export default function GroupAuctionEdit() {
                               onClick={() => toggleSection(sec.key)}
                               className="flex-1 flex items-center justify-between px-3 py-2.5 text-left min-w-0"
                             >
-                              <span className="text-xs font-semibold text-gray-700 truncate">{sec.label}</span>
+                              <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5 min-w-0">
+                                <span className="truncate">{sec.label}</span>
+                                {sec.isProxy && <ProxyBadge />}
+                              </span>
                               <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 ml-1 transition-transform duration-150 ${isExpanded ? "" : "-rotate-90"}`} />
                             </button>
                             {sec.key !== "all" && (
                               <button
-                                onClick={() => setInvoiceBuyerId(Number(sec.key))}
+                                onClick={() => setInvoiceBuyerKey(sec.key)}
                                 className="flex-shrink-0 text-xs bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1 rounded-lg mr-2"
                               >
                                 成交單
@@ -2043,7 +2069,7 @@ export default function GroupAuctionEdit() {
               })()}
 
               {/* Unsold items */}
-              {!resultBuyerId && unsoldItems.length > 0 && (
+              {!resultBuyerKey && unsoldItems.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-gray-400 mb-2">流拍商品 ({unsoldItems.length})</p>
                   <div style={{ display: "flex", flexDirection: "column", gap: "5px", padding: "4px", background: "#f3f4f6" }}>
@@ -2065,10 +2091,12 @@ export default function GroupAuctionEdit() {
               )}
 
               {/* Invoice Modal */}
-              {invoiceBuyerId !== null && (() => {
-                const buyerName = winnerMap.get(invoiceBuyerId)?.name ?? "";
+              {invoiceBuyerKey !== null && (() => {
+                const invoiceBuyer = buyerMap.get(invoiceBuyerKey);
+                const buyerName = invoiceBuyer?.name ?? "";
+                const buyerIsProxy = invoiceBuyer?.isProxy ?? false;
                 const buyerItems = soldItems
-                  .filter(it => (it as any).winnerId === invoiceBuyerId)
+                  .filter(it => getBuyerKey(it) === invoiceBuyerKey)
                   .sort((a, b) => (a as any).displayOrder - (b as any).displayOrder);
                 const buyerAmt = buyerItems.reduce((s, it) => s + ((it as any).finalPrice ?? 0), 0);
                 const buyerComm = Math.round(buyerAmt * commRate);
@@ -2093,7 +2121,7 @@ export default function GroupAuctionEdit() {
                 return (
                   <div
                     className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4"
-                    onClick={() => setInvoiceBuyerId(null)}
+                    onClick={() => setInvoiceBuyerKey(null)}
                   >
                     <div
                       className="bg-white rounded-2xl shadow-2xl w-full max-w-sm flex flex-col"
@@ -2108,14 +2136,17 @@ export default function GroupAuctionEdit() {
                         </div>
                         {/* 買家行 */}
                         {(() => {
-                          const buyerProxySrc = proxyUrl(winnerMap.get(invoiceBuyerId)?.photoUrl);
+                          const buyerProxySrc = proxyUrl(invoiceBuyer?.photoUrl ?? null);
                           return (
                             <div className="mb-3 flex items-center gap-2">
                               {buyerProxySrc
                                 ? <img src={buyerProxySrc} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
                                 : <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-blue-600">{buyerName.charAt(0) || "?"}</div>
                               }
-                              <p className="text-sm font-semibold text-gray-900">{buyerName}</p>
+                              <p className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                                {buyerName}
+                                {buyerIsProxy && <span style={{ background: "#1e3a8a", color: "#fff", fontSize: 10, borderRadius: 6, padding: "0px 5px", lineHeight: "16px", fontWeight: 600 }}>代</span>}
+                              </p>
                             </div>
                           );
                         })()}
@@ -2174,13 +2205,13 @@ export default function GroupAuctionEdit() {
                           <Download className="w-3.5 h-3.5" /> 儲存圖片
                         </button>
                         <button
-                          onClick={() => doPrint(invoiceBuyerId)}
+                          onClick={() => doPrint(invoiceBuyerKey)}
                           className="flex-1 flex items-center justify-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-2 rounded-xl"
                         >
                           <Download className="w-3.5 h-3.5" /> 列印
                         </button>
                         <button
-                          onClick={() => setInvoiceBuyerId(null)}
+                          onClick={() => setInvoiceBuyerKey(null)}
                           className="flex-shrink-0 text-gray-400 hover:text-gray-600 px-2"
                         >
                           <X className="w-4 h-4" />
@@ -2198,7 +2229,7 @@ export default function GroupAuctionEdit() {
                 const allPrintCols = showCols.filter(c => c.role !== "startPrice");
                 const grandAmt = soldItems.reduce((s, it) => s + ((it as any).finalPrice ?? 0), 0);
                 const grandComm = Math.round(grandAmt * commRate);
-                const buyerIds2 = Array.from(winnerMap.keys());
+                const buyerIds2 = [...buyerMap.keys()];
                 const merchantRawSrc2 = (myApp as any)?.merchantIcon || (user as any)?.photoUrl || null;
                 const merchantProxySrc2 = merchantRawSrc2 ? `/api/img-proxy?url=${encodeURIComponent(merchantRawSrc2)}` : null;
                 const merchantDisplayName2 = myApp?.merchantName || user?.name || "";
@@ -2231,21 +2262,25 @@ export default function GroupAuctionEdit() {
                           <p className="text-sm font-bold text-gray-900">{round?.title}</p>
                           <p className="text-xs text-gray-400 mt-0.5">全場成交單 · {dateStr2}</p>
                         </div>
-                        {buyerIds2.map(uid => {
-                          const winner = winnerMap.get(uid);
-                          const bName = winner?.name ?? `#${uid}`;
-                          const bProxySrc = winner?.photoUrl ? `/api/img-proxy?url=${encodeURIComponent(winner.photoUrl)}` : null;
-                          const bItems = soldItems.filter(it => (it as any).winnerId === uid);
+                        {buyerIds2.map(bKey => {
+                          const bBuyer = buyerMap.get(bKey);
+                          const bName = bBuyer?.name ?? bKey;
+                          const bIsProxy = bBuyer?.isProxy ?? false;
+                          const bProxySrc = bBuyer?.photoUrl ? `/api/img-proxy?url=${encodeURIComponent(bBuyer.photoUrl)}` : null;
+                          const bItems = soldItems.filter(it => getBuyerKey(it) === bKey);
                           const bAmt = bItems.reduce((s, it) => s + ((it as any).finalPrice ?? 0), 0);
                           const bComm = Math.round(bAmt * commRate);
                           return (
-                            <div key={uid} className="mb-5 pb-4 border-b border-gray-100 last:border-0">
+                            <div key={bKey} className="mb-5 pb-4 border-b border-gray-100 last:border-0">
                               <div className="flex items-center gap-2 mb-2">
                                 {bProxySrc
                                   ? <img src={bProxySrc} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
                                   : <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 text-[9px] font-bold text-blue-600">{bName.charAt(0) || "?"}</div>
                                 }
-                                <p className="text-xs font-semibold text-gray-900">{bName}</p>
+                                <p className="text-xs font-semibold text-gray-900 flex items-center gap-1">
+                                  {bName}
+                                  {bIsProxy && <span style={{ background: "#1e3a8a", color: "#fff", fontSize: 9, borderRadius: 5, padding: "0px 4px", lineHeight: "15px", fontWeight: 600 }}>代</span>}
+                                </p>
                               </div>
                               <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                                 {bItems.map(it => {
