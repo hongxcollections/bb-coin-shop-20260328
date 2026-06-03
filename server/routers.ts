@@ -11371,6 +11371,98 @@ EXAMPLE OUTPUT (exact format):
         return { success: true, itemId: bid.itemId };
       }),
   }),
+
+  // ─── Silver Valuation Tool ─────────────────────────────────────────────────
+  silverTool: router({
+    /** AI 識別銀幣：返回幣種、成色、重量、銀含量 */
+    identify: protectedProcedure
+      .input(z.object({
+        imageBase64: z.string(),
+        mimeType: z.string().default("image/jpeg"),
+      }))
+      .mutation(async ({ input }) => {
+        const GG = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+        const apiKey = ENV.geminiApiKey || ENV.geminiApiKey2;
+        if (!apiKey) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "未設定 AI API" });
+
+        const prompt = `你係銀幣鑑定專家。請分析呢幅圖片，以 JSON 格式回覆以下資料（只回覆 JSON，不要其他文字）：
+{
+  "isSilver": true,
+  "coinName": "完整幣種名稱（中文，如 摩根銀元 / 英國皇冠銀幣 / 熊貓銀幣）",
+  "country": "發行國家",
+  "year": "年份",
+  "silverPurity": 0.999,
+  "weightGrams": 31.1,
+  "silverContentGrams": 31.1,
+  "purityNote": "成色說明（如 Fine Silver .999 / Sterling .925 / 0.900 銀）",
+  "notes": "備注（如需實際磅重確認 / 估算數值）"
+}
+silverPurity 係小數（0.999 = 純銀、0.925 = 925銀、0.900 = 900銀、0.800 = 800銀）。silverContentGrams = weightGrams × silverPurity，請計算好。若無法確定，請用最常見標準值並在 notes 說明。若唔係銀幣，isSilver 填 false。`;
+
+        const models = [
+          { key: ENV.geminiApiKey ?? "", model: "gemini-2.5-flash" },
+          { key: ENV.geminiApiKey2 ?? "", model: "gemini-2.5-flash" },
+          { key: ENV.geminiApiKey ?? "", model: "gemini-2.0-flash" },
+        ].filter(m => m.key);
+
+        let lastErr = "";
+        for (const { key, model } of models) {
+          try {
+            const res = await fetch(`${GG}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+              body: JSON.stringify({
+                model,
+                messages: [{ role: "user", content: [
+                  { type: "text", text: prompt },
+                  { type: "image_url", image_url: { url: `data:${input.mimeType};base64,${input.imageBase64}` } },
+                ]}],
+                max_tokens: 600,
+              }),
+              signal: AbortSignal.timeout(25000),
+            });
+            if (!res.ok) { lastErr = `HTTP ${res.status}`; continue; }
+            const raw = await res.json() as any;
+            let text: string = raw?.choices?.[0]?.message?.content ?? "";
+            text = text.replace(/<thinking>[\s\S]*?<\/thinking>/g, "").trim();
+            const m = text.match(/\{[\s\S]*\}/);
+            if (!m) { lastErr = "JSON missing"; continue; }
+            const d = JSON.parse(m[0]);
+            return {
+              isSilver: Boolean(d.isSilver),
+              coinName: String(d.coinName ?? "未知幣種"),
+              country: String(d.country ?? ""),
+              year: String(d.year ?? ""),
+              silverPurity: Number(d.silverPurity ?? 0),
+              weightGrams: Number(d.weightGrams ?? 0),
+              silverContentGrams: Number(d.silverContentGrams ?? 0),
+              purityNote: String(d.purityNote ?? ""),
+              notes: String(d.notes ?? ""),
+            };
+          } catch (e: any) { lastErr = String(e?.message ?? e); }
+        }
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `AI 識別失敗：${lastErr}` });
+      }),
+
+    /** 取得即時銀價（港元/克） */
+    getSpotPrice: publicProcedure.query(async () => {
+      try {
+        const res = await fetch("https://data-asg.goldprice.org/dbXRates/HKD", {
+          headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json() as any;
+        const item = data?.items?.[0];
+        if (!item?.xagPrice) throw new Error("無銀價資料");
+        const perTroyOz = Number(item.xagPrice);
+        const perGram = Math.round((perTroyOz / 31.1035) * 100) / 100;
+        return { ok: true, hkdPerGram: perGram, hkdPerTroyOz: Math.round(perTroyOz * 100) / 100, updatedAt: String(data.date ?? "") };
+      } catch (e: any) {
+        return { ok: false as const, hkdPerGram: null, hkdPerTroyOz: null, updatedAt: null, error: String(e?.message ?? e) };
+      }
+    }),
+  }),
 });
 export type AppRouter = typeof appRouter;
 

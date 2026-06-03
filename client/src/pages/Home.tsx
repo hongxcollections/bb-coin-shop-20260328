@@ -38,6 +38,7 @@ import {
   ArrowRight,
   UserPlus,
   MessageCircle,
+  Wrench,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -47,6 +48,7 @@ import { ShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
 import Header from "@/components/Header";
 import EarlyBirdBanner from "@/components/EarlyBirdBanner";
+import { SilverValuationTool } from "@/components/SilverValuationTool";
 import { AuctionCard } from "@/components/AuctionCard";
 import { FeaturedProductSideCard, FeaturedBuyDialog } from "@/components/FeaturedProductSideCard";
 
@@ -1134,6 +1136,9 @@ export default function Home() {
   const [buyingProduct, setBuyingProduct] = useState<any | null>(null);
   // 商戶申請流程彈窗
   const [showMerchantFlow, setShowMerchantFlow] = useState(false);
+  // 小工具 collapsible + 銀工具 modal
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [silverToolOpen, setSilverToolOpen] = useState(false);
 
   // 落單按鈕：未登入直接跳登入頁，登入後返回商品詳情頁
   const handleBuy = async (product: any) => {
@@ -1327,10 +1332,33 @@ export default function Home() {
                   <Sparkles className="w-3.5 h-3.5" /> 藏品社區
                 </span>
               </Link>
+              {/* 小工具 collapsible */}
+              <div>
+                <button
+                  onClick={() => setToolsOpen(v => !v)}
+                  className="inline-flex items-center justify-between gap-1.5 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-500 text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm border border-gray-200 transition cursor-pointer select-none w-full"
+                >
+                  <span className="flex items-center gap-1.5"><Wrench className="w-3 h-3" /> 小工具</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${toolsOpen ? "rotate-180" : ""}`} />
+                </button>
+                {toolsOpen && (
+                  <div className="mt-1.5">
+                    <button
+                      onClick={() => setSilverToolOpen(true)}
+                      className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm border border-slate-200 transition cursor-pointer select-none w-full"
+                    >
+                      🪙 銀工具
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* 銀工具 modal */}
+      <SilverValuationTool open={silverToolOpen} onClose={() => setSilverToolOpen(false)} />
 
       {/* 商戶申請流程彈窗 */}
       {showMerchantFlow && (
