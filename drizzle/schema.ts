@@ -867,6 +867,8 @@ export const groupAuctionBids = mysqlTable("groupAuctionBids", {
   roundId: int("roundId").notNull(),
   userId: int("userId").notNull(),
   amount: int("amount").notNull(),
+  isProxy: int("isProxy").default(0).notNull(), // 1 = merchant proxy bid on behalf of guest
+  proxyName: varchar("proxyName", { length: 100 }), // guest bidder display name
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type GroupAuctionBid = typeof groupAuctionBids.$inferSelect;

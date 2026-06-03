@@ -198,6 +198,13 @@ export default function GroupAuctionEdit() {
   const [bulkStartPrice, setBulkStartPrice] = useState("");
   const [bulkBidIncrement, setBulkBidIncrement] = useState("");
   const [bulkBuyNowPrice, setBulkBuyNowPrice] = useState("");
+  // 代出價
+  type ProxyBidPreview = { itemId: number; itemNum: string; itemTitle: string; bidderName: string; currentPrice: number; newPrice: number; inc: number; error?: string };
+  type ProxyBidLogEntry = { bidId: number; itemId: number; itemNum: string; itemTitle: string; bidderName: string; amount: number };
+  const [proxyBidMode, setProxyBidMode] = useState(false);
+  const [proxyInput, setProxyInput] = useState("");
+  const [proxyPreview, setProxyPreview] = useState<ProxyBidPreview[]>([]);
+  const [proxyLog, setProxyLog] = useState<ProxyBidLogEntry[]>([]);
   // 行內編輯
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [editFields, setEditFields] = useState<Record<string, string>>({});
@@ -263,6 +270,34 @@ export default function GroupAuctionEdit() {
       refetch();
     },
     onError: (e) => toast.error(e.message || "批量刪除失敗"),
+  });
+  const merchantProxyBidMut = trpc.groupAuctions.merchantProxyBid.useMutation({
+    onSuccess: (r) => {
+      const ok = r.results.filter(x => x.success);
+      const fail = r.results.filter(x => !x.success);
+      if (ok.length) toast.success(`成功代出價 ${ok.length} 件`);
+      if (fail.length) toast.error(fail.map(f => f.error).join("、"));
+      const newLogEntries: ProxyBidLogEntry[] = ok.map(x => {
+        const it = items.find(i => i.id === x.itemId);
+        const numCol = columns.find(c => c.role === "itemNumber");
+        const titleCol = columns.find(c => c.role === "itemTitle");
+        const d = (() => { try { return JSON.parse((it as any)?.dataJson ?? "{}"); } catch { return {}; } })();
+        return { bidId: x.bidId!, itemId: x.itemId, itemNum: numCol ? (d[numCol.key] || "") : "", itemTitle: titleCol ? (d[titleCol.key] || "") : "", bidderName: x.bidderName!, amount: x.amount! };
+      });
+      setProxyLog(prev => [...newLogEntries, ...prev].slice(0, 30));
+      setProxyPreview([]);
+      setProxyInput("");
+      refetch();
+    },
+    onError: (e) => toast.error(e.message || "代出價失敗"),
+  });
+  const undoProxyBidMut = trpc.groupAuctions.undoProxyBid.useMutation({
+    onSuccess: (_, vars) => {
+      toast.success("已撤銷代出價");
+      setProxyLog(prev => prev.filter(e => e.bidId !== vars.bidId));
+      refetch();
+    },
+    onError: (e) => toast.error(e.message || "撤銷失敗"),
   });
   const batchUpdatePricesMut = trpc.groupAuctions.batchUpdatePrices.useMutation({
     onSuccess: (r) => {
@@ -1144,6 +1179,14 @@ export default function GroupAuctionEdit() {
                       <Pencil className="w-4 h-4" /> 批量改價
                     </button>
                   )}
+                  {round?.status === "published" && items.length > 0 && (
+                    <button
+                      onClick={() => setProxyBidMode(v => !v)}
+                      className={`flex items-center gap-1.5 text-sm px-3 py-2 rounded-xl ${proxyBidMode ? "bg-orange-500 text-white" : "bg-orange-50 hover:bg-orange-100 text-orange-600"}`}
+                    >
+                      代出價
+                    </button>
+                  )}
                   {items.length > 0 && (
                     <button
                       onClick={async () => {
@@ -1280,6 +1323,111 @@ export default function GroupAuctionEdit() {
               </div>
             )}
 
+            {/* 代出價 panel */}
+            {proxyBidMode && (() => {
+              const numCol = columns.find(c => c.role === "itemNumber");
+              const titleCol = columns.find(c => c.role === "itemTitle");
+              const defaultInc = parseInt(basic.defaultBidIncrement, 10) || (round?.defaultBidIncrement ?? 50);
+              const parseProxyInput = (raw: string): ProxyBidPreview[] => {
+                const lines = raw.split("\n").map(l => l.trim()).filter(Boolean);
+                return lines.map(line => {
+                  const m = line.match(/^\+?(\S+)\s+(.+)$/);
+                  if (!m) return null;
+                  const [, numStr, name] = m;
+                  const it = items.find(i => {
+                    const d: Record<string, string> = (() => { try { return JSON.parse(i.dataJson); } catch { return {}; } })();
+                    return numCol ? String(d[numCol.key] ?? "").trim() === numStr.trim() : false;
+                  });
+                  if (!it) return { itemId: -1, itemNum: numStr, itemTitle: "找不到商品", bidderName: name.trim(), currentPrice: 0, newPrice: 0, inc: 0, error: `號碼 ${numStr} 不存在` };
+                  if (it.status !== "active") return { itemId: it.id, itemNum: numStr, itemTitle: titleCol ? ((() => { try { return JSON.parse(it.dataJson); } catch { return {}; } })()[titleCol.key] || "") : "", bidderName: name.trim(), currentPrice: 0, newPrice: 0, inc: 0, error: "商品已結拍" };
+                  const d: Record<string, string> = (() => { try { return JSON.parse(it.dataJson); } catch { return {}; } })();
+                  const ttl = titleCol ? (d[titleCol.key] || "") : "";
+                  const curPx = (it as any).currentPrice ?? it.startPrice;
+                  const inc = it.bidIncrement > 0 ? it.bidIncrement : defaultInc;
+                  const newPx = curPx > 0 ? curPx + inc : (it.startPrice > 0 ? it.startPrice : inc);
+                  const capErr = it.buyNowPrice && newPx > it.buyNowPrice ? `新出價 $${newPx} 超封頂 $${it.buyNowPrice}` : undefined;
+                  return { itemId: it.id, itemNum: numStr, itemTitle: ttl, bidderName: name.trim(), currentPrice: curPx, newPrice: newPx, inc, error: capErr };
+                }).filter(Boolean) as ProxyBidPreview[];
+              };
+              const preview = proxyPreview.length > 0 ? proxyPreview : (proxyInput.trim() ? parseProxyInput(proxyInput) : []);
+              const validBids = preview.filter(p => !p.error && p.itemId > 0);
+              return (
+                <div className="rounded-2xl p-3 space-y-3" style={{ background: "#fff7ed", border: "1px solid #fed7aa" }}>
+                  <p className="text-xs font-semibold text-orange-700">代出價面板 — 格式：商品號碼 出價人名</p>
+                  <textarea
+                    className="w-full px-3 py-2 text-sm outline-none resize-none font-mono"
+                    style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                    rows={4}
+                    placeholder={"+22 張大文\n+8 李小明\n+15 王sir"}
+                    value={proxyInput}
+                    onChange={e => { setProxyInput(e.target.value); setProxyPreview([]); }}
+                  />
+                  {proxyInput.trim() && (
+                    <>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead>
+                            <tr style={{ background: "#ffedd5" }}>
+                              <th className="px-2 py-1 text-left font-semibold text-orange-800">號碼</th>
+                              <th className="px-2 py-1 text-left font-semibold text-orange-800">商品</th>
+                              <th className="px-2 py-1 text-left font-semibold text-orange-800">出價人</th>
+                              <th className="px-2 py-1 text-right font-semibold text-orange-800">現價</th>
+                              <th className="px-2 py-1 text-right font-semibold text-orange-800">新出價</th>
+                              <th className="px-2 py-1 text-left font-semibold text-orange-800">狀態</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {preview.map((p, i) => (
+                              <tr key={i} style={{ borderBottom: "1px solid #fed7aa", background: p.error ? "#fef2f2" : "#fffbf7" }}>
+                                <td className="px-2 py-1 font-mono">{p.itemNum}</td>
+                                <td className="px-2 py-1 max-w-[120px] truncate">{p.itemTitle || "—"}</td>
+                                <td className="px-2 py-1 font-medium">{p.bidderName}</td>
+                                <td className="px-2 py-1 text-right">{p.currentPrice > 0 ? `$${p.currentPrice}` : "—"}</td>
+                                <td className="px-2 py-1 text-right font-semibold text-orange-700">{p.error ? "—" : `$${p.newPrice}`}</td>
+                                <td className="px-2 py-1">{p.error ? <span className="text-red-500">{p.error}</span> : <span className="text-green-600">✓</span>}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {validBids.length > 0 && (
+                        <button
+                          disabled={merchantProxyBidMut.isPending}
+                          onClick={() => merchantProxyBidMut.mutate({ roundId: roundId!, bids: validBids.map(p => ({ itemId: p.itemId, bidderName: p.bidderName })) })}
+                          className="w-full py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+                          style={{ background: "linear-gradient(90deg,#ea580c,#f97316)" }}
+                        >
+                          {merchantProxyBidMut.isPending ? "代出價中…" : `確認代出價 ${validBids.length} 件`}
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {proxyLog.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold text-orange-700">最近代出價記錄（可撤銷）</p>
+                      {proxyLog.map(e => (
+                        <div key={e.bidId} className="flex items-center justify-between bg-white rounded-xl px-3 py-1.5" style={{ border: "1px solid #fed7aa" }}>
+                          <span className="text-xs text-gray-700">
+                            <span className="font-mono text-orange-600 mr-1">{e.itemNum}</span>
+                            <span className="text-gray-500 mr-1">{e.itemTitle}</span>
+                            <span className="font-medium">{e.bidderName}</span>
+                            <span className="text-gray-400 ml-1">${e.amount}</span>
+                          </span>
+                          <button
+                            disabled={undoProxyBidMut.isPending}
+                            onClick={() => undoProxyBidMut.mutate({ bidId: e.bidId })}
+                            className="text-xs text-red-500 hover:text-red-700 px-2 py-0.5 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                          >
+                            撤銷
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* CSV Import Dialog */}
             {showCsvImport && (
               <div className="bg-white rounded-2xl border border-amber-100 p-4 space-y-3">
@@ -1412,7 +1560,11 @@ export default function GroupAuctionEdit() {
                               return <span className="text-green-600"> • {atCap ? `✓ 封頂价${currSym}${item.buyNowPrice}成交` : `✓ ${currSym}${(item as any).finalPrice ?? (item as any).currentPrice}成交`}</span>;
                             }
                             if (item.status === "unsold") return <span> • 流拍</span>;
-                            if (hasBids) return <span className="text-amber-600"> • 已出價 {currSym}{(item as any).currentPrice ?? ""}</span>;
+                            if (hasBids) {
+                              const proxyName = (item as any).leadingProxyName as string | null;
+                              const isProxy = (item as any).leadingIsProxy as boolean;
+                              return <span className="text-amber-600"> • {isProxy && proxyName ? <><span className="text-orange-500 font-medium">{proxyName}（代）</span>{" "}</> : ""}領先 {currSym}{(item as any).currentPrice ?? ""}</span>;
+                            }
                             return null;
                           })()}
                         </p>

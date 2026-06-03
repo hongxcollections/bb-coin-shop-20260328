@@ -10112,15 +10112,21 @@ EXAMPLE OUTPUT (exact format):
               .orderBy(descOrd(groupAuctionBids.amount), descOrd(groupAuctionBids.id))
           : [];
         const topBidAmtByItem = new Map<number, number>();
+        const topBidProxyByItem = new Map<number, { isProxy: number; proxyName: string | null }>();
         const bidCntByItem = new Map<number, number>();
         for (const bid of allBidRows) {
-          if (!topBidAmtByItem.has(bid.itemId)) topBidAmtByItem.set(bid.itemId, bid.amount);
+          if (!topBidAmtByItem.has(bid.itemId)) {
+            topBidAmtByItem.set(bid.itemId, bid.amount);
+            topBidProxyByItem.set(bid.itemId, { isProxy: bid.isProxy ?? 0, proxyName: (bid as any).proxyName ?? null });
+          }
           bidCntByItem.set(bid.itemId, (bidCntByItem.get(bid.itemId) ?? 0) + 1);
         }
         const itemsWithBidCount = items.map(item => ({
           ...item,
           bidCount: bidCntByItem.get(item.id) ?? 0,
           currentPrice: topBidAmtByItem.get(item.id) ?? item.startPrice,
+          leadingIsProxy: (topBidProxyByItem.get(item.id)?.isProxy ?? 0) === 1,
+          leadingProxyName: topBidProxyByItem.get(item.id)?.proxyName ?? null,
         }));
         // 加入得標買家姓名（winnerId → winnerName）
         const winnerIds = [...new Set(itemsWithBidCount.filter(i => i.winnerId).map(i => i.winnerId as number))];
@@ -11192,6 +11198,71 @@ EXAMPLE OUTPUT (exact format):
           totalCommission,
           soldCount: soldItems.length,
         };
+      }),
+
+    /** 商戶：代出價（為未登入的微信群用戶代出，記錄出價人名稱） */
+    merchantProxyBid: protectedProcedure
+      .input(z.object({
+        roundId: z.number().int().positive(),
+        bids: z.array(z.object({
+          itemId: z.number().int().positive(),
+          bidderName: z.string().min(1).max(50),
+        })).min(1).max(50),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const { desc: dDesc, and: dAnd, gt: dGt } = await import('drizzle-orm');
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round || round.merchantUserId !== ctx.user.id)
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        if (round.status !== 'published')
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '場次未發布，不可代出價' });
+        const results: { itemId: number; success: boolean; error?: string; bidId?: number; amount?: number; bidderName?: string }[] = [];
+        for (const bid of input.bids) {
+          const [item] = await db.select().from(groupAuctionItems)
+            .where(dAnd(eq(groupAuctionItems.id, bid.itemId), eq(groupAuctionItems.roundId, input.roundId))).limit(1);
+          if (!item) { results.push({ itemId: bid.itemId, success: false, error: '商品不存在' }); continue; }
+          if (item.status !== 'active') { results.push({ itemId: bid.itemId, success: false, error: '商品已結拍' }); continue; }
+          const [topBid] = await db.select({ amount: groupAuctionBids.amount })
+            .from(groupAuctionBids).where(eq(groupAuctionBids.itemId, bid.itemId))
+            .orderBy(dDesc(groupAuctionBids.amount), dDesc(groupAuctionBids.id)).limit(1);
+          const inc = item.bidIncrement > 0 ? item.bidIncrement : round.defaultBidIncrement;
+          const currentAmt = topBid?.amount ?? 0;
+          const newAmt = currentAmt > 0 ? currentAmt + inc : (item.startPrice > 0 ? item.startPrice : inc);
+          if (item.buyNowPrice && newAmt > item.buyNowPrice) {
+            results.push({ itemId: bid.itemId, success: false, error: '已達封頂價，無法再加' }); continue;
+          }
+          const [ins] = await db.insert(groupAuctionBids).values({
+            itemId: bid.itemId, roundId: input.roundId, userId: ctx.user.id,
+            amount: newAmt, isProxy: 1, proxyName: bid.bidderName,
+          });
+          results.push({ itemId: bid.itemId, success: true, bidId: (ins as any).insertId as number, amount: newAmt, bidderName: bid.bidderName });
+        }
+        return { results };
+      }),
+
+    /** 商戶：撤銷代出價（只能撤銷最新一口，且必須是自己場次的代出價） */
+    undoProxyBid: protectedProcedure
+      .input(z.object({ bidId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const { gt: dGt, and: dAnd } = await import('drizzle-orm');
+        const [bid] = await db.select().from(groupAuctionBids)
+          .where(eq(groupAuctionBids.id, input.bidId)).limit(1);
+        if (!bid) throw new TRPCError({ code: 'NOT_FOUND', message: '出價記錄不存在' });
+        if (!(bid as any).isProxy) throw new TRPCError({ code: 'BAD_REQUEST', message: '只能撤銷代出價記錄' });
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, bid.roundId)).limit(1);
+        if (!round || round.merchantUserId !== ctx.user.id)
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+        const [newerBid] = await db.select({ id: groupAuctionBids.id })
+          .from(groupAuctionBids)
+          .where(dAnd(eq(groupAuctionBids.itemId, bid.itemId), dGt(groupAuctionBids.id, input.bidId)))
+          .limit(1);
+        if (newerBid) throw new TRPCError({ code: 'BAD_REQUEST', message: '此出價已被後續出價覆蓋，無法撤銷' });
+        await db.delete(groupAuctionBids).where(eq(groupAuctionBids.id, input.bidId));
+        return { success: true, itemId: bid.itemId };
       }),
   }),
 });
