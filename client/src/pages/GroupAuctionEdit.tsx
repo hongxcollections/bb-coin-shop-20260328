@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { sify, tify } from "chinese-conv";
 import { useLocation, useParams } from "wouter";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
@@ -46,6 +47,61 @@ const PRESET_TEMPLATES: { name: string; columns: ColumnDef[] }[] = [
 ];
 
 function genKey() { return `col_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`; }
+
+const COLOR_PRESETS_LIST = [
+  { key: "gold",   bg: "#b45309" },
+  { key: "red",    bg: "#b91c1c" },
+  { key: "green",  bg: "#15803d" },
+  { key: "blue",   bg: "#1d4ed8" },
+  { key: "orange", bg: "#c2410c" },
+  { key: "purple", bg: "#7c3aed" },
+  { key: "pink",   bg: "#be185d" },
+  { key: "teal",   bg: "#0f766e" },
+] as const;
+
+function expandChinese(kw: string): string[] {
+  const s = sify(kw); const t = tify(kw);
+  return [...new Set([kw, s, t])].filter(Boolean);
+}
+function getColorRuleMatch(rules: { id: string; keywords: string; color: string; style?: string; weight?: string }[], itemData: Record<string, string>): { color: string; keywords: string[]; style: "bg" | "text"; weight: "bold" | "normal" } | null {
+  if (!rules.length) return null;
+  const allTextRaw = Object.values(itemData).join(" ").toLowerCase();
+  const allTextS = sify(allTextRaw);
+  for (const rule of rules) {
+    const rawKws = rule.keywords.split(/[,，|｜\n]/).map(k => k.trim().toLowerCase()).filter(Boolean);
+    if (!rawKws.length) continue;
+    if (rawKws.some(kw => allTextRaw.includes(kw) || allTextS.includes(sify(kw)))) {
+      const preset = COLOR_PRESETS_LIST.find(p => p.key === rule.color);
+      if (preset) return {
+        color: preset.bg,
+        keywords: [...new Set(rawKws.flatMap(expandChinese))],
+        style: rule.style === "text" ? "text" : "bg",
+        weight: rule.weight === "normal" ? "normal" : "bold",
+      };
+    }
+  }
+  return null;
+}
+function highlightKw(text: string, kws: string[], color: string, style: "bg" | "text" = "bg", weight: "bold" | "normal" = "bold") {
+  if (!kws.length || !text) return <>{text}</>;
+  for (const kw of kws) {
+    const idx = text.toLowerCase().indexOf(kw);
+    if (idx >= 0) {
+      return (
+        <>
+          {text.slice(0, idx)}
+          <span style={style === "bg"
+            ? { background: color, color: "#fff", padding: "0 2px", borderRadius: "3px", fontWeight: weight === "bold" ? 700 : 400 }
+            : { color, fontWeight: weight === "bold" ? 700 : 400 }}>
+            {text.slice(idx, idx + kw.length)}
+          </span>
+          {text.slice(idx + kw.length)}
+        </>
+      );
+    }
+  }
+  return <>{text}</>;
+}
 
 const COLOR_PRESETS = [
   { key: "gold",   label: "金", bg: "#b45309" },
@@ -1293,7 +1349,10 @@ export default function GroupAuctionEdit() {
               {items.map((item, idx) => {
                 const data = (() => { try { return JSON.parse(item.dataJson); } catch { return {}; } })();
                 const titleCol = columns.find(c => c.role === "itemTitle");
-                const title = titleCol ? data[titleCol.key] : `商品 ${idx + 1}`;
+                const numCol = columns.find(c => c.role === "itemNumber");
+                const title = titleCol ? (data[titleCol.key] || "") : `商品 ${idx + 1}`;
+                const itemNum = numCol ? (data[numCol.key] || "") : "";
+                const colorMatch = getColorRuleMatch(colorRules, data);
                 const hasBids = (item.bidCount ?? 0) > 0;
                 const isEditing = editingItemId === item.id;
                 const isSelected = selectedIds.has(item.id);
@@ -1334,7 +1393,12 @@ export default function GroupAuctionEdit() {
                           setSelectedIds(next);
                         }
                       }}>
-                        <p className="text-sm font-medium text-gray-800 truncate">{title || "—"}</p>
+                        <p className="text-sm font-medium text-gray-800">
+                          {colorMatch
+                            ? <>{highlightKw(title || "—", colorMatch.keywords, colorMatch.color, colorMatch.style, colorMatch.weight)}{itemNum && <><span className="text-gray-400 mx-1">•</span>{highlightKw(itemNum, colorMatch.keywords, colorMatch.color, colorMatch.style, colorMatch.weight)}</>}</>
+                            : <>{title || "—"}{itemNum && <><span className="text-gray-400 mx-1">•</span>{itemNum}</>}</>
+                          }
+                        </p>
                         {/* 顯示所有 customText 欄位（描述等） */}
                         {columns.filter(c => c.role === "customText" && data[c.key]).map(c => (
                           <p key={c.key} className="text-xs text-gray-500 truncate">{data[c.key]}</p>
