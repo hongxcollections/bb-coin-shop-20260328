@@ -208,7 +208,7 @@ export default function GroupAuctionEdit() {
     try { return JSON.parse(localStorage.getItem("proxyNameHistory") || "[]"); } catch { return []; }
   });
   const [proxyLog, setProxyLog] = useState<ProxyBidLogEntry[]>([]);
-  const [proxySuccessBanner, setProxySuccessBanner] = useState<{ bidderName: string; items: { label: string; amount: number }[] } | null>(null);
+  const [proxySuccessBanner, setProxySuccessBanner] = useState<{ bidderName: string; items: { num: string; title: string; amount: number }[] } | null>(null);
   // 行內編輯
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [editFields, setEditFields] = useState<Record<string, string>>({});
@@ -290,7 +290,7 @@ export default function GroupAuctionEdit() {
       if (ok.length > 0) {
         setProxySuccessBanner({
           bidderName: newLogEntries[0].bidderName,
-          items: newLogEntries.map(e => ({ label: [e.itemNum, e.itemTitle].filter(Boolean).join(" "), amount: e.amount })),
+          items: newLogEntries.map(e => ({ num: e.itemNum, title: e.itemTitle, amount: e.amount })),
         });
       }
       if (r.results.some(x => !x.success)) {
@@ -617,6 +617,50 @@ export default function GroupAuctionEdit() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
+      {/* 代出價成功 fixed floating popup */}
+      {proxySuccessBanner && (
+        <div
+          style={{
+            position: "fixed",
+            top: 16,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 9999,
+            width: "calc(100% - 32px)",
+            maxWidth: 520,
+            background: "var(--popup-bg)",
+            color: "var(--popup-text)",
+            borderRadius: "var(--popup-radius)",
+            boxShadow: "var(--popup-shadow)",
+            padding: "12px 14px",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 10,
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "var(--popup-text)", marginBottom: 5 }}>
+              {proxySuccessBanner.bidderName} 代出價成功
+            </p>
+            <p style={{ fontSize: 11, color: "var(--popup-desc)", lineHeight: "1.6", wordBreak: "break-word" }}>
+              {proxySuccessBanner.items.map((it, i) => (
+                <span key={i}>
+                  {i > 0 && <span style={{ margin: "0 5px", opacity: 0.5 }}>·</span>}
+                  {[it.num, it.title].filter(Boolean).join(" ")}
+                  {" "}
+                  <span style={{ fontWeight: 600, color: "var(--popup-text)" }}>HK${it.amount.toLocaleString()}</span>
+                </span>
+              ))}
+            </p>
+          </div>
+          <button
+            onClick={() => setProxySuccessBanner(null)}
+            style={{ flexShrink: 0, color: "rgba(255,255,255,0.7)", marginTop: 1, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          >
+            <X style={{ width: 15, height: 15 }} />
+          </button>
+        </div>
+      )}
       <Header />
       <div className="max-w-2xl mx-auto px-[3px] pt-4">
         <div className="flex items-center gap-2 mb-4">
@@ -1172,26 +1216,6 @@ export default function GroupAuctionEdit() {
         {/* ── 商品管理 Tab ── */}
         {tab === "items" && roundId && (
           <div className="space-y-4">
-            {/* 代出價成功 banner */}
-            {proxySuccessBanner && (
-              <div className="flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5">
-                <div className="flex-1 min-w-0">
-                  <span className="text-xs font-semibold text-orange-700 mr-1.5">{proxySuccessBanner.bidderName} 代出價成功：</span>
-                  {proxySuccessBanner.items.map((it, i) => (
-                    <span key={i} className="text-xs text-orange-600">
-                      {i > 0 && <span className="mx-1 text-orange-300">|</span>}
-                      {it.label} <span className="font-medium">HK${it.amount.toLocaleString()}</span>
-                    </span>
-                  ))}
-                </div>
-                <button
-                  onClick={() => setProxySuccessBanner(null)}
-                  className="flex-shrink-0 text-orange-400 hover:text-orange-600 mt-0.5"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
             {/* 工具列 */}
             <div className="flex gap-2 items-center overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
               {!selectMode && !bulkPriceMode ? (
