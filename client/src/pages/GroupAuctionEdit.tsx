@@ -1413,7 +1413,8 @@ export default function GroupAuctionEdit() {
                 const numVal = numCol ? (d[numCol.key] || "") : "";
                 const curPx = (it as any).currentPrice ?? it.startPrice;
                 const inc = it.bidIncrement > 0 ? it.bidIncrement : defaultInc;
-                const newPx = curPx > 0 ? curPx + inc : (it.startPrice > 0 ? it.startPrice : inc);
+                const hasBidsAlready = ((it as any).bidCount ?? 0) > 0;
+                const newPx = hasBidsAlready ? curPx + inc : (it.startPrice > 0 ? it.startPrice : inc);
                 const capErr = it.buyNowPrice && newPx > it.buyNowPrice ? `超封頂 $${it.buyNowPrice}` : undefined;
                 return { seq, itemId: it.id, itemNum: numVal || String(seq), itemTitle: ttl, bidderName, currentPrice: curPx, newPrice: newPx, inc, error: capErr };
               });
