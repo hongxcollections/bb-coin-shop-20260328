@@ -85,12 +85,28 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
   const spotQuery = trpc.silverTool.getSpotPrice.useQuery(undefined, { enabled: false });
 
   // ── helpers ────────────────────────────────────────────────────────────────
+  /** 壓縮並轉 base64：max 1024px，quality 0.82，大幅減少 payload */
   async function fileToBase64(file: File): Promise<string> {
     return new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = e => res((e.target!.result as string).split(",")[1]);
-      r.onerror = rej;
-      r.readAsDataURL(file);
+      const img = new Image();
+      const objUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objUrl);
+        const MAX = 1024;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+          else { width = Math.round(width * MAX / height); height = MAX; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        res(dataUrl.split(",")[1]);
+      };
+      img.onerror = rej;
+      img.src = objUrl;
     });
   }
 
@@ -121,7 +137,7 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
     setIdentifying(true);
     try {
       const b64 = await fileToBase64(image);
-      const r = await identifyMut.mutateAsync({ imageBase64: b64, mimeType: image.type || "image/jpeg" });
+      const r = await identifyMut.mutateAsync({ imageBase64: b64, mimeType: "image/jpeg" });
       setCoinData(r);
       if (!r.isSilver) toast.warning("AI 識別：呢枚唔係銀幣，請確認", { className: "bb-toast-info" });
     } catch (e: any) {
@@ -196,7 +212,7 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
     if (!item) return;
     try {
       const b64 = await fileToBase64(item.file);
-      const r = await identifyMut.mutateAsync({ imageBase64: b64, mimeType: item.file.type || "image/jpeg" });
+      const r = await identifyMut.mutateAsync({ imageBase64: b64, mimeType: "image/jpeg" });
       setBatch(prev => prev.map(i => i.id === itemId ? { ...i, status: "done", result: r } : i));
     } catch (e: any) {
       setBatch(prev => prev.map(i => i.id === itemId ? { ...i, status: "error", error: String(e?.message ?? "失敗") } : i));
