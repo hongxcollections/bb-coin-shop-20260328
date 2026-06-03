@@ -1,0 +1,80 @@
+import { useRef, useState, useEffect } from "react";
+
+interface Props {
+  src: string;
+  alt?: string;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+export function PinchZoomImage({ src, alt, className, style }: Props) {
+  const [scale, setScale] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const stateRef = useRef({ scale: 1, lastDist: null as number | null });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    function getDist(t: TouchList) {
+      const dx = t[0].clientX - t[1].clientX;
+      const dy = t[0].clientY - t[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function onStart(e: TouchEvent) {
+      if (e.touches.length === 2) {
+        stateRef.current.lastDist = getDist(e.touches);
+      }
+    }
+
+    function onMove(e: TouchEvent) {
+      if (e.touches.length === 2 && stateRef.current.lastDist !== null) {
+        e.preventDefault();
+        const d = getDist(e.touches);
+        const next = Math.min(6, Math.max(1, stateRef.current.scale * (d / stateRef.current.lastDist)));
+        stateRef.current.scale = next;
+        stateRef.current.lastDist = d;
+        setScale(next);
+      }
+    }
+
+    function onEnd(e: TouchEvent) {
+      if (e.touches.length < 2) {
+        stateRef.current.lastDist = null;
+        if (stateRef.current.scale < 1) {
+          stateRef.current.scale = 1;
+          setScale(1);
+        }
+      }
+    }
+
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+    };
+  }, []);
+
+  return (
+    <div ref={containerRef} style={{ overflow: "hidden", touchAction: "pan-x pan-y" }}>
+      <img
+        src={src}
+        alt={alt}
+        className={className}
+        style={{
+          ...style,
+          transform: `scale(${scale})`,
+          transformOrigin: "center center",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          cursor: scale > 1 ? "zoom-out" : "default",
+        }}
+        onDoubleClick={() => { stateRef.current.scale = 1; setScale(1); }}
+      />
+    </div>
+  );
+}

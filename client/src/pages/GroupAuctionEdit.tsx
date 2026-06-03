@@ -3,6 +3,7 @@ import { sify, tify } from "chinese-conv";
 import { useLocation, useParams } from "wouter";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
+import { PinchZoomImage } from "@/components/PinchZoomImage";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useConfirm } from "@/components/ui/confirm-provider";
@@ -2484,13 +2485,13 @@ export default function GroupAuctionEdit() {
       {invoicePreviewUrl && (
         <div className="fixed inset-0 z-[10000] bg-black/90 flex flex-col items-center justify-center p-4">
           <div className="w-full max-w-sm flex flex-col items-center gap-3">
-            <img
+            <PinchZoomImage
               src={invoicePreviewUrl}
               alt="成交單"
               className="w-full rounded-2xl shadow-2xl object-contain"
               style={{ maxHeight: "70vh" }}
             />
-            <p className="text-white/60 text-xs text-center">長按圖片儲存至相冊</p>
+            <p className="text-white/60 text-xs text-center">長按圖片儲存至相冊 · 雙指縮放</p>
             <div className="flex gap-3 w-full">
               <a
                 href={invoicePreviewUrl}
