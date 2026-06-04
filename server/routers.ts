@@ -11490,6 +11490,11 @@ EXAMPLE OUTPUT (exact format):
 
     /** 取得即時銀價（港元/克）+ 融通金 CNY/克參考價 — 以 Stooq 為主源 */
     getSpotPrice: publicProcedure.query(async () => {
+      // Stooq 有時回傳 "volume":} 的 malformed JSON，先 sanitize
+      function parseStooq(text: string): any {
+        const fixed = text.replace(/"volume"\s*:\s*}/g, '"volume":null}');
+        return JSON.parse(fixed);
+      }
       try {
         const hdrs = { "User-Agent": "Mozilla/5.0", "Accept": "application/json" };
         // Stooq：XAG/USD + HKD/USD（雙源均已確認可用）
@@ -11498,8 +11503,8 @@ EXAMPLE OUTPUT (exact format):
           fetch("https://stooq.com/q/l/?s=hkdusd&f=sd2t2ohlcv&h&e=json", { headers: hdrs, signal: AbortSignal.timeout(8000) }),
         ]);
         if (!xagRes.ok || !hkdRes.ok) throw new Error("Stooq 回應錯誤");
-        const xagData = await xagRes.json() as any;
-        const hkdData = await hkdRes.json() as any;
+        const xagData = parseStooq(await xagRes.text()) as any;
+        const hkdData = parseStooq(await hkdRes.text()) as any;
         const xagUsd = Number(xagData?.symbols?.[0]?.close);   // USD per troy oz
         const hkdUsd = Number(hkdData?.symbols?.[0]?.close);   // 1 HKD in USD
         if (!xagUsd || !hkdUsd) throw new Error("Stooq 資料不完整");
@@ -11547,8 +11552,9 @@ EXAMPLE OUTPUT (exact format):
           fetch("https://stooq.com/q/l/?s=hkdusd&f=sd2t2ohlcv&h&e=json", { headers: hdrs, signal: AbortSignal.timeout(8000) }),
         ]);
         if (xr.ok && hr.ok) {
-          const xd = await xr.json() as any;
-          const hd = await hr.json() as any;
+          const parseStooq2 = (t: string) => JSON.parse(t.replace(/"volume"\s*:\s*}/g, '"volume":null}'));
+          const xd = parseStooq2(await xr.text()) as any;
+          const hd = parseStooq2(await hr.text()) as any;
           const xu = Number(xd?.symbols?.[0]?.close);
           const hu = Number(hd?.symbols?.[0]?.close);
           if (xu && hu) { spotUsdPerOz = xu; spotHkdPerGram = Math.round(xu / hu / 31.1035 * 100) / 100; }
