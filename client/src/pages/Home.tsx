@@ -1356,7 +1356,8 @@ export default function Home() {
             <div className="absolute -top-5 right-2 flex items-center gap-1.5 z-20">
               <button
                 onClick={() => setShowMerchantFlow(true)}
-                className="inline-flex items-center gap-1 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg shadow-md transition-colors cursor-pointer select-none whitespace-nowrap border border-sky-700/50"
+                className="inline-flex items-center gap-1 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white text-[11px] font-semibold px-2.5 py-1 shadow-md transition-colors cursor-pointer select-none whitespace-nowrap border border-sky-700/50"
+                style={{ borderRadius: 5 }}
               >
                 📋 商戶申請流程
               </button>
@@ -1364,7 +1365,8 @@ export default function Home() {
               <div className="relative">
                 <button
                   onClick={() => setToolsOpen(v => !v)}
-                  className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg shadow-md transition-colors cursor-pointer select-none whitespace-nowrap border border-amber-700/40"
+                  className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-[11px] font-semibold px-2.5 py-1 shadow-md transition-colors cursor-pointer select-none whitespace-nowrap border border-amber-700/40"
+                  style={{ borderRadius: 5 }}
                 >
                   <Sparkles className="w-3 h-3" />
                   微工具
