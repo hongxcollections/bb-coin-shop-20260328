@@ -11488,9 +11488,10 @@ EXAMPLE OUTPUT (exact format):
         });
       }),
 
-    /** 取得即時銀價（港元/克） */
+    /** 取得即時銀價（港元/克）+ 融通金 CNY/克參考價 */
     getSpotPrice: publicProcedure.query(async () => {
       try {
+        // 主源：goldprice.org HKD 銀價
         const res = await fetch("https://data-asg.goldprice.org/dbXRates/HKD", {
           headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
           signal: AbortSignal.timeout(8000),
@@ -11500,10 +11501,50 @@ EXAMPLE OUTPUT (exact format):
         const item = data?.items?.[0];
         if (!item?.xagPrice) throw new Error("無銀價資料");
         const perTroyOz = Number(item.xagPrice);
-        const perGram = Math.round((perTroyOz / 31.1035) * 100) / 100;
-        return { ok: true, hkdPerGram: perGram, hkdPerTroyOz: Math.round(perTroyOz * 100) / 100, updatedAt: String(data.date ?? "") };
+        const hkdPerGram = Math.round((perTroyOz / 31.1035) * 100) / 100;
+
+        // CNY 換算（供融通金參考）：優先嘗試 goldprice.org CNY，fallback Yahoo HKDCNY=X
+        let cnyPerGram: number | null = null;
+        try {
+          const cnyRes = await fetch("https://data-asg.goldprice.org/dbXRates/CNY", {
+            headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
+            signal: AbortSignal.timeout(5000),
+          });
+          if (cnyRes.ok) {
+            const cnyData = await cnyRes.json() as any;
+            const cnyItem = cnyData?.items?.[0];
+            if (cnyItem?.xagPrice) {
+              cnyPerGram = Math.round((Number(cnyItem.xagPrice) / 31.1035) * 100) / 100;
+            }
+          }
+        } catch { /* ignore */ }
+
+        // Fallback：Yahoo Finance HKDCNY=X 匯率
+        if (!cnyPerGram) {
+          try {
+            const fxRes = await fetch(
+              "https://query1.finance.yahoo.com/v8/finance/chart/HKDCNY=X?interval=1d&range=1d",
+              { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(5000) },
+            );
+            if (fxRes.ok) {
+              const fxData = await fxRes.json() as any;
+              const rate = fxData?.chart?.result?.[0]?.meta?.regularMarketPrice;
+              if (rate && rate > 0) {
+                cnyPerGram = Math.round(hkdPerGram * Number(rate) * 100) / 100;
+              }
+            }
+          } catch { /* ignore */ }
+        }
+
+        return {
+          ok: true,
+          hkdPerGram,
+          hkdPerTroyOz: Math.round(perTroyOz * 100) / 100,
+          cnyPerGram,
+          updatedAt: String(data.date ?? ""),
+        };
       } catch (e: any) {
-        return { ok: false as const, hkdPerGram: null, hkdPerTroyOz: null, updatedAt: null, error: String(e?.message ?? e) };
+        return { ok: false as const, hkdPerGram: null, hkdPerTroyOz: null, cnyPerGram: null, updatedAt: null, error: String(e?.message ?? e) };
       }
     }),
   }),

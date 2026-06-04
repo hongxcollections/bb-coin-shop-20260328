@@ -128,6 +128,7 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
   const [spotPrice, setSpotPrice] = useState("");
   const [discount, setDiscount] = useState("85");
   const [fetchingPrice, setFetchingPrice] = useState(false);
+  const [cnyRef, setCnyRef] = useState<number | null>(null);
 
   const [batch, setBatch] = useState<BatchItem[]>([]);
   const [batchIdentifying, setBatchIdentifying] = useState(false);
@@ -211,7 +212,9 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
       const r = await spotQuery.refetch();
       if (r.data?.ok && r.data.hkdPerGram) {
         setSpotPrice(String(r.data.hkdPerGram));
-        toast.success(`銀價更新：HK$${r.data.hkdPerGram}/克`, { className: "bb-toast-success" });
+        setCnyRef(r.data.cnyPerGram ?? null);
+        const cnyStr = r.data.cnyPerGram ? `  ·  融通金參考 CNY¥${r.data.cnyPerGram}/克` : "";
+        toast.success(`銀價更新：HK$${r.data.hkdPerGram}/克${cnyStr}`, { className: "bb-toast-success" });
       } else {
         toast.error("無法取得銀價，請手動輸入", { className: "bb-toast-err" });
       }
@@ -487,6 +490,11 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
                       自動取價
                     </button>
                   </div>
+                  {cnyRef && (
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      融通金參考：CNY¥{cnyRef}/克（國際現貨換算，僅供參考）
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
@@ -569,6 +577,11 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
                       style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
                     />
                   </div>
+                  {cnyRef && (
+                    <p className="text-[10px] text-gray-400">
+                      融通金參考：CNY¥{cnyRef}/克（國際現貨換算）
+                    </p>
+                  )}
 
                   <div className="flex gap-2">
                     <button
