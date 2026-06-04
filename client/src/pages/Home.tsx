@@ -1184,6 +1184,12 @@ export default function Home() {
   const { data: siteSettings } = trpc.siteSettings.getAll.useQuery(undefined, {
     staleTime: 5 * 60 * 1000,
   });
+  // 微工具 access control：只限 approved 商戶 + admin
+  const { data: myMerchantAppHome } = trpc.merchants.myApplication.useQuery(undefined, {
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+  });
+  const canUseMicroTools = user?.role === 'admin' || myMerchantAppHome?.status === 'approved';
   const ss = (siteSettings as Record<string, string> | undefined) ?? {};
 
   const CATEGORIES = [
@@ -1361,8 +1367,8 @@ export default function Home() {
               >
                 📋 商戶申請流程
               </button>
-              {/* 微工具 dropdown */}
-              <div className="relative">
+              {/* 微工具 dropdown — 只限 approved 商戶 + admin */}
+              {canUseMicroTools && <div className="relative">
                 <button
                   onClick={() => setToolsOpen(v => !v)}
                   className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-[11px] font-semibold px-2.5 py-1 shadow-md transition-colors cursor-pointer select-none whitespace-nowrap border border-amber-700/40"
@@ -1392,7 +1398,7 @@ export default function Home() {
                     </div>
                   </>
                 )}
-              </div>
+              </div>}
             </div>
 
             {/* 3 個大金幣黐住 */}

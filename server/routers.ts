@@ -11488,64 +11488,82 @@ EXAMPLE OUTPUT (exact format):
         });
       }),
 
-    /** 取得即時銀價（港元/克）+ 融通金 CNY/克參考價 */
+    /** 取得即時銀價（港元/克）+ 融通金 CNY/克參考價 — 以 Stooq 為主源 */
     getSpotPrice: publicProcedure.query(async () => {
       try {
-        // 主源：goldprice.org HKD 銀價
-        const res = await fetch("https://data-asg.goldprice.org/dbXRates/HKD", {
-          headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
-          signal: AbortSignal.timeout(8000),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json() as any;
-        const item = data?.items?.[0];
-        if (!item?.xagPrice) throw new Error("無銀價資料");
-        const perTroyOz = Number(item.xagPrice);
-        const hkdPerGram = Math.round((perTroyOz / 31.1035) * 100) / 100;
+        const hdrs = { "User-Agent": "Mozilla/5.0", "Accept": "application/json" };
+        // Stooq：XAG/USD + HKD/USD（雙源均已確認可用）
+        const [xagRes, hkdRes] = await Promise.all([
+          fetch("https://stooq.com/q/l/?s=xagusd&f=sd2t2ohlcv&h&e=json", { headers: hdrs, signal: AbortSignal.timeout(8000) }),
+          fetch("https://stooq.com/q/l/?s=hkdusd&f=sd2t2ohlcv&h&e=json", { headers: hdrs, signal: AbortSignal.timeout(8000) }),
+        ]);
+        if (!xagRes.ok || !hkdRes.ok) throw new Error("Stooq 回應錯誤");
+        const xagData = await xagRes.json() as any;
+        const hkdData = await hkdRes.json() as any;
+        const xagUsd = Number(xagData?.symbols?.[0]?.close);   // USD per troy oz
+        const hkdUsd = Number(hkdData?.symbols?.[0]?.close);   // 1 HKD in USD
+        if (!xagUsd || !hkdUsd) throw new Error("Stooq 資料不完整");
+        const hkdPerTroyOz = xagUsd / hkdUsd;                  // 1 troy oz in HKD
+        const hkdPerGram   = Math.round(hkdPerTroyOz / 31.1035 * 100) / 100;
 
-        // CNY 換算（供融通金參考）：優先嘗試 goldprice.org CNY，fallback Yahoo HKDCNY=X
+        // CNY 換算（融通金參考）
         let cnyPerGram: number | null = null;
         try {
-          const cnyRes = await fetch("https://data-asg.goldprice.org/dbXRates/CNY", {
-            headers: { "User-Agent": "Mozilla/5.0", "Accept": "application/json" },
-            signal: AbortSignal.timeout(5000),
-          });
+          const cnyRes = await fetch("https://stooq.com/q/l/?s=cnyusd&f=sd2t2ohlcv&h&e=json", { headers: hdrs, signal: AbortSignal.timeout(5000) });
           if (cnyRes.ok) {
             const cnyData = await cnyRes.json() as any;
-            const cnyItem = cnyData?.items?.[0];
-            if (cnyItem?.xagPrice) {
-              cnyPerGram = Math.round((Number(cnyItem.xagPrice) / 31.1035) * 100) / 100;
-            }
+            const cnyUsd = Number(cnyData?.symbols?.[0]?.close);
+            if (cnyUsd > 0) cnyPerGram = Math.round(xagUsd / cnyUsd / 31.1035 * 100) / 100;
           }
         } catch { /* ignore */ }
 
-        // Fallback：Yahoo Finance HKDCNY=X 匯率
+        // Fallback CNY：Yahoo HKDCNY=X
         if (!cnyPerGram) {
           try {
-            const fxRes = await fetch(
-              "https://query1.finance.yahoo.com/v8/finance/chart/HKDCNY=X?interval=1d&range=1d",
-              { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(5000) },
-            );
+            const fxRes = await fetch("https://query1.finance.yahoo.com/v8/finance/chart/HKDCNY=X?interval=1d&range=1d", { headers: hdrs, signal: AbortSignal.timeout(5000) });
             if (fxRes.ok) {
               const fxData = await fxRes.json() as any;
               const rate = fxData?.chart?.result?.[0]?.meta?.regularMarketPrice;
-              if (rate && rate > 0) {
-                cnyPerGram = Math.round(hkdPerGram * Number(rate) * 100) / 100;
-              }
+              if (rate > 0) cnyPerGram = Math.round(hkdPerGram * Number(rate) * 100) / 100;
             }
           } catch { /* ignore */ }
         }
 
-        return {
-          ok: true,
-          hkdPerGram,
-          hkdPerTroyOz: Math.round(perTroyOz * 100) / 100,
-          cnyPerGram,
-          updatedAt: String(data.date ?? ""),
-        };
+        return { ok: true, hkdPerGram, hkdPerTroyOz: Math.round(hkdPerTroyOz * 100) / 100, cnyPerGram, updatedAt: xagData?.symbols?.[0]?.date ?? "" };
       } catch (e: any) {
         return { ok: false as const, hkdPerGram: null, hkdPerTroyOz: null, cnyPerGram: null, updatedAt: null, error: String(e?.message ?? e) };
       }
+    }),
+
+    /** 香港各商行銀價（最佳努力抓取；各行網頁以 JS 動態載入，後端只能提供國際現貨換算 + 直連連結） */
+    getHKSilverPrices: publicProcedure.query(async () => {
+      const hdrs = { "User-Agent": "Mozilla/5.0", "Accept": "application/json" };
+      // 計算現貨
+      let spotHkdPerGram: number | null = null;
+      let spotUsdPerOz: number | null = null;
+      try {
+        const [xr, hr] = await Promise.all([
+          fetch("https://stooq.com/q/l/?s=xagusd&f=sd2t2ohlcv&h&e=json", { headers: hdrs, signal: AbortSignal.timeout(8000) }),
+          fetch("https://stooq.com/q/l/?s=hkdusd&f=sd2t2ohlcv&h&e=json", { headers: hdrs, signal: AbortSignal.timeout(8000) }),
+        ]);
+        if (xr.ok && hr.ok) {
+          const xd = await xr.json() as any;
+          const hd = await hr.json() as any;
+          const xu = Number(xd?.symbols?.[0]?.close);
+          const hu = Number(hd?.symbols?.[0]?.close);
+          if (xu && hu) { spotUsdPerOz = xu; spotHkdPerGram = Math.round(xu / hu / 31.1035 * 100) / 100; }
+        }
+      } catch { /* ignore */ }
+
+      // 各商行資訊（價格由各行官網 JS 動態載入，伺服器無法抓取）
+      const sources = [
+        { name: "LPM",  url: "https://www.lpm.hk/zh/precious-metals-prices/",                   hkdPerGram: null as number | null },
+        { name: "三省",  url: "https://www.sam-sing.com.hk",                                      hkdPerGram: null as number | null },
+        { name: "週生生", url: "https://www.chowsangsung.com/tc/goldsilverprice.aspx",             hkdPerGram: null as number | null },
+        { name: "週大福", url: "https://www.chowtaifook.com/hk/zh/precious-metal-price",           hkdPerGram: null as number | null },
+      ];
+
+      return { ok: true, spotHkdPerGram, spotUsdPerOz, sources, updatedAt: new Date().toISOString() };
     }),
   }),
 });

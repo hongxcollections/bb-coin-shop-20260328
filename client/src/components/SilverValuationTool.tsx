@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -139,6 +139,28 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
   // 專用輕量 identify endpoint（精簡 prompt + 完整 model fallback 鏈，速度快 4-6x）
   const analyzeMut = trpc.silverTool.identify.useMutation();
   const spotQuery = trpc.silverTool.getSpotPrice.useQuery(undefined, { enabled: false });
+  const hkPricesQuery = trpc.silverTool.getHKSilverPrices.useQuery(undefined, { enabled: false });
+  const [hkPrices, setHkPrices] = useState<null | Awaited<ReturnType<typeof hkPricesQuery.refetch>>["data"]>(null);
+  const [loadingHK, setLoadingHK] = useState(false);
+
+  // 開啟 modal 時自動取現貨價
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    async function autoFetch() {
+      try {
+        const r = await spotQuery.refetch();
+        if (cancelled) return;
+        if (r.data?.ok && r.data.hkdPerGram) {
+          setSpotPrice(String(r.data.hkdPerGram));
+          setCnyRef(r.data.cnyPerGram ?? null);
+        }
+      } catch { /* ignore */ }
+    }
+    autoFetch();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // ── Image helpers ──────────────────────────────────────────────────────────
   /** 壓縮至 max 1024px JPEG，大幅縮減 payload */
@@ -222,6 +244,16 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
       toast.error("銀價獲取失敗", { className: "bb-toast-err" });
     } finally {
       setFetchingPrice(false);
+    }
+  }
+
+  async function fetchHKPrices() {
+    setLoadingHK(true);
+    try {
+      const r = await hkPricesQuery.refetch();
+      setHkPrices(r.data ?? null);
+    } catch { /* ignore */ } finally {
+      setLoadingHK(false);
     }
   }
 
@@ -496,6 +528,56 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
                     </p>
                   )}
                 </div>
+
+                {/* HK 商行銀價 */}
+                <div className="border border-gray-100 rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2 bg-gray-50">
+                    <p className="text-[11px] font-bold text-gray-600">HK 商行銀價參考</p>
+                    <button
+                      onClick={fetchHKPrices}
+                      disabled={loadingHK}
+                      className="flex items-center gap-1 text-[10px] text-sky-600 hover:text-sky-800 disabled:opacity-50"
+                    >
+                      {loadingHK ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <RefreshCw className="w-2.5 h-2.5" />}
+                      查詢
+                    </button>
+                  </div>
+                  {hkPrices?.spotHkdPerGram && (
+                    <div className="px-3 py-1.5 bg-amber-50 border-b border-gray-100">
+                      <p className="text-[10px] text-amber-700 font-semibold">
+                        國際現貨：HK${hkPrices.spotHkdPerGram}/克（USD${hkPrices.spotUsdPerOz}/oz）
+                      </p>
+                    </div>
+                  )}
+                  <div className="divide-y divide-gray-50">
+                    {(hkPrices?.sources ?? [
+                      { name: "LPM",   url: "https://www.lpm.hk/zh/precious-metals-prices/",                 hkdPerGram: null },
+                      { name: "三省",   url: "https://www.sam-sing.com.hk",                                    hkdPerGram: null },
+                      { name: "週生生", url: "https://www.chowsangsung.com/tc/goldsilverprice.aspx",           hkdPerGram: null },
+                      { name: "週大福", url: "https://www.chowtaifook.com/hk/zh/precious-metal-price",         hkdPerGram: null },
+                    ]).map((s) => (
+                      <div key={s.name} className="flex items-center justify-between px-3 py-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-[11px] font-semibold text-gray-700 shrink-0">{s.name}</span>
+                          {s.hkdPerGram ? (
+                            <span className="text-[11px] font-bold text-amber-700">HK${s.hkdPerGram}/克</span>
+                          ) : (
+                            <span className="text-[10px] text-gray-400">請查看官網</span>
+                          )}
+                        </div>
+                        <a href={s.url} target="_blank" rel="noopener noreferrer"
+                          className="text-[10px] text-sky-500 hover:text-sky-700 shrink-0 ml-2"
+                        >
+                          官網 →
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                  {!hkPrices && (
+                    <p className="text-[10px] text-gray-400 px-3 pb-2 text-center">各行官網以 JS 動態載入，點「查詢」取現貨價</p>
+                  )}
+                </div>
+
                 <div>
                   <p className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
                     <span>收購折扣</span>
