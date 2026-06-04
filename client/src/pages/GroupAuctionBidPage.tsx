@@ -153,7 +153,7 @@ export default function GroupAuctionBidPage() {
 
   const promoImagesJson = (round as any)?.promoImagesJson ?? "[]";
   const promoUrls = useMemo(() => {
-    try { return (JSON.parse(promoImagesJson) as string[]).slice(0, 10); } catch { return []; }
+    try { const arr: any[] = JSON.parse(promoImagesJson); return arr.map((x: any) => typeof x === "string" ? x : x?.url ?? "").filter(Boolean).slice(0, 10); } catch { return []; }
   }, [promoImagesJson]);
 
   const colorRules: { id: string; keywords: string; color: string }[] = useMemo(() => {
@@ -162,7 +162,7 @@ export default function GroupAuctionBidPage() {
 
   const promoLayout = useMemo(() => {
     let urls: string[] = [];
-    try { urls = JSON.parse(promoImagesJson); } catch {}
+    try { const arr: any[] = JSON.parse(promoImagesJson); urls = arr.map((x: any) => typeof x === "string" ? x : x?.url ?? "").filter(Boolean); } catch {}
 
     if (urls.length === 0) {
       const imgMap = new Map(roundImages.map((img: any) => [img.id as number, img.url as string]));

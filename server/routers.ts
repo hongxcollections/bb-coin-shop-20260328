@@ -10866,7 +10866,7 @@ EXAMPLE OUTPUT (exact format):
         periodNumber:   r.periodNumber  ? String(r.periodNumber)  : null,
         endAt:          r.endAt         ? new Date(r.endAt).toISOString() : null,
         coverImage:     r.coverImage    ? String(r.coverImage)    : null,
-        promoImages:    (() => { try { return JSON.parse(r.promoImagesJson ?? "[]"); } catch { return []; } })(),
+        promoImages:    (() => { try { const arr: any[] = JSON.parse(r.promoImagesJson ?? "[]"); return arr.map(x => typeof x === "string" ? x : x?.url ?? "").filter(Boolean); } catch { return []; } })(),
         merchantUserId: Number(r.merchantUserId),
         merchantName:   r.merchantName  ? String(r.merchantName)  : null,
         merchantAvatar: r.merchantAvatar ? String(r.merchantAvatar) : null,
