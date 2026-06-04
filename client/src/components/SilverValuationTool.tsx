@@ -10,6 +10,7 @@ import {
   Trash2,
   History,
   Plus,
+  ChevronDown,
 } from "lucide-react";
 
 // ── Silver parsing helpers ─────────────────────────────────────────────────
