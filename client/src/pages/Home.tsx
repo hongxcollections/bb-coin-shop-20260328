@@ -1367,8 +1367,8 @@ export default function Home() {
               >
                 📋 商戶申請流程
               </button>
-              {/* 微工具 dropdown — 只限 approved 商戶 + admin */}
-              {canUseMicroTools && <div className="relative">
+              {/* 微工具 dropdown — 一律顯示；點選工具項時才驗商戶/admin 權限 */}
+              <div className="relative">
                 <button
                   onClick={() => setToolsOpen(v => !v)}
                   className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-[11px] font-semibold px-2.5 py-1 shadow-md transition-colors cursor-pointer select-none whitespace-nowrap border border-amber-700/40"
@@ -1380,17 +1380,25 @@ export default function Home() {
                 </button>
                 {toolsOpen && (
                   <>
-                    {/* 透明背板：點外面收起 */}
                     <div className="fixed inset-0 z-30" onClick={() => setToolsOpen(false)} />
                     <div className="absolute top-full right-0 mt-1.5 z-40 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden min-w-[110px]">
-                      <Link href="/coin-analysis" onClick={() => setToolsOpen(false)}>
-                        <span className="flex items-center gap-2 px-3.5 py-2.5 text-[11px] font-semibold text-amber-700 hover:bg-amber-50 cursor-pointer whitespace-nowrap">
-                          <Sparkles className="w-3 h-3" /> AI 鑑定
-                        </span>
-                      </Link>
+                      <button
+                        onClick={() => {
+                          setToolsOpen(false);
+                          if (!canUseMicroTools) { toast.error("此功能只限已批核商戶及管理員使用", { className: "bb-toast-err" }); return; }
+                          navigate("/coin-analysis");
+                        }}
+                        className="flex items-center gap-2 w-full px-3.5 py-2.5 text-[11px] font-semibold text-amber-700 hover:bg-amber-50 whitespace-nowrap"
+                      >
+                        <Sparkles className="w-3 h-3" /> AI 鑑定
+                      </button>
                       <div className="h-px bg-gray-100" />
                       <button
-                        onClick={() => { setSilverToolOpen(true); setToolsOpen(false); }}
+                        onClick={() => {
+                          setToolsOpen(false);
+                          if (!canUseMicroTools) { toast.error("此功能只限已批核商戶及管理員使用", { className: "bb-toast-err" }); return; }
+                          setSilverToolOpen(true);
+                        }}
                         className="flex items-center gap-2 w-full px-3.5 py-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 whitespace-nowrap"
                       >
                         🪙 銀工具
@@ -1398,7 +1406,7 @@ export default function Home() {
                     </div>
                   </>
                 )}
-              </div>}
+              </div>
             </div>
 
             {/* 3 個大金幣黐住 */}
