@@ -11374,6 +11374,120 @@ EXAMPLE OUTPUT (exact format):
 
   // ─── Silver Valuation Tool ─────────────────────────────────────────────────
   silverTool: router({
+    /** AI 識別銀幣：精簡 prompt，使用完整 model fallback 鏈，速度快 4-6x vs coinAnalysis.analyze */
+    identify: publicProcedure
+      .input(z.object({
+        imageBase64: z.string(),
+        mimeType: z.string().default("image/jpeg"),
+      }))
+      .mutation(async ({ input }) => {
+        type VisionApi = { url: string; key: string; model: string; label: string };
+        const OR = "https://openrouter.ai/api/v1/chat/completions";
+        const GG = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+
+        // 同 coinAnalysis.analyze 完全一樣嘅 model 優先順序
+        const models: VisionApi[] = [];
+        if (ENV.forgeApiKey) {
+          const base = ENV.forgeApiUrl?.trim()
+            ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
+            : "https://forge.manus.im/v1/chat/completions";
+          models.push({ url: base, key: ENV.forgeApiKey, model: "gemini-2.5-flash", label: "forge" });
+        }
+        if (ENV.openRouterApiKey) {
+          models.push({ url: OR, key: ENV.openRouterApiKey, model: "meta-llama/llama-4-maverick", label: "llama-4" });
+        }
+        if (ENV.geminiApiKey) {
+          models.push({ url: GG, key: ENV.geminiApiKey, model: "gemini-2.5-flash", label: "gemini-1" });
+        }
+        if (ENV.geminiApiKey2) {
+          models.push({ url: GG, key: ENV.geminiApiKey2, model: "gemini-2.5-flash", label: "gemini-2" });
+        }
+        if (ENV.geminiApiKey) {
+          models.push({ url: GG, key: ENV.geminiApiKey, model: "gemini-2.0-flash", label: "gemini-1-flash" });
+        }
+        if (ENV.geminiApiKey2) {
+          models.push({ url: GG, key: ENV.geminiApiKey2, model: "gemini-2.0-flash", label: "gemini-2-flash" });
+        }
+        if (!models.length) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "未設定 AI API" });
+
+        // 精簡提示——只問 5 個欄位，max_tokens 350，速度快幾倍
+        const prompt = `你係錢幣鑑定專家。請分析圖片，只回覆純JSON物件（不要markdown、不要說明）：
+{"name":"完整幣種名稱（國家+年份+面額）","country":"發行國","year":"年份","material":"材質及成分（如 .999純銀 / .925 Sterling / 0.900銀 / 銅合金）","weight":"重量（如 26.73g，標準規格可填標準值，不確定填 -）"}`;
+
+        const dataUrl = `data:${input.mimeType};base64,${input.imageBase64}`;
+        const TIMEOUT_MS = 15_000;
+        const TOTAL_BUDGET_MS = 35_000;
+        const budgetStart = Date.now();
+        const errors: string[] = [];
+
+        const extractJson = (raw: string): Record<string, string> | null => {
+          let text = raw.replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
+            .replace(/```(?:json)?\s*/gi, "").replace(/```\s*/g, "").trim();
+          const start = text.indexOf("{");
+          if (start === -1) return null;
+          let depth = 0, inStr = false, esc = false, end = -1;
+          for (let i = start; i < text.length; i++) {
+            const ch = text[i];
+            if (esc) { esc = false; continue; }
+            if (ch === "\\" && inStr) { esc = true; continue; }
+            if (ch === '"') { inStr = !inStr; continue; }
+            if (inStr) continue;
+            if (ch === "{") depth++;
+            else if (ch === "}") { depth--; if (depth === 0) { end = i; break; } }
+          }
+          if (end === -1) return null;
+          try { return JSON.parse(text.slice(start, end + 1)); } catch { return null; }
+        };
+
+        for (const { url, key, model, label } of models) {
+          if (Date.now() - budgetStart > TOTAL_BUDGET_MS) break;
+          try {
+            const remaining = TOTAL_BUDGET_MS - (Date.now() - budgetStart);
+            const timeout = Math.min(TIMEOUT_MS, remaining);
+            const res = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+              body: JSON.stringify({
+                model,
+                max_tokens: 350,
+                temperature: 0.1,
+                messages: [{
+                  role: "user",
+                  content: [
+                    { type: "text", text: prompt },
+                    { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
+                    { type: "text", text: "只輸出JSON物件（{開頭}結尾），不要其他文字。" },
+                  ],
+                }],
+              }),
+              signal: AbortSignal.timeout(timeout),
+            });
+            if (!res.ok) { errors.push(`${label}: HTTP ${res.status}`); continue; }
+            const raw = await res.json() as any;
+            const content: string = raw?.choices?.[0]?.message?.content ?? "";
+            const d = extractJson(content);
+            if (!d) { errors.push(`${label}: JSON missing`); continue; }
+            return {
+              data: {
+                name: String(d.name ?? d.Name ?? ""),
+                country: String(d.country ?? d.Country ?? ""),
+                year: String(d.year ?? d.Year ?? ""),
+                material: String(d.material ?? d.Material ?? ""),
+                weight: String(d.weight ?? d.Weight ?? "-"),
+              },
+              modelUsed: label,
+            };
+          } catch (e: any) {
+            const msg = String(e?.message ?? e);
+            errors.push(`${label}: ${msg.includes("timeout") || msg.includes("abort") ? "timeout" : msg.slice(0, 60)}`);
+          }
+        }
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `AI 分析失敗（已試 ${models.length} 個模型）：${errors.join(" | ")}`,
+        });
+      }),
+
     /** 取得即時銀價（港元/克） */
     getSpotPrice: publicProcedure.query(async () => {
       try {

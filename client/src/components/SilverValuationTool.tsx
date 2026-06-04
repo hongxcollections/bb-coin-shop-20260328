@@ -140,8 +140,8 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
 
   const [history, setHistory] = useState<HistoryEntry[]>(() => loadHistory());
 
-  // 直接复用現有 AI 鑑定 endpoint（有完整 model fallback 鏈）
-  const analyzeMut = trpc.coinAnalysis.analyze.useMutation();
+  // 專用輕量 identify endpoint（精簡 prompt + 完整 model fallback 鏈，速度快 4-6x）
+  const analyzeMut = trpc.silverTool.identify.useMutation();
   const spotQuery = trpc.silverTool.getSpotPrice.useQuery(undefined, { enabled: false });
 
   // ── Image helpers ──────────────────────────────────────────────────────────
