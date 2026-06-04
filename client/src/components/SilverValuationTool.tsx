@@ -319,13 +319,33 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md w-full p-0 gap-0" style={{ maxHeight: "92vh", overflowY: "auto" }}>
-        <DialogHeader className="px-4 pt-4 pb-3 border-b">
+      {/* 全屏固定：頂部留 header (64px)，底部留 bottom nav (~68px + safe area)，左右各 5px */}
+      <DialogContent
+        className="p-0 gap-0"
+        style={{
+          position: "fixed",
+          top: "64px",
+          bottom: "calc(68px + env(safe-area-inset-bottom, 0px))",
+          left: "5px",
+          right: "5px",
+          width: "auto",
+          maxWidth: "none",
+          transform: "none",
+          margin: 0,
+          maxHeight: "none",
+          height: "auto",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          borderRadius: 14,
+        }}
+      >
+        <DialogHeader className="px-4 pt-3 pb-2.5 border-b shrink-0">
           <DialogTitle className="text-base font-bold">🪙 銀幣收購報價工具</DialogTitle>
         </DialogHeader>
 
-        {/* Tabs */}
-        <div className="flex border-b sticky top-0 bg-white z-10">
+        {/* Tabs — shrink-0，唔需要 sticky（整個 modal 已固定高度） */}
+        <div className="flex border-b shrink-0 bg-white">
           {(["tool", "batch", "history"] as const).map(t => (
             <button
               key={t}
@@ -337,7 +357,8 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
           ))}
         </div>
 
-        <div className="p-4 space-y-4">
+        {/* 唯一可 scroll 區域 */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
           {/* ── 識別工具 ── */}
           {tab === "tool" && (
