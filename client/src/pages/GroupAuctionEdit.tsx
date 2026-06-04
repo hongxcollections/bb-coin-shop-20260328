@@ -1732,10 +1732,11 @@ export default function GroupAuctionEdit() {
 
                 return (
                   <div key={item.id}
-                    className={`bg-white rounded-xl border p-3 transition-colors ${
+                    className={`rounded-xl border p-3 transition-colors ${
+                      isEditing ? "border-amber-300 bg-amber-50" :
                       isSelected && selectMode ? "border-red-300 bg-red-50" :
                       isSelected && bulkPriceMode ? "border-blue-300 bg-blue-50" :
-                      "border-gray-100"
+                      "bg-white border-gray-100"
                     }`}
                   >
                     <div className="flex items-center gap-2">
