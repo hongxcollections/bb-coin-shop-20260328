@@ -1,12 +1,7 @@
 import { useState, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Loader2,
   Upload,
@@ -317,18 +312,41 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      {/* 全屏固定：頂部留 header (64px)，底部留 bottom nav (~68px + safe area)，左右各 5px */}
-      <DialogContent
-        className="silver-tool-modal p-0 gap-0"
+  if (!open) return null;
+  return createPortal(
+    <>
+      {/* 半透明背板 */}
+      <div
+        onClick={onClose}
+        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200 }}
+      />
+      {/* Modal 本體：頂部 64px (header)，底部 68px+safe area (bottom nav)，左右各 5px */}
+      <div
+        style={{
+          position: "fixed",
+          top: 64,
+          left: 5,
+          right: 5,
+          bottom: "calc(68px + env(safe-area-inset-bottom, 0px))",
+          zIndex: 201,
+          background: "#fff",
+          borderRadius: 14,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.18)",
+        }}
       >
-        <DialogHeader className="px-4 pt-3 pb-2.5 border-b shrink-0">
-          <DialogTitle className="text-base font-bold">🪙 銀幣收購報價工具</DialogTitle>
-        </DialogHeader>
+        {/* Header */}
+        <div className="px-4 pt-3 pb-2.5 border-b flex items-center justify-between" style={{ flexShrink: 0 }}>
+          <p className="text-base font-bold">🪙 銀幣收購報價工具</p>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition p-1">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
-        {/* Tabs — shrink-0，唔需要 sticky（整個 modal 已固定高度） */}
-        <div className="flex border-b shrink-0 bg-white">
+        {/* Tabs */}
+        <div className="flex border-b bg-white" style={{ flexShrink: 0 }}>
           {(["tool", "batch", "history"] as const).map(t => (
             <button
               key={t}
@@ -649,7 +667,8 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
             </>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </>,
+    document.body,
   );
 }
