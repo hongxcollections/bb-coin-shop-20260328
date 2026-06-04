@@ -908,15 +908,26 @@ export default function GroupAuctionEdit() {
                       return (
                         <div key={i} className="relative">
                           <img src={pi.url} alt="" className="w-full aspect-square object-cover rounded-xl" />
-                          {/* 加入圖片集 */}
+                          {/* 加入／移出圖片集 */}
                           <button
-                            title={inGallery ? "已在圖片集" : "加入圖片集"}
+                            title={inGallery ? "點擊移出圖片集" : "加入圖片集"}
                             onClick={async () => {
-                              if (inGallery) { toast.info("已在圖片集"); return; }
+                              if (inGallery) {
+                                const imgRecord = images.find(img => img.url === pi.url);
+                                if (!imgRecord) return;
+                                try {
+                                  await deleteImageMut.mutateAsync({ id: imgRecord.id });
+                                  setImages(prev => prev.filter(img => img.id !== imgRecord.id));
+                                  toast.success("已從圖片集移除");
+                                } catch (e: any) {
+                                  toast.error(e.message || "移除失敗");
+                                }
+                                return;
+                              }
                               const r = await addPromoToGallery(pi);
                               if (r) toast.success("已加入圖片集，可在商品圖片選擇器使用");
                             }}
-                            className={`absolute top-1 left-1 rounded-full w-5 h-5 flex items-center justify-center shadow text-white text-[10px] font-bold ${inGallery ? "bg-amber-500" : "bg-gray-600 hover:bg-amber-500"}`}
+                            className={`absolute top-1 left-1 rounded-full w-5 h-5 flex items-center justify-center shadow text-white text-[10px] font-bold ${inGallery ? "bg-amber-500 hover:bg-red-500" : "bg-gray-600 hover:bg-amber-500"}`}
                           >{inGallery ? "✓" : "＋"}</button>
                           {/* 刪除 */}
                           <button
