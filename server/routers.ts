@@ -11412,7 +11412,8 @@ EXAMPLE OUTPUT (exact format):
 
         // 精簡提示——只問 5 個欄位，max_tokens 350，速度快幾倍
         const prompt = `你係錢幣鑑定專家。請分析圖片，只回覆純JSON物件（不要markdown、不要說明）：
-{"name":"完整幣種名稱（國家+年份+面額）","country":"發行國","year":"年份","material":"材質及成分（如 .999純銀 / .925 Sterling / 0.900銀 / 銅合金）","weight":"重量（如 26.73g，標準規格可填標準值，不確定填 -）"}`;
+{"isCoin":true,"name":"完整幣種名稱（國家+年份+面額）","country":"發行國","year":"年份","material":"材質及成分（如 .999純銀 / .925 Sterling / 0.900銀 / 銅合金）","weight":"重量（如 26.73g，標準規格可填標準值，不確定填 -）"}
+如果圖片唔係硬幣或錢幣類物品，isCoin 設為 false，其餘欄位留空字串。`;
 
         const dataUrl = `data:${input.mimeType};base64,${input.imageBase64}`;
         const TIMEOUT_MS = 15_000;
@@ -11469,6 +11470,7 @@ EXAMPLE OUTPUT (exact format):
             if (!d) { errors.push(`${label}: JSON missing`); continue; }
             return {
               data: {
+                isCoin: d.isCoin !== false,
                 name: String(d.name ?? d.Name ?? ""),
                 country: String(d.country ?? d.Country ?? ""),
                 year: String(d.year ?? d.Year ?? ""),

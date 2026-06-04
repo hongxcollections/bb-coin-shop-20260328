@@ -50,6 +50,7 @@ function purityLabel(purity: number): string {
 }
 
 type CoinResult = {
+  isCoin: boolean;
   isSilver: boolean;
   coinName: string;
   country: string;
@@ -72,6 +73,7 @@ function extractSilverCoin(data: any): CoinResult {
   if (silverPurity === 0 && isSilverMaterial(material)) notes.push("未能識別成色，請手動確認");
   if (weightGrams === 0) notes.push("未能識別重量，請手動輸入");
   return {
+    isCoin: data?.isCoin !== false,
     isSilver: isSilverMaterial(material),
     coinName: data?.name ?? data?.Name ?? "未知幣種",
     country: data?.country ?? data?.Country ?? "",
@@ -127,7 +129,7 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [spotPrice, setSpotPrice] = useState("");
-  const [discount, setDiscount] = useState("85");
+  const [discount, setDiscount] = useState("75");
   const [fetchingPrice, setFetchingPrice] = useState(false);
   const [cnyRef, setCnyRef] = useState<number | null>(null);
 
@@ -217,6 +219,10 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
       const b64 = await fileToBase64(image);
       const result = await analyzeMut.mutateAsync({ imageBase64: b64, mimeType: "image/jpeg", lang: "zh" });
       const parsed = extractSilverCoin(result.data);
+      if (!parsed.isCoin) {
+        toast.error("圖片唔係硬幣，請重新上傳", { className: "bb-toast-err" });
+        return;
+      }
       setCoinData(parsed);
       if (!parsed.isSilver) {
         toast.warning("AI 識別：呢枚唔係銀幣，請確認材質", { className: "bb-toast-info" });
@@ -502,33 +508,47 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
                 </div>
               )}
 
-              {/* Price inputs */}
+              {/* Price inputs — 折扣 slider 垂直貼左，銀價在右 */}
               <div className="space-y-3">
-                <div>
-                  <p className="text-xs font-semibold text-gray-600 mb-1.5">銀價（港元/克）</p>
-                  <div className="flex gap-2">
+                <div className="flex items-stretch gap-0">
+                  {/* 垂直折扣 slider（左） */}
+                  <div style={{ width: 28, margin: "0 3px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between" }}>
+                    <span className="text-[9px] font-bold text-amber-600">{discount}%</span>
                     <input
-                      type="number"
-                      value={spotPrice}
-                      onChange={e => setSpotPrice(e.target.value)}
-                      placeholder="如：6.50"
-                      className="flex-1 text-sm outline-none px-3 py-2"
-                      style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                      type="range" min="50" max="100" step="1"
+                      value={discount}
+                      onChange={e => setDiscount(e.target.value)}
+                      style={{ writingMode: "vertical-lr", direction: "rtl", width: 18, flex: 1, margin: "4px 0", accentColor: "#f59e0b", cursor: "pointer" }}
                     />
-                    <button
-                      onClick={fetchSpot}
-                      disabled={fetchingPrice}
-                      className="px-3 py-2 text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-xl flex items-center gap-1.5 transition disabled:opacity-60 whitespace-nowrap border border-sky-200"
-                    >
-                      {fetchingPrice ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                      自動取價
-                    </button>
+                    <span className="text-[9px] text-gray-400">折扣</span>
                   </div>
-                  {cnyRef && (
-                    <p className="text-[10px] text-gray-400 mt-1">
-                      融通金參考：CNY¥{cnyRef}/克（國際現貨換算，僅供參考）
-                    </p>
-                  )}
+                  {/* 銀價輸入（右） */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-600 mb-1.5">銀價（港元/克）</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        value={spotPrice}
+                        onChange={e => setSpotPrice(e.target.value)}
+                        placeholder="如：6.50"
+                        className="flex-1 text-sm outline-none px-3 py-2 min-w-0"
+                        style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
+                      />
+                      <button
+                        onClick={fetchSpot}
+                        disabled={fetchingPrice}
+                        className="px-3 py-2 text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-xl flex items-center gap-1.5 transition disabled:opacity-60 whitespace-nowrap border border-sky-200"
+                      >
+                        {fetchingPrice ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                        自動取價
+                      </button>
+                    </div>
+                    {cnyRef && (
+                      <p className="text-[10px] text-gray-400 mt-1">
+                        融通金參考：CNY¥{cnyRef}/克（國際現貨換算，僅供參考）
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* 商行銀價參考 */}
@@ -597,22 +617,6 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
                   );
                 })()}
 
-                <div>
-                  <p className="text-xs font-semibold text-gray-600 mb-1.5 flex justify-between">
-                    <span>收購折扣</span>
-                    <span className="text-amber-600 font-bold">{discount}%</span>
-                  </p>
-                  <input
-                    type="range"
-                    min="50" max="100" step="1"
-                    value={discount}
-                    onChange={e => setDiscount(e.target.value)}
-                    className="w-full accent-amber-500"
-                  />
-                  <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
-                    <span>50%</span><span>75%</span><span>100%</span>
-                  </div>
-                </div>
               </div>
 
               {canCalc && (
