@@ -177,8 +177,8 @@ export default function GroupAuctionEdit() {
   const [imageUploadProgress, setImageUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const imageFileRef = useRef<HTMLInputElement>(null);
 
-  // ── 場次推廣圖片 state（存 URL，最多 10 張）──
-  const [promoImages, setPromoImages] = useState<string[]>([]);
+  // ── 場次推廣圖片 state（存 {url, s3Key}，最多 10 張；兼容舊純 URL 格式）──
+  const [promoImages, setPromoImages] = useState<{ url: string; s3Key: string }[]>([]);
   const [uploadingPromo, setUploadingPromo] = useState(false);
   const [colorRules, setColorRules] = useState<ColorRule[]>([]);
   const [promoUploadProgress, setPromoUploadProgress] = useState<{ done: number; total: number } | null>(null);
@@ -379,7 +379,11 @@ export default function GroupAuctionEdit() {
     }
     setImages(roundData.images.map(img => ({ id: img.id, url: img.url, s3Key: img.s3Key })));
     setItems(roundData.items);
-    try { setPromoImages(JSON.parse((roundData.round as any).promoImagesJson ?? "[]")); } catch { setPromoImages([]); }
+    try {
+      const raw: any[] = JSON.parse((roundData.round as any).promoImagesJson ?? "[]");
+      // 兼容舊格式（純 URL string）
+      setPromoImages(raw.map(item => typeof item === "string" ? { url: item, s3Key: "" } : item));
+    } catch { setPromoImages([]); }
     try {
       const raw: any[] = JSON.parse((roundData.round as any).colorRulesJson ?? "[]");
       setColorRules(raw.map(r => ({ ...r, style: r.style ?? "bg", weight: r.weight ?? "bold" })));
@@ -407,7 +411,7 @@ export default function GroupAuctionEdit() {
       displayCurrencies: basic.displayCurrencies || "HKD,CNY",
       minDurationMinutes: parseInt(basic.minDurationMinutes, 10) || 0,
       columnsJson: JSON.stringify(columns),
-      promoImagesJson: JSON.stringify(promoImages),
+      promoImagesJson: JSON.stringify(promoImages), // 儲存 {url, s3Key}[] 格式
       colorRulesJson: JSON.stringify(colorRules),
     };
     if (!payload.title) { toast.error("請輸入場次名稱"); return; }
@@ -499,29 +503,46 @@ export default function GroupAuctionEdit() {
     const fileArray = Array.from(files).slice(0, count);
     setUploadingPromo(true);
     setPromoUploadProgress({ done: 0, total: count });
-    const newUrls: string[] = [];
+    const newItems: { url: string; s3Key: string }[] = [];
     try {
       for (let i = 0; i < fileArray.length; i++) {
         const file = fileArray[i];
         // 壓縮
         const compressed = await compressImage(file);
         // 取 presigned URL
-        const { uploadUrl, publicUrl } = await getImageUploadUrlMut.mutateAsync({
+        const { uploadUrl, publicUrl, s3Key } = await getImageUploadUrlMut.mutateAsync({
           roundId, filename: `promo_${file.name}`, mimeType: "image/jpeg",
         });
         // 上載壓縮後的 blob
         await fetch(uploadUrl, { method: "PUT", body: compressed, headers: { "Content-Type": "image/jpeg" } });
-        newUrls.push(publicUrl);
+        newItems.push({ url: publicUrl, s3Key });
         setPromoUploadProgress({ done: i + 1, total: count });
       }
-      setPromoImages(prev => [...prev, ...newUrls]);
-      toast.success(`已上載 ${newUrls.length} 張推廣圖片，記得儲存設定`);
+      setPromoImages(prev => [...prev, ...newItems]);
+      toast.success(`已上載 ${newItems.length} 張推廣圖片，記得儲存設定`);
     } catch (e: any) {
       toast.error(e.message || "上載失敗");
     } finally {
       setUploadingPromo(false);
       setPromoUploadProgress(null);
       if (promoFileRef.current) promoFileRef.current.value = "";
+    }
+  }
+
+  // ── 將推廣圖片加入圖片集（register 到 DB，回傳帶 id 的 image record）──
+  async function addPromoToGallery(pi: { url: string; s3Key: string }): Promise<{ id: number; url: string; s3Key: string } | null> {
+    if (!roundId) return null;
+    const existing = images.find(img => img.url === pi.url);
+    if (existing) return existing;
+    if (!pi.s3Key) { toast.error("此推廣圖片缺少 s3Key，無法加入圖片集（舊格式圖片）"); return null; }
+    try {
+      const img = await recordImageMut.mutateAsync({ roundId, s3Key: pi.s3Key, url: pi.url, displayOrder: images.length });
+      const newImg = { id: img.id, url: pi.url, s3Key: pi.s3Key };
+      setImages(prev => [...prev, newImg]);
+      return newImg;
+    } catch (e: any) {
+      toast.error(e.message || "加入圖片集失敗");
+      return null;
     }
   }
 
@@ -882,15 +903,29 @@ export default function GroupAuctionEdit() {
                 )}
                 {promoImages.length > 0 && (
                   <div className="grid grid-cols-5 gap-2">
-                    {promoImages.map((url, i) => (
-                      <div key={i} className="relative">
-                        <img src={url} alt="" className="w-full aspect-square object-cover rounded-xl" />
-                        <button
-                          onClick={() => setPromoImages(p => p.filter((_, j) => j !== i))}
-                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center shadow"
-                        ><Trash2 className="w-3 h-3" /></button>
-                      </div>
-                    ))}
+                    {promoImages.map((pi, i) => {
+                      const inGallery = images.some(img => img.url === pi.url);
+                      return (
+                        <div key={i} className="relative">
+                          <img src={pi.url} alt="" className="w-full aspect-square object-cover rounded-xl" />
+                          {/* 加入圖片集 */}
+                          <button
+                            title={inGallery ? "已在圖片集" : "加入圖片集"}
+                            onClick={async () => {
+                              if (inGallery) { toast.info("已在圖片集"); return; }
+                              const r = await addPromoToGallery(pi);
+                              if (r) toast.success("已加入圖片集，可在商品圖片選擇器使用");
+                            }}
+                            className={`absolute top-1 left-1 rounded-full w-5 h-5 flex items-center justify-center shadow text-white text-[10px] font-bold ${inGallery ? "bg-amber-500" : "bg-gray-600 hover:bg-amber-500"}`}
+                          >{inGallery ? "✓" : "＋"}</button>
+                          {/* 刪除 */}
+                          <button
+                            onClick={() => setPromoImages(p => p.filter((_, j) => j !== i))}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center shadow"
+                          ><Trash2 className="w-3 h-3" /></button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1894,6 +1929,35 @@ export default function GroupAuctionEdit() {
                             {editImageIds.length > 0 && (
                               <p className="text-[10px] text-amber-600 mt-1">已選 {editImageIds.length} 張</p>
                             )}
+                          </div>
+                        )}
+
+                        {/* 推廣圖片快選（自動加入圖片集再選） */}
+                        {promoImages.filter(pi => !images.some(img => img.url === pi.url)).length > 0 && (
+                          <div className="pt-1">
+                            <p className="text-[10px] text-gray-400 mb-1.5">推廣圖片（點擊自動加入圖片集並選取）</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {promoImages.filter(pi => !images.some(img => img.url === pi.url)).map((pi, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  disabled={editImageIds.length >= 10 || !pi.s3Key}
+                                  onClick={async () => {
+                                    if (editImageIds.length >= 10) { toast.info("最多可選 10 張圖片"); return; }
+                                    const img = await addPromoToGallery(pi);
+                                    if (img) setEditImageIds(p => [...p, img.id]);
+                                  }}
+                                  className="relative flex-shrink-0 disabled:opacity-40"
+                                  style={{ width: 48, height: 48 }}
+                                  title={pi.s3Key ? "加入圖片集並選取" : "舊格式圖片，請重新上載"}
+                                >
+                                  <img src={pi.url} alt="" className="w-full h-full object-cover rounded-lg" style={{ border: "2px dashed #f59e0b" }} />
+                                  <div className="absolute inset-0 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                                    <Plus className="w-3 h-3 text-amber-600" />
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
                           </div>
                         )}
 
