@@ -143,7 +143,7 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
   const hkPricesQuery = trpc.silverTool.getHKSilverPrices.useQuery(undefined, { enabled: false });
   const [hkPrices, setHkPrices] = useState<null | Awaited<ReturnType<typeof hkPricesQuery.refetch>>["data"]>(null);
   const [loadingHK, setLoadingHK] = useState(false);
-  const [expandedStore, setExpandedStore] = useState<string | null>(null);
+  const [storesExpanded, setStoresExpanded] = useState(false);
 
   // 開啟 modal 時自動取現貨價
   useEffect(() => {
@@ -561,40 +561,35 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
                           </p>
                         </div>
                       )}
-                      {/* 商行列表（可伸縮） */}
-                      <div className="divide-y divide-gray-100">
-                        {stores.map((s) => {
-                          const isOpen = expandedStore === s.name;
-                          return (
-                            <div key={s.name}>
-                              <button
-                                className="flex items-center justify-between w-full px-3 py-2.5 text-left"
-                                onClick={() => setExpandedStore(isOpen ? null : s.name)}
+                      {/* 商行列表 toggle header */}
+                      <button
+                        className="flex items-center justify-between w-full px-3 py-2.5 border-t border-gray-100"
+                        onClick={() => setStoresExpanded(v => !v)}
+                      >
+                        <span className="text-[11px] font-semibold text-gray-600">各商行官網</span>
+                        <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${storesExpanded ? "rotate-180" : ""}`} />
+                      </button>
+                      {storesExpanded && (
+                        <div className="divide-y divide-gray-100">
+                          {stores.map((s) => (
+                            <div key={s.name} className="flex items-center justify-between px-3 py-2.5">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-[11px] font-semibold text-gray-700">{s.name}</span>
+                                {s.hkdPerGram ? (
+                                  <span className="text-[11px] font-bold text-amber-700">HK${s.hkdPerGram}/克</span>
+                                ) : (
+                                  <span className="text-[10px] text-gray-400">請查看官網</span>
+                                )}
+                              </div>
+                              <a href={s.url} target="_blank" rel="noopener noreferrer"
+                                className="text-[10px] text-sky-500 hover:text-sky-700 shrink-0 ml-2"
                               >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className="text-[11px] font-semibold text-gray-700">{s.name}</span>
-                                  {s.hkdPerGram ? (
-                                    <span className="text-[11px] font-bold text-amber-700">HK${s.hkdPerGram}/克</span>
-                                  ) : (
-                                    <span className="text-[10px] text-gray-400">請查看官網</span>
-                                  )}
-                                </div>
-                                <ChevronDown className={`w-3 h-3 text-gray-400 shrink-0 ml-2 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
-                              </button>
-                              {isOpen && (
-                                <div className="px-3 pb-3 bg-gray-50 flex items-center justify-between">
-                                  <p className="text-[10px] text-gray-500">官網可查閱最新回購及出售價格</p>
-                                  <a href={s.url} target="_blank" rel="noopener noreferrer"
-                                    className="text-[11px] font-semibold text-sky-600 hover:text-sky-800 shrink-0 ml-3"
-                                  >
-                                    前往官網 →
-                                  </a>
-                                </div>
-                              )}
+                                官網 →
+                              </a>
                             </div>
-                          );
-                        })}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                       {!hkPrices && (
                         <p className="text-[10px] text-gray-400 px-3 pb-2.5 text-center">點「查詢現貨」取得國際銀價，商行官網以 JS 動態載入</p>
                       )}
