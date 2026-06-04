@@ -534,7 +534,6 @@ export default function GroupAuctionEdit() {
     if (!roundId) return null;
     const existing = images.find(img => img.url === pi.url);
     if (existing) return existing;
-    if (!pi.s3Key) { toast.error("此推廣圖片缺少 s3Key，無法加入圖片集（舊格式圖片）"); return null; }
     try {
       const img = await recordImageMut.mutateAsync({ roundId, s3Key: pi.s3Key, url: pi.url, displayOrder: images.length });
       const newImg = { id: img.id, url: pi.url, s3Key: pi.s3Key };
@@ -1952,7 +1951,7 @@ export default function GroupAuctionEdit() {
                                 <button
                                   key={i}
                                   type="button"
-                                  disabled={editImageIds.length >= 10 || !pi.s3Key}
+                                  disabled={editImageIds.length >= 10}
                                   onClick={async () => {
                                     if (editImageIds.length >= 10) { toast.info("最多可選 10 張圖片"); return; }
                                     const img = await addPromoToGallery(pi);
@@ -1960,7 +1959,7 @@ export default function GroupAuctionEdit() {
                                   }}
                                   className="relative flex-shrink-0 disabled:opacity-40"
                                   style={{ width: 48, height: 48 }}
-                                  title={pi.s3Key ? "加入圖片集並選取" : "舊格式圖片，請重新上載"}
+                                  title="加入圖片集並選取"
                                 >
                                   <img src={pi.url} alt="" className="w-full h-full object-cover rounded-lg" style={{ border: "2px dashed #f59e0b" }} />
                                   <div className="absolute inset-0 rounded-lg bg-amber-500/20 flex items-center justify-center">
