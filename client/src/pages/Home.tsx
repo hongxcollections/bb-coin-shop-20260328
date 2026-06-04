@@ -38,7 +38,6 @@ import {
   ArrowRight,
   UserPlus,
   MessageCircle,
-  Wrench,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -1136,7 +1135,7 @@ export default function Home() {
   const [buyingProduct, setBuyingProduct] = useState<any | null>(null);
   // 商戶申請流程彈窗
   const [showMerchantFlow, setShowMerchantFlow] = useState(false);
-  // 小工具 collapsible + 銀工具 modal
+  // 微工具 dropdown + 銀工具 modal
   const [toolsOpen, setToolsOpen] = useState(false);
   const [silverToolOpen, setSilverToolOpen] = useState(false);
 
@@ -1332,28 +1331,6 @@ export default function Home() {
                   <Sparkles className="w-3.5 h-3.5" /> 藏品社區
                 </span>
               </Link>
-              {/* 小工具 collapsible */}
-              <div>
-                <button
-                  onClick={() => setToolsOpen(v => !v)}
-                  className="inline-flex items-center justify-between gap-1.5 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-500 text-xs font-bold px-3.5 py-2 shadow-sm border border-gray-200 transition cursor-pointer select-none w-full"
-                  style={{ borderRadius: 8 }}
-                >
-                  <span className="flex items-center gap-1.5"><Wrench className="w-3 h-3" /> 小工具</span>
-                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${toolsOpen ? "rotate-180" : ""}`} />
-                </button>
-                {toolsOpen && (
-                  <div className="mt-1.5">
-                    <button
-                      onClick={() => setSilverToolOpen(true)}
-                      className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 text-xs font-bold px-3.5 py-2 shadow-sm border border-slate-200 transition cursor-pointer select-none w-full"
-                      style={{ borderRadius: 8 }}
-                    >
-                      🪙 銀工具
-                    </button>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>
@@ -1383,12 +1360,37 @@ export default function Home() {
               >
                 📋 商戶申請流程
               </button>
-              <Link href="/coin-analysis">
-                <span className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-md transition-colors cursor-pointer select-none whitespace-nowrap border border-amber-700/40">
+              {/* 微工具 dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setToolsOpen(v => !v)}
+                  className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-md transition-colors cursor-pointer select-none whitespace-nowrap border border-amber-700/40"
+                >
                   <Sparkles className="w-3 h-3" />
-                  AI 鑑定
-                </span>
-              </Link>
+                  微工具
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${toolsOpen ? "rotate-180" : ""}`} />
+                </button>
+                {toolsOpen && (
+                  <>
+                    {/* 透明背板：點外面收起 */}
+                    <div className="fixed inset-0 z-30" onClick={() => setToolsOpen(false)} />
+                    <div className="absolute top-full right-0 mt-1.5 z-40 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden min-w-[110px]">
+                      <Link href="/coin-analysis" onClick={() => setToolsOpen(false)}>
+                        <span className="flex items-center gap-2 px-3.5 py-2.5 text-[11px] font-semibold text-amber-700 hover:bg-amber-50 cursor-pointer whitespace-nowrap">
+                          <Sparkles className="w-3 h-3" /> AI 鑑定
+                        </span>
+                      </Link>
+                      <div className="h-px bg-gray-100" />
+                      <button
+                        onClick={() => { setSilverToolOpen(true); setToolsOpen(false); }}
+                        className="flex items-center gap-2 w-full px-3.5 py-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 whitespace-nowrap"
+                      >
+                        🪙 銀工具
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* 3 個大金幣黐住 */}
