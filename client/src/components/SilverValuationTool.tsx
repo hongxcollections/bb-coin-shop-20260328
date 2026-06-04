@@ -548,74 +548,71 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
                         融通金參考：CNY¥{cnyRef}/克（國際現貨換算，僅供參考）
                       </p>
                     )}
+
+                    {/* 商行銀價參考（CNY ref 正下方，slider 左側自然延伸） */}
+                    {(() => {
+                      const stores = hkPrices?.sources ?? [
+                        { name: "LPM",   url: "https://www.lpm.hk/zh/precious-metals-prices/",           hkdPerGram: null as number | null },
+                        { name: "三省",   url: "https://www.sam-sing.com.hk",                              hkdPerGram: null as number | null },
+                        { name: "週生生", url: "https://www.chowsangsung.com/tc/goldsilverprice.aspx",     hkdPerGram: null as number | null },
+                        { name: "週大福", url: "https://www.chowtaifook.com/hk/zh/precious-metal-price",   hkdPerGram: null as number | null },
+                      ];
+                      return (
+                        <div className="mt-2 border border-gray-100 rounded-xl overflow-hidden">
+                          <div className="flex items-center justify-between px-3 py-2 bg-gray-50">
+                            <p className="text-[11px] font-bold text-gray-600">商行銀價參考</p>
+                            <button
+                              onClick={fetchHKPrices}
+                              disabled={loadingHK}
+                              className="flex items-center gap-1 text-[10px] text-sky-600 hover:text-sky-800 disabled:opacity-50"
+                            >
+                              {loadingHK ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <RefreshCw className="w-2.5 h-2.5" />}
+                              查詢現貨
+                            </button>
+                          </div>
+                          {hkPrices?.spotHkdPerGram && (
+                            <div className="px-3 py-1.5 bg-amber-50 border-b border-gray-100">
+                              <p className="text-[10px] text-amber-700 font-semibold">
+                                國際現貨：HK${hkPrices.spotHkdPerGram}/克（USD${hkPrices.spotUsdPerOz}/oz）
+                              </p>
+                            </div>
+                          )}
+                          <button
+                            className="flex items-center justify-between w-full px-3 py-2.5 border-t border-gray-100"
+                            onClick={() => setStoresExpanded(v => !v)}
+                          >
+                            <span className="text-[11px] font-semibold text-gray-600">各商行官網</span>
+                            <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${storesExpanded ? "rotate-180" : ""}`} />
+                          </button>
+                          {storesExpanded && (
+                            <div className="divide-y divide-gray-100">
+                              {stores.map((s) => (
+                                <div key={s.name} className="flex items-center justify-between px-3 py-2.5">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="text-[11px] font-semibold text-gray-700">{s.name}</span>
+                                    {s.hkdPerGram ? (
+                                      <span className="text-[11px] font-bold text-amber-700">HK${s.hkdPerGram}/克</span>
+                                    ) : (
+                                      <span className="text-[10px] text-gray-400">請查看官網</span>
+                                    )}
+                                  </div>
+                                  <a href={s.url} target="_blank" rel="noopener noreferrer"
+                                    className="text-[10px] text-sky-500 hover:text-sky-700 shrink-0 ml-2"
+                                  >
+                                    官網 →
+                                  </a>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {!hkPrices && (
+                            <p className="text-[10px] text-gray-400 px-3 pb-2.5 text-center">點「查詢現貨」取得國際銀價，商行官網以 JS 動態載入</p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
-
-                {/* 商行銀價參考 */}
-                {(() => {
-                  const stores = hkPrices?.sources ?? [
-                    { name: "LPM",   url: "https://www.lpm.hk/zh/precious-metals-prices/",           hkdPerGram: null as number | null },
-                    { name: "三省",   url: "https://www.sam-sing.com.hk",                              hkdPerGram: null as number | null },
-                    { name: "週生生", url: "https://www.chowsangsung.com/tc/goldsilverprice.aspx",     hkdPerGram: null as number | null },
-                    { name: "週大福", url: "https://www.chowtaifook.com/hk/zh/precious-metal-price",   hkdPerGram: null as number | null },
-                  ];
-                  return (
-                    <div className="border border-gray-100 rounded-xl overflow-hidden">
-                      {/* header row */}
-                      <div className="flex items-center justify-between px-3 py-2 bg-gray-50">
-                        <p className="text-[11px] font-bold text-gray-600">商行銀價參考</p>
-                        <button
-                          onClick={fetchHKPrices}
-                          disabled={loadingHK}
-                          className="flex items-center gap-1 text-[10px] text-sky-600 hover:text-sky-800 disabled:opacity-50"
-                        >
-                          {loadingHK ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <RefreshCw className="w-2.5 h-2.5" />}
-                          查詢現貨
-                        </button>
-                      </div>
-                      {/* 現貨條 */}
-                      {hkPrices?.spotHkdPerGram && (
-                        <div className="px-3 py-1.5 bg-amber-50 border-b border-gray-100">
-                          <p className="text-[10px] text-amber-700 font-semibold">
-                            國際現貨：HK${hkPrices.spotHkdPerGram}/克（USD${hkPrices.spotUsdPerOz}/oz）
-                          </p>
-                        </div>
-                      )}
-                      {/* 商行列表 toggle header */}
-                      <button
-                        className="flex items-center justify-between w-full px-3 py-2.5 border-t border-gray-100"
-                        onClick={() => setStoresExpanded(v => !v)}
-                      >
-                        <span className="text-[11px] font-semibold text-gray-600">各商行官網</span>
-                        <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${storesExpanded ? "rotate-180" : ""}`} />
-                      </button>
-                      {storesExpanded && (
-                        <div className="divide-y divide-gray-100">
-                          {stores.map((s) => (
-                            <div key={s.name} className="flex items-center justify-between px-3 py-2.5">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-[11px] font-semibold text-gray-700">{s.name}</span>
-                                {s.hkdPerGram ? (
-                                  <span className="text-[11px] font-bold text-amber-700">HK${s.hkdPerGram}/克</span>
-                                ) : (
-                                  <span className="text-[10px] text-gray-400">請查看官網</span>
-                                )}
-                              </div>
-                              <a href={s.url} target="_blank" rel="noopener noreferrer"
-                                className="text-[10px] text-sky-500 hover:text-sky-700 shrink-0 ml-2"
-                              >
-                                官網 →
-                              </a>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {!hkPrices && (
-                        <p className="text-[10px] text-gray-400 px-3 pb-2.5 text-center">點「查詢現貨」取得國際銀價，商行官網以 JS 動態載入</p>
-                      )}
-                    </div>
-                  );
-                })()}
 
               </div>
 
