@@ -880,3 +880,21 @@
 .shimmer-slide {
   animation: shimmer-slide 2.8s ease-in-out infinite;
 }
+
+/* ── Silver Valuation Tool modal: full-screen fixed positioning ── */
+.silver-tool-modal {
+  position: fixed !important;
+  top: 64px !important;
+  left: 5px !important;
+  bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+  width: calc(100vw - 10px) !important;
+  max-width: none !important;
+  height: auto !important;
+  max-height: none !important;
+  transform: none !important;
+  margin: 0 !important;
+  border-radius: 14px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}

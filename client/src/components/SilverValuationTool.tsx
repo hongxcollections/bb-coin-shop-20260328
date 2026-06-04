@@ -321,23 +321,7 @@ export function SilverValuationTool({ open, onClose }: { open: boolean; onClose:
     <Dialog open={open} onOpenChange={onClose}>
       {/* 全屏固定：頂部留 header (64px)，底部留 bottom nav (~68px + safe area)，左右各 5px */}
       <DialogContent
-        className="p-0 gap-0"
-        style={{
-          position: "fixed",
-          top: "64px",
-          bottom: "calc(68px + env(safe-area-inset-bottom, 0px))",
-          left: "5px",
-          width: "calc(100vw - 10px)",
-          maxWidth: "none",
-          transform: "none",
-          margin: 0,
-          maxHeight: "none",
-          height: "auto",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          borderRadius: 14,
-        }}
+        className="silver-tool-modal p-0 gap-0"
       >
         <DialogHeader className="px-4 pt-3 pb-2.5 border-b shrink-0">
           <DialogTitle className="text-base font-bold">🪙 銀幣收購報價工具</DialogTitle>
