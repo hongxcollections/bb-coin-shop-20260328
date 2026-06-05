@@ -98,42 +98,74 @@ function getColorRuleMatch(rules: { id: string; keywords: string; color: string;
 
 function highlightKw(text: string, kws: string[], color: string, style: "bg" | "text" = "bg", weight: "bold" | "normal" = "bold") {
   if (!kws.length || !text) return text;
+  const lower = text.toLowerCase();
+  const matches: { start: number; end: number }[] = [];
   for (const kw of kws) {
-    const idx = text.toLowerCase().indexOf(kw);
-    if (idx >= 0) {
-      return (
-        <>
-          {text.slice(0, idx)}
-          <span style={style === "bg"
-            ? { background: color, color: "#fff", padding: "0 2px", borderRadius: "3px", fontWeight: weight === "bold" ? 700 : 400 }
-            : { color, fontWeight: weight === "bold" ? 700 : 400 }
-          }>
-            {text.slice(idx, idx + kw.length)}
-          </span>
-          {text.slice(idx + kw.length)}
-        </>
-      );
+    if (!kw) continue;
+    let from = 0;
+    while (from < lower.length) {
+      const idx = lower.indexOf(kw, from);
+      if (idx < 0) break;
+      matches.push({ start: idx, end: idx + kw.length });
+      from = idx + kw.length;
     }
   }
-  return text;
+  if (!matches.length) return text;
+  matches.sort((a, b) => a.start - b.start);
+  const merged: { start: number; end: number }[] = [];
+  for (const m of matches) {
+    const last = merged[merged.length - 1];
+    if (last && m.start < last.end) { last.end = Math.max(last.end, m.end); }
+    else merged.push({ ...m });
+  }
+  const nodes: React.ReactNode[] = [];
+  let cursor = 0;
+  const spanStyle = style === "bg"
+    ? { background: color, color: "#fff", padding: "0 2px", borderRadius: "3px", fontWeight: weight === "bold" ? 700 : 400 }
+    : { color, fontWeight: weight === "bold" ? 700 : 400 };
+  for (const { start, end } of merged) {
+    if (cursor < start) nodes.push(text.slice(cursor, start));
+    nodes.push(<span key={start} style={spanStyle}>{text.slice(start, end)}</span>);
+    cursor = end;
+  }
+  if (cursor < text.length) nodes.push(text.slice(cursor));
+  return <>{nodes}</>;
 }
 
 function highlightKwHtml(text: string, kws: string[], color: string, style: "bg" | "text" = "bg", weight: "bold" | "normal" = "bold"): string {
   if (!kws.length || !text) return text;
+  const lower = text.toLowerCase();
+  const matches: { start: number; end: number }[] = [];
   for (const kw of kws) {
-    const idx = text.toLowerCase().indexOf(kw);
-    if (idx >= 0) {
-      const spanStyle = style === "bg"
-        ? `background:${color};color:#fff;padding:0 2px;border-radius:3px;font-weight:${weight === "bold" ? 700 : 400}`
-        : `color:${color};font-weight:${weight === "bold" ? 700 : 400}`;
-      return (
-        text.slice(0, idx) +
-        `<span style="${spanStyle}">${text.slice(idx, idx + kw.length)}</span>` +
-        text.slice(idx + kw.length)
-      );
+    if (!kw) continue;
+    let from = 0;
+    while (from < lower.length) {
+      const idx = lower.indexOf(kw, from);
+      if (idx < 0) break;
+      matches.push({ start: idx, end: idx + kw.length });
+      from = idx + kw.length;
     }
   }
-  return text;
+  if (!matches.length) return text;
+  matches.sort((a, b) => a.start - b.start);
+  const merged: { start: number; end: number }[] = [];
+  for (const m of matches) {
+    const last = merged[merged.length - 1];
+    if (last && m.start < last.end) { last.end = Math.max(last.end, m.end); }
+    else merged.push({ ...m });
+  }
+  const spanStyle = style === "bg"
+    ? `background:${color};color:#fff;padding:0 2px;border-radius:3px;font-weight:${weight === "bold" ? 700 : 400}`
+    : `color:${color};font-weight:${weight === "bold" ? 700 : 400}`;
+  let result = "";
+  let cursor = 0;
+  for (const { start, end } of merged) {
+    result += text.slice(cursor, start);
+    result += `<span style="${spanStyle}">${text.slice(start, end)}</span>`;
+    cursor = end;
+  }
+  result += text.slice(cursor);
+  return result;
 }
 
 function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStartAt, roundEndAt, onClose, onSaveImage }: {
