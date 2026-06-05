@@ -174,35 +174,53 @@ export default function GroupAuctionBidPage() {
     try { return JSON.parse((round as any)?.colorRulesJson ?? "[]"); } catch { return []; }
   }, [(round as any)?.colorRulesJson]);
 
-  const promoLayout = useMemo(() => {
+  // 穩定 fingerprint：只在圖片 URL 內容真正改變時才重算，避免每次 refetch 洗牌
+  const promoLayoutKey = useMemo(() => {
     let urls: string[] = [];
     try { const arr: any[] = JSON.parse(promoImagesJson); urls = arr.map((x: any) => typeof x === "string" ? x : x?.url ?? "").filter(Boolean); } catch {}
+    if (urls.length > 0) return urls.join("|");
+    const imgMap = new Map((roundImages as any[]).map((img: any) => [img.id as number, img.url as string]));
+    const allUrls: string[] = [];
+    for (const item of items as any[]) {
+      let ids: number[] = [];
+      try { ids = JSON.parse((item as any).imageIdsJson ?? "[]"); } catch {}
+      for (const id of ids) { const url = imgMap.get(id); if (url && !allUrls.includes(url)) allUrls.push(url); }
+    }
+    return allUrls.slice(0, 5).join("|");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [promoImagesJson,
+    // stable string fingerprints，唔用 array reference
+    (roundImages as any[]).map((i: any) => i.url).join(","),
+    (items as any[]).map((i: any) => (i as any).imageIdsJson ?? "").join(","),
+  ]);
 
+  const promoLayout = useMemo(() => {
+    if (!promoLayoutKey) return [];
+    let urls: string[] = [];
+    try { const arr: any[] = JSON.parse(promoImagesJson); urls = arr.map((x: any) => typeof x === "string" ? x : x?.url ?? "").filter(Boolean); } catch {}
     if (urls.length === 0) {
-      const imgMap = new Map(roundImages.map((img: any) => [img.id as number, img.url as string]));
+      const imgMap = new Map((roundImages as any[]).map((img: any) => [img.id as number, img.url as string]));
       const allUrls: string[] = [];
-      for (const item of items) {
+      for (const item of items as any[]) {
         let ids: number[] = [];
         try { ids = JSON.parse((item as any).imageIdsJson ?? "[]"); } catch {}
-        for (const id of ids) {
-          const url = imgMap.get(id);
-          if (url && !allUrls.includes(url)) allUrls.push(url);
-        }
+        for (const id of ids) { const url = imgMap.get(id); if (url && !allUrls.includes(url)) allUrls.push(url); }
       }
-      urls = allUrls.sort(() => Math.random() - 0.5).slice(0, 5);
+      urls = allUrls.slice(0, 5).sort(() => Math.random() - 0.5);
     }
-
     if (urls.length === 0) return [];
     const shuffled = [...urls].sort(() => Math.random() - 0.5);
-    return shuffled.map((url) => {
-      const x = Math.random() * 90;
-      const y = Math.random() * 80;
-      const size = 70 + Math.random() * 60;
-      const rot = (Math.random() - 0.5) * 30;
-      const opacity = 0.10 + Math.random() * 0.08;
-      return { url, x, y, size, rot, opacity };
-    });
-  }, [promoImagesJson, items, roundImages]);
+    return shuffled.map((url) => ({
+      url,
+      x:       Math.random() * 90,
+      y:       Math.random() * 80,
+      size:    70 + Math.random() * 60,
+      rot:     (Math.random() - 0.5) * 30,
+      opacity: 0.10 + Math.random() * 0.08,
+    }));
+  // 只依賴 stable key，唔依賴 array references
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [promoLayoutKey]);
 
   const columns: ColumnDef[] = (() => {
     try { return JSON.parse(round?.columnsJson ?? "[]"); } catch { return []; }
