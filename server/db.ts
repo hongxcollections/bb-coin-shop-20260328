@@ -7448,12 +7448,15 @@ export async function getGroupAuctionRoundForOg(roundId: number): Promise<{ titl
       .from(groupAuctionItems)
       .where(eq(groupAuctionItems.roundId, roundId));
     const itemCount = Number((countRows[0] as any)?.cnt ?? 0);
-    // coverImage 優先；若無則 fallback 至 promoImagesJson 第一張
+    // coverImage 優先；若無則 fallback 至 promoImagesJson 第一張（兼容舊 string[] 同新 {url,s3Key}[] 格式）
     let effectiveCoverImage = rows[0].coverImage;
     if (!effectiveCoverImage && rows[0].promoImagesJson) {
       try {
-        const promoUrls: string[] = JSON.parse(rows[0].promoImagesJson);
-        if (promoUrls.length > 0) effectiveCoverImage = promoUrls[0];
+        const promoArr: any[] = JSON.parse(rows[0].promoImagesJson);
+        if (promoArr.length > 0) {
+          const first = promoArr[0];
+          effectiveCoverImage = typeof first === "string" ? first : (first?.url ?? null);
+        }
       } catch { /* ignore */ }
     }
     return { title: rows[0].title, coverImage: effectiveCoverImage, endAt: rows[0].endAt, status: rows[0].status, itemCount };
