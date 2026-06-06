@@ -202,7 +202,10 @@ function buildShareText(
   template: string | null | undefined,
   vars: { title: string; price: string; endTime: string }
 ): string {
-  const tpl = (template?.trim()) || DEFAULT_SHARE_TEMPLATE;
+  const userTpl = template?.trim() || "";
+  const hasPlaceholders = /\{title\}|\{price\}|\{endTime\}/.test(userTpl);
+  // 若 template 無 placeholder（舊格式 / 純文字），唔用它，直接用預設格式確保拍賣資料永遠顯示
+  const tpl = (userTpl && hasPlaceholders) ? userTpl : DEFAULT_SHARE_TEMPLATE;
   return tpl
     .replace(/\{title\}/g, vars.title)
     .replace(/\{price\}/g, vars.price)
