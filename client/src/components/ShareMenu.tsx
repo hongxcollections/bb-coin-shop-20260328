@@ -196,7 +196,7 @@ interface ShareMenuProps {
   buttonClassName?: string;
 }
 
-const DEFAULT_SHARE_TEMPLATE = "{title}\n目前出價 {price}\n結標時間：{endTime}\n快來競拍！";
+const DEFAULT_SHARE_TEMPLATE = "{title}\n目前出價 {price}\n結標時間：{endTime}\n@所有人 歡迎登入網站齊來競拍！";
 
 function buildShareText(
   template: string | null | undefined,

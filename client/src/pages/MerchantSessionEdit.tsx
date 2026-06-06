@@ -1059,7 +1059,7 @@ export default function MerchantSessionEdit() {
                   const period = h < 6 ? "凌晨" : h < 12 ? "上午" : h === 12 ? "中午" : h < 18 ? "下午" : "晚上";
                   const dh = h < 12 ? h : h === 12 ? 12 : h - 12;
                   const endStr = `${mo}月${dy}日(${wd}) ${period}${dh}:${mi}`;
-                  return `${a.title}\n目前出價 ${sym}${currentBid.toLocaleString()}\n結標時間：${endStr}\n快來競拍！\nhttps://share.hongxcollections.com/auctions/${a.id}`;
+                  return `${a.title}\n目前出價 ${sym}${currentBid.toLocaleString()}\n結標時間：${endStr}\n@所有人 歡迎登入網站齊來競拍！\nhttps://share.hongxcollections.com/auctions/${a.id}`;
                 }).join("\n\n---\n\n");
                 await navigator.clipboard.writeText(allText);
                 setShareCopiedAll(true);
@@ -1085,7 +1085,7 @@ export default function MerchantSessionEdit() {
                 const period = h < 6 ? "凌晨" : h < 12 ? "上午" : h === 12 ? "中午" : h < 18 ? "下午" : "晚上";
                 const dh = h < 12 ? h : h === 12 ? 12 : h - 12;
                 const endStr = `${mo}月${dy}日(${wd}) ${period}${dh}:${mi}`;
-                const shareText = `${a.title}\n目前出價 ${sym}${currentBid.toLocaleString()}\n結標時間：${endStr}\n快來競拍！`;
+                const shareText = `${a.title}\n目前出價 ${sym}${currentBid.toLocaleString()}\n結標時間：${endStr}\n@所有人 歡迎登入網站齊來競拍！`;
                 const auctionUrl = `https://share.hongxcollections.com/auctions/${a.id}`;
                 const img = a.images?.[0]?.imageUrl;
                 const isCopied = shareCopiedIds.has(a.id);
