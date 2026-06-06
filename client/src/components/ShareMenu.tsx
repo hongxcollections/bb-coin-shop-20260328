@@ -289,7 +289,7 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
   const productUrl = `${SHARE_ORIGIN}/merchant-products/${productId}`;
   const currSymbol = getCurrSymbol(currency ?? "HKD");
   const priceLabel = price === 0 ? "查詢格價" : `${currSymbol}${price.toLocaleString()}`;
-  const shareText = `${title}\n價錢：${priceLabel}\n${productUrl}`;
+  const shareText = `${title}\n售價 ${priceLabel}\n@所有人 歡迎登入網站齊來選購！\n${productUrl}`;
 
   const calcPosition = useCallback(() => {
     if (!btnRef.current) return;
@@ -333,12 +333,12 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
         toast.success("已開啟系統分享選單，可選擇 Messenger / FB 群組 / WhatsApp 等", { description: shareText, duration: 5000 });
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== "AbortError") {
-          try { await navigator.clipboard.writeText(shareText + "\n" + productUrl); } catch {}
+          try { await navigator.clipboard.writeText(shareText); } catch {}
           toast.success("已複製連結及廣告文字，可貼到任何平台分享", { description: shareText, duration: 6000 });
         }
       }
     } else {
-      try { await navigator.clipboard.writeText(shareText + "\n" + productUrl); } catch {}
+      try { await navigator.clipboard.writeText(shareText); } catch {}
       toast.success("已複製連結及廣告文字，可貼到任何平台分享", { description: shareText, duration: 6000 });
     }
   }
@@ -347,11 +347,11 @@ export function ProductShareMenu({ productId, title, price, currency, iconOnly }
     setOpen(false);
     const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
     if (isMobile) {
-      try { await navigator.clipboard.writeText(shareText + "\n" + productUrl); } catch {}
+      try { await navigator.clipboard.writeText(shareText); } catch {}
       window.location.href = `fb-messenger://share?link=${encodeURIComponent(productUrl)}`;
       toast.success("已複製文案，Messenger 開啟後可貼上", { description: shareText, duration: 6000 });
     } else {
-      try { await navigator.clipboard.writeText(shareText + "\n" + productUrl); } catch {}
+      try { await navigator.clipboard.writeText(shareText); } catch {}
       window.open("https://www.messenger.com/", "_blank", "noopener,noreferrer");
       toast.success("已複製連結，請喺 Messenger 對話框貼上", { description: shareText, duration: 6000 });
     }

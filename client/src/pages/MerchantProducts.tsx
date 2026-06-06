@@ -2211,7 +2211,8 @@ export default function MerchantProducts() {
                   const price = parseFloat(p.price ?? "0");
                   const currency = p.currency ?? "HKD";
                   const productUrl = `${window.location.origin}/merchant-products/${p.id}`;
-                  return `${p.title}\n出售價格：${currency} $${price.toLocaleString()}\n${productUrl}`;
+                  const sym2 = currency === "USD" ? "US$" : currency === "CNY" ? "¥" : "HK$";
+                  return `${p.title}\n售價 ${sym2}${price.toLocaleString()}\n@所有人 歡迎登入網站齊來選購！\nhttps://share.hongxcollections.com/merchant-products/${p.id}`;
                 }).join("\n\n---\n\n");
                 await navigator.clipboard.writeText(allText);
                 setProductCopiedAll(true);
@@ -2231,7 +2232,7 @@ export default function MerchantProducts() {
               const productUrl = `${window.location.origin}/merchant-products/${p.id}`;
               const sym = currency === "USD" ? "US$" : currency === "CNY" ? "¥" : "HK$";
               const fbTpl = (merchantSettings as { fbShareTemplateProduct?: string | null } | undefined)?.fbShareTemplateProduct;
-              const tpl = fbTpl?.trim() || "{title}\n出售價格：{price}";
+              const tpl = fbTpl?.trim() || "{title}\n售價 {price}\n@所有人 歡迎登入網站齊來選購！";
               const tplText = tpl
                 .replace(/\{title\}/g, p.title)
                 .replace(/\{price\}/g, `${sym}${price.toLocaleString()}`);
