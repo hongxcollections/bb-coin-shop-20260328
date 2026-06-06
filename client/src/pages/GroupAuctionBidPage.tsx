@@ -4,7 +4,7 @@ import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
-import { Clock, ChevronUp, ExternalLink, Trophy, AlertCircle } from "lucide-react";
+import { Clock, ChevronUp, ChevronDown, ExternalLink, Trophy, AlertCircle } from "lucide-react";
 import ImageLightbox from "@/components/ImageLightbox";
 import Header from "@/components/Header";
 
@@ -128,6 +128,7 @@ export default function GroupAuctionBidPage() {
   const [promoLbIdx, setPromoLbIdx] = useState<number | null>(null);
   const [filter, setFilter] = useState<"all" | "bid" | "nobid">("all");
   const [showDesc, setShowDesc] = useState(true);
+  const [bannerOpen, setBannerOpen] = useState(true);
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
   const [overflowingTitles, setOverflowingTitles] = useState<Set<number>>(new Set());
   const titleRefsMap = useRef<Map<number, HTMLParagraphElement | null>>(new Map());
@@ -320,107 +321,111 @@ export default function GroupAuctionBidPage() {
       <Header />
       {/* Fixed 標題欄 + 篩選列 */}
       <div ref={headerRef} className="fixed top-[67px] left-0 right-0 z-30">
-        {/* 橙色 Banner */}
-        <div className="text-white px-4 pt-[15px] pb-3 mx-2 rounded-2xl relative overflow-hidden" style={{ background: "linear-gradient(90deg, #ea580c 0%, #f97316 40%, #fb923c 70%, #fbbf24 100%)" }}>
-          {/* 推廣圖片背景 */}
-          {promoLayout.map((p, i) => (
-            <img
-              key={i}
-              src={p.url}
-              alt=""
-              aria-hidden="true"
-              className="absolute object-cover rounded-lg pointer-events-none select-none"
-              style={{
-                left: `${p.x}%`,
-                top: `${p.y}%`,
-                width: p.size,
-                height: p.size,
-                opacity: p.opacity,
-                transform: `rotate(${p.rot}deg)`,
-              }}
-            />
-          ))}
-          <div className="relative z-10">
-            {/* 商戶頭像 + 名稱 */}
-            {(round as any).merchantName && (
-              <div className="flex items-center gap-1.5 mb-2">
-                {(round as any).merchantIcon ? (
-                  <img
-                    src={(round as any).merchantIcon}
-                    alt=""
-                    className="w-5 h-5 rounded-full object-cover border border-white/40 shrink-0"
-                  />
-                ) : (
-                  <div className="w-5 h-5 rounded-full bg-white/30 shrink-0" />
+        {/* 橙色 Banner（可收起） */}
+        {bannerOpen && (
+          <>
+            <div className="text-white px-4 pt-[15px] pb-3 mx-2 rounded-2xl relative overflow-hidden" style={{ background: "linear-gradient(90deg, #ea580c 0%, #f97316 40%, #fb923c 70%, #fbbf24 100%)" }}>
+              {/* 推廣圖片背景 */}
+              {promoLayout.map((p, i) => (
+                <img
+                  key={i}
+                  src={p.url}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute object-cover rounded-lg pointer-events-none select-none"
+                  style={{
+                    left: `${p.x}%`,
+                    top: `${p.y}%`,
+                    width: p.size,
+                    height: p.size,
+                    opacity: p.opacity,
+                    transform: `rotate(${p.rot}deg)`,
+                  }}
+                />
+              ))}
+              <div className="relative z-10">
+                {/* 商戶頭像 + 名稱 */}
+                {(round as any).merchantName && (
+                  <div className="flex items-center gap-1.5 mb-2">
+                    {(round as any).merchantIcon ? (
+                      <img
+                        src={(round as any).merchantIcon}
+                        alt=""
+                        className="w-5 h-5 rounded-full object-cover border border-white/40 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-white/30 shrink-0" />
+                    )}
+                    <span className="text-white/90 text-[11px] font-semibold truncate max-w-[160px]">
+                      {(round as any).merchantName}
+                    </span>
+                  </div>
                 )}
-                <span className="text-white/90 text-[11px] font-semibold truncate max-w-[160px]">
-                  {(round as any).merchantName}
-                </span>
+
+                {/* Badge + 廣告頁 */}
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="inline-flex items-center gap-1 bg-black/20 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full tracking-widest uppercase">
+                    🛒 {round.periodNumber ? `第 ${round.periodNumber} 期` : "團購拍賣"}
+                  </span>
+                  <a href={`/group/${roundId}/flyer`}
+                    className="text-white/75 text-[11px] font-medium flex items-center gap-1">
+                    廣告頁 <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                {/* 場次名稱 */}
+                <h1 className="text-white font-extrabold text-[18px] leading-snug mb-2.5 drop-shadow-sm">
+                  {round.title}
+                </h1>
+
+                {/* 倒數 + 結拍時間 */}
+                <div className="flex items-center gap-2 flex-wrap mb-2">
+                  <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-black tracking-tight text-white ${isEnded ? "bg-gray-800/40" : "bg-black/25"}`}>
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    {isEnded ? "已結拍" : roundCountdown}
+                  </div>
+                  <span className="text-white/85 text-[11px] font-semibold">
+                    結拍：{fmtDate(round.endAt)}
+                  </span>
+                </div>
+
+                {/* 統計 + 總需付 */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 text-white/90 text-[12px] font-semibold">
+                    <span>共 <strong className="text-white text-[13px]">{items.length}</strong> 件</span>
+                    <span>成交 <strong className="text-white text-[13px]">{items.filter(i => i.status === "sold").length}</strong> 件</span>
+                    <span>進行中 <strong className="text-white text-[13px]">{items.filter(i => i.status === "active").length}</strong> 件</span>
+                  </div>
+                  {user && myTotalAmount > 0 && (
+                    <div className="text-right leading-tight">
+                      <p className="text-white/75 text-[10px]">總需付</p>
+                      <p style={{ fontSize: "20px" }} className="text-white font-bold leading-none">{displayPrice(myTotalAmount)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 推廣圖片列（圓形 30×30，banner 下方） */}
+            {promoUrls.length > 0 && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-white/90 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+                {promoUrls.map((url, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className="flex-shrink-0 overflow-hidden rounded-full"
+                    style={{ width: 30, height: 30 }}
+                    onClick={() => setPromoLbIdx(i)}
+                  >
+                    <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </button>
+                ))}
               </div>
             )}
-
-            {/* Badge + 廣告頁 */}
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="inline-flex items-center gap-1 bg-black/20 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full tracking-widest uppercase">
-                🛒 {round.periodNumber ? `第 ${round.periodNumber} 期` : "團購拍賣"}
-              </span>
-              <a href={`/group/${roundId}/flyer`}
-                className="text-white/75 text-[11px] font-medium flex items-center gap-1">
-                廣告頁 <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-
-            {/* 場次名稱 */}
-            <h1 className="text-white font-extrabold text-[18px] leading-snug mb-2.5 drop-shadow-sm">
-              {round.title}
-            </h1>
-
-            {/* 倒數 + 結拍時間 */}
-            <div className="flex items-center gap-2 flex-wrap mb-2">
-              <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-black tracking-tight text-white ${isEnded ? "bg-gray-800/40" : "bg-black/25"}`}>
-                <Clock className="w-3.5 h-3.5 shrink-0" />
-                {isEnded ? "已結拍" : roundCountdown}
-              </div>
-              <span className="text-white/85 text-[11px] font-semibold">
-                結拍：{fmtDate(round.endAt)}
-              </span>
-            </div>
-
-            {/* 統計 + 總需付 */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4 text-white/90 text-[12px] font-semibold">
-                <span>共 <strong className="text-white text-[13px]">{items.length}</strong> 件</span>
-                <span>成交 <strong className="text-white text-[13px]">{items.filter(i => i.status === "sold").length}</strong> 件</span>
-                <span>進行中 <strong className="text-white text-[13px]">{items.filter(i => i.status === "active").length}</strong> 件</span>
-              </div>
-              {user && myTotalAmount > 0 && (
-                <div className="text-right leading-tight">
-                  <p className="text-white/75 text-[10px]">總需付</p>
-                  <p style={{ fontSize: "20px" }} className="text-white font-bold leading-none">{displayPrice(myTotalAmount)}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 推廣圖片列（圓形 30×30，banner 下方） */}
-        {promoUrls.length > 0 && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-white/90 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-            {promoUrls.map((url, i) => (
-              <button
-                key={i}
-                type="button"
-                className="flex-shrink-0 overflow-hidden rounded-full"
-                style={{ width: 30, height: 30 }}
-                onClick={() => setPromoLbIdx(i)}
-              >
-                <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              </button>
-            ))}
-          </div>
+          </>
         )}
 
-        {/* 篩選列 + 貨幣 + 須知 */}
+        {/* 篩選列 + 須知 + 伸縮箭咀 */}
         <div className="bg-white border-b border-gray-100 shadow-sm px-2 py-2 flex items-center gap-1.5">
           <div className="flex gap-1.5 overflow-x-auto flex-1 min-w-0">
             <button onClick={() => setFilter("all")} className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${filter === "all" ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-500 border-gray-200"}`}>
@@ -433,14 +438,21 @@ export default function GroupAuctionBidPage() {
               未出價 {items.filter(i => i.topBidderId === null).length}件
             </button>
           </div>
-          <div className="flex gap-1 flex-shrink-0 ml-1">
-            {(round.description || round.antiSnipeMode !== 'none' || round.defaultBidIncrement > 0 || commRate > 0) && (
+          <div className="flex gap-1 flex-shrink-0 ml-1 items-center">
+            {bannerOpen && (round.description || round.antiSnipeMode !== 'none' || round.defaultBidIncrement > 0 || commRate > 0) && (
               <button
                 onClick={() => setShowDesc(v => !v)}
                 className="text-[11px] px-1.5 py-0.5 font-medium border border-amber-200 bg-amber-50 text-amber-700"
                 style={{ borderRadius: "5px" }}
               >須知{showDesc ? "▲" : "▼"}</button>
             )}
+            <button
+              onClick={() => setBannerOpen(v => !v)}
+              className="flex items-center justify-center w-6 h-6 rounded-full border border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 transition-colors"
+              title={bannerOpen ? "收起資訊" : "展開資訊"}
+            >
+              {bannerOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
           </div>
         </div>
       </div>
@@ -483,7 +495,7 @@ export default function GroupAuctionBidPage() {
       )}
 
       {/* 拍賣須知（可收起） */}
-      {(round.description || round.antiSnipeMode !== 'none' || round.defaultBidIncrement > 0 || commRate > 0) && showDesc && (
+      {bannerOpen && (round.description || round.antiSnipeMode !== 'none' || round.defaultBidIncrement > 0 || commRate > 0) && showDesc && (
         <div className="mx-[3px] mt-[20px] bg-amber-50 border border-amber-100 rounded-xl p-3">
           {round.description && (
             <p className="text-xs text-amber-700 whitespace-pre-line">{round.description}</p>
