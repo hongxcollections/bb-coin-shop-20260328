@@ -80,6 +80,7 @@ import GroupAuctionBidPage from "./pages/GroupAuctionBidPage";
 import GroupAuctionFlyer from "./pages/GroupAuctionFlyer";
 import MerchantStore from "./pages/MerchantStore";
 import MerchantProductDetail from "./pages/MerchantProductDetail";
+import VirtualStore from "./pages/VirtualStore";
 import CoinAnalysis from "./pages/CoinAnalysis";
 import Messages from "./pages/Messages";
 import ChatRoom from "./pages/ChatRoom";
@@ -223,6 +224,7 @@ function Router() {
       <Route path={"/admin/ads"} component={AdminAds} />
       <Route path={"/admin/pm001-scraper"} component={AdminPm001Scraper} />
       <Route path={"/records"} component={AuctionSearch} />
+      <Route path={"/virtual-store"} component={VirtualStore} />
       <Route path={"/merchants"} component={Merchants} />
       <Route path={"/merchants/:userId"} component={MerchantStore} />
       <Route path={"/merchant-products/:id"} component={MerchantProductDetail} />

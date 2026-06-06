@@ -134,8 +134,14 @@ export default function Merchants() {
         <FeaturedProductSideCard products={featuredProducts} onBuy={(p) => setBuyingFeaturedProduct(p)} currentUserId={user?.id} />
       )}
 
-      {/* 商戶申請流程 — 細小入口 */}
-      <div className="container max-w-2xl mx-auto pt-2 pb-0 flex justify-end">
+      {/* 商戶申請流程 + 虛擬格仔鋪 入口 */}
+      <div className="container max-w-2xl mx-auto pt-2 pb-0 flex justify-end gap-2">
+        <button
+          onClick={() => navigate("/virtual-store")}
+          className="inline-flex items-center gap-1.5 bg-gradient-to-br from-slate-700 to-slate-900 hover:from-slate-600 hover:to-slate-800 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm shadow-slate-400/20 transition-all cursor-pointer select-none border border-slate-600/50"
+        >
+          🏪 虛擬格仔鋪
+        </button>
         <button
           onClick={() => setShowMerchantFlow(true)}
           className="inline-flex items-center gap-1.5 bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm shadow-amber-200 transition-all cursor-pointer select-none"
