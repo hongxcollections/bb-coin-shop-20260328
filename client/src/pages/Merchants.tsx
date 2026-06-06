@@ -140,7 +140,7 @@ export default function Merchants() {
           onClick={() => navigate("/virtual-store")}
           className="inline-flex items-center gap-1.5 bg-gradient-to-br from-slate-700 to-slate-900 hover:from-slate-600 hover:to-slate-800 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm shadow-slate-400/20 transition-all cursor-pointer select-none border border-slate-600/50"
         >
-          🏪 虛擬格仔鋪
+          🛍️ 虛擬商店場景
         </button>
         <button
           onClick={() => setShowMerchantFlow(true)}
