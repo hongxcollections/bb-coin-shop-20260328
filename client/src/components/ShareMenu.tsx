@@ -609,10 +609,11 @@ export function GroupAuctionShareMenu({ roundId, title, endAt, iconOnly }: Group
   if (endAt) {
     const d = new Date(endAt);
     if (!isNaN(d.getTime())) {
-      endStr = `結拍：${(d.getMonth() + 1)}/${d.getDate()} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+      const DAYS = ["日", "一", "二", "三", "四", "五", "六"];
+      endStr = `結拍：${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}號 星期${DAYS[d.getDay()]} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
     }
   }
-  const shareText = [title, endStr, roundUrl].filter(Boolean).join("\n");
+  const shareText = [title, endStr, "@所有人 歡迎登入網站齊來競拍！", roundUrl].filter(Boolean).join("\n");
 
   const calcPosition = useCallback(() => {
     if (!btnRef.current) return;
