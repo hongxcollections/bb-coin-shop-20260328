@@ -411,7 +411,7 @@ export function AuctionFbPanel({
     if (isEnded) { toast.error("此拍賣已結束"); return; }
     const amount = parseInt(bidInput, 10);
     if (!amount || amount <= 0) { toast.error("請輸入有效出價金額"); return; }
-    const minBid = bidCount > 0 ? currentPrice + bidIncrement : currentPrice;
+    const minBid = bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice);
     if (amount < minBid) { toast.error(`出價最低 ${curr}${minBid.toLocaleString()}`); return; }
     if (myProxy?.isActive) {
       const ok = await confirm({
@@ -428,7 +428,7 @@ export function AuctionFbPanel({
     if (!isAuthenticated) { window.location.href = getLoginUrl(); return; }
     const amount = parseInt(proxyAmountStr, 10);
     if (!amount || amount <= 0) { toast.error("請輸入有效代理出價上限"); return; }
-    const minBid = bidCount > 0 ? currentPrice + bidIncrement : currentPrice;
+    const minBid = bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice);
     if (amount < minBid) { toast.error(`代理出價上限最低 ${curr}${minBid.toLocaleString()}`); return; }
     setProxyConfirmStep(true);
   };
@@ -703,7 +703,7 @@ export function AuctionFbPanel({
             <div className={`${!endTime ? "border-t border-gray-100 " : ""}px-3 pt-1 pb-1 bg-white shrink-0`}>
               <div className="flex gap-2">
                 {(() => {
-                  const minBid = bidCount > 0 ? currentPrice + bidIncrement : currentPrice;
+                  const minBid = bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice);
                   return [
                     { hint: "最低", amt: minBid },
                     { hint: "+1口", amt: minBid + bidIncrement },
@@ -800,7 +800,7 @@ export function AuctionFbPanel({
                 <input
                   className="flex-1 px-3 py-2 text-sm outline-none placeholder-gray-400"
                   style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: "12px" }}
-                  placeholder={`出價 (最低 ${curr}${(bidCount > 0 ? currentPrice + bidIncrement : currentPrice).toLocaleString()})`}
+                  placeholder={`出價 (最低 ${curr}${(bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice)).toLocaleString()})`}
                   value={bidInput}
                   onChange={(e) => { if (/^\d*$/.test(e.target.value)) setBidInput(e.target.value); }}
                   onKeyDown={(e) => { if (e.key === "Enter") handleBuyerBid(); }}

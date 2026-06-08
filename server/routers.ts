@@ -1097,7 +1097,7 @@ export const appRouter = router({
         const currentPrice = parseFloat(auction.currentPrice.toString());
         const startingPrice = parseFloat(auction.startingPrice.toString());
         const hasExistingBid = !!auction.highestBidderId;
-        const minAllowed = hasExistingBid ? currentPrice + (auction.bidIncrement ?? 30) : startingPrice;
+        const minAllowed = hasExistingBid ? currentPrice + (auction.bidIncrement ?? 30) : (startingPrice === 0 ? (auction.bidIncrement ?? 30) : startingPrice);
 
         if (input.maxAmount < minAllowed) {
           throw new TRPCError({

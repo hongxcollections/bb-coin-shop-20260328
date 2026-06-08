@@ -341,7 +341,8 @@ export function AuctionImageLightbox({
     if (isEnded) { toast.error("此拍賣已結束"); return; }
     const amount = parseInt(bidInput, 10);
     if (!amount || amount <= 0) { toast.error("請輸入有效出價金額"); return; }
-    if (amount <= currentPrice) { toast.error(`出價必須高於 ${curr}${currentPrice.toLocaleString()}`); return; }
+    const minBid = bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice);
+    if (amount < minBid) { toast.error(`出價最低 ${curr}${minBid.toLocaleString()}`); return; }
     placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: 0 });
   };
   const handleMerchantSend = () => {
@@ -589,7 +590,7 @@ export function AuctionImageLightbox({
           <div className={`${!endTime ? "border-t border-gray-100 " : ""}px-3 pt-1 pb-1 bg-white shrink-0`}>
             <div className="flex gap-2">
               {(() => {
-                const minBid = bidCount > 0 ? currentPrice + bidIncrement : currentPrice;
+                const minBid = bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice);
                 return [
                   { hint: "最低", amt: minBid },
                   { hint: "+1口", amt: minBid + bidIncrement },
@@ -636,7 +637,7 @@ export function AuctionImageLightbox({
               <div className="flex-1 flex items-center bg-gray-100 rounded-full px-3 py-2 overflow-hidden">
                 <input
                   className="flex-1 bg-transparent text-sm focus:outline-none border-0 outline-none placeholder-gray-400"
-                  placeholder={`出價 (最低 ${curr}${(bidCount > 0 ? currentPrice + bidIncrement : currentPrice).toLocaleString()})`}
+                  placeholder={`出價 (最低 ${curr}${(bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice)).toLocaleString()})`}
                   value={bidInput}
                   onChange={(e) => { if (/^\d*$/.test(e.target.value)) setBidInput(e.target.value); }}
                   onKeyDown={(e) => { if (e.key === "Enter") handleBuyerBid(); }}
