@@ -161,9 +161,9 @@ function printTxReport(
   toDate: string | undefined,
   merchantName: string,
 ) {
-  const totalIn = transactions.filter(t => parseFloat(String(t.amount)) > 0).reduce((s, t) => s + parseFloat(String(t.amount)), 0);
-  const totalOut = transactions.filter(t => parseFloat(String(t.amount)) < 0).reduce((s, t) => s + parseFloat(String(t.amount)), 0);
-  const net = totalIn + totalOut;
+  const totalIn  = transactions.filter(t => t.type === 'top_up').reduce((s, t) => s + parseFloat(String(t.amount)), 0);
+  const totalOut = transactions.filter(t => t.type === 'commission').reduce((s, t) => s + parseFloat(String(t.amount)), 0);
+  const net = transactions.reduce((s, t) => s + parseFloat(String(t.amount)), 0);
 
   const byType: Record<string, number> = {};
   transactions.forEach(t => {
@@ -1306,9 +1306,9 @@ export default function MerchantDashboard() {
 
             {/* Summary stats */}
             {transactions.length > 0 && (() => {
-              const totalIn  = transactions.filter(t => parseFloat(String(t.amount)) > 0).reduce((s, t) => s + parseFloat(String(t.amount)), 0);
-              const totalOut = transactions.filter(t => parseFloat(String(t.amount)) < 0).reduce((s, t) => s + parseFloat(String(t.amount)), 0);
-              const net = totalIn + totalOut;
+              const totalIn  = transactions.filter(t => t.type === 'top_up').reduce((s, t) => s + parseFloat(String(t.amount)), 0);
+              const totalOut = transactions.filter(t => t.type === 'commission').reduce((s, t) => s + parseFloat(String(t.amount)), 0);
+              const net = transactions.reduce((s, t) => s + parseFloat(String(t.amount)), 0);
               return (
                 <div className="grid grid-cols-3 gap-2">
                   <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2 text-center">
