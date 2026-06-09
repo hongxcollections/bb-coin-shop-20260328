@@ -1021,7 +1021,7 @@ export default function MerchantProducts() {
   }
 
   const handleImageUpload = useCallback(async (files: File[]) => {
-    const MAX = 10;
+    const MAX = 20;
     const currentCount = form.images.length;
     const slots = MAX - currentCount;
     if (slots <= 0) return;
@@ -1294,7 +1294,7 @@ export default function MerchantProducts() {
               </label>
 
               {/* 拖放 / 點擊上傳區 */}
-              {form.images.length < 10 && (
+              {form.images.length < 20 && (
                 <div
                   onClick={() => !uploading && fileRef.current?.click()}
                   className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${uploading ? "border-green-300 bg-green-50 cursor-wait" : "border-gray-300 hover:border-green-400 hover:bg-green-50"}`}
@@ -1307,7 +1307,7 @@ export default function MerchantProducts() {
                   <p className="text-xs text-gray-500">
                     {uploading ? "上傳中，請稍候…" : "點擊選擇圖片（可同時選多張）"}
                   </p>
-                  <p className="text-xs text-gray-400 mt-0.5">還可加 {10 - form.images.length} 張</p>
+                  <p className="text-xs text-gray-400 mt-0.5">還可加 {20 - form.images.length} 張</p>
                 </div>
               )}
               <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileInputChange} />
