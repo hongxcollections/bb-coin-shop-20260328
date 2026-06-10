@@ -2363,7 +2363,16 @@ export default function GroupAuctionEdit() {
                           const wsNum = invoiceBuyer?.whatsapp ? invoiceBuyer.whatsapp.replace(/\D/g, '') : null;
                           const wsHref = wsNum ? `https://wa.me/${wsNum}` : null;
                           const fbRaw = invoiceBuyer?.facebook ?? null;
-                          const fbHref = fbRaw ? (fbRaw.startsWith('http') ? fbRaw : `https://www.facebook.com/${fbRaw}`) : null;
+                          const fbHref = (() => {
+                            if (!fbRaw) return null;
+                            const s = fbRaw.trim();
+                            // already an m.me link
+                            if (s.includes('m.me/')) return s.startsWith('http') ? s : `https://${s}`;
+                            // extract username from facebook.com URL
+                            const m = s.match(/facebook\.com\/([^/?#\s]+)/);
+                            const username = m ? m[1] : s.replace(/^https?:\/\/[^/]*\/?/, '').split(/[/?#]/)[0] || s;
+                            return `https://m.me/${username}`;
+                          })();
                           return (
                             <div className="mb-3">
                               <div className="flex justify-end gap-1 mb-1">
