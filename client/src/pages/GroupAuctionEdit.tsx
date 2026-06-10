@@ -2274,32 +2274,6 @@ export default function GroupAuctionEdit() {
                               </span>
                               <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 ml-1 transition-transform duration-150 ${isExpanded ? "" : "-rotate-90"}`} />
                             </button>
-                            {sec.key !== "all" && (() => {
-                              const wsNum = sec.whatsapp ? sec.whatsapp.replace(/\D/g, '') : null;
-                              const wsHref = wsNum ? `https://wa.me/${wsNum}` : null;
-                              const fbRaw = sec.facebook ?? null;
-                              const fbHref = fbRaw ? (fbRaw.startsWith('http') ? fbRaw : `https://www.facebook.com/${fbRaw}`) : null;
-                              return (
-                                <div className="flex items-center gap-1 flex-shrink-0 mr-1">
-                                  {wsHref ? (
-                                    <a href={wsHref} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                                      className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                                      style={{ background: '#25D366', color: '#fff', lineHeight: '16px' }}>WS</a>
-                                  ) : (
-                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                                      style={{ background: '#e5e7eb', color: '#9ca3af', lineHeight: '16px' }}>WS</span>
-                                  )}
-                                  {fbHref ? (
-                                    <a href={fbHref} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                                      className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                                      style={{ background: '#0084FF', color: '#fff', lineHeight: '16px' }}>MSN</a>
-                                  ) : (
-                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                                      style={{ background: '#e5e7eb', color: '#9ca3af', lineHeight: '16px' }}>MSN</span>
-                                  )}
-                                </div>
-                              );
-                            })()}
                             {sec.key !== "all" && (
                               <button
                                 onClick={() => setInvoiceBuyerKey(sec.key)}
@@ -2386,16 +2360,40 @@ export default function GroupAuctionEdit() {
                         {/* 買家行 */}
                         {(() => {
                           const buyerProxySrc = proxyUrl(invoiceBuyer?.photoUrl ?? null);
+                          const wsNum = invoiceBuyer?.whatsapp ? invoiceBuyer.whatsapp.replace(/\D/g, '') : null;
+                          const wsHref = wsNum ? `https://wa.me/${wsNum}` : null;
+                          const fbRaw = invoiceBuyer?.facebook ?? null;
+                          const fbHref = fbRaw ? (fbRaw.startsWith('http') ? fbRaw : `https://www.facebook.com/${fbRaw}`) : null;
                           return (
-                            <div className="mb-3 flex items-center gap-2">
-                              {buyerProxySrc
-                                ? <img src={buyerProxySrc} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
-                                : <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-blue-600">{buyerName.charAt(0) || "?"}</div>
-                              }
-                              <p className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                                {buyerName}
-                                {buyerIsProxy && <span style={{ background: "#1e3a8a", color: "#fff", fontSize: 10, borderRadius: 6, padding: "0px 5px", lineHeight: "16px", fontWeight: 600 }}>代</span>}
-                              </p>
+                            <div className="mb-3">
+                              <div className="flex justify-end gap-1 mb-1">
+                                {wsHref ? (
+                                  <a href={wsHref} target="_blank" rel="noopener noreferrer"
+                                    className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                    style={{ background: '#25D366', color: '#fff', lineHeight: '16px' }}>WS</a>
+                                ) : (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                    style={{ background: '#e5e7eb', color: '#9ca3af', lineHeight: '16px' }}>WS</span>
+                                )}
+                                {fbHref ? (
+                                  <a href={fbHref} target="_blank" rel="noopener noreferrer"
+                                    className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                    style={{ background: '#0084FF', color: '#fff', lineHeight: '16px' }}>MSN</a>
+                                ) : (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                    style={{ background: '#e5e7eb', color: '#9ca3af', lineHeight: '16px' }}>MSN</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {buyerProxySrc
+                                  ? <img src={buyerProxySrc} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                                  : <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-blue-600">{buyerName.charAt(0) || "?"}</div>
+                                }
+                                <p className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                                  {buyerName}
+                                  {buyerIsProxy && <span style={{ background: "#1e3a8a", color: "#fff", fontSize: 10, borderRadius: 6, padding: "0px 5px", lineHeight: "16px", fontWeight: 600 }}>代</span>}
+                                </p>
+                              </div>
                             </div>
                           );
                         })()}
