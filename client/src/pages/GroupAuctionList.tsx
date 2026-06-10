@@ -762,7 +762,7 @@ export default function GroupAuctionList() {
                         : "bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-200"
                     }`}>
                       {r.status === "ended" ? <Archive className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
-                      {r.status === "ended" ? "成績紀錄" : "管理"}
+                      {r.status === "ended" ? "成交紀錄" : "管理"}
                     </button>
                   </Link>
 
