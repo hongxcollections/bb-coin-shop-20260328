@@ -2360,7 +2360,16 @@ export default function GroupAuctionEdit() {
                         {/* 買家行 */}
                         {(() => {
                           const buyerProxySrc = proxyUrl(invoiceBuyer?.photoUrl ?? null);
-                          const wsNum = invoiceBuyer?.whatsapp ? invoiceBuyer.whatsapp.replace(/\D/g, '') : null;
+                          const wsNum = (() => {
+                            const raw = invoiceBuyer?.whatsapp;
+                            if (!raw) return null;
+                            const digits = raw.replace(/\D/g, '');
+                            if (!digits) return null;
+                            if (digits.length === 8) return `852${digits}`;
+                            if (digits.startsWith('852') && digits.length >= 11) return digits;
+                            if (digits.length > 8) return digits;
+                            return digits;
+                          })();
                           const wsHref = wsNum ? `https://wa.me/${wsNum}` : null;
                           const fbRaw = invoiceBuyer?.facebook ?? null;
                           const fbHref = (() => {
