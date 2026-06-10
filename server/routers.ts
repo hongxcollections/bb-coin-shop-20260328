@@ -10158,20 +10158,33 @@ EXAMPLE OUTPUT (exact format):
             leadingBidderName,
           };
         });
-        // 加入得標買家姓名（winnerId → winnerName）
+        // 加入得標買家姓名 + 聯絡資料（winnerId → winnerName / whatsapp / facebook）
         const winnerIds = [...new Set(itemsWithBidCount.filter(i => i.winnerId).map(i => i.winnerId as number))];
-        let winnerMap: Record<number, { name: string; photoUrl: string | null }> = {};
+        let winnerMap: Record<number, { name: string; photoUrl: string | null; whatsapp: string | null; facebook: string | null }> = {};
         if (winnerIds.length > 0) {
-          const { users: usersTable } = await import('../drizzle/schema');
-          const { inArray: inArr } = await import('drizzle-orm');
-          const winners = await db.select({ id: usersTable.id, name: usersTable.name, photoUrl: usersTable.photoUrl })
+          const { users: usersTable, merchantApplications: maTable } = await import('../drizzle/schema');
+          const { inArray: inArr, and: andLocal, eq: eqLocal } = await import('drizzle-orm');
+          const winners = await db.select({ id: usersTable.id, name: usersTable.name, photoUrl: usersTable.photoUrl, phone: usersTable.phone })
             .from(usersTable).where(inArr(usersTable.id, winnerIds));
-          winnerMap = Object.fromEntries(winners.map(w => [w.id, { name: w.name ?? '', photoUrl: w.photoUrl ?? null }]));
+          const merchantContacts = await db.select({ userId: maTable.userId, whatsapp: maTable.whatsapp, facebook: maTable.facebook })
+            .from(maTable).where(andLocal(inArr(maTable.userId, winnerIds), eqLocal(maTable.status, 'approved')));
+          const mcMap = Object.fromEntries(merchantContacts.map(m => [m.userId, m]));
+          winnerMap = Object.fromEntries(winners.map(w => {
+            const mc = mcMap[w.id];
+            return [w.id, {
+              name: w.name ?? '',
+              photoUrl: w.photoUrl ?? null,
+              whatsapp: mc?.whatsapp ?? w.phone ?? null,
+              facebook: mc?.facebook ?? null,
+            }];
+          }));
         }
         const itemsWithWinners = itemsWithBidCount.map(item => ({
           ...item,
           winnerName: item.winnerId ? (winnerMap[item.winnerId]?.name ?? '') : null,
           winnerPhotoUrl: item.winnerId ? (winnerMap[item.winnerId]?.photoUrl ?? null) : null,
+          winnerWhatsapp: item.winnerId ? (winnerMap[item.winnerId]?.whatsapp ?? null) : null,
+          winnerFacebook: item.winnerId ? (winnerMap[item.winnerId]?.facebook ?? null) : null,
         }));
         return { round, items: itemsWithWinners, images };
       }),

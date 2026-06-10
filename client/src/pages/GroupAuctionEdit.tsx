@@ -2062,15 +2062,15 @@ export default function GroupAuctionEdit() {
             const uid = (it as any).winnerId as number | null;
             return uid ? `user:${uid}` : null;
           }
-          const buyerMap = new Map<string, { name: string; photoUrl: string | null; isProxy: boolean }>();
+          const buyerMap = new Map<string, { name: string; photoUrl: string | null; isProxy: boolean; whatsapp: string | null; facebook: string | null }>();
           soldItems.forEach(it => {
             const key = getBuyerKey(it);
             if (!key || buyerMap.has(key)) return;
             if ((it as any).leadingIsProxy && (it as any).leadingProxyName) {
-              buyerMap.set(key, { name: (it as any).leadingProxyName, photoUrl: null, isProxy: true });
+              buyerMap.set(key, { name: (it as any).leadingProxyName, photoUrl: null, isProxy: true, whatsapp: null, facebook: null });
             } else {
               const uid = (it as any).winnerId as number;
-              buyerMap.set(key, { name: (it as any).winnerName ?? `用戶${uid}`, photoUrl: (it as any).winnerPhotoUrl ?? null, isProxy: false });
+              buyerMap.set(key, { name: (it as any).winnerName ?? `用戶${uid}`, photoUrl: (it as any).winnerPhotoUrl ?? null, isProxy: false, whatsapp: (it as any).winnerWhatsapp ?? null, facebook: (it as any).winnerFacebook ?? null });
             }
           });
           const buyers = [...buyerMap.entries()];
@@ -2240,8 +2240,8 @@ export default function GroupAuctionEdit() {
                     </div>
                   );
                 }
-                const sections: { key: string; label: string; items: typeof soldItems; showBuyer: boolean; isProxy: boolean }[] = [
-                  { key: "all", label: `全部 (${soldItems.length})`, items: soldItems, showBuyer: true, isProxy: false },
+                const sections: { key: string; label: string; items: typeof soldItems; showBuyer: boolean; isProxy: boolean; whatsapp: string | null; facebook: string | null }[] = [
+                  { key: "all", label: `全部 (${soldItems.length})`, items: soldItems, showBuyer: true, isProxy: false, whatsapp: null, facebook: null },
                   ...buyers.map(([key, buyer]) => {
                     const buyerItems = soldItems.filter(it => getBuyerKey(it) === key);
                     const buyerAmt = buyerItems.reduce((s, it) => s + ((it as any).finalPrice ?? 0), 0);
@@ -2252,6 +2252,8 @@ export default function GroupAuctionEdit() {
                       items: buyerItems,
                       showBuyer: false,
                       isProxy: buyer.isProxy,
+                      whatsapp: buyer.whatsapp ?? null,
+                      facebook: buyer.facebook ?? null,
                     };
                   }),
                 ];
@@ -2272,6 +2274,32 @@ export default function GroupAuctionEdit() {
                               </span>
                               <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 ml-1 transition-transform duration-150 ${isExpanded ? "" : "-rotate-90"}`} />
                             </button>
+                            {sec.key !== "all" && (() => {
+                              const wsNum = sec.whatsapp ? sec.whatsapp.replace(/\D/g, '') : null;
+                              const wsHref = wsNum ? `https://wa.me/${wsNum}` : null;
+                              const fbRaw = sec.facebook ?? null;
+                              const fbHref = fbRaw ? (fbRaw.startsWith('http') ? fbRaw : `https://www.facebook.com/${fbRaw}`) : null;
+                              return (
+                                <div className="flex items-center gap-1 flex-shrink-0 mr-1">
+                                  {wsHref ? (
+                                    <a href={wsHref} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                                      className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                      style={{ background: '#25D366', color: '#fff', lineHeight: '16px' }}>WS</a>
+                                  ) : (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                      style={{ background: '#e5e7eb', color: '#9ca3af', lineHeight: '16px' }}>WS</span>
+                                  )}
+                                  {fbHref ? (
+                                    <a href={fbHref} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                                      className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                      style={{ background: '#0084FF', color: '#fff', lineHeight: '16px' }}>MSN</a>
+                                  ) : (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                      style={{ background: '#e5e7eb', color: '#9ca3af', lineHeight: '16px' }}>MSN</span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                             {sec.key !== "all" && (
                               <button
                                 onClick={() => setInvoiceBuyerKey(sec.key)}
