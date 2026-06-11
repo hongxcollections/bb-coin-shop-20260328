@@ -813,10 +813,10 @@ export default function GroupAuctionBidPage() {
             <p className="text-sm text-gray-800 mb-1" style={{ wordBreak: "break-all" }}>
               {bidConfirm.title || "—"}{bidConfirm.lotNumber ? ` · ${bidConfirm.lotNumber}` : ""}
             </p>
-            <p className="text-xs text-gray-500 mb-0.5">出價金額</p>
-            <p className="text-2xl font-black mb-4" style={{ color: "#dc2626" }}>
-              {displayPrice(bidConfirm.amount)}
-            </p>
+            <div className="flex items-baseline gap-2 mb-4">
+              <span className="text-xs text-gray-500">出價金額</span>
+              <span className="text-2xl font-black" style={{ color: "#dc2626" }}>{displayPrice(bidConfirm.amount)}</span>
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={() => {
