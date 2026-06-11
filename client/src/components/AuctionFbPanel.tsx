@@ -152,7 +152,7 @@ function SortSheet({ current, onSelect, onClose }: { current: "new" | "old"; onS
 }
 
 export function AuctionFbPanel({
-  open, onClose, auctionId, createdBy, sellerName, sellerPhotoUrl,
+  open, onClose, auctionId, auctionTitle, createdBy, sellerName, sellerPhotoUrl,
   currency, currentPrice, highestBidderName, highestBidderId, bidIncrement = 30, bidCount = 0, isEnded,
   endTime, antiSnipeEnabled, antiSnipeMinutes, extendMinutes,
 }: AuctionFbPanelProps) {
