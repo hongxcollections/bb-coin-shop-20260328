@@ -208,17 +208,17 @@ export function GroupAuctionPosterModal({ open, onClose, round, merchantName, me
             <Download className="w-4 h-4 mr-2" />
             下載 QR Code
           </Button>
-          <Button variant="outline" className="w-full text-sm h-9" onClick={copyLink}>
-            {copiedLink ? <Check className="w-4 h-4 mr-2 text-green-600" /> : <Copy className="w-4 h-4 mr-2" />}
-            複製出價頁連結
-          </Button>
           <Button
             variant="outline"
             className="w-full text-sm h-9"
-            onClick={() => window.open(`/group/${round.id}/flyer`, "_blank")}
+            onClick={() => { window.location.href = `/group/${round.id}/flyer`; }}
           >
             <ExternalLink className="w-4 h-4 mr-2" />
             廣告頁
+          </Button>
+          <Button variant="outline" className="w-full text-sm h-9" onClick={copyLink}>
+            {copiedLink ? <Check className="w-4 h-4 mr-2 text-green-600" /> : <Copy className="w-4 h-4 mr-2" />}
+            複製出價頁連結
           </Button>
           <Button
             className="w-full text-sm h-9"
