@@ -322,6 +322,7 @@ function AuctionCard({
   onDuplicate,
   onSetDisplayMode,
   fbRefreshEnabled,
+  allowBroadcastAll,
 }: {
   auction: AuctionItem;
   tab: string;
@@ -339,6 +340,7 @@ function AuctionCard({
   onDuplicate?: (id: number) => void;
   onSetDisplayMode?: (id: number, mode: "default" | "facebook") => void;
   fbRefreshEnabled?: boolean;
+  allowBroadcastAll?: boolean;
 }) {
   const img = auction.images?.[0]?.imageUrl;
   const isDraft = tab === "草稿";
@@ -543,6 +545,7 @@ function AuctionCard({
           onOpenChange={setBroadcastOpen}
           auctionId={auction.id}
           auctionTitle={auction.title}
+          allowBroadcastAll={allowBroadcastAll}
         />
       )}
     </div>
@@ -1368,6 +1371,7 @@ export default function MerchantAuctions() {
                 onDuplicate={(id) => duplicateMutation.mutate({ id })}
                 onSetDisplayMode={(id, mode) => setDisplayModeMutation.mutate({ id, displayMode: mode })}
                 fbRefreshEnabled={false /* FB 預覽功能暫時停用 */}
+                allowBroadcastAll={!!(merchantSettingsData?.allowBroadcastAll)}
               />
             ))}
           </div>

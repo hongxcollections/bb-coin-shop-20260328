@@ -61,6 +61,7 @@ type UserRow = {
   subscriptionId: number | null;
   merchantAppStatus: string | null;
   fbRefreshPreviewEnabled: number;
+  allowBroadcastAll: number;
 };
 
 /** 判斷某用戶是否真正商戶：以「已批准嘅商戶申請」為唯一準則，避免 sellerDeposits row 自動建立造成誤判 */
@@ -1003,6 +1004,7 @@ type EditState = {
   subscriptionStatus: string | null;
   hasSubscription: boolean;
   fbRefreshPreviewEnabled: number;
+  allowBroadcastAll: number;
 };
 
 export default function AdminUsers() {
@@ -1202,6 +1204,7 @@ export default function AdminUsers() {
       subscriptionStatus: u.subscriptionStatus ?? null,
       hasSubscription: !!u.subscriptionEndDate,
       fbRefreshPreviewEnabled: Number(u.fbRefreshPreviewEnabled ?? 0),
+      allowBroadcastAll: Number(u.allowBroadcastAll ?? 0),
     });
   }
 
@@ -1217,6 +1220,7 @@ export default function AdminUsers() {
       monthlyVideoQuota: Math.max(0, Math.min(1000, parseInt(editState.monthlyVideoQuota || "0", 10) || 0)),
       maxVideoSeconds: Math.max(1, Math.min(3600, parseInt(editState.maxVideoSeconds || "60", 10) || 60)),
       fbRefreshPreviewEnabled: editState.isMerchant ? (editState.fbRefreshPreviewEnabled ? 1 : 0) : undefined,
+      allowBroadcastAll: editState.isMerchant ? editState.allowBroadcastAll : undefined,
     });
     if (editState.isMerchant) {
       adminUpdateDeposit.mutate({
@@ -1839,6 +1843,20 @@ export default function AdminUsers() {
                       <Switch
                         checked={editState.fbRefreshPreviewEnabled === 1}
                         onCheckedChange={(v) => setEditState({ ...editState, fbRefreshPreviewEnabled: v ? 1 : 0 })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 全站廣播權限（per-merchant） */}
+                  <div className="space-y-1.5 border-t border-amber-200 pt-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <Label>📢 全站廣播權限</Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">開咗之後，呢個商戶廣播時可選「全部廣播」，向所有已訂閱 push 通知嘅普通用戶（非商戶/管理員）發送通知，而唔係只發畀曾出價嘅買家</p>
+                      </div>
+                      <Switch
+                        checked={editState.allowBroadcastAll === 1}
+                        onCheckedChange={(v) => setEditState({ ...editState, allowBroadcastAll: v ? 1 : 0 })}
                       />
                     </div>
                   </div>

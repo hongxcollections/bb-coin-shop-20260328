@@ -1027,6 +1027,12 @@ async function bootstrapMissingColumns() {
       'Added showUnsoldEnded to merchant_settings'
     );
   }
+  if (!(await check('merchant_settings', 'allowBroadcastAll'))) {
+    await alter(
+      `ALTER TABLE \`merchant_settings\` ADD COLUMN \`allowBroadcastAll\` tinyint(1) NOT NULL DEFAULT 0`,
+      'Added allowBroadcastAll to merchant_settings'
+    );
+  }
 
   // ─── 團購拍賣（Group Auction）──────────────────────────────────────────────
   await alter(`CREATE TABLE IF NOT EXISTS \`groupAuctionRounds\` (

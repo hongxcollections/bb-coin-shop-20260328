@@ -2716,6 +2716,7 @@ export async function getAllUsersExtended() {
         // 最新一次商戶申請的狀態（pending/approved/rejected/null）— 判斷是否真商戶用此欄
         merchantAppStatus: sql<string | null>`(SELECT status FROM merchantApplications WHERE userId = ${users.id} ORDER BY createdAt DESC LIMIT 1)`,
         fbRefreshPreviewEnabled: sql<number>`COALESCE((SELECT fbRefreshPreviewEnabled FROM merchant_settings WHERE userId = ${users.id} LIMIT 1), 0)`,
+        allowBroadcastAll: sql<number>`COALESCE((SELECT allowBroadcastAll FROM merchant_settings WHERE userId = ${users.id} LIMIT 1), 0)`,
       })
       .from(users)
       .leftJoin(sellerDeposits, eq(sellerDeposits.userId, users.id))
@@ -2876,6 +2877,24 @@ export async function getWonAuctionsByUser(userId: number) {
  * 寫入 merchant_settings.fbRefreshPreviewEnabled (0/1)
  * 若 row 唔存在會自動 INSERT 一行（保留其他 column 預設值）
  */
+export async function adminSetMerchantBroadcastAll(userId: number, enabled: number): Promise<boolean> {
+  await ensureMerchantSettingsTable();
+  const db = await getDb();
+  if (!db) return false;
+  try {
+    const v = enabled ? 1 : 0;
+    await db.execute(sql`
+      INSERT INTO merchant_settings (userId, allowBroadcastAll)
+      VALUES (${userId}, ${v})
+      ON DUPLICATE KEY UPDATE allowBroadcastAll = ${v}
+    `);
+    return true;
+  } catch (error) {
+    console.error('[Database] adminSetMerchantBroadcastAll error:', error);
+    return false;
+  }
+}
+
 export async function adminSetMerchantFbRefreshPreview(userId: number, enabled: number): Promise<boolean> {
   await ensureMerchantSettingsTable();
   const db = await getDb();
@@ -3553,6 +3572,7 @@ const MERCHANT_SETTINGS_DEFAULTS = {
   showEndedOnMainPage: 1,
   mainPageEndedDays: 7,
   showUnsoldEnded: 0,
+  allowBroadcastAll: 0,
 };
 export async function getMerchantSettings(userId: number): Promise<typeof MERCHANT_SETTINGS_DEFAULTS> {
   await ensureMerchantSettingsTable();
@@ -3572,14 +3592,16 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
       let showEndedOnMainPage = 1;
       let mainPageEndedDays = 7;
       let showUnsoldEnded = 0;
+      let allowBroadcastAll = 0;
       try {
-        const r2 = await db.execute(sql`SELECT showEndedOnMainPage, mainPageEndedDays, showUnsoldEnded FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
+        const r2 = await db.execute(sql`SELECT showEndedOnMainPage, mainPageEndedDays, showUnsoldEnded, allowBroadcastAll FROM merchant_settings WHERE userId = ${userId} LIMIT 1`);
         const r2rows = r2 as unknown as [Array<Record<string, unknown>>, unknown];
         const r2row = Array.isArray(r2rows[0]) ? r2rows[0][0] : (Array.isArray(r2rows) ? (r2rows as unknown as Array<Record<string, unknown>>)[0] : null);
         if (r2row) {
           showEndedOnMainPage = Number(r2row.showEndedOnMainPage ?? 1);
           mainPageEndedDays = Number(r2row.mainPageEndedDays ?? 2);
           showUnsoldEnded = Number(r2row.showUnsoldEnded ?? 0);
+          allowBroadcastAll = Number(r2row.allowBroadcastAll ?? 0);
         }
       } catch { /* columns may not exist yet on this DB — use defaults above */ }
       return {
@@ -3623,6 +3645,7 @@ export async function getMerchantSettings(userId: number): Promise<typeof MERCHA
         showEndedOnMainPage,
         mainPageEndedDays,
         showUnsoldEnded,
+        allowBroadcastAll,
       };
     }
     return { ...MERCHANT_SETTINGS_DEFAULTS };
