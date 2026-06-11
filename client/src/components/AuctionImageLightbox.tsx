@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { ChevronLeft, ThumbsUp, ThumbsDown, Share2, Send, X, Truck } from "lucide-react";
+import { ChevronLeft, ThumbsUp, ThumbsDown, Share2, Send, X, Truck, EyeOff, Eye, Bot } from "lucide-react";
 import { ShareMenu } from "@/components/ShareMenu";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 import { getLoginUrl } from "@/const";
+import { useConfirm } from "@/components/ui/confirm-provider";
+import { Switch } from "@/components/ui/switch";
 
 interface Props {
   open: boolean;
@@ -183,6 +185,7 @@ export function AuctionImageLightbox({
   endTime, antiSnipeEnabled, antiSnipeMinutes, extendMinutes,
 }: Props) {
   const { user, isAuthenticated } = useAuth();
+  const confirm = useConfirm();
   const isMerchant = !!user && user.id === createdBy;
   const curr = (!currency || currency === "HKD") ? "HK$" : currency;
   const sellerDisplayName = sellerName ?? "商戶";
@@ -199,6 +202,7 @@ export function AuctionImageLightbox({
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
   const [paymentInfoOpen, setPaymentInfoOpen] = useState(false);
   const [bidConfirm, setBidConfirm] = useState<{ amount: number } | null>(null);
+  const [isAnonymous, setIsAnonymous] = useState(false);
 
   /* ── Swipe-right-to-close ── */
   const [dragX, setDragX] = useState(0);
@@ -278,6 +282,28 @@ export function AuctionImageLightbox({
     { merchantUserId: createdBy! },
     { enabled: !!createdBy && open }
   );
+  const { data: myProxy, refetch: refetchProxy } = trpc.auctions.getMyProxyBid.useQuery(
+    { auctionId },
+    { enabled: isAuthenticated && open }
+  );
+  const { data: defaultAnonData } = trpc.users.getDefaultAnonymous.useQuery(undefined, {
+    enabled: isAuthenticated && open,
+  });
+  const { data: autoBidStatus } = trpc.loyalty.myAutoBidStatus.useQuery(undefined, {
+    enabled: isAuthenticated && open,
+  });
+  const canUseAnonymous = autoBidStatus?.canUseAnonymous ?? false;
+  const memberLevel = autoBidStatus?.level ?? "bronze";
+
+  useEffect(() => {
+    if (defaultAnonData !== undefined) {
+      setIsAnonymous((defaultAnonData as { defaultAnonymous: number }).defaultAnonymous === 1);
+    }
+  }, [defaultAnonData]);
+  useEffect(() => {
+    if (autoBidStatus && !canUseAnonymous && isAnonymous) setIsAnonymous(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoBidStatus]);
 
   const broadcastMutation = trpc.auctionFbPanel.postMerchantBroadcast.useMutation({
     onSuccess: () => { setMerchantInput(""); setMerchantSentSuccess(true); utils.auctionFbPanel.getPanel.invalidate(); toast.success("廣播訊息已發送"); },
@@ -286,6 +312,10 @@ export function AuctionImageLightbox({
   const likeBidMutation = trpc.auctionFbPanel.merchantLikeBid.useMutation({
     onSuccess: () => toast.success("已發送讚好通知"),
     onError: (err) => toast.error(err.message),
+  });
+  const cancelProxyBidMutation = trpc.auctions.cancelProxyBid.useMutation({
+    onSuccess: () => { toast.success("代理出價已取消"); refetchProxy(); },
+    onError: (err) => toast.error(`取消失敗：${err.message}`),
   });
   const placeBid = trpc.auctions.placeBid.useMutation({
     onSuccess: () => {
@@ -337,30 +367,48 @@ export function AuctionImageLightbox({
     ? (sellerPhotoUrl ?? myDbPhotoUrl ?? user?.photoUrl ?? null)
     : (myDbPhotoUrl ?? user?.photoUrl ?? null);
 
-  const handleBuyerBid = () => {
+  const handleBuyerBid = async () => {
     if (!isAuthenticated) { window.location.href = getLoginUrl(); return; }
     if (isEnded) { toast.error("此拍賣已結束"); return; }
     const amount = parseInt(bidInput, 10);
     if (!amount || amount <= 0) { toast.error("請輸入有效出價金額"); return; }
     const minBid = bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice);
     if (amount < minBid) { toast.error(`出價最低 ${curr}${minBid.toLocaleString()}`); return; }
+    if (myProxy?.isActive) {
+      const ok = await confirm({
+        title: "你已設有代理出價",
+        description: `你的代理出價上限為 ${curr}${Number(myProxy.maxAmount).toLocaleString()}，系統會自動為你出價。確定還要手動出價 ${curr}${amount.toLocaleString()}？`,
+        confirmText: "確定手動出價",
+        cancelText: "取消",
+      });
+      if (!ok) return;
+    }
     setBidConfirm({ amount });
   };
   const handleMerchantSend = () => {
     if (!merchantInput.trim()) return;
     broadcastMutation.mutate({ auctionId, content: merchantInput.trim() });
   };
-  const handleQuickBid = (amount: number) => {
+  const handleQuickBid = async (amount: number) => {
     if (!isAuthenticated) { toast.info("請先登入先可以出價"); return; }
     if (isEnded) { toast.error("此拍賣已結束"); return; }
     if (isMerchant) { toast.warning("商戶不可對自己的拍賣出價"); return; }
+    if (myProxy?.isActive) {
+      const ok = await confirm({
+        title: "你已設有代理出價",
+        description: `你的代理出價上限為 ${curr}${Number(myProxy.maxAmount).toLocaleString()}，系統會自動為你出價。確定還要手動出價 ${curr}${amount.toLocaleString()}？`,
+        confirmText: "確定手動出價",
+        cancelText: "取消",
+      });
+      if (!ok) return;
+    }
     setBidConfirm({ amount });
   };
   const confirmBid = () => {
     if (!bidConfirm) return;
     const amount = bidConfirm.amount;
     setBidConfirm(null);
-    placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: 0 });
+    placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: isAnonymous ? 1 : 0 });
   };
   const triggerParticle = (bidId: number, dir: "up" | "down") => {
     const id = pidRef.current++;
@@ -618,6 +666,45 @@ export function AuctionImageLightbox({
           </div>
         )}
 
+        {/* 代理出價 + 匿名 compact row — buyer only, active auction */}
+        {!isEnded && !isMerchant && isAuthenticated && (
+          <div className="px-3 pb-1.5 flex items-center justify-end gap-2 bg-white shrink-0">
+            {myProxy?.isActive ? (
+              <button
+                onClick={() => cancelProxyBidMutation.mutate({ auctionId })}
+                disabled={cancelProxyBidMutation.isPending}
+                className="flex items-center gap-1 px-3 py-1 rounded-full border border-blue-300 bg-blue-50 text-blue-700 text-[12px] font-medium transition-colors hover:bg-blue-100 disabled:opacity-50"
+              >
+                <Bot className="w-3 h-3" />
+                代理中：{curr}{Number(myProxy.maxAmount).toLocaleString()} ✕
+              </button>
+            ) : null}
+            <button
+              onClick={() => {
+                if (!canUseAnonymous) {
+                  toast.info(memberLevel === "bronze"
+                    ? "匿名出價功能僅限銀牌或以上會員"
+                    : "匿名出價暫時關閉");
+                  return;
+                }
+                setIsAnonymous(v => !v);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[12px] font-medium transition-colors ${
+                isAnonymous
+                  ? "bg-slate-100 border-slate-300 text-slate-700"
+                  : "bg-gray-50 border-gray-300 text-gray-500 hover:bg-gray-100"
+              }`}
+            >
+              {isAnonymous ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+              {isAnonymous ? "匿名中" : "匿名"}
+              <Switch
+                checked={isAnonymous && canUseAnonymous}
+                className="pointer-events-none scale-75 data-[state=checked]:bg-slate-500"
+              />
+            </button>
+          </div>
+        )}
+
         {/* Bottom input */}
         <div className="border-t border-gray-200 px-3 py-2 flex items-center gap-2 bg-white shrink-0">
           <Avatar name={user?.name ?? "?"} photoUrl={myAvatarUrl} size="sm" />
@@ -709,10 +796,16 @@ export function AuctionImageLightbox({
         >
           <p className="text-sm font-bold text-center mb-2" style={{ color: "#ea580c" }}>確認出價後 無法撤回</p>
           <p className="text-sm text-gray-800 mb-1" style={{ wordBreak: "break-all" }}>{auctionTitle || "—"}</p>
-          <div className="flex items-baseline gap-2 mb-4">
+          <div className="flex items-baseline gap-2 mb-3">
             <span className="text-xs text-gray-500">出價金額</span>
             <span className="text-2xl font-black" style={{ color: "#dc2626" }}>{curr}{bidConfirm.amount.toLocaleString()}</span>
           </div>
+          {isAnonymous && (
+            <div className="flex items-center gap-1.5 mb-4 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200">
+              <EyeOff className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+              <span className="text-[12px] text-slate-600">此出價將以匿名方式顯示</span>
+            </div>
+          )}
           <div className="flex gap-2">
             <button
               onClick={confirmBid}
