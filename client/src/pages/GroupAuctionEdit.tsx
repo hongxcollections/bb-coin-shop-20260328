@@ -2476,12 +2476,6 @@ export default function GroupAuctionEdit() {
                           <Download className="w-3.5 h-3.5" /> 儲存圖片
                         </button>
                         <button
-                          onClick={() => doPrint(invoiceBuyerKey)}
-                          className="flex-1 flex items-center justify-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-2 rounded-xl"
-                        >
-                          <Download className="w-3.5 h-3.5" /> 列印
-                        </button>
-                        <button
                           onClick={() => setInvoiceBuyerKey(null)}
                           className="flex-shrink-0 text-gray-400 hover:text-gray-600 px-2"
                         >
@@ -2622,9 +2616,6 @@ export default function GroupAuctionEdit() {
                       <div className="px-4 py-3 border-t flex gap-2 flex-shrink-0">
                         <button onClick={saveAllImage} className="flex-1 flex items-center justify-center gap-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl">
                           <Download className="w-3.5 h-3.5" /> 儲存圖片
-                        </button>
-                        <button onClick={printAll} className="flex-1 flex items-center justify-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-2 rounded-xl">
-                          <Download className="w-3.5 h-3.5" /> 列印
                         </button>
                         <button onClick={() => setShowAllInvoice(false)} className="flex-shrink-0 text-gray-400 hover:text-gray-600 px-2">
                           <X className="w-4 h-4" />
