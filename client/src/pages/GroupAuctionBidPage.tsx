@@ -122,6 +122,7 @@ export default function GroupAuctionBidPage() {
   const [biddingItem, setBiddingItem] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
   const [capConfirm, setCapConfirm] = useState<{ itemId: number; amount: number; title: string; itemNumber: number; extraCols: string } | null>(null);
+  const [bidConfirm, setBidConfirm] = useState<{ itemId: number; amount: number; title: string; itemNumber: number } | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   // ── 推廣圖片 lightbox ──
@@ -730,7 +731,7 @@ export default function GroupAuctionBidPage() {
                         </button>
                       )}
                       <button
-                        onClick={() => handleBid(item.id, nextBid + effectiveIncrement, title, idx + 1)}
+                        onClick={() => setBidConfirm({ itemId: item.id, amount: nextBid + effectiveIncrement, title: title ?? "", itemNumber: idx + 1 })}
                         disabled={placeBidMut.isPending}
                         className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-xl"
                       >
@@ -738,7 +739,7 @@ export default function GroupAuctionBidPage() {
                         <span className="text-[10px] font-normal">{displayPrice(nextBid + effectiveIncrement)}</span>
                       </button>
                       <button
-                        onClick={() => handleBid(item.id, nextBid, title, idx + 1)}
+                        onClick={() => setBidConfirm({ itemId: item.id, amount: nextBid, title: title ?? "", itemNumber: idx + 1 })}
                         disabled={placeBidMut.isPending}
                         className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-xl"
                       >
@@ -782,7 +783,7 @@ export default function GroupAuctionBidPage() {
                       onClick={() => {
                         const amt = parseInt(customAmount, 10);
                         if (!amt || amt < nextBidInCurr) { toast.error(`最少 ${currSym}${nextBidInCurr}`); return; }
-                        handleBid(item.id, amt, title, idx + 1);
+                        setBidConfirm({ itemId: item.id, amount: amt, title: title ?? "", itemNumber: idx + 1 });
                       }}
                       disabled={placeBidMut.isPending}
                       className="bg-amber-500 hover:bg-amber-600 text-white text-sm px-4 py-2 rounded-xl font-medium"
@@ -797,6 +798,39 @@ export default function GroupAuctionBidPage() {
           );
         })}
       </div>
+
+      {/* 出價確認 Dialog（+1口 / +2口 / 自訂） */}
+      {bidConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ background: "rgba(0,0,0,0.55)" }} onClick={() => setBidConfirm(null)}>
+          <div className="bg-white rounded-2xl p-5 shadow-2xl" style={{ marginLeft: 5, marginRight: 5, width: "calc(100% - 10px)" }} onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-gray-900 mb-3">確認出價</h3>
+            <div className="rounded-xl p-3 mb-4" style={{ background: "#fff7ed", border: "1px solid #fed7aa" }}>
+              <p className="text-xs text-gray-500 mb-0.5">商品 {bidConfirm.itemNumber}</p>
+              <p className="text-sm font-semibold text-gray-900 leading-snug mb-2" style={{ wordBreak: "break-all" }}>
+                {bidConfirm.title || "—"}
+              </p>
+              <p className="text-xs text-gray-500 mb-0.5">出價金額</p>
+              <p className="text-2xl font-black" style={{ color: "#dc2626" }}>{displayPrice(bidConfirm.amount)}</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  handleBid(bidConfirm.itemId, bidConfirm.amount, bidConfirm.title, bidConfirm.itemNumber);
+                  setBidConfirm(null);
+                }}
+                disabled={placeBidMut.isPending}
+                className="flex-1 py-2.5 text-sm text-white font-semibold rounded-xl"
+                style={{ background: "linear-gradient(135deg,#dc2626,#b91c1c)" }}
+              >確認</button>
+              <button
+                onClick={() => setBidConfirm(null)}
+                className="flex-1 py-2.5 text-sm text-gray-600 rounded-xl"
+                style={{ background: "#f3f4f6" }}
+              >取消</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 封頂價確認 Dialog */}
       {capConfirm && (
