@@ -122,7 +122,7 @@ export default function GroupAuctionBidPage() {
   const [biddingItem, setBiddingItem] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
   const [capConfirm, setCapConfirm] = useState<{ itemId: number; amount: number; title: string; itemNumber: number; extraCols: string } | null>(null);
-  const [bidConfirm, setBidConfirm] = useState<{ itemId: number; amount: number; title: string; itemNumber: number } | null>(null);
+  const [bidConfirm, setBidConfirm] = useState<{ itemId: number; amount: number; title: string; lotNumber: string } | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   // ── 推廣圖片 lightbox ──
@@ -524,6 +524,7 @@ export default function GroupAuctionBidPage() {
         }).map((item, idx) => {
           const data = getItemData(item);
           const title = titleCol ? data[titleCol.key] : `商品 ${idx + 1}`;
+          const lotNumber = columns.filter(c => c.role === "itemNumber").map(c => data[c.key]).filter(Boolean).join(" · ");
           const isMine = user && Number(item.topBidderId) === Number(user.id);
           const isActive = item.status === "active" && !isEnded && isStarted;
           const effectiveIncrement = item.bidIncrement > 0 ? item.bidIncrement : round.defaultBidIncrement;
@@ -731,7 +732,7 @@ export default function GroupAuctionBidPage() {
                         </button>
                       )}
                       <button
-                        onClick={() => setBidConfirm({ itemId: item.id, amount: nextBid + effectiveIncrement, title: title ?? "", itemNumber: idx + 1 })}
+                        onClick={() => setBidConfirm({ itemId: item.id, amount: nextBid + effectiveIncrement, title: title ?? "", lotNumber })}
                         disabled={placeBidMut.isPending}
                         className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-xl"
                       >
@@ -739,7 +740,7 @@ export default function GroupAuctionBidPage() {
                         <span className="text-[10px] font-normal">{displayPrice(nextBid + effectiveIncrement)}</span>
                       </button>
                       <button
-                        onClick={() => setBidConfirm({ itemId: item.id, amount: nextBid, title: title ?? "", itemNumber: idx + 1 })}
+                        onClick={() => setBidConfirm({ itemId: item.id, amount: nextBid, title: title ?? "", lotNumber })}
                         disabled={placeBidMut.isPending}
                         className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-xl"
                       >
@@ -783,7 +784,7 @@ export default function GroupAuctionBidPage() {
                       onClick={() => {
                         const amt = parseInt(customAmount, 10);
                         if (!amt || amt < nextBidInCurr) { toast.error(`最少 ${currSym}${nextBidInCurr}`); return; }
-                        setBidConfirm({ itemId: item.id, amount: amt, title: title ?? "", itemNumber: idx + 1 });
+                        setBidConfirm({ itemId: item.id, amount: amt, title: title ?? "", lotNumber });
                       }}
                       disabled={placeBidMut.isPending}
                       className="bg-amber-500 hover:bg-amber-600 text-white text-sm px-4 py-2 rounded-xl font-medium"
@@ -808,17 +809,18 @@ export default function GroupAuctionBidPage() {
             style={{ left: 5, right: 5, bottom: "calc(env(safe-area-inset-bottom, 0px) + 68px)", padding: "14px 16px 16px" }}
             onClick={e => e.stopPropagation()}
           >
-            <p className="text-xs text-gray-400 text-center mb-2">確認出價後 無法撤回</p>
-            <p className="text-sm text-gray-700 mb-1" style={{ wordBreak: "break-all" }}>
-              {bidConfirm.title || "—"} · 商品 {bidConfirm.itemNumber}
+            <p className="text-sm font-bold text-center mb-2" style={{ color: "#ea580c" }}>確認出價後 無法撤回</p>
+            <p className="text-sm text-gray-800 mb-1" style={{ wordBreak: "break-all" }}>
+              {bidConfirm.title || "—"}{bidConfirm.lotNumber ? ` · ${bidConfirm.lotNumber}` : ""}
             </p>
+            <p className="text-xs text-gray-500 mb-0.5">出價金額</p>
             <p className="text-2xl font-black mb-4" style={{ color: "#dc2626" }}>
               {displayPrice(bidConfirm.amount)}
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => {
-                  handleBid(bidConfirm.itemId, bidConfirm.amount, bidConfirm.title, bidConfirm.itemNumber);
+                  handleBid(bidConfirm.itemId, bidConfirm.amount, bidConfirm.title);
                   setBidConfirm(null);
                 }}
                 disabled={placeBidMut.isPending}
