@@ -198,6 +198,7 @@ export function AuctionImageLightbox({
   const pidRef = useRef(0);
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
   const [paymentInfoOpen, setPaymentInfoOpen] = useState(false);
+  const [bidConfirm, setBidConfirm] = useState<{ amount: number } | null>(null);
 
   /* ── Swipe-right-to-close ── */
   const [dragX, setDragX] = useState(0);
@@ -343,7 +344,7 @@ export function AuctionImageLightbox({
     if (!amount || amount <= 0) { toast.error("請輸入有效出價金額"); return; }
     const minBid = bidCount > 0 ? currentPrice + bidIncrement : (currentPrice === 0 ? bidIncrement : currentPrice);
     if (amount < minBid) { toast.error(`出價最低 ${curr}${minBid.toLocaleString()}`); return; }
-    placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: 0 });
+    setBidConfirm({ amount });
   };
   const handleMerchantSend = () => {
     if (!merchantInput.trim()) return;
@@ -353,6 +354,12 @@ export function AuctionImageLightbox({
     if (!isAuthenticated) { toast.info("請先登入先可以出價"); return; }
     if (isEnded) { toast.error("此拍賣已結束"); return; }
     if (isMerchant) { toast.warning("商戶不可對自己的拍賣出價"); return; }
+    setBidConfirm({ amount });
+  };
+  const confirmBid = () => {
+    if (!bidConfirm) return;
+    const amount = bidConfirm.amount;
+    setBidConfirm(null);
     placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: 0 });
   };
   const triggerParticle = (bidId: number, dir: "up" | "down") => {
@@ -690,6 +697,40 @@ export function AuctionImageLightbox({
       )}
 
       {zoomSrc && <ImageZoomViewer src={zoomSrc} onClose={() => setZoomSrc(null)} />}
+
+      {bidConfirm && (
+        <div className="fixed inset-0 z-[9998]" style={{ background: "rgba(0,0,0,0.55)" }} onClick={() => setBidConfirm(null)} />
+      )}
+      {bidConfirm && (
+        <div
+          className="fixed z-[9999] bg-white rounded-2xl shadow-2xl"
+          style={{ left: 5, right: 5, bottom: "calc(env(safe-area-inset-bottom, 0px) + 68px)", padding: "14px 16px 16px" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="text-sm font-bold text-center mb-2" style={{ color: "#ea580c" }}>確認出價後 無法撤回</p>
+          <p className="text-sm text-gray-800 mb-1" style={{ wordBreak: "break-all" }}>{auctionTitle || "—"}</p>
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-xs text-gray-500">出價金額</span>
+            <span className="text-2xl font-black" style={{ color: "#dc2626" }}>{curr}{bidConfirm.amount.toLocaleString()}</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={confirmBid}
+              disabled={placeBid.isPending}
+              className="flex-1 py-2.5 text-sm text-white font-semibold rounded-xl"
+              style={{ background: "#dc2626" }}
+            >
+              {placeBid.isPending ? "出價中…" : "確認出價"}
+            </button>
+            <button
+              onClick={() => setBidConfirm(null)}
+              className="flex-1 py-2.5 text-sm font-semibold rounded-xl border border-gray-300 text-gray-700 bg-white"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
