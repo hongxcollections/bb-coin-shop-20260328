@@ -552,12 +552,6 @@ function AuctionRecordsSheet({ roundId, roundTitle, roundDescription, roundStart
               >
                 <Download className="w-3.5 h-3.5" /> 儲存圖片
               </button>
-              <button
-                onClick={handlePrint}
-                className="flex-1 flex items-center justify-center gap-1.5 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-2 rounded-xl"
-              >
-                <Printer className="w-3.5 h-3.5" /> 列印
-              </button>
             </div>
           )}
         </DialogContent>
