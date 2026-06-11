@@ -808,7 +808,8 @@ export default function GroupAuctionBidPage() {
             style={{ left: 5, right: 5, bottom: "calc(env(safe-area-inset-bottom, 0px) + 68px)", padding: "14px 16px 16px" }}
             onClick={e => e.stopPropagation()}
           >
-            <p className="text-xs text-gray-500 mb-1 truncate">
+            <p className="text-xs text-gray-400 text-center mb-2">確認出價後 無法撤回</p>
+            <p className="text-sm text-gray-700 mb-1" style={{ wordBreak: "break-all" }}>
               {bidConfirm.title || "—"} · 商品 {bidConfirm.itemNumber}
             </p>
             <p className="text-2xl font-black mb-4" style={{ color: "#dc2626" }}>
