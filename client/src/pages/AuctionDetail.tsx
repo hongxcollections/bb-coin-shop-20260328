@@ -384,12 +384,12 @@ export default function AuctionDetail() {
     },
   });
 
-  const handleBid = async () => {
+  const handleBid = async (directAmount?: number) => {
     if (auction && user && (auction as { createdBy?: number }).createdBy === user.id) {
       toast.error("商戶自己的商品，禁止出價 🚫", { className: "bb-toast-err", duration: 4000 });
       return;
     }
-    const amount = parseFloat(bidAmount);
+    const amount = directAmount ?? parseFloat(bidAmount);
     if (isNaN(amount) || amount <= 0) {
       toast.error("請輸入有效的出價金額", { className: "bb-toast-err", duration: 5000 });
       return;
@@ -1024,12 +1024,9 @@ export default function AuctionDetail() {
                               <button
                                 key={opt.value}
                                 type="button"
-                                onClick={() => setBidAmount(String(opt.value))}
-                                className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                                  bidAmount === String(opt.value)
-                                    ? "bg-amber-500 text-white border-amber-500"
-                                    : "bg-white text-amber-700 border-amber-200 hover:border-amber-400 hover:bg-amber-50"
-                                }`}
+                                onClick={() => handleBid(opt.value)}
+                                disabled={placeBid.isPending}
+                                className="flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all bg-white text-amber-700 border-amber-200 hover:border-amber-400 hover:bg-amber-50"
                               >
                                 {opt.label}
                               </button>
@@ -1293,46 +1290,44 @@ export default function AuctionDetail() {
       </div>
 
       {/* 出價確認彈窗 */}
-      <Dialog open={showBidConfirm} onOpenChange={setShowBidConfirm}>
-        <DialogContent className="sm:max-w-md" onKeyDown={(e) => { if (e.key === 'Enter') confirmBid(); }}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-amber-500" />
-              確認出價
-            </DialogTitle>
-            <p className="text-sm font-semibold text-amber-800 pt-1 truncate">{(auction as { title?: string })?.title ?? ''}</p>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">商品</span>
-                <span className="text-sm font-medium truncate max-w-[200px]">{(auction as { title?: string })?.title ?? '未命名'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">出價金額</span>
-                <span className="text-xl font-bold text-amber-700">{currencySymbol}{pendingBidAmount.toLocaleString()}</span>
-              </div>
-              {isAnonymous && (
-                <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-100 rounded-lg px-3 py-2">
-                  <EyeOff className="w-3.5 h-3.5" />
-                  <span>此次出價將以匿名方式登記</span>
-                </div>
-              )}
-            </div>
-            <p className="text-xs font-semibold text-rose-600 text-center">⚠️ 嚴重警告：惡意亂出價一經商戶或系統核實，將永久停用帳號。</p>
+      {showBidConfirm && (
+        <div className="fixed inset-0 z-[9998]" style={{ background: "rgba(0,0,0,0.55)" }} onClick={() => setShowBidConfirm(false)} />
+      )}
+      {showBidConfirm && (
+        <div
+          className="fixed z-[9999] bg-white rounded-2xl shadow-2xl"
+          style={{ left: 5, right: 5, bottom: "calc(env(safe-area-inset-bottom, 0px) + 68px)", padding: "14px 16px 16px" }}
+          onClick={e => e.stopPropagation()}
+        >
+          <p className="text-sm font-bold text-center mb-2" style={{ color: "#ea580c" }}>確認出價後 無法撤回</p>
+          <p className="text-sm text-gray-800 mb-1" style={{ wordBreak: "break-all" }}>
+            {(auction as { title?: string })?.title || "—"}
+          </p>
+          {isAnonymous && (
+            <p className="text-xs text-slate-500 mb-1">🕵️ 此次出價將以匿名方式登記</p>
+          )}
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-xs text-gray-500">出價金額</span>
+            <span className="text-2xl font-black" style={{ color: "#dc2626" }}>{currencySymbol}{pendingBidAmount.toLocaleString()}</span>
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowBidConfirm(false)} className="flex-1">取消</Button>
-            <Button
+          <div className="flex gap-2">
+            <button
               onClick={confirmBid}
               disabled={placeBid.isPending}
-              className="flex-1 gold-gradient text-white border-0"
+              className="flex-1 py-2.5 text-sm text-white font-semibold rounded-xl"
+              style={{ background: "#dc2626" }}
             >
-              {placeBid.isPending ? '出價中...' : `確認出價 ${currencySymbol}${pendingBidAmount.toLocaleString()}`}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              {placeBid.isPending ? "出價中…" : "確認出價"}
+            </button>
+            <button
+              onClick={() => setShowBidConfirm(false)}
+              className="flex-1 py-2.5 text-sm font-semibold rounded-xl border border-gray-300 text-gray-700 bg-white"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 代理出價確認彈窗 */}
       <Dialog open={showProxyConfirm} onOpenChange={setShowProxyConfirm}>
