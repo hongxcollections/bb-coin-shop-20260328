@@ -55,9 +55,24 @@ export function PushNotificationOptIn() {
     navigator.serviceWorker.getRegistration("/push-sw.js").then(async (reg) => {
       if (reg) {
         const sub = await reg.pushManager.getSubscription();
-        setSubscribed(!!sub);
+        if (sub) {
+          setSubscribed(true);
+          // 靜默向 server re-sync：確保 DB 有呢個 endpoint 記錄
+          // （ON DUPLICATE KEY UPDATE — idempotent，瀏覽器有 sub 但 DB 冇記錄時自動補救）
+          const json = sub.toJSON();
+          if (json.endpoint && json.keys?.p256dh && json.keys?.auth) {
+            subscribeMut.mutate({
+              endpoint: json.endpoint,
+              keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+              userAgent: navigator.userAgent.slice(0, 250),
+            });
+          }
+        } else {
+          setSubscribed(false);
+        }
       }
     }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 自動訂閱：權限已 granted 但仲未訂閱 → 靜默自動訂閱（毋須用戶按）
