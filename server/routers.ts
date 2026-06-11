@@ -7775,10 +7775,10 @@ ${kb}`;
           const { sql: rawSql } = await import('drizzle-orm');
           const db = await getDb();
           if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
-          // 撈所有有 push subscription、role='user'、非商戶嘅用戶
+          // 撈所有 role='user'、非商戶、非自己嘅用戶（唔需要 push subscription 篩選，
+          // sendPushToUser 會自動跳過未訂閱嘅用戶，sent 只計實際收到 push 嘅人數）
           const rows = await db.execute(rawSql`
-            SELECT DISTINCT ps.userId FROM pushSubscriptions ps
-            INNER JOIN users u ON u.id = ps.userId
+            SELECT u.id AS userId FROM users u
             WHERE u.role = 'user'
               AND u.id != ${ctx.user.id}
               AND NOT EXISTS (
@@ -7796,14 +7796,12 @@ ${kb}`;
           const { sendPushToUser } = await import('./push');
           let sent = 0;
           for (const row of userRows) {
-            try {
-              await sendPushToUser(row.userId, {
-                title: `📢 ${senderName} 廣播`,
-                body: input.message,
-                url: `/auctions/${input.auctionId}`,
-              });
-              sent++;
-            } catch { /* individual failures don't stop the loop */ }
+            const numSent = await sendPushToUser(row.userId, {
+              title: `📢 ${senderName} 廣播`,
+              body: input.message,
+              url: `/auctions/${input.auctionId}`,
+            }).catch(() => 0);
+            if (numSent > 0) sent++;
           }
           return { sent };
         }

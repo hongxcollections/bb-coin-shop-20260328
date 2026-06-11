@@ -26,7 +26,7 @@ export default function MerchantBroadcastDialog({
 
   const broadcast = trpc.chat.broadcast.useMutation({
     onSuccess: ({ sent }) => {
-      const label = mode === "all" ? "位用戶" : "位曾出價買家";
+      const label = mode === "all" ? "位有開啟通知嘅用戶" : "位曾出價買家";
       toast.success(`已發送畀 ${sent} ${label}`);
       setMessage("");
       setMode("bidders");
