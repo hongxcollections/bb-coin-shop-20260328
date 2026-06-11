@@ -5,7 +5,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getCurrencySymbol } from "@/pages/AdminAuctions";
-import { useConfirm } from "@/components/ui/confirm-provider";
 
 interface QuickBidPopoverProps {
   auctionId: number;
@@ -59,11 +58,11 @@ export function QuickBidPopover({
   extendMinutes,
 }: QuickBidPopoverProps) {
   const { user, isAuthenticated } = useAuth();
-  const confirm = useConfirm();
   const utils = trpc.useUtils();
   const [open, setOpen] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
   const lastAmountRef = useRef(0);
+  const [bidConfirm, setBidConfirm] = useState<{ amount: number } | null>(null);
 
   const symbol = getCurrencySymbol(currency ?? "HKD");
   const minBid = hasExistingBid
@@ -131,10 +130,10 @@ export function QuickBidPopover({
     setOpen((v) => !v);
   };
 
-  const submit = (amount: number) => {
+  const validate = (amount: number): boolean => {
     if (!Number.isFinite(amount) || amount <= 0) {
       toast.error("請輸入有效金額", { className: "bb-toast-err" });
-      return;
+      return false;
     }
     if (amount < minBid) {
       toast.error(`最低出價 ${symbol}${minBid.toLocaleString()}`, {
@@ -142,8 +141,16 @@ export function QuickBidPopover({
         className: "bb-toast-err",
         duration: 4500,
       });
-      return;
+      return false;
     }
+    return true;
+  };
+
+  const confirmBid = () => {
+    if (!bidConfirm) return;
+    const amount = bidConfirm.amount;
+    setBidConfirm(null);
+    setOpen(false);
     lastAmountRef.current = amount;
     toast.loading("出價處理中…", { id: `qb-${auctionId}`, className: "bb-toast-success", duration: 30000 });
     placeBid.mutate(
@@ -152,20 +159,14 @@ export function QuickBidPopover({
     );
   };
 
-  const handleCustom = async () => {
+  const handleCustom = () => {
     const n = parseFloat(customAmount);
-    if (!Number.isFinite(n) || n <= 0) { submit(n); return; }
-    const ok = await confirm({
-      title: title,
-      description: `出價金額：${symbol}${n.toLocaleString()}\n\n⚠️ 嚴重警告：惡意亂出價一經商戶或系統核實，將永久停用帳號。`,
-      confirmText: `確認出價 ${symbol}${n.toLocaleString()}`,
-      cancelText: "取消",
-    });
-    if (!ok) return;
-    submit(n);
+    if (!validate(n)) return;
+    setBidConfirm({ amount: n });
   };
 
   return (
+    <>
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
@@ -243,7 +244,7 @@ export function QuickBidPopover({
                 key={opt.value}
                 type="button"
                 disabled={placeBid.isPending}
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); submit(opt.value); }}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (validate(opt.value)) setBidConfirm({ amount: opt.value }); }}
                 className="flex flex-col items-center justify-center py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 active:bg-amber-200 border border-amber-200 text-amber-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <span className="text-[9px] text-amber-600/80">{opt.hint}</span>
@@ -277,5 +278,40 @@ export function QuickBidPopover({
         </div>
       </PopoverContent>
     </Popover>
+
+    {bidConfirm && (
+      <div className="fixed inset-0 z-[9998]" style={{ background: "rgba(0,0,0,0.55)" }} onClick={() => setBidConfirm(null)} />
+    )}
+    {bidConfirm && (
+      <div
+        className="fixed z-[9999] bg-white rounded-2xl shadow-2xl"
+        style={{ left: 5, right: 5, bottom: "calc(env(safe-area-inset-bottom, 0px) + 68px)", padding: "14px 16px 16px" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-sm font-bold text-center mb-2" style={{ color: "#ea580c" }}>確認出價後 無法撤回</p>
+        <p className="text-sm text-gray-800 mb-1" style={{ wordBreak: "break-all" }}>{title || "—"}</p>
+        <div className="flex items-baseline gap-2 mb-4">
+          <span className="text-xs text-gray-500">出價金額</span>
+          <span className="text-2xl font-black" style={{ color: "#dc2626" }}>{symbol}{bidConfirm.amount.toLocaleString()}</span>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={confirmBid}
+            disabled={placeBid.isPending}
+            className="flex-1 py-2.5 text-sm text-white font-semibold rounded-xl"
+            style={{ background: "#dc2626" }}
+          >
+            {placeBid.isPending ? "出價中…" : "確認出價"}
+          </button>
+          <button
+            onClick={() => setBidConfirm(null)}
+            className="flex-1 py-2.5 text-sm font-semibold rounded-xl border border-gray-300 text-gray-700 bg-white"
+          >
+            取消
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

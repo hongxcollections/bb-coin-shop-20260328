@@ -179,6 +179,7 @@ export function AuctionFbPanel({
   const [proxyBidOpen, setProxyBidOpen] = useState(false);
   const [proxyAmountStr, setProxyAmountStr] = useState("");
   const [proxyConfirmStep, setProxyConfirmStep] = useState(false);
+  const [bidConfirm, setBidConfirm] = useState<{ amount: number } | null>(null);
 
   /* ── Drag-to-close (down + right) ── */
   const [dragY, setDragY] = useState(0);
@@ -422,7 +423,7 @@ export function AuctionFbPanel({
       });
       if (!ok) return;
     }
-    placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: isAnonymous ? 1 : 0 });
+    setBidConfirm({ amount });
   };
   const handleSetProxy = () => {
     if (!isAuthenticated) { window.location.href = getLoginUrl(); return; }
@@ -453,6 +454,12 @@ export function AuctionFbPanel({
       });
       if (!ok) return;
     }
+    setBidConfirm({ amount });
+  };
+  const confirmBid = () => {
+    if (!bidConfirm) return;
+    const amount = bidConfirm.amount;
+    setBidConfirm(null);
     placeBid.mutate({ auctionId, bidAmount: amount, isAnonymous: isAnonymous ? 1 : 0 });
   };
 
@@ -960,6 +967,44 @@ export function AuctionFbPanel({
           onSelect={(v) => setSort(v)}
           onClose={() => setShowSortSheet(false)}
         />
+      )}
+
+      {/* 出價確認底部 sheet */}
+      {bidConfirm && (
+        <div className="fixed inset-0 z-[9998]" style={{ background: "rgba(0,0,0,0.55)" }} onClick={() => setBidConfirm(null)} />
+      )}
+      {bidConfirm && (
+        <div
+          className="fixed z-[9999] bg-white rounded-2xl shadow-2xl"
+          style={{ left: 5, right: 5, bottom: "calc(env(safe-area-inset-bottom, 0px) + 68px)", padding: "14px 16px 16px" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="text-sm font-bold text-center mb-2" style={{ color: "#ea580c" }}>確認出價後 無法撤回</p>
+          <p className="text-sm text-gray-800 mb-1" style={{ wordBreak: "break-all" }}>{auctionTitle || "—"}</p>
+          {isAnonymous && (
+            <p className="text-xs text-slate-500 mb-1">🕵️ 此次出價將以匿名方式登記</p>
+          )}
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-xs text-gray-500">出價金額</span>
+            <span className="text-2xl font-black" style={{ color: "#dc2626" }}>{curr}{bidConfirm.amount.toLocaleString()}</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={confirmBid}
+              disabled={placeBid.isPending}
+              className="flex-1 py-2.5 text-sm text-white font-semibold rounded-xl"
+              style={{ background: "#dc2626" }}
+            >
+              {placeBid.isPending ? "出價中…" : "確認出價"}
+            </button>
+            <button
+              onClick={() => setBidConfirm(null)}
+              className="flex-1 py-2.5 text-sm font-semibold rounded-xl border border-gray-300 text-gray-700 bg-white"
+            >
+              取消
+            </button>
+          </div>
+        </div>
       )}
     </>
   );
