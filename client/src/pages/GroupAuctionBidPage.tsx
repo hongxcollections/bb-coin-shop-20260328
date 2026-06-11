@@ -801,17 +801,19 @@ export default function GroupAuctionBidPage() {
 
       {/* 出價確認 Dialog（+1口 / +2口 / 自訂） */}
       {bidConfirm && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ background: "rgba(0,0,0,0.55)" }} onClick={() => setBidConfirm(null)}>
-          <div className="bg-white rounded-2xl p-5 shadow-2xl" style={{ marginLeft: 5, marginRight: 5, width: "calc(100% - 10px)" }} onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-bold text-gray-900 mb-3">確認出價</h3>
-            <div className="rounded-xl p-3 mb-4" style={{ background: "#fff7ed", border: "1px solid #fed7aa" }}>
-              <p className="text-xs text-gray-500 mb-0.5">商品 {bidConfirm.itemNumber}</p>
-              <p className="text-sm font-semibold text-gray-900 leading-snug mb-2" style={{ wordBreak: "break-all" }}>
-                {bidConfirm.title || "—"}
-              </p>
-              <p className="text-xs text-gray-500 mb-0.5">出價金額</p>
-              <p className="text-2xl font-black" style={{ color: "#dc2626" }}>{displayPrice(bidConfirm.amount)}</p>
-            </div>
+        <>
+          <div className="fixed inset-0 z-[9998]" style={{ background: "rgba(0,0,0,0.55)" }} onClick={() => setBidConfirm(null)} />
+          <div
+            className="fixed z-[9999] bg-white rounded-2xl shadow-2xl"
+            style={{ left: 5, right: 5, bottom: "calc(env(safe-area-inset-bottom, 0px) + 68px)", padding: "14px 16px 16px" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <p className="text-xs text-gray-500 mb-1 truncate">
+              {bidConfirm.title || "—"} · 商品 {bidConfirm.itemNumber}
+            </p>
+            <p className="text-2xl font-black mb-4" style={{ color: "#dc2626" }}>
+              {displayPrice(bidConfirm.amount)}
+            </p>
             <div className="flex gap-2">
               <button
                 onClick={() => {
@@ -829,7 +831,7 @@ export default function GroupAuctionBidPage() {
               >取消</button>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* 封頂價確認 Dialog */}
