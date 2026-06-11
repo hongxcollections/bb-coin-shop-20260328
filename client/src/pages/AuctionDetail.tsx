@@ -1046,7 +1046,7 @@ export default function AuctionDetail() {
                               />
                             </div>
                             <Button
-                              onClick={handleBid}
+                              onClick={() => handleBid()}
                               disabled={placeBid.isPending}
                               className="gold-gradient text-white border-0 shadow-md hover:opacity-90 px-6"
                             >
