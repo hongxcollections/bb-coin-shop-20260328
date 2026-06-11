@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { QRCodeCanvas } from "qrcode.react";
-import { Copy, Check, Download } from "lucide-react";
+import { Copy, Check, Download, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 interface GroupAuctionPosterProps {
@@ -130,7 +130,7 @@ export function GroupAuctionPosterModal({ open, onClose, round, merchantName, me
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-xs p-0 overflow-hidden rounded-2xl mb-20">
+      <DialogContent className="w-[calc(100vw-10px)] max-w-sm p-0 overflow-hidden rounded-2xl mb-20">
         <DialogHeader className="px-4 pt-4 pb-2">
           <DialogTitle className="text-base font-semibold text-amber-900">微信群入場海報</DialogTitle>
         </DialogHeader>
@@ -211,6 +211,14 @@ export function GroupAuctionPosterModal({ open, onClose, round, merchantName, me
           <Button variant="outline" className="w-full text-sm h-9" onClick={copyLink}>
             {copiedLink ? <Check className="w-4 h-4 mr-2 text-green-600" /> : <Copy className="w-4 h-4 mr-2" />}
             複製出價頁連結
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full text-sm h-9"
+            onClick={() => window.open(`/group/${round.id}/flyer`, "_blank")}
+          >
+            <ExternalLink className="w-4 h-4 mr-2" />
+            廣告頁
           </Button>
           <Button
             className="w-full text-sm h-9"
