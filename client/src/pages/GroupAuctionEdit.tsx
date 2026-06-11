@@ -152,6 +152,12 @@ export default function GroupAuctionEdit() {
   const [tab, setTab] = useState<"basic" | "columns" | "images" | "items" | "results">(
     (["basic", "columns", "images", "items", "results"] as const).includes(tabParam as any) ? tabParam as any : "basic"
   );
+  const changeTab = (key: "basic" | "columns" | "images" | "items" | "results") => {
+    setTab(key);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", key);
+    window.history.replaceState(null, "", url.toString());
+  };
   const [resultSortDir, setResultSortDir] = useState<"desc" | "asc">("desc");
   const [resultBuyerKey, setResultBuyerKey] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
@@ -408,7 +414,7 @@ export default function GroupAuctionEdit() {
     } catch { setColorRules([]); }
     // 已結拍的場次自動跳到成績紀錄 tab
     if (roundData.round?.status === "ended") {
-      setTab("results");
+      changeTab("results");
     }
   }, [roundData]);
 
@@ -747,7 +753,7 @@ export default function GroupAuctionEdit() {
             <button
               key={t.key}
               disabled={"disabled" in t && t.disabled}
-              onClick={() => setTab(t.key as any)}
+              onClick={() => changeTab(t.key as any)}
               className={`flex-1 text-xs py-1.5 rounded-lg font-medium transition-colors ${
                 tab === t.key ? "bg-white text-amber-700 shadow-sm" : "text-gray-500"
               } ${("disabled" in t && t.disabled) ? "opacity-40 cursor-not-allowed" : ""}`}
