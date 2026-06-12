@@ -2185,7 +2185,7 @@ export default function GroupAuctionEdit() {
           }
 
           return (
-            <div className="space-y-4">
+            <div className={`space-y-4 ${relistMode ? "pb-20" : ""}`}>
               {/* Summary */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
