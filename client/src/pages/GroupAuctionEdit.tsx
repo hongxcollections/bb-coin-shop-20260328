@@ -173,6 +173,17 @@ export default function GroupAuctionEdit() {
   const [relistSelectedIds, setRelistSelectedIds] = useState<Set<number>>(new Set());
   const [relistSheet, setRelistSheet] = useState(false);
 
+  // 從列表頁「重拍」按鈕跳入時，自動啟動 relistMode
+  useEffect(() => {
+    const param = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("relist") : null;
+    if (param === "auction" || param === "product") {
+      setRelistMode(param);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("relist");
+      window.history.replaceState(null, "", url.toString());
+    }
+  }, []);
+
   // ── 基本設定 state ──
   const [basic, setBasic] = useState({
     title: "",

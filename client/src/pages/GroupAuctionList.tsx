@@ -9,7 +9,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import { toast } from "sonner";
-import { Plus, ChevronLeft, Pencil, Trash2, Globe, Archive, Clock, QrCode, Receipt, ListOrdered, X, Trophy, ChevronsUpDown, ChevronUp, ChevronDown, Download, Printer } from "lucide-react";
+import { Plus, ChevronLeft, Pencil, Trash2, Globe, Archive, Clock, QrCode, Receipt, ListOrdered, X, Trophy, ChevronsUpDown, ChevronUp, ChevronDown, Download, Printer, RotateCcw } from "lucide-react";
 import { GroupAuctionShareMenu } from "@/components/ShareMenu";
 import { GroupAuctionPosterModal } from "@/components/GroupAuctionPosterModal";
 import { GroupAuctionCommissionModal } from "@/components/GroupAuctionCommissionModal";
@@ -602,6 +602,7 @@ export default function GroupAuctionList() {
   const [recPreviewUrl, setRecPreviewUrl] = useState<string | null>(null);
   const [recPreviewFilename, setRecPreviewFilename] = useState("");
   const [destroyTarget, setDestroyTarget] = useState<DestroyTarget>(null);
+  const [relistTarget, setRelistTarget] = useState<any | null>(null);
 
   const { data: rounds, isLoading, refetch } = trpc.groupAuctions.myListRounds.useQuery(undefined, {
     enabled: !!user,
@@ -641,6 +642,16 @@ export default function GroupAuctionList() {
   const unarchiveMut = trpc.groupAuctions.unarchiveRound.useMutation({
     onSuccess: () => { toast.success("已取消封存"); refetch(); },
     onError: (e) => toast.error(e.message || "取消封存失敗"),
+  });
+
+  const relistAsGroupDraftMut = trpc.groupAuctions.relistAsGroupDraft.useMutation({
+    onSuccess: (data: any) => {
+      toast.success("已複製為新草稿場次");
+      refetch();
+      setRelistTarget(null);
+      if (data?.id) setLocation(`/merchant/group-auctions/${data.id}`);
+    },
+    onError: (e: any) => toast.error(e.message || "重拍失敗"),
   });
 
   return (
@@ -839,6 +850,17 @@ export default function GroupAuctionList() {
                         平台傭金
                       </button>
 
+                      {/* 重拍按鈕（非封存） */}
+                      {!r.isArchived && (
+                        <button
+                          onClick={() => setRelistTarget(r)}
+                          className="flex items-center gap-1 text-xs bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg font-medium"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          重拍
+                        </button>
+                      )}
+
                       {/* 已結束（非封存）：封存 + 拆除 */}
                       {!r.isArchived ? (
                         <>
@@ -1033,6 +1055,71 @@ export default function GroupAuctionList() {
           )}
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 重拍 bottom sheet */}
+      {relistTarget && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ background: "rgba(0,0,0,0.45)" }}
+          onClick={() => setRelistTarget(null)}
+        >
+          <div
+            className="w-full max-w-lg bg-white rounded-t-2xl p-5 space-y-3"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-sm font-bold text-gray-800">重拍 — {relistTarget.title}</p>
+              <button onClick={() => setRelistTarget(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 選項 1：重新上拍整場 */}
+            <button
+              disabled={relistAsGroupDraftMut.isPending}
+              onClick={() => relistAsGroupDraftMut.mutate({ id: relistTarget.id })}
+              className="w-full flex items-start gap-3 p-3 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors text-left disabled:opacity-50"
+            >
+              <RotateCcw className="w-5 h-5 text-orange-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-orange-700">重新上拍整場</p>
+                <p className="text-xs text-orange-500 mt-0.5">複製整場為新草稿，所有商品及設定照搬</p>
+              </div>
+            </button>
+
+            {/* 選項 2：拍賣商品 */}
+            <button
+              onClick={() => {
+                setRelistTarget(null);
+                setLocation(`/merchant/group-auctions/${relistTarget.id}?relist=auction`);
+              }}
+              className="w-full flex items-start gap-3 p-3 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors text-left"
+            >
+              <Archive className="w-5 h-5 text-blue-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-blue-700">拍賣商品</p>
+                <p className="text-xs text-blue-500 mt-0.5">選擇商品加入個人拍賣草稿</p>
+              </div>
+            </button>
+
+            {/* 選項 3：出售商品 */}
+            <button
+              onClick={() => {
+                setRelistTarget(null);
+                setLocation(`/merchant/group-auctions/${relistTarget.id}?relist=product`);
+              }}
+              className="w-full flex items-start gap-3 p-3 rounded-xl border border-green-200 bg-green-50 hover:bg-green-100 transition-colors text-left"
+            >
+              <Receipt className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-green-700">出售商品</p>
+                <p className="text-xs text-green-500 mt-0.5">選擇商品加入商品管理草稿</p>
+              </div>
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
