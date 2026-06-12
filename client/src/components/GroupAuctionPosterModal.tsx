@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { QRCodeCanvas } from "qrcode.react";
@@ -27,7 +28,7 @@ function fmtDate(d: string | Date | null | undefined) {
 }
 
 export function GroupAuctionPosterModal({ open, onClose, round, merchantName, merchantAvatar }: GroupAuctionPosterProps) {
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [, setLocation] = useLocation();
   const [copiedMsg, setCopiedMsg] = useState(false);
   const qrRef = useRef<HTMLCanvasElement>(null);
 
@@ -45,12 +46,11 @@ export function GroupAuctionPosterModal({ open, onClose, round, merchantName, me
     `拍賣 ${dateRangeStr}\n` +
     `\n直接網頁出價！首次用手機登記（30秒），之後每場自動登入，出價實時生效，不需要再留言 +序號商品！\n\n${fullUrl}`;
 
-  function copyLink() {
-    navigator.clipboard.writeText(fullUrl).then(() => {
-      setCopiedLink(true);
-      toast.success("連結已複製");
-      setTimeout(() => setCopiedLink(false), 2500);
-    });
+  function goToBidPage() {
+    navigator.clipboard.writeText(fullUrl).catch(() => {});
+    toast.success(`出價頁連結已複製\n${fullUrl}`, { duration: 5000 });
+    onClose();
+    setLocation(`/group/${round.id}`);
   }
 
   function copyMsg() {
@@ -216,9 +216,9 @@ export function GroupAuctionPosterModal({ open, onClose, round, merchantName, me
             <ExternalLink className="w-4 h-4 mr-2" />
             廣告頁
           </Button>
-          <Button variant="outline" className="w-full text-sm h-9" onClick={copyLink}>
-            {copiedLink ? <Check className="w-4 h-4 mr-2 text-green-600" /> : <Copy className="w-4 h-4 mr-2" />}
-            複製出價頁連結
+          <Button variant="outline" className="w-full text-sm h-9" onClick={goToBidPage}>
+            <ExternalLink className="w-4 h-4 mr-2" />
+            前往出價頁（自動複製連結）
           </Button>
           <Button
             className="w-full text-sm h-9"
