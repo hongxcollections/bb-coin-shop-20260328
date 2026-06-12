@@ -787,22 +787,30 @@ export default function GroupAuctionBidPage() {
                 {isOwner && (() => {
                   const itemBids = bidsByItem.get(item.id) ?? [];
                   if (itemBids.length === 0) return null;
+                  const ranks = ["🥇","🥈","🥉","4","5"];
                   return (
-                    <div className="mt-2 pt-2 border-t border-gray-100">
-                      <p className="text-[10px] font-semibold text-gray-400 mb-1 text-right">出價紀錄（{itemBids.length} 口）</p>
-                      <div className="flex flex-col gap-[3px] items-end">
+                    <div className="mt-2 rounded-xl overflow-hidden" style={{ background: "linear-gradient(135deg,#fffbf2,#fff8ee)", border: "1px solid #fde68a" }}>
+                      <div className="flex items-center justify-between px-2.5 py-1.5" style={{ background: "linear-gradient(90deg,#f59e0b,#ea580c)", borderRadius: "10px 10px 0 0" }}>
+                        <span className="text-[10px] font-bold text-white tracking-wide">出價紀錄</span>
+                        <span className="text-[10px] font-semibold text-amber-100">{itemBids.length} 口</span>
+                      </div>
+                      <div className="flex flex-col divide-y divide-amber-100">
                         {itemBids.slice(0, 5).map((b, idx) => (
-                          <div key={b.id} className="flex items-center justify-end gap-1">
-                            <span className={`text-[11px] tabular-nums shrink-0 ${idx === 0 ? "font-bold text-amber-600" : "text-gray-400"}`}>
-                              {displayPrice(b.amount)}
+                          <div key={b.id} className="flex items-center gap-1.5 px-2.5 py-[5px]">
+                            <span className="text-[11px] shrink-0 w-4 text-center">{ranks[idx]}</span>
+                            <span className={`text-[11px] flex-1 min-w-0 truncate ${idx === 0 ? "font-semibold text-amber-800" : "text-gray-600"}`}>
+                              {b.bidderName}
+                              {b.isProxy && <span className="ml-0.5 text-[9px] font-bold text-blue-600 bg-blue-50 px-1 rounded">代</span>}
                             </span>
-                            <span className={`text-[11px] truncate max-w-[72px] ${idx === 0 ? "font-semibold text-amber-600" : "text-gray-500"}`}>
-                              {b.bidderName}{b.isProxy ? "(代)" : ""}{idx === 0 ? " 👑" : ""}
+                            <span className={`text-[11px] tabular-nums shrink-0 font-bold ${idx === 0 ? "text-amber-600" : "text-gray-500"}`}>
+                              {displayPrice(b.amount)}
                             </span>
                           </div>
                         ))}
                         {itemBids.length > 5 && (
-                          <p className="text-[10px] text-gray-400 mt-[2px] text-right">...還有 {itemBids.length - 5} 口</p>
+                          <div className="px-2.5 py-1 text-center">
+                            <span className="text-[10px] text-amber-600">還有 {itemBids.length - 5} 口</span>
+                          </div>
                         )}
                       </div>
                     </div>
