@@ -732,7 +732,7 @@ export default function GroupAuctionBidPage() {
                         <button
                           onClick={() => setBidConfirm({ itemId: item.id, amount: (item as any).buyNowPrice, title: title ?? "", lotNumber, isBuyNow: true })}
                           disabled={placeBidMut.isPending}
-                          className="flex items-center gap-2 text-white rounded-xl px-3 py-1.5"
+                          className="flex items-center gap-2 text-white rounded px-3 py-1.5"
                           style={{ background: "linear-gradient(135deg,#dc2626,#b91c1c)" }}
                         >
                           <span className="text-xs font-bold">封頂</span>
@@ -742,7 +742,7 @@ export default function GroupAuctionBidPage() {
                       <button
                         onClick={() => setBidConfirm({ itemId: item.id, amount: nextBid + effectiveIncrement, title: title ?? "", lotNumber })}
                         disabled={placeBidMut.isPending}
-                        className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl px-3 py-1.5"
+                        className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white rounded px-3 py-1.5"
                       >
                         <span className="text-xs font-bold">+2口</span>
                         <span className="text-sm font-black">{displayPrice(nextBid + effectiveIncrement)}</span>
@@ -750,14 +750,14 @@ export default function GroupAuctionBidPage() {
                       <button
                         onClick={() => setBidConfirm({ itemId: item.id, amount: nextBid, title: title ?? "", lotNumber })}
                         disabled={placeBidMut.isPending}
-                        className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-3 py-1.5"
+                        className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white rounded px-3 py-1.5"
                       >
                         <span className="text-xs font-bold">+1口</span>
                         <span className="text-sm font-black">{displayPrice(nextBid)}</span>
                       </button>
                       <button
                         onClick={() => setBiddingItem(isExpanded ? null : item.id)}
-                        className="bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs px-2 py-1.5 rounded-xl"
+                        className="bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs px-2 py-1.5 rounded"
                       >
                         <ChevronUp className={`w-4 h-4 transition-transform ${isExpanded ? "" : "rotate-180"}`} />
                       </button>
