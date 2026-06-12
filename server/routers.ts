@@ -11532,6 +11532,90 @@ EXAMPLE OUTPUT (exact format):
         return { newRoundId, itemCount: oldItems.length };
       }),
 
+    // ── 重拍：選定商品複製為新團拍草稿 ──────────────────────────────────────
+    relistSelectedAsGroupDraft: protectedProcedure
+      .input(z.object({
+        roundId: z.number().int().positive(),
+        itemIds: z.array(z.number().int().positive()).min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id)
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+
+        // 複製場次設定（status=draft，清除日期）
+        const [newRoundResult] = await db.insert(groupAuctionRounds).values({
+          merchantUserId: round.merchantUserId,
+          title: round.title,
+          periodNumber: round.periodNumber ?? undefined,
+          description: round.description ?? undefined,
+          coverImage: round.coverImage ?? undefined,
+          antiSnipeMinutes: round.antiSnipeMinutes,
+          antiSnipeExtendMinutes: round.antiSnipeExtendMinutes,
+          antiSnipeMode: round.antiSnipeMode,
+          minDurationMinutes: round.minDurationMinutes,
+          defaultBidIncrement: round.defaultBidIncrement,
+          buyerCommissionRate: round.buyerCommissionRate as any,
+          status: 'draft',
+          columnTemplateId: round.columnTemplateId ?? undefined,
+          columnsJson: round.columnsJson ?? undefined,
+          displayCurrencies: round.displayCurrencies,
+          promoImagesJson: round.promoImagesJson ?? undefined,
+          colorRulesJson: round.colorRulesJson ?? undefined,
+        });
+        const newRoundId = (newRoundResult as any).insertId as number;
+
+        // 只複製選定商品需要的圖片
+        const { inArray: inArrSel } = await import('drizzle-orm');
+        const selectedItems = await db.select().from(groupAuctionItems)
+          .where(inArrSel(groupAuctionItems.id, input.itemIds));
+
+        const neededImageIds = new Set<number>();
+        for (const item of selectedItems) {
+          try { (JSON.parse(item.imageIdsJson ?? '[]') as number[]).forEach(id => neededImageIds.add(id)); } catch {}
+        }
+
+        const imageIdMap = new Map<number, number>();
+        if (neededImageIds.size > 0) {
+          const oldImages = await db.select().from(groupAuctionImages)
+            .where(inArrSel(groupAuctionImages.id, [...neededImageIds]));
+          for (const img of oldImages) {
+            const [imgResult] = await db.insert(groupAuctionImages).values({
+              roundId: newRoundId,
+              s3Key: img.s3Key,
+              url: img.url,
+              displayOrder: img.displayOrder,
+            });
+            imageIdMap.set(img.id, (imgResult as any).insertId as number);
+          }
+        }
+
+        // 複製選定商品（重設 status=active，清除 winnerId/finalPrice，保留 displayOrder）
+        for (const item of selectedItems) {
+          let newImageIdsJson = item.imageIdsJson;
+          if (item.imageIdsJson) {
+            try {
+              const oldIds: number[] = JSON.parse(item.imageIdsJson);
+              newImageIdsJson = JSON.stringify(oldIds.map(oid => imageIdMap.get(oid) ?? oid));
+            } catch {}
+          }
+          await db.insert(groupAuctionItems).values({
+            roundId: newRoundId,
+            displayOrder: item.displayOrder,
+            dataJson: item.dataJson,
+            imageIdsJson: newImageIdsJson ?? undefined,
+            startPrice: item.startPrice,
+            bidIncrement: item.bidIncrement,
+            buyNowPrice: item.buyNowPrice ?? undefined,
+            status: 'active',
+          });
+        }
+        return { newRoundId, itemCount: selectedItems.length };
+      }),
+
     // ── 重拍：選定商品複製至商戶拍賣草稿 ────────────────────────────────────
     relistAsAuctionDrafts: protectedProcedure
       .input(z.object({

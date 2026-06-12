@@ -1083,14 +1083,16 @@ export default function GroupAuctionList() {
 
             {/* 選項 1：重新上拍整場 */}
             <button
-              disabled={relistAsGroupDraftMut.isPending}
-              onClick={() => relistAsGroupDraftMut.mutate({ roundId: relistTarget.id })}
-              className="w-full flex items-start gap-3 p-3 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors text-left disabled:opacity-50"
+              onClick={() => {
+                setRelistTarget(null);
+                setLocation(`/merchant/group-auctions/${relistTarget.id}?relist=group`);
+              }}
+              className="w-full flex items-start gap-3 p-3 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors text-left"
             >
               <RotateCcw className="w-5 h-5 text-orange-500 mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm font-semibold text-orange-700">重新上拍整場</p>
-                <p className="text-xs text-orange-500 mt-0.5">複製整場為新草稿，所有商品及設定照搬</p>
+                <p className="text-xs text-orange-500 mt-0.5">選擇商品複製為新團拍草稿，設定照搬</p>
               </div>
             </button>
 

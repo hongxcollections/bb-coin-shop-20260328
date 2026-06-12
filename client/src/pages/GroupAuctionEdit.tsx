@@ -169,15 +169,16 @@ export default function GroupAuctionEdit() {
   const [invoicePreviewFilename, setInvoicePreviewFilename] = useState("");
 
   // ── 重拍 state ──
-  const [relistMode, setRelistMode] = useState<"auction" | "product" | null>(null);
+  const [relistMode, setRelistMode] = useState<"auction" | "product" | "group" | null>(null);
   const [relistSelectedIds, setRelistSelectedIds] = useState<Set<number>>(new Set());
   const [relistSheet, setRelistSheet] = useState(false);
 
   // 從列表頁「重拍」按鈕跳入時，自動啟動 relistMode
   useEffect(() => {
     const param = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("relist") : null;
-    if (param === "auction" || param === "product") {
+    if (param === "auction" || param === "product" || param === "group") {
       setRelistMode(param);
+      if (param === "group") changeTab("results");
       const url = new URL(window.location.href);
       url.searchParams.delete("relist");
       window.history.replaceState(null, "", url.toString());
@@ -334,6 +335,13 @@ export default function GroupAuctionEdit() {
   const relistAsProductDraftsMut = trpc.groupAuctions.relistAsProductDrafts.useMutation({
     onSuccess: (d) => {
       toast.success(`已複製 ${d.created} 件至商品管理草稿`);
+      setRelistMode(null); setRelistSelectedIds(new Set()); setRelistSheet(false);
+    },
+    onError: (e) => toast.error(e.message || "操作失敗"),
+  });
+  const relistSelectedAsGroupDraftMut = trpc.groupAuctions.relistSelectedAsGroupDraft.useMutation({
+    onSuccess: (d) => {
+      toast.success(`已複製 ${d.itemCount} 件為新團拍草稿`);
       setRelistMode(null); setRelistSelectedIds(new Set()); setRelistSheet(false);
     },
     onError: (e) => toast.error(e.message || "操作失敗"),
@@ -2452,20 +2460,22 @@ export default function GroupAuctionEdit() {
                     取消
                   </button>
                   <button
-                    disabled={relistSelectedIds.size === 0 || relistAsAuctionDraftsMut.isPending || relistAsProductDraftsMut.isPending}
+                    disabled={relistSelectedIds.size === 0 || relistAsAuctionDraftsMut.isPending || relistAsProductDraftsMut.isPending || relistSelectedAsGroupDraftMut.isPending}
                     onClick={() => {
                       if (relistSelectedIds.size === 0) { toast.error("請先選擇商品"); return; }
                       const ids = [...relistSelectedIds];
                       if (relistMode === "auction") {
                         relistAsAuctionDraftsMut.mutate({ roundId: roundId!, itemIds: ids });
-                      } else {
+                      } else if (relistMode === "product") {
                         relistAsProductDraftsMut.mutate({ roundId: roundId!, itemIds: ids });
+                      } else if (relistMode === "group") {
+                        relistSelectedAsGroupDraftMut.mutate({ roundId: roundId!, itemIds: ids });
                       }
                     }}
                     className="text-xs text-white px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-50 font-medium"
                   >
-                    {relistAsAuctionDraftsMut.isPending || relistAsProductDraftsMut.isPending ? "處理中…" : (
-                      relistMode === "auction" ? "加入拍賣草稿" : "加入商品草稿"
+                    {relistAsAuctionDraftsMut.isPending || relistAsProductDraftsMut.isPending || relistSelectedAsGroupDraftMut.isPending ? "處理中…" : (
+                      relistMode === "auction" ? "加入拍賣草稿" : relistMode === "group" ? "複製為新團拍草稿" : "加入商品草稿"
                     )}
                   </button>
                 </div>
