@@ -11063,12 +11063,12 @@ EXAMPLE OUTPUT (exact format):
           .from(groupAuctionRounds).where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
         if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
         if (round.merchantUserId !== ctx.user.id) throw new TRPCError({ code: 'FORBIDDEN', message: '非場主' });
+        const { asc: _asc, desc: _desc, inArray: inArr } = await import('drizzle-orm');
         const allBids = await db.select().from(groupAuctionBids)
           .where(eq(groupAuctionBids.roundId, input.roundId))
-          .orderBy(asc(groupAuctionBids.itemId), desc(groupAuctionBids.amount), desc(groupAuctionBids.id));
+          .orderBy(_asc(groupAuctionBids.itemId), _desc(groupAuctionBids.amount), _desc(groupAuctionBids.id));
         const realUserIds = [...new Set(allBids.filter(b => b.isProxy === 0).map(b => b.userId))];
         const { users: usersT } = await import('../drizzle/schema');
-        const { inArray: inArr } = await import('drizzle-orm');
         const nameMap = new Map<number, string>();
         if (realUserIds.length > 0) {
           const rows = await db.select({ id: usersT.id, name: usersT.name }).from(usersT).where(inArr(usersT.id, realUserIds));
