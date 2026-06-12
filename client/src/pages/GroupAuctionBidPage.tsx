@@ -788,6 +788,16 @@ export default function GroupAuctionBidPage() {
                   const itemBids = bidsByItem.get(item.id) ?? [];
                   if (itemBids.length === 0) return null;
                   const ranks = ["🥇","🥈","🥉","4","5"];
+                  const fmtBidTime = (d: Date | string | null) => {
+                    if (!d) return "";
+                    const dt = new Date(d);
+                    const days = ["日","一","二","三","四","五","六"];
+                    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+                    const dd = String(dt.getDate()).padStart(2, "0");
+                    const hh = String(dt.getHours()).padStart(2, "0");
+                    const mi = String(dt.getMinutes()).padStart(2, "0");
+                    return `${mm}/${dd}(${days[dt.getDay()]}) ${hh}:${mi}`;
+                  };
                   return (
                     <div className="mt-2 rounded-xl overflow-hidden" style={{ background: "linear-gradient(135deg,#fffbf2,#fff8ee)", border: "1px solid #fde68a" }}>
                       <div className="flex items-center justify-between px-2.5 py-1.5" style={{ background: "linear-gradient(90deg,#f59e0b,#ea580c)", borderRadius: "10px 10px 0 0" }}>
@@ -798,10 +808,15 @@ export default function GroupAuctionBidPage() {
                         {itemBids.slice(0, 5).map((b, idx) => (
                           <div key={b.id} className="flex items-center gap-1.5 px-2.5 py-[5px]">
                             <span className="text-[11px] shrink-0 w-4 text-center">{ranks[idx]}</span>
-                            <span className={`text-[11px] flex-1 min-w-0 truncate ${idx === 0 ? "font-semibold text-amber-800" : "text-gray-600"}`}>
-                              {b.bidderName}
-                              {b.isProxy && <span className="ml-0.5 text-[9px] font-bold text-blue-600 bg-blue-50 px-1 rounded">代</span>}
-                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-0.5 min-w-0">
+                                <span className={`text-[11px] truncate ${idx === 0 ? "font-semibold text-amber-800" : "text-gray-600"}`}>
+                                  {b.bidderName}
+                                </span>
+                                {b.isProxy && <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1 rounded shrink-0">代</span>}
+                              </div>
+                              <div className="text-[9px] text-gray-400 tabular-nums">{fmtBidTime(b.createdAt)}</div>
+                            </div>
                             <span className={`text-[11px] tabular-nums shrink-0 font-bold ${idx === 0 ? "text-amber-600" : "text-gray-500"}`}>
                               {displayPrice(b.amount)}
                             </span>
