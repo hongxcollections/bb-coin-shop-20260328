@@ -789,20 +789,20 @@ export default function GroupAuctionBidPage() {
                   if (itemBids.length === 0) return null;
                   return (
                     <div className="mt-2 pt-2 border-t border-gray-100">
-                      <p className="text-[10px] font-semibold text-gray-400 mb-1">出價紀錄（{itemBids.length} 口）</p>
-                      <div className="flex flex-col gap-[3px]">
+                      <p className="text-[10px] font-semibold text-gray-400 mb-1 text-right">出價紀錄（{itemBids.length} 口）</p>
+                      <div className="flex flex-col gap-[3px] items-end">
                         {itemBids.slice(0, 5).map((b, idx) => (
-                          <div key={b.id} className="flex items-center justify-between gap-2">
-                            <span className={`text-[11px] truncate max-w-[120px] ${idx === 0 ? "font-semibold text-amber-600" : "text-gray-500"}`}>
-                              {idx === 0 ? "👑 " : ""}{b.bidderName}{b.isProxy ? " (代)" : ""}
-                            </span>
+                          <div key={b.id} className="flex items-center justify-end gap-1">
                             <span className={`text-[11px] tabular-nums shrink-0 ${idx === 0 ? "font-bold text-amber-600" : "text-gray-400"}`}>
                               {displayPrice(b.amount)}
+                            </span>
+                            <span className={`text-[11px] truncate max-w-[72px] ${idx === 0 ? "font-semibold text-amber-600" : "text-gray-500"}`}>
+                              {b.bidderName}{b.isProxy ? "(代)" : ""}{idx === 0 ? " 👑" : ""}
                             </span>
                           </div>
                         ))}
                         {itemBids.length > 5 && (
-                          <p className="text-[10px] text-gray-400 mt-[2px]">...還有 {itemBids.length - 5} 口</p>
+                          <p className="text-[10px] text-gray-400 mt-[2px] text-right">...還有 {itemBids.length - 5} 口</p>
                         )}
                       </div>
                     </div>
