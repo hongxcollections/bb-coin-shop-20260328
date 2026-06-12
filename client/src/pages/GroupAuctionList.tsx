@@ -1077,7 +1077,7 @@ export default function GroupAuctionList() {
             {/* 選項 1：重新上拍整場 */}
             <button
               disabled={relistAsGroupDraftMut.isPending}
-              onClick={() => relistAsGroupDraftMut.mutate({ id: relistTarget.id })}
+              onClick={() => relistAsGroupDraftMut.mutate({ roundId: relistTarget.id })}
               className="w-full flex items-start gap-3 p-3 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors text-left disabled:opacity-50"
             >
               <RotateCcw className="w-5 h-5 text-orange-500 mt-0.5 shrink-0" />
