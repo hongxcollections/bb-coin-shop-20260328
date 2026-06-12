@@ -808,14 +808,12 @@ export default function GroupAuctionBidPage() {
                         {itemBids.slice(0, 5).map((b, idx) => (
                           <div key={b.id} className="flex items-center gap-1.5 px-2.5 py-[5px]">
                             <span className="text-[11px] shrink-0 w-4 text-center">{ranks[idx]}</span>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-0.5 min-w-0">
-                                <span className={`text-[11px] truncate ${idx === 0 ? "font-semibold text-amber-800" : "text-gray-600"}`}>
-                                  {b.bidderName}
-                                </span>
-                                {b.isProxy && <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1 rounded shrink-0">代</span>}
-                              </div>
-                              <div className="text-[9px] text-gray-400 tabular-nums">{fmtBidTime(b.createdAt)}</div>
+                            <div className="flex-1 min-w-0 flex items-center gap-1 overflow-hidden">
+                              <span className={`text-[11px] shrink-0 max-w-[60px] truncate ${idx === 0 ? "font-semibold text-amber-800" : "text-gray-600"}`}>
+                                {b.bidderName}
+                              </span>
+                              {b.isProxy && <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1 rounded shrink-0">代</span>}
+                              <span className="text-[9px] text-gray-400 tabular-nums shrink-0">{fmtBidTime(b.createdAt)}</span>
                             </div>
                             <span className={`text-[11px] tabular-nums shrink-0 font-bold ${idx === 0 ? "text-amber-600" : "text-gray-500"}`}>
                               {displayPrice(b.amount)}
