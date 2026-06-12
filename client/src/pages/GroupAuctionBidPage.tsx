@@ -167,6 +167,22 @@ export default function GroupAuctionBidPage() {
   const imageMap = new Map(roundImages.map((img: any) => [img.id as number, img.url as string]));
   const roundCountdown = useCountdown(round?.endAt as string | null | undefined);
 
+  // 場主專用：出價紀錄
+  const isOwner = !!(user && round && user.id === (round as any).merchantUserId);
+  const { data: merchantBidsData } = trpc.groupAuctions.getMerchantBids.useQuery(
+    { roundId },
+    { enabled: isOwner && !isNaN(roundId), refetchInterval: 5000 }
+  );
+  const bidsByItem = useMemo(() => {
+    const map = new Map<number, { id: number; amount: number; bidderName: string; isProxy: boolean }[]>();
+    if (!merchantBidsData) return map;
+    for (const b of merchantBidsData) {
+      if (!map.has(b.itemId)) map.set(b.itemId, []);
+      map.get(b.itemId)!.push(b);
+    }
+    return map;
+  }, [merchantBidsData]);
+
   const promoImagesJson = (round as any)?.promoImagesJson ?? "[]";
   const promoUrls = useMemo(() => {
     try { const arr: any[] = JSON.parse(promoImagesJson); return arr.map((x: any) => typeof x === "string" ? x : x?.url ?? "").filter(Boolean).slice(0, 10); } catch { return []; }
@@ -766,6 +782,32 @@ export default function GroupAuctionBidPage() {
                     }
                   </p>
                 )}
+
+                {/* 場主專用：出價紀錄 */}
+                {isOwner && (() => {
+                  const itemBids = bidsByItem.get(item.id) ?? [];
+                  if (itemBids.length === 0) return null;
+                  return (
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                      <p className="text-[10px] font-semibold text-gray-400 mb-1">出價紀錄（{itemBids.length} 口）</p>
+                      <div className="flex flex-col gap-[3px]">
+                        {itemBids.slice(0, 5).map((b, idx) => (
+                          <div key={b.id} className="flex items-center justify-between gap-2">
+                            <span className={`text-[11px] truncate max-w-[120px] ${idx === 0 ? "font-semibold text-amber-600" : "text-gray-500"}`}>
+                              {idx === 0 ? "👑 " : ""}{b.bidderName}{b.isProxy ? " (代)" : ""}
+                            </span>
+                            <span className={`text-[11px] tabular-nums shrink-0 ${idx === 0 ? "font-bold text-amber-600" : "text-gray-400"}`}>
+                              {displayPrice(b.amount)}
+                            </span>
+                          </div>
+                        ))}
+                        {itemBids.length > 5 && (
+                          <p className="text-[10px] text-gray-400 mt-[2px]">...還有 {itemBids.length - 5} 口</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* 自訂出價展開 */}

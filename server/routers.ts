@@ -11054,6 +11054,36 @@ EXAMPLE OUTPUT (exact format):
         return { round: roundWithMerchant, items: itemsWithBids, images };
       }),
 
+    /** 場主專用：查閱全場所有商品出價紀錄 */
+    getMerchantBids: protectedProcedure
+      .input(z.object({ roundId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select({ merchantUserId: groupAuctionRounds.merchantUserId })
+          .from(groupAuctionRounds).where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id) throw new TRPCError({ code: 'FORBIDDEN', message: '非場主' });
+        const allBids = await db.select().from(groupAuctionBids)
+          .where(eq(groupAuctionBids.roundId, input.roundId))
+          .orderBy(asc(groupAuctionBids.itemId), desc(groupAuctionBids.amount), desc(groupAuctionBids.id));
+        const realUserIds = [...new Set(allBids.filter(b => b.isProxy === 0).map(b => b.userId))];
+        const { users: usersT } = await import('../drizzle/schema');
+        const { inArray: inArr } = await import('drizzle-orm');
+        const nameMap = new Map<number, string>();
+        if (realUserIds.length > 0) {
+          const rows = await db.select({ id: usersT.id, name: usersT.name }).from(usersT).where(inArr(usersT.id, realUserIds));
+          rows.forEach(r => nameMap.set(r.id, r.name ?? `用戶${r.id}`));
+        }
+        return allBids.map(b => ({
+          id: b.id,
+          itemId: b.itemId,
+          amount: b.amount,
+          isProxy: b.isProxy === 1,
+          bidderName: b.isProxy === 1 ? ((b as any).proxyName ?? '代出價') : (nameMap.get(b.userId) ?? `用戶${b.userId}`),
+          createdAt: b.createdAt,
+        }));
+      }),
+
     /** 公開（需登入）：出價 */
     placeBid: protectedProcedure
       .input(z.object({
