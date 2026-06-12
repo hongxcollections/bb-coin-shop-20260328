@@ -760,7 +760,7 @@ export default function GroupAuctionBidPage() {
                       <button
                         onClick={() => setBiddingItem(isExpanded ? null : item.id)}
                         className="flex flex-col items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-md self-stretch px-1"
-                        style={{ fontSize: 10, fontWeight: 600, minWidth: "1.4rem", gap: 1 }}
+                        style={{ fontSize: 10, fontWeight: 700, minWidth: "1.4rem", gap: 1 }}
                       >
                         {"自定出價".split("").map((c, i) => <span key={i} style={{ lineHeight: 1.1 }}>{c}</span>)}
                       </button>
