@@ -594,7 +594,14 @@ export default function GroupAuctionList() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const confirm = useConfirm();
-  const [activeTab, setActiveTab] = useState<"published" | "draft" | "ended" | "archived">("published");
+  const [activeTab, setActiveTab] = useState<"published" | "draft" | "ended" | "archived">(() => {
+    const saved = sessionStorage.getItem("groupAuctionListTab");
+    return (["published", "draft", "ended", "archived"] as const).includes(saved as any) ? saved as any : "published";
+  });
+  const changeTab = (tab: "published" | "draft" | "ended" | "archived") => {
+    setActiveTab(tab);
+    sessionStorage.setItem("groupAuctionListTab", tab);
+  };
   const [posterRound, setPosterRound] = useState<any | null>(null);
   const [commissionRound, setCommissionRound] = useState<any | null>(null);
   const [platformCommissionRound, setPlatformCommissionRound] = useState<any | null>(null);
@@ -685,7 +692,7 @@ export default function GroupAuctionList() {
             return (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => changeTab(tab)}
                 className={`flex-1 text-xs py-1.5 rounded-lg font-medium transition-colors ${
                   activeTab === tab ? "bg-white text-amber-700 shadow-sm" : "text-gray-500"
                 }`}
