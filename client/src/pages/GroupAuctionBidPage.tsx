@@ -730,11 +730,7 @@ export default function GroupAuctionBidPage() {
                     <div className="flex gap-1.5 flex-shrink-0">
                       {(item as any).buyNowPrice != null && (
                         <button
-                          onClick={() => {
-                            if (!isAuthenticated) { toast.error("請先登入才可出價"); setLocation(`/login?from=${encodeURIComponent(location)}`); return; }
-                            if (user && round && user.id === (round as any).merchantUserId) { toast.error("商戶不可為自己的場次出價"); return; }
-                            setBidConfirm({ itemId: item.id, amount: (item as any).buyNowPrice, title: title ?? "", lotNumber, isBuyNow: true });
-                          }}
+                          onClick={() => setBidConfirm({ itemId: item.id, amount: (item as any).buyNowPrice, title: title ?? "", lotNumber, isBuyNow: true })}
                           disabled={placeBidMut.isPending}
                           className="text-white text-xs font-bold px-2 py-2 rounded-xl"
                           style={{ background: "linear-gradient(135deg,#dc2626,#b91c1c)" }}
