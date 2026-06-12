@@ -168,6 +168,11 @@ export default function GroupAuctionEdit() {
   const [invoicePreviewUrl, setInvoicePreviewUrl] = useState<string | null>(null);
   const [invoicePreviewFilename, setInvoicePreviewFilename] = useState("");
 
+  // ── 重拍 state ──
+  const [relistMode, setRelistMode] = useState<"auction" | "product" | null>(null);
+  const [relistSelectedIds, setRelistSelectedIds] = useState<Set<number>>(new Set());
+  const [relistSheet, setRelistSheet] = useState(false);
+
   // ── 基本設定 state ──
   const [basic, setBasic] = useState({
     title: "",
@@ -300,6 +305,27 @@ export default function GroupAuctionEdit() {
       refetch();
     },
     onError: (e) => toast.error(e.message || "批量刪除失敗"),
+  });
+  const relistAsGroupDraftMut = trpc.groupAuctions.relistAsGroupDraft.useMutation({
+    onSuccess: (d) => {
+      toast.success(`已複製為新草稿，共 ${d.itemCount} 件商品`);
+      setRelistSheet(false);
+    },
+    onError: (e) => toast.error(e.message || "操作失敗"),
+  });
+  const relistAsAuctionDraftsMut = trpc.groupAuctions.relistAsAuctionDrafts.useMutation({
+    onSuccess: (d) => {
+      toast.success(`已複製 ${d.created} 件至拍賣草稿`);
+      setRelistMode(null); setRelistSelectedIds(new Set()); setRelistSheet(false);
+    },
+    onError: (e) => toast.error(e.message || "操作失敗"),
+  });
+  const relistAsProductDraftsMut = trpc.groupAuctions.relistAsProductDrafts.useMutation({
+    onSuccess: (d) => {
+      toast.success(`已複製 ${d.created} 件至商品管理草稿`);
+      setRelistMode(null); setRelistSelectedIds(new Set()); setRelistSheet(false);
+    },
+    onError: (e) => toast.error(e.message || "操作失敗"),
   });
   const merchantProxyBidMut = trpc.groupAuctions.merchantProxyBid.useMutation({
     onSuccess: (r, vars) => {
@@ -2178,27 +2204,61 @@ export default function GroupAuctionEdit() {
 
               {/* Controls */}
               <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  onClick={() => setResultSortDir(d => d === "desc" ? "asc" : "desc")}
-                  className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg"
-                >
-                  成交價：{resultSortDir === "desc" ? "高→低" : "低→高"}
-                </button>
-                <button
-                  onClick={() => recalcResultsMut.mutate({ id: round.id })}
-                  disabled={recalcResultsMut.isPending}
-                  className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg disabled:opacity-50"
-                >
-                  {recalcResultsMut.isPending ? "修正中…" : "重新計算結果"}
-                </button>
-                <div className="ml-auto flex items-center gap-2">
-                  <button
-                    onClick={() => setShowAllInvoice(true)}
-                    className="flex items-center gap-1 text-xs bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1.5 rounded-xl"
-                  >
-                    <Download className="w-3 h-3" /> 全場成交單
-                  </button>
-                </div>
+                {relistMode === null ? (
+                  <>
+                    <button
+                      onClick={() => setResultSortDir(d => d === "desc" ? "asc" : "desc")}
+                      className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg"
+                    >
+                      成交價：{resultSortDir === "desc" ? "高→低" : "低→高"}
+                    </button>
+                    <button
+                      onClick={() => recalcResultsMut.mutate({ id: round.id })}
+                      disabled={recalcResultsMut.isPending}
+                      className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg disabled:opacity-50"
+                    >
+                      {recalcResultsMut.isPending ? "修正中…" : "重新計算結果"}
+                    </button>
+                    <div className="ml-auto flex items-center gap-2">
+                      <button
+                        onClick={() => setShowAllInvoice(true)}
+                        className="flex items-center gap-1 text-xs bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1.5 rounded-xl"
+                      >
+                        <Download className="w-3 h-3" /> 全場成交單
+                      </button>
+                      <button
+                        onClick={() => setRelistSheet(true)}
+                        className="flex items-center gap-1 text-xs bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-xl font-medium"
+                      >
+                        重拍
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => { setRelistMode(null); setRelistSelectedIds(new Set()); }}
+                      className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg"
+                    >
+                      取消選擇
+                    </button>
+                    <button
+                      onClick={() => {
+                        const allIds = [...soldItems, ...unsoldItems].map((it: any) => it.id as number);
+                        const allSelected = allIds.every(id => relistSelectedIds.has(id));
+                        if (allSelected) {
+                          setRelistSelectedIds(new Set());
+                        } else {
+                          setRelistSelectedIds(new Set(allIds));
+                        }
+                      }}
+                      className="text-xs bg-orange-50 hover:bg-orange-100 text-orange-700 px-3 py-1.5 rounded-lg"
+                    >
+                      {[...soldItems, ...unsoldItems].every((it: any) => relistSelectedIds.has(it.id)) ? "取消全選" : "全選"}
+                    </button>
+                    <span className="text-xs text-gray-500">已選 {relistSelectedIds.size} 件</span>
+                  </>
+                )}
               </div>
 
               {/* Sold items — accordion per buyer */}
@@ -2225,8 +2285,25 @@ export default function GroupAuctionEdit() {
                         const itemColVals = showCols
                           .filter(c => c.role !== "startPrice" && d[c.key] != null && d[c.key] !== "")
                           .map(c => d[c.key]);
+                        const itemId = (it as any).id as number;
+                        const isChecked = relistSelectedIds.has(itemId);
                         return (
-                          <div key={(it as any).id} className="flex items-center gap-2 px-3 py-2 text-xs min-w-0 bg-white rounded-lg">
+                          <div
+                            key={itemId}
+                            className={`flex items-center gap-2 px-3 py-2 text-xs min-w-0 bg-white rounded-lg ${relistMode ? "cursor-pointer" : ""} ${relistMode && isChecked ? "ring-1 ring-orange-400" : ""}`}
+                            onClick={relistMode ? () => {
+                              setRelistSelectedIds(prev => {
+                                const next = new Set(prev);
+                                if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
+                                return next;
+                              });
+                            } : undefined}
+                          >
+                            {relistMode && (
+                              <span className={`flex-shrink-0 w-4 h-4 rounded border ${isChecked ? "bg-orange-500 border-orange-500" : "border-gray-300"} flex items-center justify-center`}>
+                                {isChecked && <Check className="w-2.5 h-2.5 text-white" />}
+                              </span>
+                            )}
                             <span className="text-gray-400 font-mono w-5 flex-shrink-0 text-right">{(it as any).displayOrder + 1}</span>
                             <span className="flex-1 min-w-0 text-gray-700 truncate">{itemColVals.join(" · ") || "—"}</span>
                             {showBuyer && (
@@ -2305,8 +2382,25 @@ export default function GroupAuctionEdit() {
                     {unsoldItems.map(it => {
                       const d = parseData(it);
                       const startPrice = (it as any).startPrice ?? 0;
+                      const itemId = (it as any).id as number;
+                      const isChecked = relistSelectedIds.has(itemId);
                       return (
-                        <div key={(it as any).id} className="flex items-center gap-2 px-3 py-2 text-xs min-w-0 bg-white rounded-lg opacity-60">
+                        <div
+                          key={itemId}
+                          className={`flex items-center gap-2 px-3 py-2 text-xs min-w-0 bg-white rounded-lg opacity-60 ${relistMode ? "cursor-pointer !opacity-100" : ""} ${relistMode && isChecked ? "ring-1 ring-orange-400" : ""}`}
+                          onClick={relistMode ? () => {
+                            setRelistSelectedIds(prev => {
+                              const next = new Set(prev);
+                              if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
+                              return next;
+                            });
+                          } : undefined}
+                        >
+                          {relistMode && (
+                            <span className={`flex-shrink-0 w-4 h-4 rounded border ${isChecked ? "bg-orange-500 border-orange-500" : "border-gray-300"} flex items-center justify-center`}>
+                              {isChecked && <Check className="w-2.5 h-2.5 text-white" />}
+                            </span>
+                          )}
                           <span className="text-gray-400 font-mono w-5 flex-shrink-0 text-right">{(it as any).displayOrder + 1}</span>
                           <span className="flex-1 min-w-0 text-gray-600 truncate">
                             {showCols.filter(c => c.role !== "startPrice" && d[c.key] != null && d[c.key] !== "").map(c => d[c.key]).join(" · ") || "—"}
@@ -2315,6 +2409,104 @@ export default function GroupAuctionEdit() {
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* 重拍選擇確認 bar */}
+              {relistMode !== null && (
+                <div
+                  style={{
+                    position: "fixed",
+                    bottom: 60,
+                    left: 0,
+                    right: 0,
+                    zIndex: 50,
+                    background: "#fff",
+                    borderTop: "1px solid #e5e7eb",
+                    padding: "12px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    boxShadow: "0 -4px 12px rgba(0,0,0,0.08)",
+                  }}
+                >
+                  <span className="text-sm text-gray-600 flex-1">
+                    已選 <span className="font-bold text-orange-600">{relistSelectedIds.size}</span> 件
+                  </span>
+                  <button
+                    onClick={() => { setRelistMode(null); setRelistSelectedIds(new Set()); }}
+                    className="text-xs text-gray-500 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200"
+                  >
+                    取消
+                  </button>
+                  <button
+                    disabled={relistSelectedIds.size === 0 || relistAsAuctionDraftsMut.isPending || relistAsProductDraftsMut.isPending}
+                    onClick={() => {
+                      if (relistSelectedIds.size === 0) { toast.error("請先選擇商品"); return; }
+                      const ids = [...relistSelectedIds];
+                      if (relistMode === "auction") {
+                        relistAsAuctionDraftsMut.mutate({ roundId: roundId!, itemIds: ids });
+                      } else {
+                        relistAsProductDraftsMut.mutate({ roundId: roundId!, itemIds: ids });
+                      }
+                    }}
+                    className="text-xs text-white px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-50 font-medium"
+                  >
+                    {relistAsAuctionDraftsMut.isPending || relistAsProductDraftsMut.isPending ? "處理中…" : (
+                      relistMode === "auction" ? "加入拍賣草稿" : "加入商品草稿"
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* 重拍選項 bottom sheet */}
+              {relistSheet && (
+                <div
+                  style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,0.4)" }}
+                  onClick={() => setRelistSheet(false)}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      background: "#fff",
+                      borderRadius: "20px 20px 0 0",
+                      padding: "20px 16px 32px",
+                    }}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+                    <p className="text-sm font-bold text-gray-800 mb-4">重拍 — 選擇操作</p>
+                    <div className="space-y-3">
+                      <button
+                        disabled={relistAsGroupDraftMut.isPending}
+                        onClick={() => relistAsGroupDraftMut.mutate({ roundId: roundId! })}
+                        className="w-full text-left px-4 py-3.5 rounded-xl border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        <p className="text-sm font-semibold text-gray-800">
+                          {relistAsGroupDraftMut.isPending ? "複製中…" : "重新上拍（整場）"}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5">將整場資料（包括所有商品及圖片）複製為新草稿</p>
+                      </button>
+                      <button
+                        onClick={() => { setRelistMode("auction"); setRelistSheet(false); setRelistSelectedIds(new Set()); }}
+                        className="w-full text-left px-4 py-3.5 rounded-xl border border-gray-200 hover:bg-gray-50"
+                      >
+                        <p className="text-sm font-semibold text-gray-800">拍賣商品</p>
+                        <p className="text-xs text-gray-400 mt-0.5">選定商品複製至商戶後台「拍賣草稿」</p>
+                      </button>
+                      <button
+                        onClick={() => { setRelistMode("product"); setRelistSheet(false); setRelistSelectedIds(new Set()); }}
+                        className="w-full text-left px-4 py-3.5 rounded-xl border border-gray-200 hover:bg-gray-50"
+                      >
+                        <p className="text-sm font-semibold text-gray-800">出售商品</p>
+                        <p className="text-xs text-gray-400 mt-0.5">選定商品複製至商戶後台「商品管理草稿」</p>
+                      </button>
+                    </div>
+                    <button onClick={() => setRelistSheet(false)} className="mt-4 w-full py-3 text-sm text-gray-400 hover:text-gray-600">取消</button>
                   </div>
                 </div>
               )}

@@ -415,6 +415,11 @@ async function bootstrapMissingColumns() {
       'Added privateNote to merchantProducts'
     );
   }
+  // 擴展 merchantProducts.status enum 加入 draft
+  await alter(
+    `ALTER TABLE \`merchantProducts\` MODIFY COLUMN \`status\` enum('active','sold','hidden','draft') NOT NULL DEFAULT 'active'`,
+    'Extended merchantProducts status enum to include draft'
+  );
 
   // 訊息表情 reaction
   await alter(`CREATE TABLE IF NOT EXISTS \`auctionChatMessageReactions\` (

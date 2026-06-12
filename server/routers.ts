@@ -11429,6 +11429,202 @@ EXAMPLE OUTPUT (exact format):
         }).where(eq(groupAuctionItems.id, bid.itemId));
         return { success: true, itemId: bid.itemId };
       }),
+
+    // ── 重拍：整場複製為草稿 ──────────────────────────────────────────────────
+    relistAsGroupDraft: protectedProcedure
+      .input(z.object({ roundId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id)
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+
+        // 複製場次（status=draft，清除日期）
+        const [newRoundResult] = await db.insert(groupAuctionRounds).values({
+          merchantUserId: round.merchantUserId,
+          title: round.title,
+          periodNumber: round.periodNumber ?? undefined,
+          description: round.description ?? undefined,
+          coverImage: round.coverImage ?? undefined,
+          antiSnipeMinutes: round.antiSnipeMinutes,
+          antiSnipeExtendMinutes: round.antiSnipeExtendMinutes,
+          antiSnipeMode: round.antiSnipeMode,
+          minDurationMinutes: round.minDurationMinutes,
+          defaultBidIncrement: round.defaultBidIncrement,
+          buyerCommissionRate: round.buyerCommissionRate as any,
+          status: 'draft',
+          columnTemplateId: round.columnTemplateId ?? undefined,
+          columnsJson: round.columnsJson ?? undefined,
+          displayCurrencies: round.displayCurrencies,
+          promoImagesJson: round.promoImagesJson ?? undefined,
+          colorRulesJson: round.colorRulesJson ?? undefined,
+        });
+        const newRoundId = (newRoundResult as any).insertId as number;
+
+        // 複製圖片，建立 old_id → new_id 對應
+        const oldImages = await db.select().from(groupAuctionImages)
+          .where(eq(groupAuctionImages.roundId, input.roundId));
+        const imageIdMap = new Map<number, number>();
+        for (const img of oldImages) {
+          const [imgResult] = await db.insert(groupAuctionImages).values({
+            roundId: newRoundId,
+            s3Key: img.s3Key,
+            url: img.url,
+            displayOrder: img.displayOrder,
+          });
+          imageIdMap.set(img.id, (imgResult as any).insertId as number);
+        }
+
+        // 複製商品（重設 status=active，清除 winnerId/finalPrice）
+        const oldItems = await db.select().from(groupAuctionItems)
+          .where(eq(groupAuctionItems.roundId, input.roundId));
+        for (const item of oldItems) {
+          let newImageIdsJson = item.imageIdsJson;
+          if (item.imageIdsJson) {
+            try {
+              const oldIds: number[] = JSON.parse(item.imageIdsJson);
+              newImageIdsJson = JSON.stringify(oldIds.map(oid => imageIdMap.get(oid) ?? oid));
+            } catch {}
+          }
+          await db.insert(groupAuctionItems).values({
+            roundId: newRoundId,
+            displayOrder: item.displayOrder,
+            dataJson: item.dataJson,
+            imageIdsJson: newImageIdsJson ?? undefined,
+            startPrice: item.startPrice,
+            bidIncrement: item.bidIncrement,
+            buyNowPrice: item.buyNowPrice ?? undefined,
+            status: 'active',
+          });
+        }
+        return { newRoundId, itemCount: oldItems.length };
+      }),
+
+    // ── 重拍：選定商品複製至商戶拍賣草稿 ────────────────────────────────────
+    relistAsAuctionDrafts: protectedProcedure
+      .input(z.object({
+        roundId: z.number().int().positive(),
+        itemIds: z.array(z.number().int().positive()).min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id)
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+
+        let columnsJson: any[] = [];
+        try { columnsJson = JSON.parse(round.columnsJson ?? '[]'); } catch {}
+        const titleCol = columnsJson.find((c: any) => c.role === 'itemTitle');
+        const titleKey = titleCol?.key ?? 'name';
+
+        const { inArray } = await import('drizzle-orm');
+        const selectedItems = await db.select().from(groupAuctionItems)
+          .where(inArray(groupAuctionItems.id, input.itemIds));
+
+        const allImages = await db.select().from(groupAuctionImages)
+          .where(eq(groupAuctionImages.roundId, input.roundId));
+        const imageMap = new Map(allImages.map(img => [img.id, img]));
+
+        const endTime = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        let createdCount = 0;
+
+        for (const item of selectedItems) {
+          let data: Record<string, any> = {};
+          try { data = JSON.parse(item.dataJson ?? '{}'); } catch {}
+          const title = (data[titleKey] as string) || `商品 #${item.displayOrder + 1}`;
+
+          let imageIds: number[] = [];
+          try { imageIds = JSON.parse(item.imageIdsJson ?? '[]'); } catch {}
+          const imageUrls = imageIds.map(id => imageMap.get(id)?.url).filter(Boolean) as string[];
+
+          const newAuction = await createAuction({
+            title,
+            description: null,
+            startingPrice: item.startPrice.toFixed(2) as any,
+            currentPrice: item.startPrice.toFixed(2) as any,
+            highestBidderId: null,
+            endTime,
+            status: 'draft',
+            bidIncrement: item.bidIncrement || round.defaultBidIncrement,
+            currency: 'HKD',
+            createdBy: ctx.user.id,
+            antiSnipeEnabled: 1,
+            antiSnipeMinutes: 3,
+            extendMinutes: 3,
+            archived: 0,
+          });
+
+          for (let i = 0; i < imageUrls.length; i++) {
+            try { await addAuctionImage({ auctionId: newAuction.id, imageUrl: imageUrls[i], displayOrder: i }); } catch {}
+          }
+          createdCount++;
+        }
+        return { created: createdCount };
+      }),
+
+    // ── 重拍：選定商品複製至商戶商品管理草稿 ─────────────────────────────────
+    relistAsProductDrafts: protectedProcedure
+      .input(z.object({
+        roundId: z.number().int().positive(),
+        itemIds: z.array(z.number().int().positive()).min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(eq(groupAuctionRounds.id, input.roundId)).limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND', message: '場次不存在' });
+        if (round.merchantUserId !== ctx.user.id)
+          throw new TRPCError({ code: 'FORBIDDEN', message: '不是你的場次' });
+
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (!app || app.status !== 'approved')
+          throw new TRPCError({ code: 'FORBIDDEN', message: '只限商戶會員' });
+
+        let columnsJson: any[] = [];
+        try { columnsJson = JSON.parse(round.columnsJson ?? '[]'); } catch {}
+        const titleCol = columnsJson.find((c: any) => c.role === 'itemTitle');
+        const titleKey = titleCol?.key ?? 'name';
+
+        const { inArray } = await import('drizzle-orm');
+        const selectedItems = await db.select().from(groupAuctionItems)
+          .where(inArray(groupAuctionItems.id, input.itemIds));
+
+        const allImages = await db.select().from(groupAuctionImages)
+          .where(eq(groupAuctionImages.roundId, input.roundId));
+        const imageMap = new Map(allImages.map(img => [img.id, img]));
+
+        let createdCount = 0;
+        for (const item of selectedItems) {
+          let data: Record<string, any> = {};
+          try { data = JSON.parse(item.dataJson ?? '{}'); } catch {}
+          const title = (data[titleKey] as string) || `商品 #${item.displayOrder + 1}`;
+
+          let imageIds: number[] = [];
+          try { imageIds = JSON.parse(item.imageIdsJson ?? '[]'); } catch {}
+          const imageUrls = imageIds.map(id => imageMap.get(id)?.url).filter(Boolean) as string[];
+
+          await db.insert(merchantProductsTable).values({
+            merchantId: ctx.user.id,
+            merchantName: app.merchantName,
+            merchantIcon: app.merchantIcon ?? null,
+            whatsapp: app.whatsapp ?? null,
+            title,
+            description: null,
+            price: item.startPrice.toFixed(2) as any,
+            currency: 'HKD',
+            images: imageUrls.length > 0 ? JSON.stringify(imageUrls) : null,
+            stock: 1,
+            status: 'draft' as any,
+          });
+          createdCount++;
+        }
+        return { created: createdCount };
+      }),
+
   }),
 
   // ─── Silver Valuation Tool ─────────────────────────────────────────────────

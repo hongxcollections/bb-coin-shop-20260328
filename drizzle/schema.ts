@@ -449,7 +449,7 @@ export const merchantProducts = mysqlTable("merchantProducts", {
   stock: int("stock").default(1).notNull(),
   allowOffers: int("allowOffers").default(1).notNull(),
   privateNote: text("privateNote"),
-  status: mysqlEnum("status", ["active", "sold", "hidden"]).default("active").notNull(),
+  status: mysqlEnum("status", ["active", "sold", "hidden", "draft"]).default("active").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

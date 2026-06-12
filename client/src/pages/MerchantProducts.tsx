@@ -26,11 +26,12 @@ import { DEFAULT_CATEGORIES } from "@/lib/categories";
 import { ProductShareMenu } from "@/components/ShareMenu";
 
 type LayoutMode = "list" | "grid2" | "grid3" | "big";
-const STATUS_LABELS: Record<string, string> = { active: "上架中", sold: "已售出", hidden: "已下架" };
+const STATUS_LABELS: Record<string, string> = { active: "上架中", sold: "已售出", hidden: "已下架", draft: "草稿" };
 const STATUS_COLORS: Record<string, string> = {
   active: "bg-green-100 text-green-700",
   sold: "bg-gray-100 text-gray-500",
   hidden: "bg-yellow-100 text-yellow-700",
+  draft: "bg-orange-100 text-orange-700",
 };
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -887,7 +888,7 @@ export default function MerchantProducts() {
   const [layout, setLayout] = useState<LayoutMode>(() => {
     return (localStorage.getItem("mp_layout") as LayoutMode) ?? "list";
   });
-  const [productTab, setProductTab] = useState<"active" | "hidden" | "sold">("active");
+  const [productTab, setProductTab] = useState<"active" | "hidden" | "sold" | "draft">("active");
   const [productBatchShareOpen, setProductBatchShareOpen] = useState(false);
   const [productCopiedIds, setProductCopiedIds] = useState<Set<number>>(new Set());
   const [productSelectedShareIds, setProductSelectedShareIds] = useState<Set<number>>(new Set());
@@ -1476,6 +1477,7 @@ export default function MerchantProducts() {
               { key: "active", label: "已上架", count: (products as any[]).filter((p: any) => p.status === "active").length },
               { key: "hidden", label: "已下架", count: (products as any[]).filter((p: any) => p.status === "hidden").length },
               { key: "sold", label: "已售出", count: (products as any[]).filter((p: any) => p.status === "sold").length },
+              { key: "draft", label: "草稿", count: (products as any[]).filter((p: any) => p.status === "draft").length },
             ] as const).map(({ key, label, count }) => (
               <button
                 key={key}
@@ -1559,9 +1561,10 @@ export default function MerchantProducts() {
               const isActive = p.status === "active";
               const isHidden = p.status === "hidden";
               const isSold = p.status === "sold";
+              const isDraft = p.status === "draft";
               const isFeatured = activeFeaturedIds.has(p.id);
               const queued = queuedFeaturedMap.get(p.id);
-              const accentColor = isActive ? "bg-green-500" : isSold ? "bg-gray-400" : "bg-yellow-400";
+              const accentColor = isActive ? "bg-green-500" : isSold ? "bg-gray-400" : isDraft ? "bg-orange-400" : "bg-yellow-400";
               const categories: string[] = p.category ? (p.category.includes("|") ? p.category.split("|") : [p.category]).map((c: string) => c.trim()) : [];
               return (
                 <div key={p.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex">
@@ -1670,15 +1673,26 @@ export default function MerchantProducts() {
                           </button>
                         </>
                       )}
+                      {isDraft && (
+                        <button
+                          onClick={() => updateStatus.mutateAsync({ id: p.id, status: "active" }).then(() => toast.success("商品已上架"))}
+                          disabled={updateStatus.isPending}
+                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 font-medium"
+                        >
+                          <Eye className="w-3 h-3" />上架
+                        </button>
+                      )}
                       <button
                         onClick={() => setDeleteTarget({ id: p.id, title: p.title, img: imgs[0], price: parseFloat(p.price ?? "0"), currency: p.currency ?? "HKD" })}
                         className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors font-medium"
                       >
                         <Trash2 className="w-3 h-3" />拆除
                       </button>
-                      <div onClick={e => e.stopPropagation()}>
-                        <ProductShareMenu productId={p.id} title={p.title} price={parseFloat(p.price ?? "0")} currency={p.currency} iconOnly />
-                      </div>
+                      {!isDraft && (
+                        <div onClick={e => e.stopPropagation()}>
+                          <ProductShareMenu productId={p.id} title={p.title} price={parseFloat(p.price ?? "0")} currency={p.currency} iconOnly />
+                        </div>
+                      )}
                       <button onClick={() => startEdit(p)} className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors font-medium">
                         <Pencil className="w-3 h-3" />編輯
                       </button>
