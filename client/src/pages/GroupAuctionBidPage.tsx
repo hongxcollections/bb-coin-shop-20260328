@@ -829,7 +829,7 @@ export default function GroupAuctionBidPage() {
               {/* 自訂出價展開 */}
               {isExpanded && isActive && (
                 <div className="border-t border-gray-50 px-3 pb-3 pt-2">
-                  <p className="text-xs text-gray-500 mb-2">自訂出價（最少 {currSym}{nextBidInCurr}）</p>
+                  <p className="text-xs text-gray-500 mb-2">自定出價（最少 {currSym}{nextBidInCurr}）</p>
                   <div className="flex gap-2">
                     <input
                       className="flex-1 px-3 py-2 text-sm outline-none"
