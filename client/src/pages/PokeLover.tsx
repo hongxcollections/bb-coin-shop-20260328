@@ -23,6 +23,9 @@ type PokeResult = {
   psa9HKD?: number | null;
   psa10HKD?: number | null;
   gradeEstimate?: number | null;
+  bgsEstimate?: number | null;
+  cgcEstimate?: number | null;
+  tagEstimate?: number | null;
   worthGrading?: boolean;
   ebaySearchQuery?: string;
   funFact?: string;
@@ -627,29 +630,46 @@ export default function PokeLover() {
               })}
             </div>
 
-            {/* PSA 評級快速參考 */}
+            {/* 四大評級機構對照 */}
             <div className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
               <div className="flex items-center gap-2 mb-3">
                 <Star className="w-3.5 h-3.5" style={{ color: "#FFDE00" }} />
-                <p className="text-xs font-bold" style={{ color: "rgba(255,222,0,0.7)" }}>PSA 評級快速參考</p>
+                <p className="text-xs font-bold" style={{ color: "rgba(255,222,0,0.7)" }}>四大評級機構對照</p>
               </div>
-              {[
-                { grade: 10, label: "Gem Mint", desc: "完美無瑕，四角銳利，表面無任何痕跡", color: "#9C27B0" },
-                { grade: 9,  label: "Mint",     desc: "接近完美，只允許極細微印刷缺陷",     color: "#2196F3" },
-                { grade: 8,  label: "NM-Mint",  desc: "輕微邊角磨損或細微表面痕跡",         color: "#4CAF50" },
-                { grade: 7,  label: "Near Mint", desc: "輕微磨損，整體狀態良好",             color: "#8BC34A" },
-                { grade: 6,  label: "Excellent-Mint", desc: "明顯但輕微的邊角磨損",          color: "#FFC107" },
-                { grade: 5,  label: "Excellent", desc: "中度磨損，適合普通收藏",             color: "#FF9800" },
-              ].map(({ grade, label, desc, color }) => (
-                <div key={grade} className="flex items-start gap-2.5 mb-2.5">
-                  <span className="text-xs font-black w-5 text-right flex-shrink-0 mt-0.5" style={{ color }}>{grade}</span>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-xs font-bold" style={{ color }}>{label}</span>
-                    <span className="text-xs ml-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>— {desc}</span>
+              {/* 機構標題 */}
+              <div className="grid grid-cols-5 gap-1 mb-2">
+                {[
+                  { name: "PSA",  color: "#9C27B0", note: "最普及" },
+                  { name: "BGS",  color: "#2196F3", note: "最嚴格" },
+                  { name: "CGC",  color: "#4CAF50", note: "新興" },
+                  { name: "TAG",  color: "#FF9800", note: "新興" },
+                ].map(({ name, color, note }) => (
+                  <div key={name} className="col-span-1 flex flex-col items-center">
+                    <span className="text-[10px] font-black" style={{ color }}>{name}</span>
+                    <span className="text-[8px]" style={{ color: "rgba(255,255,255,0.3)" }}>{note}</span>
                   </div>
+                ))}
+                <div className="col-span-1" />
+              </div>
+              {/* 對照行 */}
+              {[
+                { psa: 10, bgs: "9.5", cgc: 10,   tag: 10, label: "完美無瑕", color: "#9C27B0" },
+                { psa: 9,  bgs: "9",   cgc: "9.5", tag: 9,  label: "接近完美", color: "#2196F3" },
+                { psa: 8,  bgs: "8.5", cgc: 9,     tag: 8,  label: "輕微瑕疵", color: "#4CAF50" },
+                { psa: 7,  bgs: "8",   cgc: "8.5", tag: 7,  label: "輕微磨損", color: "#8BC34A" },
+                { psa: 6,  bgs: "7.5", cgc: 8,     tag: 6,  label: "明顯磨損", color: "#FFC107" },
+                { psa: 5,  bgs: "7",   cgc: "7.5", tag: 5,  label: "中度磨損", color: "#FF9800" },
+              ].map((row) => (
+                <div key={row.psa} className="grid grid-cols-5 gap-1 mb-1.5 items-center">
+                  {[row.psa, row.bgs, row.cgc, row.tag].map((v, i) => (
+                    <div key={i} className="flex items-center justify-center rounded py-1" style={{ background: `${row.color}18`, border: `1px solid ${row.color}33` }}>
+                      <span className="text-[11px] font-black" style={{ color: row.color }}>{v}</span>
+                    </div>
+                  ))}
+                  <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>{row.label}</span>
                 </div>
               ))}
-              <p className="text-[10px] mt-2" style={{ color: "rgba(255,255,255,0.25)" }}>* PSA 送評費約 HKD $420 起，建議 PSA 8+ 先送評</p>
+              <p className="text-[9px] mt-3" style={{ color: "rgba(255,255,255,0.2)" }}>* BGS 最嚴格，同張卡評分通常比 PSA 低 0.5–1 級　* 以上僅作參考，實際評分以各機構為準</p>
             </div>
           </div>
         )}
@@ -679,18 +699,30 @@ export default function PokeLover() {
 
             <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <p className="text-xs font-bold mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>品相評估</p>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-base font-black text-white">{result.condition ?? "—"}</p>
-                  {result.conditionNote && <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{result.conditionNote}</p>}
-                </div>
-                {result.gradeEstimate != null && (
-                  <div className="flex flex-col items-end gap-1">
-                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>估計 PSA 等級</p>
-                    <GradeBar grade={result.gradeEstimate} />
+              <p className="text-base font-black text-white">{result.condition ?? "—"}</p>
+              {result.conditionNote && <p className="text-xs mt-0.5 mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>{result.conditionNote}</p>}
+              {(result.gradeEstimate != null || result.bgsEstimate != null || result.cgcEstimate != null || result.tagEstimate != null) && (
+                <div className="mt-3">
+                  <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>估計評級</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { label: "PSA",  value: result.gradeEstimate, max: 10, color: "#9C27B0" },
+                      { label: "BGS",  value: result.bgsEstimate,   max: 10, color: "#2196F3" },
+                      { label: "CGC",  value: result.cgcEstimate,   max: 10, color: "#4CAF50" },
+                      { label: "TAG",  value: result.tagEstimate,   max: 10, color: "#FF9800" },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="flex flex-col items-center rounded-lg py-2" style={{ background: value != null ? `${color}18` : "rgba(255,255,255,0.03)", border: `1px solid ${value != null ? color + "44" : "rgba(255,255,255,0.06)"}` }}>
+                        <span className="text-[9px] font-bold mb-1" style={{ color: value != null ? color : "rgba(255,255,255,0.25)" }}>{label}</span>
+                        <span className="text-base font-black leading-none" style={{ color: value != null ? color : "rgba(255,255,255,0.2)" }}>
+                          {value != null ? value : "—"}
+                        </span>
+                        {value != null && <span className="text-[9px] mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>/10</span>}
+                      </div>
+                    ))}
                   </div>
-                )}
-              </div>
+                  {result.gradeEstimate != null && <GradeBar grade={result.gradeEstimate} />}
+                </div>
+              )}
             </div>
 
             <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,222,0,0.07)", border: "1px solid rgba(255,222,0,0.2)" }}>
