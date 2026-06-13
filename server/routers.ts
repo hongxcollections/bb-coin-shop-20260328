@@ -7293,8 +7293,9 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         };
 
         let lastErr = "";
+        let allRateLimited = true;
         for (const key of keys) {
-          for (const model of ["gemini-2.5-flash", "gemini-2.0-flash"]) {
+          for (const model of ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]) {
             try {
               const ctrl = new AbortController();
               const timer = setTimeout(() => ctrl.abort(), 35000);
@@ -7305,17 +7306,24 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
                 signal: ctrl.signal,
               });
               clearTimeout(timer);
+              if (resp.status === 429) { lastErr = "rate_limit"; continue; }
+              allRateLimited = false;
               if (!resp.ok) { lastErr = `${model}: HTTP ${resp.status}`; continue; }
+              allRateLimited = false;
               const json = await resp.json() as { choices: Array<{ message: { content: unknown } }> };
               const data = extractJson(json.choices?.[0]?.message?.content);
               if (data) return { success: true, data };
               lastErr = `${model}: 無有效 JSON`;
             } catch (e: unknown) {
+              allRateLimited = false;
               lastErr = e instanceof Error ? e.message.slice(0, 80) : String(e);
             }
           }
         }
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `AI 分析失敗：${lastErr}` });
+        const friendlyMsg = allRateLimited
+          ? "AI 使用量暫時超限，請等 1-2 分鐘後再試"
+          : `AI 分析失敗：${lastErr}`;
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: friendlyMsg });
       }),
   }),
 
