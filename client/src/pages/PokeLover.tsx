@@ -479,6 +479,7 @@ export default function PokeLover() {
   const [savedCardId, setSavedCardId] = useState<number | null>(null);
   const [savingCard, setSavingCard] = useState(false);
   const batchQueueRef = useRef<File[]>([]);
+  const processFileRef = useRef<((file: File) => void) | null>(null);
   const [batchTotal, setBatchTotal] = useState(0);
   const [batchDone, setBatchDone] = useState(0);
   const [batchSummary, setBatchSummary] = useState<{ name: string; value: number | null }[]>([]);
@@ -488,25 +489,24 @@ export default function PokeLover() {
   useEffect(() => { setHistory(loadHistory()); }, []);
 
   // Auto re-analyze: triggered from card collection "重新分析"
-  const hasReanalyzed = useRef(false);
+  // useEffect uses [] + processFileRef to avoid TDZ in production build
   useEffect(() => {
-    if (hasReanalyzed.current) return;
     const stored = localStorage.getItem("poke_reanalyze");
     if (!stored) return;
     try {
       const { imageThumb } = JSON.parse(stored) as { imageThumb?: string };
       if (!imageThumb) return;
       localStorage.removeItem("poke_reanalyze");
-      hasReanalyzed.current = true;
       fetch(imageThumb)
         .then(r => r.blob())
         .then(blob => {
           const file = new File([blob], "card.jpg", { type: blob.type || "image/jpeg" });
-          processFile(file);
+          processFileRef.current?.(file);
         })
         .catch(() => {});
     } catch {}
-  }, [processFile]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch FX rates for currency conversion
   useEffect(() => {
@@ -637,6 +637,7 @@ export default function PokeLover() {
     };
     img.src = objectUrl;
   }, [analyzeMut]);
+  processFileRef.current = processFile;
 
   const handleFile = useCallback((file: File) => {
     processFile(file);
