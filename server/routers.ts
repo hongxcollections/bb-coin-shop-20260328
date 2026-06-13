@@ -7321,7 +7321,7 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
             lastErr = e instanceof Error ? e.message.slice(0, 80) : String(e);
           }
         }
-        const friendlyMsg = rateLimitCount === attempts.length
+        const friendlyMsg = (lastErr === "rate_limit" || rateLimitCount === attempts.length)
           ? "AI 使用量暫時超限，請等 1-2 分鐘後再試"
           : `AI 分析失敗：${lastErr}`;
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: friendlyMsg });
