@@ -678,18 +678,18 @@ export default function PokeLover() {
   const handleSaveCard = useCallback(() => {
     if (!result || !isAuthenticated) return;
     setSavingCard(true);
-    // 縮細至 120×168 縮圖再儲存，避免 payload 過大
+    // 按比例壓縮：最長邊上限 600px，JPEG 0.75
     const makeThumbnail = (src: string): Promise<string> => new Promise((resolve) => {
       if (!src) { resolve(""); return; }
       const img = new window.Image();
       img.onload = () => {
-        const TW = 120, TH = 168;
-        const scale = Math.min(TW / img.width, TH / img.height, 1);
+        const MAX_LONG_EDGE = 600;
+        const scale = Math.min(MAX_LONG_EDGE / Math.max(img.width, img.height), 1);
         const c = document.createElement("canvas");
         c.width = Math.round(img.width * scale);
         c.height = Math.round(img.height * scale);
         c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-        resolve(c.toDataURL("image/jpeg", 0.7));
+        resolve(c.toDataURL("image/jpeg", 0.75));
       };
       img.onerror = () => resolve("");
       img.src = src;
