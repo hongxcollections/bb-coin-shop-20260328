@@ -521,7 +521,13 @@ export default function PokeCollection() {
 
               {/* C2 + delete action row */}
               <div className="flex gap-2">
-                <button onClick={() => { setSelectedCard(null); navigate("/pokemon"); }}
+                <button onClick={() => {
+                    if (selectedCard.imageThumb) {
+                      localStorage.setItem("poke_reanalyze", JSON.stringify({ imageThumb: selectedCard.imageThumb }));
+                    }
+                    setSelectedCard(null);
+                    navigate("/pokemon");
+                  }}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold"
                   style={{ background: "rgba(255,222,0,0.1)", border: "1px solid rgba(255,222,0,0.25)", color: "#FFDE00" }}>
                   <RefreshCw className="w-4 h-4" /> 重新分析

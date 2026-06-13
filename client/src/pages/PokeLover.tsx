@@ -487,6 +487,27 @@ export default function PokeLover() {
   // Load history from localStorage
   useEffect(() => { setHistory(loadHistory()); }, []);
 
+  // Auto re-analyze: triggered from card collection "重新分析"
+  const hasReanalyzed = useRef(false);
+  useEffect(() => {
+    if (hasReanalyzed.current) return;
+    const stored = localStorage.getItem("poke_reanalyze");
+    if (!stored) return;
+    try {
+      const { imageThumb } = JSON.parse(stored) as { imageThumb?: string };
+      if (!imageThumb) return;
+      localStorage.removeItem("poke_reanalyze");
+      hasReanalyzed.current = true;
+      fetch(imageThumb)
+        .then(r => r.blob())
+        .then(blob => {
+          const file = new File([blob], "card.jpg", { type: blob.type || "image/jpeg" });
+          processFile(file);
+        })
+        .catch(() => {});
+    } catch {}
+  }, [processFile]);
+
   // Fetch FX rates for currency conversion
   useEffect(() => {
     fetch("https://open.er-api.com/v6/latest/HKD")
