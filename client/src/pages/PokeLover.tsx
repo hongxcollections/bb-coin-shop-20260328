@@ -461,17 +461,41 @@ export default function PokeLover() {
   });
 
   const handleFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      setImagePreview(dataUrl);
-      setResult(null);
-      setIsAnalyzing(true);
-      const base64 = dataUrl.split(",")[1];
-      const mime = file.type || "image/jpeg";
-      analyzeMut.mutate({ imageBase64: base64, mimeType: mime });
+    setResult(null);
+    setIsAnalyzing(true);
+    const objectUrl = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const MAX = 800;
+      const { naturalWidth: ow, naturalHeight: oh } = img;
+      const scale = Math.min(1, MAX / Math.max(ow, oh));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(ow * scale);
+      canvas.height = Math.round(oh * scale);
+      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        if (!blob) { setIsAnalyzing(false); toast.error("圖片處理失敗，請重試", { className: "bb-toast-err" }); return; }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const dataUrl = e.target?.result as string;
+          setImagePreview(dataUrl);
+          analyzeMut.mutate({ imageBase64: dataUrl.split(",")[1], mimeType: "image/jpeg" });
+        };
+        reader.readAsDataURL(blob);
+      }, "image/jpeg", 0.78);
     };
-    reader.readAsDataURL(file);
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        setImagePreview(dataUrl);
+        analyzeMut.mutate({ imageBase64: dataUrl.split(",")[1], mimeType: file.type || "image/jpeg" });
+      };
+      reader.readAsDataURL(file);
+    };
+    img.src = objectUrl;
   };
 
   const rawPrice = parseInt(rawPriceInput, 10) || 0;

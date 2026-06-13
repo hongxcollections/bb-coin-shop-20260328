@@ -7292,21 +7292,29 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
           try { return JSON.parse(m[0]) as Record<string, unknown>; } catch { return null; }
         };
 
+        const OR = "https://openrouter.ai/api/v1/chat/completions";
+        type Attempt = { url: string; key: string; model: string; isOr?: boolean };
+        const attempts: Attempt[] = [];
+        for (const key of keys) {
+          attempts.push({ url: GG, key, model: "gemini-2.5-flash" });
+          attempts.push({ url: GG, key, model: "gemini-2.0-flash" });
+        }
+        if (ENV.openRouterApiKey) {
+          attempts.push({ url: OR, key: ENV.openRouterApiKey, model: "meta-llama/llama-4-maverick", isOr: true });
+          attempts.push({ url: OR, key: ENV.openRouterApiKey, model: "qwen/qwen2.5-vl-72b-instruct:free", isOr: true });
+        }
+
         let lastErr = "";
         let rateLimitCount = 0;
-        const attempts: Array<{ key: string; model: string }> = [];
-        for (const key of keys) {
-          for (const model of ["gemini-2.5-flash", "gemini-2.0-flash"]) {
-            attempts.push({ key, model });
-          }
-        }
-        for (const { key, model } of attempts) {
+        for (const { url, key, model, isOr } of attempts) {
           try {
             const ctrl = new AbortController();
-            const timer = setTimeout(() => ctrl.abort(), 35000);
-            const resp = await fetch(GG, {
+            const timer = setTimeout(() => ctrl.abort(), 40000);
+            const headers: Record<string, string> = { "content-type": "application/json", authorization: `Bearer ${key}` };
+            if (isOr) headers["http-referer"] = "https://hongxcollections.com";
+            const resp = await fetch(url, {
               method: "POST",
-              headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+              headers,
               body: JSON.stringify({ ...payload, model }),
               signal: ctrl.signal,
             });
@@ -7321,8 +7329,8 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
             lastErr = e instanceof Error ? e.message.slice(0, 80) : String(e);
           }
         }
-        const friendlyMsg = (lastErr === "rate_limit" || rateLimitCount === attempts.length)
-          ? "AI 使用量暫時超限，請等 1-2 分鐘後再試"
+        const friendlyMsg = (lastErr === "rate_limit" || rateLimitCount >= attempts.length)
+          ? "AI 使用量暫時超限，請稍後再試"
           : `AI 分析失敗：${lastErr}`;
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: friendlyMsg });
       }),
