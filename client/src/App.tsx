@@ -82,6 +82,7 @@ import MerchantStore from "./pages/MerchantStore";
 import MerchantProductDetail from "./pages/MerchantProductDetail";
 import VirtualStore from "./pages/VirtualStore";
 import CoinAnalysis from "./pages/CoinAnalysis";
+import PokeLover from "./pages/PokeLover";
 import Messages from "./pages/Messages";
 import ChatRoom from "./pages/ChatRoom";
 
@@ -240,6 +241,7 @@ function Router() {
       <Route path={"/group/:roundId/flyer"} component={GroupAuctionFlyer} />
       <Route path={"/group/:roundId"} component={GroupAuctionBidPage} />
       <Route path={"/coin-analysis"} component={CoinAnalysis} />
+      <Route path={"/pokemon"} component={PokeLover} />
       <Route path={"/messages"} component={Messages} />
       <Route path={"/messages/:roomId"} component={ChatRoom} />
       <Route path={"/404"} component={NotFound} />

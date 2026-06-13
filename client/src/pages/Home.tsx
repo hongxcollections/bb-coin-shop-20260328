@@ -1394,6 +1394,14 @@ export default function Home() {
                       </button>
                       <div className="h-px bg-gray-100" />
                       <button
+                        onClick={() => { setToolsOpen(false); navigate("/pokemon"); }}
+                        className="flex items-center gap-2 w-full px-3.5 py-2.5 text-[11px] font-semibold hover:bg-red-50 whitespace-nowrap"
+                        style={{ color: "#CC0000" }}
+                      >
+                        <span style={{ fontSize: 11 }}>⬤</span> PokeLover
+                      </button>
+                      <div className="h-px bg-gray-100" />
+                      <button
                         onClick={() => {
                           setToolsOpen(false);
                           if (!canUseMicroTools) { toast.error("此功能只限已批核商戶及管理員使用", { className: "bb-toast-err" }); return; }

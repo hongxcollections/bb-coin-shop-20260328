@@ -7235,6 +7235,90 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
     }),
   }),
 
+  // ─── PokeLover：Pokemon 卡片 AI 分析 ─────────────────────────────────────
+  pokeLover: router({
+    analyze: publicProcedure
+      .input(z.object({
+        imageBase64: z.string(),
+        mimeType: z.string().default("image/jpeg"),
+      }))
+      .mutation(async ({ input }) => {
+        const GG = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+        const dataUrl = `data:${input.mimeType};base64,${input.imageBase64}`;
+        const keys = [ENV.geminiApiKey, ENV.geminiApiKey2].filter(Boolean) as string[];
+        if (keys.length === 0) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI 服務暫不可用" });
+
+        const systemPrompt = `你係 Pokemon TCG（集換式卡牌遊戲）頂尖鑑定專家，熟悉自 1996 年至今所有系列及版本。請仔細分析圖片中的 Pokemon 卡片，以純 JSON 格式回覆（不可有任何 markdown、說明文字或 code block，直接輸出 JSON object）：
+{
+  "cardName": "卡片英文名稱（如 Charizard）",
+  "cardNameJa": "日文名稱（如 リザードン，唔知填 null）",
+  "set": "系列名稱（如 Base Set、Scarlet & Violet）",
+  "setNumber": "卡號（如 4/102，唔知填 null）",
+  "rarity": "稀有度（Common/Uncommon/Rare/Holo Rare/Ultra Rare/Secret Rare/Promo 等）",
+  "hp": HP 數字或 null,
+  "types": ["屬性陣列，如 Fire/Water/Grass/Lightning/Psychic/Fighting/Darkness/Metal/Dragon/Colorless"],
+  "attacks": [{"name":"技能名","damage":"傷害如100或空","cost":["Fire","Colorless"]}],
+  "releaseYear": "發售年份如 1999",
+  "language": "Japanese/English/Chinese/Other",
+  "condition": "品相：Mint/Near Mint/Light Play/Moderate Play/Heavy Play/Poor",
+  "conditionNote": "品相補充（如角位輕微磨損）",
+  "marketPriceHKD": 裸卡 Near Mint 參考市價 HKD 整數或 null,
+  "psa9HKD": PSA 9 參考價 HKD 整數或 null,
+  "psa10HKD": PSA 10 參考價 HKD 整數或 null,
+  "gradeEstimate": 估計 PSA 等級 1-10 整數或 null,
+  "worthGrading": true 或 false,
+  "ebaySearchQuery": "建議 eBay 搜尋詞",
+  "funFact": "關於此卡嘅冷知識（1-2 句廣東話）",
+  "isNotPokemon": false（圖片唔係 Pokemon 卡填 true）
+}`;
+
+        const payload = {
+          model: "gemini-2.5-flash",
+          max_tokens: 1500,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: [
+              { type: "image_url", image_url: { url: dataUrl } },
+              { type: "text", text: "請分析呢張 Pokemon 卡片。" },
+            ]},
+          ],
+        };
+
+        const extractJson = (raw: unknown): Record<string, unknown> | null => {
+          const s = typeof raw === "string" ? raw : JSON.stringify(raw) ?? "";
+          const cleaned = s.replace(/<thinking>[\s\S]*?<\/thinking>/g, "").trim();
+          const m = cleaned.match(/\{[\s\S]*\}/);
+          if (!m) return null;
+          try { return JSON.parse(m[0]) as Record<string, unknown>; } catch { return null; }
+        };
+
+        let lastErr = "";
+        for (const key of keys) {
+          for (const model of ["gemini-2.5-flash", "gemini-2.0-flash"]) {
+            try {
+              const ctrl = new AbortController();
+              const timer = setTimeout(() => ctrl.abort(), 35000);
+              const resp = await fetch(GG, {
+                method: "POST",
+                headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+                body: JSON.stringify({ ...payload, model }),
+                signal: ctrl.signal,
+              });
+              clearTimeout(timer);
+              if (!resp.ok) { lastErr = `${model}: HTTP ${resp.status}`; continue; }
+              const json = await resp.json() as { choices: Array<{ message: { content: unknown } }> };
+              const data = extractJson(json.choices?.[0]?.message?.content);
+              if (data) return { success: true, data };
+              lastErr = `${model}: 無有效 JSON`;
+            } catch (e: unknown) {
+              lastErr = e instanceof Error ? e.message.slice(0, 80) : String(e);
+            }
+          }
+        }
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `AI 分析失敗：${lastErr}` });
+      }),
+  }),
+
   // ─── AI Assist：分享文案 + 影片旁白稿（粵語口語） ─────────────────────────
   aiAssist: router({
     generateShareCopy: protectedProcedure
