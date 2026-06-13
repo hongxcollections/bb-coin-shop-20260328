@@ -708,7 +708,7 @@ export default function PokeLover() {
               </div>
             )}
 
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-3">
               <PokeShareMenu result={result} />
               {result.ebaySearchQuery && (
                 <a
@@ -724,6 +724,47 @@ export default function PokeLover() {
                 </a>
               )}
             </div>
+
+            {result.ebaySearchQuery && (
+              <div className="rounded-xl p-3 mb-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>更多市場參考</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <a
+                    href={`https://auctions.yahoo.co.jp/search/search?p=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}&va=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}&exflg=1&b=1&n=50&s1=cbids&o1=d&aucminprice=1`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
+                    style={{ background: "rgba(255,50,50,0.1)", border: "1px solid rgba(255,50,50,0.2)" }}
+                  >
+                    <span className="text-base">🇯🇵</span>
+                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#FF4444" }}>ヤフオク!</span>
+                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>日本成交</span>
+                  </a>
+                  <a
+                    href={`https://jp.mercari.com/search?keyword=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}&status=sold_out`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
+                    style={{ background: "rgba(255,0,86,0.1)", border: "1px solid rgba(255,0,86,0.2)" }}
+                  >
+                    <span className="text-base">🛍️</span>
+                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#FF0056" }}>Mercari JP</span>
+                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>日本二手</span>
+                  </a>
+                  <a
+                    href={`https://www.pricecharting.com/search-products?q=${encodeURIComponent(result.ebaySearchQuery)}&type=pokemon`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
+                    style={{ background: "rgba(100,180,255,0.1)", border: "1px solid rgba(100,180,255,0.2)" }}
+                  >
+                    <span className="text-base">📊</span>
+                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#64B4FF" }}>PriceCharting</span>
+                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>國際走勢</span>
+                  </a>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -735,7 +776,7 @@ export default function PokeLover() {
               "參考市場估價（裸卡 / PSA 9 / PSA 10）",
               "AI 品相評估及 PSA 等級預測",
               "PSA 送評回報計算器",
-              "eBay 成交紀錄直連搜尋",
+              "eBay / ヤフオク! / Mercari / PriceCharting 市場直連",
             ].map((t, i) => (
               <div key={i} className="flex items-start gap-2 mb-1.5">
                 <span style={{ color: "#CC0000", flexShrink: 0 }}>●</span>
