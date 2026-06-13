@@ -512,7 +512,7 @@ export default function PokeLover() {
 
   const saveCardMut = trpc.pokeLover.saveCard.useMutation({
     onSuccess: (data) => { setSavedCardId(data.id); toast.success("已加入卡冊", { className: "bb-toast-success" }); },
-    onError: () => toast.error("儲存失敗", { className: "bb-toast-err" }),
+    onError: (err) => toast.error(err.message || "儲存失敗，請重試", { className: "bb-toast-err" }),
     onSettled: () => setSavingCard(false),
   });
 
@@ -656,20 +656,38 @@ export default function PokeLover() {
   const handleSaveCard = useCallback(() => {
     if (!result || !isAuthenticated) return;
     setSavingCard(true);
-    saveCardMut.mutate({
-      cardName: result.cardName,
-      cardNameJa: result.cardNameJa,
-      imageThumb: imagePreview.substring(0, 100000),
-      gradeEstimate: result.gradeEstimate ?? undefined,
-      bgsEstimate: result.bgsEstimate ?? undefined,
-      cgcEstimate: result.cgcEstimate ?? undefined,
-      tagEstimate: result.tagEstimate ?? undefined,
-      condition: result.condition,
-      marketPriceHKD: result.marketPriceHKD ?? undefined,
-      psa9HKD: result.psa9HKD ?? undefined,
-      psa10HKD: result.psa10HKD ?? undefined,
-      cardSet: result.set,
-      rarity: result.rarity,
+    // 縮細至 120×168 縮圖再儲存，避免 payload 過大
+    const makeThumbnail = (src: string): Promise<string> => new Promise((resolve) => {
+      if (!src) { resolve(""); return; }
+      const img = new window.Image();
+      img.onload = () => {
+        const TW = 120, TH = 168;
+        const scale = Math.min(TW / img.width, TH / img.height, 1);
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.width * scale);
+        c.height = Math.round(img.height * scale);
+        c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL("image/jpeg", 0.7));
+      };
+      img.onerror = () => resolve("");
+      img.src = src;
+    });
+    makeThumbnail(imagePreview).then((thumb) => {
+      saveCardMut.mutate({
+        cardName: result.cardName,
+        cardNameJa: result.cardNameJa,
+        imageThumb: thumb || undefined,
+        gradeEstimate: result.gradeEstimate ?? undefined,
+        bgsEstimate: result.bgsEstimate ?? undefined,
+        cgcEstimate: result.cgcEstimate ?? undefined,
+        tagEstimate: result.tagEstimate ?? undefined,
+        condition: result.condition,
+        marketPriceHKD: result.marketPriceHKD ?? undefined,
+        psa9HKD: result.psa9HKD ?? undefined,
+        psa10HKD: result.psa10HKD ?? undefined,
+        cardSet: result.set,
+        rarity: result.rarity,
+      });
     });
   }, [result, isAuthenticated, imagePreview, saveCardMut]);
 
