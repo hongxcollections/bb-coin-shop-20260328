@@ -7293,34 +7293,35 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         };
 
         let lastErr = "";
-        let allRateLimited = true;
+        let rateLimitCount = 0;
+        const attempts: Array<{ key: string; model: string }> = [];
         for (const key of keys) {
-          for (const model of ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]) {
-            try {
-              const ctrl = new AbortController();
-              const timer = setTimeout(() => ctrl.abort(), 35000);
-              const resp = await fetch(GG, {
-                method: "POST",
-                headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-                body: JSON.stringify({ ...payload, model }),
-                signal: ctrl.signal,
-              });
-              clearTimeout(timer);
-              if (resp.status === 429) { lastErr = "rate_limit"; continue; }
-              allRateLimited = false;
-              if (!resp.ok) { lastErr = `${model}: HTTP ${resp.status}`; continue; }
-              allRateLimited = false;
-              const json = await resp.json() as { choices: Array<{ message: { content: unknown } }> };
-              const data = extractJson(json.choices?.[0]?.message?.content);
-              if (data) return { success: true, data };
-              lastErr = `${model}: 無有效 JSON`;
-            } catch (e: unknown) {
-              allRateLimited = false;
-              lastErr = e instanceof Error ? e.message.slice(0, 80) : String(e);
-            }
+          for (const model of ["gemini-2.5-flash", "gemini-2.0-flash"]) {
+            attempts.push({ key, model });
           }
         }
-        const friendlyMsg = allRateLimited
+        for (const { key, model } of attempts) {
+          try {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 35000);
+            const resp = await fetch(GG, {
+              method: "POST",
+              headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+              body: JSON.stringify({ ...payload, model }),
+              signal: ctrl.signal,
+            });
+            clearTimeout(timer);
+            if (resp.status === 429) { rateLimitCount++; lastErr = "rate_limit"; continue; }
+            if (!resp.ok) { lastErr = `${model}: HTTP ${resp.status}`; continue; }
+            const json = await resp.json() as { choices: Array<{ message: { content: unknown } }> };
+            const data = extractJson(json.choices?.[0]?.message?.content);
+            if (data) return { success: true, data };
+            lastErr = `${model}: 無有效 JSON`;
+          } catch (e: unknown) {
+            lastErr = e instanceof Error ? e.message.slice(0, 80) : String(e);
+          }
+        }
+        const friendlyMsg = rateLimitCount === attempts.length
           ? "AI 使用量暫時超限，請等 1-2 分鐘後再試"
           : `AI 分析失敗：${lastErr}`;
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: friendlyMsg });
