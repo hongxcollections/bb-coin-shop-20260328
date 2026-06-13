@@ -506,7 +506,7 @@ export default function PokeLover() {
   const rarityColor = result?.rarity ? (RARITY_COLOR[result.rarity] ?? "#9C27B0") : "#9C27B0";
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: "linear-gradient(160deg, #3d1a00 0%, #6b3300 40%, #3d1a00 100%)", color: "#fff" }}>
+    <div className="min-h-screen pb-20" style={{ background: "linear-gradient(160deg, #a04000 0%, #c45200 40%, #a04000 100%)", color: "#fff" }}>
       <Header />
 
       {lightboxOpen && imagePreview && (
