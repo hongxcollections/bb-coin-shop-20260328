@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import { toast } from "sonner";
-import { Upload, Loader2, Search, ChevronLeft, Zap, ExternalLink, Share2, Copy, Check, X, MoreHorizontal } from "lucide-react";
+import { Upload, Loader2, Search, ChevronLeft, Zap, ExternalLink, Share2, Copy, Check, X, MoreHorizontal, Star } from "lucide-react";
 import { SHARE_ORIGIN } from "@/lib/shareUrl";
 
 type PokeResult = {
@@ -441,6 +441,18 @@ export default function PokeLover() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [rawPriceInput, setRawPriceInput] = useState("");
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
+
+  useEffect(() => {
+    if (!isAnalyzing) { setLoadingStep(0); return; }
+    const steps = [0, 1, 2];
+    let i = 0;
+    const t = setInterval(() => {
+      i = (i + 1) % steps.length;
+      setLoadingStep(i);
+    }, 2200);
+    return () => clearInterval(t);
+  }, [isAnalyzing]);
 
   const analyzeMut = trpc.pokeLover.analyze.useMutation({
     onSuccess: (res) => {
@@ -584,6 +596,62 @@ export default function PokeLover() {
           <button onClick={() => { setImagePreview(""); setResult(null); setRawPriceInput(""); }} className="text-xs mb-4" style={{ color: "rgba(255,255,255,0.4)" }}>
             ↩ 重新上載
           </button>
+        )}
+
+        {isAnalyzing && (
+          <div className="mt-4 flex flex-col gap-4">
+            {/* 步驟進度 */}
+            <div className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+              {[
+                { icon: "📷", label: "分析卡片圖像" },
+                { icon: "🔍", label: "識別名稱 / 系列 / 稀有度" },
+                { icon: "💰", label: "查詢市場參考價格" },
+              ].map((s, i) => {
+                const done = i < loadingStep;
+                const active = i === loadingStep;
+                return (
+                  <div key={i} className="flex items-center gap-3 py-2">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-sm"
+                      style={{
+                        background: done ? "rgba(76,175,80,0.2)" : active ? "rgba(255,222,0,0.15)" : "rgba(255,255,255,0.05)",
+                        border: done ? "1px solid #4CAF50" : active ? "1px solid rgba(255,222,0,0.5)" : "1px solid rgba(255,255,255,0.1)",
+                      }}
+                    >
+                      {done ? "✓" : active ? <Loader2 className="w-3 h-3 animate-spin" style={{ color: "#FFDE00" }} /> : <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>}
+                    </div>
+                    <span className="text-sm" style={{ color: done ? "#4CAF50" : active ? "#FFDE00" : "rgba(255,255,255,0.25)" }}>
+                      {s.icon} {s.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* PSA 評級快速參考 */}
+            <div className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <div className="flex items-center gap-2 mb-3">
+                <Star className="w-3.5 h-3.5" style={{ color: "#FFDE00" }} />
+                <p className="text-xs font-bold" style={{ color: "rgba(255,222,0,0.7)" }}>PSA 評級快速參考</p>
+              </div>
+              {[
+                { grade: 10, label: "Gem Mint", desc: "完美無瑕，四角銳利，表面無任何痕跡", color: "#9C27B0" },
+                { grade: 9,  label: "Mint",     desc: "接近完美，只允許極細微印刷缺陷",     color: "#2196F3" },
+                { grade: 8,  label: "NM-Mint",  desc: "輕微邊角磨損或細微表面痕跡",         color: "#4CAF50" },
+                { grade: 7,  label: "Near Mint", desc: "輕微磨損，整體狀態良好",             color: "#8BC34A" },
+                { grade: 6,  label: "Excellent-Mint", desc: "明顯但輕微的邊角磨損",          color: "#FFC107" },
+                { grade: 5,  label: "Excellent", desc: "中度磨損，適合普通收藏",             color: "#FF9800" },
+              ].map(({ grade, label, desc, color }) => (
+                <div key={grade} className="flex items-start gap-2.5 mb-2.5">
+                  <span className="text-xs font-black w-5 text-right flex-shrink-0 mt-0.5" style={{ color }}>{grade}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-bold" style={{ color }}>{label}</span>
+                    <span className="text-xs ml-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>— {desc}</span>
+                  </div>
+                </div>
+              ))}
+              <p className="text-[10px] mt-2" style={{ color: "rgba(255,255,255,0.25)" }}>* PSA 送評費約 HKD $420 起，建議 PSA 8+ 先送評</p>
+            </div>
+          </div>
         )}
 
         {result && !result.isNotPokemon && (
