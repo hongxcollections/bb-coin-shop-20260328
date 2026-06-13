@@ -532,14 +532,14 @@ export default function PokeLover() {
   }, [isAnalyzing]);
 
   const saveCardMut = trpc.pokeLover.saveCard.useMutation({
-    onSuccess: (data) => { setSavedCardId(data.id); toast.success("已加入卡冊", { className: "bb-toast-success" }); },
+    onSuccess: (data) => { setSavedCardId(data.id); toast.success(`「${result?.cardName ?? "卡片"}」已加入卡冊`, { className: "bb-toast-success" }); },
     onError: (err) => toast.error(err.message || "儲存失敗，請重試", { className: "bb-toast-err" }),
     onSettled: () => setSavingCard(false),
   });
 
   const siteSearchQuery = trpc.pokeLover.searchSiteAuctions.useQuery(
     { cardName: result?.cardName ?? "" },
-    { enabled: !!(result?.cardName && result.cardName.length > 1), staleTime: 60_000 }
+    { enabled: false, staleTime: 60_000 }
   );
 
   const analyzeMut = trpc.pokeLover.analyze.useMutation({
@@ -1229,38 +1229,16 @@ export default function PokeLover() {
               </div>
             )}
 
-            {/* B3 — 本站同款拍賣 */}
-            {siteSearchQuery.data && siteSearchQuery.data.length > 0 && (
-              <div className="rounded-xl p-3 mb-4" style={{ background: "rgba(255,222,0,0.06)", border: "1px solid rgba(255,222,0,0.2)" }}>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-bold" style={{ color: "rgba(255,222,0,0.7)" }}>本站同款 ({siteSearchQuery.data.length} 件)</p>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  {siteSearchQuery.data.map((a) => (
-                    <a
-                      key={a.id}
-                      href={`/auction/${a.id}`}
-                      className="flex items-center justify-between rounded-lg px-3 py-2 text-xs"
-                      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
-                    >
-                      <span className="flex-1 min-w-0 truncate font-medium text-white">{a.title}</span>
-                      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                        <span style={{ color: a.status === "active" ? "#4CAF50" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: "bold" }}>
-                          {a.status === "active" ? "競標中" : "已結標"}
-                        </span>
-                        <span className="font-bold" style={{ color: "#FFDE00" }}>
-                          HKD${(a.currentPrice ?? a.startingPrice).toLocaleString()}
-                        </span>
-                        <ChevronRight className="w-3 h-3" style={{ color: "rgba(255,255,255,0.3)" }} />
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="flex gap-2 mb-3 flex-wrap">
               <PokeShareMenu result={result} />
+              <button
+                onClick={() => toast.info("本站搜尋功能開發中，敬請期待", { className: "bb-toast-info" })}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm"
+                style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.35)", border: "1px solid rgba(255,255,255,0.1)", cursor: "not-allowed" }}
+              >
+                <Search className="w-4 h-4" />
+                本站搜尋
+              </button>
               {result.ebaySearchQuery && (
                 <a
                   href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(result.ebaySearchQuery)}&LH_Complete=1&LH_Sold=1`}
