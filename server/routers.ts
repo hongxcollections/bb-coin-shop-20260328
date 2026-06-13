@@ -7270,6 +7270,8 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
   "cgcEstimate": 估計 CGC 等級（可有 .5，如 9.5）或 null,
   "tagEstimate": 估計 TAG 等級 1-10 整數或 null,
   "worthGrading": true 或 false,
+  "authenticityWarning": "如有明顯假卡特徵（印刷顏色偏差/字體不正/光澤異常/邊框規格錯誤），用廣東話簡述（1句），否則填 null",
+  "authenticityScore": 正版可信度 0-100（100=確信正版，80以上=可信，低於60=需注意，僅供參考）,
   "ebaySearchQuery": "建議 eBay 搜尋詞",
   "funFact": "關於此卡嘅冷知識（1-2 句廣東話）",
   "isNotPokemon": false（圖片唔係 Pokemon 卡填 true）
@@ -7336,6 +7338,81 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
           ? "AI 使用量暫時超限，請稍後再試"
           : `AI 分析失敗：${lastErr}`;
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: friendlyMsg });
+      }),
+
+    /** 喺本站搜尋同款卡片拍賣 */
+    searchSiteAuctions: publicProcedure
+      .input(z.object({ cardName: z.string().min(1).max(150) }))
+      .query(async ({ input }) => {
+        const pool = await getRawPool();
+        const q = `%${input.cardName.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
+        const [rows] = await pool.execute(
+          `SELECT id, title, currentPrice, startingPrice, status, endTime, coverImage
+           FROM auctions
+           WHERE title LIKE ? AND status IN ('active','ended')
+           ORDER BY FIELD(status,'active','ended'), createdAt DESC
+           LIMIT 5`,
+          [q]
+        ) as any[];
+        return (rows as any[]).map((r: any) => ({
+          id: r.id as number,
+          title: r.title as string,
+          currentPrice: r.currentPrice as number | null,
+          startingPrice: r.startingPrice as number,
+          status: r.status as string,
+          endTime: r.endTime as string | null,
+          coverImage: r.coverImage as string | null,
+        }));
+      }),
+
+    /** 登入用戶保存卡片到卡冊 */
+    saveCard: protectedProcedure
+      .input(z.object({
+        cardName: z.string().optional(),
+        cardNameJa: z.string().optional(),
+        imageThumb: z.string().max(200000).optional(),
+        gradeEstimate: z.number().optional(),
+        bgsEstimate: z.number().optional(),
+        cgcEstimate: z.number().optional(),
+        tagEstimate: z.number().optional(),
+        condition: z.string().optional(),
+        marketPriceHKD: z.number().optional(),
+        psa9HKD: z.number().optional(),
+        psa10HKD: z.number().optional(),
+        cardSet: z.string().optional(),
+        rarity: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const pool = await getRawPool();
+        const [res] = await pool.execute(
+          `INSERT INTO pokeloverCards (userId, cardName, cardNameJa, imageThumb, gradeEstimate, bgsEstimate, cgcEstimate, tagEstimate, \`condition\`, marketPriceHKD, psa9HKD, psa10HKD, cardSet, rarity)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [ctx.user.id, input.cardName ?? null, input.cardNameJa ?? null, input.imageThumb ?? null,
+           input.gradeEstimate ?? null, input.bgsEstimate ?? null, input.cgcEstimate ?? null, input.tagEstimate ?? null,
+           input.condition ?? null, input.marketPriceHKD ?? null, input.psa9HKD ?? null, input.psa10HKD ?? null,
+           input.cardSet ?? null, input.rarity ?? null]
+        ) as any[];
+        return { id: res.insertId as number };
+      }),
+
+    /** 我的卡冊列表 */
+    listCards: protectedProcedure
+      .query(async ({ ctx }) => {
+        const pool = await getRawPool();
+        const [rows] = await pool.execute(
+          'SELECT * FROM pokeloverCards WHERE userId = ? ORDER BY savedAt DESC LIMIT 100',
+          [ctx.user.id]
+        ) as any[];
+        return rows as any[];
+      }),
+
+    /** 刪除卡冊中的卡片 */
+    deleteCard: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const pool = await getRawPool();
+        await pool.execute('DELETE FROM pokeloverCards WHERE id = ? AND userId = ?', [input.id, ctx.user.id]);
+        return { ok: true };
       }),
   }),
 

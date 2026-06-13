@@ -3,8 +3,9 @@ import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import { toast } from "sonner";
-import { Upload, Loader2, Search, ChevronLeft, Zap, ExternalLink, Share2, Copy, Check, X, MoreHorizontal, Star } from "lucide-react";
+import { Upload, Loader2, Search, ChevronLeft, Zap, ExternalLink, Share2, Copy, Check, X, MoreHorizontal, Star, AlertTriangle, RefreshCcw, BookmarkPlus, Bookmark, BookOpen, DollarSign, ChevronRight, Images } from "lucide-react";
 import { SHARE_ORIGIN } from "@/lib/shareUrl";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 type PokeResult = {
   cardName?: string;
@@ -27,6 +28,8 @@ type PokeResult = {
   cgcEstimate?: number | null;
   tagEstimate?: number | null;
   worthGrading?: boolean;
+  authenticityWarning?: string | null;
+  authenticityScore?: number | null;
   ebaySearchQuery?: string;
   funFact?: string;
   isNotPokemon?: boolean;
@@ -59,6 +62,26 @@ const RARITY_COLOR: Record<string, string> = {
 const PSA_FEE_HKD = 420;
 const MENU_W = 176;
 const MENU_H = 260;
+
+type GradingOrg = "PSA" | "BGS" | "CGC" | "TAG";
+const GRADING_FEES: Record<GradingOrg, Record<string, number>> = {
+  PSA: { Regular: 420, Express: 800, Walkthrough: 3000 },
+  BGS: { Regular: 560, Express: 1200 },
+  CGC: { Regular: 420, Express: 750 },
+  TAG: { Regular: 400 },
+};
+type HistoryItem = {
+  id: string; cardName: string; cardNameJa?: string;
+  gradeEstimate?: number | null; marketPriceHKD?: number | null;
+  imageThumb?: string; savedAt: number; result: PokeResult;
+};
+const HISTORY_KEY = "poke_history_v1";
+function loadHistory(): HistoryItem[] {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]"); } catch { return []; }
+}
+function saveHistory(items: HistoryItem[]) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, 20))); } catch {}
+}
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -358,13 +381,13 @@ function TypeBadge({ type }: { type: string }) {
   );
 }
 
-function PokeBallUpload({ onFile, disabled }: { onFile: (f: File) => void; disabled: boolean }) {
+function PokeBallUpload({ onFiles, disabled }: { onFiles: (files: File[]) => void; disabled: boolean }) {
   const ref = useRef<HTMLInputElement>(null);
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const f = e.dataTransfer.files[0];
-    if (f && f.type.startsWith("image/")) onFile(f);
-  }, [onFile]);
+    if (f && f.type.startsWith("image/")) onFiles([f]);
+  }, [onFiles]);
 
   return (
     <div
@@ -402,7 +425,7 @@ function PokeBallUpload({ onFile, disabled }: { onFile: (f: File) => void; disab
       </div>
       <p className="text-sm font-semibold" style={{ color: "#FFDE00" }}>點擊或拖放 Pokemon 卡片圖片</p>
       <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>支援 JPG / PNG / WEBP</p>
-      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
+      <input ref={ref} type="file" accept="image/*" multiple className="hidden" onChange={e => { const files = Array.from(e.target.files ?? []).filter(f => f.type.startsWith("image/")); if (files.length) onFiles(files); e.target.value = ""; }} />
     </div>
   );
 }
@@ -439,44 +462,121 @@ function GradeBar({ grade }: { grade: number }) {
 
 export default function PokeLover() {
   const [, navigate] = useLocation();
+  const { isAuthenticated } = useAuth();
   const [imagePreview, setImagePreview] = useState<string>("");
   const [result, setResult] = useState<PokeResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [rawPriceInput, setRawPriceInput] = useState("");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [pendingFileData, setPendingFileData] = useState<{ base64: string; mimeType: string } | null>(null);
+  const [gradingOrg, setGradingOrg] = useState<GradingOrg>("PSA");
+  const [gradingTier, setGradingTier] = useState<string>("Regular");
+  const [currency, setCurrency] = useState<"HKD" | "USD" | "JPY">("HKD");
+  const [fxRates, setFxRates] = useState<{ USD: number; JPY: number } | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [savedCardId, setSavedCardId] = useState<number | null>(null);
+  const [savingCard, setSavingCard] = useState(false);
+  const batchQueueRef = useRef<File[]>([]);
+  const [batchTotal, setBatchTotal] = useState(0);
+  const [batchDone, setBatchDone] = useState(0);
+  const [batchSummary, setBatchSummary] = useState<{ name: string; value: number | null }[]>([]);
+  const [isBatchMode, setIsBatchMode] = useState(false);
+
+  // Load history from localStorage
+  useEffect(() => { setHistory(loadHistory()); }, []);
+
+  // Fetch FX rates for currency conversion
+  useEffect(() => {
+    fetch("https://open.er-api.com/v6/latest/HKD")
+      .then(r => r.json())
+      .then((d: any) => {
+        if (d?.rates) setFxRates({ USD: d.rates.USD as number, JPY: d.rates.JPY as number });
+      })
+      .catch(() => setFxRates({ USD: 0.128, JPY: 19.7 })); // fallback hardcoded
+  }, []);
+
+  // Reset gradingTier when org changes
+  useEffect(() => {
+    const tiers = Object.keys(GRADING_FEES[gradingOrg]);
+    if (!tiers.includes(gradingTier)) setGradingTier(tiers[0]);
+  }, [gradingOrg]);
 
   useEffect(() => {
     if (!isAnalyzing) { setLoadingStep(0); return; }
-    const steps = [0, 1, 2];
     let i = 0;
-    const t = setInterval(() => {
-      i = (i + 1) % steps.length;
-      setLoadingStep(i);
-    }, 2200);
+    const t = setInterval(() => { i = (i + 1) % 3; setLoadingStep(i); }, 2200);
     return () => clearInterval(t);
   }, [isAnalyzing]);
+
+  const saveCardMut = trpc.pokeLover.saveCard.useMutation({
+    onSuccess: (data) => { setSavedCardId(data.id); toast.success("已加入卡冊", { className: "bb-toast-success" }); },
+    onError: () => toast.error("儲存失敗", { className: "bb-toast-err" }),
+    onSettled: () => setSavingCard(false),
+  });
+
+  const siteSearchQuery = trpc.pokeLover.searchSiteAuctions.useQuery(
+    { cardName: result?.cardName ?? "" },
+    { enabled: !!(result?.cardName && result.cardName.length > 1), staleTime: 60_000 }
+  );
 
   const analyzeMut = trpc.pokeLover.analyze.useMutation({
     onSuccess: (res) => {
       const data = res.data as PokeResult;
+      setAnalysisError(null);
       if (data.isNotPokemon) {
         toast.error("呢張唔似係 Pokemon 卡，請重新上載", { className: "bb-toast-err" });
         setResult(null);
       } else {
         setResult(data);
+        setSavedCardId(null);
         if (data.marketPriceHKD) setRawPriceInput(String(data.marketPriceHKD));
+        const entry: HistoryItem = {
+          id: Date.now().toString(),
+          cardName: data.cardName ?? "未知卡片",
+          cardNameJa: data.cardNameJa,
+          gradeEstimate: data.gradeEstimate,
+          marketPriceHKD: data.marketPriceHKD,
+          imageThumb: imagePreview,
+          savedAt: Date.now(),
+          result: data,
+        };
+        const newHistory = [entry, ...loadHistory().filter(h => h.cardName !== entry.cardName)].slice(0, 20);
+        saveHistory(newHistory);
+        setHistory(newHistory);
+        // A2 — batch: record result + process next
+        if (batchQueueRef.current.length > 0) {
+          setBatchSummary(prev => [...prev, { name: data.cardName ?? "未知", value: data.marketPriceHKD ?? null }]);
+          setBatchDone(d => d + 1);
+          const nextFile = batchQueueRef.current.shift()!;
+          processFile(nextFile);
+          return; // keep isAnalyzing true
+        } else if (batchTotal > 1) {
+          setBatchSummary(prev => [...prev, { name: data.cardName ?? "未知", value: data.marketPriceHKD ?? null }]);
+          setBatchDone(d => d + 1);
+        }
       }
       setIsAnalyzing(false);
     },
     onError: (err) => {
-      toast.error(err.message || "分析失敗，請重試", { className: "bb-toast-err" });
+      const msg = err.message || "分析失敗，請重試";
+      // A2 — batch: skip failed, continue queue
+      if (batchQueueRef.current.length > 0) {
+        setBatchDone(d => d + 1);
+        const nextFile = batchQueueRef.current.shift()!;
+        processFile(nextFile);
+        return;
+      }
+      setAnalysisError(msg);
       setIsAnalyzing(false);
     },
   });
 
-  const handleFile = (file: File) => {
+  const processFile = useCallback((file: File) => {
     setResult(null);
+    setSavedCardId(null);
+    setAnalysisError(null);
     setIsAnalyzing(true);
     const objectUrl = URL.createObjectURL(file);
     const img = new window.Image();
@@ -490,12 +590,14 @@ export default function PokeLover() {
       canvas.height = Math.round(oh * scale);
       canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
       canvas.toBlob((blob) => {
-        if (!blob) { setIsAnalyzing(false); toast.error("圖片處理失敗，請重試", { className: "bb-toast-err" }); return; }
+        if (!blob) { setIsAnalyzing(false); setAnalysisError("圖片處理失敗，請重試"); return; }
         const reader = new FileReader();
         reader.onload = (e) => {
           const dataUrl = e.target?.result as string;
           setImagePreview(dataUrl);
-          analyzeMut.mutate({ imageBase64: dataUrl.split(",")[1], mimeType: "image/jpeg" });
+          const b64 = dataUrl.split(",")[1];
+          setPendingFileData({ base64: b64, mimeType: "image/jpeg" });
+          analyzeMut.mutate({ imageBase64: b64, mimeType: "image/jpeg" });
         };
         reader.readAsDataURL(blob);
       }, "image/jpeg", 0.78);
@@ -506,18 +608,137 @@ export default function PokeLover() {
       reader.onload = (e) => {
         const dataUrl = e.target?.result as string;
         setImagePreview(dataUrl);
-        analyzeMut.mutate({ imageBase64: dataUrl.split(",")[1], mimeType: file.type || "image/jpeg" });
+        const b64 = dataUrl.split(",")[1];
+        setPendingFileData({ base64: b64, mimeType: file.type || "image/jpeg" });
+        analyzeMut.mutate({ imageBase64: b64, mimeType: file.type || "image/jpeg" });
       };
       reader.readAsDataURL(file);
     };
     img.src = objectUrl;
-  };
+  }, [analyzeMut]);
+
+  const handleFile = useCallback((file: File) => {
+    processFile(file);
+  }, [processFile]);
+
+  const handleMultipleFiles = useCallback((files: File[]) => {
+    if (files.length === 1) {
+      setIsBatchMode(false);
+      setBatchTotal(0);
+      setBatchDone(0);
+      setBatchSummary([]);
+      batchQueueRef.current = [];
+      processFile(files[0]);
+      return;
+    }
+    setIsBatchMode(true);
+    setBatchTotal(files.length);
+    setBatchDone(0);
+    setBatchSummary([]);
+    batchQueueRef.current = files.slice(1);
+    processFile(files[0]);
+  }, [processFile]);
+
+  const handleRetry = useCallback(() => {
+    if (!pendingFileData) return;
+    setAnalysisError(null);
+    setIsAnalyzing(true);
+    analyzeMut.mutate({ imageBase64: pendingFileData.base64, mimeType: pendingFileData.mimeType });
+  }, [pendingFileData, analyzeMut]);
+
+  // Convert HKD to selected currency
+  const fmtCurrency = useCallback((hkd: number): string => {
+    if (currency === "USD" && fxRates) return `USD $${(hkd * fxRates.USD).toFixed(0)}`;
+    if (currency === "JPY" && fxRates) return `JPY ¥${Math.round(hkd * fxRates.JPY).toLocaleString()}`;
+    return `HKD $${hkd.toLocaleString("en-HK")}`;
+  }, [currency, fxRates]);
+
+  const handleSaveCard = useCallback(() => {
+    if (!result || !isAuthenticated) return;
+    setSavingCard(true);
+    saveCardMut.mutate({
+      cardName: result.cardName,
+      cardNameJa: result.cardNameJa,
+      imageThumb: imagePreview.substring(0, 100000),
+      gradeEstimate: result.gradeEstimate ?? undefined,
+      bgsEstimate: result.bgsEstimate ?? undefined,
+      cgcEstimate: result.cgcEstimate ?? undefined,
+      tagEstimate: result.tagEstimate ?? undefined,
+      condition: result.condition,
+      marketPriceHKD: result.marketPriceHKD ?? undefined,
+      psa9HKD: result.psa9HKD ?? undefined,
+      psa10HKD: result.psa10HKD ?? undefined,
+      cardSet: result.set,
+      rarity: result.rarity,
+    });
+  }, [result, isAuthenticated, imagePreview, saveCardMut]);
+
+  const handleShareImage = useCallback(() => {
+    if (!result) return;
+    const c = document.createElement("canvas");
+    c.width = 440; c.height = 260;
+    const ctx = c.getContext("2d")!;
+    // Background
+    const grad = ctx.createLinearGradient(0, 0, 440, 260);
+    grad.addColorStop(0, "#0d0d1f"); grad.addColorStop(0.5, "#1a0505"); grad.addColorStop(1, "#0d0d1f");
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, 440, 260);
+    // Border
+    ctx.strokeStyle = "rgba(255,222,0,0.4)"; ctx.lineWidth = 2;
+    ctx.roundRect(4, 4, 432, 252, 12); ctx.stroke();
+    // Title
+    ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "rgba(255,222,0,0.6)"; ctx.fillText("PokeLover · AI 卡片鑑定", 16, 28);
+    // Card name
+    ctx.font = "bold 26px sans-serif"; ctx.fillStyle = "#FFDE00";
+    ctx.fillText((result.cardName ?? "—").substring(0, 22), 16, 66);
+    if (result.cardNameJa) { ctx.font = "16px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText(result.cardNameJa.substring(0, 20), 16, 90); }
+    // Set info
+    const setInfo = [result.set, result.releaseYear, result.language].filter(Boolean).join(" · ");
+    if (setInfo) { ctx.font = "12px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.fillText(setInfo.substring(0, 40), 16, 112); }
+    // Grades
+    const grades = [
+      { label: "PSA", val: result.gradeEstimate, color: "#9C27B0" },
+      { label: "BGS", val: result.bgsEstimate, color: "#2196F3" },
+      { label: "CGC", val: result.cgcEstimate, color: "#4CAF50" },
+      { label: "TAG", val: result.tagEstimate, color: "#FF9800" },
+    ].filter(g => g.val != null);
+    grades.forEach((g, i) => {
+      const x = 16 + i * 80;
+      ctx.fillStyle = g.color + "30"; ctx.roundRect(x, 126, 72, 42, 6); ctx.fill();
+      ctx.strokeStyle = g.color + "88"; ctx.lineWidth = 1; ctx.roundRect(x, 126, 72, 42, 6); ctx.stroke();
+      ctx.font = "bold 10px sans-serif"; ctx.fillStyle = g.color; ctx.fillText(g.label, x + 8, 142);
+      ctx.font = "bold 18px sans-serif"; ctx.fillStyle = g.color; ctx.fillText(String(g.val), x + 8, 160);
+    });
+    // Prices
+    const prices = [
+      { label: "裸卡 NM", val: result.marketPriceHKD },
+      { label: "PSA 9", val: result.psa9HKD },
+      { label: "PSA 10", val: result.psa10HKD },
+    ];
+    prices.forEach((p, i) => {
+      const x = 16 + i * 136;
+      ctx.font = "11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.fillText(p.label, x, 196);
+      ctx.font = "bold 15px sans-serif"; ctx.fillStyle = p.val ? "#FFDE00" : "rgba(255,255,255,0.2)";
+      ctx.fillText(p.val ? `$${p.val.toLocaleString()}` : "N/A", x, 214);
+    });
+    // Footer
+    ctx.font = "11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.25)";
+    ctx.fillText("hongxcollections.com · PokeLover AI", 16, 246);
+    // Download
+    c.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `${result.cardName ?? "pokemon"}-analysis.png`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+    }, "image/png");
+  }, [result]);
 
   const rawPrice = parseInt(rawPriceInput, 10) || 0;
   const psa9 = result?.psa9HKD ?? 0;
   const psa10 = result?.psa10HKD ?? 0;
-  const profitPsa9 = psa9 - rawPrice - PSA_FEE_HKD;
-  const profitPsa10 = psa10 - rawPrice - PSA_FEE_HKD;
+  const selectedFee = GRADING_FEES[gradingOrg]?.[gradingTier] ?? PSA_FEE_HKD;
+  const profitPsa9 = psa9 - rawPrice - selectedFee;
+  const profitPsa10 = psa10 - rawPrice - selectedFee;
   const rarityColor = result?.rarity ? (RARITY_COLOR[result.rarity] ?? "#9C27B0") : "#9C27B0";
 
   return (
@@ -535,13 +756,54 @@ export default function PokeLover() {
 
         <div className="flex items-center gap-3 mb-1">
           <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "2px solid #333" }} />
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-black tracking-tight leading-none" style={{ color: "#FFDE00", textShadow: "0 2px 8px rgba(255,222,0,0.4)" }}>
               PokeLover
             </h1>
             <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>AI 智能 Pokemon 卡片鑑定 · 市場估價</p>
           </div>
+          {isAuthenticated && (
+            <button onClick={() => navigate("/pokemon/collection")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,222,0,0.12)", border: "1px solid rgba(255,222,0,0.25)", color: "#FFDE00" }}>
+              <BookOpen className="w-3.5 h-3.5" />
+              卡冊
+            </button>
+          )}
         </div>
+
+        {/* A1 — 最近分析記錄（橫向捲動） */}
+        {history.length > 0 && !imagePreview && !isAnalyzing && (
+          <div className="mb-4 mt-4">
+            <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>最近記錄</p>
+            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+              {history.slice(0, 10).map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setResult(item.result);
+                    setImagePreview(item.imageThumb ?? "");
+                    setRawPriceInput(item.marketPriceHKD ? String(item.marketPriceHKD) : "");
+                    setSavedCardId(null);
+                    setAnalysisError(null);
+                  }}
+                  className="flex-shrink-0 flex flex-col items-center gap-1.5 rounded-xl p-2"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", width: 80 }}
+                >
+                  {item.imageThumb ? (
+                    <img src={item.imageThumb} alt="" className="rounded-lg object-cover" style={{ width: 52, height: 72 }} />
+                  ) : (
+                    <div className="rounded-lg flex items-center justify-center" style={{ width: 52, height: 72, background: "rgba(255,222,0,0.08)" }}>
+                      <span style={{ fontSize: 24 }}>🃏</span>
+                    </div>
+                  )}
+                  <p className="text-[9px] text-center leading-tight font-semibold line-clamp-2" style={{ color: "rgba(255,255,255,0.7)", width: "100%" }}>{item.cardName}</p>
+                  {item.gradeEstimate != null && (
+                    <span className="text-[9px] font-black px-1.5 rounded" style={{ background: "rgba(156,39,176,0.2)", color: "#CE93D8" }}>PSA {item.gradeEstimate}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="rounded-2xl p-px mt-5 mb-6" style={{ background: "linear-gradient(135deg, #CC0000, #FFDE00, #CC0000)" }}>
           <div className="rounded-2xl p-6 flex flex-col items-center" style={{ background: "#13131f" }}>
@@ -590,15 +852,65 @@ export default function PokeLover() {
             ) : imagePreview ? (
               <SpinningBall />
             ) : (
-              <PokeBallUpload onFile={handleFile} disabled={isAnalyzing} />
+              <PokeBallUpload onFiles={handleMultipleFiles} disabled={isAnalyzing} />
             )}
           </div>
         </div>
 
         {imagePreview && !isAnalyzing && (
-          <button onClick={() => { setImagePreview(""); setResult(null); setRawPriceInput(""); }} className="text-xs mb-4" style={{ color: "rgba(255,255,255,0.4)" }}>
+          <button onClick={() => { setImagePreview(""); setResult(null); setRawPriceInput(""); setAnalysisError(null); setPendingFileData(null); setSavedCardId(null); setIsBatchMode(false); setBatchTotal(0); setBatchDone(0); setBatchSummary([]); batchQueueRef.current = []; }} className="text-xs mb-4" style={{ color: "rgba(255,255,255,0.4)" }}>
             ↩ 重新上載
           </button>
+        )}
+
+        {/* A2 — 批量分析進度 */}
+        {isBatchMode && (isAnalyzing || batchDone > 0) && (
+          <div className="rounded-xl p-3 mb-4" style={{ background: "rgba(255,222,0,0.08)", border: "1px solid rgba(255,222,0,0.2)" }}>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-bold" style={{ color: "rgba(255,222,0,0.8)" }}>
+                批量分析 {isAnalyzing ? `${Math.min(batchDone + 1, batchTotal)}/${batchTotal}` : `完成 ${batchDone}/${batchTotal}`}
+              </p>
+              {!isAnalyzing && (
+                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>
+                  合計估值 HKD${batchSummary.reduce((s, r) => s + (r.value ?? 0), 0).toLocaleString("en-HK")}
+                </span>
+              )}
+            </div>
+            <div className="w-full rounded-full overflow-hidden" style={{ height: 4, background: "rgba(255,255,255,0.1)" }}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${Math.round((batchDone / Math.max(batchTotal, 1)) * 100)}%`, background: "linear-gradient(90deg, #CC0000, #FFDE00)" }} />
+            </div>
+            {!isAnalyzing && batchSummary.length > 0 && (
+              <div className="mt-2 flex flex-col gap-1">
+                {batchSummary.map((r, i) => (
+                  <div key={i} className="flex items-center justify-between text-[10px]">
+                    <span className="truncate" style={{ color: "rgba(255,255,255,0.6)", maxWidth: "70%" }}>{r.name}</span>
+                    <span style={{ color: r.value ? "#FFDE00" : "rgba(255,255,255,0.3)" }}>{r.value ? `HKD$${r.value.toLocaleString()}` : "N/A"}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* A3 — 分析失敗重試 */}
+        {analysisError && !isAnalyzing && (
+          <div className="rounded-xl p-4 mb-4 flex items-start gap-3" style={{ background: "rgba(244,67,54,0.1)", border: "1px solid rgba(244,67,54,0.3)" }}>
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#f44336" }} />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold" style={{ color: "#f44336" }}>分析失敗</p>
+              <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{analysisError}</p>
+            </div>
+            {pendingFileData && (
+              <button
+                onClick={handleRetry}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold flex-shrink-0"
+                style={{ background: "rgba(255,222,0,0.15)", border: "1px solid rgba(255,222,0,0.3)", color: "#FFDE00" }}
+              >
+                <RefreshCcw className="w-3 h-3" />
+                重試
+              </button>
+            )}
+          </div>
         )}
 
         {isAnalyzing && (
@@ -725,6 +1037,28 @@ export default function PokeLover() {
               )}
             </div>
 
+            {/* B2 — 真偽警告 */}
+            {result.authenticityWarning && (
+              <div className="rounded-xl p-4 mb-4 flex items-start gap-3" style={{ background: "rgba(244,67,54,0.08)", border: "1px solid rgba(244,67,54,0.35)" }}>
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#FF7043" }} />
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-xs font-bold" style={{ color: "#FF7043" }}>真偽提示</p>
+                    {result.authenticityScore != null && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{
+                        background: result.authenticityScore >= 80 ? "rgba(76,175,80,0.2)" : result.authenticityScore >= 60 ? "rgba(255,152,0,0.2)" : "rgba(244,67,54,0.2)",
+                        color: result.authenticityScore >= 80 ? "#4CAF50" : result.authenticityScore >= 60 ? "#FF9800" : "#f44336",
+                      }}>
+                        正版可信度 {result.authenticityScore}%
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>{result.authenticityWarning}</p>
+                  <p className="text-[10px] mt-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>* AI 判斷僅供參考，建議向專業機構送評確認</p>
+                </div>
+              </div>
+            )}
+
             <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,222,0,0.07)", border: "1px solid rgba(255,222,0,0.2)" }}>
               <p className="text-xs font-bold mb-3" style={{ color: "rgba(255,222,0,0.7)" }}>參考市場價格</p>
               <div className="grid grid-cols-3 gap-3">
@@ -748,8 +1082,57 @@ export default function PokeLover() {
               <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 <div className="flex items-center gap-2 mb-3">
                   <Zap className="w-4 h-4" style={{ color: "#FFDE00" }} />
-                  <p className="text-xs font-bold" style={{ color: "rgba(255,255,255,0.7)" }}>PSA 送評計算器</p>
+                  <p className="text-xs font-bold" style={{ color: "rgba(255,255,255,0.7)" }}>送評計算器</p>
                 </div>
+
+                {/* B1 — 評級機構選擇 */}
+                <div className="mb-3">
+                  <p className="text-[10px] mb-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>評級機構</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {(["PSA", "BGS", "CGC", "TAG"] as GradingOrg[]).map(org => (
+                      <button key={org} onClick={() => setGradingOrg(org)}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all"
+                        style={{
+                          background: gradingOrg === org ? "rgba(255,222,0,0.2)" : "rgba(255,255,255,0.05)",
+                          border: `1px solid ${gradingOrg === org ? "rgba(255,222,0,0.5)" : "rgba(255,255,255,0.1)"}`,
+                          color: gradingOrg === org ? "#FFDE00" : "rgba(255,255,255,0.4)",
+                        }}>{org}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* B1 — 服務 tier */}
+                <div className="mb-3">
+                  <p className="text-[10px] mb-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>服務等級</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {Object.entries(GRADING_FEES[gradingOrg]).map(([tier, fee]) => (
+                      <button key={tier} onClick={() => setGradingTier(tier)}
+                        className="px-2.5 py-1 rounded-lg text-[11px] transition-all"
+                        style={{
+                          background: gradingTier === tier ? "rgba(255,222,0,0.15)" : "rgba(255,255,255,0.04)",
+                          border: `1px solid ${gradingTier === tier ? "rgba(255,222,0,0.4)" : "rgba(255,255,255,0.08)"}`,
+                          color: gradingTier === tier ? "#FFDE00" : "rgba(255,255,255,0.4)",
+                        }}>{tier} <span style={{ color: "rgba(255,255,255,0.35)" }}>HKD${fee}</span></button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* D2 — 幣種切換 */}
+                <div className="mb-3">
+                  <p className="text-[10px] mb-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>顯示幣種</p>
+                  <div className="flex gap-1.5">
+                    {(["HKD", "USD", "JPY"] as const).map(cur => (
+                      <button key={cur} onClick={() => setCurrency(cur)}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all"
+                        style={{
+                          background: currency === cur ? "rgba(100,180,255,0.2)" : "rgba(255,255,255,0.04)",
+                          border: `1px solid ${currency === cur ? "rgba(100,180,255,0.5)" : "rgba(255,255,255,0.08)"}`,
+                          color: currency === cur ? "#64B4FF" : "rgba(255,255,255,0.35)",
+                        }}>{cur}</button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="mb-3">
                   <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.5)" }}>你的買入價 (HKD)</p>
                   <input
@@ -766,33 +1149,31 @@ export default function PokeLover() {
                     {psa9 > 0 && (
                       <div className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: profitPsa9 > 0 ? "rgba(76,175,80,0.15)" : "rgba(244,67,54,0.15)" }}>
                         <div>
-                          <p className="text-xs font-bold text-white">PSA 9 得標</p>
-                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>{fmtHKD(psa9)} − {fmtHKD(rawPrice)} − 送評費 ${PSA_FEE_HKD}</p>
+                          <p className="text-xs font-bold text-white">{gradingOrg} 9 得標</p>
+                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>{fmtCurrency(psa9)} − {fmtCurrency(rawPrice)} − 送評 {fmtCurrency(selectedFee)}</p>
                         </div>
                         <p className="text-sm font-black" style={{ color: profitPsa9 > 0 ? "#4CAF50" : "#f44336" }}>
-                          {profitPsa9 > 0 ? "+" : ""}{fmtHKD(profitPsa9)}
+                          {profitPsa9 > 0 ? "+" : ""}{fmtCurrency(profitPsa9)}
                         </p>
                       </div>
                     )}
                     {psa10 > 0 && (
                       <div className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: profitPsa10 > 0 ? "rgba(76,175,80,0.15)" : "rgba(244,67,54,0.15)" }}>
                         <div>
-                          <p className="text-xs font-bold text-white">PSA 10 得標</p>
-                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>{fmtHKD(psa10)} − {fmtHKD(rawPrice)} − 送評費 ${PSA_FEE_HKD}</p>
+                          <p className="text-xs font-bold text-white">{gradingOrg} 10 得標</p>
+                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>{fmtCurrency(psa10)} − {fmtCurrency(rawPrice)} − 送評 {fmtCurrency(selectedFee)}</p>
                         </div>
                         <p className="text-sm font-black" style={{ color: profitPsa10 > 0 ? "#4CAF50" : "#f44336" }}>
-                          {profitPsa10 > 0 ? "+" : ""}{fmtHKD(profitPsa10)}
+                          {profitPsa10 > 0 ? "+" : ""}{fmtCurrency(profitPsa10)}
                         </p>
                       </div>
                     )}
                     {(() => {
-                      const effectiveWorth = rawPrice > 0
-                        ? (profitPsa9 > 0 || profitPsa10 > 0)
-                        : result.worthGrading;
+                      const effectiveWorth = rawPrice > 0 ? (profitPsa9 > 0 || profitPsa10 > 0) : result.worthGrading;
                       if (effectiveWorth === undefined || effectiveWorth === null) return null;
                       return (
                         <p className="text-xs text-center mt-1 font-semibold" style={{ color: effectiveWorth ? "#4CAF50" : "#FF9800" }}>
-                          {effectiveWorth ? "AI 建議：值得送 PSA 評級" : "AI 建議：裸卡持有較划算"}
+                          {effectiveWorth ? `AI 建議：值得送 ${gradingOrg} 評級` : "AI 建議：裸卡持有較划算"}
                         </p>
                       );
                     })()}
@@ -808,7 +1189,37 @@ export default function PokeLover() {
               </div>
             )}
 
-            <div className="flex gap-2 mb-3">
+            {/* B3 — 本站同款拍賣 */}
+            {siteSearchQuery.data && siteSearchQuery.data.length > 0 && (
+              <div className="rounded-xl p-3 mb-4" style={{ background: "rgba(255,222,0,0.06)", border: "1px solid rgba(255,222,0,0.2)" }}>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-bold" style={{ color: "rgba(255,222,0,0.7)" }}>本站同款 ({siteSearchQuery.data.length} 件)</p>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {siteSearchQuery.data.map((a) => (
+                    <a
+                      key={a.id}
+                      href={`/auction/${a.id}`}
+                      className="flex items-center justify-between rounded-lg px-3 py-2 text-xs"
+                      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+                    >
+                      <span className="flex-1 min-w-0 truncate font-medium text-white">{a.title}</span>
+                      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                        <span style={{ color: a.status === "active" ? "#4CAF50" : "rgba(255,255,255,0.4)", fontSize: 9, fontWeight: "bold" }}>
+                          {a.status === "active" ? "競標中" : "已結標"}
+                        </span>
+                        <span className="font-bold" style={{ color: "#FFDE00" }}>
+                          HKD${(a.currentPrice ?? a.startingPrice).toLocaleString()}
+                        </span>
+                        <ChevronRight className="w-3 h-3" style={{ color: "rgba(255,255,255,0.3)" }} />
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2 mb-3 flex-wrap">
               <PokeShareMenu result={result} />
               {result.ebaySearchQuery && (
                 <a
@@ -819,9 +1230,46 @@ export default function PokeLover() {
                   style={{ background: "linear-gradient(135deg, #E53238, #F5AF02)", color: "#fff" }}
                 >
                   <Search className="w-4 h-4" />
-                  eBay 成交紀錄
+                  eBay 成交
                   <ExternalLink className="w-3.5 h-3.5 opacity-80" />
                 </a>
+              )}
+            </div>
+
+            {/* C1+C2 — 圖卡分享 + 存入卡冊 */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={handleShareImage}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm"
+                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)" }}
+              >
+                <Images className="w-4 h-4" />
+                圖卡分享
+              </button>
+              {isAuthenticated ? (
+                <button
+                  onClick={handleSaveCard}
+                  disabled={savingCard || savedCardId !== null}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm"
+                  style={{
+                    background: savedCardId !== null ? "rgba(76,175,80,0.15)" : "rgba(255,222,0,0.12)",
+                    border: `1px solid ${savedCardId !== null ? "rgba(76,175,80,0.4)" : "rgba(255,222,0,0.3)"}`,
+                    color: savedCardId !== null ? "#4CAF50" : "#FFDE00",
+                    opacity: savingCard ? 0.6 : 1,
+                  }}
+                >
+                  {savedCardId !== null ? <Bookmark className="w-4 h-4" fill="currentColor" /> : <BookmarkPlus className="w-4 h-4" />}
+                  {savedCardId !== null ? "已入卡冊" : savingCard ? "儲存中..." : "存入卡冊"}
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate("/login")}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)" }}
+                >
+                  <BookmarkPlus className="w-4 h-4" />
+                  登入存卡冊
+                </button>
               )}
             </div>
 
@@ -868,15 +1316,20 @@ export default function PokeLover() {
           </>
         )}
 
-        {!imagePreview && (
+        {!imagePreview && !analysisError && (
           <div className="rounded-xl p-4 mt-2" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
             <p className="text-xs font-bold mb-2" style={{ color: "rgba(255,222,0,0.6)" }}>PokeLover 可以做到</p>
             {[
               "識別卡片名稱、系列、卡號、稀有度",
               "參考市場估價（裸卡 / PSA 9 / PSA 10）",
-              "AI 品相評估及 PSA 等級預測",
-              "PSA 送評回報計算器",
+              "AI 品相評估及 PSA / BGS / CGC / TAG 預測等級",
+              "AI 真偽初步鑑別（正版可信度評分）",
+              "送評計算器（PSA/BGS/CGC/TAG × Regular/Express）",
+              "HKD / USD / JPY 三幣種即時換算",
               "eBay / ヤフオク! / Mercari / PriceCharting 市場直連",
+              "分析結果圖卡一鍵下載分享",
+              "我的卡冊：儲存 + 管理分析記錄",
+              "多張批量分析（同時上傳多圖）",
             ].map((t, i) => (
               <div key={i} className="flex items-start gap-2 mb-1.5">
                 <span style={{ color: "#CC0000", flexShrink: 0 }}>●</span>
