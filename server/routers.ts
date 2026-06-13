@@ -7414,6 +7414,18 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         await pool.execute('DELETE FROM pokeloverCards WHERE id = ? AND userId = ?', [input.id, ctx.user.id]);
         return { ok: true };
       }),
+
+    /** 更新卡冊卡片估值 */
+    updateCardPrice: protectedProcedure
+      .input(z.object({ id: z.number(), marketPriceHKD: z.number().nullable() }))
+      .mutation(async ({ ctx, input }) => {
+        const pool = await getRawPool();
+        await pool.execute(
+          'UPDATE pokeloverCards SET marketPriceHKD = ? WHERE id = ? AND userId = ?',
+          [input.marketPriceHKD, input.id, ctx.user.id]
+        );
+        return { ok: true };
+      }),
   }),
 
   // ─── AI Assist：分享文案 + 影片旁白稿（粵語口語） ─────────────────────────
