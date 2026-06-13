@@ -674,8 +674,8 @@ export default function PokeLover() {
     });
     makeThumbnail(imagePreview).then((thumb) => {
       saveCardMut.mutate({
-        cardName: result.cardName,
-        cardNameJa: result.cardNameJa,
+        cardName: result.cardName ?? undefined,
+        cardNameJa: result.cardNameJa ?? undefined,
         imageThumb: thumb || undefined,
         gradeEstimate: result.gradeEstimate ?? undefined,
         bgsEstimate: result.bgsEstimate ?? undefined,
