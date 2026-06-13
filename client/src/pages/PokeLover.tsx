@@ -302,7 +302,7 @@ function PokeShareMenu({ result }: { result: PokeResult }) {
         type="button"
         onClick={handleOpen}
         className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full"
-        style={{ background: "rgba(255,222,0,0.15)", color: "#FFDE00", border: "1px solid rgba(255,222,0,0.3)" }}
+        style={{ background: "linear-gradient(135deg, #d97706 0%, #b45309 100%)", color: "#fff", border: "none" }}
       >
         <Share2 className="w-3.5 h-3.5" /> 分享
       </button>
@@ -589,7 +589,7 @@ export default function PokeLover() {
         {result && !result.isNotPokemon && (
           <>
             {result.attacks && result.attacks.length > 0 && (
-              <div className="rounded-xl p-4 mb-4" style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 55%, #fed7aa 100%)", border: "1px solid rgba(249,115,22,0.2)" }}>
+              <div className="rounded-xl p-4 mb-4" style={{ background: "linear-gradient(135deg, #ffedd5 0%, #fdba74 55%, #fb923c 100%)", border: "1px solid rgba(234,88,12,0.25)" }}>
                 <p className="text-xs font-bold mb-3" style={{ color: "rgba(28,10,0,0.5)" }}>技能</p>
                 <div className="flex flex-col gap-2">
                   {result.attacks.map((atk, i) => (
@@ -609,7 +609,7 @@ export default function PokeLover() {
               </div>
             )}
 
-            <div className="rounded-xl p-4 mb-4" style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 55%, #fed7aa 100%)", border: "1px solid rgba(249,115,22,0.2)" }}>
+            <div className="rounded-xl p-4 mb-4" style={{ background: "linear-gradient(135deg, #ffedd5 0%, #fdba74 55%, #fb923c 100%)", border: "1px solid rgba(234,88,12,0.25)" }}>
               <p className="text-xs font-bold mb-3" style={{ color: "rgba(28,10,0,0.5)" }}>品相評估</p>
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -625,7 +625,7 @@ export default function PokeLover() {
               </div>
             </div>
 
-            <div className="rounded-xl p-4 mb-4" style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 55%, #fed7aa 100%)", border: "1px solid rgba(249,115,22,0.2)" }}>
+            <div className="rounded-xl p-4 mb-4" style={{ background: "linear-gradient(135deg, #ffedd5 0%, #fdba74 55%, #fb923c 100%)", border: "1px solid rgba(234,88,12,0.25)" }}>
               <p className="text-xs font-bold mb-3" style={{ color: "#b45309" }}>參考市場價格</p>
               <div className="grid grid-cols-3 gap-3">
                 {[
@@ -645,7 +645,7 @@ export default function PokeLover() {
             </div>
 
             {(psa9 > 0 || psa10 > 0) && (
-              <div className="rounded-xl p-4 mb-4" style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 55%, #fed7aa 100%)", border: "1px solid rgba(249,115,22,0.2)" }}>
+              <div className="rounded-xl p-4 mb-4" style={{ background: "linear-gradient(135deg, #ffedd5 0%, #fdba74 55%, #fb923c 100%)", border: "1px solid rgba(234,88,12,0.25)" }}>
                 <div className="flex items-center gap-2 mb-3">
                   <Zap className="w-4 h-4" style={{ color: "#b45309" }} />
                   <p className="text-xs font-bold" style={{ color: "rgba(28,10,0,0.7)" }}>PSA 送評計算器</p>
@@ -696,7 +696,7 @@ export default function PokeLover() {
             )}
 
             {result.funFact && (
-              <div className="rounded-xl p-4 mb-4" style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 55%, #fed7aa 100%)", border: "1px solid rgba(249,115,22,0.2)" }}>
+              <div className="rounded-xl p-4 mb-4" style={{ background: "linear-gradient(135deg, #ffedd5 0%, #fdba74 55%, #fb923c 100%)", border: "1px solid rgba(234,88,12,0.25)" }}>
                 <p className="text-xs" style={{ color: "rgba(28,10,0,0.4)" }}>💡 冷知識</p>
                 <p className="text-sm mt-1" style={{ color: "rgba(28,10,0,0.75)" }}>{result.funFact}</p>
               </div>
@@ -722,7 +722,7 @@ export default function PokeLover() {
         )}
 
         {!imagePreview && (
-          <div className="rounded-xl p-4 mt-2" style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 55%, #fed7aa 100%)", border: "1px solid rgba(249,115,22,0.2)" }}>
+          <div className="rounded-xl p-4 mt-2" style={{ background: "linear-gradient(135deg, #ffedd5 0%, #fdba74 55%, #fb923c 100%)", border: "1px solid rgba(234,88,12,0.25)" }}>
             <p className="text-xs font-bold mb-2" style={{ color: "#b45309" }}>PokeLover 可以做到</p>
             {[
               "識別卡片名稱、系列、卡號、稀有度",
