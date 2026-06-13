@@ -685,11 +685,17 @@ export default function PokeLover() {
                         </p>
                       </div>
                     )}
-                    {result.worthGrading !== undefined && (
-                      <p className="text-xs text-center mt-1 font-semibold" style={{ color: result.worthGrading ? "#4CAF50" : "#FF9800" }}>
-                        {result.worthGrading ? "AI 建議：值得送 PSA 評級" : "AI 建議：裸卡持有較划算"}
-                      </p>
-                    )}
+                    {(() => {
+                      const effectiveWorth = rawPrice > 0
+                        ? (profitPsa9 > 0 || profitPsa10 > 0)
+                        : result.worthGrading;
+                      if (effectiveWorth === undefined || effectiveWorth === null) return null;
+                      return (
+                        <p className="text-xs text-center mt-1 font-semibold" style={{ color: effectiveWorth ? "#4CAF50" : "#FF9800" }}>
+                          {effectiveWorth ? "AI 建議：值得送 PSA 評級" : "AI 建議：裸卡持有較划算"}
+                        </p>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
