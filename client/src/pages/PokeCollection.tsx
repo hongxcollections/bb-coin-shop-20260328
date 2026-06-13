@@ -420,7 +420,7 @@ export default function PokeCollection() {
               </div>
             )}
 
-            <div className={`px-5 pb-6 ${!selectedCard.imageThumb ? "pt-6" : ""}`}>
+            <div className={`px-5 pb-24 ${!selectedCard.imageThumb ? "pt-6" : ""}`}>
               {/* Close */}
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0">
