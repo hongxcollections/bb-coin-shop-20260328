@@ -302,7 +302,7 @@ function PokeShareMenu({ result }: { result: PokeResult }) {
         type="button"
         onClick={handleOpen}
         className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full"
-        style={{ background: "linear-gradient(135deg, #d97706 0%, #b45309 100%)", color: "#fff", border: "none" }}
+        style={{ background: "rgba(255,222,0,0.15)", color: "#FFDE00", border: "1px solid rgba(255,222,0,0.3)" }}
       >
         <Share2 className="w-3.5 h-3.5" /> 分享
       </button>
@@ -506,7 +506,7 @@ export default function PokeLover() {
   const rarityColor = result?.rarity ? (RARITY_COLOR[result.rarity] ?? "#9C27B0") : "#9C27B0";
 
   return (
-    <div className="min-h-screen pb-20 home-bg" style={{ color: "#1c0a00" }}>
+    <div className="min-h-screen pb-20" style={{ background: "linear-gradient(160deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)", color: "#fff" }}>
       <Header />
 
       {lightboxOpen && imagePreview && (
@@ -514,17 +514,17 @@ export default function PokeLover() {
       )}
 
       <div className="max-w-lg mx-auto px-4 pt-4">
-        <button onClick={() => navigate("/")} className="flex items-center gap-1 text-xs mb-4" style={{ color: "rgba(28,10,0,0.45)" }}>
+        <button onClick={() => navigate("/")} className="flex items-center gap-1 text-xs mb-4" style={{ color: "rgba(255,255,255,0.5)" }}>
           <ChevronLeft className="w-4 h-4" /> 返回
         </button>
 
         <div className="flex items-center gap-3 mb-1">
           <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "2px solid #333" }} />
           <div>
-            <h1 className="text-2xl font-black tracking-tight leading-none" style={{ color: "#b45309", textShadow: "0 2px 8px rgba(180,83,9,0.25)" }}>
+            <h1 className="text-2xl font-black tracking-tight leading-none" style={{ color: "#FFDE00", textShadow: "0 2px 8px rgba(255,222,0,0.4)" }}>
               PokeLover
             </h1>
-            <p className="text-xs mt-0.5" style={{ color: "rgba(28,10,0,0.5)" }}>AI 智能 Pokemon 卡片鑑定 · 市場估價</p>
+            <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>AI 智能 Pokemon 卡片鑑定 · 市場估價</p>
           </div>
         </div>
 
@@ -581,7 +581,7 @@ export default function PokeLover() {
         </div>
 
         {imagePreview && !isAnalyzing && (
-          <button onClick={() => { setImagePreview(""); setResult(null); setRawPriceInput(""); }} className="text-xs mb-4" style={{ color: "rgba(28,10,0,0.4)" }}>
+          <button onClick={() => { setImagePreview(""); setResult(null); setRawPriceInput(""); }} className="text-xs mb-4" style={{ color: "rgba(255,255,255,0.4)" }}>
             ↩ 重新上載
           </button>
         )}
@@ -589,8 +589,8 @@ export default function PokeLover() {
         {result && !result.isNotPokemon && (
           <>
             {result.attacks && result.attacks.length > 0 && (
-              <div className="rounded-xl p-4 mb-4" style={{ background: "linear-gradient(135deg, #ffedd5 0%, #fdba74 55%, #fb923c 100%)", border: "1px solid rgba(234,88,12,0.25)" }}>
-                <p className="text-xs font-bold mb-3" style={{ color: "rgba(28,10,0,0.5)" }}>技能</p>
+              <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <p className="text-xs font-bold mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>技能</p>
                 <div className="flex flex-col gap-2">
                   {result.attacks.map((atk, i) => (
                     <div key={i} className="flex items-center justify-between">
@@ -600,33 +600,33 @@ export default function PokeLover() {
                             <div key={ci} style={{ width: 12, height: 12, borderRadius: "50%", background: TYPE_COLORS[c]?.bg ?? "#888", border: "1px solid rgba(0,0,0,0.3)" }} />
                           ))}
                         </div>
-                        <span className="text-sm font-semibold" style={{ color: "#1c0a00" }}>{atk.name}</span>
+                        <span className="text-sm font-semibold text-white">{atk.name}</span>
                       </div>
-                      {atk.damage && <span className="text-sm font-black" style={{ color: "#b45309" }}>{atk.damage}</span>}
+                      {atk.damage && <span className="text-sm font-black" style={{ color: "#FFDE00" }}>{atk.damage}</span>}
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            <div className="rounded-xl p-4 mb-4" style={{ background: "linear-gradient(135deg, #ffedd5 0%, #fdba74 55%, #fb923c 100%)", border: "1px solid rgba(234,88,12,0.25)" }}>
-              <p className="text-xs font-bold mb-3" style={{ color: "rgba(28,10,0,0.5)" }}>品相評估</p>
+            <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <p className="text-xs font-bold mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>品相評估</p>
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-base font-black" style={{ color: "#1c0a00" }}>{result.condition ?? "—"}</p>
-                  {result.conditionNote && <p className="text-xs mt-0.5" style={{ color: "rgba(28,10,0,0.5)" }}>{result.conditionNote}</p>}
+                  <p className="text-base font-black text-white">{result.condition ?? "—"}</p>
+                  {result.conditionNote && <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{result.conditionNote}</p>}
                 </div>
                 {result.gradeEstimate != null && (
                   <div className="flex flex-col items-end gap-1">
-                    <p className="text-xs" style={{ color: "rgba(28,10,0,0.5)" }}>估計 PSA 等級</p>
+                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>估計 PSA 等級</p>
                     <GradeBar grade={result.gradeEstimate} />
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="rounded-xl p-4 mb-4" style={{ background: "linear-gradient(135deg, #ffedd5 0%, #fdba74 55%, #fb923c 100%)", border: "1px solid rgba(234,88,12,0.25)" }}>
-              <p className="text-xs font-bold mb-3" style={{ color: "#b45309" }}>參考市場價格</p>
+            <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,222,0,0.07)", border: "1px solid rgba(255,222,0,0.2)" }}>
+              <p className="text-xs font-bold mb-3" style={{ color: "rgba(255,222,0,0.7)" }}>參考市場價格</p>
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { label: "裸卡 NM", value: result.marketPriceHKD },
@@ -634,31 +634,31 @@ export default function PokeLover() {
                   { label: "PSA 10", value: result.psa10HKD },
                 ].map(({ label, value }) => (
                   <div key={label} className="text-center">
-                    <p className="text-[10px] mb-1" style={{ color: "rgba(28,10,0,0.5)" }}>{label}</p>
-                    <p className="text-sm font-black" style={{ color: value ? "#b45309" : "rgba(28,10,0,0.3)" }}>
+                    <p className="text-[10px] mb-1" style={{ color: "rgba(255,255,255,0.5)" }}>{label}</p>
+                    <p className="text-sm font-black" style={{ color: value ? "#FFDE00" : "rgba(255,255,255,0.3)" }}>
                       {value ? `$${value.toLocaleString("en-HK")}` : "N/A"}
                     </p>
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] mt-2 text-center" style={{ color: "rgba(28,10,0,0.35)" }}>* AI 估算僅供參考，實際成交價以市場為準</p>
+              <p className="text-[10px] mt-2 text-center" style={{ color: "rgba(255,255,255,0.3)" }}>* AI 估算僅供參考，實際成交價以市場為準</p>
             </div>
 
             {(psa9 > 0 || psa10 > 0) && (
-              <div className="rounded-xl p-4 mb-4" style={{ background: "linear-gradient(135deg, #ffedd5 0%, #fdba74 55%, #fb923c 100%)", border: "1px solid rgba(234,88,12,0.25)" }}>
+              <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 <div className="flex items-center gap-2 mb-3">
-                  <Zap className="w-4 h-4" style={{ color: "#b45309" }} />
-                  <p className="text-xs font-bold" style={{ color: "rgba(28,10,0,0.7)" }}>PSA 送評計算器</p>
+                  <Zap className="w-4 h-4" style={{ color: "#FFDE00" }} />
+                  <p className="text-xs font-bold" style={{ color: "rgba(255,255,255,0.7)" }}>PSA 送評計算器</p>
                 </div>
                 <div className="mb-3">
-                  <p className="text-xs mb-1" style={{ color: "rgba(28,10,0,0.5)" }}>你的買入價 (HKD)</p>
+                  <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.5)" }}>你的買入價 (HKD)</p>
                   <input
                     type="number"
                     value={rawPriceInput}
                     onChange={e => setRawPriceInput(e.target.value)}
                     placeholder="輸入買入價"
-                    className="w-full px-3 py-2 text-sm outline-none placeholder-amber-400"
-                    style={{ background: "rgba(255,255,255,0.8)", border: "1px solid rgba(180,83,9,0.2)", borderRadius: "10px", color: "#1c0a00" }}
+                    className="w-full px-3 py-2 text-sm outline-none text-white placeholder-gray-500"
+                    style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "10px" }}
                   />
                 </div>
                 {rawPrice > 0 && (
@@ -666,8 +666,8 @@ export default function PokeLover() {
                     {psa9 > 0 && (
                       <div className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: profitPsa9 > 0 ? "rgba(76,175,80,0.15)" : "rgba(244,67,54,0.15)" }}>
                         <div>
-                          <p className="text-xs font-bold" style={{ color: "#1c0a00" }}>PSA 9 得標</p>
-                          <p className="text-[10px]" style={{ color: "rgba(28,10,0,0.5)" }}>{fmtHKD(psa9)} − {fmtHKD(rawPrice)} − 送評費 ${PSA_FEE_HKD}</p>
+                          <p className="text-xs font-bold text-white">PSA 9 得標</p>
+                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>{fmtHKD(psa9)} − {fmtHKD(rawPrice)} − 送評費 ${PSA_FEE_HKD}</p>
                         </div>
                         <p className="text-sm font-black" style={{ color: profitPsa9 > 0 ? "#4CAF50" : "#f44336" }}>
                           {profitPsa9 > 0 ? "+" : ""}{fmtHKD(profitPsa9)}
@@ -677,8 +677,8 @@ export default function PokeLover() {
                     {psa10 > 0 && (
                       <div className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: profitPsa10 > 0 ? "rgba(76,175,80,0.15)" : "rgba(244,67,54,0.15)" }}>
                         <div>
-                          <p className="text-xs font-bold" style={{ color: "#1c0a00" }}>PSA 10 得標</p>
-                          <p className="text-[10px]" style={{ color: "rgba(28,10,0,0.5)" }}>{fmtHKD(psa10)} − {fmtHKD(rawPrice)} − 送評費 ${PSA_FEE_HKD}</p>
+                          <p className="text-xs font-bold text-white">PSA 10 得標</p>
+                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>{fmtHKD(psa10)} − {fmtHKD(rawPrice)} − 送評費 ${PSA_FEE_HKD}</p>
                         </div>
                         <p className="text-sm font-black" style={{ color: profitPsa10 > 0 ? "#4CAF50" : "#f44336" }}>
                           {profitPsa10 > 0 ? "+" : ""}{fmtHKD(profitPsa10)}
@@ -702,9 +702,9 @@ export default function PokeLover() {
             )}
 
             {result.funFact && (
-              <div className="rounded-xl p-4 mb-4" style={{ background: "linear-gradient(135deg, #ffedd5 0%, #fdba74 55%, #fb923c 100%)", border: "1px solid rgba(234,88,12,0.25)" }}>
-                <p className="text-xs" style={{ color: "rgba(28,10,0,0.4)" }}>💡 冷知識</p>
-                <p className="text-sm mt-1" style={{ color: "rgba(28,10,0,0.75)" }}>{result.funFact}</p>
+              <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>💡 冷知識</p>
+                <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.75)" }}>{result.funFact}</p>
               </div>
             )}
 
@@ -728,8 +728,8 @@ export default function PokeLover() {
         )}
 
         {!imagePreview && (
-          <div className="rounded-xl p-4 mt-2" style={{ background: "linear-gradient(135deg, #ffedd5 0%, #fdba74 55%, #fb923c 100%)", border: "1px solid rgba(234,88,12,0.25)" }}>
-            <p className="text-xs font-bold mb-2" style={{ color: "#b45309" }}>PokeLover 可以做到</p>
+          <div className="rounded-xl p-4 mt-2" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <p className="text-xs font-bold mb-2" style={{ color: "rgba(255,222,0,0.6)" }}>PokeLover 可以做到</p>
             {[
               "識別卡片名稱、系列、卡號、稀有度",
               "參考市場估價（裸卡 / PSA 9 / PSA 10）",
@@ -739,7 +739,7 @@ export default function PokeLover() {
             ].map((t, i) => (
               <div key={i} className="flex items-start gap-2 mb-1.5">
                 <span style={{ color: "#CC0000", flexShrink: 0 }}>●</span>
-                <p className="text-xs" style={{ color: "rgba(28,10,0,0.6)" }}>{t}</p>
+                <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>{t}</p>
               </div>
             ))}
           </div>
