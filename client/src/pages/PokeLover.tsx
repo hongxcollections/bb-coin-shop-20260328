@@ -852,10 +852,26 @@ export default function PokeLover() {
     try {
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const domtoimage = (await import("dom-to-image-more")).default;
-      const dataUrl = await domtoimage.toPng(el, {
+      const baseUrl = await domtoimage.toPng(el, {
         scale: 2,
         bgcolor: "#0d0d1f",
       });
+      // Add padding via Canvas (dom-to-image-more doesn't reliably include CSS padding in capture)
+      const SCALE = 2;
+      const PT = 10 * SCALE; // paddingTop 10px
+      const PS = 5 * SCALE;  // paddingLeft/Right 5px
+      const PB = 10 * SCALE; // paddingBottom 10px
+      const img = new Image();
+      img.src = baseUrl;
+      await new Promise<void>(r => { img.onload = () => r(); });
+      const cvs = document.createElement("canvas");
+      cvs.width = img.naturalWidth + PS * 2;
+      cvs.height = img.naturalHeight + PT + PB;
+      const ctx = cvs.getContext("2d")!;
+      ctx.fillStyle = "#0d0d1f";
+      ctx.fillRect(0, 0, cvs.width, cvs.height);
+      ctx.drawImage(img, PS, PT);
+      const dataUrl = cvs.toDataURL("image/png");
       setShareImgUrl(dataUrl);
       setShareDialogOpen(true);
     } catch (e) {
@@ -884,7 +900,7 @@ export default function PokeLover() {
       )}
 
       <div className="max-w-lg mx-auto px-4 pt-4">
-        <div ref={shareCardRef} style={{ background: "linear-gradient(180deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)", borderRadius: 12, paddingTop: 10, paddingLeft: 5, paddingRight: 5 }}>
+        <div ref={shareCardRef} style={{ background: "linear-gradient(180deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)", borderRadius: 12 }}>
         <div className="flex items-center gap-3 mb-1">
           <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "2px solid #333" }} />
           <div className="flex-1 min-w-0">
