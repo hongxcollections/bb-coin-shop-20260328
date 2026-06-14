@@ -5,7 +5,7 @@ import Header from "@/components/Header";
 import { toast } from "sonner";
 import {
   ChevronLeft, Trash2, BookOpen, Search, X, Pencil, Check,
-  SortAsc, Layers, Share2, ExternalLink, Loader2, RefreshCw,
+  SortAsc, Layers, Share2, Loader2, RefreshCw,
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useConfirm } from "@/components/ui/confirm-provider";
@@ -533,13 +533,10 @@ export default function PokeCollection() {
                   <RefreshCw className="w-4 h-4" /> 重新分析
                 </button>
                 <button
-                  onClick={() => {
-                    const q = encodeURIComponent(selectedCard.cardName ?? "");
-                    window.open(`/auctions?q=${q}`, "_blank");
-                  }}
+                  onClick={() => toast.info("本站搜尋功能開發中，敬請期待", { className: "bb-toast-info" })}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold"
-                  style={{ background: "rgba(33,150,243,0.1)", border: "1px solid rgba(33,150,243,0.25)", color: "#90CAF9" }}>
-                  <ExternalLink className="w-4 h-4" /> 本站搜尋
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.3)", cursor: "not-allowed" }}>
+                  <Search className="w-4 h-4" /> 本站搜尋
                 </button>
                 <button onClick={() => handleDelete(selectedCard)}
                   className="p-2.5 rounded-xl"
