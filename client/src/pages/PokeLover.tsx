@@ -848,6 +848,7 @@ export default function PokeLover() {
       // 純 canvas 手繪，唔依賴 html2canvas，保證相容所有瀏覽器
       const W = 390, PAD = 16, SC = 2;
       const gradeColors = ["","#f44336","#f44336","#FF9800","#FF9800","#FFC107","#FFC107","#8BC34A","#4CAF50","#2196F3","#9C27B0"];
+      const rarityColor = result.rarity ? (RARITY_COLOR[result.rarity] ?? "#9C27B0") : "#9C27B0";
 
       // 預計算各 section 高度
       const hasPhoto = !!imagePreview;
@@ -1082,7 +1083,7 @@ export default function PokeLover() {
     } finally {
       setShareGenerating(false);
     }
-  }, [result, imagePreview, rarityColor]);
+  }, [result, imagePreview]);
 
   const rawPrice = parseInt(rawPriceInput, 10) || 0;
   const psa9 = result?.psa9HKD ?? 0;
