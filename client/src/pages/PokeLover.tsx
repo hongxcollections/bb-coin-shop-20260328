@@ -591,6 +591,7 @@ export default function PokeLover() {
   const processFileRef = useRef<((file: File) => void) | null>(null);
   const historyThumbRef = useRef<string>("");
   const userIdRef = useRef<number | null | undefined>(undefined);
+  const shareCardRef = useRef<HTMLDivElement>(null);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareImgUrl, setShareImgUrl] = useState("");
   const [shareGenerating, setShareGenerating] = useState(false);
@@ -842,344 +843,26 @@ export default function PokeLover() {
   }, [result, isAuthenticated, imagePreview, saveCardMut]);
 
   const handleShareImage = useCallback(async () => {
-    if (!result) return;
+    if (!result || !shareCardRef.current) return;
     setShareGenerating(true);
     try {
-      // ── Constants matching the actual page JSX ──
-      const W = 390, PAD = 16, SC = 2, BP = 14, GAP = 12;
-      const GC = ["","#f44336","#f44336","#FF9800","#FF9800","#FFC107","#FFC107","#8BC34A","#4CAF50","#2196F3","#9C27B0"];
-      const rarityColor = result.rarity ? (RARITY_COLOR[result.rarity] ?? "#9C27B0") : "#9C27B0";
-      const IW = W - PAD * 2;
-      const PW = 88, PH = 124; // photo size matching JSX
-      const hasPhoto = !!imagePreview;
-      const hasAuth = !!result.authenticityWarning;
-      const hasGrades = result.gradeEstimate != null || result.bgsEstimate != null || result.cgcEstimate != null || result.tagEstimate != null;
-      const hasPrices = !!(result.marketPriceHKD || result.psa9HKD || result.psa10HKD);
-      const hasAttacks = !!(result.attacks && result.attacks.length > 0);
-      const hasFunFact = !!result.funFact;
-
-      // ── Helper: draw box background ──
-      const tmpC = document.createElement("canvas");
-      const mCtx = tmpC.getContext("2d")!;
-      const drawBox = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, bg: string, border: string) => {
-        c.fillStyle = bg; c.beginPath(); c.roundRect(x, y, w, h, 12); c.fill();
-        c.strokeStyle = border; c.lineWidth = 1; c.beginPath(); c.roundRect(x, y, w, h, 12); c.stroke();
-      };
-
-      // ── Dynamic height calculation (matches JSX padding/spacing exactly) ──
-      // Text column width: right of photo to right edge of box
-      const textW = hasPhoto ? IW - BP * 2 - PW - 14 : IW - BP * 2;
-
-      // Card name wrap (19px 900, lineHeight 1.2 → ~24px per line)
-      mCtx.font = "900 19px sans-serif";
-      const nameLines = wrapText(mCtx, result.cardName ?? "未知卡片", textW, 19);
-      const nameH = nameLines.length * 24;
-
-      // Badge rows simulation (flex-wrap: gap 5, badge height 22)
-      mCtx.font = "700 10px sans-serif";
-      const allBadges = [
-        ...(result.types ?? []).map(t => ({ label: t, measured: mCtx.measureText(t).width + 16 })),
-        ...(result.rarity ? [{ label: result.rarity, measured: mCtx.measureText(result.rarity).width + 16 }] : []),
-      ];
-      let badgeRowCount = 1, badgeRowX = 0;
-      allBadges.forEach(b => {
-        if (badgeRowX > 0 && badgeRowX + b.measured + 5 > textW) { badgeRowCount++; badgeRowX = 0; }
-        badgeRowX += b.measured + 5;
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(shareCardRef.current, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+        logging: false,
       });
-      const badgeH = badgeRowCount * 22 + (badgeRowCount - 1) * 5;
-
-      // Meta items flex-wrap simulation (11px font, gap "2px 10px" → 12px col gap)
-      mCtx.font = "11px sans-serif";
-      const metaItemsList: string[] = [];
-      if (result.hp) metaItemsList.push(`HP ${result.hp}`);
-      if (result.set) metaItemsList.push(result.set + (result.setNumber ? ` #${result.setNumber}` : ""));
-      if (result.releaseYear) metaItemsList.push(String(result.releaseYear));
-      if (result.language) metaItemsList.push(result.language);
-      let metaRowCount = 1, metaRowX = 0;
-      metaItemsList.forEach(item => {
-        const iw = mCtx.measureText(item).width + 12;
-        if (metaRowX > 0 && metaRowX + iw > textW) { metaRowCount++; metaRowX = 0; }
-        metaRowX += iw;
-      });
-      const metaH = metaItemsList.length > 0 ? (metaRowCount * 16 + (metaRowCount - 1) * 2) : 0;
-
-      const cardBoxInnerH = Math.max(hasPhoto ? PH : 0,
-        nameH + (result.cardNameJa ? 3 + 18 : 0) + 8 + badgeH + (metaH > 0 ? 7 + metaH : 0));
-      const cardBoxH = BP + cardBoxInnerH + BP;
-
-      // Auth box: BP top + label(17) + score(16+5) + wrapped lines(19×N) + BP bottom
-      const authLines = hasAuth ? (() => { mCtx.font = "12px sans-serif"; return wrapText(mCtx, result.authenticityWarning!, IW - BP * 2, 12); })() : [];
-      const authBoxH = hasAuth ? (BP + 17 + 5 + (result.authenticityScore != null ? 16 + 5 : 0) + authLines.length * 19 + BP) : 0;
-
-      // Condition box: BP + label(17) + gap(7) + value(21) + note(19) + [grades: gap(12)+label(15)+gap(7)+boxes(68)+bar(22+8)] + BP
-      const condBoxH = (() => {
-        let h = BP + 17 + 7 + 21;
-        if (result.conditionNote) h += 3 + 16;
-        if (hasGrades) { h += 12 + 15 + 7 + 68 + (result.gradeEstimate != null ? 8 + 22 : 8); }
-        h += BP;
-        return h;
-      })();
-
-      // Prices box: BP + label(17) + gap(10) + grid(39) + gap(8) + footnote(14) + BP
-      const priceBoxH = hasPrices ? (BP + 17 + 10 + 39 + 8 + 14 + BP) : 0;
-
-      // Attacks box: BP + label(17) + gap(10) + N×(cost+name row 22) + gap(8×(N-1)) + BP
-      const atkBoxH = hasAttacks ? (BP + 17 + 10 + result.attacks!.length * 22 + (result.attacks!.length - 1) * 8 + BP) : 0;
-
-      // Fun fact box: BP + label(15) + gap(4) + wrapped lines(18×N) + BP
-      const ffLines = hasFunFact ? (() => { mCtx.font = "12px sans-serif"; return wrapText(mCtx, result.funFact!, IW - BP * 2, 12); })() : [];
-      const ffBoxH = hasFunFact ? (BP + 15 + 4 + ffLines.length * 18 + BP) : 0;
-
-      // Total
-      let totalH = PAD + 50 + GAP + cardBoxH + GAP;
-      if (hasAuth) totalH += authBoxH + GAP;
-      totalH += condBoxH + GAP;
-      if (hasPrices) totalH += priceBoxH + GAP;
-      if (hasAttacks) totalH += atkBoxH + GAP;
-      if (hasFunFact) totalH += ffBoxH + GAP;
-      totalH += 40 + PAD; // footer
-
-      // ── Create canvas ──
-      const c = document.createElement("canvas");
-      c.width = W * SC; c.height = totalH * SC;
-      const ctx = c.getContext("2d")!;
-      ctx.scale(SC, SC);
-
-      // Background gradient
-      const bgG = ctx.createLinearGradient(0, 0, 0, totalH);
-      bgG.addColorStop(0, "#0d0d1f"); bgG.addColorStop(0.4, "#1a0505"); bgG.addColorStop(1, "#0d0d1f");
-      ctx.fillStyle = bgG; ctx.fillRect(0, 0, W, totalH);
-
-      let y = PAD;
-
-      // ── Header ── (matches JSX: pokeball 34px, PokeLover 20px/900, subtitle 10px)
-      ctx.beginPath(); ctx.arc(PAD + 17, y + 17, 17, 0, Math.PI * 2);
-      const bG = ctx.createLinearGradient(PAD, y, PAD, y + 34);
-      bG.addColorStop(0, "#CC0000"); bG.addColorStop(0.5, "#CC0000"); bG.addColorStop(0.5, "#f5f5f5"); bG.addColorStop(1, "#f5f5f5");
-      ctx.fillStyle = bG; ctx.fill(); ctx.strokeStyle = "#333"; ctx.lineWidth = 2; ctx.stroke();
-      ctx.font = "900 20px sans-serif"; ctx.fillStyle = "#FFDE00"; ctx.fillText("PokeLover", PAD + 44, y + 22);
-      ctx.font = "11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.fillText("AI 智能 Pokemon 卡片鑑定 · 市場估價", PAD + 44, y + 40);
-      y += 50 + GAP;
-
-      // ── Card info box ── (gradient border 1px + inner #13131f, padding 18)
-      const cbGrad = ctx.createLinearGradient(PAD, y, W - PAD, y + cardBoxH);
-      cbGrad.addColorStop(0, "#CC0000"); cbGrad.addColorStop(0.5, "#FFDE00"); cbGrad.addColorStop(1, "#CC0000");
-      ctx.fillStyle = cbGrad; ctx.beginPath(); ctx.roundRect(PAD, y, IW, cardBoxH, 14); ctx.fill();
-      ctx.fillStyle = "#13131f"; ctx.beginPath(); ctx.roundRect(PAD + 1, y + 1, IW - 2, cardBoxH - 2, 13); ctx.fill();
-
-      if (hasPhoto) {
-        await new Promise<void>((resolve) => {
-          const img = new window.Image();
-          img.onload = () => {
-            const px = PAD + BP, py = y + BP;
-            ctx.save(); ctx.beginPath(); ctx.roundRect(px, py, PW, PH, 10); ctx.clip();
-            ctx.drawImage(img, px, py, PW, PH); ctx.restore();
-            ctx.strokeStyle = "rgba(255,222,0,0.3)"; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.roundRect(px, py, PW, PH, 10); ctx.stroke();
-            resolve();
-          };
-          img.onerror = () => resolve();
-          img.src = imagePreview;
-        });
-      }
-
-      // Text column — TX = right of photo (or left of box)
-      const TX = hasPhoto ? PAD + BP + PW + 14 : PAD + BP;
-      let ty = y + BP;
-
-      // Card name: fontSize 19/900, word-wrap at textW (matches JSX wordBreak:"break-word", lineHeight 1.2)
-      ctx.font = "900 19px sans-serif"; ctx.fillStyle = "#FFDE00";
-      nameLines.forEach(line => { ctx.fillText(line, TX, ty + 19); ty += 24; });
-
-      // Japanese name: fontSize 13 (matches JSX)
-      if (result.cardNameJa) {
-        ctx.font = "13px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.5)";
-        ctx.fillText(result.cardNameJa.substring(0, 24), TX, ty + 3 + 13);
-        ty += 3 + 18;
-      }
-      ty += 8;
-
-      // Type badges + rarity: flex-wrap within textW (matches JSX flexWrap:"wrap", gap 5)
-      ctx.font = "700 10px sans-serif";
-      let bdgX = TX, bdgY = ty;
-      (result.types ?? []).forEach(t => {
-        const tc = TYPE_COLORS[t] ?? TYPE_COLORS.default;
-        const bw = ctx.measureText(t).width + 16;
-        if (bdgX > TX && bdgX + bw > TX + textW) { bdgX = TX; bdgY += 22 + 5; }
-        ctx.fillStyle = tc.bg; ctx.beginPath(); ctx.roundRect(bdgX, bdgY, bw, 22, 11); ctx.fill();
-        ctx.fillStyle = tc.text; ctx.fillText(t, bdgX + 8, bdgY + 15);
-        bdgX += bw + 5;
-      });
-      if (result.rarity) {
-        const bw = ctx.measureText(result.rarity).width + 16;
-        if (bdgX > TX && bdgX + bw > TX + textW) { bdgX = TX; bdgY += 22 + 5; }
-        ctx.fillStyle = rarityColor + "33"; ctx.beginPath(); ctx.roundRect(bdgX, bdgY, bw, 22, 11); ctx.fill();
-        ctx.strokeStyle = rarityColor + "66"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(bdgX, bdgY, bw, 22, 11); ctx.stroke();
-        ctx.fillStyle = rarityColor; ctx.fillText(result.rarity, bdgX + 8, bdgY + 15);
-      }
-      ty = bdgY + 22 + 7;
-
-      // HP / Set / Year / Language: flex-wrap simulation (matches JSX display:"flex", flexWrap:"wrap", gap:"2px 10px")
-      if (metaItemsList.length > 0) {
-        ctx.font = "11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.6)";
-        let mX = TX, mY = ty;
-        metaItemsList.forEach(item => {
-          const iw = ctx.measureText(item).width + 12;
-          if (mX > TX && mX + iw > TX + textW) { mX = TX; mY += 16 + 2; }
-          ctx.fillText(item, mX, mY + 13);
-          mX += iw;
-        });
-      }
-
-      y += cardBoxH + GAP;
-
-      // ── Authenticity warning ── (matches JSX: fontSize 12/700 for title, 11 for score, 12 for text)
-      if (hasAuth) {
-        drawBox(ctx, PAD, y, IW, authBoxH, "rgba(244,67,54,0.08)", "rgba(244,67,54,0.35)");
-        let ay = y + BP;
-        ctx.font = "700 12px sans-serif"; ctx.fillStyle = "#FF7043";
-        ctx.fillText("⚠ 真偽存疑", PAD + BP, ay + 13); ay += 17 + 5;
-        if (result.authenticityScore != null) {
-          const sc = result.authenticityScore;
-          ctx.font = "700 11px sans-serif";
-          ctx.fillStyle = sc >= 80 ? "#4CAF50" : sc >= 60 ? "#FF9800" : "#f44336";
-          ctx.fillText(`正版可信度 ${sc}%`, PAD + BP, ay + 12); ay += 16 + 5;
-        }
-        ctx.font = "12px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.6)";
-        authLines.forEach(line => { ctx.fillText(line, PAD + BP, ay + 13); ay += 19; });
-        y += authBoxH + GAP;
-      }
-
-      // ── Condition + grades ── (matches JSX: label 11/700, value 15/900, note 11, grades 9+17)
-      drawBox(ctx, PAD, y, IW, condBoxH, "rgba(255,255,255,0.05)", "rgba(255,255,255,0.08)");
-      let cy = y + BP;
-      ctx.font = "700 11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.5)";
-      ctx.fillText("品相評估", PAD + BP, cy + 12); cy += 17 + 7;
-      ctx.font = "900 15px sans-serif"; ctx.fillStyle = "#fff";
-      ctx.fillText(result.condition ?? "—", PAD + BP, cy + 15); cy += 21;
-      if (result.conditionNote) {
-        ctx.font = "11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.5)";
-        ctx.fillText(result.conditionNote.substring(0, 52), PAD + BP, cy + 3 + 12); cy += 3 + 16;
-      }
-      if (hasGrades) {
-        cy += 12;
-        ctx.font = "700 10px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.35)";
-        ctx.fillText("估計評級", PAD + BP, cy + 11); cy += 15 + 7;
-        const gList = [
-          { label: "PSA", value: result.gradeEstimate, color: "#9C27B0" },
-          { label: "BGS", value: result.bgsEstimate, color: "#2196F3" },
-          { label: "CGC", value: result.cgcEstimate, color: "#4CAF50" },
-          { label: "TAG", value: result.tagEstimate, color: "#FF9800" },
-        ] as { label: string; value: number | null | undefined; color: string }[];
-        // Grade boxes: padding "8px 0", fontSize 9/700 label, 17/900 value, 9 /10 (matches JSX)
-        const gW = (IW - BP * 2 - 8 * 3) / 4, gX0 = PAD + BP;
-        gList.forEach((g, i) => {
-          const gx = gX0 + i * (gW + 8);
-          drawBox(ctx, gx, cy, gW, 68, g.value != null ? g.color + "18" : "rgba(255,255,255,0.03)", g.value != null ? g.color + "44" : "rgba(255,255,255,0.06)");
-          ctx.textAlign = "center";
-          ctx.font = "700 9px sans-serif"; ctx.fillStyle = g.value != null ? g.color : "rgba(255,255,255,0.25)";
-          ctx.fillText(g.label, gx + gW / 2, cy + 8 + 11);
-          ctx.font = "900 17px sans-serif"; ctx.fillStyle = g.value != null ? g.color : "rgba(255,255,255,0.2)";
-          ctx.fillText(g.value != null ? String(g.value) : "—", gx + gW / 2, cy + 8 + 11 + 6 + 19);
-          if (g.value != null) {
-            ctx.font = "9px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.3)";
-            ctx.fillText("/10", gx + gW / 2, cy + 8 + 11 + 6 + 19 + 4 + 10);
-          }
-          ctx.textAlign = "left";
-        });
-        cy += 68;
-        if (result.gradeEstimate != null) {
-          cy += 8;
-          const barX = PAD + BP;
-          [1,2,3,4,5,6,7,8,9,10].forEach(i => {
-            ctx.fillStyle = i <= result.gradeEstimate! ? (GC[i] ?? "#888") : "rgba(255,255,255,0.1)";
-            ctx.beginPath(); ctx.roundRect(barX + (i - 1) * 17, cy, 15, 15, 4); ctx.fill();
-          });
-          ctx.font = "900 13px sans-serif"; ctx.fillStyle = GC[result.gradeEstimate] ?? "#fff";
-          ctx.fillText(`${result.gradeEstimate}/10`, barX + 185, cy + 13);
-        }
-      }
-      y += condBoxH + GAP;
-
-      // ── Market prices ── (matches JSX: label 11/700, col-label 10, value 14/900, footnote 9)
-      if (hasPrices) {
-        drawBox(ctx, PAD, y, IW, priceBoxH, "rgba(255,222,0,0.07)", "rgba(255,222,0,0.2)");
-        let py2 = y + BP;
-        ctx.font = "700 11px sans-serif"; ctx.fillStyle = "rgba(255,222,0,0.7)";
-        ctx.fillText("參考市場價格", PAD + BP, py2 + 13); py2 += 17 + 10;
-        const colW = IW / 3;
-        const prList = [
-          { label: "裸卡 NM", value: result.marketPriceHKD },
-          { label: "PSA 9", value: result.psa9HKD },
-          { label: "PSA 10", value: result.psa10HKD },
-        ] as { label: string; value: number | null | undefined }[];
-        ctx.textAlign = "center";
-        prList.forEach(({ label, value }, i) => {
-          const cx2 = PAD + colW * i + colW / 2;
-          ctx.font = "10px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.5)";
-          ctx.fillText(label, cx2, py2 + 11);
-          ctx.font = "900 14px sans-serif"; ctx.fillStyle = value ? "#FFDE00" : "rgba(255,255,255,0.3)";
-          ctx.fillText(value ? `$${value.toLocaleString("en-HK")}` : "N/A", cx2, py2 + 11 + 4 + 16);
-        });
-        ctx.textAlign = "left";
-        py2 += 39 + 8;
-        ctx.font = "9px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.25)"; ctx.textAlign = "center";
-        ctx.fillText("* AI 估算僅供參考，實際成交價以市場為準", W / 2, py2 + 10);
-        ctx.textAlign = "left";
-        y += priceBoxH + GAP;
-      }
-
-      // ── Attacks ── (matches JSX: label 11/700, name 13/600, damage 13/900, cost circles 12px)
-      if (hasAttacks) {
-        drawBox(ctx, PAD, y, IW, atkBoxH, "rgba(255,255,255,0.05)", "rgba(255,255,255,0.08)");
-        let ay2 = y + BP;
-        ctx.font = "700 11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.5)";
-        ctx.fillText("技能", PAD + BP, ay2 + 13); ay2 += 17 + 10;
-        result.attacks!.forEach((atk, i) => {
-          if (i > 0) ay2 += 8;
-          let costX = PAD + BP;
-          (atk.cost ?? []).slice(0, 4).forEach(ct => {
-            const tc3 = TYPE_COLORS[ct] ?? TYPE_COLORS.default;
-            ctx.fillStyle = tc3.bg; ctx.beginPath(); ctx.arc(costX + 6, ay2 + 6, 6, 0, Math.PI * 2); ctx.fill();
-            costX += 15;
-          });
-          ctx.font = "600 13px sans-serif"; ctx.fillStyle = "#fff";
-          ctx.fillText(atk.name, costX + 4, ay2 + 13);
-          if (atk.damage) {
-            ctx.font = "900 13px sans-serif"; ctx.fillStyle = "#FFDE00";
-            ctx.textAlign = "right"; ctx.fillText(atk.damage, PAD + IW - BP, ay2 + 13); ctx.textAlign = "left";
-          }
-          ay2 += 22;
-        });
-        y += atkBoxH + GAP;
-      }
-
-      // ── Fun fact ── (matches JSX: label 10, text 12)
-      if (hasFunFact) {
-        drawBox(ctx, PAD, y, IW, ffBoxH, "rgba(255,255,255,0.05)", "rgba(255,255,255,0.08)");
-        let fy = y + BP;
-        ctx.font = "10px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.4)";
-        ctx.fillText("💡 冷知識", PAD + BP, fy + 11); fy += 15 + 4;
-        ctx.font = "12px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.75)";
-        ffLines.forEach(line => { ctx.fillText(line, PAD + BP, fy + 13); fy += 18; });
-        y += ffBoxH + GAP;
-      }
-
-      // ── Footer ──
-      ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(PAD, y + 10); ctx.lineTo(W - PAD, y + 10); ctx.stroke();
-      ctx.font = "10px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.textAlign = "center";
-      ctx.fillText("hongxcollections.com · PokeLover AI", W / 2, y + 28); ctx.textAlign = "left";
-
-      setShareImgUrl(c.toDataURL("image/png"));
+      setShareImgUrl(canvas.toDataURL("image/png"));
       setShareDialogOpen(true);
     } catch (e) {
-      console.error("[ShareImage] canvas error:", e);
+      console.error("[ShareImage] html2canvas error:", e);
       toast.error("生成分享圖失敗，請重試", { className: "bb-toast-err" });
     } finally {
       setShareGenerating(false);
     }
-  }, [result, imagePreview]);
+  }, [result]);
 
   const rawPrice = parseInt(rawPriceInput, 10) || 0;
   const psa9 = result?.psa9HKD ?? 0;
@@ -1826,14 +1509,17 @@ export default function PokeLover() {
         />
       )}
 
-      {/* Off-screen share card removed — now uses pure canvas drawing */}
-      {false && result && !result.isNotPokemon && (
+      {/* Off-screen share card — html2canvas will capture this */}
+      {result && !result.isNotPokemon && (
         <div
+          ref={shareCardRef}
           style={{
             position: "fixed",
             top: 0,
             left: "-9999px",
             width: 390,
+            padding: 16,
+            background: "linear-gradient(180deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)",
           }}
         >
           {/* Header */}
