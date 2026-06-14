@@ -859,7 +859,7 @@ export default function PokeLover() {
       // Add padding via Canvas — set onload BEFORE src to avoid data-URL race condition
       const SCALE = 2;
       const PT = 10 * SCALE;
-      const PS = 5 * SCALE;
+      const PS = 10 * SCALE;
       const PB = 10 * SCALE;
       const img = new Image();
       await new Promise<void>((resolve, reject) => {
@@ -871,7 +871,7 @@ export default function PokeLover() {
       cvs.width = img.naturalWidth + PS * 2;
       cvs.height = img.naturalHeight + PT + PB;
       const ctx = cvs.getContext("2d")!;
-      ctx.fillStyle = "#1a1a2e";
+      ctx.fillStyle = "#0d0d1f";
       ctx.fillRect(0, 0, cvs.width, cvs.height);
       ctx.drawImage(img, PS, PT);
       const dataUrl = cvs.toDataURL("image/png");
