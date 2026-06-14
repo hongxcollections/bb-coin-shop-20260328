@@ -532,6 +532,19 @@ function SpinningBall() {
 }
 
 function fmtHKD(n: number) { return `HKD $${n.toLocaleString("en-HK")}`; }
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number, _fontSize: number): string[] {
+  const words = text.split(""); // CJK: split by char; Latin: split by space works too
+  const lines: string[] = [];
+  let cur = "";
+  for (const ch of text.split(/(?<=[^\u4e00-\u9fff\u3040-\u30ff])|(?=[\u4e00-\u9fff\u3040-\u30ff])/)) {
+    const test = cur + ch;
+    if (ctx.measureText(test).width > maxW && cur.length > 0) { lines.push(cur); cur = ch; }
+    else { cur = test; }
+  }
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [text];
+  void words;
+}
 
 function GradeBar({ grade }: { grade: number }) {
   const colors = ["", "#f44336","#f44336","#FF9800","#FF9800","#FFC107","#FFC107","#8BC34A","#4CAF50","#2196F3","#9C27B0"];
@@ -571,7 +584,6 @@ export default function PokeLover() {
   const processFileRef = useRef<((file: File) => void) | null>(null);
   const historyThumbRef = useRef<string>("");
   const userIdRef = useRef<number | null | undefined>(undefined);
-  const shareCardRef = useRef<HTMLDivElement>(null);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareImgUrl, setShareImgUrl] = useState("");
   const [shareGenerating, setShareGenerating] = useState(false);
@@ -823,38 +835,247 @@ export default function PokeLover() {
   }, [result, isAuthenticated, imagePreview, saveCardMut]);
 
   const handleShareImage = useCallback(async () => {
-    if (!result || !shareCardRef.current) return;
+    if (!result) return;
     setShareGenerating(true);
     try {
-      const html2canvas = (await import("html2canvas")).default;
-      const el = shareCardRef.current;
-      // 暫時移到左上角令 html2canvas 可以捕捉
-      el.style.left = "0px";
-      el.style.top = "0px";
-      el.style.zIndex = "9998";
-      await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        backgroundColor: "#0d0d1f",
-        logging: false,
-        allowTaint: true,
-        scrollX: 0,
-        scrollY: 0,
-        width: el.offsetWidth,
-        height: el.scrollHeight,
+      // 純 canvas 手繪，唔依賴 html2canvas，保證相容所有瀏覽器
+      const W = 390, PAD = 16, SC = 2;
+      const gradeColors = ["","#f44336","#f44336","#FF9800","#FF9800","#FFC107","#FFC107","#8BC34A","#4CAF50","#2196F3","#9C27B0"];
+
+      // 預計算各 section 高度
+      const hasPhoto = !!imagePreview;
+      const hasAuth = !!result.authenticityWarning;
+      const hasAttacks = !!(result.attacks && result.attacks.length > 0);
+      const hasFunFact = !!result.funFact;
+      const hasGrades = result.gradeEstimate != null || result.bgsEstimate != null || result.cgcEstimate != null || result.tagEstimate != null;
+      const hasPrices = !!(result.marketPriceHKD || result.psa9HKD || result.psa10HKD);
+
+      let totalH = PAD;
+      totalH += 48;  // header
+      totalH += 12;
+      totalH += hasPhoto ? 158 : 120; // card info box
+      totalH += 12;
+      if (hasAuth) { totalH += 76; totalH += 10; }
+      totalH += hasGrades ? 130 : 60; // condition+grades
+      totalH += 10;
+      if (hasPrices) { totalH += 82; totalH += 10; }
+      if (hasAttacks) { totalH += 24 + (result.attacks!.length * 28) + 20; totalH += 10; }
+      if (hasFunFact) { totalH += 64; totalH += 10; }
+      totalH += 36; // footer
+      totalH += PAD;
+
+      const c = document.createElement("canvas");
+      c.width = W * SC; c.height = totalH * SC;
+      const ctx = c.getContext("2d")!;
+      ctx.scale(SC, SC);
+
+      // ── Background ──
+      const bg = ctx.createLinearGradient(0, 0, 0, totalH);
+      bg.addColorStop(0, "#0d0d1f"); bg.addColorStop(0.4, "#1a0505"); bg.addColorStop(1, "#0d0d1f");
+      ctx.fillStyle = bg; ctx.fillRect(0, 0, W, totalH);
+
+      let y = PAD;
+
+      // ── Header ──
+      ctx.beginPath(); ctx.arc(PAD + 16, y + 16, 17, 0, Math.PI * 2);
+      const ballGrad = ctx.createLinearGradient(PAD, y, PAD, y + 34);
+      ballGrad.addColorStop(0, "#CC0000"); ballGrad.addColorStop(0.5, "#CC0000"); ballGrad.addColorStop(0.5, "#f5f5f5"); ballGrad.addColorStop(1, "#f5f5f5");
+      ctx.fillStyle = ballGrad; ctx.fill();
+      ctx.strokeStyle = "#222"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.font = `900 20px sans-serif`; ctx.fillStyle = "#FFDE00"; ctx.fillText("PokeLover", PAD + 40, y + 20);
+      ctx.font = `11px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.fillText("AI 智能 Pokemon 卡片鑑定 · 市場估價", PAD + 40, y + 36);
+      y += 48 + 12;
+
+      // ── Card info box ──
+      const boxH = hasPhoto ? 154 : 116;
+      const gradBorder = ctx.createLinearGradient(PAD, y, W - PAD, y + boxH);
+      gradBorder.addColorStop(0, "#CC0000"); gradBorder.addColorStop(0.5, "#FFDE00"); gradBorder.addColorStop(1, "#CC0000");
+      ctx.fillStyle = gradBorder; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, boxH, 14); ctx.fill();
+      ctx.fillStyle = "#13131f"; ctx.beginPath(); ctx.roundRect(PAD + 1, y + 1, W - PAD * 2 - 2, boxH - 2, 13); ctx.fill();
+
+      // Load + draw card photo
+      if (hasPhoto) {
+        await new Promise<void>((resolve) => {
+          const img = new window.Image();
+          img.onload = () => {
+            const PX = PAD + 14, PY = y + 14, PW = 82, PH = 126;
+            ctx.save(); ctx.beginPath(); ctx.roundRect(PX, PY, PW, PH, 8); ctx.clip();
+            ctx.drawImage(img, PX, PY, PW, PH); ctx.restore();
+            ctx.strokeStyle = "rgba(255,222,0,0.3)"; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.roundRect(PX, PY, PW, PH, 8); ctx.stroke();
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = imagePreview;
+        });
+      }
+
+      const TX = hasPhoto ? PAD + 102 : PAD + 14;
+      const TW = W - TX - 14;
+      ctx.font = `900 17px sans-serif`; ctx.fillStyle = "#FFDE00";
+      const nameStr = (result.cardName ?? "未知卡片").substring(0, 18);
+      ctx.fillText(nameStr, TX, y + 22);
+      if (result.cardNameJa) { ctx.font = `12px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText(result.cardNameJa.substring(0, 20), TX, y + 38); }
+
+      // Type badges
+      let bx = TX, by = y + 50;
+      (result.types ?? []).forEach(t => {
+        const tc = TYPE_COLORS[t] ?? TYPE_COLORS.default;
+        ctx.font = `700 10px sans-serif`;
+        const tw = ctx.measureText(t).width + 12;
+        ctx.fillStyle = tc.bg; ctx.beginPath(); ctx.roundRect(bx, by, tw, 18, 9); ctx.fill();
+        ctx.fillStyle = tc.text; ctx.fillText(t, bx + 6, by + 13);
+        bx += tw + 5;
       });
-      el.style.left = "-9999px";
-      el.style.top = "0px";
-      el.style.zIndex = "-1";
-      setShareImgUrl(canvas.toDataURL("image/png"));
+      if (result.rarity) {
+        ctx.font = `700 10px sans-serif`;
+        const tw = ctx.measureText(result.rarity).width + 12;
+        if (bx + tw < TX + TW) {
+          ctx.fillStyle = rarityColor + "33"; ctx.beginPath(); ctx.roundRect(bx, by, tw, 18, 9); ctx.fill();
+          ctx.strokeStyle = rarityColor + "66"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(bx, by, tw, 18, 9); ctx.stroke();
+          ctx.fillStyle = rarityColor; ctx.fillText(result.rarity, bx + 6, by + 13);
+        }
+      }
+
+      let iy = y + 74;
+      ctx.font = `11px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.55)";
+      if (result.hp) { ctx.fillText(`HP ${result.hp}`, TX, iy); iy += 16; }
+      const setLine = [result.set, result.releaseYear, result.language].filter(Boolean).join(" · ");
+      if (setLine) { ctx.fillText(setLine.substring(0, 30), TX, iy); }
+
+      y += boxH + 12;
+
+      // ── Authenticity warning ──
+      if (hasAuth) {
+        ctx.fillStyle = "rgba(244,67,54,0.08)"; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, 72, 10); ctx.fill();
+        ctx.strokeStyle = "rgba(244,67,54,0.35)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, 72, 10); ctx.stroke();
+        ctx.font = `700 11px sans-serif`; ctx.fillStyle = "#FF7043"; ctx.fillText("⚠ 真偽存疑", PAD + 12, y + 18);
+        if (result.authenticityScore != null) {
+          const sc = result.authenticityScore;
+          ctx.font = `700 10px sans-serif`;
+          ctx.fillStyle = sc >= 80 ? "#4CAF50" : sc >= 60 ? "#FF9800" : "#f44336";
+          ctx.fillText(`正版可信度 ${sc}%`, PAD + 12, y + 33);
+        }
+        ctx.font = `10px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.6)";
+        const warnLines = wrapText(ctx, result.authenticityWarning!, W - PAD * 2 - 24, 10);
+        warnLines.slice(0, 2).forEach((line, i) => ctx.fillText(line, PAD + 12, y + 50 + i * 14));
+        y += 76 + 10;
+      }
+
+      // ── Condition + grades ──
+      const condH = hasGrades ? 126 : 56;
+      ctx.fillStyle = "rgba(255,255,255,0.05)"; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, condH, 10); ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, condH, 10); ctx.stroke();
+      ctx.font = `700 10px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText("品相評估", PAD + 12, y + 16);
+      ctx.font = `900 14px sans-serif`; ctx.fillStyle = "#fff"; ctx.fillText(result.condition ?? "—", PAD + 12, y + 32);
+      if (result.conditionNote) {
+        ctx.font = `10px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.45)";
+        ctx.fillText(result.conditionNote.substring(0, 50), PAD + 12, y + 46);
+      }
+      if (hasGrades) {
+        ctx.font = `700 9px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.fillText("估計評級", PAD + 12, y + 62);
+        const gList = [
+          { label: "PSA", value: result.gradeEstimate, color: "#9C27B0" },
+          { label: "BGS", value: result.bgsEstimate, color: "#2196F3" },
+          { label: "CGC", value: result.cgcEstimate, color: "#4CAF50" },
+          { label: "TAG", value: result.tagEstimate, color: "#FF9800" },
+        ] as { label: string; value: number | null | undefined; color: string }[];
+        const gW = (W - PAD * 2 - 12 * 3) / 4, gX0 = PAD + 12;
+        gList.forEach((g, i) => {
+          const gx = gX0 + i * (gW + 8), gy = y + 70;
+          ctx.fillStyle = g.value != null ? g.color + "18" : "rgba(255,255,255,0.03)";
+          ctx.beginPath(); ctx.roundRect(gx, gy, gW, 36, 6); ctx.fill();
+          ctx.strokeStyle = g.value != null ? g.color + "44" : "rgba(255,255,255,0.06)";
+          ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(gx, gy, gW, 36, 6); ctx.stroke();
+          ctx.font = `700 9px sans-serif`; ctx.fillStyle = g.value != null ? g.color : "rgba(255,255,255,0.25)";
+          ctx.textAlign = "center"; ctx.fillText(g.label, gx + gW / 2, gy + 13);
+          ctx.font = `900 16px sans-serif`; ctx.fillStyle = g.value != null ? g.color : "rgba(255,255,255,0.2)";
+          ctx.fillText(g.value != null ? String(g.value) : "—", gx + gW / 2, gy + 29);
+          ctx.textAlign = "left";
+        });
+        if (result.gradeEstimate != null) {
+          const bx0 = PAD + 12, by0 = y + 114;
+          [1,2,3,4,5,6,7,8,9,10].forEach(i => {
+            ctx.fillStyle = i <= result.gradeEstimate! ? (gradeColors[i] ?? "#888") : "rgba(255,255,255,0.1)";
+            ctx.beginPath(); ctx.roundRect(bx0 + (i - 1) * 15, by0, 13, 13, 3); ctx.fill();
+          });
+          ctx.font = `700 11px sans-serif`; ctx.fillStyle = gradeColors[result.gradeEstimate] ?? "#fff";
+          ctx.fillText(`${result.gradeEstimate}/10`, bx0 + 160, by0 + 11);
+        }
+      }
+      y += condH + 10;
+
+      // ── Market prices ──
+      if (hasPrices) {
+        ctx.fillStyle = "rgba(255,222,0,0.07)"; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, 78, 10); ctx.fill();
+        ctx.strokeStyle = "rgba(255,222,0,0.2)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, 78, 10); ctx.stroke();
+        ctx.font = `700 10px sans-serif`; ctx.fillStyle = "rgba(255,222,0,0.7)"; ctx.fillText("參考市場價格", PAD + 12, y + 16);
+        const prList = [
+          { label: "裸卡 NM", value: result.marketPriceHKD },
+          { label: "PSA 9", value: result.psa9HKD },
+          { label: "PSA 10", value: result.psa10HKD },
+        ] as { label: string; value: number | null | undefined }[];
+        const pW = (W - PAD * 2) / 3;
+        prList.forEach(({ label, value }, i) => {
+          const px = PAD + i * pW + pW / 2;
+          ctx.textAlign = "center";
+          ctx.font = `10px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText(label, px, y + 40);
+          ctx.font = `900 13px sans-serif`; ctx.fillStyle = value ? "#FFDE00" : "rgba(255,255,255,0.3)";
+          ctx.fillText(value ? `$${value.toLocaleString("en-HK")}` : "N/A", px, y + 58);
+          ctx.textAlign = "left";
+        });
+        y += 82 + 10;
+      }
+
+      // ── Attacks ──
+      if (hasAttacks) {
+        const atkH = 24 + result.attacks!.length * 28 + 16;
+        ctx.fillStyle = "rgba(255,255,255,0.05)"; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, atkH, 10); ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, atkH, 10); ctx.stroke();
+        ctx.font = `700 10px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText("技能", PAD + 12, y + 16);
+        result.attacks!.forEach((atk, i) => {
+          const ay = y + 28 + i * 28;
+          let costX = PAD + 12;
+          (atk.cost ?? []).slice(0, 4).forEach(ct => {
+            const tc2 = TYPE_COLORS[ct] ?? TYPE_COLORS.default;
+            ctx.fillStyle = tc2.bg; ctx.beginPath(); ctx.arc(costX + 6, ay + 6, 6, 0, Math.PI * 2); ctx.fill();
+            costX += 15;
+          });
+          ctx.font = `600 12px sans-serif`; ctx.fillStyle = "#fff"; ctx.fillText(atk.name, costX + 4, ay + 11);
+          if (atk.damage) {
+            ctx.font = `900 12px sans-serif`; ctx.fillStyle = "#FFDE00";
+            ctx.textAlign = "right"; ctx.fillText(atk.damage, W - PAD - 12, ay + 11); ctx.textAlign = "left";
+          }
+        });
+        y += atkH + 10;
+      }
+
+      // ── Fun fact ──
+      if (hasFunFact) {
+        ctx.fillStyle = "rgba(255,255,255,0.05)"; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, 60, 10); ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, 60, 10); ctx.stroke();
+        ctx.font = `10px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.fillText("💡 冷知識", PAD + 12, y + 16);
+        ctx.font = `11px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.75)";
+        const ffLines = wrapText(ctx, result.funFact!, W - PAD * 2 - 24, 11);
+        ffLines.slice(0, 2).forEach((line, i) => ctx.fillText(line, PAD + 12, y + 32 + i * 14));
+        y += 64 + 10;
+      }
+
+      // ── Footer ──
+      ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(PAD, y + 8); ctx.lineTo(W - PAD, y + 8); ctx.stroke();
+      ctx.font = `10px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.3)";
+      ctx.textAlign = "center"; ctx.fillText("hongxcollections.com · PokeLover AI", W / 2, y + 24); ctx.textAlign = "left";
+
+      setShareImgUrl(c.toDataURL("image/png"));
       setShareDialogOpen(true);
     } catch (e) {
-      console.error("[ShareImage] html2canvas error:", e);
+      console.error("[ShareImage] canvas error:", e);
       toast.error("生成分享圖失敗，請重試", { className: "bb-toast-err" });
     } finally {
       setShareGenerating(false);
     }
-  }, [result]);
+  }, [result, imagePreview, rarityColor]);
 
   const rawPrice = parseInt(rawPriceInput, 10) || 0;
   const psa9 = result?.psa9HKD ?? 0;
@@ -1501,21 +1722,14 @@ export default function PokeLover() {
         />
       )}
 
-      {/* Off-screen share card — html2canvas target, excludes 送評計算器 */}
-      {result && !result.isNotPokemon && (
+      {/* Off-screen share card removed — now uses pure canvas drawing */}
+      {false && result && !result.isNotPokemon && (
         <div
-          ref={shareCardRef}
           style={{
             position: "fixed",
             top: 0,
             left: "-9999px",
             width: 390,
-            padding: "16px",
-            background: "linear-gradient(160deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)",
-            color: "#fff",
-            fontFamily: "sans-serif",
-            pointerEvents: "none",
-            zIndex: -1,
           }}
         >
           {/* Header */}
