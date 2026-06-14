@@ -1261,7 +1261,7 @@ export default function PokeLover() {
             </div>
 
             {(psa9 > 0 || psa10 > 0) && (
-              <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div data-share-skip="true" className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 <div className="flex items-center gap-2 mb-3">
                   <Zap className="w-4 h-4" style={{ color: "#FFDE00" }} />
                   <p className="text-xs font-bold" style={{ color: "rgba(255,255,255,0.7)" }}>送評計算器</p>
