@@ -861,8 +861,11 @@ export default function PokeLover() {
         logging: false,
         onclone: (clonedDoc) => {
           // html2canvas v1.4.1 cannot parse oklch() (Tailwind v4 CSS vars).
-          // Share card uses inline styles only — safe to strip all global sheets.
+          // Strip global sheets, then re-inject minimal safe CSS for font rendering.
           clonedDoc.querySelectorAll('link[rel="stylesheet"], style').forEach(s => s.remove());
+          const safe = clonedDoc.createElement('style');
+          safe.textContent = `*{box-sizing:border-box;} body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding:0;} b,strong{font-weight:700;}`;
+          clonedDoc.head.appendChild(safe);
         },
       });
       setShareImgUrl(canvas.toDataURL("image/png"));
@@ -1535,6 +1538,7 @@ export default function PokeLover() {
             background: "linear-gradient(180deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)",
             zIndex: -9999,
             pointerEvents: "none",
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
           }}
         >
           {/* Header */}
