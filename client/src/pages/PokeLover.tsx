@@ -859,6 +859,11 @@ export default function PokeLover() {
         allowTaint: true,
         backgroundColor: "#0d0d1f",
         logging: false,
+        onclone: (clonedDoc) => {
+          // html2canvas v1.4.1 cannot parse oklch() (Tailwind v4 CSS vars).
+          // Share card uses inline styles only — safe to strip all global sheets.
+          clonedDoc.querySelectorAll('link[rel="stylesheet"], style').forEach(s => s.remove());
+        },
       });
       setShareImgUrl(canvas.toDataURL("image/png"));
       setShareDialogOpen(true);
