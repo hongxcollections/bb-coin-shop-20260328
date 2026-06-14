@@ -209,6 +209,93 @@ function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
   );
 }
 
+// ─── Share Image Dialog ───────────────────────────────────────────────────────
+
+function ShareImageDialog({ imgUrl, cardName, onClose }: { imgUrl: string; cardName: string; onClose: () => void }) {
+  const [scale, setScale] = useState(1);
+  const lastDistRef = useRef<number | null>(null);
+  const lastTapRef = useRef<number>(0);
+
+  function getPinchDist(e: React.TouchEvent) {
+    if (e.touches.length < 2) return null;
+    const dx = e.touches[1].clientX - e.touches[0].clientX;
+    const dy = e.touches[1].clientY - e.touches[0].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function onTouchStart(e: React.TouchEvent) {
+    if (e.touches.length === 2) {
+      lastDistRef.current = getPinchDist(e);
+    } else if (e.touches.length === 1) {
+      const now = Date.now();
+      if (now - lastTapRef.current < 280) {
+        setScale(s => s > 1.5 ? 1 : 2.5);
+      }
+      lastTapRef.current = now;
+    }
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    e.preventDefault();
+    if (e.touches.length === 2) {
+      const dist = getPinchDist(e);
+      if (dist && lastDistRef.current) {
+        setScale(s => Math.max(1, Math.min(5, s * (dist / lastDistRef.current!))));
+      }
+      lastDistRef.current = dist;
+    }
+  }
+
+  function onTouchEnd() {
+    lastDistRef.current = null;
+    setScale(s => (s < 1.05 ? 1 : s));
+  }
+
+  function handleSave() {
+    const a = document.createElement("a");
+    a.href = imgUrl;
+    a.download = `${cardName || "pokemon"}-analysis.png`;
+    a.click();
+  }
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.96)", display: "flex", flexDirection: "column", touchAction: "none" }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", padding: "12px 16px", flexShrink: 0 }}>
+        {scale > 1.05 && (
+          <button onClick={() => setScale(1)}
+            style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, padding: "4px 10px", cursor: "pointer" }}>
+            重設縮放
+          </button>
+        )}
+        {scale <= 1.05 && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>雙指放大 · 雙擊切換縮放</span>}
+      </div>
+      <div style={{ flex: 1, overflow: "auto", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "0 5px" }}>
+        <img
+          src={imgUrl}
+          alt="分析結果"
+          draggable={false}
+          style={{ width: "100%", height: "auto", transform: `scale(${scale})`, transformOrigin: "top center", userSelect: "none", display: "block", transition: "transform 0.15s ease" }}
+        />
+      </div>
+      <div style={{ display: "flex", gap: 12, padding: "16px", paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))", flexShrink: 0 }}>
+        <button onClick={handleSave}
+          style={{ flex: 1, background: "linear-gradient(135deg, #FFDE00, #FF9800)", color: "#13131f", fontWeight: 700, border: "none", borderRadius: 14, padding: "14px 0", fontSize: 15, cursor: "pointer" }}>
+          儲存圖片
+        </button>
+        <button onClick={onClose}
+          style={{ flex: 1, background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)", fontWeight: 600, border: "1px solid rgba(255,255,255,0.15)", borderRadius: 14, padding: "14px 0", fontSize: 15, cursor: "pointer" }}>
+          取消
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Inline Share Menu for PokeLover ─────────────────────────────────────────
 
 function PokeShareMenu({ result }: { result: PokeResult }) {
@@ -484,6 +571,10 @@ export default function PokeLover() {
   const processFileRef = useRef<((file: File) => void) | null>(null);
   const historyThumbRef = useRef<string>("");
   const userIdRef = useRef<number | null | undefined>(undefined);
+  const shareCardRef = useRef<HTMLDivElement>(null);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareImgUrl, setShareImgUrl] = useState("");
+  const [shareGenerating, setShareGenerating] = useState(false);
   const [batchTotal, setBatchTotal] = useState(0);
   const [batchDone, setBatchDone] = useState(0);
   const [batchSummary, setBatchSummary] = useState<{ name: string; value: number | null }[]>([]);
@@ -732,90 +823,25 @@ export default function PokeLover() {
   }, [result, isAuthenticated, imagePreview, saveCardMut]);
 
   const handleShareImage = useCallback(async () => {
-    if (!result) return;
-    const hasPhoto = !!imagePreview;
-    const CW = hasPhoto ? 540 : 440;
-    const CH = 270;
-    const TX = hasPhoto ? 132 : 16; // text x offset
-    const c = document.createElement("canvas");
-    c.width = CW; c.height = CH;
-    const ctx = c.getContext("2d")!;
-    // Background
-    const grad = ctx.createLinearGradient(0, 0, CW, CH);
-    grad.addColorStop(0, "#0d0d1f"); grad.addColorStop(0.5, "#1a0505"); grad.addColorStop(1, "#0d0d1f");
-    ctx.fillStyle = grad; ctx.fillRect(0, 0, CW, CH);
-    // Card photo
-    if (hasPhoto) {
-      await new Promise<void>((resolve) => {
-        const img = new window.Image();
-        img.onload = () => {
-          const PW = 100, PH = 150;
-          const px = 16, py = (CH - PH) / 2;
-          ctx.save();
-          ctx.beginPath();
-          ctx.roundRect(px, py, PW, PH, 8);
-          ctx.clip();
-          ctx.drawImage(img, px, py, PW, PH);
-          ctx.restore();
-          // subtle border around photo
-          ctx.strokeStyle = "rgba(255,222,0,0.35)"; ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.roundRect(px, py, PW, PH, 8); ctx.stroke();
-          resolve();
-        };
-        img.onerror = () => resolve();
-        img.src = imagePreview;
+    if (!result || !shareCardRef.current) return;
+    setShareGenerating(true);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(shareCardRef.current, {
+        scale: 2,
+        backgroundColor: "#0d0d1f",
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
       });
+      setShareImgUrl(canvas.toDataURL("image/png"));
+      setShareDialogOpen(true);
+    } catch {
+      toast.error("生成分享圖失敗，請重試", { className: "bb-toast-err" });
+    } finally {
+      setShareGenerating(false);
     }
-    // Border
-    ctx.strokeStyle = "rgba(255,222,0,0.4)"; ctx.lineWidth = 2;
-    ctx.roundRect(4, 4, CW - 8, CH - 8, 12); ctx.stroke();
-    // Title
-    ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "rgba(255,222,0,0.6)"; ctx.fillText("PokeLover · AI 卡片鑑定", TX, 28);
-    // Card name
-    ctx.font = "bold 22px sans-serif"; ctx.fillStyle = "#FFDE00";
-    ctx.fillText((result.cardName ?? "—").substring(0, 20), TX, 62);
-    if (result.cardNameJa) { ctx.font = "14px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText(result.cardNameJa.substring(0, 20), TX, 82); }
-    // Set info
-    const setInfo = [result.set, result.releaseYear, result.language].filter(Boolean).join(" · ");
-    if (setInfo) { ctx.font = "11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.fillText(setInfo.substring(0, 38), TX, 100); }
-    // Grades
-    const grades = [
-      { label: "PSA", val: result.gradeEstimate, color: "#9C27B0" },
-      { label: "BGS", val: result.bgsEstimate, color: "#2196F3" },
-      { label: "CGC", val: result.cgcEstimate, color: "#4CAF50" },
-      { label: "TAG", val: result.tagEstimate, color: "#FF9800" },
-    ].filter(g => g.val != null);
-    grades.forEach((g, i) => {
-      const x = TX + i * 78;
-      ctx.fillStyle = g.color + "30"; ctx.roundRect(x, 112, 70, 40, 6); ctx.fill();
-      ctx.strokeStyle = g.color + "88"; ctx.lineWidth = 1; ctx.roundRect(x, 112, 70, 40, 6); ctx.stroke();
-      ctx.font = "bold 10px sans-serif"; ctx.fillStyle = g.color; ctx.fillText(g.label, x + 7, 127);
-      ctx.font = "bold 17px sans-serif"; ctx.fillStyle = g.color; ctx.fillText(String(g.val), x + 7, 145);
-    });
-    // Prices
-    const prices = [
-      { label: "裸卡 NM", val: result.marketPriceHKD },
-      { label: "PSA 9", val: result.psa9HKD },
-      { label: "PSA 10", val: result.psa10HKD },
-    ];
-    prices.forEach((p, i) => {
-      const x = TX + i * 130;
-      ctx.font = "10px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.fillText(p.label, x, 178);
-      ctx.font = "bold 14px sans-serif"; ctx.fillStyle = p.val ? "#FFDE00" : "rgba(255,255,255,0.2)";
-      ctx.fillText(p.val ? `$${p.val.toLocaleString()}` : "N/A", x, 196);
-    });
-    // Footer
-    ctx.font = "11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.25)";
-    ctx.fillText("hongxcollections.com · PokeLover AI", TX, 256);
-    // Download
-    c.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `${result.cardName ?? "pokemon"}-analysis.png`; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 3000);
-    }, "image/png");
-  }, [result, imagePreview]);
+  }, [result]);
 
   const rawPrice = parseInt(rawPriceInput, 10) || 0;
   const psa9 = result?.psa9HKD ?? 0;
@@ -1356,8 +1382,8 @@ export default function PokeLover() {
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm"
                 style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)" }}
               >
-                <Images className="w-4 h-4" />
-                圖卡分享
+                {shareGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Images className="w-4 h-4" />}
+                {shareGenerating ? "生成中..." : "圖卡分享"}
               </button>
               {isAuthenticated ? (
                 <button
@@ -1452,6 +1478,179 @@ export default function PokeLover() {
           </div>
         )}
       </div>
+
+      {/* Share image dialog */}
+      {shareDialogOpen && shareImgUrl && (
+        <ShareImageDialog
+          imgUrl={shareImgUrl}
+          cardName={result?.cardName ?? "pokemon"}
+          onClose={() => setShareDialogOpen(false)}
+        />
+      )}
+
+      {/* Off-screen share card — html2canvas target, excludes 送評計算器 */}
+      {result && !result.isNotPokemon && (
+        <div
+          ref={shareCardRef}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: "-9999px",
+            width: 390,
+            padding: "16px",
+            background: "linear-gradient(160deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)",
+            color: "#fff",
+            fontFamily: "sans-serif",
+            pointerEvents: "none",
+            zIndex: -1,
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+            <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "2px solid #333", flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: "#FFDE00", lineHeight: 1 }}>PokeLover</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>AI 智能 Pokemon 卡片鑑定 · 市場估價</div>
+            </div>
+          </div>
+
+          {/* Card info box */}
+          <div style={{ borderRadius: 16, padding: 1, background: "linear-gradient(135deg, #CC0000, #FFDE00, #CC0000)", marginBottom: 14 }}>
+            <div style={{ borderRadius: 14, padding: 18, background: "#13131f", display: "flex", gap: 14, alignItems: "flex-start" }}>
+              {imagePreview && (
+                <img src={imagePreview} alt="" style={{ width: 88, height: 124, borderRadius: 10, objectFit: "cover", border: "2px solid rgba(255,222,0,0.3)", flexShrink: 0 }} crossOrigin="anonymous" />
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 19, fontWeight: 900, color: "#FFDE00", lineHeight: 1.2, wordBreak: "break-word" }}>{result.cardName ?? "未知卡片"}</div>
+                {result.cardNameJa && <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 3 }}>{result.cardNameJa}</div>}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
+                  {(result.types ?? []).map(t => {
+                    const tc = TYPE_COLORS[t] ?? TYPE_COLORS.default;
+                    return <span key={t} style={{ background: tc.bg, color: tc.text, fontWeight: 700, fontSize: 10, padding: "2px 8px", borderRadius: 999 }}>{t}</span>;
+                  })}
+                  {result.rarity && (
+                    <span style={{ background: rarityColor + "33", color: rarityColor, border: `1px solid ${rarityColor}66`, fontWeight: 700, fontSize: 10, padding: "2px 8px", borderRadius: 999 }}>{result.rarity}</span>
+                  )}
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginTop: 7 }}>
+                  {result.hp && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>HP <b style={{ color: "#fff" }}>{result.hp}</b></span>}
+                  {result.set && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{result.set}{result.setNumber ? ` #${result.setNumber}` : ""}</span>}
+                  {result.releaseYear && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{result.releaseYear}</span>}
+                  {result.language && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>{result.language}</span>}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Authenticity warning */}
+          {result.authenticityWarning && (
+            <div style={{ borderRadius: 12, padding: 14, marginBottom: 12, background: "rgba(244,67,54,0.08)", border: "1px solid rgba(244,67,54,0.35)", display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <span style={{ fontSize: 15, flexShrink: 0 }}>⚠️</span>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#FF7043" }}>真偽存疑</div>
+                {result.authenticityScore != null && (
+                  <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2, color: result.authenticityScore >= 80 ? "#4CAF50" : result.authenticityScore >= 60 ? "#FF9800" : "#f44336" }}>
+                    正版可信度 {result.authenticityScore}%
+                  </div>
+                )}
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>{result.authenticityWarning}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Condition + grades */}
+          <div style={{ borderRadius: 12, padding: 14, marginBottom: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", marginBottom: 7 }}>品相評估</div>
+            <div style={{ fontSize: 15, fontWeight: 900, color: "#fff" }}>{result.condition ?? "—"}</div>
+            {result.conditionNote && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 3 }}>{result.conditionNote}</div>}
+            {(result.gradeEstimate != null || result.bgsEstimate != null || result.cgcEstimate != null || result.tagEstimate != null) && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", marginBottom: 7 }}>估計評級</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
+                  {([
+                    { label: "PSA", value: result.gradeEstimate, color: "#9C27B0" },
+                    { label: "BGS", value: result.bgsEstimate, color: "#2196F3" },
+                    { label: "CGC", value: result.cgcEstimate, color: "#4CAF50" },
+                    { label: "TAG", value: result.tagEstimate, color: "#FF9800" },
+                  ] as { label: string; value: number | null | undefined; color: string }[]).map(({ label, value, color }) => (
+                    <div key={label} style={{ display: "flex", flexDirection: "column", alignItems: "center", borderRadius: 8, padding: "8px 0", background: value != null ? `${color}18` : "rgba(255,255,255,0.03)", border: `1px solid ${value != null ? color + "44" : "rgba(255,255,255,0.06)"}` }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: value != null ? color : "rgba(255,255,255,0.25)" }}>{label}</span>
+                      <span style={{ fontSize: 17, fontWeight: 900, color: value != null ? color : "rgba(255,255,255,0.2)", lineHeight: 1.1 }}>{value != null ? value : "—"}</span>
+                      {value != null && <span style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>/10</span>}
+                    </div>
+                  ))}
+                </div>
+                {result.gradeEstimate != null && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                    <div style={{ display: "flex", gap: 3 }}>
+                      {[1,2,3,4,5,6,7,8,9,10].map(i => {
+                        const cs = ["","#f44336","#f44336","#FF9800","#FF9800","#FFC107","#FFC107","#8BC34A","#4CAF50","#2196F3","#9C27B0"];
+                        return <div key={i} style={{ width: 14, height: 14, borderRadius: 3, background: i <= result.gradeEstimate! ? cs[i] : "rgba(255,255,255,0.1)" }} />;
+                      })}
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 900, color: ["","#f44336","#f44336","#FF9800","#FF9800","#FFC107","#FFC107","#8BC34A","#4CAF50","#2196F3","#9C27B0"][result.gradeEstimate] ?? "#fff" }}>{result.gradeEstimate}/10</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Market prices */}
+          <div style={{ borderRadius: 12, padding: 14, marginBottom: 12, background: "rgba(255,222,0,0.07)", border: "1px solid rgba(255,222,0,0.2)" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,222,0,0.7)", marginBottom: 10 }}>參考市場價格</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              {([
+                { label: "裸卡 NM", value: result.marketPriceHKD },
+                { label: "PSA 9", value: result.psa9HKD },
+                { label: "PSA 10", value: result.psa10HKD },
+              ] as { label: string; value: number | null | undefined }[]).map(({ label, value }) => (
+                <div key={label} style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 900, color: value ? "#FFDE00" : "rgba(255,255,255,0.3)" }}>
+                    {value ? `$${value.toLocaleString("en-HK")}` : "N/A"}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 9, marginTop: 8, textAlign: "center", color: "rgba(255,255,255,0.25)" }}>* AI 估算僅供參考，實際成交價以市場為準</div>
+          </div>
+
+          {/* Attacks */}
+          {result.attacks && result.attacks.length > 0 && (
+            <div style={{ borderRadius: 12, padding: 14, marginBottom: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", marginBottom: 10 }}>技能</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {result.attacks.map((atk, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ display: "flex", gap: 2 }}>
+                        {(atk.cost ?? []).slice(0, 4).map((c, ci) => (
+                          <div key={ci} style={{ width: 12, height: 12, borderRadius: "50%", background: TYPE_COLORS[c]?.bg ?? "#888", border: "1px solid rgba(0,0,0,0.3)" }} />
+                        ))}
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{atk.name}</span>
+                    </div>
+                    {atk.damage && <span style={{ fontSize: 13, fontWeight: 900, color: "#FFDE00" }}>{atk.damage}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Fun fact */}
+          {result.funFact && (
+            <div style={{ borderRadius: 12, padding: 14, marginBottom: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>💡 冷知識</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 4 }}>{result.funFact}</div>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 10, marginTop: 4, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>hongxcollections.com · PokeLover AI</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
