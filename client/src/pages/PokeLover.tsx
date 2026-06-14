@@ -867,10 +867,45 @@ export default function PokeLover() {
       };
 
       // ── Dynamic height calculation (matches JSX padding/spacing exactly) ──
-      // Card info box: padding 18 each side, photo 124px tall, text column measured
+      // Text column width: right of photo to right edge of box
+      const textW = hasPhoto ? IW - BP * 2 - PW - 14 : IW - BP * 2;
+
+      // Card name wrap (19px 900, lineHeight 1.2 → ~24px per line)
+      mCtx.font = "900 19px sans-serif";
+      const nameLines = wrapText(mCtx, result.cardName ?? "未知卡片", textW, 19);
+      const nameH = nameLines.length * 24;
+
+      // Badge rows simulation (flex-wrap: gap 5, badge height 22)
+      mCtx.font = "700 10px sans-serif";
+      const allBadges = [
+        ...(result.types ?? []).map(t => ({ label: t, measured: mCtx.measureText(t).width + 16 })),
+        ...(result.rarity ? [{ label: result.rarity, measured: mCtx.measureText(result.rarity).width + 16 }] : []),
+      ];
+      let badgeRowCount = 1, badgeRowX = 0;
+      allBadges.forEach(b => {
+        if (badgeRowX > 0 && badgeRowX + b.measured + 5 > textW) { badgeRowCount++; badgeRowX = 0; }
+        badgeRowX += b.measured + 5;
+      });
+      const badgeH = badgeRowCount * 22 + (badgeRowCount - 1) * 5;
+
+      // Meta items flex-wrap simulation (11px font, gap "2px 10px" → 12px col gap)
+      mCtx.font = "11px sans-serif";
+      const metaItemsList: string[] = [];
+      if (result.hp) metaItemsList.push(`HP ${result.hp}`);
+      if (result.set) metaItemsList.push(result.set + (result.setNumber ? ` #${result.setNumber}` : ""));
+      if (result.releaseYear) metaItemsList.push(String(result.releaseYear));
+      if (result.language) metaItemsList.push(result.language);
+      let metaRowCount = 1, metaRowX = 0;
+      metaItemsList.forEach(item => {
+        const iw = mCtx.measureText(item).width + 12;
+        if (metaRowX > 0 && metaRowX + iw > textW) { metaRowCount++; metaRowX = 0; }
+        metaRowX += iw;
+      });
+      const metaH = metaItemsList.length > 0 ? (metaRowCount * 16 + (metaRowCount - 1) * 2) : 0;
+
       const cardBoxInnerH = Math.max(hasPhoto ? PH : 0,
-        23 + (result.cardNameJa ? 3 + 18 : 0) + 8 + 22 + 7 + 16 + (result.set || result.releaseYear || result.language ? 4 + 16 : 0));
-      const cardBoxH = BP + cardBoxInnerH + BP; // inner padding top+bottom = 18 each (using BP=14 is close enough)
+        nameH + (result.cardNameJa ? 3 + 18 : 0) + 8 + badgeH + (metaH > 0 ? 7 + metaH : 0));
+      const cardBoxH = BP + cardBoxInnerH + BP;
 
       // Auth box: BP top + label(17) + score(16+5) + wrapped lines(19×N) + BP bottom
       const authLines = hasAuth ? (() => { mCtx.font = "12px sans-serif"; return wrapText(mCtx, result.authenticityWarning!, IW - BP * 2, 12); })() : [];
@@ -952,45 +987,49 @@ export default function PokeLover() {
       const TX = hasPhoto ? PAD + BP + PW + 14 : PAD + BP;
       let ty = y + BP;
 
-      // Card name: fontSize 19, fontWeight 900 (matches JSX)
+      // Card name: fontSize 19/900, word-wrap at textW (matches JSX wordBreak:"break-word", lineHeight 1.2)
       ctx.font = "900 19px sans-serif"; ctx.fillStyle = "#FFDE00";
-      ctx.fillText((result.cardName ?? "未知卡片").substring(0, 16), TX, ty + 19);
-      ty += 23;
+      nameLines.forEach(line => { ctx.fillText(line, TX, ty + 19); ty += 24; });
 
       // Japanese name: fontSize 13 (matches JSX)
       if (result.cardNameJa) {
         ctx.font = "13px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.5)";
-        ctx.fillText(result.cardNameJa.substring(0, 20), TX, ty + 3 + 13);
+        ctx.fillText(result.cardNameJa.substring(0, 24), TX, ty + 3 + 13);
         ty += 3 + 18;
       }
       ty += 8;
 
-      // Type badges: fontSize 10/700, padding "2px 8px", matches JSX
-      let badgeX = TX;
+      // Type badges + rarity: flex-wrap within textW (matches JSX flexWrap:"wrap", gap 5)
       ctx.font = "700 10px sans-serif";
+      let bdgX = TX, bdgY = ty;
       (result.types ?? []).forEach(t => {
         const tc = TYPE_COLORS[t] ?? TYPE_COLORS.default;
         const bw = ctx.measureText(t).width + 16;
-        ctx.fillStyle = tc.bg; ctx.beginPath(); ctx.roundRect(badgeX, ty, bw, 22, 11); ctx.fill();
-        ctx.fillStyle = tc.text; ctx.fillText(t, badgeX + 8, ty + 15);
-        badgeX += bw + 5;
+        if (bdgX > TX && bdgX + bw > TX + textW) { bdgX = TX; bdgY += 22 + 5; }
+        ctx.fillStyle = tc.bg; ctx.beginPath(); ctx.roundRect(bdgX, bdgY, bw, 22, 11); ctx.fill();
+        ctx.fillStyle = tc.text; ctx.fillText(t, bdgX + 8, bdgY + 15);
+        bdgX += bw + 5;
       });
       if (result.rarity) {
         const bw = ctx.measureText(result.rarity).width + 16;
-        ctx.fillStyle = rarityColor + "33"; ctx.beginPath(); ctx.roundRect(badgeX, ty, bw, 22, 11); ctx.fill();
-        ctx.strokeStyle = rarityColor + "66"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(badgeX, ty, bw, 22, 11); ctx.stroke();
-        ctx.fillStyle = rarityColor; ctx.fillText(result.rarity, badgeX + 8, ty + 15);
+        if (bdgX > TX && bdgX + bw > TX + textW) { bdgX = TX; bdgY += 22 + 5; }
+        ctx.fillStyle = rarityColor + "33"; ctx.beginPath(); ctx.roundRect(bdgX, bdgY, bw, 22, 11); ctx.fill();
+        ctx.strokeStyle = rarityColor + "66"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(bdgX, bdgY, bw, 22, 11); ctx.stroke();
+        ctx.fillStyle = rarityColor; ctx.fillText(result.rarity, bdgX + 8, bdgY + 15);
       }
-      ty += 22 + 7;
+      ty = bdgY + 22 + 7;
 
-      // HP + set/year/language: fontSize 11, each as separate inline item (matches JSX)
-      ctx.font = "11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.6)";
-      const metaItems: string[] = [];
-      if (result.hp) metaItems.push(`HP ${result.hp}`);
-      if (result.set) metaItems.push(result.set + (result.setNumber ? ` #${result.setNumber}` : ""));
-      if (result.releaseYear) metaItems.push(String(result.releaseYear));
-      if (result.language) metaItems.push(result.language);
-      if (metaItems.length > 0) ctx.fillText(metaItems.join("  ").substring(0, 40), TX, ty + 13);
+      // HP / Set / Year / Language: flex-wrap simulation (matches JSX display:"flex", flexWrap:"wrap", gap:"2px 10px")
+      if (metaItemsList.length > 0) {
+        ctx.font = "11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.6)";
+        let mX = TX, mY = ty;
+        metaItemsList.forEach(item => {
+          const iw = ctx.measureText(item).width + 12;
+          if (mX > TX && mX + iw > TX + textW) { mX = TX; mY += 16 + 2; }
+          ctx.fillText(item, mX, mY + 13);
+          mX += iw;
+        });
+      }
 
       y += cardBoxH + GAP;
 
