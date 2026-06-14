@@ -532,18 +532,25 @@ function SpinningBall() {
 }
 
 function fmtHKD(n: number) { return `HKD $${n.toLocaleString("en-HK")}`; }
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number, _fontSize: number): string[] {
-  const words = text.split(""); // CJK: split by char; Latin: split by space works too
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
   const lines: string[] = [];
   let cur = "";
-  for (const ch of text.split(/(?<=[^\u4e00-\u9fff\u3040-\u30ff])|(?=[\u4e00-\u9fff\u3040-\u30ff])/)) {
-    const test = cur + ch;
-    if (ctx.measureText(test).width > maxW && cur.length > 0) { lines.push(cur); cur = ch; }
+  // Tokenise: CJK chars individually; other chars grouped into words
+  const tokens: string[] = [];
+  let buf = "";
+  const CJK = /[\u4e00-\u9fff\u3040-\u30ff\uff00-\uffef]/;
+  for (const ch of text) {
+    if (CJK.test(ch)) { if (buf) { tokens.push(buf); buf = ""; } tokens.push(ch); }
+    else { buf += ch; }
+  }
+  if (buf) tokens.push(buf);
+  for (const token of tokens) {
+    const test = cur + token;
+    if (ctx.measureText(test).width > maxW && cur.length > 0) { lines.push(cur); cur = token; }
     else { cur = test; }
   }
   if (cur) lines.push(cur);
   return lines.length ? lines : [text];
-  void words;
 }
 
 function GradeBar({ grade }: { grade: number }) {
