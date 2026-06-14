@@ -557,19 +557,36 @@ export default function PokeLover() {
         setResult(data);
         setSavedCardId(null);
         if (data.marketPriceHKD) setRawPriceInput(String(data.marketPriceHKD));
-        const entry: HistoryItem = {
-          id: Date.now().toString(),
-          cardName: data.cardName ?? "未知卡片",
-          cardNameJa: data.cardNameJa,
-          gradeEstimate: data.gradeEstimate,
-          marketPriceHKD: data.marketPriceHKD,
-          imageThumb: imagePreview,
-          savedAt: Date.now(),
-          result: data,
-        };
-        const newHistory = [entry, ...loadHistory(user?.id).filter(h => h.cardName !== entry.cardName)].slice(0, 20);
-        saveHistory(newHistory, user?.id);
-        setHistory(newHistory);
+        // 壓縮成小縮圖再存入 history，避免 localStorage quota 超限
+        const makeHistoryThumb = (src: string): Promise<string> => new Promise((resolve) => {
+          if (!src) { resolve(""); return; }
+          const img = new window.Image();
+          img.onload = () => {
+            const scale = Math.min(150 / Math.max(img.width, img.height), 1);
+            const c = document.createElement("canvas");
+            c.width = Math.round(img.width * scale);
+            c.height = Math.round(img.height * scale);
+            c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+            resolve(c.toDataURL("image/jpeg", 0.65));
+          };
+          img.onerror = () => resolve("");
+          img.src = src;
+        });
+        makeHistoryThumb(imagePreview).then((thumb) => {
+          const entry: HistoryItem = {
+            id: Date.now().toString(),
+            cardName: data.cardName ?? "未知卡片",
+            cardNameJa: data.cardNameJa,
+            gradeEstimate: data.gradeEstimate,
+            marketPriceHKD: data.marketPriceHKD,
+            imageThumb: thumb || undefined,
+            savedAt: Date.now(),
+            result: data,
+          };
+          const newHistory = [entry, ...loadHistory(user?.id).filter(h => h.cardName !== entry.cardName)].slice(0, 20);
+          saveHistory(newHistory, user?.id);
+          setHistory(newHistory);
+        });
         // A2 — batch: record result + process next
         if (batchQueueRef.current.length > 0) {
           setBatchSummary(prev => [...prev, { name: data.cardName ?? "未知", value: data.marketPriceHKD ?? null }]);
