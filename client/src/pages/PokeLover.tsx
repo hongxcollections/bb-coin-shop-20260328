@@ -827,16 +827,29 @@ export default function PokeLover() {
     setShareGenerating(true);
     try {
       const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(shareCardRef.current, {
+      const el = shareCardRef.current;
+      // 暫時移到左上角令 html2canvas 可以捕捉
+      el.style.left = "0px";
+      el.style.top = "0px";
+      el.style.zIndex = "9998";
+      await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+      const canvas = await html2canvas(el, {
         scale: 2,
         backgroundColor: "#0d0d1f",
         logging: false,
-        useCORS: true,
         allowTaint: true,
+        scrollX: 0,
+        scrollY: 0,
+        width: el.offsetWidth,
+        height: el.scrollHeight,
       });
+      el.style.left = "-9999px";
+      el.style.top = "0px";
+      el.style.zIndex = "-1";
       setShareImgUrl(canvas.toDataURL("image/png"));
       setShareDialogOpen(true);
-    } catch {
+    } catch (e) {
+      console.error("[ShareImage] html2canvas error:", e);
       toast.error("生成分享圖失敗，請重試", { className: "bb-toast-err" });
     } finally {
       setShareGenerating(false);
@@ -1518,7 +1531,7 @@ export default function PokeLover() {
           <div style={{ borderRadius: 16, padding: 1, background: "linear-gradient(135deg, #CC0000, #FFDE00, #CC0000)", marginBottom: 14 }}>
             <div style={{ borderRadius: 14, padding: 18, background: "#13131f", display: "flex", gap: 14, alignItems: "flex-start" }}>
               {imagePreview && (
-                <img src={imagePreview} alt="" style={{ width: 88, height: 124, borderRadius: 10, objectFit: "cover", border: "2px solid rgba(255,222,0,0.3)", flexShrink: 0 }} crossOrigin="anonymous" />
+                <img src={imagePreview} alt="" style={{ width: 88, height: 124, borderRadius: 10, objectFit: "cover", border: "2px solid rgba(255,222,0,0.3)", flexShrink: 0 }} />
               )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 19, fontWeight: 900, color: "#FFDE00", lineHeight: 1.2, wordBreak: "break-word" }}>{result.cardName ?? "未知卡片"}</div>
