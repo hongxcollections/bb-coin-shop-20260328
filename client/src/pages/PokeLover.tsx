@@ -845,72 +845,102 @@ export default function PokeLover() {
     if (!result) return;
     setShareGenerating(true);
     try {
-      // 純 canvas 手繪，唔依賴 html2canvas，保證相容所有瀏覽器
-      const W = 390, PAD = 16, SC = 2;
-      const gradeColors = ["","#f44336","#f44336","#FF9800","#FF9800","#FFC107","#FFC107","#8BC34A","#4CAF50","#2196F3","#9C27B0"];
+      // ── Constants matching the actual page JSX ──
+      const W = 390, PAD = 16, SC = 2, BP = 14, GAP = 12;
+      const GC = ["","#f44336","#f44336","#FF9800","#FF9800","#FFC107","#FFC107","#8BC34A","#4CAF50","#2196F3","#9C27B0"];
       const rarityColor = result.rarity ? (RARITY_COLOR[result.rarity] ?? "#9C27B0") : "#9C27B0";
-
-      // 預計算各 section 高度
+      const IW = W - PAD * 2;
+      const PW = 88, PH = 124; // photo size matching JSX
       const hasPhoto = !!imagePreview;
       const hasAuth = !!result.authenticityWarning;
-      const hasAttacks = !!(result.attacks && result.attacks.length > 0);
-      const hasFunFact = !!result.funFact;
       const hasGrades = result.gradeEstimate != null || result.bgsEstimate != null || result.cgcEstimate != null || result.tagEstimate != null;
       const hasPrices = !!(result.marketPriceHKD || result.psa9HKD || result.psa10HKD);
+      const hasAttacks = !!(result.attacks && result.attacks.length > 0);
+      const hasFunFact = !!result.funFact;
 
-      let totalH = PAD;
-      totalH += 48;  // header
-      totalH += 12;
-      totalH += hasPhoto ? 158 : 120; // card info box
-      totalH += 12;
-      if (hasAuth) { totalH += 76; totalH += 10; }
-      totalH += hasGrades ? 130 : 60; // condition+grades
-      totalH += 10;
-      if (hasPrices) { totalH += 82; totalH += 10; }
-      if (hasAttacks) { totalH += 24 + (result.attacks!.length * 28) + 20; totalH += 10; }
-      if (hasFunFact) { totalH += 64; totalH += 10; }
-      totalH += 36; // footer
-      totalH += PAD;
+      // ── Helper: draw box background ──
+      const tmpC = document.createElement("canvas");
+      const mCtx = tmpC.getContext("2d")!;
+      const drawBox = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, bg: string, border: string) => {
+        c.fillStyle = bg; c.beginPath(); c.roundRect(x, y, w, h, 12); c.fill();
+        c.strokeStyle = border; c.lineWidth = 1; c.beginPath(); c.roundRect(x, y, w, h, 12); c.stroke();
+      };
 
+      // ── Dynamic height calculation (matches JSX padding/spacing exactly) ──
+      // Card info box: padding 18 each side, photo 124px tall, text column measured
+      const cardBoxInnerH = Math.max(hasPhoto ? PH : 0,
+        23 + (result.cardNameJa ? 3 + 18 : 0) + 8 + 22 + 7 + 16 + (result.set || result.releaseYear || result.language ? 4 + 16 : 0));
+      const cardBoxH = BP + cardBoxInnerH + BP; // inner padding top+bottom = 18 each (using BP=14 is close enough)
+
+      // Auth box: BP top + label(17) + score(16+5) + wrapped lines(19×N) + BP bottom
+      const authLines = hasAuth ? (() => { mCtx.font = "12px sans-serif"; return wrapText(mCtx, result.authenticityWarning!, IW - BP * 2, 12); })() : [];
+      const authBoxH = hasAuth ? (BP + 17 + 5 + (result.authenticityScore != null ? 16 + 5 : 0) + authLines.length * 19 + BP) : 0;
+
+      // Condition box: BP + label(17) + gap(7) + value(21) + note(19) + [grades: gap(12)+label(15)+gap(7)+boxes(68)+bar(22+8)] + BP
+      const condBoxH = (() => {
+        let h = BP + 17 + 7 + 21;
+        if (result.conditionNote) h += 3 + 16;
+        if (hasGrades) { h += 12 + 15 + 7 + 68 + (result.gradeEstimate != null ? 8 + 22 : 8); }
+        h += BP;
+        return h;
+      })();
+
+      // Prices box: BP + label(17) + gap(10) + grid(39) + gap(8) + footnote(14) + BP
+      const priceBoxH = hasPrices ? (BP + 17 + 10 + 39 + 8 + 14 + BP) : 0;
+
+      // Attacks box: BP + label(17) + gap(10) + N×(cost+name row 22) + gap(8×(N-1)) + BP
+      const atkBoxH = hasAttacks ? (BP + 17 + 10 + result.attacks!.length * 22 + (result.attacks!.length - 1) * 8 + BP) : 0;
+
+      // Fun fact box: BP + label(15) + gap(4) + wrapped lines(18×N) + BP
+      const ffLines = hasFunFact ? (() => { mCtx.font = "12px sans-serif"; return wrapText(mCtx, result.funFact!, IW - BP * 2, 12); })() : [];
+      const ffBoxH = hasFunFact ? (BP + 15 + 4 + ffLines.length * 18 + BP) : 0;
+
+      // Total
+      let totalH = PAD + 50 + GAP + cardBoxH + GAP;
+      if (hasAuth) totalH += authBoxH + GAP;
+      totalH += condBoxH + GAP;
+      if (hasPrices) totalH += priceBoxH + GAP;
+      if (hasAttacks) totalH += atkBoxH + GAP;
+      if (hasFunFact) totalH += ffBoxH + GAP;
+      totalH += 40 + PAD; // footer
+
+      // ── Create canvas ──
       const c = document.createElement("canvas");
       c.width = W * SC; c.height = totalH * SC;
       const ctx = c.getContext("2d")!;
       ctx.scale(SC, SC);
 
-      // ── Background ──
-      const bg = ctx.createLinearGradient(0, 0, 0, totalH);
-      bg.addColorStop(0, "#0d0d1f"); bg.addColorStop(0.4, "#1a0505"); bg.addColorStop(1, "#0d0d1f");
-      ctx.fillStyle = bg; ctx.fillRect(0, 0, W, totalH);
+      // Background gradient
+      const bgG = ctx.createLinearGradient(0, 0, 0, totalH);
+      bgG.addColorStop(0, "#0d0d1f"); bgG.addColorStop(0.4, "#1a0505"); bgG.addColorStop(1, "#0d0d1f");
+      ctx.fillStyle = bgG; ctx.fillRect(0, 0, W, totalH);
 
       let y = PAD;
 
-      // ── Header ──
-      ctx.beginPath(); ctx.arc(PAD + 16, y + 16, 17, 0, Math.PI * 2);
-      const ballGrad = ctx.createLinearGradient(PAD, y, PAD, y + 34);
-      ballGrad.addColorStop(0, "#CC0000"); ballGrad.addColorStop(0.5, "#CC0000"); ballGrad.addColorStop(0.5, "#f5f5f5"); ballGrad.addColorStop(1, "#f5f5f5");
-      ctx.fillStyle = ballGrad; ctx.fill();
-      ctx.strokeStyle = "#222"; ctx.lineWidth = 2; ctx.stroke();
-      ctx.font = `900 20px sans-serif`; ctx.fillStyle = "#FFDE00"; ctx.fillText("PokeLover", PAD + 40, y + 20);
-      ctx.font = `11px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.fillText("AI 智能 Pokemon 卡片鑑定 · 市場估價", PAD + 40, y + 36);
-      y += 48 + 12;
+      // ── Header ── (matches JSX: pokeball 34px, PokeLover 20px/900, subtitle 10px)
+      ctx.beginPath(); ctx.arc(PAD + 17, y + 17, 17, 0, Math.PI * 2);
+      const bG = ctx.createLinearGradient(PAD, y, PAD, y + 34);
+      bG.addColorStop(0, "#CC0000"); bG.addColorStop(0.5, "#CC0000"); bG.addColorStop(0.5, "#f5f5f5"); bG.addColorStop(1, "#f5f5f5");
+      ctx.fillStyle = bG; ctx.fill(); ctx.strokeStyle = "#333"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.font = "900 20px sans-serif"; ctx.fillStyle = "#FFDE00"; ctx.fillText("PokeLover", PAD + 44, y + 22);
+      ctx.font = "11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.fillText("AI 智能 Pokemon 卡片鑑定 · 市場估價", PAD + 44, y + 40);
+      y += 50 + GAP;
 
-      // ── Card info box ──
-      const boxH = hasPhoto ? 154 : 116;
-      const gradBorder = ctx.createLinearGradient(PAD, y, W - PAD, y + boxH);
-      gradBorder.addColorStop(0, "#CC0000"); gradBorder.addColorStop(0.5, "#FFDE00"); gradBorder.addColorStop(1, "#CC0000");
-      ctx.fillStyle = gradBorder; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, boxH, 14); ctx.fill();
-      ctx.fillStyle = "#13131f"; ctx.beginPath(); ctx.roundRect(PAD + 1, y + 1, W - PAD * 2 - 2, boxH - 2, 13); ctx.fill();
+      // ── Card info box ── (gradient border 1px + inner #13131f, padding 18)
+      const cbGrad = ctx.createLinearGradient(PAD, y, W - PAD, y + cardBoxH);
+      cbGrad.addColorStop(0, "#CC0000"); cbGrad.addColorStop(0.5, "#FFDE00"); cbGrad.addColorStop(1, "#CC0000");
+      ctx.fillStyle = cbGrad; ctx.beginPath(); ctx.roundRect(PAD, y, IW, cardBoxH, 14); ctx.fill();
+      ctx.fillStyle = "#13131f"; ctx.beginPath(); ctx.roundRect(PAD + 1, y + 1, IW - 2, cardBoxH - 2, 13); ctx.fill();
 
-      // Load + draw card photo
       if (hasPhoto) {
         await new Promise<void>((resolve) => {
           const img = new window.Image();
           img.onload = () => {
-            const PX = PAD + 14, PY = y + 14, PW = 82, PH = 126;
-            ctx.save(); ctx.beginPath(); ctx.roundRect(PX, PY, PW, PH, 8); ctx.clip();
-            ctx.drawImage(img, PX, PY, PW, PH); ctx.restore();
-            ctx.strokeStyle = "rgba(255,222,0,0.3)"; ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.roundRect(PX, PY, PW, PH, 8); ctx.stroke();
+            const px = PAD + BP, py = y + BP;
+            ctx.save(); ctx.beginPath(); ctx.roundRect(px, py, PW, PH, 10); ctx.clip();
+            ctx.drawImage(img, px, py, PW, PH); ctx.restore();
+            ctx.strokeStyle = "rgba(255,222,0,0.3)"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.roundRect(px, py, PW, PH, 10); ctx.stroke();
             resolve();
           };
           img.onerror = () => resolve();
@@ -918,162 +948,189 @@ export default function PokeLover() {
         });
       }
 
-      const TX = hasPhoto ? PAD + 102 : PAD + 14;
-      const TW = W - TX - 14;
-      ctx.font = `900 17px sans-serif`; ctx.fillStyle = "#FFDE00";
-      const nameStr = (result.cardName ?? "未知卡片").substring(0, 18);
-      ctx.fillText(nameStr, TX, y + 22);
-      if (result.cardNameJa) { ctx.font = `12px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText(result.cardNameJa.substring(0, 20), TX, y + 38); }
+      // Text column — TX = right of photo (or left of box)
+      const TX = hasPhoto ? PAD + BP + PW + 14 : PAD + BP;
+      let ty = y + BP;
 
-      // Type badges
-      let bx = TX, by = y + 54;
+      // Card name: fontSize 19, fontWeight 900 (matches JSX)
+      ctx.font = "900 19px sans-serif"; ctx.fillStyle = "#FFDE00";
+      ctx.fillText((result.cardName ?? "未知卡片").substring(0, 16), TX, ty + 19);
+      ty += 23;
+
+      // Japanese name: fontSize 13 (matches JSX)
+      if (result.cardNameJa) {
+        ctx.font = "13px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.5)";
+        ctx.fillText(result.cardNameJa.substring(0, 20), TX, ty + 3 + 13);
+        ty += 3 + 18;
+      }
+      ty += 8;
+
+      // Type badges: fontSize 10/700, padding "2px 8px", matches JSX
+      let badgeX = TX;
+      ctx.font = "700 10px sans-serif";
       (result.types ?? []).forEach(t => {
         const tc = TYPE_COLORS[t] ?? TYPE_COLORS.default;
-        ctx.font = `700 10px sans-serif`;
-        const tw = ctx.measureText(t).width + 12;
-        ctx.fillStyle = tc.bg; ctx.beginPath(); ctx.roundRect(bx, by, tw, 18, 9); ctx.fill();
-        ctx.fillStyle = tc.text; ctx.fillText(t, bx + 6, by + 13);
-        bx += tw + 5;
+        const bw = ctx.measureText(t).width + 16;
+        ctx.fillStyle = tc.bg; ctx.beginPath(); ctx.roundRect(badgeX, ty, bw, 22, 11); ctx.fill();
+        ctx.fillStyle = tc.text; ctx.fillText(t, badgeX + 8, ty + 15);
+        badgeX += bw + 5;
       });
       if (result.rarity) {
-        ctx.font = `700 10px sans-serif`;
-        const tw = ctx.measureText(result.rarity).width + 12;
-        if (bx + tw < TX + TW) {
-          ctx.fillStyle = rarityColor + "33"; ctx.beginPath(); ctx.roundRect(bx, by, tw, 18, 9); ctx.fill();
-          ctx.strokeStyle = rarityColor + "66"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(bx, by, tw, 18, 9); ctx.stroke();
-          ctx.fillStyle = rarityColor; ctx.fillText(result.rarity, bx + 6, by + 13);
-        }
+        const bw = ctx.measureText(result.rarity).width + 16;
+        ctx.fillStyle = rarityColor + "33"; ctx.beginPath(); ctx.roundRect(badgeX, ty, bw, 22, 11); ctx.fill();
+        ctx.strokeStyle = rarityColor + "66"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(badgeX, ty, bw, 22, 11); ctx.stroke();
+        ctx.fillStyle = rarityColor; ctx.fillText(result.rarity, badgeX + 8, ty + 15);
       }
+      ty += 22 + 7;
 
-      let iy = y + 84;
-      ctx.font = `11px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.55)";
-      if (result.hp) { ctx.fillText(`HP ${result.hp}`, TX, iy); iy += 16; }
-      const setLine = [result.set, result.releaseYear, result.language].filter(Boolean).join(" · ");
-      if (setLine) { ctx.fillText(setLine.substring(0, 30), TX, iy); }
+      // HP + set/year/language: fontSize 11, each as separate inline item (matches JSX)
+      ctx.font = "11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.6)";
+      const metaItems: string[] = [];
+      if (result.hp) metaItems.push(`HP ${result.hp}`);
+      if (result.set) metaItems.push(result.set + (result.setNumber ? ` #${result.setNumber}` : ""));
+      if (result.releaseYear) metaItems.push(String(result.releaseYear));
+      if (result.language) metaItems.push(result.language);
+      if (metaItems.length > 0) ctx.fillText(metaItems.join("  ").substring(0, 40), TX, ty + 13);
 
-      y += boxH + 12;
+      y += cardBoxH + GAP;
 
-      // ── Authenticity warning ──
+      // ── Authenticity warning ── (matches JSX: fontSize 12/700 for title, 11 for score, 12 for text)
       if (hasAuth) {
-        ctx.fillStyle = "rgba(244,67,54,0.08)"; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, 72, 10); ctx.fill();
-        ctx.strokeStyle = "rgba(244,67,54,0.35)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, 72, 10); ctx.stroke();
-        ctx.font = `700 11px sans-serif`; ctx.fillStyle = "#FF7043"; ctx.fillText("⚠ 真偽存疑", PAD + 12, y + 18);
+        drawBox(ctx, PAD, y, IW, authBoxH, "rgba(244,67,54,0.08)", "rgba(244,67,54,0.35)");
+        let ay = y + BP;
+        ctx.font = "700 12px sans-serif"; ctx.fillStyle = "#FF7043";
+        ctx.fillText("⚠ 真偽存疑", PAD + BP, ay + 13); ay += 17 + 5;
         if (result.authenticityScore != null) {
           const sc = result.authenticityScore;
-          ctx.font = `700 10px sans-serif`;
+          ctx.font = "700 11px sans-serif";
           ctx.fillStyle = sc >= 80 ? "#4CAF50" : sc >= 60 ? "#FF9800" : "#f44336";
-          ctx.fillText(`正版可信度 ${sc}%`, PAD + 12, y + 33);
+          ctx.fillText(`正版可信度 ${sc}%`, PAD + BP, ay + 12); ay += 16 + 5;
         }
-        ctx.font = `10px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.6)";
-        const warnLines = wrapText(ctx, result.authenticityWarning!, W - PAD * 2 - 24, 10);
-        warnLines.slice(0, 2).forEach((line, i) => ctx.fillText(line, PAD + 12, y + 50 + i * 14));
-        y += 76 + 10;
+        ctx.font = "12px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.6)";
+        authLines.forEach(line => { ctx.fillText(line, PAD + BP, ay + 13); ay += 19; });
+        y += authBoxH + GAP;
       }
 
-      // ── Condition + grades ──
-      const condH = hasGrades ? 126 : 56;
-      ctx.fillStyle = "rgba(255,255,255,0.05)"; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, condH, 10); ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, condH, 10); ctx.stroke();
-      ctx.font = `700 10px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText("品相評估", PAD + 12, y + 16);
-      ctx.font = `900 14px sans-serif`; ctx.fillStyle = "#fff"; ctx.fillText(result.condition ?? "—", PAD + 12, y + 32);
+      // ── Condition + grades ── (matches JSX: label 11/700, value 15/900, note 11, grades 9+17)
+      drawBox(ctx, PAD, y, IW, condBoxH, "rgba(255,255,255,0.05)", "rgba(255,255,255,0.08)");
+      let cy = y + BP;
+      ctx.font = "700 11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.5)";
+      ctx.fillText("品相評估", PAD + BP, cy + 12); cy += 17 + 7;
+      ctx.font = "900 15px sans-serif"; ctx.fillStyle = "#fff";
+      ctx.fillText(result.condition ?? "—", PAD + BP, cy + 15); cy += 21;
       if (result.conditionNote) {
-        ctx.font = `10px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.45)";
-        ctx.fillText(result.conditionNote.substring(0, 50), PAD + 12, y + 46);
+        ctx.font = "11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.5)";
+        ctx.fillText(result.conditionNote.substring(0, 52), PAD + BP, cy + 3 + 12); cy += 3 + 16;
       }
       if (hasGrades) {
-        ctx.font = `700 9px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.fillText("估計評級", PAD + 12, y + 62);
+        cy += 12;
+        ctx.font = "700 10px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.35)";
+        ctx.fillText("估計評級", PAD + BP, cy + 11); cy += 15 + 7;
         const gList = [
           { label: "PSA", value: result.gradeEstimate, color: "#9C27B0" },
           { label: "BGS", value: result.bgsEstimate, color: "#2196F3" },
           { label: "CGC", value: result.cgcEstimate, color: "#4CAF50" },
           { label: "TAG", value: result.tagEstimate, color: "#FF9800" },
         ] as { label: string; value: number | null | undefined; color: string }[];
-        const gW = (W - PAD * 2 - 12 * 3) / 4, gX0 = PAD + 12;
+        // Grade boxes: padding "8px 0", fontSize 9/700 label, 17/900 value, 9 /10 (matches JSX)
+        const gW = (IW - BP * 2 - 8 * 3) / 4, gX0 = PAD + BP;
         gList.forEach((g, i) => {
-          const gx = gX0 + i * (gW + 8), gy = y + 70;
-          ctx.fillStyle = g.value != null ? g.color + "18" : "rgba(255,255,255,0.03)";
-          ctx.beginPath(); ctx.roundRect(gx, gy, gW, 36, 6); ctx.fill();
-          ctx.strokeStyle = g.value != null ? g.color + "44" : "rgba(255,255,255,0.06)";
-          ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(gx, gy, gW, 36, 6); ctx.stroke();
-          ctx.font = `700 9px sans-serif`; ctx.fillStyle = g.value != null ? g.color : "rgba(255,255,255,0.25)";
-          ctx.textAlign = "center"; ctx.fillText(g.label, gx + gW / 2, gy + 13);
-          ctx.font = `900 16px sans-serif`; ctx.fillStyle = g.value != null ? g.color : "rgba(255,255,255,0.2)";
-          ctx.fillText(g.value != null ? String(g.value) : "—", gx + gW / 2, gy + 29);
+          const gx = gX0 + i * (gW + 8);
+          drawBox(ctx, gx, cy, gW, 68, g.value != null ? g.color + "18" : "rgba(255,255,255,0.03)", g.value != null ? g.color + "44" : "rgba(255,255,255,0.06)");
+          ctx.textAlign = "center";
+          ctx.font = "700 9px sans-serif"; ctx.fillStyle = g.value != null ? g.color : "rgba(255,255,255,0.25)";
+          ctx.fillText(g.label, gx + gW / 2, cy + 8 + 11);
+          ctx.font = "900 17px sans-serif"; ctx.fillStyle = g.value != null ? g.color : "rgba(255,255,255,0.2)";
+          ctx.fillText(g.value != null ? String(g.value) : "—", gx + gW / 2, cy + 8 + 11 + 6 + 19);
+          if (g.value != null) {
+            ctx.font = "9px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.3)";
+            ctx.fillText("/10", gx + gW / 2, cy + 8 + 11 + 6 + 19 + 4 + 10);
+          }
           ctx.textAlign = "left";
         });
+        cy += 68;
         if (result.gradeEstimate != null) {
-          const bx0 = PAD + 12, by0 = y + 114;
+          cy += 8;
+          const barX = PAD + BP;
           [1,2,3,4,5,6,7,8,9,10].forEach(i => {
-            ctx.fillStyle = i <= result.gradeEstimate! ? (gradeColors[i] ?? "#888") : "rgba(255,255,255,0.1)";
-            ctx.beginPath(); ctx.roundRect(bx0 + (i - 1) * 15, by0, 13, 13, 3); ctx.fill();
+            ctx.fillStyle = i <= result.gradeEstimate! ? (GC[i] ?? "#888") : "rgba(255,255,255,0.1)";
+            ctx.beginPath(); ctx.roundRect(barX + (i - 1) * 17, cy, 15, 15, 4); ctx.fill();
           });
-          ctx.font = `700 11px sans-serif`; ctx.fillStyle = gradeColors[result.gradeEstimate] ?? "#fff";
-          ctx.fillText(`${result.gradeEstimate}/10`, bx0 + 160, by0 + 11);
+          ctx.font = "900 13px sans-serif"; ctx.fillStyle = GC[result.gradeEstimate] ?? "#fff";
+          ctx.fillText(`${result.gradeEstimate}/10`, barX + 185, cy + 13);
         }
       }
-      y += condH + 10;
+      y += condBoxH + GAP;
 
-      // ── Market prices ──
+      // ── Market prices ── (matches JSX: label 11/700, col-label 10, value 14/900, footnote 9)
       if (hasPrices) {
-        ctx.fillStyle = "rgba(255,222,0,0.07)"; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, 78, 10); ctx.fill();
-        ctx.strokeStyle = "rgba(255,222,0,0.2)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, 78, 10); ctx.stroke();
-        ctx.font = `700 10px sans-serif`; ctx.fillStyle = "rgba(255,222,0,0.7)"; ctx.fillText("參考市場價格", PAD + 12, y + 16);
+        drawBox(ctx, PAD, y, IW, priceBoxH, "rgba(255,222,0,0.07)", "rgba(255,222,0,0.2)");
+        let py2 = y + BP;
+        ctx.font = "700 11px sans-serif"; ctx.fillStyle = "rgba(255,222,0,0.7)";
+        ctx.fillText("參考市場價格", PAD + BP, py2 + 13); py2 += 17 + 10;
+        const colW = IW / 3;
         const prList = [
           { label: "裸卡 NM", value: result.marketPriceHKD },
           { label: "PSA 9", value: result.psa9HKD },
           { label: "PSA 10", value: result.psa10HKD },
         ] as { label: string; value: number | null | undefined }[];
-        const pW = (W - PAD * 2) / 3;
+        ctx.textAlign = "center";
         prList.forEach(({ label, value }, i) => {
-          const px = PAD + i * pW + pW / 2;
-          ctx.textAlign = "center";
-          ctx.font = `10px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText(label, px, y + 40);
-          ctx.font = `900 13px sans-serif`; ctx.fillStyle = value ? "#FFDE00" : "rgba(255,255,255,0.3)";
-          ctx.fillText(value ? `$${value.toLocaleString("en-HK")}` : "N/A", px, y + 58);
-          ctx.textAlign = "left";
+          const cx2 = PAD + colW * i + colW / 2;
+          ctx.font = "10px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.5)";
+          ctx.fillText(label, cx2, py2 + 11);
+          ctx.font = "900 14px sans-serif"; ctx.fillStyle = value ? "#FFDE00" : "rgba(255,255,255,0.3)";
+          ctx.fillText(value ? `$${value.toLocaleString("en-HK")}` : "N/A", cx2, py2 + 11 + 4 + 16);
         });
-        y += 82 + 10;
+        ctx.textAlign = "left";
+        py2 += 39 + 8;
+        ctx.font = "9px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.25)"; ctx.textAlign = "center";
+        ctx.fillText("* AI 估算僅供參考，實際成交價以市場為準", W / 2, py2 + 10);
+        ctx.textAlign = "left";
+        y += priceBoxH + GAP;
       }
 
-      // ── Attacks ──
+      // ── Attacks ── (matches JSX: label 11/700, name 13/600, damage 13/900, cost circles 12px)
       if (hasAttacks) {
-        const atkH = 24 + result.attacks!.length * 28 + 16;
-        ctx.fillStyle = "rgba(255,255,255,0.05)"; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, atkH, 10); ctx.fill();
-        ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, atkH, 10); ctx.stroke();
-        ctx.font = `700 10px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText("技能", PAD + 12, y + 16);
+        drawBox(ctx, PAD, y, IW, atkBoxH, "rgba(255,255,255,0.05)", "rgba(255,255,255,0.08)");
+        let ay2 = y + BP;
+        ctx.font = "700 11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.5)";
+        ctx.fillText("技能", PAD + BP, ay2 + 13); ay2 += 17 + 10;
         result.attacks!.forEach((atk, i) => {
-          const ay = y + 28 + i * 28;
-          let costX = PAD + 12;
+          if (i > 0) ay2 += 8;
+          let costX = PAD + BP;
           (atk.cost ?? []).slice(0, 4).forEach(ct => {
-            const tc2 = TYPE_COLORS[ct] ?? TYPE_COLORS.default;
-            ctx.fillStyle = tc2.bg; ctx.beginPath(); ctx.arc(costX + 6, ay + 6, 6, 0, Math.PI * 2); ctx.fill();
+            const tc3 = TYPE_COLORS[ct] ?? TYPE_COLORS.default;
+            ctx.fillStyle = tc3.bg; ctx.beginPath(); ctx.arc(costX + 6, ay2 + 6, 6, 0, Math.PI * 2); ctx.fill();
             costX += 15;
           });
-          ctx.font = `600 12px sans-serif`; ctx.fillStyle = "#fff"; ctx.fillText(atk.name, costX + 4, ay + 11);
+          ctx.font = "600 13px sans-serif"; ctx.fillStyle = "#fff";
+          ctx.fillText(atk.name, costX + 4, ay2 + 13);
           if (atk.damage) {
-            ctx.font = `900 12px sans-serif`; ctx.fillStyle = "#FFDE00";
-            ctx.textAlign = "right"; ctx.fillText(atk.damage, W - PAD - 12, ay + 11); ctx.textAlign = "left";
+            ctx.font = "900 13px sans-serif"; ctx.fillStyle = "#FFDE00";
+            ctx.textAlign = "right"; ctx.fillText(atk.damage, PAD + IW - BP, ay2 + 13); ctx.textAlign = "left";
           }
+          ay2 += 22;
         });
-        y += atkH + 10;
+        y += atkBoxH + GAP;
       }
 
-      // ── Fun fact ──
+      // ── Fun fact ── (matches JSX: label 10, text 12)
       if (hasFunFact) {
-        ctx.fillStyle = "rgba(255,255,255,0.05)"; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, 60, 10); ctx.fill();
-        ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(PAD, y, W - PAD * 2, 60, 10); ctx.stroke();
-        ctx.font = `10px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.fillText("💡 冷知識", PAD + 12, y + 16);
-        ctx.font = `11px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.75)";
-        const ffLines = wrapText(ctx, result.funFact!, W - PAD * 2 - 24, 11);
-        ffLines.slice(0, 2).forEach((line, i) => ctx.fillText(line, PAD + 12, y + 32 + i * 14));
-        y += 64 + 10;
+        drawBox(ctx, PAD, y, IW, ffBoxH, "rgba(255,255,255,0.05)", "rgba(255,255,255,0.08)");
+        let fy = y + BP;
+        ctx.font = "10px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.4)";
+        ctx.fillText("💡 冷知識", PAD + BP, fy + 11); fy += 15 + 4;
+        ctx.font = "12px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.75)";
+        ffLines.forEach(line => { ctx.fillText(line, PAD + BP, fy + 13); fy += 18; });
+        y += ffBoxH + GAP;
       }
 
       // ── Footer ──
       ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(PAD, y + 8); ctx.lineTo(W - PAD, y + 8); ctx.stroke();
-      ctx.font = `10px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.3)";
-      ctx.textAlign = "center"; ctx.fillText("hongxcollections.com · PokeLover AI", W / 2, y + 24); ctx.textAlign = "left";
+      ctx.beginPath(); ctx.moveTo(PAD, y + 10); ctx.lineTo(W - PAD, y + 10); ctx.stroke();
+      ctx.font = "10px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.textAlign = "center";
+      ctx.fillText("hongxcollections.com · PokeLover AI", W / 2, y + 28); ctx.textAlign = "left";
 
       setShareImgUrl(c.toDataURL("image/png"));
       setShareDialogOpen(true);
