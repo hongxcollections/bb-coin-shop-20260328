@@ -871,7 +871,7 @@ export default function PokeLover() {
       cvs.width = img.naturalWidth + PS * 2;
       cvs.height = img.naturalHeight + PT + PB;
       const ctx = cvs.getContext("2d")!;
-      ctx.fillStyle = "#000000";
+      ctx.fillStyle = "#1a1a2e";
       ctx.fillRect(0, 0, cvs.width, cvs.height);
       ctx.drawImage(img, PS, PT);
       const dataUrl = cvs.toDataURL("image/png");
