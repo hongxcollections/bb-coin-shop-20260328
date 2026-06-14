@@ -884,6 +884,7 @@ export default function PokeLover() {
       )}
 
       <div className="max-w-lg mx-auto px-4 pt-4">
+        <div ref={shareCardRef} style={{ background: "linear-gradient(180deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)", borderRadius: 12 }}>
         <div className="flex items-center gap-3 mb-1">
           <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "2px solid #333" }} />
           <div className="flex-1 min-w-0">
@@ -973,7 +974,6 @@ export default function PokeLover() {
           </div>
         )}
 
-        <div ref={shareCardRef} style={{ background: "linear-gradient(180deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)", borderRadius: 12 }}>
         <div className="rounded-2xl p-px mt-5 mb-6" style={{ background: "linear-gradient(135deg, #CC0000, #FFDE00, #CC0000)" }}>
           <div className="rounded-2xl p-6 flex flex-col items-center" style={{ background: "#13131f" }}>
             {isAnalyzing ? (
@@ -1479,8 +1479,8 @@ export default function PokeLover() {
             )}
 
             {/* Share footer — visible in generated image */}
-            <div style={{ textAlign: "center", paddingTop: 10, paddingBottom: 14 }}>
-              <span style={{ fontSize: 10, letterSpacing: "3px", background: "linear-gradient(to right, #FF8C00, #FFDE00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+            <div style={{ textAlign: "center", paddingTop: 10, paddingBottom: 10 }}>
+              <span style={{ fontSize: 10, background: "linear-gradient(to right, #FF8C00, #FFDE00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
                 hongxcollections.com · PokeLover AI
               </span>
             </div>
