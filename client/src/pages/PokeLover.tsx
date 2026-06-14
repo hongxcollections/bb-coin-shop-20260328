@@ -884,7 +884,7 @@ export default function PokeLover() {
       )}
 
       <div className="max-w-lg mx-auto px-4 pt-4">
-        <div ref={shareCardRef} style={{ background: "linear-gradient(180deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)", borderRadius: 12, paddingTop: 5, paddingLeft: 3, paddingRight: 3 }}>
+        <div ref={shareCardRef} style={{ background: "linear-gradient(180deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)", borderRadius: 12, paddingTop: 10, paddingLeft: 5, paddingRight: 5 }}>
         <div className="flex items-center gap-3 mb-1">
           <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "2px solid #333" }} />
           <div className="flex-1 min-w-0">
