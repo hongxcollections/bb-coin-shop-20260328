@@ -845,14 +845,16 @@ export default function PokeLover() {
   const handleShareImage = useCallback(async () => {
     if (!result || !shareCardRef.current) return;
     setShareGenerating(true);
+    const el = shareCardRef.current;
+    // Temporarily collapse skip elements so offsetHeight shrinks before capture
+    const skipped = Array.from(el.querySelectorAll<HTMLElement>('[data-share-skip="true"]'));
+    skipped.forEach(n => { n.style.display = 'none'; });
     try {
-      const el = shareCardRef.current;
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const domtoimage = (await import("dom-to-image-more")).default;
       const dataUrl = await domtoimage.toPng(el, {
         scale: 2,
         bgcolor: "#0d0d1f",
-        filter: (node: Element) => node.getAttribute?.('data-share-skip') !== 'true',
       });
       setShareImgUrl(dataUrl);
       setShareDialogOpen(true);
@@ -860,6 +862,7 @@ export default function PokeLover() {
       console.error("[ShareImage] dom-to-image error:", e);
       toast.error(`分享圖失敗: ${e instanceof Error ? e.message : String(e)}`, { className: "bb-toast-err" });
     } finally {
+      skipped.forEach(n => { n.style.removeProperty('display'); });
       setShareGenerating(false);
     }
   }, [result]);
@@ -970,6 +973,7 @@ export default function PokeLover() {
           </div>
         )}
 
+        <div ref={shareCardRef} style={{ background: "linear-gradient(180deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)", borderRadius: 12 }}>
         <div className="rounded-2xl p-px mt-5 mb-6" style={{ background: "linear-gradient(135deg, #CC0000, #FFDE00, #CC0000)" }}>
           <div className="rounded-2xl p-6 flex flex-col items-center" style={{ background: "#13131f" }}>
             {isAnalyzing ? (
@@ -1169,7 +1173,7 @@ export default function PokeLover() {
         )}
 
         {result && !result.isNotPokemon && (
-          <div ref={shareCardRef} style={{ background: "linear-gradient(180deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)", borderRadius: 12 }}>
+          <>
             {result.attacks && result.attacks.length > 0 && (
               <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 <p className="text-xs font-bold mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>技能</p>
@@ -1480,8 +1484,9 @@ export default function PokeLover() {
                 hongxcollections.com · PokeLover AI
               </span>
             </div>
-          </div>
+          </>
         )}
+        </div>{/* end shareCardRef */}
 
         {!imagePreview && !analysisError && (
           <div data-share-skip="true" className="rounded-xl p-4 mt-2" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
