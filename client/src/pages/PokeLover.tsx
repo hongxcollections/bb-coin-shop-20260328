@@ -926,7 +926,7 @@ export default function PokeLover() {
       if (result.cardNameJa) { ctx.font = `12px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText(result.cardNameJa.substring(0, 20), TX, y + 38); }
 
       // Type badges
-      let bx = TX, by = y + 50;
+      let bx = TX, by = y + 54;
       (result.types ?? []).forEach(t => {
         const tc = TYPE_COLORS[t] ?? TYPE_COLORS.default;
         ctx.font = `700 10px sans-serif`;
@@ -945,7 +945,7 @@ export default function PokeLover() {
         }
       }
 
-      let iy = y + 74;
+      let iy = y + 84;
       ctx.font = `11px sans-serif`; ctx.fillStyle = "rgba(255,255,255,0.55)";
       if (result.hp) { ctx.fillText(`HP ${result.hp}`, TX, iy); iy += 16; }
       const setLine = [result.set, result.releaseYear, result.language].filter(Boolean).join(" · ");
