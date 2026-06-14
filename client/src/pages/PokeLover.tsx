@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import { toast } from "sonner";
-import { Upload, Loader2, Search, ChevronLeft, Zap, ExternalLink, Share2, Copy, Check, X, MoreHorizontal, Star, AlertTriangle, RefreshCcw, BookmarkPlus, Bookmark, BookOpen, DollarSign, ChevronRight, Images } from "lucide-react";
+import { Upload, Loader2, Search, Zap, ExternalLink, Share2, Copy, Check, X, MoreHorizontal, Star, AlertTriangle, RefreshCcw, BookmarkPlus, Bookmark, BookOpen, DollarSign, ChevronRight, Images } from "lucide-react";
 import { SHARE_ORIGIN } from "@/lib/shareUrl";
 import { useAuth } from "@/_core/hooks/useAuth";
 
@@ -486,6 +486,8 @@ export default function PokeLover() {
   const [batchDone, setBatchDone] = useState(0);
   const [batchSummary, setBatchSummary] = useState<{ name: string; value: number | null }[]>([]);
   const [isBatchMode, setIsBatchMode] = useState(false);
+  const [historySelectMode, setHistorySelectMode] = useState(false);
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
 
   // Load history from localStorage (per-user key)
   useEffect(() => { setHistory(loadHistory(user?.id)); }, [user?.id]);
@@ -715,27 +717,53 @@ export default function PokeLover() {
     });
   }, [result, isAuthenticated, imagePreview, saveCardMut]);
 
-  const handleShareImage = useCallback(() => {
+  const handleShareImage = useCallback(async () => {
     if (!result) return;
+    const hasPhoto = !!imagePreview;
+    const CW = hasPhoto ? 540 : 440;
+    const CH = 270;
+    const TX = hasPhoto ? 132 : 16; // text x offset
     const c = document.createElement("canvas");
-    c.width = 440; c.height = 260;
+    c.width = CW; c.height = CH;
     const ctx = c.getContext("2d")!;
     // Background
-    const grad = ctx.createLinearGradient(0, 0, 440, 260);
+    const grad = ctx.createLinearGradient(0, 0, CW, CH);
     grad.addColorStop(0, "#0d0d1f"); grad.addColorStop(0.5, "#1a0505"); grad.addColorStop(1, "#0d0d1f");
-    ctx.fillStyle = grad; ctx.fillRect(0, 0, 440, 260);
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, CW, CH);
+    // Card photo
+    if (hasPhoto) {
+      await new Promise<void>((resolve) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const PW = 100, PH = 150;
+          const px = 16, py = (CH - PH) / 2;
+          ctx.save();
+          ctx.beginPath();
+          ctx.roundRect(px, py, PW, PH, 8);
+          ctx.clip();
+          ctx.drawImage(img, px, py, PW, PH);
+          ctx.restore();
+          // subtle border around photo
+          ctx.strokeStyle = "rgba(255,222,0,0.35)"; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.roundRect(px, py, PW, PH, 8); ctx.stroke();
+          resolve();
+        };
+        img.onerror = () => resolve();
+        img.src = imagePreview;
+      });
+    }
     // Border
     ctx.strokeStyle = "rgba(255,222,0,0.4)"; ctx.lineWidth = 2;
-    ctx.roundRect(4, 4, 432, 252, 12); ctx.stroke();
+    ctx.roundRect(4, 4, CW - 8, CH - 8, 12); ctx.stroke();
     // Title
-    ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "rgba(255,222,0,0.6)"; ctx.fillText("PokeLover · AI 卡片鑑定", 16, 28);
+    ctx.font = "bold 13px sans-serif"; ctx.fillStyle = "rgba(255,222,0,0.6)"; ctx.fillText("PokeLover · AI 卡片鑑定", TX, 28);
     // Card name
-    ctx.font = "bold 26px sans-serif"; ctx.fillStyle = "#FFDE00";
-    ctx.fillText((result.cardName ?? "—").substring(0, 22), 16, 66);
-    if (result.cardNameJa) { ctx.font = "16px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText(result.cardNameJa.substring(0, 20), 16, 90); }
+    ctx.font = "bold 22px sans-serif"; ctx.fillStyle = "#FFDE00";
+    ctx.fillText((result.cardName ?? "—").substring(0, 20), TX, 62);
+    if (result.cardNameJa) { ctx.font = "14px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillText(result.cardNameJa.substring(0, 20), TX, 82); }
     // Set info
     const setInfo = [result.set, result.releaseYear, result.language].filter(Boolean).join(" · ");
-    if (setInfo) { ctx.font = "12px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.fillText(setInfo.substring(0, 40), 16, 112); }
+    if (setInfo) { ctx.font = "11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.fillText(setInfo.substring(0, 38), TX, 100); }
     // Grades
     const grades = [
       { label: "PSA", val: result.gradeEstimate, color: "#9C27B0" },
@@ -744,11 +772,11 @@ export default function PokeLover() {
       { label: "TAG", val: result.tagEstimate, color: "#FF9800" },
     ].filter(g => g.val != null);
     grades.forEach((g, i) => {
-      const x = 16 + i * 80;
-      ctx.fillStyle = g.color + "30"; ctx.roundRect(x, 126, 72, 42, 6); ctx.fill();
-      ctx.strokeStyle = g.color + "88"; ctx.lineWidth = 1; ctx.roundRect(x, 126, 72, 42, 6); ctx.stroke();
-      ctx.font = "bold 10px sans-serif"; ctx.fillStyle = g.color; ctx.fillText(g.label, x + 8, 142);
-      ctx.font = "bold 18px sans-serif"; ctx.fillStyle = g.color; ctx.fillText(String(g.val), x + 8, 160);
+      const x = TX + i * 78;
+      ctx.fillStyle = g.color + "30"; ctx.roundRect(x, 112, 70, 40, 6); ctx.fill();
+      ctx.strokeStyle = g.color + "88"; ctx.lineWidth = 1; ctx.roundRect(x, 112, 70, 40, 6); ctx.stroke();
+      ctx.font = "bold 10px sans-serif"; ctx.fillStyle = g.color; ctx.fillText(g.label, x + 7, 127);
+      ctx.font = "bold 17px sans-serif"; ctx.fillStyle = g.color; ctx.fillText(String(g.val), x + 7, 145);
     });
     // Prices
     const prices = [
@@ -757,14 +785,14 @@ export default function PokeLover() {
       { label: "PSA 10", val: result.psa10HKD },
     ];
     prices.forEach((p, i) => {
-      const x = 16 + i * 136;
-      ctx.font = "11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.fillText(p.label, x, 196);
-      ctx.font = "bold 15px sans-serif"; ctx.fillStyle = p.val ? "#FFDE00" : "rgba(255,255,255,0.2)";
-      ctx.fillText(p.val ? `$${p.val.toLocaleString()}` : "N/A", x, 214);
+      const x = TX + i * 130;
+      ctx.font = "10px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.fillText(p.label, x, 178);
+      ctx.font = "bold 14px sans-serif"; ctx.fillStyle = p.val ? "#FFDE00" : "rgba(255,255,255,0.2)";
+      ctx.fillText(p.val ? `$${p.val.toLocaleString()}` : "N/A", x, 196);
     });
     // Footer
     ctx.font = "11px sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.25)";
-    ctx.fillText("hongxcollections.com · PokeLover AI", 16, 246);
+    ctx.fillText("hongxcollections.com · PokeLover AI", TX, 256);
     // Download
     c.toBlob((blob) => {
       if (!blob) return;
@@ -773,7 +801,7 @@ export default function PokeLover() {
       a.href = url; a.download = `${result.cardName ?? "pokemon"}-analysis.png`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 3000);
     }, "image/png");
-  }, [result]);
+  }, [result, imagePreview]);
 
   const rawPrice = parseInt(rawPriceInput, 10) || 0;
   const psa9 = result?.psa9HKD ?? 0;
@@ -792,10 +820,6 @@ export default function PokeLover() {
       )}
 
       <div className="max-w-lg mx-auto px-4 pt-4">
-        <button onClick={() => navigate("/")} className="flex items-center gap-1 text-xs mb-4" style={{ color: "rgba(255,255,255,0.5)" }}>
-          <ChevronLeft className="w-4 h-4" /> 返回
-        </button>
-
         <div className="flex items-center gap-3 mb-1">
           <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "2px solid #333" }} />
           <div className="flex-1 min-w-0">
@@ -815,34 +839,78 @@ export default function PokeLover() {
         {/* A1 — 最近分析記錄（橫向捲動） */}
         {history.length > 0 && !imagePreview && !isAnalyzing && (
           <div className="mb-4 mt-4">
-            <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>最近記錄</p>
-            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-              {history.slice(0, 10).map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setResult(item.result);
-                    setImagePreview(item.imageThumb ?? "");
-                    setRawPriceInput(item.marketPriceHKD ? String(item.marketPriceHKD) : "");
-                    setSavedCardId(null);
-                    setAnalysisError(null);
-                  }}
-                  className="flex-shrink-0 flex flex-col items-center gap-1.5 rounded-xl p-2"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", width: 80 }}
-                >
-                  {item.imageThumb ? (
-                    <img src={item.imageThumb} alt="" className="rounded-lg object-cover" style={{ width: 52, height: 72 }} />
-                  ) : (
-                    <div className="rounded-lg flex items-center justify-center" style={{ width: 52, height: 72, background: "rgba(255,222,0,0.08)" }}>
-                      <span style={{ fontSize: 24 }}>🃏</span>
-                    </div>
-                  )}
-                  <p className="text-[9px] text-center leading-tight font-semibold line-clamp-2" style={{ color: "rgba(255,255,255,0.7)", width: "100%" }}>{item.cardName}</p>
-                  {item.gradeEstimate != null && (
-                    <span className="text-[9px] font-black px-1.5 rounded" style={{ background: "rgba(156,39,176,0.2)", color: "#CE93D8" }}>PSA {item.gradeEstimate}</span>
-                  )}
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-bold" style={{ color: "rgba(255,255,255,0.35)" }}>最近記錄</p>
+              {!historySelectMode ? (
+                <button onClick={() => { setHistorySelectMode(true); setSelectedHistoryIds(new Set()); }}
+                  className="text-[10px] px-2 py-0.5 rounded-full" style={{ color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.15)" }}>
+                  管理
                 </button>
-              ))}
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setSelectedHistoryIds(new Set(history.map(h => h.id)))}
+                    className="text-[10px]" style={{ color: "rgba(255,222,0,0.7)" }}>全選</button>
+                  <button
+                    onClick={() => {
+                      const kept = history.filter(h => !selectedHistoryIds.has(h.id));
+                      saveHistory(kept, user?.id);
+                      setHistory(kept);
+                      setHistorySelectMode(false);
+                      setSelectedHistoryIds(new Set());
+                    }}
+                    className="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                    style={{ background: selectedHistoryIds.size > 0 ? "rgba(244,67,54,0.2)" : "rgba(255,255,255,0.06)", color: selectedHistoryIds.size > 0 ? "#f44336" : "rgba(255,255,255,0.3)", border: `1px solid ${selectedHistoryIds.size > 0 ? "rgba(244,67,54,0.4)" : "rgba(255,255,255,0.1)"}` }}>
+                    {selectedHistoryIds.size > 0 ? `刪除 (${selectedHistoryIds.size})` : "刪除"}
+                  </button>
+                  <button onClick={() => { setHistorySelectMode(false); setSelectedHistoryIds(new Set()); }}
+                    className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>取消</button>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+              {history.slice(0, 10).map(item => {
+                const isSelected = selectedHistoryIds.has(item.id);
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      if (historySelectMode) {
+                        setSelectedHistoryIds(prev => {
+                          const next = new Set(prev);
+                          isSelected ? next.delete(item.id) : next.add(item.id);
+                          return next;
+                        });
+                      } else {
+                        setResult(item.result);
+                        setImagePreview(item.imageThumb ?? "");
+                        setRawPriceInput(item.marketPriceHKD ? String(item.marketPriceHKD) : "");
+                        setSavedCardId(null);
+                        setAnalysisError(null);
+                      }
+                    }}
+                    className="flex-shrink-0 flex flex-col items-center gap-1.5 rounded-xl p-2 relative"
+                    style={{ background: isSelected ? "rgba(244,67,54,0.15)" : "rgba(255,255,255,0.05)", border: `1px solid ${isSelected ? "rgba(244,67,54,0.5)" : "rgba(255,255,255,0.08)"}`, width: 80 }}
+                  >
+                    {historySelectMode && (
+                      <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center"
+                        style={{ background: isSelected ? "#f44336" : "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}>
+                        {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                      </div>
+                    )}
+                    {item.imageThumb ? (
+                      <img src={item.imageThumb} alt="" className="rounded-lg object-cover" style={{ width: 52, height: 72 }} />
+                    ) : (
+                      <div className="rounded-lg flex items-center justify-center" style={{ width: 52, height: 72, background: "rgba(255,222,0,0.08)" }}>
+                        <span style={{ fontSize: 24 }}>🃏</span>
+                      </div>
+                    )}
+                    <p className="text-[9px] text-center leading-tight font-semibold line-clamp-2" style={{ color: "rgba(255,255,255,0.7)", width: "100%" }}>{item.cardName}</p>
+                    {item.gradeEstimate != null && (
+                      <span className="text-[9px] font-black px-1.5 rounded" style={{ background: "rgba(156,39,176,0.2)", color: "#CE93D8" }}>PSA {item.gradeEstimate}</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
