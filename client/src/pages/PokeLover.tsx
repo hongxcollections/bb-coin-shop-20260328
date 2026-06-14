@@ -856,19 +856,22 @@ export default function PokeLover() {
         scale: 2,
         bgcolor: "#0d0d1f",
       });
-      // Add padding via Canvas (dom-to-image-more doesn't reliably include CSS padding in capture)
+      // Add padding via Canvas — set onload BEFORE src to avoid data-URL race condition
       const SCALE = 2;
-      const PT = 10 * SCALE; // paddingTop 10px
-      const PS = 5 * SCALE;  // paddingLeft/Right 5px
-      const PB = 10 * SCALE; // paddingBottom 10px
+      const PT = 10 * SCALE;
+      const PS = 5 * SCALE;
+      const PB = 10 * SCALE;
       const img = new Image();
-      img.src = baseUrl;
-      await new Promise<void>(r => { img.onload = () => r(); });
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("img load failed"));
+        img.src = baseUrl;
+      });
       const cvs = document.createElement("canvas");
       cvs.width = img.naturalWidth + PS * 2;
       cvs.height = img.naturalHeight + PT + PB;
       const ctx = cvs.getContext("2d")!;
-      ctx.fillStyle = "#0d0d1f";
+      ctx.fillStyle = "#000000";
       ctx.fillRect(0, 0, cvs.width, cvs.height);
       ctx.drawImage(img, PS, PT);
       const dataUrl = cvs.toDataURL("image/png");
