@@ -482,6 +482,8 @@ export default function PokeLover() {
   const [savingCard, setSavingCard] = useState(false);
   const batchQueueRef = useRef<File[]>([]);
   const processFileRef = useRef<((file: File) => void) | null>(null);
+  const historyThumbRef = useRef<string>("");
+  const userIdRef = useRef<number | null | undefined>(undefined);
   const [batchTotal, setBatchTotal] = useState(0);
   const [batchDone, setBatchDone] = useState(0);
   const [batchSummary, setBatchSummary] = useState<{ name: string; value: number | null }[]>([]);
@@ -557,36 +559,22 @@ export default function PokeLover() {
         setResult(data);
         setSavedCardId(null);
         if (data.marketPriceHKD) setRawPriceInput(String(data.marketPriceHKD));
-        // 壓縮成小縮圖再存入 history，避免 localStorage quota 超限
-        const makeHistoryThumb = (src: string): Promise<string> => new Promise((resolve) => {
-          if (!src) { resolve(""); return; }
-          const img = new window.Image();
-          img.onload = () => {
-            const scale = Math.min(150 / Math.max(img.width, img.height), 1);
-            const c = document.createElement("canvas");
-            c.width = Math.round(img.width * scale);
-            c.height = Math.round(img.height * scale);
-            c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-            resolve(c.toDataURL("image/jpeg", 0.65));
-          };
-          img.onerror = () => resolve("");
-          img.src = src;
-        });
-        makeHistoryThumb(imagePreview).then((thumb) => {
-          const entry: HistoryItem = {
-            id: Date.now().toString(),
-            cardName: data.cardName ?? "未知卡片",
-            cardNameJa: data.cardNameJa,
-            gradeEstimate: data.gradeEstimate,
-            marketPriceHKD: data.marketPriceHKD,
-            imageThumb: thumb || undefined,
-            savedAt: Date.now(),
-            result: data,
-          };
-          const newHistory = [entry, ...loadHistory(user?.id).filter(h => h.cardName !== entry.cardName)].slice(0, 20);
-          saveHistory(newHistory, user?.id);
-          setHistory(newHistory);
-        });
+        // historyThumbRef 已喺 processFile 同步生成，直接用，唔靠 state closure
+        const thumb = historyThumbRef.current;
+        const uid = userIdRef.current;
+        const entry: HistoryItem = {
+          id: Date.now().toString(),
+          cardName: data.cardName ?? "未知卡片",
+          cardNameJa: data.cardNameJa,
+          gradeEstimate: data.gradeEstimate,
+          marketPriceHKD: data.marketPriceHKD,
+          imageThumb: thumb || undefined,
+          savedAt: Date.now(),
+          result: data,
+        };
+        const newHistory = [entry, ...loadHistory(uid).filter(h => h.cardName !== entry.cardName)].slice(0, 20);
+        saveHistory(newHistory, uid);
+        setHistory(newHistory);
         // A2 — batch: record result + process next
         if (batchQueueRef.current.length > 0) {
           setBatchSummary(prev => [...prev, { name: data.cardName ?? "未知", value: data.marketPriceHKD ?? null }]);
@@ -631,6 +619,14 @@ export default function PokeLover() {
       canvas.width = Math.round(ow * scale);
       canvas.height = Math.round(oh * scale);
       canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      // 同步生成 history 縮圖（150px），存 ref 供 onSuccess 直接用，避免 stale closure
+      try {
+        const ts = Math.min(150 / Math.max(canvas.width, canvas.height), 1);
+        const tc = document.createElement("canvas");
+        tc.width = Math.round(canvas.width * ts); tc.height = Math.round(canvas.height * ts);
+        tc.getContext("2d")!.drawImage(canvas, 0, 0, tc.width, tc.height);
+        historyThumbRef.current = tc.toDataURL("image/jpeg", 0.65);
+      } catch { historyThumbRef.current = ""; }
       canvas.toBlob((blob) => {
         if (!blob) { setIsAnalyzing(false); setAnalysisError("圖片處理失敗，請重試"); return; }
         const reader = new FileReader();
@@ -659,6 +655,7 @@ export default function PokeLover() {
     img.src = objectUrl;
   }, [analyzeMut]);
   processFileRef.current = processFile;
+  userIdRef.current = user?.id;
 
   const handleFile = useCallback((file: File) => {
     processFile(file);
