@@ -848,27 +848,16 @@ export default function PokeLover() {
     try {
       const el = shareCardRef.current;
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(el, {
+      const domtoimage = (await import("dom-to-image-more")).default;
+      const dataUrl = await domtoimage.toPng(el, {
         scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#0d0d1f",
-        logging: false,
-        ignoreElements: (node) => node.getAttribute?.('data-share-skip') === 'true',
-        onclone: (clonedDoc) => {
-          // html2canvas v1.4.1 cannot parse oklch() (Tailwind v4 CSS vars).
-          // Strip global sheets, then re-inject minimal safe CSS for font rendering.
-          clonedDoc.querySelectorAll('link[rel="stylesheet"], style').forEach(s => s.remove());
-          const safe = clonedDoc.createElement('style');
-          safe.textContent = `*{box-sizing:border-box;} body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding:0;} b,strong{font-weight:700;}`;
-          clonedDoc.head.appendChild(safe);
-        },
+        bgcolor: "#0d0d1f",
+        filter: (node: Element) => node.getAttribute?.('data-share-skip') !== 'true',
       });
-      setShareImgUrl(canvas.toDataURL("image/png"));
+      setShareImgUrl(dataUrl);
       setShareDialogOpen(true);
     } catch (e) {
-      console.error("[ShareImage] html2canvas error:", e);
+      console.error("[ShareImage] dom-to-image error:", e);
       toast.error(`分享圖失敗: ${e instanceof Error ? e.message : String(e)}`, { className: "bb-toast-err" });
     } finally {
       setShareGenerating(false);
