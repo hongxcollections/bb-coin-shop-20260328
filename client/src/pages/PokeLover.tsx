@@ -845,12 +845,8 @@ export default function PokeLover() {
   const handleShareImage = useCallback(async () => {
     if (!result || !shareCardRef.current) return;
     setShareGenerating(true);
-    const el = shareCardRef.current;
-    // Temporarily bring element into visible stacking context for html2canvas
-    const prev = { zIndex: el.style.zIndex, pointerEvents: el.style.pointerEvents };
-    el.style.zIndex = "9999";
-    el.style.pointerEvents = "none";
     try {
+      const el = shareCardRef.current;
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const html2canvas = (await import("html2canvas")).default;
       const canvas = await html2canvas(el, {
@@ -859,6 +855,7 @@ export default function PokeLover() {
         allowTaint: true,
         backgroundColor: "#0d0d1f",
         logging: false,
+        ignoreElements: (node) => node.getAttribute?.('data-share-skip') === 'true',
         onclone: (clonedDoc) => {
           // html2canvas v1.4.1 cannot parse oklch() (Tailwind v4 CSS vars).
           // Strip global sheets, then re-inject minimal safe CSS for font rendering.
@@ -874,8 +871,6 @@ export default function PokeLover() {
       console.error("[ShareImage] html2canvas error:", e);
       toast.error(`分享圖失敗: ${e instanceof Error ? e.message : String(e)}`, { className: "bb-toast-err" });
     } finally {
-      el.style.zIndex = prev.zIndex;
-      el.style.pointerEvents = prev.pointerEvents;
       setShareGenerating(false);
     }
   }, [result]);
@@ -896,7 +891,7 @@ export default function PokeLover() {
         <ImageLightbox src={imagePreview} onClose={() => setLightboxOpen(false)} />
       )}
 
-      <div className="max-w-lg mx-auto px-4 pt-4">
+      <div ref={shareCardRef} className="max-w-lg mx-auto px-4 pt-4">
         <div className="flex items-center gap-3 mb-1">
           <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "2px solid #333" }} />
           <div className="flex-1 min-w-0">
@@ -906,7 +901,7 @@ export default function PokeLover() {
             <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>AI 智能 Pokemon 卡片鑑定 · 市場估價</p>
           </div>
           {isAuthenticated && (
-            <button onClick={() => navigate("/pokemon/collection")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,222,0,0.12)", border: "1px solid rgba(255,222,0,0.25)", color: "#FFDE00" }}>
+            <button data-share-skip="true" onClick={() => navigate("/pokemon/collection")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,222,0,0.12)", border: "1px solid rgba(255,222,0,0.25)", color: "#FFDE00" }}>
               <BookOpen className="w-3.5 h-3.5" />
               卡冊
             </button>
@@ -915,7 +910,7 @@ export default function PokeLover() {
 
         {/* A1 — 最近分析記錄（橫向捲動） */}
         {history.length > 0 && !imagePreview && !isAnalyzing && (
-          <div className="mb-4 mt-4">
+          <div data-share-skip="true" className="mb-4 mt-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-[10px] font-bold" style={{ color: "rgba(255,255,255,0.35)" }}>最近記錄</p>
               {!historySelectMode ? (
@@ -1045,7 +1040,7 @@ export default function PokeLover() {
         </div>
 
         {imagePreview && !isAnalyzing && (
-          <div className="flex gap-2 mb-4">
+          <div data-share-skip="true" className="flex gap-2 mb-4">
             <button
               onClick={() => { setImagePreview(""); setResult(null); setRawPriceInput(""); setAnalysisError(null); setPendingFileData(null); setSavedCardId(null); setIsBatchMode(false); setBatchTotal(0); setBatchDone(0); setBatchSummary([]); batchQueueRef.current = []; }}
               className="text-xs px-3 py-1 rounded-full font-medium"
@@ -1063,7 +1058,7 @@ export default function PokeLover() {
 
         {/* A2 — 批量分析進度 */}
         {isBatchMode && (isAnalyzing || batchDone > 0) && (
-          <div className="rounded-xl p-3 mb-4" style={{ background: "rgba(255,222,0,0.08)", border: "1px solid rgba(255,222,0,0.2)" }}>
+          <div data-share-skip="true" className="rounded-xl p-3 mb-4" style={{ background: "rgba(255,222,0,0.08)", border: "1px solid rgba(255,222,0,0.2)" }}>
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-bold" style={{ color: "rgba(255,222,0,0.8)" }}>
                 批量分析 {isAnalyzing ? `${Math.min(batchDone + 1, batchTotal)}/${batchTotal}` : `完成 ${batchDone}/${batchTotal}`}
@@ -1092,7 +1087,7 @@ export default function PokeLover() {
 
         {/* A3 — 分析失敗重試 */}
         {analysisError && !isAnalyzing && (
-          <div className="rounded-xl p-4 mb-4 flex items-start gap-3" style={{ background: "rgba(244,67,54,0.1)", border: "1px solid rgba(244,67,54,0.3)" }}>
+          <div data-share-skip="true" className="rounded-xl p-4 mb-4 flex items-start gap-3" style={{ background: "rgba(244,67,54,0.1)", border: "1px solid rgba(244,67,54,0.3)" }}>
             <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#f44336" }} />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold" style={{ color: "#f44336" }}>分析失敗</p>
@@ -1112,7 +1107,7 @@ export default function PokeLover() {
         )}
 
         {isAnalyzing && (
-          <div className="mt-4 flex flex-col gap-4">
+          <div data-share-skip="true" className="mt-4 flex flex-col gap-4">
             {/* 步驟進度 */}
             <div className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
               {[
@@ -1141,7 +1136,7 @@ export default function PokeLover() {
             </div>
 
             {/* 四大評級機構對照 */}
-            <div className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <div data-share-skip="true" className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
               <div className="flex items-center gap-2 mb-3">
                 <Star className="w-3.5 h-3.5" style={{ color: "#FFDE00" }} />
                 <p className="text-xs font-bold" style={{ color: "rgba(255,222,0,0.7)" }}>四大評級機構對照</p>
@@ -1387,7 +1382,7 @@ export default function PokeLover() {
               </div>
             )}
 
-            <div className="flex gap-2 mb-3 flex-wrap">
+            <div data-share-skip="true" className="flex gap-2 mb-3 flex-wrap">
               <PokeShareMenu result={result} />
               <button
                 onClick={() => toast.info("本站搜尋功能開發中，敬請期待", { className: "bb-toast-info" })}
@@ -1413,7 +1408,7 @@ export default function PokeLover() {
             </div>
 
             {/* C1+C2 — 圖卡分享 + 存入卡冊 */}
-            <div className="flex gap-2 mb-4">
+            <div data-share-skip="true" className="flex gap-2 mb-4">
               <button
                 onClick={handleShareImage}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm"
@@ -1450,7 +1445,7 @@ export default function PokeLover() {
             </div>
 
             {result.ebaySearchQuery && (
-              <div className="rounded-xl p-3 mb-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <div data-share-skip="true" className="rounded-xl p-3 mb-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
                 <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>更多市場參考</p>
                 <div className="grid grid-cols-3 gap-2">
                   <a
@@ -1493,7 +1488,7 @@ export default function PokeLover() {
         )}
 
         {!imagePreview && !analysisError && (
-          <div className="rounded-xl p-4 mt-2" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <div data-share-skip="true" className="rounded-xl p-4 mt-2" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
             <p className="text-xs font-bold mb-2" style={{ color: "rgba(255,222,0,0.6)" }}>PokeLover 可以做到</p>
             {[
               "識別卡片名稱、系列、卡號、稀有度",
@@ -1525,21 +1520,10 @@ export default function PokeLover() {
         />
       )}
 
-      {/* Off-screen share card — html2canvas will capture this */}
-      {result && !result.isNotPokemon && (
+      {/* (off-screen share card removed — html2canvas now captures the live page DOM directly) */}
+      {false && (
         <div
-          ref={shareCardRef}
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: 390,
-            padding: 16,
-            background: "linear-gradient(180deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)",
-            zIndex: -9999,
-            pointerEvents: "none",
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          }}
+          style={{ display: "none" }}
         >
           {/* Header */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
