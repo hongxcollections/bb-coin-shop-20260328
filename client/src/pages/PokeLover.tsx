@@ -75,12 +75,14 @@ type HistoryItem = {
   gradeEstimate?: number | null; marketPriceHKD?: number | null;
   imageThumb?: string; savedAt: number; result: PokeResult;
 };
-const HISTORY_KEY = "poke_history_v1";
-function loadHistory(): HistoryItem[] {
-  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]"); } catch { return []; }
+function historyKey(userId?: number | null) {
+  return `poke_history_v1_${userId ?? "guest"}`;
 }
-function saveHistory(items: HistoryItem[]) {
-  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, 20))); } catch {}
+function loadHistory(userId?: number | null): HistoryItem[] {
+  try { return JSON.parse(localStorage.getItem(historyKey(userId)) ?? "[]"); } catch { return []; }
+}
+function saveHistory(items: HistoryItem[], userId?: number | null) {
+  try { localStorage.setItem(historyKey(userId), JSON.stringify(items.slice(0, 20))); } catch {}
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -462,7 +464,7 @@ function GradeBar({ grade }: { grade: number }) {
 
 export default function PokeLover() {
   const [, navigate] = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [imagePreview, setImagePreview] = useState<string>("");
   const [result, setResult] = useState<PokeResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -485,8 +487,8 @@ export default function PokeLover() {
   const [batchSummary, setBatchSummary] = useState<{ name: string; value: number | null }[]>([]);
   const [isBatchMode, setIsBatchMode] = useState(false);
 
-  // Load history from localStorage
-  useEffect(() => { setHistory(loadHistory()); }, []);
+  // Load history from localStorage (per-user key)
+  useEffect(() => { setHistory(loadHistory(user?.id)); }, [user?.id]);
 
   // Auto re-analyze: triggered from card collection "重新分析"
   // useEffect uses [] + processFileRef to avoid TDZ in production build
@@ -563,8 +565,8 @@ export default function PokeLover() {
           savedAt: Date.now(),
           result: data,
         };
-        const newHistory = [entry, ...loadHistory().filter(h => h.cardName !== entry.cardName)].slice(0, 20);
-        saveHistory(newHistory);
+        const newHistory = [entry, ...loadHistory(user?.id).filter(h => h.cardName !== entry.cardName)].slice(0, 20);
+        saveHistory(newHistory, user?.id);
         setHistory(newHistory);
         // A2 — batch: record result + process next
         if (batchQueueRef.current.length > 0) {
