@@ -968,9 +968,20 @@ export default function PokeLover() {
         </div>
 
         {imagePreview && !isAnalyzing && (
-          <button onClick={() => { setImagePreview(""); setResult(null); setRawPriceInput(""); setAnalysisError(null); setPendingFileData(null); setSavedCardId(null); setIsBatchMode(false); setBatchTotal(0); setBatchDone(0); setBatchSummary([]); batchQueueRef.current = []; }} className="text-xs mb-4" style={{ color: "rgba(255,255,255,0.4)" }}>
-            ↩ 重新上載
-          </button>
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => { setImagePreview(""); setResult(null); setRawPriceInput(""); setAnalysisError(null); setPendingFileData(null); setSavedCardId(null); setIsBatchMode(false); setBatchTotal(0); setBatchDone(0); setBatchSummary([]); batchQueueRef.current = []; }}
+              className="text-xs px-3 py-1 rounded-full font-medium"
+              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.15)" }}>
+              ↩ 重新上載
+            </button>
+            <button
+              onClick={() => navigate("/")}
+              className="text-xs px-3 py-1 rounded-full font-medium"
+              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.15)" }}>
+              回主頁
+            </button>
+          </div>
         )}
 
         {/* A2 — 批量分析進度 */}
