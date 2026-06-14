@@ -846,13 +846,24 @@ export default function PokeLover() {
     if (!result || !shareCardRef.current) return;
     setShareGenerating(true);
     try {
+      const el = shareCardRef.current;
+      // Wait a frame to ensure element is fully rendered
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(shareCardRef.current, {
+      const canvas = await html2canvas(el, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
-        backgroundColor: null,
+        backgroundColor: "#0d0d1f",
         logging: false,
+        width: 390,
+        height: el.scrollHeight,
+        windowWidth: 390,
+        windowHeight: el.scrollHeight,
+        x: 0,
+        y: 0,
+        scrollX: 0,
+        scrollY: 0,
       });
       setShareImgUrl(canvas.toDataURL("image/png"));
       setShareDialogOpen(true);
@@ -1516,10 +1527,12 @@ export default function PokeLover() {
           style={{
             position: "fixed",
             top: 0,
-            left: "-9999px",
+            left: 0,
             width: 390,
             padding: 16,
             background: "linear-gradient(180deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)",
+            zIndex: -9999,
+            pointerEvents: "none",
           }}
         >
           {/* Header */}
