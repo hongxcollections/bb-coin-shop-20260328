@@ -880,7 +880,7 @@ export default function PokeLover() {
         <ImageLightbox src={imagePreview} onClose={() => setLightboxOpen(false)} />
       )}
 
-      <div ref={shareCardRef} className="max-w-lg mx-auto px-4 pt-4">
+      <div className="max-w-lg mx-auto px-4 pt-4">
         <div className="flex items-center gap-3 mb-1">
           <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "2px solid #333" }} />
           <div className="flex-1 min-w-0">
@@ -1169,7 +1169,7 @@ export default function PokeLover() {
         )}
 
         {result && !result.isNotPokemon && (
-          <>
+          <div ref={shareCardRef} style={{ background: "linear-gradient(180deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)", borderRadius: 12 }}>
             {result.attacks && result.attacks.length > 0 && (
               <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 <p className="text-xs font-bold mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>技能</p>
@@ -1473,7 +1473,14 @@ export default function PokeLover() {
                 </div>
               </div>
             )}
-          </>
+
+            {/* Share footer — visible in generated image */}
+            <div style={{ textAlign: "center", paddingTop: 10, paddingBottom: 14 }}>
+              <span style={{ fontSize: 10, letterSpacing: "3px", background: "linear-gradient(to right, #FF8C00, #FFDE00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                hongxcollections.com · PokeLover AI
+              </span>
+            </div>
+          </div>
         )}
 
         {!imagePreview && !analysisError && (
