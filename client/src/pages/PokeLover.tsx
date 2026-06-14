@@ -274,7 +274,7 @@ function ShareImageDialog({ imgUrl, cardName, onClose }: { imgUrl: string; cardN
         )}
         {scale <= 1.05 && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>雙指放大 · 雙擊切換縮放</span>}
       </div>
-      <div style={{ flex: 1, overflow: "auto", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 0 }}>
+      <div style={{ flex: 1, overflow: "auto", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "0" }}>
         <img
           src={imgUrl}
           alt="分析結果"
