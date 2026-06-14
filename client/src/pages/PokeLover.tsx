@@ -845,9 +845,12 @@ export default function PokeLover() {
   const handleShareImage = useCallback(async () => {
     if (!result || !shareCardRef.current) return;
     setShareGenerating(true);
+    const el = shareCardRef.current;
+    // Temporarily bring element into visible stacking context for html2canvas
+    const prev = { zIndex: el.style.zIndex, pointerEvents: el.style.pointerEvents };
+    el.style.zIndex = "9999";
+    el.style.pointerEvents = "none";
     try {
-      const el = shareCardRef.current;
-      // Wait a frame to ensure element is fully rendered
       await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       const html2canvas = (await import("html2canvas")).default;
       const canvas = await html2canvas(el, {
@@ -856,21 +859,15 @@ export default function PokeLover() {
         allowTaint: true,
         backgroundColor: "#0d0d1f",
         logging: false,
-        width: 390,
-        height: el.scrollHeight,
-        windowWidth: 390,
-        windowHeight: el.scrollHeight,
-        x: 0,
-        y: 0,
-        scrollX: 0,
-        scrollY: 0,
       });
       setShareImgUrl(canvas.toDataURL("image/png"));
       setShareDialogOpen(true);
     } catch (e) {
       console.error("[ShareImage] html2canvas error:", e);
-      toast.error("生成分享圖失敗，請重試", { className: "bb-toast-err" });
+      toast.error(`分享圖失敗: ${e instanceof Error ? e.message : String(e)}`, { className: "bb-toast-err" });
     } finally {
+      el.style.zIndex = prev.zIndex;
+      el.style.pointerEvents = prev.pointerEvents;
       setShareGenerating(false);
     }
   }, [result]);
