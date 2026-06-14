@@ -889,12 +889,6 @@ export default function PokeLover() {
             </h1>
             <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>AI 智能 Pokemon 卡片鑑定 · 市場估價</p>
           </div>
-          {isAuthenticated && (
-            <button data-share-skip="true" onClick={() => navigate("/pokemon/collection")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,222,0,0.12)", border: "1px solid rgba(255,222,0,0.25)", color: "#FFDE00" }}>
-              <BookOpen className="w-3.5 h-3.5" />
-              卡冊
-            </button>
-          )}
         </div>
 
         {/* A1 — 最近分析記錄（橫向捲動） */}
@@ -1042,6 +1036,12 @@ export default function PokeLover() {
               style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.15)" }}>
               回主頁
             </button>
+            {isAuthenticated && (
+              <button onClick={() => navigate("/pokemon/collection")} className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,222,0,0.12)", border: "1px solid rgba(255,222,0,0.25)", color: "#FFDE00" }}>
+                <BookOpen className="w-3.5 h-3.5" />
+                卡冊
+              </button>
+            )}
           </div>
         )}
 
