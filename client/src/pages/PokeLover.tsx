@@ -1458,7 +1458,7 @@ export default function PokeLover() {
 
             {result.ebaySearchQuery && (
               <div data-share-skip="true" className="rounded-xl p-3 mb-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>更多市場參考（11）</p>
+                <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>更多市場參考</p>
                 <div className="grid grid-cols-3 gap-2">
                   <a
                     href={`https://auctions.yahoo.co.jp/search/search?p=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}&va=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}&exflg=1&b=1&n=50&s1=cbids&o1=d&aucminprice=1`}
@@ -1501,14 +1501,14 @@ export default function PokeLover() {
                     <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>美國市場</span>
                   </a>
                   <a
-                    href={`https://www.cardtrader.com/en/search?q=${encodeURIComponent(result.ebaySearchQuery)}`}
+                    href={`https://pokehub.jp/search?keyword=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}`}
                     target="_blank" rel="noopener noreferrer"
                     className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
-                    style={{ background: "rgba(255,180,0,0.1)", border: "1px solid rgba(255,180,0,0.2)" }}
+                    style={{ background: "rgba(160,80,255,0.1)", border: "1px solid rgba(160,80,255,0.2)" }}
                   >
-                    <span className="text-base">🔄</span>
-                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#FFB400" }}>CardTrader</span>
-                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>歐洲市場</span>
+                    <span className="text-base">🏪</span>
+                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#A050FF" }}>PokeHub JP</span>
+                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>日本市場</span>
                   </a>
                   <a
                     href={`https://www.pricecharting.com/search-products?q=${encodeURIComponent(result.ebaySearchQuery)}&type=pokemon`}
@@ -1521,36 +1521,6 @@ export default function PokeLover() {
                     <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>國際走勢</span>
                   </a>
                   <a
-                    href={`https://kyocards.com/search?type=product&q=${encodeURIComponent(result.ebaySearchQuery)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
-                    style={{ background: "rgba(255,80,120,0.1)", border: "1px solid rgba(255,80,120,0.2)" }}
-                  >
-                    <span className="text-base">🌸</span>
-                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#FF5078" }}>Kyo Cards</span>
-                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>日本卡店</span>
-                  </a>
-                  <a
-                    href={`https://www.pokechange.io/cards?search=${encodeURIComponent(result.ebaySearchQuery)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
-                    style={{ background: "rgba(0,150,255,0.1)", border: "1px solid rgba(0,150,255,0.2)" }}
-                  >
-                    <span className="text-base">🔵</span>
-                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#0096FF" }}>Pokéchange</span>
-                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>歐洲交換</span>
-                  </a>
-                  <a
-                    href={`https://pokehub.jp/search?keyword=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
-                    style={{ background: "rgba(160,80,255,0.1)", border: "1px solid rgba(160,80,255,0.2)" }}
-                  >
-                    <span className="text-base">🏪</span>
-                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#A050FF" }}>PokeHub</span>
-                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>日本市場</span>
-                  </a>
-                  <a
                     href={`https://courtyard.io/search?q=${encodeURIComponent(result.ebaySearchQuery)}`}
                     target="_blank" rel="noopener noreferrer"
                     className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
@@ -1559,16 +1529,6 @@ export default function PokeLover() {
                     <span className="text-base">🏛️</span>
                     <span className="text-[10px] font-bold leading-tight" style={{ color: "#00C896" }}>Courtyard</span>
                     <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>評級卡市場</span>
-                  </a>
-                  <a
-                    href={`https://clutchpacks.com/search?q=${encodeURIComponent(result.ebaySearchQuery)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
-                    style={{ background: "rgba(220,50,50,0.1)", border: "1px solid rgba(220,50,50,0.2)" }}
-                  >
-                    <span className="text-base">📦</span>
-                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#DC3232" }}>ClutchPacks</span>
-                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>美國市場</span>
                   </a>
                 </div>
               </div>
