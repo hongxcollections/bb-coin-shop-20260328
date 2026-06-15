@@ -81,12 +81,12 @@ export default function MerchantGallery() {
   // Create form state
   const [createTitle, setCreateTitle] = useState('');
   const [createDesc, setCreateDesc] = useState('');
-  const [createCols, setCreateCols] = useState<5 | 10>(5);
+  const [createCols, setCreateCols] = useState<number>(3);
 
   // Edit info form state
   const [editTitle, setEditTitle] = useState('');
   const [editDesc, setEditDesc] = useState('');
-  const [editCols, setEditCols] = useState<5 | 10>(5);
+  const [editCols, setEditCols] = useState<number>(3);
 
   // Items local draft state
   const [draftItems, setDraftItems] = useState<GalleryItem[]>([]);
@@ -153,7 +153,7 @@ export default function MerchantGallery() {
     if (!d || didSyncRef.current) return;
     setEditTitle(d.gallery.title);
     setEditDesc((d.gallery as any).description ?? '');
-    setEditCols((d.gallery as any).columnsPerRow === 10 ? 10 : 5);
+    setEditCols((d.gallery as any).columnsPerRow ?? 3);
     setDraftItems(d.items as GalleryItem[]);
     didSyncRef.current = true;
   }, [getForEditQ.data]);
@@ -475,17 +475,17 @@ export default function MerchantGallery() {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">公開版面每行顯示</label>
-              <div className="flex gap-2">
-                {([5, 10] as const).map(n => (
+              <label className="block text-sm font-semibold text-gray-700 mb-2">公開版面每行顯示（預設 3）</label>
+              <div className="flex gap-1.5">
+                {[1,2,3,4,5,6,7,8,9,10].map(n => (
                   <button
                     key={n}
                     onClick={() => setCreateCols(n)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-colors ${
-                      createCols === n ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-600'
+                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-colors ${
+                      createCols === n ? 'border-orange-400 bg-orange-50 text-orange-600' : 'border-gray-200 text-gray-500 bg-white'
                     }`}
                   >
-                    {n} 個/行
+                    {n}
                   </button>
                 ))}
               </div>
@@ -562,17 +562,17 @@ export default function MerchantGallery() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">公開版面每行顯示</label>
-                    <div className="flex gap-2">
-                      {([5, 10] as const).map(n => (
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">公開版面每行顯示（預設 3）</label>
+                    <div className="flex gap-1.5">
+                      {[1,2,3,4,5,6,7,8,9,10].map(n => (
                         <button
                           key={n}
                           onClick={() => setEditCols(n)}
-                          className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-colors ${
-                            editCols === n ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-600'
+                          className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-colors ${
+                            editCols === n ? 'border-orange-400 bg-orange-50 text-orange-600' : 'border-gray-200 text-gray-500 bg-white'
                           }`}
                         >
-                          {n} 個/行
+                          {n}
                         </button>
                       ))}
                     </div>

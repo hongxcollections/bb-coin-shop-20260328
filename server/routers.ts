@@ -12325,6 +12325,42 @@ EXAMPLE OUTPUT (exact format):
         const { getPublicGalleryWithItems } = await import('./db') as any;
         return getPublicGalleryWithItems(input.id);
       }),
+
+    buyItem: protectedProcedure
+      .input(z.object({
+        itemId: z.number().int().positive(),
+        buyerNote: z.string().max(200).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getRawPool } = await import('./db') as any;
+        const pool = await getRawPool();
+        const [rows]: any = await pool.execute(
+          'SELECT gi.* FROM productGalleryItems gi WHERE gi.id = ? LIMIT 1',
+          [input.itemId]
+        );
+        const item = rows[0];
+        if (!item) throw new TRPCError({ code: 'NOT_FOUND', message: '商品不存在' });
+        if (item.status === 'hidden') throw new TRPCError({ code: 'BAD_REQUEST', message: '此商品不可購買' });
+        if (item.status === 'sold') throw new TRPCError({ code: 'BAD_REQUEST', message: '此商品已售出' });
+        if (item.merchantId === ctx.user.id) throw new TRPCError({ code: 'BAD_REQUEST', message: '不能購買自己的商品' });
+        await pool.execute(
+          'UPDATE productGalleryItems SET status = "sold" WHERE id = ? AND status = "active"',
+          [input.itemId]
+        );
+        // Fire-and-forget: notify merchant via chat
+        try {
+          const { openOrGetChatRoom, sendChatMessage } = await import('./db') as any;
+          const priceFmt = parseFloat(item.price) > 0 ? `HK$${parseFloat(item.price).toLocaleString('en-HK')}` : '面議';
+          const nameStr = item.itemName ? `《${item.itemName}》` : `圖片商品 #${item.id}`;
+          const noteStr = input.buyerNote ? `\n備注：${input.buyerNote}` : '';
+          const msg = `📦 買家已落單購買圖集商品 ${nameStr}（${priceFmt}）${noteStr}，請盡快確認成交。`;
+          if (openOrGetChatRoom && sendChatMessage) {
+            const { roomId } = await openOrGetChatRoom(item.merchantId, ctx.user.id);
+            await sendChatMessage(roomId, item.merchantId, msg, 'system');
+          }
+        } catch {}
+        return { ok: true };
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;
