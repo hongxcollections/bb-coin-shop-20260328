@@ -1186,7 +1186,7 @@ export default function MerchantGallery() {
           <div className="fixed inset-0 z-[300] bg-black/70 flex flex-col" style={{ paddingLeft: 3, paddingRight: 3, paddingTop: 3 }}>
             <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#ECECEC', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
               {/* scrollable preview — min-h-0 stops flex overflow leak */}
-              <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="flex-1 min-h-0 overflow-y-auto pb-4">
                 {/* posterRef wraps the full scrollable content for html2canvas capture */}
                 <div ref={posterRef}>
                 {/* ── Hero Banner (exact copy of PublicGallery) ── */}
