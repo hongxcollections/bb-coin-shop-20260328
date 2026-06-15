@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShareMenu, ProductShareMenu } from "@/components/ShareMenu";
 import { QuickBidPopover } from "@/components/QuickBidPopover";
 import { AuctionCard } from "@/components/AuctionCard";
-import { Store, MessageCircle, Package, Gavel, Layers, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, Clock, Tag, Share2, QrCode, CalendarClock, ShoppingCart, CheckCircle2, Loader2, X } from "lucide-react";
+import { Store, MessageCircle, Package, Gavel, Layers, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown, Clock, Tag, Share2, QrCode, CalendarClock, ShoppingCart, CheckCircle2, Loader2, X, Images } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { buildWhatsAppUrl, sanitizeUserText, parseCategories } from "@/lib/utils";
