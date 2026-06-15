@@ -215,27 +215,172 @@ export default function MerchantGallery() {
   }
 
   async function handleSavePoster() {
-    if (!posterRef.current) return;
     setSavingPoster(true);
     try {
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(posterRef.current, {
-        useCORS: true,
-        allowTaint: false,
-        scale: 2,
-        backgroundColor: '#ffffff',
-        scrollY: 0,
+      const cols = editCols;
+      const items = draftItems.filter(i => i.status !== 'hidden');
+      const title = currentGallery?.title ?? '';
+      const merchantName = (currentGallery?.merchantName as string | undefined) ?? '';
+      const description = (currentGallery as any)?.description ?? '';
+
+      const W = 1080;
+      const pad = 28;
+      const gap = 8;
+      const cellW = Math.floor((W - pad * 2 - gap * (cols - 1)) / cols);
+      const imgH = cellW;
+      const textH = 44;
+      const cellH = imgH + textH;
+      const rows = Math.ceil(items.length / cols);
+
+      // measure header height
+      const tmpCtx = document.createElement('canvas').getContext('2d')!;
+      let headerH = pad + 48; // title
+      if (merchantName) headerH += 28;
+      if (description) {
+        tmpCtx.font = '22px sans-serif';
+        const maxW = W - pad * 2;
+        let line = '';
+        let lineCount = 0;
+        for (const ch of description) {
+          const test = line + ch;
+          if (tmpCtx.measureText(test).width > maxW && line) { lineCount++; line = ch; }
+          else line = test;
+        }
+        if (line) lineCount++;
+        headerH += lineCount * 28 + 16;
+      }
+      const H = headerH + rows * (cellH + gap) + pad;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d')!;
+
+      // white background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+
+      // title
+      let y = pad;
+      ctx.fillStyle = '#111111';
+      ctx.font = 'bold 38px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(title, W / 2, y + 38);
+      y += 52;
+
+      if (merchantName) {
+        ctx.fillStyle = '#888888';
+        ctx.font = '24px sans-serif';
+        ctx.fillText(merchantName, W / 2, y + 22);
+        y += 32;
+      }
+
+      if (description) {
+        ctx.fillStyle = '#555555';
+        ctx.font = '22px sans-serif';
+        const maxW = W - pad * 2;
+        let line = '';
+        for (const ch of description) {
+          const test = line + ch;
+          if (ctx.measureText(test).width > maxW && line) {
+            ctx.fillText(line, W / 2, y + 22);
+            y += 28;
+            line = ch;
+          } else line = test;
+        }
+        if (line) { ctx.fillText(line, W / 2, y + 22); y += 28; }
+        y += 12;
+      }
+
+      // load images via fetch→blob (avoids canvas CORS taint)
+      const loadedImgs = await Promise.all(items.map(async (item) => {
+        try {
+          const resp = await fetch(item.imageUrl);
+          const blob = await resp.blob();
+          const burl = URL.createObjectURL(blob);
+          return await new Promise<HTMLImageElement>((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => { URL.revokeObjectURL(burl); resolve(img); };
+            img.onerror = reject;
+            img.src = burl;
+          });
+        } catch { return null; }
+      }));
+
+      // draw item cards
+      const r = 10;
+      items.forEach((item, idx) => {
+        const col = idx % cols;
+        const row = Math.floor(idx / cols);
+        const x = pad + col * (cellW + gap);
+        const iy = y + row * (cellH + gap);
+
+        // card shadow + border
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.08)';
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetY = 2;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        (ctx as any).roundRect(x, iy, cellW, cellH, r);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        (ctx as any).roundRect(x, iy, cellW, cellH, r);
+        ctx.stroke();
+
+        // clip image to top rounded corners
+        ctx.save();
+        ctx.beginPath();
+        (ctx as any).roundRect(x, iy, cellW, imgH, [r, r, 0, 0]);
+        ctx.clip();
+        const img = loadedImgs[idx];
+        if (img) {
+          const aspect = img.width / img.height;
+          let sw = img.width, sh = img.height, sx = 0, sy = 0;
+          if (aspect > 1) { sw = img.height; sx = (img.width - sw) / 2; }
+          else { sh = img.width; sy = (img.height - sh) / 2; }
+          ctx.drawImage(img, sx, sy, sw, sh, x, iy, cellW, imgH);
+        } else {
+          ctx.fillStyle = '#f3f4f6';
+          ctx.fillRect(x, iy, cellW, imgH);
+        }
+        ctx.restore();
+
+        // name
+        const fs = Math.max(13, Math.floor(cellW / 7));
+        ctx.fillStyle = '#374151';
+        ctx.font = `${fs}px sans-serif`;
+        ctx.textAlign = 'center';
+        const nameMax = Math.floor(cellW / (fs * 0.6));
+        const nameText = item.itemName.length > nameMax ? item.itemName.slice(0, nameMax - 1) + '…' : item.itemName;
+        ctx.fillText(nameText, x + cellW / 2, iy + imgH + 16);
+
+        // price
+        if (Number(item.price) > 0) {
+          ctx.fillStyle = '#ea580c';
+          ctx.font = `bold ${fs}px sans-serif`;
+          ctx.fillText(`HK$${item.price}`, x + cellW / 2, iy + imgH + 34);
+        }
       });
-      const url = canvas.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `gallery-${editGalleryId}.png`;
-      a.click();
-      toast.success('圖片已儲存');
+
+      canvas.toBlob((blob) => {
+        if (!blob) { toast.error('生成失敗'); setSavingPoster(false); return; }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `gallery-${editGalleryId}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success('圖片已儲存');
+        setSavingPoster(false);
+      }, 'image/png');
     } catch {
       toast.error('生成圖片失敗，請重試');
+      setSavingPoster(false);
     }
-    setSavingPoster(false);
   }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -894,33 +1039,37 @@ export default function MerchantGallery() {
         </div>
       )}
 
-      {/* Gallery Poster Modal */}
+      {/* Gallery Poster Modal — z-[300] > BottomNav z-[200] */}
       {showPosterModal && (
-        <div className="fixed inset-0 z-[200] bg-black/70 flex flex-col" style={{ paddingLeft: 3, paddingRight: 3, paddingTop: 3 }}>
+        <div className="fixed inset-0 z-[300] bg-black/70 flex flex-col" style={{ paddingLeft: 3, paddingRight: 3, paddingTop: 3 }}>
           <div className="flex-1 bg-white rounded-t-2xl flex flex-col overflow-hidden">
-            {/* scrollable preview area */}
-            <div className="flex-1 overflow-y-auto">
+            {/* scrollable preview — min-h-0 stops flex overflow leak */}
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <div ref={posterRef} className="p-3 bg-white">
-                <p className="text-sm font-bold text-gray-900 mb-1 text-center">{currentGallery?.title}</p>
-                {currentGallery?.merchantName && (
-                  <p className="text-[10px] text-gray-400 text-center mb-2">{currentGallery.merchantName}</p>
+                <p className="text-sm font-bold text-gray-900 mb-0.5 text-center">{currentGallery?.title}</p>
+                {(currentGallery as any)?.merchantName && (
+                  <p className="text-[10px] text-gray-400 text-center mb-1">{(currentGallery as any).merchantName}</p>
+                )}
+                {(currentGallery as any)?.description && (
+                  <p className="text-[10px] text-gray-500 text-center mb-2 leading-relaxed px-2">{(currentGallery as any).description}</p>
                 )}
                 <div
-                  className="grid gap-1"
+                  className="grid gap-1.5"
                   style={{ gridTemplateColumns: `repeat(${editCols}, 1fr)` }}
                 >
                   {draftItems.filter(i => i.status !== 'hidden').map(item => (
-                    <div key={item.id} className="flex flex-col">
+                    <div key={item.id} className="flex flex-col border border-gray-200 rounded-lg overflow-hidden bg-white">
                       <img
                         src={item.imageUrl}
                         alt={item.itemName}
-                        crossOrigin="anonymous"
-                        className="w-full aspect-square object-cover rounded"
+                        className="w-full aspect-square object-cover"
                       />
-                      <p className="text-[8px] text-center text-gray-700 truncate mt-0.5 leading-tight">{item.itemName}</p>
-                      {Number(item.price) > 0 && (
-                        <p className="text-[8px] text-center text-orange-600 font-semibold leading-tight">HK${item.price}</p>
-                      )}
+                      <div className="px-1 py-1">
+                        <p className="text-[8px] text-center text-gray-700 truncate leading-tight">{item.itemName}</p>
+                        {Number(item.price) > 0 && (
+                          <p className="text-[8px] text-center text-orange-600 font-semibold leading-tight">HK${item.price}</p>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -929,8 +1078,11 @@ export default function MerchantGallery() {
                 )}
               </div>
             </div>
-            {/* bottom action buttons — pb-24 避免 BottomNav 遮擋 */}
-            <div className="flex gap-3 p-4 pb-24 bg-white border-t border-gray-100">
+            {/* bottom action buttons — safe-area padding for iPhone notch */}
+            <div
+              className="flex gap-3 px-4 pt-3 bg-white border-t border-gray-100"
+              style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
+            >
               <button
                 onClick={() => setShowPosterModal(false)}
                 className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
