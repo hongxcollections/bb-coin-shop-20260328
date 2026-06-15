@@ -1491,16 +1491,6 @@ export default function PokeLover() {
                     <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>美國市場</span>
                   </a>
                   <a
-                    href={`https://pokehub.jp/search?keyword=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
-                    style={{ background: "rgba(160,80,255,0.1)", border: "1px solid rgba(160,80,255,0.2)" }}
-                  >
-                    <span className="text-base">🏪</span>
-                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#A050FF" }}>PokeHub JP</span>
-                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>日本市場</span>
-                  </a>
-                  <a
                     href={`https://www.pricecharting.com/search-products?q=${encodeURIComponent(result.ebaySearchQuery)}&type=pokemon`}
                     target="_blank" rel="noopener noreferrer"
                     className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
@@ -1510,16 +1500,6 @@ export default function PokeLover() {
                     <span className="text-[10px] font-bold leading-tight" style={{ color: "#64B4FF" }}>PriceCharting</span>
                     <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>國際走勢</span>
                   </a>
-                  <a
-                    href={`https://courtyard.io/search?q=${encodeURIComponent(result.ebaySearchQuery)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
-                    style={{ background: "rgba(0,200,150,0.1)", border: "1px solid rgba(0,200,150,0.2)" }}
-                  >
-                    <span className="text-base">🏛️</span>
-                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#00C896" }}>Courtyard</span>
-                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>評級卡市場</span>
-                  </a>
                 </div>
 
                 {/* 延伸參考 — 移除平台列表 */}
@@ -1527,6 +1507,16 @@ export default function PokeLover() {
                   <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.25)" }}>延伸參考</p>
                   <div className="flex flex-col gap-2">
                     {[
+                      {
+                        name: "PokeHub JP 🏪",
+                        url: "https://pokehub.jp",
+                        desc: "日本寶可夢卡綜合市場，設買賣板塊及卡況資訊，商品以日文版為主",
+                      },
+                      {
+                        name: "Courtyard 🏛️",
+                        url: "https://courtyard.io",
+                        desc: "美國評級卡（PSA/BGS/CGC）買賣平台，提供實物托管及區塊鏈所有權驗證",
+                      },
                       {
                         name: "SNKRDUNK",
                         url: "https://snkrdunk.com",
@@ -1581,26 +1571,73 @@ export default function PokeLover() {
         </div>{/* end shareCardRef */}
 
         {!imagePreview && !analysisError && (
-          <div data-share-skip="true" className="rounded-xl p-4 mt-2" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-            <p className="text-xs font-bold mb-2" style={{ color: "rgba(255,222,0,0.6)" }}>PokeLover 可以做到</p>
-            {[
-              "識別卡片名稱、系列、卡號、稀有度",
-              "參考市場估價（裸卡 / PSA 9 / PSA 10）",
-              "AI 品相評估及 PSA / BGS / CGC / TAG 預測等級",
-              "AI 真偽初步鑑別（正版可信度評分）",
-              "送評計算器（PSA/BGS/CGC/TAG × Regular/Express）",
-              "HKD / USD / JPY 三幣種即時換算",
-              "eBay / ヤフオク! / Mercari / PriceCharting 市場直連",
-              "分析結果圖卡一鍵下載分享",
-              "我的卡冊：儲存 + 管理分析記錄",
-              "多張批量分析（同時上傳多圖）",
-            ].map((t, i) => (
-              <div key={i} className="flex items-start gap-2 mb-1.5">
-                <span style={{ color: "#CC0000", flexShrink: 0 }}>●</span>
-                <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>{t}</p>
+          <>
+            <div data-share-skip="true" className="rounded-xl p-4 mt-2" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <p className="text-xs font-bold mb-2" style={{ color: "rgba(255,222,0,0.6)" }}>PokeLover 可以做到</p>
+              {[
+                "識別卡片名稱、系列、卡號、稀有度",
+                "參考市場估價（裸卡 / PSA 9 / PSA 10）",
+                "AI 品相評估及 PSA / BGS / CGC / TAG 預測等級",
+                "AI 真偽初步鑑別（正版可信度評分）",
+                "送評計算器（PSA/BGS/CGC/TAG × Regular/Express）",
+                "HKD / USD / JPY 三幣種即時換算",
+                "eBay / ヤフオク! / Mercari / PriceCharting 市場直連",
+                "分析結果圖卡一鍵下載分享",
+                "我的卡冊：儲存 + 管理分析記錄",
+                "多張批量分析（同時上傳多圖）",
+              ].map((t, i) => (
+                <div key={i} className="flex items-start gap-2 mb-1.5">
+                  <span style={{ color: "#CC0000", flexShrink: 0 }}>●</span>
+                  <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>{t}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* 主頁靜態市場參考 */}
+            <div data-share-skip="true" className="rounded-xl p-3 mt-2" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>更多市場參考</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { emoji: "🇯🇵", name: "ヤフオク!", sub: "日本成交", color: "#FF4444", bg: "rgba(255,50,50,0.1)", border: "rgba(255,50,50,0.2)", url: "https://auctions.yahoo.co.jp/search/search?p=pokemon&exflg=1&b=1&n=50&s1=cbids&o1=d&aucminprice=1" },
+                  { emoji: "🛍️", name: "Mercari JP", sub: "日本二手", color: "#FF0056", bg: "rgba(255,0,86,0.1)", border: "rgba(255,0,86,0.2)", url: "https://jp.mercari.com/search?keyword=pokemon&status=sold_out" },
+                  { emoji: "🃏", name: "TCGplayer", sub: "美國市場", color: "#4E8EFF", bg: "rgba(26,106,255,0.1)", border: "rgba(26,106,255,0.2)", url: "https://www.tcgplayer.com/search/pokemon/product?view=grid" },
+                  { emoji: "📊", name: "PriceCharting", sub: "國際走勢", color: "#64B4FF", bg: "rgba(100,180,255,0.1)", border: "rgba(100,180,255,0.2)", url: "https://www.pricecharting.com/category/pokemon-cards" },
+                ].map(({ emoji, name, sub, color, bg, border, url }) => (
+                  <a key={name} href={url} target="_blank" rel="noopener noreferrer"
+                    className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
+                    style={{ background: bg, border: `1px solid ${border}` }}
+                  >
+                    <span className="text-base">{emoji}</span>
+                    <span className="text-[10px] font-bold leading-tight" style={{ color }}>{name}</span>
+                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>{sub}</span>
+                  </a>
+                ))}
               </div>
-            ))}
-          </div>
+
+              <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.25)" }}>延伸參考</p>
+                <div className="flex flex-col gap-2">
+                  {[
+                    { name: "PokeHub JP 🏪", url: "https://pokehub.jp", desc: "日本寶可夢卡綜合市場，設買賣板塊及卡況資訊，商品以日文版為主" },
+                    { name: "Courtyard 🏛️", url: "https://courtyard.io", desc: "美國評級卡（PSA/BGS/CGC）買賣平台，提供實物托管及區塊鏈所有權驗證" },
+                    { name: "SNKRDUNK", url: "https://snkrdunk.com", desc: "日本球鞋及交換卡市場，主打限量球鞋，亦設寶可夢卡牌買賣板塊" },
+                    { name: "CardTrader", url: "https://www.cardtrader.com", desc: "歐洲最大交換卡網絡市場，覆蓋寶可夢、MTG、遊戲王，可比較多個賣家定價" },
+                    { name: "KyoCards", url: "https://kyocards.com", desc: "日本寶可夢卡專門店，主打單卡買賣及套裝，商品以日文版為主" },
+                    { name: "Pokéchange", url: "https://www.pokechange.fr", desc: "法國寶可夢卡交換平台，主打法文版收藏品，提供玩家間直接交換功能" },
+                    { name: "ClutchPacks", url: "https://www.clutchpacks.gg", desc: "美國卡包開封及零售平台，提供 Live Break（直播開包）及散卡購買" },
+                  ].map(({ name, url, desc }) => (
+                    <a key={name} href={url} target="_blank" rel="noopener noreferrer"
+                      className="flex flex-col gap-0.5 px-2 py-1.5 rounded-lg"
+                      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
+                    >
+                      <span className="text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.55)" }}>{name}</span>
+                      <span className="text-[10px] leading-snug" style={{ color: "rgba(255,255,255,0.3)" }}>{desc}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
