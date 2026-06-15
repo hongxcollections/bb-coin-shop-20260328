@@ -981,3 +981,170 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
     </>
   );
 }
+
+interface GalleryShareMenuProps {
+  galleryId: number;
+  title: string;
+  merchantName?: string | null;
+  iconOnly?: boolean;
+}
+
+export function GalleryShareMenu({ galleryId, title, merchantName, iconOnly }: GalleryShareMenuProps) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  const galleryUrl = `${SHARE_ORIGIN}/gallery/${galleryId}`;
+  const shareText = [
+    `📸 ${title}`,
+    merchantName ? `${merchantName} 圖片集` : null,
+    galleryUrl,
+  ].filter(Boolean).join("\n");
+
+  const calcPosition = useCallback(() => {
+    if (!btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let top = rect.bottom + 4;
+    let left = rect.right - MENU_WIDTH;
+    if (left + MENU_WIDTH > vw - 8) left = vw - MENU_WIDTH - 8;
+    if (left < 8) left = 8;
+    if (top + MENU_HEIGHT > vh - 8) top = rect.top - MENU_HEIGHT - 4;
+    if (top < 8) top = 8;
+    setMenuPos({ top, left });
+  }, []);
+
+  function handleOpen(e: React.MouseEvent) {
+    e.preventDefault(); e.stopPropagation();
+    if (open) { setOpen(false); return; }
+    calcPosition(); setOpen(true);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClose() { setOpen(false); }
+    document.addEventListener("mousedown", handleClose);
+    window.addEventListener("scroll", handleClose, true);
+    window.addEventListener("resize", handleClose);
+    return () => {
+      document.removeEventListener("mousedown", handleClose);
+      window.removeEventListener("scroll", handleClose, true);
+      window.removeEventListener("resize", handleClose);
+    };
+  }, [open]);
+
+  async function handleMoreShare() {
+    setOpen(false);
+    if (navigator.share) {
+      try {
+        await navigator.clipboard.writeText(shareText).catch(() => {});
+        await navigator.share({ title, text: shareText.replace("\n" + galleryUrl, "").trim(), url: galleryUrl });
+        toast.success("已開啟系統分享選單", { description: shareText, duration: 5000 });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name !== "AbortError") {
+          try { await navigator.clipboard.writeText(shareText); } catch {}
+          toast.success("已複製連結及廣告文字，可貼到任何平台分享", { description: shareText, duration: 6000 });
+        }
+      }
+    } else {
+      try { await navigator.clipboard.writeText(shareText); } catch {}
+      toast.success("已複製連結及廣告文字，可貼到任何平台分享", { description: shareText, duration: 6000 });
+    }
+  }
+
+  async function handleMessenger() {
+    setOpen(false);
+    const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+    if (isMobile) {
+      try { await navigator.clipboard.writeText(shareText); } catch {}
+      window.location.href = `fb-messenger://share?link=${encodeURIComponent(galleryUrl)}`;
+      toast.success("已複製文案，Messenger 開啟後可貼上", { description: shareText, duration: 6000 });
+    } else {
+      try { await navigator.clipboard.writeText(shareText); } catch {}
+      window.open("https://www.messenger.com/", "_blank", "noopener,noreferrer");
+      toast.success("已複製連結，請喺 Messenger 對話框貼上", { description: shareText, duration: 6000 });
+    }
+  }
+
+  function handleWhatsApp() {
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, "_blank", "noopener,noreferrer,width=600,height=500");
+    setOpen(false);
+  }
+
+  function handleThreads() {
+    window.open(`https://www.threads.net/intent/post?text=${encodeURIComponent(shareText)}`, "_blank", "noopener,noreferrer,width=600,height=600");
+    setOpen(false);
+  }
+
+  async function handleCopyText() {
+    try {
+      await navigator.clipboard.writeText(shareText);
+      toast.success("已複製廣告文字", { description: shareText, duration: 5000 });
+    } catch { toast.error("複製失敗"); }
+    setOpen(false);
+  }
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(galleryUrl);
+      setCopied(true);
+      toast.success("已複製連結", { description: galleryUrl, duration: 5000 });
+      setTimeout(() => setCopied(false), 2000);
+    } catch { toast.error("複製失敗"); }
+    setOpen(false);
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={handleOpen}
+        title="分享圖片集"
+        className={iconOnly
+          ? "flex items-center justify-center w-8 h-8 text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded-full transition-colors bg-amber-50 hover:bg-amber-100"
+          : "flex items-center gap-1.5 text-xs text-amber-600 hover:text-amber-800 border border-amber-200 hover:border-amber-400 rounded-lg px-3 py-1.5 transition-colors bg-amber-50 hover:bg-amber-100 font-medium"
+        }
+      >
+        <Share2 className="w-3.5 h-3.5" />
+        {!iconOnly && "分享"}
+      </button>
+      {open && menuPos && (
+        <div
+          className="fixed z-[9999] w-44 bg-white rounded-xl shadow-xl border border-amber-100 py-1"
+          style={{ top: menuPos.top, left: menuPos.left }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-amber-50">
+            <span className="text-[0.65rem] font-semibold text-amber-700 uppercase tracking-wide">分享至</span>
+            <button type="button" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground p-0.5">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+          <button type="button" onClick={handleMoreShare} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-amber-50/80 hover:text-amber-700">
+            <MoreHorizontal className="w-4 h-4 shrink-0" />更多… ( FB,TG,微信.. )
+          </button>
+          <button type="button" onClick={handleMessenger} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#0084FF]/10 hover:text-[#0084FF]">
+            <MessengerIcon />Facebook Messenger
+          </button>
+          <button type="button" onClick={handleWhatsApp} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-[#25D366]/10 hover:text-[#25D366]">
+            <WhatsAppIcon />WhatsApp
+          </button>
+          <button type="button" onClick={handleThreads} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground transition-colors hover:bg-black/10 hover:text-black">
+            <ThreadsIcon />Threads
+          </button>
+          <div className="my-1 border-t border-amber-50" />
+          <button type="button" onClick={handleCopyText} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground hover:bg-amber-50/80 hover:text-amber-700 transition-colors">
+            <Copy className="w-4 h-4 shrink-0" />複製廣告文字
+          </button>
+          <button type="button" onClick={handleCopy} className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left text-muted-foreground hover:bg-amber-50/80 hover:text-amber-700 transition-colors">
+            {copied ? <Check className="w-4 h-4 text-green-500 shrink-0" /> : <Copy className="w-4 h-4 shrink-0" />}
+            {copied ? "已複製！" : "複製連結"}
+          </button>
+        </div>
+      )}
+    </>
+  );
+}

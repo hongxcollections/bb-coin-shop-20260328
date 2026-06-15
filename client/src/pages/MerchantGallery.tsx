@@ -8,8 +8,9 @@ import { toast } from "sonner";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import {
   ChevronLeft, ChevronDown, Plus, Loader2, Trash2, X, Upload, Save,
-  EyeOff, Images, FileImage, Check,
+  EyeOff, Images, FileImage, Check, Download,
 } from "lucide-react";
+import { GalleryShareMenu } from "@/components/ShareMenu";
 
 // ──────────────────────────────────────────────
 // Types
@@ -115,6 +116,11 @@ export default function MerchantGallery() {
   const [batchStartNum, setBatchStartNum] = useState('1');
   const [batchPrice, setBatchPrice] = useState('');
 
+  // Gallery poster modal
+  const [showPosterModal, setShowPosterModal] = useState(false);
+  const [savingPoster, setSavingPoster] = useState(false);
+  const posterRef = useRef<HTMLDivElement>(null);
+
   // ── tRPC ──
   const galleriesQ = trpc.productGalleries.myGalleries.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -206,6 +212,30 @@ export default function MerchantGallery() {
     });
     if (!ok) return;
     deleteGalleryM.mutate({ id: editGalleryId });
+  }
+
+  async function handleSavePoster() {
+    if (!posterRef.current) return;
+    setSavingPoster(true);
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(posterRef.current, {
+        useCORS: true,
+        allowTaint: false,
+        scale: 2,
+        backgroundColor: '#ffffff',
+        scrollY: 0,
+      });
+      const url = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gallery-${editGalleryId}.png`;
+      a.click();
+      toast.success('圖片已儲存');
+    } catch {
+      toast.error('生成圖片失敗，請重試');
+    }
+    setSavingPoster(false);
   }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -786,41 +816,35 @@ export default function MerchantGallery() {
               {/* Tab: 發佈 */}
               {editTab === 'publish' && (
                 <div className="space-y-3">
-                  <div className="bg-white rounded-2xl p-5">
-                    <p className="text-sm font-semibold text-gray-800 mb-3">發佈狀態</p>
-                    <div className="space-y-2">
+                  <div className="bg-white rounded-2xl p-3">
+                    <p className="text-xs font-semibold text-gray-400 mb-2">發佈狀態</p>
+                    <div className="flex gap-2">
                       {([
-                        ['draft',  '草稿',   '僅自己可見，未公開'],
-                        ['active', '已發佈', '公開可見，買家可瀏覽'],
-                        ['hidden', '已下架', '暫時不公開'],
-                      ] as [string, string, string][]).map(([s, label, desc]) => (
+                        ['draft',  '草稿'],
+                        ['active', '已發佈'],
+                        ['hidden', '已下架'],
+                      ] as [string, string][]).map(([s, label]) => (
                         <button
                           key={s}
                           onClick={() => handleSetStatus(s as 'draft' | 'active' | 'hidden')}
                           disabled={updateInfoM.isPending}
-                          className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors disabled:opacity-60 ${
-                            currentGallery?.status === s ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:bg-gray-50'
+                          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors disabled:opacity-60 ${
+                            currentGallery?.status === s
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                           }`}
                         >
-                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                            currentGallery?.status === s ? 'border-orange-500 bg-orange-500' : 'border-gray-300'
-                          }`}>
-                            {currentGallery?.status === s && <Check className="w-2.5 h-2.5 text-white" />}
-                          </div>
-                          <div className="text-left">
-                            <p className="text-sm font-semibold text-gray-800">{label}</p>
-                            <p className="text-xs text-gray-400">{desc}</p>
-                          </div>
+                          {label}
                         </button>
                       ))}
                     </div>
                   </div>
 
                   {currentGallery?.status === 'active' && (
-                    <div className="bg-white rounded-2xl p-4">
-                      <p className="text-xs font-semibold text-gray-500 mb-2">公開連結</p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs text-blue-600 break-all flex-1">
+                    <div className="bg-white rounded-2xl p-3">
+                      <p className="text-xs font-semibold text-gray-400 mb-2">公開連結</p>
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="text-xs text-blue-600 break-all flex-1 leading-relaxed">
                           {window.location.origin}/gallery/{editGalleryId}
                         </p>
                         <button
@@ -833,11 +857,27 @@ export default function MerchantGallery() {
                           複製
                         </button>
                       </div>
+                      <GalleryShareMenu
+                        galleryId={editGalleryId!}
+                        title={currentGallery?.title ?? ''}
+                        merchantName={currentGallery?.merchantName ?? null}
+                      />
                     </div>
                   )}
 
-                  <div className="bg-white rounded-2xl p-4">
-                    <p className="text-sm font-semibold text-red-500 mb-2">危險操作</p>
+                  <div className="bg-white rounded-2xl p-3">
+                    <button
+                      onClick={() => setShowPosterModal(true)}
+                      className="w-full py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
+                      style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
+                    >
+                      <Images className="w-4 h-4" />
+                      生成圖片集
+                    </button>
+                  </div>
+
+                  <div className="bg-white rounded-2xl p-3">
+                    <p className="text-xs font-semibold text-red-400 mb-2">危險操作</p>
                     <button
                       onClick={handleDeleteGallery}
                       disabled={deleteGalleryM.isPending}
@@ -851,6 +891,63 @@ export default function MerchantGallery() {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {/* Gallery Poster Modal */}
+      {showPosterModal && (
+        <div className="fixed inset-0 z-[200] bg-black/70 flex flex-col" style={{ paddingLeft: 3, paddingRight: 3, paddingTop: 3 }}>
+          <div className="flex-1 bg-white rounded-t-2xl flex flex-col overflow-hidden">
+            {/* scrollable preview area */}
+            <div className="flex-1 overflow-y-auto">
+              <div ref={posterRef} className="p-3 bg-white">
+                <p className="text-sm font-bold text-gray-900 mb-1 text-center">{currentGallery?.title}</p>
+                {currentGallery?.merchantName && (
+                  <p className="text-[10px] text-gray-400 text-center mb-2">{currentGallery.merchantName}</p>
+                )}
+                <div
+                  className="grid gap-1"
+                  style={{ gridTemplateColumns: `repeat(${editCols}, 1fr)` }}
+                >
+                  {draftItems.filter(i => i.status !== 'hidden').map(item => (
+                    <div key={item.id} className="flex flex-col">
+                      <img
+                        src={item.imageUrl}
+                        alt={item.itemName}
+                        crossOrigin="anonymous"
+                        className="w-full aspect-square object-cover rounded"
+                      />
+                      <p className="text-[8px] text-center text-gray-700 truncate mt-0.5 leading-tight">{item.itemName}</p>
+                      {Number(item.price) > 0 && (
+                        <p className="text-[8px] text-center text-orange-600 font-semibold leading-tight">HK${item.price}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {draftItems.filter(i => i.status !== 'hidden').length === 0 && (
+                  <p className="text-xs text-gray-400 text-center py-8">未有商品可顯示</p>
+                )}
+              </div>
+            </div>
+            {/* bottom action buttons — pb-24 避免 BottomNav 遮擋 */}
+            <div className="flex gap-3 p-4 pb-24 bg-white border-t border-gray-100">
+              <button
+                onClick={() => setShowPosterModal(false)}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSavePoster}
+                disabled={savingPoster}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+                style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
+              >
+                {savingPoster ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                {savingPoster ? '生成中…' : '儲存圖片'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
