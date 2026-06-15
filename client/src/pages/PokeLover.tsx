@@ -1508,6 +1508,11 @@ export default function PokeLover() {
                   <div className="flex flex-col gap-2">
                     {[
                       {
+                        name: "SNKRDUNK",
+                        url: "https://snkrdunk.com",
+                        desc: "日本球鞋及交換卡市場，主打限量球鞋，亦設寶可夢卡牌買賣板塊",
+                      },
+                      {
                         name: "PokeHub JP 🏪",
                         url: "https://pokehub.jp",
                         desc: "日本寶可夢卡綜合市場，設買賣板塊及卡況資訊，商品以日文版為主",
@@ -1516,11 +1521,6 @@ export default function PokeLover() {
                         name: "Courtyard 🏛️",
                         url: "https://courtyard.io",
                         desc: "美國評級卡（PSA/BGS/CGC）買賣平台，提供實物托管及區塊鏈所有權驗證",
-                      },
-                      {
-                        name: "SNKRDUNK",
-                        url: "https://snkrdunk.com",
-                        desc: "日本球鞋及交換卡市場，主打限量球鞋，亦設寶可夢卡牌買賣板塊",
                       },
                       {
                         name: "CardTrader",
@@ -1618,9 +1618,9 @@ export default function PokeLover() {
                 <p className="text-[10px] font-bold mb-2 tracking-widest uppercase" style={{ color: "rgba(255,255,255,0.7)", textShadow: "0 0 8px rgba(255,255,255,0.3)", letterSpacing: "0.14em" }}>延伸參考</p>
                 <div className="flex flex-col gap-2">
                   {[
+                    { name: "SNKRDUNK", url: "https://snkrdunk.com", desc: "日本球鞋及交換卡市場，主打限量球鞋，亦設寶可夢卡牌買賣板塊" },
                     { name: "PokeHub JP 🏪", url: "https://pokehub.jp", desc: "日本寶可夢卡綜合市場，設買賣板塊及卡況資訊，商品以日文版為主" },
                     { name: "Courtyard 🏛️", url: "https://courtyard.io", desc: "美國評級卡（PSA/BGS/CGC）買賣平台，提供實物托管及區塊鏈所有權驗證" },
-                    { name: "SNKRDUNK", url: "https://snkrdunk.com", desc: "日本球鞋及交換卡市場，主打限量球鞋，亦設寶可夢卡牌買賣板塊" },
                     { name: "CardTrader", url: "https://www.cardtrader.com", desc: "歐洲最大交換卡網絡市場，覆蓋寶可夢、MTG、遊戲王，可比較多個賣家定價" },
                     { name: "KyoCards", url: "https://kyocards.com", desc: "日本寶可夢卡專門店，主打單卡買賣及套裝，商品以日文版為主" },
                     { name: "Pokéchange", url: "https://www.pokechange.fr", desc: "法國寶可夢卡交換平台，主打法文版收藏品，提供玩家間直接交換功能" },
