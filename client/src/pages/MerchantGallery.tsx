@@ -197,12 +197,13 @@ export default function MerchantGallery() {
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files || files.length === 0 || !editGalleryId) return;
-    e.target.value = '';
 
     const maxNew = 200 - draftItems.length;
     if (maxNew <= 0) { toast.error('已達最多 200 張上限'); return; }
-    const fileArr = Array.from(files).slice(0, maxNew);
-    if (fileArr.length < files.length) toast.info(`已達上限，只上載首 ${maxNew} 張`);
+    const allFiles = Array.from(files);
+    e.target.value = '';
+    const fileArr = allFiles.slice(0, maxNew);
+    if (fileArr.length < allFiles.length) toast.info(`已達上限，只上載首 ${maxNew} 張`);
 
     setUploading(true);
     setUploadDone(0);
