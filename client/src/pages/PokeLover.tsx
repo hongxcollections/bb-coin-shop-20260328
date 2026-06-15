@@ -1521,6 +1521,52 @@ export default function PokeLover() {
                     <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>評級卡市場</span>
                   </a>
                 </div>
+
+                {/* 延伸參考 — 移除平台列表 */}
+                <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                  <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.25)" }}>延伸參考</p>
+                  <div className="flex flex-col gap-2">
+                    {[
+                      {
+                        name: "SNKRDUNK",
+                        url: "https://snkrdunk.com",
+                        desc: "日本球鞋及交換卡市場，主打限量球鞋，亦設寶可夢卡牌買賣板塊",
+                      },
+                      {
+                        name: "CardTrader",
+                        url: "https://www.cardtrader.com",
+                        desc: "歐洲最大交換卡網絡市場，覆蓋寶可夢、MTG、遊戲王，可比較多個賣家定價",
+                      },
+                      {
+                        name: "KyoCards",
+                        url: "https://kyocards.com",
+                        desc: "日本寶可夢卡專門店，主打單卡買賣及套裝，商品以日文版為主",
+                      },
+                      {
+                        name: "Pokéchange",
+                        url: "https://www.pokechange.fr",
+                        desc: "法國寶可夢卡交換平台，主打法文版收藏品，提供玩家間直接交換功能",
+                      },
+                      {
+                        name: "ClutchPacks",
+                        url: "https://www.clutchpacks.gg",
+                        desc: "美國卡包開封及零售平台，提供 Live Break（直播開包）及散卡購買",
+                      },
+                    ].map(({ name, url, desc }) => (
+                      <a
+                        key={name}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex flex-col gap-0.5 px-2 py-1.5 rounded-lg"
+                        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
+                      >
+                        <span className="text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.55)" }}>{name}</span>
+                        <span className="text-[10px] leading-snug" style={{ color: "rgba(255,255,255,0.3)" }}>{desc}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
