@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/_core/hooks/useAuth";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import { Loader2, X, Images, Store, ShoppingCart, MessageCircle, CheckCircle2 } from "lucide-react";
@@ -150,7 +150,7 @@ function SoldSheet({ item, merchantId, onClose }: { item: GalleryItem; merchantI
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-sm">關閉</button>
           {user ? (
             <button
-              onClick={() => openChat.mutate({ merchantUserId: merchantId, contextType: 'product', contextId: item.id, contextTitle: item.itemName || '圖集商品' })}
+              onClick={() => openChat.mutate({ merchantId: merchantId, productTitle: item.itemName || '圖集商品' })}
               disabled={openChat.isPending}
               className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-60"
             >
