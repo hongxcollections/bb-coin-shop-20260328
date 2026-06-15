@@ -3,7 +3,7 @@ import { useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
-import { Loader2, X, Images, Tag, Store, LayoutGrid, Grip } from "lucide-react";
+import { Loader2, X, Images, Store } from "lucide-react";
 
 interface GalleryItem {
   id: number; galleryId: number; merchantId: number; itemName: string;
@@ -24,7 +24,7 @@ export default function PublicGallery() {
   const params = useParams<{ id: string }>();
   const galleryId = parseInt(params.id ?? '', 10);
 
-  const [colsOverride, setColsOverride] = useState<5 | 10 | null>(null);
+  const [colsOverride, setColsOverride] = useState<number | null>(null);
   const [lightboxItem, setLightboxItem] = useState<GalleryItem | null>(null);
   const [lbZoom, setLbZoom] = useState(1);
   const [lbPanX, setLbPanX] = useState(0);
@@ -44,7 +44,7 @@ export default function PublicGallery() {
   const gallery = data?.gallery;
   const allItems = (data?.items ?? []) as GalleryItem[];
   const items = allItems.filter(i => i.status !== 'hidden');
-  const displayCols = colsOverride ?? gallery?.columnsPerRow ?? 5;
+  const displayCols = colsOverride ?? 3;
 
   const activeCount = items.filter(i => i.status === 'active').length;
   const soldCount = items.filter(i => i.status === 'sold').length;
@@ -218,27 +218,29 @@ export default function PublicGallery() {
                   <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>暫無商品</span>
                 )}
 
-                {/* Column toggle */}
-                <div className="ml-auto flex items-center gap-0.5 p-0.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                  {([5, 10] as const).map(n => (
-                    <button
-                      key={n}
-                      onClick={() => setColsOverride(n)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md transition-all"
-                      style={displayCols === n ? {
-                        background: 'linear-gradient(135deg, #FF8C00, #FF6B00)',
-                        color: '#fff',
-                      } : {
-                        color: 'rgba(255,255,255,0.45)',
-                      }}
-                    >
-                      {n === 5
-                        ? <LayoutGrid className="w-3 h-3" />
-                        : <Grip className="w-3 h-3" />
-                      }
-                      <span className="text-[10px] font-bold">{n}</span>
-                    </button>
-                  ))}
+                {/* Column toggle 1–10 */}
+                <div className="w-full mt-2 flex items-center gap-1">
+                  <span className="text-[10px] flex-shrink-0" style={{ color: 'rgba(255,255,255,0.4)' }}>列數</span>
+                  <div className="flex gap-1 flex-1">
+                    {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                      <button
+                        key={n}
+                        onClick={() => setColsOverride(n)}
+                        className="flex-1 py-1 rounded-md font-bold transition-all"
+                        style={displayCols === n ? {
+                          background: 'linear-gradient(135deg, #FF8C00, #FF6B00)',
+                          color: '#fff',
+                          fontSize: '10px',
+                        } : {
+                          background: 'rgba(255,255,255,0.08)',
+                          color: 'rgba(255,255,255,0.45)',
+                          fontSize: '10px',
+                        }}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -256,119 +258,89 @@ export default function PublicGallery() {
               style={{
                 display: 'grid',
                 gridTemplateColumns: `repeat(${displayCols}, 1fr)`,
-                gap: displayCols >= 10 ? '2px' : '5px',
+                gap: displayCols >= 8 ? '2px' : '5px',
               }}
             >
               {items.map(item => {
                 const price = parseFloat(item.price);
                 const isSold = item.status === 'sold';
-                const isCompact = displayCols >= 10;
+                // >= 7 cols: image-only compact mode (no text strip)
+                const isCompact = displayCols >= 7;
+                // ribbon size scales with cols
+                const ribbonSize = displayCols >= 5 ? 36 : 46;
 
                 return (
                   <div
                     key={item.id}
                     onClick={() => openLightbox(item)}
-                    className="relative overflow-hidden cursor-pointer"
+                    className="cursor-pointer overflow-hidden"
                     style={{
-                      borderRadius: isCompact ? '5px' : '10px',
+                      borderRadius: isCompact ? '4px' : '10px',
                       background: '#fff',
                       boxShadow: isCompact ? 'none' : '0 1px 6px rgba(0,0,0,0.10)',
                     }}
                   >
-                    {/* Image */}
+                    {/* ── Image ── */}
                     <div className="relative w-full" style={{ aspectRatio: '1/1' }}>
                       <img
                         src={item.imageUrl}
                         alt={item.itemName || '商品'}
                         className="w-full h-full object-cover"
-                        style={{ filter: isSold ? 'grayscale(55%) brightness(0.85)' : 'none' }}
+                        style={{ filter: isSold ? 'grayscale(50%) brightness(0.88)' : 'none' }}
                         loading="lazy"
                       />
 
-                      {/* Bottom gradient overlay (5-col only) */}
-                      {!isCompact && (
-                        <div
-                          className="absolute bottom-0 left-0 right-0"
-                          style={{
-                            background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.3) 55%, transparent 100%)',
-                            padding: '16px 6px 5px',
-                          }}
-                        >
-                          {item.itemName && (
-                            <p className="text-white font-semibold leading-tight truncate" style={{ fontSize: '9px', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
-                              {item.itemName}
-                            </p>
-                          )}
-                          {price > 0 && !isSold && (
-                            <p className="font-bold leading-none mt-0.5" style={{ fontSize: '9px', color: '#FFD580' }}>
-                              HK${price.toLocaleString('en-HK')}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Item number badge (5-col, top-left) */}
-                      {!isCompact && item.itemNumber && (
-                        <div
-                          className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md"
-                          style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
-                        >
-                          <span className="font-mono text-white/80" style={{ fontSize: '7px' }}>#{item.itemNumber}</span>
-                        </div>
-                      )}
-
-                      {/* Sold ribbon */}
+                      {/* Sold ribbon (top-right corner triangle) */}
                       {isSold && (
                         isCompact ? (
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <span
-                              className="font-bold text-white rounded"
-                              style={{ fontSize: '6px', padding: '1px 3px', background: 'rgba(185,28,28,0.85)' }}
-                            >已售</span>
+                            <span className="font-bold text-white rounded" style={{
+                              fontSize: '5px', padding: '1px 2px', background: 'rgba(185,28,28,0.85)',
+                            }}>已售</span>
                           </div>
                         ) : (
                           <>
-                            {/* Diagonal ribbon */}
-                            <div
-                              className="absolute"
-                              style={{
-                                top: 0, right: 0,
-                                width: 0, height: 0,
-                                borderStyle: 'solid',
-                                borderWidth: '0 46px 46px 0',
-                                borderColor: `transparent #DC2626 transparent transparent`,
-                              }}
-                            />
-                            <div
-                              className="absolute font-bold text-white"
-                              style={{
-                                top: '5px', right: '2px',
-                                fontSize: '7px',
-                                transform: 'rotate(45deg)',
-                                letterSpacing: '0.02em',
-                              }}
-                            >
-                              已售
-                            </div>
+                            <div className="absolute" style={{
+                              top: 0, right: 0, width: 0, height: 0,
+                              borderStyle: 'solid',
+                              borderWidth: `0 ${ribbonSize}px ${ribbonSize}px 0`,
+                              borderColor: `transparent #DC2626 transparent transparent`,
+                            }} />
+                            <div className="absolute font-bold text-white" style={{
+                              top: displayCols >= 5 ? '3px' : '5px',
+                              right: displayCols >= 5 ? '1px' : '2px',
+                              fontSize: displayCols >= 5 ? '6px' : '7px',
+                              transform: 'rotate(45deg)',
+                            }}>已售</div>
                           </>
                         )
                       )}
-
-                      {/* Price tag (5-col, active items, shown separately from overlay if desired) */}
-                      {!isCompact && price > 0 && !isSold && (
-                        <div
-                          className="absolute top-1 right-1 px-1.5 py-0.5 rounded-md"
-                          style={{
-                            background: 'linear-gradient(135deg, rgba(255,140,0,0.9), rgba(255,107,0,0.9))',
-                            backdropFilter: 'blur(4px)',
-                          }}
-                        >
-                          <span className="font-bold text-white" style={{ fontSize: '7px' }}>
-                            HK${price.toLocaleString('en-HK')}
-                          </span>
-                        </div>
-                      )}
                     </div>
+
+                    {/* ── Info strip (below image, no overlay) ── */}
+                    {!isCompact && (
+                      <div style={{
+                        padding: displayCols >= 4 ? '3px 5px 4px' : '4px 6px 5px',
+                        borderTop: '1px solid #F0F0F0',
+                      }}>
+                        {item.itemNumber && (
+                          <p className="font-mono truncate leading-none mb-0.5" style={{
+                            fontSize: displayCols >= 4 ? '7px' : '8px', color: '#9CA3AF',
+                          }}>#{item.itemNumber}</p>
+                        )}
+                        {item.itemName && (
+                          <p className="font-semibold truncate leading-tight" style={{
+                            fontSize: displayCols >= 4 ? '8px' : '10px', color: '#1F2937',
+                          }}>{item.itemName}</p>
+                        )}
+                        <p className="font-bold leading-none mt-0.5" style={{
+                          fontSize: displayCols >= 4 ? '8px' : '10px',
+                          color: isSold ? '#9CA3AF' : '#FF6B00',
+                        }}>
+                          {isSold ? '已售出' : price > 0 ? `HK$${price.toLocaleString('en-HK')}` : '面議'}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 );
               })}
