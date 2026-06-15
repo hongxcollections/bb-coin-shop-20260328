@@ -12326,6 +12326,13 @@ EXAMPLE OUTPUT (exact format):
         return getPublicGalleryWithItems(input.id);
       }),
 
+    listPublicByMerchant: publicProcedure
+      .input(z.object({ merchantId: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const { listPublicProductGalleriesForMerchant } = await import('./db') as any;
+        return listPublicProductGalleriesForMerchant(input.merchantId);
+      }),
+
     buyItem: protectedProcedure
       .input(z.object({
         itemId: z.number().int().positive(),

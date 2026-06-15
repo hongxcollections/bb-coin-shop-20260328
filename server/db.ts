@@ -7570,6 +7570,19 @@ export async function listProductGalleriesForMerchant(
   return rows as any[];
 }
 
+export async function listPublicProductGalleriesForMerchant(merchantId: number): Promise<any[]> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT g.id, g.title, g.description, g.coverImageUrl, g.columnsPerRow, g.merchantId, g.merchantName,
+     (SELECT COUNT(*) FROM productGalleryItems i WHERE i.galleryId = g.id AND i.status = 'active') AS activeItemCount,
+     (SELECT i2.imageUrl FROM productGalleryItems i2 WHERE i2.galleryId = g.id AND i2.status = 'active' ORDER BY i2.sortOrder ASC, i2.id ASC LIMIT 1) AS firstItemImage
+     FROM productGalleries g WHERE g.merchantId = ? AND g.status = 'active' ORDER BY g.updatedAt DESC`,
+    [merchantId]
+  );
+  return rows as any[];
+}
+
 export async function createProductGallery(data: {
   merchantId: number; merchantName: string; title: string;
   description?: string; columnsPerRow: number;

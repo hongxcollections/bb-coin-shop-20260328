@@ -606,6 +606,10 @@ export default function MerchantStore() {
     { merchantUserId: userId },
     { enabled: userId > 0 }
   );
+  const { data: publicGalleries = [] } = trpc.productGalleries.listPublicByMerchant.useQuery(
+    { merchantId: userId },
+    { enabled: userId > 0 }
+  );
 
   const activeSessions = (merchantSessions as any[]).filter((s) => s.status === "published" && new Date(s.endAt).getTime() > Date.now());
   const endedSessions = (merchantSessions as any[]).filter((s) => s.status === "ended" || (s.status === "published" && new Date(s.endAt).getTime() <= Date.now()));
@@ -1262,6 +1266,48 @@ export default function MerchantStore() {
             </div>
           )}
         </div>
+        {/* ── 圖片集商品 ── */}
+        {(publicGalleries as any[]).length > 0 && (
+          <div className="rounded-2xl bg-gradient-to-b from-indigo-50/50 to-white border border-indigo-100 shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-indigo-50/30">
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-sm shadow-indigo-200">
+                <Images className="w-4 h-4 text-white" />
+              </div>
+              <h2 className="font-bold text-sm text-indigo-900">圖片集商品</h2>
+              <span className="ml-auto text-xs font-semibold text-indigo-700 bg-white/80 border border-indigo-200 px-2.5 py-0.5 rounded-full">
+                {(publicGalleries as any[]).length} 個圖集
+              </span>
+            </div>
+            <div className="p-3 grid grid-cols-2 gap-2.5">
+              {(publicGalleries as any[]).map((g: any) => {
+                const thumb = g.coverImageUrl || g.firstItemImage || null;
+                const count = Number(g.activeItemCount ?? 0);
+                return (
+                  <Link key={g.id} href={`/gallery/${g.id}`}>
+                    <div className="bg-white rounded-xl border border-indigo-100 hover:border-indigo-300 shadow-sm overflow-hidden cursor-pointer transition-all active:scale-[0.98]">
+                      <div className="relative aspect-square w-full bg-indigo-50">
+                        {thumb ? (
+                          <img src={thumb} alt={g.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Images className="w-8 h-8 text-indigo-200" />
+                          </div>
+                        )}
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5 pointer-events-none">
+                          <span className="text-white text-[10px] font-semibold">{count} 件</span>
+                        </div>
+                      </div>
+                      <div className="px-2 py-1.5">
+                        <p className="text-xs font-semibold text-gray-800 line-clamp-1 leading-tight">{g.title}</p>
+                        {g.description && <p className="text-[10px] text-gray-400 line-clamp-1 mt-0.5">{g.description}</p>}
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
       {storeRoomId !== null && (
         <ChatRoomDialog
