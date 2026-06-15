@@ -215,61 +215,300 @@ export default function MerchantGallery() {
   }
 
   async function handleSavePoster() {
-    if (!posterRef.current) return;
     setSavingPoster(true);
     try {
-      const el = posterRef.current;
+      // ── Constants matching DOM layout (CSS px, drawn at 2× scale) ──
+      const items = draftItems.filter(i => i.status !== 'hidden');
+      const cols = editCols;
+      const isCompact = cols >= 7;
+      const activeCount = items.filter(i => i.status === 'active').length;
+      const soldCount   = items.filter(i => i.status === 'sold').length;
+      const title       = currentGallery?.title ?? '';
+      const merchantName = (currentGallery as any)?.merchantName ?? '';
+      const description  = (currentGallery as any)?.description ?? '';
 
-      // ── Step 1: pre-load images as blob URLs so html2canvas can draw them ──
-      const imgEls = Array.from(el.querySelectorAll('img')) as HTMLImageElement[];
-      const origSrcs = imgEls.map(img => img.getAttribute('src') ?? '');
-      await Promise.all(imgEls.map(async (img, i) => {
+      const S   = 2;           // scale: 2× CSS px → canvas px
+      const CW  = 375;         // canvas width in CSS px (standard mobile)
+      const M   = 12;          // mx-3 / mt-3 / mb-3
+      const hPX = 16;          // hero px-4
+      const hPT = 16;          // hero pt-4
+      const hPB = 16;          // hero pb-4
+      const hR  = 16;          // hero rounded-2xl
+      const heroX = M;
+      const heroW = CW - M * 2; // 351 px
+
+      // ── Measure description line count ──
+      const tmp = document.createElement('canvas');
+      tmp.width = heroW * S; tmp.height = 4;
+      const tc = tmp.getContext('2d')!;
+      let descLines = 0;
+      if (description) {
+        tc.font = `${11 * S}px sans-serif`;
+        const maxDescW = (heroW - hPX * 2) * S;
+        let line = '';
+        for (const ch of description) {
+          const t = line + ch;
+          if (tc.measureText(t).width > maxDescW && line) { descLines++; line = ch; } else line = t;
+        }
+        if (line) descLines++;
+      }
+
+      // Hero height (matches exact CSS line-heights)
+      const nameLineH = 16; const titleLineH = 24; const descLineH = 18; const badgeRowH = 18;
+      const heroContentH =
+        nameLineH + 8 +                                            // merchant name + mb-2
+        titleLineH + 6 +                                           // title + mb-1.5
+        (descLines > 0 ? descLines * descLineH + 10 : 0) +        // desc + mb-2.5
+        badgeRowH;
+      const heroH = hPT + heroContentH + hPB;
+
+      // Grid measurements
+      const gridPX = 12; const gridPB = 12;
+      const gridGap = cols >= 8 ? 2 : 5;
+      const gridInnerW = heroW - gridPX * 2;
+      const cellW = Math.floor((gridInnerW - gridGap * (cols - 1)) / cols);
+      const buyFontSz = cols >= 4 ? 9 : 11;
+      const buyStripH = isCompact ? 0 : (12 + buyFontSz); // py-1.5(6×2) + font
+      const cardH   = cellW + buyStripH;
+      const rows    = Math.ceil(items.length / cols);
+      const gridH   = rows * (cardH + gridGap) - gridGap + gridPB;
+      const totalH  = M + heroH + M + gridH;
+
+      // ── Canvas ──
+      const canvas = document.createElement('canvas');
+      canvas.width = CW * S; canvas.height = totalH * S;
+      const ctx = canvas.getContext('2d')!;
+      ctx.scale(S, S);
+
+      // rounded-rect helper (arcTo, works everywhere)
+      function rrect(x: number, y: number, w: number, h: number, r: number) {
+        const rv = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + rv, y); ctx.lineTo(x + w - rv, y);
+        ctx.arcTo(x + w, y,     x + w, y + rv,     rv);
+        ctx.lineTo(x + w, y + h - rv);
+        ctx.arcTo(x + w, y + h, x + w - rv, y + h, rv);
+        ctx.lineTo(x + rv, y + h);
+        ctx.arcTo(x, y + h,     x, y + h - rv,     rv);
+        ctx.lineTo(x, y + rv);
+        ctx.arcTo(x, y,         x + rv, y,          rv);
+        ctx.closePath();
+      }
+
+      // ── Background ──
+      ctx.fillStyle = '#ECECEC';
+      ctx.fillRect(0, 0, CW, totalH);
+
+      // ── Hero card ──
+      const heroY = M;
+      ctx.save();
+      rrect(heroX, heroY, heroW, heroH, hR); ctx.clip();
+      const hGrad = ctx.createLinearGradient(heroX, heroY, heroX + heroW * 0.6, heroY + heroH * 0.85);
+      hGrad.addColorStop(0, '#0D1B2A'); hGrad.addColorStop(0.4, '#1B263B'); hGrad.addColorStop(1, '#1F3A5F');
+      ctx.fillStyle = hGrad; ctx.fillRect(heroX, heroY, heroW, heroH);
+      // Decorative circles (absolute -top-6 -right-6 w-28 / -bottom-8 -left-4 w-24)
+      ctx.fillStyle = 'rgba(255,179,71,0.1)';
+      ctx.beginPath(); ctx.arc(heroX + heroW - 32, heroY + 32, 56, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(74,144,217,0.1)';
+      ctx.beginPath(); ctx.arc(heroX + 32, heroY + heroH - 16, 48, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+
+      // ── Hero text ──
+      const cX = heroX + hPX; const cMaxW = heroW - hPX * 2;
+      let cY = heroY + hPT;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+
+      ctx.fillStyle = '#FFB347'; ctx.font = 'bold 11px sans-serif';
+      ctx.fillText(merchantName, cX, cY); cY += nameLineH + 8;
+
+      ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 17px sans-serif';
+      ctx.fillText(title, cX, cY); cY += titleLineH + 6;
+
+      if (description) {
+        ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '11px sans-serif';
+        let line = '';
+        for (const ch of description) {
+          const t = line + ch;
+          if (ctx.measureText(t).width > cMaxW && line) { ctx.fillText(line, cX, cY); cY += descLineH; line = ch; } else line = t;
+        }
+        if (line) { ctx.fillText(line, cX, cY); cY += descLineH; }
+        cY += 10;
+      }
+
+      // Badges
+      let bX = cX;
+      const bPX = 10; const bPY = 4; const bFSz = 10;
+      const bH2 = bFSz + bPY * 2; const bR2 = bH2 / 2;
+      ctx.font = `bold ${bFSz}px sans-serif`; ctx.textBaseline = 'middle';
+      if (activeCount > 0) {
+        const tW = ctx.measureText(`${activeCount} 件在售`).width;
+        const bW = bPX * 2 + 10 + tW; // 10 = dot(6) + gap(4)
+        ctx.fillStyle = 'rgba(34,197,94,0.2)'; rrect(bX, cY, bW, bH2, bR2); ctx.fill();
+        ctx.strokeStyle = 'rgba(34,197,94,0.25)'; ctx.lineWidth = 1; rrect(bX, cY, bW, bH2, bR2); ctx.stroke();
+        ctx.fillStyle = '#4ADE80';
+        ctx.beginPath(); ctx.arc(bX + bPX + 3, cY + bH2 / 2, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillText(`${activeCount} 件在售`, bX + bPX + 10, cY + bH2 / 2);
+        bX += bW + 8;
+      }
+      if (soldCount > 0) {
+        const tW = ctx.measureText(`${soldCount} 件已售`).width;
+        const bW = bPX * 2 + tW;
+        ctx.fillStyle = 'rgba(239,68,68,0.18)'; rrect(bX, cY, bW, bH2, bR2); ctx.fill();
+        ctx.strokeStyle = 'rgba(239,68,68,0.2)'; ctx.lineWidth = 1; rrect(bX, cY, bW, bH2, bR2); ctx.stroke();
+        ctx.fillStyle = '#FCA5A5'; ctx.fillText(`${soldCount} 件已售`, bX + bPX, cY + bH2 / 2);
+      }
+
+      // ── Load images: fetch → blob URL → Image (avoids canvas CORS taint) ──
+      const loadedImgs = await Promise.all(items.map(async (item) => {
         try {
-          const resp = await fetch(origSrcs[i]);
+          const resp = await fetch(item.imageUrl);
           const blob = await resp.blob();
           const burl = URL.createObjectURL(blob);
-          img.src = burl;
-          if (!img.complete) await new Promise<void>(res => { img.onload = () => res(); img.onerror = () => res(); });
-        } catch { /* leave as-is */ }
+          return await new Promise<HTMLImageElement | null>((resolve) => {
+            const img = new Image();
+            img.onload = () => { URL.revokeObjectURL(burl); resolve(img); };
+            img.onerror = () => { URL.revokeObjectURL(burl); resolve(null); };
+            img.src = burl;
+          });
+        } catch { return null; }
       }));
 
-      // ── Step 2: snapshot full scroll height (expand for capture) ──
-      const fullH = el.scrollHeight;
-      const fullW = el.scrollWidth;
+      // ── Grid items ──
+      const gridTop  = M + heroH + M;
+      const gridLeft = heroX + gridPX; // = 24
+      const cardR    = isCompact ? 4 : 10;
+      const rs       = cols >= 5 ? 36 : 46; // ribbon size
+      const numFSz   = cols >= 4 ? 7 : 8;
+      const nameFSz  = cols >= 4 ? 8 : 10;
+      const priceFSz = cols >= 4 ? 8 : 10;
 
-      // ── Step 3: html2canvas — capture exact DOM visuals ──
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(el, {
-        useCORS: true,
-        allowTaint: false,
-        scale: 2,
-        backgroundColor: '#ECECEC',
-        width: fullW,
-        height: fullH,
-        scrollX: 0,
-        scrollY: 0,
-        x: 0,
-        y: 0,
-        logging: false,
+      items.forEach((item, idx) => {
+        const col = idx % cols; const row = Math.floor(idx / cols);
+        const cx  = gridLeft + col * (cellW + gridGap);
+        const cy  = gridTop  + row * (cardH + gridGap);
+        const isSold = item.status === 'sold';
+        const price  = parseFloat(item.price);
+        const img    = loadedImgs[idx];
+
+        // 1. Card white bg + shadow (non-compact)
+        ctx.save();
+        if (!isCompact) { ctx.shadowColor = 'rgba(0,0,0,0.10)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 1; }
+        ctx.fillStyle = '#fff'; rrect(cx, cy, cellW, cardH, cardR); ctx.fill();
+        ctx.restore();
+
+        // 2. Image area clip → image → overlay → sold indicator
+        ctx.save();
+        ctx.beginPath();
+        if (buyStripH > 0) {
+          // top-only rounded
+          const rv = Math.min(cardR, cellW / 2);
+          ctx.moveTo(cx + rv, cy); ctx.lineTo(cx + cellW - rv, cy);
+          ctx.arcTo(cx + cellW, cy, cx + cellW, cy + rv, rv);
+          ctx.lineTo(cx + cellW, cy + cellW); ctx.lineTo(cx, cy + cellW);
+          ctx.lineTo(cx, cy + rv); ctx.arcTo(cx, cy, cx + rv, cy, rv);
+        } else {
+          rrect(cx, cy, cellW, cellW, cardR);
+        }
+        ctx.closePath(); ctx.clip();
+
+        if (img) {
+          if (isSold) ctx.filter = 'grayscale(50%) brightness(0.88)';
+          // object-cover centre crop
+          const nw = img.naturalWidth, nh = img.naturalHeight;
+          let sx = 0, sy = 0, sw = nw, sh = nh;
+          if (nw / nh > 1) { sw = nh; sx = (nw - sw) / 2; } else { sh = nw; sy = (nh - sh) / 2; }
+          ctx.drawImage(img, sx, sy, sw, sh, cx, cy, cellW, cellW);
+          ctx.filter = 'none';
+        } else {
+          ctx.fillStyle = '#f3f4f6'; ctx.fillRect(cx, cy, cellW, cellW);
+        }
+
+        // Overlay + text (!isCompact)
+        if (!isCompact && (item.itemNumber || item.itemName || price > 0)) {
+          const ovH  = Math.round(cellW * 0.55);
+          const ovG  = ctx.createLinearGradient(0, cy + cellW - ovH, 0, cy + cellW);
+          ovG.addColorStop(0, 'transparent'); ovG.addColorStop(0.4, 'rgba(0,0,0,0.25)'); ovG.addColorStop(1, 'rgba(0,0,0,0.68)');
+          ctx.fillStyle = ovG; ctx.fillRect(cx, cy + cellW - ovH, cellW, ovH);
+          let ty = cy + cellW - 5;
+          ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+          if (price > 0) {
+            ctx.fillStyle = '#FFD580'; ctx.font = `bold ${priceFSz}px sans-serif`;
+            ctx.fillText(`HK$${price.toLocaleString('en-HK')}`, cx + 6, ty); ty -= priceFSz + 2;
+          }
+          if (item.itemName) {
+            ctx.fillStyle = '#fff'; ctx.font = `600 ${nameFSz}px sans-serif`;
+            let nm = item.itemName;
+            while (nm.length > 1 && ctx.measureText(nm).width > cellW - 12) nm = nm.slice(0, -1);
+            if (nm !== item.itemName) nm += '…';
+            ctx.fillText(nm, cx + 6, ty); ty -= nameFSz + 2;
+          }
+          if (item.itemNumber) {
+            ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = `${numFSz}px monospace`;
+            ctx.fillText(`#${item.itemNumber}`, cx + 6, ty);
+          }
+        }
+
+        // Sold indicator
+        if (isSold) {
+          if (isCompact) {
+            ctx.fillStyle = 'rgba(185,28,28,0.85)'; ctx.font = 'bold 5px sans-serif';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            const bw2 = ctx.measureText('已售').width + 4;
+            rrect(cx + cellW / 2 - bw2 / 2, cy + cellW / 2 - 4, bw2, 8, 2); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.fillText('已售', cx + cellW / 2, cy + cellW / 2);
+          } else {
+            // Triangle ribbon (CSS border trick: border-width 0 rs rs 0, color transparent #DC2626)
+            ctx.beginPath();
+            ctx.moveTo(cx + cellW - rs, cy); ctx.lineTo(cx + cellW, cy); ctx.lineTo(cx + cellW, cy + rs);
+            ctx.closePath(); ctx.fillStyle = '#DC2626'; ctx.fill();
+            // "已售" text rotated 45° at triangle centroid
+            ctx.save();
+            ctx.translate(cx + cellW - rs * 0.38, cy + rs * 0.38);
+            ctx.rotate(Math.PI / 4);
+            ctx.fillStyle = '#fff'; ctx.font = `bold ${cols >= 5 ? 6 : 7}px sans-serif`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('已售', 0, 0);
+            ctx.restore();
+          }
+        }
+        ctx.restore(); // end image clip
+
+        // 3. Buy strip (bottom, !isCompact)
+        if (buyStripH > 0) {
+          const sy = cy + cellW;
+          const rv = Math.min(cardR, cellW / 2);
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(cx, sy); ctx.lineTo(cx + cellW, sy);
+          ctx.lineTo(cx + cellW, sy + buyStripH - rv);
+          ctx.arcTo(cx + cellW, sy + buyStripH, cx + cellW - rv, sy + buyStripH, rv);
+          ctx.lineTo(cx + rv, sy + buyStripH);
+          ctx.arcTo(cx, sy + buyStripH, cx, sy + buyStripH - rv, rv);
+          ctx.lineTo(cx, sy); ctx.closePath(); ctx.clip();
+          if (isSold) {
+            ctx.fillStyle = '#F3F4F6'; ctx.fillRect(cx, sy, cellW, buyStripH);
+            ctx.fillStyle = '#9CA3AF';
+          } else {
+            const bg = ctx.createLinearGradient(0, sy, 0, sy + buyStripH);
+            bg.addColorStop(0, '#FBBF24'); bg.addColorStop(1, '#78350F');
+            ctx.fillStyle = bg; ctx.fillRect(cx, sy, cellW, buyStripH);
+            ctx.fillStyle = '#fff';
+          }
+          ctx.font = `${isSold ? '' : 'bold '}${buyFontSz}px sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(isSold ? '已售出 · 聯繫商戶' : '立即落單', cx + cellW / 2, sy + buyStripH / 2);
+          ctx.restore();
+        }
       });
 
-      // ── Step 4: revoke blob URLs & restore original src ──
-      imgEls.forEach((img, i) => {
-        const cur = img.getAttribute('src') ?? '';
-        if (cur.startsWith('blob:')) { URL.revokeObjectURL(cur); img.src = origSrcs[i]; }
-      });
-
-      // ── Step 5: download ──
+      // ── Download ──
       canvas.toBlob((blob) => {
         if (!blob) { toast.error('生成失敗'); setSavingPoster(false); return; }
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
-        a.download = `gallery-${editGalleryId}.png`;
-        a.click();
+        a.href = url; a.download = `gallery-${editGalleryId}.png`; a.click();
         URL.revokeObjectURL(url);
-        toast.success('圖片已儲存');
-        setSavingPoster(false);
+        toast.success('圖片已儲存'); setSavingPoster(false);
       }, 'image/png');
 
     } catch (err) {
