@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import Header from "@/components/Header";
@@ -26,6 +26,14 @@ export default function PublicGallery() {
 
   const [colsOverride, setColsOverride] = useState<5 | 10 | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [lbZoom, setLbZoom] = useState(1);
+  const [lbPanX, setLbPanX] = useState(0);
+  const [lbPanY, setLbPanY] = useState(0);
+  const pinchStartDist = useRef(0);
+  const pinchStartZoom = useRef(1);
+  const panStartTouch = useRef({ x: 0, y: 0 });
+  const panStartOffset = useRef({ x: 0, y: 0 });
+  const lastTapTime = useRef(0);
 
   const galleryQ = trpc.productGalleries.getPublic.useQuery(
     { id: galleryId },
@@ -41,24 +49,73 @@ export default function PublicGallery() {
   const activeCount = items.filter(i => i.status === 'active').length;
   const soldCount = items.filter(i => i.status === 'sold').length;
 
+  // ── Lightbox helpers ──
+  function openLightbox(src: string) {
+    setLightboxSrc(src);
+    setLbZoom(1); setLbPanX(0); setLbPanY(0);
+  }
+  function lbPinchDist(t: React.TouchList) {
+    const dx = t[0].clientX - t[1].clientX;
+    const dy = t[0].clientY - t[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+  function lbTouchStart(e: React.TouchEvent) {
+    if (e.touches.length === 2) {
+      pinchStartDist.current = lbPinchDist(e.touches);
+      pinchStartZoom.current = lbZoom;
+    } else if (e.touches.length === 1) {
+      const now = Date.now();
+      if (now - lastTapTime.current < 280) { setLbZoom(1); setLbPanX(0); setLbPanY(0); }
+      lastTapTime.current = now;
+      panStartTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      panStartOffset.current = { x: lbPanX, y: lbPanY };
+    }
+  }
+  function lbTouchMove(e: React.TouchEvent) {
+    if (e.touches.length === 2) {
+      const z = Math.min(6, Math.max(1, pinchStartZoom.current * (lbPinchDist(e.touches) / pinchStartDist.current)));
+      setLbZoom(z);
+    } else if (e.touches.length === 1 && lbZoom > 1) {
+      setLbPanX(panStartOffset.current.x + e.touches[0].clientX - panStartTouch.current.x);
+      setLbPanY(panStartOffset.current.y + e.touches[0].clientY - panStartTouch.current.y);
+    }
+  }
+
   // ── Lightbox ──
   if (lightboxSrc) {
     return (
       <div
-        className="fixed inset-0 z-50 bg-black/92 flex items-center justify-center p-4"
-        onClick={() => setLightboxSrc(null)}
+        className="fixed inset-0 z-50 bg-black/92 flex items-center justify-center"
+        onClick={() => { if (lbZoom <= 1) setLightboxSrc(null); }}
       >
         <button
-          className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center"
+          className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center z-10"
           onClick={() => setLightboxSrc(null)}
         >
           <X className="w-5 h-5 text-white" />
         </button>
+        {lbZoom > 1 && (
+          <button
+            className="absolute top-4 left-4 text-white/70 text-xs px-3 py-1.5 rounded-xl bg-black/50"
+            onClick={() => { setLbZoom(1); setLbPanX(0); setLbPanY(0); }}
+          >
+            重設縮放
+          </button>
+        )}
         <img
           src={lightboxSrc}
-          className="max-w-full max-h-full object-contain rounded-lg"
+          className="max-w-full max-h-full object-contain rounded-lg select-none"
+          style={{
+            transform: `translate(${lbPanX}px, ${lbPanY}px) scale(${lbZoom})`,
+            transformOrigin: 'center center',
+            touchAction: 'none',
+            cursor: lbZoom > 1 ? 'grab' : 'default',
+          }}
           onClick={e => e.stopPropagation()}
+          onTouchStart={lbTouchStart}
+          onTouchMove={lbTouchMove}
           alt=""
+          draggable={false}
         />
       </div>
     );
@@ -138,7 +195,7 @@ export default function PublicGallery() {
                         src={item.imageUrl}
                         alt={item.itemName || '商品'}
                         className="w-full aspect-square object-cover cursor-pointer"
-                        onClick={() => setLightboxSrc(item.imageUrl)}
+                        onClick={() => openLightbox(item.imageUrl)}
                         loading="lazy"
                       />
                       {item.status === 'sold' && (

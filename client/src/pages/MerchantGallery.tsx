@@ -7,7 +7,7 @@ import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import {
-  ChevronLeft, Plus, Loader2, Trash2, X, Upload, Save,
+  ChevronLeft, ChevronDown, Plus, Loader2, Trash2, X, Upload, Save,
   EyeOff, Images, FileImage, Check,
 } from "lucide-react";
 
@@ -98,8 +98,22 @@ export default function MerchantGallery() {
   const [uploadTotal, setUploadTotal] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Lightbox
+  // Lightbox + pinch-zoom
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [lbZoom, setLbZoom] = useState(1);
+  const [lbPanX, setLbPanX] = useState(0);
+  const [lbPanY, setLbPanY] = useState(0);
+  const pinchStartDist = useRef(0);
+  const pinchStartZoom = useRef(1);
+  const panStartTouch = useRef({ x: 0, y: 0 });
+  const panStartOffset = useRef({ x: 0, y: 0 });
+  const lastTapTime = useRef(0);
+
+  // Batch edit panel
+  const [showBatchPanel, setShowBatchPanel] = useState(false);
+  const [batchName, setBatchName] = useState('');
+  const [batchStartNum, setBatchStartNum] = useState('1');
+  const [batchPrice, setBatchPrice] = useState('');
 
   // ── tRPC ──
   const galleriesQ = trpc.productGalleries.myGalleries.useQuery(undefined, {
@@ -275,14 +289,89 @@ export default function MerchantGallery() {
 
   if (!isAuthenticated) return null;
 
+  // ── Lightbox helpers ──
+  function openLightbox(src: string) {
+    setLightboxSrc(src);
+    setLbZoom(1); setLbPanX(0); setLbPanY(0);
+  }
+  function lbPinchDist(t: React.TouchList) {
+    const dx = t[0].clientX - t[1].clientX;
+    const dy = t[0].clientY - t[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+  function lbTouchStart(e: React.TouchEvent) {
+    if (e.touches.length === 2) {
+      pinchStartDist.current = lbPinchDist(e.touches);
+      pinchStartZoom.current = lbZoom;
+    } else if (e.touches.length === 1) {
+      const now = Date.now();
+      if (now - lastTapTime.current < 280) { setLbZoom(1); setLbPanX(0); setLbPanY(0); }
+      lastTapTime.current = now;
+      panStartTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      panStartOffset.current = { x: lbPanX, y: lbPanY };
+    }
+  }
+  function lbTouchMove(e: React.TouchEvent) {
+    if (e.touches.length === 2) {
+      const z = Math.min(6, Math.max(1, pinchStartZoom.current * (lbPinchDist(e.touches) / pinchStartDist.current)));
+      setLbZoom(z);
+    } else if (e.touches.length === 1 && lbZoom > 1) {
+      setLbPanX(panStartOffset.current.x + e.touches[0].clientX - panStartTouch.current.x);
+      setLbPanY(panStartOffset.current.y + e.touches[0].clientY - panStartTouch.current.y);
+    }
+  }
+
+  // ── Batch helpers ──
+  function applyBatchName() {
+    if (!batchName.trim()) { toast.error('請輸入名稱前綴'); return; }
+    const start = parseInt(batchStartNum, 10) || 1;
+    setDraftItems(items => items.map((item, idx) => ({
+      ...item, itemName: `${batchName.trim()} ${String(start + idx).padStart(3, '0')}`,
+    })));
+    toast.success('批量命名完成');
+  }
+  function applyBatchPrice() {
+    if (!batchPrice) { toast.error('請輸入價錢'); return; }
+    setDraftItems(items => items.map(item => ({ ...item, price: batchPrice })));
+    toast.success('批量設價完成');
+  }
+
   // ── Lightbox overlay ──
   if (lightboxSrc) {
     return (
-      <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setLightboxSrc(null)}>
-        <button className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center" onClick={() => setLightboxSrc(null)}>
+      <div
+        className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+        onClick={() => { if (lbZoom <= 1) setLightboxSrc(null); }}
+      >
+        <button
+          className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center z-10"
+          onClick={() => setLightboxSrc(null)}
+        >
           <X className="w-5 h-5 text-white" />
         </button>
-        <img src={lightboxSrc} className="max-w-full max-h-full object-contain rounded-lg" onClick={e => e.stopPropagation()} alt="" />
+        {lbZoom > 1 && (
+          <button
+            className="absolute top-4 left-4 text-white/70 text-xs px-3 py-1.5 rounded-xl bg-black/50"
+            onClick={() => { setLbZoom(1); setLbPanX(0); setLbPanY(0); }}
+          >
+            重設縮放
+          </button>
+        )}
+        <img
+          src={lightboxSrc}
+          className="max-w-full max-h-full object-contain rounded-lg select-none"
+          style={{
+            transform: `translate(${lbPanX}px, ${lbPanY}px) scale(${lbZoom})`,
+            transformOrigin: 'center center',
+            touchAction: 'none',
+            cursor: lbZoom > 1 ? 'grab' : 'default',
+          }}
+          onClick={e => e.stopPropagation()}
+          onTouchStart={lbTouchStart}
+          onTouchMove={lbTouchMove}
+          alt=""
+          draggable={false}
+        />
       </div>
     );
   }
@@ -534,6 +623,69 @@ export default function MerchantGallery() {
                     )}
                   </div>
 
+                  {/* Batch edit panel */}
+                  {draftItems.length > 0 && (
+                    <div className="bg-white rounded-2xl mb-3 overflow-hidden">
+                      <button
+                        onClick={() => setShowBatchPanel(v => !v)}
+                        className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-gray-700"
+                      >
+                        <span>批量設定</span>
+                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${showBatchPanel ? 'rotate-180' : ''}`} />
+                      </button>
+                      {showBatchPanel && (
+                        <div className="px-3 pb-3 border-t border-gray-100 pt-3 space-y-3">
+                          <div>
+                            <p className="text-xs font-semibold text-gray-500 mb-1.5">批量命名（前綴＋流水號）</p>
+                            <div className="flex gap-2">
+                              <input
+                                value={batchName}
+                                onChange={e => setBatchName(e.target.value)}
+                                placeholder="名稱前綴"
+                                maxLength={50}
+                                className="flex-1 px-2.5 py-1.5 text-sm outline-none"
+                                style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '10px' }}
+                              />
+                              <input
+                                value={batchStartNum}
+                                onChange={e => setBatchStartNum(e.target.value)}
+                                placeholder="起始#"
+                                inputMode="numeric"
+                                className="w-14 px-2 py-1.5 text-sm outline-none text-center"
+                                style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '10px' }}
+                              />
+                              <button
+                                onClick={applyBatchName}
+                                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white"
+                                style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
+                              >套用</button>
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-1">例：前綴「銀幣」起始 1 → 銀幣 001、銀幣 002…</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-gray-500 mb-1.5">批量統一價錢</p>
+                            <div className="flex gap-2">
+                              <input
+                                value={batchPrice}
+                                onChange={e => setBatchPrice(e.target.value)}
+                                placeholder="HKD$ 價格"
+                                inputMode="decimal"
+                                className="flex-1 px-2.5 py-1.5 text-sm outline-none"
+                                style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '10px' }}
+                              />
+                              <button
+                                onClick={applyBatchPrice}
+                                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white"
+                                style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
+                              >套用</button>
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-1">套用後仍可個別修改各商品價錢</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {draftItems.length === 0 ? (
                     <div className="bg-white rounded-2xl p-12 text-center">
                       <FileImage className="w-10 h-10 text-gray-200 mx-auto mb-2" />
@@ -549,7 +701,7 @@ export default function MerchantGallery() {
                                 src={item.imageUrl}
                                 alt=""
                                 className="w-full aspect-square object-cover cursor-zoom-in"
-                                onClick={() => setLightboxSrc(item.imageUrl)}
+                                onClick={() => openLightbox(item.imageUrl)}
                               />
                               {item.status === 'sold' && (
                                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
