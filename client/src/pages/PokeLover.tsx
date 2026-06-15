@@ -1458,7 +1458,7 @@ export default function PokeLover() {
 
             {result.ebaySearchQuery && (
               <div data-share-skip="true" className="rounded-xl p-3 mb-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>更多市場參考</p>
+                <p className="text-[10px] font-bold mb-2 tracking-widest uppercase" style={{ background: "linear-gradient(to right, #FF8C00, #FFDE00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", filter: "drop-shadow(0 0 6px rgba(255,160,0,0.45))" }}>更多市場參考</p>
                 <div className="grid grid-cols-2 gap-2">
                   <a
                     href={`https://auctions.yahoo.co.jp/search/search?p=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}&va=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}&exflg=1&b=1&n=50&s1=cbids&o1=d&aucminprice=1`}
@@ -1504,7 +1504,7 @@ export default function PokeLover() {
 
                 {/* 延伸參考 — 移除平台列表 */}
                 <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                  <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.25)" }}>延伸參考</p>
+                  <p className="text-[10px] font-bold mb-2 tracking-widest uppercase" style={{ color: "rgba(255,255,255,0.7)", textShadow: "0 0 8px rgba(255,255,255,0.3)", letterSpacing: "0.14em" }}>延伸參考</p>
                   <div className="flex flex-col gap-2">
                     {[
                       {
@@ -1573,7 +1573,7 @@ export default function PokeLover() {
         {!imagePreview && !analysisError && (
           <>
             <div data-share-skip="true" className="rounded-xl p-4 mt-2" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <p className="text-xs font-bold mb-2" style={{ color: "rgba(255,222,0,0.6)" }}>PokeLover 可以做到</p>
+              <p className="text-xs font-bold mb-2 tracking-widest uppercase" style={{ background: "linear-gradient(to right, #FF8C00, #FFDE00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", filter: "drop-shadow(0 0 6px rgba(255,160,0,0.45))" }}>PokeLover 可以做到</p>
               {[
                 "識別卡片名稱、系列、卡號、稀有度",
                 "參考市場估價（裸卡 / PSA 9 / PSA 10）",
@@ -1595,7 +1595,7 @@ export default function PokeLover() {
 
             {/* 主頁靜態市場參考 */}
             <div data-share-skip="true" className="rounded-xl p-3 mt-2" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-              <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>更多市場參考</p>
+              <p className="text-[10px] font-bold mb-2 tracking-widest uppercase" style={{ background: "linear-gradient(to right, #FF8C00, #FFDE00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", filter: "drop-shadow(0 0 6px rgba(255,160,0,0.45))" }}>更多市場參考</p>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { emoji: "🇯🇵", name: "ヤフオク!", sub: "日本成交", color: "#FF4444", bg: "rgba(255,50,50,0.1)", border: "rgba(255,50,50,0.2)", url: "https://auctions.yahoo.co.jp/search/search?p=pokemon&exflg=1&b=1&n=50&s1=cbids&o1=d&aucminprice=1" },
@@ -1615,7 +1615,7 @@ export default function PokeLover() {
               </div>
 
               <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.25)" }}>延伸參考</p>
+                <p className="text-[10px] font-bold mb-2 tracking-widest uppercase" style={{ color: "rgba(255,255,255,0.7)", textShadow: "0 0 8px rgba(255,255,255,0.3)", letterSpacing: "0.14em" }}>延伸參考</p>
                 <div className="flex flex-col gap-2">
                   {[
                     { name: "PokeHub JP 🏪", url: "https://pokehub.jp", desc: "日本寶可夢卡綜合市場，設買賣板塊及卡況資訊，商品以日文版為主" },
