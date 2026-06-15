@@ -215,296 +215,50 @@ export default function MerchantGallery() {
   }
 
   async function handleSavePoster() {
+    if (!posterRef.current) return;
     setSavingPoster(true);
     try {
-      const cols = editCols;
-      const items = draftItems.filter(i => i.status !== 'hidden');
-      const title = currentGallery?.title ?? '';
-      const merchantName = (currentGallery?.merchantName as string | undefined) ?? '';
-      const description = (currentGallery as any)?.description ?? '';
-      const activeCount = items.filter(i => i.status === 'active').length;
-      const soldCount = items.filter(i => i.status === 'sold').length;
-      const isCompact = cols >= 7;
+      // ── Step 1: pre-load all images as blob URLs to bypass S3 CORS taint ──
+      const imgEls = Array.from(posterRef.current.querySelectorAll('img'));
+      const origSrcs = imgEls.map(el => el.src);
+      const blobUrls: string[] = [];
 
-      const W = 1080;
-      const hPad = 24; // horizontal padding like px-3 equivalent
-      const gap = isCompact ? 2 : 5;
-      const cellW = Math.floor((W - hPad * 2 - gap * (cols - 1)) / cols);
-      const buyStripH = isCompact ? 0 : Math.max(24, Math.round(cellW * 0.13));
-      const cardH = cellW + buyStripH;
-      const rows = Math.ceil(items.length / cols);
-      const cardR = isCompact ? 4 : 10;
-
-      // measure hero height
-      const tmpC = document.createElement('canvas');
-      tmpC.width = W; tmpC.height = 1;
-      const tmpCtx = tmpC.getContext('2d')!;
-      let heroH = 28; // top pad
-      heroH += 26; // merchant name row
-      heroH += 12; // gap
-      heroH += 44; // title
-      if (description) {
-        tmpCtx.font = '26px sans-serif';
-        const maxTW = W - hPad * 2 - 48;
-        let line = ''; let dLines = 0;
-        for (const ch of description) {
-          const t = line + ch;
-          if (tmpCtx.measureText(t).width > maxTW && line) { dLines++; line = ch; } else line = t;
-        }
-        if (line) dLines++;
-        heroH += dLines * 32 + 8;
-      }
-      heroH += 40; // badges row + bottom pad
-      const gridH = rows * (cardH + gap) - gap;
-      const H = heroH + gridH + hPad;
-
-      const canvas = document.createElement('canvas');
-      canvas.width = W; canvas.height = H;
-      const ctx = canvas.getContext('2d')!;
-
-      // arcTo-based rounded rect — works in ALL browsers, no roundRect API needed
-      function rrect(x: number, y: number, w: number, h: number, r: number) {
-        const rv = Math.min(r, w / 2, h / 2);
-        ctx.beginPath();
-        ctx.moveTo(x + rv, y);
-        ctx.lineTo(x + w - rv, y);
-        ctx.arcTo(x + w, y, x + w, y + rv, rv);
-        ctx.lineTo(x + w, y + h - rv);
-        ctx.arcTo(x + w, y + h, x + w - rv, y + h, rv);
-        ctx.lineTo(x + rv, y + h);
-        ctx.arcTo(x, y + h, x, y + h - rv, rv);
-        ctx.lineTo(x, y + rv);
-        ctx.arcTo(x, y, x + rv, y, rv);
-        ctx.closePath();
-      }
-
-      // top-rounded-only clip for image (top two corners rounded, bottom flat)
-      function rrectTop(x: number, y: number, w: number, h: number, r: number) {
-        const rv = Math.min(r, w / 2, h / 2);
-        ctx.beginPath();
-        ctx.moveTo(x + rv, y);
-        ctx.lineTo(x + w - rv, y);
-        ctx.arcTo(x + w, y, x + w, y + rv, rv);
-        ctx.lineTo(x + w, y + h);
-        ctx.lineTo(x, y + h);
-        ctx.lineTo(x, y + rv);
-        ctx.arcTo(x, y, x + rv, y, rv);
-        ctx.closePath();
-      }
-
-      // ── Full canvas background (#ECECEC like PublicGallery) ──
-      ctx.fillStyle = '#ECECEC';
-      ctx.fillRect(0, 0, W, H);
-
-      // ── Hero: dark gradient background (rounded card) ──
-      const heroGrad = ctx.createLinearGradient(0, 0, W, heroH);
-      heroGrad.addColorStop(0, '#0D1B2A');
-      heroGrad.addColorStop(0.4, '#1B263B');
-      heroGrad.addColorStop(1, '#1F3A5F');
-      ctx.fillStyle = heroGrad;
-      rrect(hPad / 2, hPad / 2, W - hPad, heroH - hPad / 2, 16);
-      ctx.fill();
-
-      let hy = 28 + hPad / 2;
-      // merchant name (amber)
-      ctx.fillStyle = '#FFB347';
-      ctx.font = `bold 26px sans-serif`;
-      ctx.textAlign = 'left';
-      ctx.fillText(merchantName, hPad * 2, hy + 20);
-      hy += 36;
-      // title (white bold)
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = `bold 44px sans-serif`;
-      ctx.fillText(title, hPad * 2, hy + 40);
-      hy += 54;
-      // description (white/55%)
-      if (description) {
-        ctx.fillStyle = 'rgba(255,255,255,0.55)';
-        ctx.font = `26px sans-serif`;
-        const maxTW = W - hPad * 4;
-        let line = '';
-        for (const ch of description) {
-          const t = line + ch;
-          if (ctx.measureText(t).width > maxTW && line) {
-            ctx.fillText(line, hPad * 2, hy + 24);
-            hy += 32; line = ch;
-          } else line = t;
-        }
-        if (line) { ctx.fillText(line, hPad * 2, hy + 24); hy += 32; }
-        hy += 8;
-      }
-      // badges (在售 / 已售)
-      if (activeCount > 0) {
-        ctx.fillStyle = 'rgba(34,197,94,0.2)';
-        rrect(hPad * 2, hy, 140, 30, 15); ctx.fill();
-        ctx.strokeStyle = 'rgba(34,197,94,0.25)'; ctx.lineWidth = 1.5;
-        rrect(hPad * 2, hy, 140, 30, 15); ctx.stroke();
-        ctx.fillStyle = '#4ADE80'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText(`${activeCount} 件在售`, hPad * 2 + 70, hy + 21);
-      }
-      if (soldCount > 0) {
-        const bx = activeCount > 0 ? hPad * 2 + 150 : hPad * 2;
-        ctx.fillStyle = 'rgba(239,68,68,0.18)';
-        rrect(bx, hy, 120, 30, 15); ctx.fill();
-        ctx.strokeStyle = 'rgba(239,68,68,0.2)'; ctx.lineWidth = 1.5;
-        rrect(bx, hy, 120, 30, 15); ctx.stroke();
-        ctx.fillStyle = '#FCA5A5'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText(`${soldCount} 件已售`, bx + 60, hy + 21);
-      }
-
-      // load images via fetch→blob (avoids canvas CORS taint)
-      const loadedImgs = await Promise.all(items.map(async (item) => {
+      await Promise.all(imgEls.map(async (el, i) => {
         try {
-          const resp = await fetch(item.imageUrl);
+          const resp = await fetch(origSrcs[i]);
           const blob = await resp.blob();
           const burl = URL.createObjectURL(blob);
-          return await new Promise<HTMLImageElement>((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => { URL.revokeObjectURL(burl); resolve(img); };
-            img.onerror = reject;
-            img.src = burl;
-          });
-        } catch { return null; }
+          blobUrls[i] = burl;
+          el.src = burl;
+          // wait for img to re-render with blob URL
+          if (!el.complete) await new Promise<void>(res => { el.onload = () => res(); el.onerror = () => res(); });
+        } catch {
+          blobUrls[i] = origSrcs[i]; // keep original on failure
+        }
       }));
 
-      // ── Grid cards ──
-      const gridTop = heroH;
-      const nameFontSz = Math.max(14, Math.round(cellW / (isCompact ? 9 : 7)));
-
-      items.forEach((item, idx) => {
-        const col = idx % cols;
-        const row = Math.floor(idx / cols);
-        const cx = hPad + col * (cellW + gap);
-        const cy = gridTop + row * (cardH + gap);
-        const isSold = item.status === 'sold';
-        const price = parseFloat(item.price);
-
-        // card background + shadow
-        ctx.save();
-        if (!isCompact) {
-          ctx.shadowColor = 'rgba(0,0,0,0.10)';
-          ctx.shadowBlur = 6; ctx.shadowOffsetY = 1;
-        }
-        ctx.fillStyle = '#ffffff';
-        rrect(cx, cy, cellW, cardH, cardR);
-        ctx.fill();
-        ctx.restore();
-
-        // clip image
-        ctx.save();
-        if (buyStripH > 0) {
-          rrectTop(cx, cy, cellW, cellW, cardR);
-        } else {
-          rrect(cx, cy, cellW, cellW, cardR);
-        }
-        ctx.clip();
-
-        const img = loadedImgs[idx];
-        if (img) {
-          let sw = img.width, sh = img.height, sx = 0, sy = 0;
-          if (img.width / img.height > 1) { sw = img.height; sx = (img.width - sw) / 2; }
-          else { sh = img.width; sy = (img.height - sh) / 2; }
-          if (isSold) { ctx.filter = 'grayscale(50%) brightness(0.88)'; }
-          ctx.drawImage(img, sx, sy, sw, sh, cx, cy, cellW, cellW);
-          ctx.filter = 'none';
-        } else {
-          ctx.fillStyle = '#f3f4f6';
-          ctx.fillRect(cx, cy, cellW, cellW);
-        }
-
-        // gradient overlay on image (bottom → top, like PublicGallery)
-        if (!isCompact && (item.itemName || price > 0)) {
-          const ovGrad = ctx.createLinearGradient(0, cy + cellW - cellW * 0.45, 0, cy + cellW);
-          ovGrad.addColorStop(0, 'rgba(0,0,0,0)');
-          ovGrad.addColorStop(0.4, 'rgba(0,0,0,0.25)');
-          ovGrad.addColorStop(1, 'rgba(0,0,0,0.68)');
-          ctx.fillStyle = ovGrad;
-          ctx.fillRect(cx, cy + cellW - cellW * 0.45, cellW, cellW * 0.45);
-
-          let ty = cy + cellW - 8;
-          if (price > 0) {
-            ctx.fillStyle = '#FFD580'; ctx.font = `bold ${nameFontSz}px sans-serif`;
-            ctx.textAlign = 'left';
-            ctx.fillText(`HK$${price.toLocaleString('en-HK')}`, cx + 6, ty);
-            ty -= nameFontSz + 2;
-          }
-          if (item.itemName) {
-            ctx.fillStyle = '#FFFFFF'; ctx.font = `bold ${nameFontSz}px sans-serif`;
-            const maxNW = cellW - 12;
-            let nm = item.itemName;
-            while (nm.length > 1 && ctx.measureText(nm).width > maxNW) nm = nm.slice(0, -1);
-            if (nm !== item.itemName) nm += '…';
-            ctx.fillText(nm, cx + 6, ty);
-            ty -= nameFontSz;
-          }
-          if (item.itemNumber) {
-            ctx.fillStyle = 'rgba(255,255,255,0.7)';
-            ctx.font = `${Math.round(nameFontSz * 0.8)}px monospace`;
-            ctx.fillText(`#${item.itemNumber}`, cx + 6, ty);
-          }
-        }
-
-        // sold ribbon (non-compact)
-        if (isSold && !isCompact) {
-          const rs = Math.round(cellW * 0.12);
-          ctx.save();
-          ctx.beginPath();
-          ctx.moveTo(cx + cellW - rs * 2, cy);
-          ctx.lineTo(cx + cellW, cy);
-          ctx.lineTo(cx + cellW, cy + rs * 2);
-          ctx.closePath();
-          ctx.fillStyle = '#DC2626'; ctx.fill();
-          ctx.restore();
-          ctx.save();
-          ctx.fillStyle = '#fff';
-          ctx.font = `bold ${Math.round(rs * 0.55)}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.translate(cx + cellW - rs * 0.72, cy + rs * 0.72);
-          ctx.rotate(Math.PI / 4);
-          ctx.fillText('已售', 0, 0);
-          ctx.restore();
-        }
-
-        // sold (compact)
-        if (isSold && isCompact) {
-          ctx.fillStyle = 'rgba(185,28,28,0.85)';
-          ctx.font = `bold ${Math.max(8, nameFontSz - 2)}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.fillText('已售', cx + cellW / 2, cy + cellW / 2);
-        }
-
-        ctx.restore();
-
-        // buy button strip (bottom-rounded only)
-        if (buyStripH > 0) {
-          ctx.save();
-          // bottom-rounded rect: top flat, bottom rounded
-          ctx.beginPath();
-          ctx.moveTo(cx, cy + cellW);
-          ctx.lineTo(cx + cellW, cy + cellW);
-          ctx.lineTo(cx + cellW, cy + cellW + buyStripH - cardR);
-          ctx.arcTo(cx + cellW, cy + cellW + buyStripH, cx + cellW - cardR, cy + cellW + buyStripH, cardR);
-          ctx.lineTo(cx + cardR, cy + cellW + buyStripH);
-          ctx.arcTo(cx, cy + cellW + buyStripH, cx, cy + cellW + buyStripH - cardR, cardR);
-          ctx.lineTo(cx, cy + cellW);
-          ctx.closePath();
-          if (isSold) {
-            ctx.fillStyle = '#F3F4F6';
-          } else {
-            const btnGrad = ctx.createLinearGradient(0, cy + cellW, 0, cy + cellW + buyStripH);
-            btnGrad.addColorStop(0, '#FBBF24');
-            btnGrad.addColorStop(1, '#78350F');
-            ctx.fillStyle = btnGrad;
-          }
-          ctx.fill();
-          ctx.restore();
-          ctx.fillStyle = isSold ? '#9CA3AF' : '#ffffff';
-          ctx.font = `bold ${nameFontSz}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.fillText(isSold ? '已售出 · 聯繫商戶' : '立即落單', cx + cellW / 2, cy + cellW + buyStripH / 2 + nameFontSz * 0.35);
-        }
+      // ── Step 2: html2canvas captures the exact rendered DOM ──
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(posterRef.current, {
+        useCORS: false,
+        allowTaint: true,
+        scale: 3,
+        backgroundColor: '#ECECEC',
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: posterRef.current.scrollWidth,
+        windowHeight: posterRef.current.scrollHeight,
+        width: posterRef.current.scrollWidth,
+        height: posterRef.current.scrollHeight,
       });
 
+      // ── Step 3: restore original src & revoke blob URLs ──
+      imgEls.forEach((el, i) => {
+        el.src = origSrcs[i];
+        if (blobUrls[i] && blobUrls[i] !== origSrcs[i]) URL.revokeObjectURL(blobUrls[i]);
+      });
+
+      // ── Step 4: download PNG ──
       canvas.toBlob((blob) => {
         if (!blob) { toast.error('生成失敗'); setSavingPoster(false); return; }
         const url = URL.createObjectURL(blob);
@@ -516,10 +270,12 @@ export default function MerchantGallery() {
         toast.success('圖片已儲存');
         setSavingPoster(false);
       }, 'image/png');
+      return; // early return — rest of old canvas code removed
     } catch (err) {
       console.error('poster generation error', err);
       toast.error('生成圖片失敗，請重試');
       setSavingPoster(false);
+      return;
     }
   }
 
@@ -1191,6 +947,8 @@ export default function MerchantGallery() {
             <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#ECECEC', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
               {/* scrollable preview — min-h-0 stops flex overflow leak */}
               <div className="flex-1 min-h-0 overflow-y-auto">
+                {/* posterRef wraps the full scrollable content for html2canvas capture */}
+                <div ref={posterRef}>
                 {/* ── Hero Banner (exact copy of PublicGallery) ── */}
                 <div className="mx-3 mt-3 mb-3 rounded-2xl overflow-hidden shadow-lg" style={{
                   background: 'linear-gradient(145deg, #0D1B2A 0%, #1B263B 40%, #1F3A5F 100%)',
@@ -1343,6 +1101,7 @@ export default function MerchantGallery() {
                     })}
                   </div>
                 )}
+                </div>{/* /posterRef */}
               </div>
 
               {/* bottom action buttons — safe-area padding for iPhone notch */}
