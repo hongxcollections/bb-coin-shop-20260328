@@ -1183,7 +1183,7 @@ export default function MerchantGallery() {
         const activeCount = posterItems.filter(i => i.status === 'active').length;
         const soldCount = posterItems.filter(i => i.status === 'sold').length;
         return (
-          <div className="fixed inset-0 z-[300] bg-black/70 flex flex-col" style={{ paddingLeft: 3, paddingRight: 3, paddingTop: 3 }}>
+          <div className="fixed inset-0 z-[300] bg-black/70 flex flex-col" style={{ paddingLeft: 3, paddingRight: 3, paddingTop: 3, paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}>
             <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#ECECEC', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
               {/* scrollable preview — min-h-0 stops flex overflow leak */}
               <div className="flex-1 min-h-0 overflow-y-auto pb-4">
