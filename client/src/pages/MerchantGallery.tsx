@@ -411,14 +411,16 @@ export default function MerchantGallery() {
         }
         ctx.closePath(); ctx.clip();
 
-        if (img) {
-          if (isSold) ctx.filter = 'grayscale(50%) brightness(0.88)';
-          // object-cover centre crop
-          const nw = img.naturalWidth, nh = img.naturalHeight;
-          let sx = 0, sy = 0, sw = nw, sh = nh;
-          if (nw / nh > 1) { sw = nh; sx = (nw - sw) / 2; } else { sh = nw; sy = (nh - sh) / 2; }
-          ctx.drawImage(img, sx, sy, sw, sh, cx, cy, cellW, cellW);
-          ctx.filter = 'none';
+        if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+          try {
+            if (isSold) ctx.filter = 'grayscale(50%) brightness(0.88)';
+            // object-cover centre crop
+            const nw = img.naturalWidth, nh = img.naturalHeight;
+            let sx = 0, sy = 0, sw = nw, sh = nh;
+            if (nw / nh > 1) { sw = nh; sx = (nw - sw) / 2; } else { sh = nw; sy = (nh - sh) / 2; }
+            ctx.drawImage(img, sx, sy, sw, sh, cx, cy, cellW, cellW);
+            ctx.filter = 'none';
+          } catch { ctx.filter = 'none'; ctx.fillStyle = '#f3f4f6'; ctx.fillRect(cx, cy, cellW, cellW); }
         } else {
           ctx.fillStyle = '#f3f4f6'; ctx.fillRect(cx, cy, cellW, cellW);
         }
@@ -501,15 +503,14 @@ export default function MerchantGallery() {
         }
       });
 
-      // ── Download ──
-      canvas.toBlob((blob) => {
-        if (!blob) { toast.error('生成失敗'); setSavingPoster(false); return; }
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = `gallery-${editGalleryId}.png`; a.click();
-        URL.revokeObjectURL(url);
-        toast.success('圖片已儲存'); setSavingPoster(false);
-      }, 'image/png');
+      // ── Download (toDataURL — same as PokeCollection, synchronous & reliable) ──
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.download = `gallery-${editGalleryId}.png`;
+      a.href = dataUrl;
+      a.click();
+      toast.success('圖片已儲存');
+      setSavingPoster(false);
 
     } catch (err) {
       console.error('[poster] error:', err);
