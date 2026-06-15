@@ -7504,3 +7504,195 @@ export async function getSessionCoverImage(sessionId: number): Promise<{ coverIm
     return null;
   }
 }
+
+// ─── Product Galleries ───────────────────────────────────────────────────────
+
+let _productGalleriesTableChecked = false;
+
+export async function ensureProductGalleriesTable(): Promise<void> {
+  if (_productGalleriesTableChecked) return;
+  const pool = await getRawPool();
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS productGalleries (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      merchantId INT NOT NULL,
+      merchantName VARCHAR(100) NOT NULL,
+      title VARCHAR(200) NOT NULL,
+      description TEXT,
+      coverImageUrl VARCHAR(500),
+      columnsPerRow INT NOT NULL DEFAULT 5,
+      status ENUM('draft','active','hidden') NOT NULL DEFAULT 'draft',
+      createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS productGalleryItems (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      galleryId INT NOT NULL,
+      merchantId INT NOT NULL,
+      itemName VARCHAR(200) NOT NULL DEFAULT '',
+      itemNumber VARCHAR(100) DEFAULT '',
+      price DECIMAL(10,2) NOT NULL DEFAULT 0,
+      currency VARCHAR(10) NOT NULL DEFAULT 'HKD',
+      imageUrl VARCHAR(500) NOT NULL DEFAULT '',
+      s3Key VARCHAR(500),
+      status ENUM('active','sold','hidden') NOT NULL DEFAULT 'active',
+      sortOrder INT NOT NULL DEFAULT 0,
+      createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  _productGalleriesTableChecked = true;
+}
+
+export interface ProductGalleryRow {
+  id: number; merchantId: number; merchantName: string; title: string;
+  description: string | null; coverImageUrl: string | null; columnsPerRow: number;
+  status: string; createdAt: Date; updatedAt: Date;
+}
+
+export interface ProductGalleryItemRow {
+  id: number; galleryId: number; merchantId: number; itemName: string;
+  itemNumber: string | null; price: string; currency: string; imageUrl: string;
+  s3Key: string | null; status: string; sortOrder: number; createdAt: Date;
+}
+
+export async function listProductGalleriesForMerchant(
+  merchantId: number
+): Promise<Array<ProductGalleryRow & { itemCount: number }>> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    `SELECT g.*, (SELECT COUNT(*) FROM productGalleryItems i WHERE i.galleryId = g.id) AS itemCount
+     FROM productGalleries g WHERE g.merchantId = ? ORDER BY g.createdAt DESC`,
+    [merchantId]
+  );
+  return rows as any[];
+}
+
+export async function createProductGallery(data: {
+  merchantId: number; merchantName: string; title: string;
+  description?: string; columnsPerRow: number;
+}): Promise<number> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const [r]: any = await pool.execute(
+    'INSERT INTO productGalleries (merchantId, merchantName, title, description, columnsPerRow) VALUES (?, ?, ?, ?, ?)',
+    [data.merchantId, data.merchantName, data.title, data.description ?? null, data.columnsPerRow]
+  );
+  return r.insertId as number;
+}
+
+export async function getProductGallery(id: number): Promise<ProductGalleryRow | null> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute('SELECT * FROM productGalleries WHERE id = ? LIMIT 1', [id]);
+  return (rows[0] ?? null) as ProductGalleryRow | null;
+}
+
+export async function updateProductGallery(id: number, data: {
+  title?: string; description?: string; columnsPerRow?: number;
+  status?: string; coverImageUrl?: string | null;
+}): Promise<void> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const sets: string[] = [];
+  const vals: any[] = [];
+  if (data.title !== undefined)         { sets.push('title = ?');         vals.push(data.title); }
+  if (data.description !== undefined)   { sets.push('description = ?');   vals.push(data.description ?? null); }
+  if (data.columnsPerRow !== undefined) { sets.push('columnsPerRow = ?'); vals.push(data.columnsPerRow); }
+  if (data.status !== undefined)        { sets.push('status = ?');        vals.push(data.status); }
+  if (data.coverImageUrl !== undefined) { sets.push('coverImageUrl = ?'); vals.push(data.coverImageUrl); }
+  if (!sets.length) return;
+  sets.push('updatedAt = NOW()');
+  vals.push(id);
+  await pool.execute(`UPDATE productGalleries SET ${sets.join(', ')} WHERE id = ?`, vals);
+}
+
+export async function deleteProductGallery(id: number): Promise<void> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  await pool.execute('DELETE FROM productGalleryItems WHERE galleryId = ?', [id]);
+  await pool.execute('DELETE FROM productGalleries WHERE id = ?', [id]);
+}
+
+export async function listProductGalleryItems(galleryId: number): Promise<ProductGalleryItemRow[]> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    'SELECT * FROM productGalleryItems WHERE galleryId = ? ORDER BY sortOrder ASC, id ASC',
+    [galleryId]
+  );
+  return rows as ProductGalleryItemRow[];
+}
+
+export async function addProductGalleryItems(items: Array<{
+  galleryId: number; merchantId: number; imageUrl: string; s3Key?: string; sortOrder: number;
+}>): Promise<number[]> {
+  if (!items.length) return [];
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const ids: number[] = [];
+  for (const it of items) {
+    const [r]: any = await pool.execute(
+      'INSERT INTO productGalleryItems (galleryId, merchantId, imageUrl, s3Key, sortOrder) VALUES (?, ?, ?, ?, ?)',
+      [it.galleryId, it.merchantId, it.imageUrl, it.s3Key ?? null, it.sortOrder]
+    );
+    ids.push(r.insertId);
+  }
+  return ids;
+}
+
+export async function updateProductGalleryItem(id: number, merchantId: number, data: {
+  itemName?: string; itemNumber?: string; price?: number; status?: string;
+}): Promise<void> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const sets: string[] = [];
+  const vals: any[] = [];
+  if (data.itemName !== undefined)   { sets.push('itemName = ?');   vals.push(data.itemName); }
+  if (data.itemNumber !== undefined) { sets.push('itemNumber = ?'); vals.push(data.itemNumber); }
+  if (data.price !== undefined)      { sets.push('price = ?');      vals.push(data.price); }
+  if (data.status !== undefined)     { sets.push('status = ?');     vals.push(data.status); }
+  if (!sets.length) return;
+  vals.push(id, merchantId);
+  await pool.execute(`UPDATE productGalleryItems SET ${sets.join(', ')} WHERE id = ? AND merchantId = ?`, vals);
+}
+
+export async function deleteProductGalleryItem(id: number, merchantId: number): Promise<void> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  await pool.execute('DELETE FROM productGalleryItems WHERE id = ? AND merchantId = ?', [id, merchantId]);
+}
+
+export async function batchUpdateProductGalleryItems(
+  items: Array<{ id: number; itemName: string; itemNumber: string; price: number; status: string }>,
+  merchantId: number
+): Promise<void> {
+  if (!items.length) return;
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  for (const it of items) {
+    await pool.execute(
+      'UPDATE productGalleryItems SET itemName = ?, itemNumber = ?, price = ?, status = ? WHERE id = ? AND merchantId = ?',
+      [it.itemName, it.itemNumber, it.price, it.status, it.id, merchantId]
+    );
+  }
+}
+
+export async function getPublicGalleryWithItems(id: number): Promise<{
+  gallery: ProductGalleryRow; items: ProductGalleryItemRow[];
+} | null> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const [gRows]: any = await pool.execute(
+    'SELECT * FROM productGalleries WHERE id = ? AND status = "active" LIMIT 1',
+    [id]
+  );
+  if (!gRows[0]) return null;
+  const [items]: any = await pool.execute(
+    'SELECT * FROM productGalleryItems WHERE galleryId = ? ORDER BY sortOrder ASC, id ASC',
+    [id]
+  );
+  return { gallery: gRows[0] as ProductGalleryRow, items: items as ProductGalleryItemRow[] };
+}

@@ -86,6 +86,8 @@ import PokeLover from "./pages/PokeLover";
 import PokeCollection from "./pages/PokeCollection";
 import Messages from "./pages/Messages";
 import ChatRoom from "./pages/ChatRoom";
+import MerchantGallery from "./pages/MerchantGallery";
+import PublicGallery from "./pages/PublicGallery";
 
 function MerchantPendingOrdersNotice() {
   const { user, isAuthenticated } = useAuth();
@@ -241,6 +243,8 @@ function Router() {
       <Route path={"/merchant/group-auctions"} component={GroupAuctionList} />
       <Route path={"/group/:roundId/flyer"} component={GroupAuctionFlyer} />
       <Route path={"/group/:roundId"} component={GroupAuctionBidPage} />
+      <Route path={"/merchant/galleries"} component={MerchantGallery} />
+      <Route path={"/gallery/:id"} component={PublicGallery} />
       <Route path={"/coin-analysis"} component={CoinAnalysis} />
       <Route path={"/pokemon"} component={PokeLover} />
       <Route path={"/pokemon/collection"} component={PokeCollection} />

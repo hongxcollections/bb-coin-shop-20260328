@@ -8,7 +8,7 @@ import {
   AlertCircle, ArrowUpRight, ArrowDownLeft, ShoppingBag, Settings,
   RotateCcw, Layers, CreditCard, PlusCircle, Send, ChevronDown, Loader2,
   Upload, X, ImageIcon, Printer, Search, HelpCircle, Package,
-  LayoutList, LayoutGrid, Grid3X3, Maximize2, Link2, Copy, Tag, QrCode, BookOpen, Receipt,
+  LayoutList, LayoutGrid, Grid3X3, Maximize2, Link2, Copy, Tag, QrCode, BookOpen, Receipt, Images,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { sanitizeUserText } from "@/lib/utils";
@@ -727,6 +727,17 @@ export default function MerchantDashboard() {
               <div>
                 <p className="font-semibold text-sm text-green-900">商品管理</p>
                 <p className="text-xs text-gray-400 mt-0.5">上架 · 定價 · 管理</p>
+              </div>
+            </div>
+          </Link>
+          <Link href="/merchant/galleries">
+            <div className="rounded-2xl bg-white border border-sky-100 p-4 flex items-center gap-3 hover:border-sky-300 hover:bg-sky-50/50 transition-colors cursor-pointer">
+              <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0">
+                <Images className="w-5 h-5 text-sky-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-sky-900">圖片集商品</p>
+                <p className="text-xs text-gray-400 mt-0.5">批量上圖 · 一圖一品</p>
               </div>
             </div>
           </Link>

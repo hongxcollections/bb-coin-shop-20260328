@@ -12136,6 +12136,196 @@ EXAMPLE OUTPUT (exact format):
       return { ok: true, spotHkdPerGram, spotUsdPerOz, sources, updatedAt: new Date().toISOString() };
     }),
   }),
+
+  /** 圖片集商品 — 商戶批量上圖，每圖為獨立商品 */
+  productGalleries: router({
+    myGalleries: protectedProcedure.query(async ({ ctx }) => {
+      const app = await getMerchantApplicationByUser(ctx.user.id);
+      if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+      }
+      const { listProductGalleriesForMerchant } = await import('./db') as any;
+      return listProductGalleriesForMerchant(ctx.user.id);
+    }),
+
+    createGallery: protectedProcedure
+      .input(z.object({
+        title: z.string().min(1).max(200),
+        description: z.string().max(2000).optional(),
+        columnsPerRow: z.number().int().min(1).max(20).default(5),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        const { createProductGallery } = await import('./db') as any;
+        const id = await createProductGallery({
+          merchantId: ctx.user.id,
+          merchantName: app?.merchantName ?? ctx.user.name ?? '商戶',
+          title: input.title,
+          description: input.description,
+          columnsPerRow: input.columnsPerRow,
+        });
+        return { id };
+      }),
+
+    updateGallery: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        title: z.string().min(1).max(200).optional(),
+        description: z.string().max(2000).optional(),
+        columnsPerRow: z.number().int().min(1).max(20).optional(),
+        status: z.enum(['draft', 'active', 'hidden']).optional(),
+        coverImageUrl: z.string().url().nullable().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, updateProductGallery } = await import('./db') as any;
+        const gallery = await getProductGallery(input.id);
+        if (!gallery || gallery.merchantId !== ctx.user.id) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+        await updateProductGallery(input.id, {
+          title: input.title,
+          description: input.description,
+          columnsPerRow: input.columnsPerRow,
+          status: input.status,
+          coverImageUrl: input.coverImageUrl,
+        });
+        return { ok: true };
+      }),
+
+    deleteGallery: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, deleteProductGallery } = await import('./db') as any;
+        const gallery = await getProductGallery(input.id);
+        if (!gallery || gallery.merchantId !== ctx.user.id) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+        await deleteProductGallery(input.id);
+        return { ok: true };
+      }),
+
+    getForEdit: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        const { getProductGallery, listProductGalleryItems } = await import('./db') as any;
+        const gallery = await getProductGallery(input.id);
+        if (!gallery || gallery.merchantId !== ctx.user.id) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+        const items = await listProductGalleryItems(input.id);
+        return { gallery, items };
+      }),
+
+    signItemImageUpload: protectedProcedure
+      .input(z.object({
+        mimeType: z.string().default('image/jpeg'),
+        fileName: z.string().default('image.jpg'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        if (app?.status !== 'approved' && ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: '非商戶會員' });
+        }
+        const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+        const mime = (input.mimeType || 'image/jpeg').toLowerCase();
+        if (!allowed.includes(mime)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `不支援格式 ${mime}` });
+        }
+        const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
+        const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const key = `merchant-galleries/${ctx.user.id}/${uid}.${ext}`;
+        const signed = await storageSignPut(key, mime, 300);
+        return { uploadUrl: signed.uploadUrl, finalUrl: signed.finalUrl, key: signed.key };
+      }),
+
+    addItems: protectedProcedure
+      .input(z.object({
+        galleryId: z.number().int().positive(),
+        items: z.array(z.object({
+          imageUrl: z.string().url(),
+          s3Key: z.string().optional(),
+        })).max(200),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, listProductGalleryItems, addProductGalleryItems } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+        const existing = await listProductGalleryItems(input.galleryId);
+        if (existing.length + input.items.length > 200) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `最多 200 張，目前已有 ${existing.length} 張` });
+        }
+        const startOrder = existing.length;
+        const toAdd = input.items.map((it: any, i: number) => ({
+          galleryId: input.galleryId,
+          merchantId: ctx.user.id,
+          imageUrl: it.imageUrl,
+          s3Key: it.s3Key,
+          sortOrder: startOrder + i,
+        }));
+        const ids = await addProductGalleryItems(toAdd);
+        return { ids };
+      }),
+
+    updateItem: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        itemName: z.string().max(200).optional(),
+        itemNumber: z.string().max(100).optional(),
+        price: z.number().min(0).optional(),
+        status: z.enum(['active', 'sold', 'hidden']).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { updateProductGalleryItem } = await import('./db') as any;
+        await updateProductGalleryItem(input.id, ctx.user.id, {
+          itemName: input.itemName,
+          itemNumber: input.itemNumber,
+          price: input.price,
+          status: input.status,
+        });
+        return { ok: true };
+      }),
+
+    deleteItem: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const { deleteProductGalleryItem } = await import('./db') as any;
+        await deleteProductGalleryItem(input.id, ctx.user.id);
+        return { ok: true };
+      }),
+
+    batchUpdateItems: protectedProcedure
+      .input(z.object({
+        galleryId: z.number().int().positive(),
+        items: z.array(z.object({
+          id: z.number().int().positive(),
+          itemName: z.string().max(200),
+          itemNumber: z.string().max(100),
+          price: z.number().min(0),
+          status: z.enum(['active', 'sold', 'hidden']),
+        })).max(200),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, batchUpdateProductGalleryItems } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+        await batchUpdateProductGalleryItems(input.items, ctx.user.id);
+        return { ok: true };
+      }),
+
+    getPublic: publicProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(async ({ input }) => {
+        const { getPublicGalleryWithItems } = await import('./db') as any;
+        return getPublicGalleryWithItems(input.id);
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;
 
