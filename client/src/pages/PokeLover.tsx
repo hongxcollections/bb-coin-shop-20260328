@@ -1459,7 +1459,7 @@ export default function PokeLover() {
             {result.ebaySearchQuery && (
               <div data-share-skip="true" className="rounded-xl p-3 mb-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
                 <p className="text-[10px] font-bold mb-2 tracking-widest uppercase" style={{ background: "linear-gradient(to right, #FF8C00, #FFDE00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", filter: "drop-shadow(0 0 6px rgba(255,160,0,0.45))" }}>更多市場參考</p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <a
                     href={`https://auctions.yahoo.co.jp/search/search?p=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}&va=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}&exflg=1&b=1&n=50&s1=cbids&o1=d&aucminprice=1`}
                     target="_blank" rel="noopener noreferrer"
@@ -1500,6 +1500,36 @@ export default function PokeLover() {
                     <span className="text-[10px] font-bold leading-tight" style={{ color: "#64B4FF" }}>PriceCharting</span>
                     <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>國際走勢</span>
                   </a>
+                  <a
+                    href={`https://pokehub.app/search?q=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
+                    style={{ background: "rgba(160,80,255,0.1)", border: "1px solid rgba(160,80,255,0.2)" }}
+                  >
+                    <span className="text-base">🏪</span>
+                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#A050FF" }}>PokeHub</span>
+                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>日本市場</span>
+                  </a>
+                  <a
+                    href={`https://www.pokechange.fr/fr/cartes?search=${encodeURIComponent(result.ebaySearchQuery)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
+                    style={{ background: "rgba(0,160,80,0.1)", border: "1px solid rgba(0,160,80,0.2)" }}
+                  >
+                    <span className="text-base">🇫🇷</span>
+                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#00C864" }}>Pokéchange</span>
+                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>法國市場</span>
+                  </a>
+                  <a
+                    href={`https://www.clutchpacks.io/search?q=${encodeURIComponent(result.ebaySearchQuery)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
+                    style={{ background: "rgba(255,160,0,0.1)", border: "1px solid rgba(255,160,0,0.2)" }}
+                  >
+                    <span className="text-base">📦</span>
+                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#FFA000" }}>ClutchPacks</span>
+                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>美國開包</span>
+                  </a>
                 </div>
 
                 {/* 延伸參考 — 移除平台列表 */}
@@ -1511,11 +1541,6 @@ export default function PokeLover() {
                         name: "SNKRDUNK",
                         url: "https://snkrdunk.com",
                         desc: "日本球鞋及交換卡市場，主打限量球鞋，亦設寶可夢卡牌買賣板塊",
-                      },
-                      {
-                        name: "PokeHub JP 🏪",
-                        url: "https://pokehub.jp",
-                        desc: "日本寶可夢卡綜合市場，設買賣板塊及卡況資訊，商品以日文版為主",
                       },
                       {
                         name: "Courtyard 🏛️",
@@ -1531,16 +1556,6 @@ export default function PokeLover() {
                         name: "KyoCards",
                         url: "https://kyocards.com",
                         desc: "日本寶可夢卡專門店，主打單卡買賣及套裝，商品以日文版為主",
-                      },
-                      {
-                        name: "Pokéchange",
-                        url: "https://www.pokechange.fr",
-                        desc: "法國寶可夢卡交換平台，主打法文版收藏品，提供玩家間直接交換功能",
-                      },
-                      {
-                        name: "ClutchPacks",
-                        url: "https://www.clutchpacks.gg",
-                        desc: "美國卡包開封及零售平台，提供 Live Break（直播開包）及散卡購買",
                       },
                     ].map(({ name, url, desc }) => (
                       <a
@@ -1596,12 +1611,15 @@ export default function PokeLover() {
             {/* 主頁靜態市場參考 */}
             <div data-share-skip="true" className="rounded-xl p-3 mt-2" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
               <p className="text-[10px] font-bold mb-2 tracking-widest uppercase" style={{ background: "linear-gradient(to right, #FF8C00, #FFDE00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", filter: "drop-shadow(0 0 6px rgba(255,160,0,0.45))" }}>更多市場參考</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {[
                   { emoji: "🇯🇵", name: "ヤフオク!", sub: "日本成交", color: "#FF4444", bg: "rgba(255,50,50,0.1)", border: "rgba(255,50,50,0.2)", url: "https://auctions.yahoo.co.jp/search/search?p=pokemon&exflg=1&b=1&n=50&s1=cbids&o1=d&aucminprice=1" },
                   { emoji: "🛍️", name: "Mercari JP", sub: "日本二手", color: "#FF0056", bg: "rgba(255,0,86,0.1)", border: "rgba(255,0,86,0.2)", url: "https://jp.mercari.com/search?keyword=pokemon&status=sold_out" },
                   { emoji: "🃏", name: "TCGplayer", sub: "美國市場", color: "#4E8EFF", bg: "rgba(26,106,255,0.1)", border: "rgba(26,106,255,0.2)", url: "https://www.tcgplayer.com/search/pokemon/product?view=grid" },
                   { emoji: "📊", name: "PriceCharting", sub: "國際走勢", color: "#64B4FF", bg: "rgba(100,180,255,0.1)", border: "rgba(100,180,255,0.2)", url: "https://www.pricecharting.com/category/pokemon-cards" },
+                  { emoji: "🏪", name: "PokeHub", sub: "日本市場", color: "#A050FF", bg: "rgba(160,80,255,0.1)", border: "rgba(160,80,255,0.2)", url: "https://pokehub.app/" },
+                  { emoji: "🇫🇷", name: "Pokéchange", sub: "法國市場", color: "#00C864", bg: "rgba(0,160,80,0.1)", border: "rgba(0,160,80,0.2)", url: "https://www.pokechange.fr/" },
+                  { emoji: "📦", name: "ClutchPacks", sub: "美國開包", color: "#FFA000", bg: "rgba(255,160,0,0.1)", border: "rgba(255,160,0,0.2)", url: "https://www.clutchpacks.io/" },
                 ].map(({ emoji, name, sub, color, bg, border, url }) => (
                   <a key={name} href={url} target="_blank" rel="noopener noreferrer"
                     className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
@@ -1619,12 +1637,9 @@ export default function PokeLover() {
                 <div className="flex flex-col gap-2">
                   {[
                     { name: "SNKRDUNK", url: "https://snkrdunk.com", desc: "日本球鞋及交換卡市場，主打限量球鞋，亦設寶可夢卡牌買賣板塊" },
-                    { name: "PokeHub JP 🏪", url: "https://pokehub.jp", desc: "日本寶可夢卡綜合市場，設買賣板塊及卡況資訊，商品以日文版為主" },
                     { name: "Courtyard 🏛️", url: "https://courtyard.io", desc: "美國評級卡（PSA/BGS/CGC）買賣平台，提供實物托管及區塊鏈所有權驗證" },
                     { name: "CardTrader", url: "https://www.cardtrader.com", desc: "歐洲最大交換卡網絡市場，覆蓋寶可夢、MTG、遊戲王，可比較多個賣家定價" },
                     { name: "KyoCards", url: "https://kyocards.com", desc: "日本寶可夢卡專門店，主打單卡買賣及套裝，商品以日文版為主" },
-                    { name: "Pokéchange", url: "https://www.pokechange.fr", desc: "法國寶可夢卡交換平台，主打法文版收藏品，提供玩家間直接交換功能" },
-                    { name: "ClutchPacks", url: "https://www.clutchpacks.gg", desc: "美國卡包開封及零售平台，提供 Live Break（直播開包）及散卡購買" },
                   ].map(({ name, url, desc }) => (
                     <a key={name} href={url} target="_blank" rel="noopener noreferrer"
                       className="flex flex-col gap-0.5 px-2 py-1.5 rounded-lg"
