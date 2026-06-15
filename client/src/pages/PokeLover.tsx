@@ -1459,7 +1459,7 @@ export default function PokeLover() {
             {result.ebaySearchQuery && (
               <div data-share-skip="true" className="rounded-xl p-3 mb-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
                 <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>更多市場參考</p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <a
                     href={`https://auctions.yahoo.co.jp/search/search?p=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}&va=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}&exflg=1&b=1&n=50&s1=cbids&o1=d&aucminprice=1`}
                     target="_blank" rel="noopener noreferrer"
@@ -1479,16 +1479,6 @@ export default function PokeLover() {
                     <span className="text-base">🛍️</span>
                     <span className="text-[10px] font-bold leading-tight" style={{ color: "#FF0056" }}>Mercari JP</span>
                     <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>日本二手</span>
-                  </a>
-                  <a
-                    href={`https://snkrdunk.com/search?q=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex flex-col items-center gap-1 py-2 px-1 rounded-lg text-center"
-                    style={{ background: "rgba(255,120,0,0.1)", border: "1px solid rgba(255,120,0,0.2)" }}
-                  >
-                    <span className="text-base">👟</span>
-                    <span className="text-[10px] font-bold leading-tight" style={{ color: "#FF7800" }}>SNKRDUNK</span>
-                    <span className="text-[9px]" style={{ color: "rgba(255,255,255,0.4)" }}>日本市場</span>
                   </a>
                   <a
                     href={`https://www.tcgplayer.com/search/pokemon/product?q=${encodeURIComponent(result.ebaySearchQuery)}&view=grid`}
