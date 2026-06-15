@@ -222,73 +222,102 @@ export default function MerchantGallery() {
       const title = currentGallery?.title ?? '';
       const merchantName = (currentGallery?.merchantName as string | undefined) ?? '';
       const description = (currentGallery as any)?.description ?? '';
+      const activeCount = items.filter(i => i.status === 'active').length;
+      const soldCount = items.filter(i => i.status === 'sold').length;
+      const isCompact = cols >= 7;
 
       const W = 1080;
-      const pad = 28;
-      const gap = 8;
-      const cellW = Math.floor((W - pad * 2 - gap * (cols - 1)) / cols);
-      const imgH = cellW;
-      const textH = 44;
-      const cellH = imgH + textH;
+      const hPad = 24; // horizontal padding like px-3 equivalent
+      const gap = isCompact ? 2 : 5;
+      const cellW = Math.floor((W - hPad * 2 - gap * (cols - 1)) / cols);
+      const buyStripH = isCompact ? 0 : Math.max(24, Math.round(cellW * 0.13));
+      const cardH = cellW + buyStripH;
       const rows = Math.ceil(items.length / cols);
+      const cardR = isCompact ? 4 : 10;
 
-      // measure header height
-      const tmpCtx = document.createElement('canvas').getContext('2d')!;
-      let headerH = pad + 48; // title
-      if (merchantName) headerH += 28;
+      // measure hero height
+      const tmpC = document.createElement('canvas');
+      tmpC.width = W; tmpC.height = 1;
+      const tmpCtx = tmpC.getContext('2d')!;
+      let heroH = 28; // top pad
+      heroH += 26; // merchant name row
+      heroH += 12; // gap
+      heroH += 44; // title
       if (description) {
-        tmpCtx.font = '22px sans-serif';
-        const maxW = W - pad * 2;
-        let line = '';
-        let lineCount = 0;
+        tmpCtx.font = '26px sans-serif';
+        const maxTW = W - hPad * 2 - 48;
+        let line = ''; let dLines = 0;
         for (const ch of description) {
-          const test = line + ch;
-          if (tmpCtx.measureText(test).width > maxW && line) { lineCount++; line = ch; }
-          else line = test;
+          const t = line + ch;
+          if (tmpCtx.measureText(t).width > maxTW && line) { dLines++; line = ch; } else line = t;
         }
-        if (line) lineCount++;
-        headerH += lineCount * 28 + 16;
+        if (line) dLines++;
+        heroH += dLines * 32 + 8;
       }
-      const H = headerH + rows * (cellH + gap) + pad;
+      heroH += 40; // badges row + bottom pad
+      const gridH = rows * (cardH + gap) - gap;
+      const H = heroH + gridH + hPad;
 
       const canvas = document.createElement('canvas');
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d')!;
 
-      // white background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, W, H);
+      // ── Hero: dark gradient background ──
+      const heroGrad = ctx.createLinearGradient(0, 0, W, heroH);
+      heroGrad.addColorStop(0, '#0D1B2A');
+      heroGrad.addColorStop(0.4, '#1B263B');
+      heroGrad.addColorStop(1, '#1F3A5F');
+      ctx.fillStyle = heroGrad;
+      (ctx as any).roundRect?.(hPad / 2, hPad / 2, W - hPad, heroH - hPad / 2, 16);
+      ctx.beginPath();
+      (ctx as any).roundRect(hPad / 2, hPad / 2, W - hPad, heroH - hPad / 2, 16);
+      ctx.fill();
 
-      // title
-      let y = pad;
-      ctx.fillStyle = '#111111';
-      ctx.font = 'bold 38px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(title, W / 2, y + 38);
-      y += 52;
-
-      if (merchantName) {
-        ctx.fillStyle = '#888888';
-        ctx.font = '24px sans-serif';
-        ctx.fillText(merchantName, W / 2, y + 22);
-        y += 32;
-      }
-
+      let hy = 28 + hPad / 2;
+      // merchant name (amber)
+      ctx.fillStyle = '#FFB347';
+      ctx.font = `bold 26px sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText(merchantName, hPad * 2, hy + 20);
+      hy += 36;
+      // title (white bold)
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = `bold 44px sans-serif`;
+      ctx.fillText(title, hPad * 2, hy + 40);
+      hy += 54;
+      // description (white/55%)
       if (description) {
-        ctx.fillStyle = '#555555';
-        ctx.font = '22px sans-serif';
-        const maxW = W - pad * 2;
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.font = `26px sans-serif`;
+        const maxTW = W - hPad * 4;
         let line = '';
         for (const ch of description) {
-          const test = line + ch;
-          if (ctx.measureText(test).width > maxW && line) {
-            ctx.fillText(line, W / 2, y + 22);
-            y += 28;
-            line = ch;
-          } else line = test;
+          const t = line + ch;
+          if (ctx.measureText(t).width > maxTW && line) {
+            ctx.fillText(line, hPad * 2, hy + 24);
+            hy += 32; line = ch;
+          } else line = t;
         }
-        if (line) { ctx.fillText(line, W / 2, y + 22); y += 28; }
-        y += 12;
+        if (line) { ctx.fillText(line, hPad * 2, hy + 24); hy += 32; }
+        hy += 8;
+      }
+      // badges (在售 / 已售)
+      if (activeCount > 0) {
+        ctx.fillStyle = 'rgba(34,197,94,0.2)';
+        ctx.beginPath(); (ctx as any).roundRect(hPad * 2, hy, 140, 30, 15); ctx.fill();
+        ctx.strokeStyle = 'rgba(34,197,94,0.25)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); (ctx as any).roundRect(hPad * 2, hy, 140, 30, 15); ctx.stroke();
+        ctx.fillStyle = '#4ADE80'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(`${activeCount} 件在售`, hPad * 2 + 70, hy + 21);
+      }
+      if (soldCount > 0) {
+        const bx = activeCount > 0 ? hPad * 2 + 150 : hPad * 2;
+        ctx.fillStyle = 'rgba(239,68,68,0.18)';
+        ctx.beginPath(); (ctx as any).roundRect(bx, hy, 120, 30, 15); ctx.fill();
+        ctx.strokeStyle = 'rgba(239,68,68,0.2)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); (ctx as any).roundRect(bx, hy, 120, 30, 15); ctx.stroke();
+        ctx.fillStyle = '#FCA5A5'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(`${soldCount} 件已售`, bx + 60, hy + 21);
       }
 
       // load images via fetch→blob (avoids canvas CORS taint)
@@ -306,63 +335,135 @@ export default function MerchantGallery() {
         } catch { return null; }
       }));
 
-      // draw item cards
-      const r = 10;
+      // ── Grid cards ──
+      const gridTop = heroH;
+      const nameFontSz = Math.max(14, Math.round(cellW / (isCompact ? 9 : 7)));
+
       items.forEach((item, idx) => {
         const col = idx % cols;
         const row = Math.floor(idx / cols);
-        const x = pad + col * (cellW + gap);
-        const iy = y + row * (cellH + gap);
+        const cx = hPad + col * (cellW + gap);
+        const cy = gridTop + row * (cardH + gap);
+        const isSold = item.status === 'sold';
+        const price = parseFloat(item.price);
 
-        // card shadow + border
+        // card background + shadow
         ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.08)';
-        ctx.shadowBlur = 6;
-        ctx.shadowOffsetY = 2;
+        if (!isCompact) {
+          ctx.shadowColor = 'rgba(0,0,0,0.10)';
+          ctx.shadowBlur = 6; ctx.shadowOffsetY = 1;
+        }
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        (ctx as any).roundRect(x, iy, cellW, cellH, r);
+        (ctx as any).roundRect(cx, cy, cellW, cardH, cardR);
         ctx.fill();
         ctx.restore();
 
-        ctx.strokeStyle = '#e5e7eb';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        (ctx as any).roundRect(x, iy, cellW, cellH, r);
-        ctx.stroke();
-
-        // clip image to top rounded corners
+        // clip image
         ctx.save();
         ctx.beginPath();
-        (ctx as any).roundRect(x, iy, cellW, imgH, [r, r, 0, 0]);
+        if (buyStripH > 0) {
+          (ctx as any).roundRect(cx, cy, cellW, cellW, [cardR, cardR, 0, 0]);
+        } else {
+          (ctx as any).roundRect(cx, cy, cellW, cellW, cardR);
+        }
         ctx.clip();
+
         const img = loadedImgs[idx];
         if (img) {
-          const aspect = img.width / img.height;
           let sw = img.width, sh = img.height, sx = 0, sy = 0;
-          if (aspect > 1) { sw = img.height; sx = (img.width - sw) / 2; }
+          if (img.width / img.height > 1) { sw = img.height; sx = (img.width - sw) / 2; }
           else { sh = img.width; sy = (img.height - sh) / 2; }
-          ctx.drawImage(img, sx, sy, sw, sh, x, iy, cellW, imgH);
+          if (isSold) { ctx.filter = 'grayscale(50%) brightness(0.88)'; }
+          ctx.drawImage(img, sx, sy, sw, sh, cx, cy, cellW, cellW);
+          ctx.filter = 'none';
         } else {
           ctx.fillStyle = '#f3f4f6';
-          ctx.fillRect(x, iy, cellW, imgH);
+          ctx.fillRect(cx, cy, cellW, cellW);
         }
+
+        // gradient overlay on image (bottom → top, like PublicGallery)
+        if (!isCompact && (item.itemName || price > 0)) {
+          const ovGrad = ctx.createLinearGradient(0, cy + cellW - cellW * 0.45, 0, cy + cellW);
+          ovGrad.addColorStop(0, 'rgba(0,0,0,0)');
+          ovGrad.addColorStop(0.4, 'rgba(0,0,0,0.25)');
+          ovGrad.addColorStop(1, 'rgba(0,0,0,0.68)');
+          ctx.fillStyle = ovGrad;
+          ctx.fillRect(cx, cy + cellW - cellW * 0.45, cellW, cellW * 0.45);
+
+          let ty = cy + cellW - 8;
+          if (price > 0) {
+            ctx.fillStyle = '#FFD580'; ctx.font = `bold ${nameFontSz}px sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.fillText(`HK$${price.toLocaleString('en-HK')}`, cx + 6, ty);
+            ty -= nameFontSz + 2;
+          }
+          if (item.itemName) {
+            ctx.fillStyle = '#FFFFFF'; ctx.font = `bold ${nameFontSz}px sans-serif`;
+            const maxNW = cellW - 12;
+            let nm = item.itemName;
+            while (nm.length > 1 && ctx.measureText(nm).width > maxNW) nm = nm.slice(0, -1);
+            if (nm !== item.itemName) nm += '…';
+            ctx.fillText(nm, cx + 6, ty);
+            ty -= nameFontSz;
+          }
+          if (item.itemNumber) {
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.font = `${Math.round(nameFontSz * 0.8)}px monospace`;
+            ctx.fillText(`#${item.itemNumber}`, cx + 6, ty);
+          }
+        }
+
+        // sold ribbon (non-compact)
+        if (isSold && !isCompact) {
+          const rs = Math.round(cellW * 0.12);
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(cx + cellW - rs * 2, cy);
+          ctx.lineTo(cx + cellW, cy);
+          ctx.lineTo(cx + cellW, cy + rs * 2);
+          ctx.closePath();
+          ctx.fillStyle = '#DC2626'; ctx.fill();
+          ctx.restore();
+          ctx.save();
+          ctx.fillStyle = '#fff';
+          ctx.font = `bold ${Math.round(rs * 0.55)}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.translate(cx + cellW - rs * 0.72, cy + rs * 0.72);
+          ctx.rotate(Math.PI / 4);
+          ctx.fillText('已售', 0, 0);
+          ctx.restore();
+        }
+
+        // sold (compact)
+        if (isSold && isCompact) {
+          ctx.fillStyle = 'rgba(185,28,28,0.85)';
+          ctx.font = `bold ${Math.max(8, nameFontSz - 2)}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText('已售', cx + cellW / 2, cy + cellW / 2);
+        }
+
         ctx.restore();
 
-        // name
-        const fs = Math.max(13, Math.floor(cellW / 7));
-        ctx.fillStyle = '#374151';
-        ctx.font = `${fs}px sans-serif`;
-        ctx.textAlign = 'center';
-        const nameMax = Math.floor(cellW / (fs * 0.6));
-        const nameText = item.itemName.length > nameMax ? item.itemName.slice(0, nameMax - 1) + '…' : item.itemName;
-        ctx.fillText(nameText, x + cellW / 2, iy + imgH + 16);
-
-        // price
-        if (Number(item.price) > 0) {
-          ctx.fillStyle = '#ea580c';
-          ctx.font = `bold ${fs}px sans-serif`;
-          ctx.fillText(`HK$${item.price}`, x + cellW / 2, iy + imgH + 34);
+        // buy button strip
+        if (buyStripH > 0) {
+          ctx.save();
+          ctx.beginPath();
+          (ctx as any).roundRect(cx, cy + cellW, cellW, buyStripH, [0, 0, cardR, cardR]);
+          if (isSold) {
+            ctx.fillStyle = '#F3F4F6';
+          } else {
+            const btnGrad = ctx.createLinearGradient(0, cy + cellW, 0, cy + cellW + buyStripH);
+            btnGrad.addColorStop(0, '#FBBF24');
+            btnGrad.addColorStop(1, '#78350F');
+            ctx.fillStyle = btnGrad;
+          }
+          ctx.fill();
+          ctx.restore();
+          ctx.fillStyle = isSold ? '#9CA3AF' : '#ffffff';
+          ctx.font = `bold ${nameFontSz}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText(isSold ? '已售出 · 聯繫商戶' : '立即落單', cx + cellW / 2, cy + cellW + buyStripH / 2 + nameFontSz * 0.35);
         }
       });
 
@@ -377,7 +478,8 @@ export default function MerchantGallery() {
         toast.success('圖片已儲存');
         setSavingPoster(false);
       }, 'image/png');
-    } catch {
+    } catch (err) {
+      console.error('poster generation error', err);
       toast.error('生成圖片失敗，請重試');
       setSavingPoster(false);
     }
@@ -1040,68 +1142,196 @@ export default function MerchantGallery() {
       )}
 
       {/* Gallery Poster Modal — z-[300] > BottomNav z-[200] */}
-      {showPosterModal && (
-        <div className="fixed inset-0 z-[300] bg-black/70 flex flex-col" style={{ paddingLeft: 3, paddingRight: 3, paddingTop: 3 }}>
-          <div className="flex-1 bg-white rounded-t-2xl flex flex-col overflow-hidden">
-            {/* scrollable preview — min-h-0 stops flex overflow leak */}
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <div ref={posterRef} className="p-3 bg-white">
-                <p className="text-sm font-bold text-gray-900 mb-0.5 text-center">{currentGallery?.title}</p>
-                {(currentGallery as any)?.merchantName && (
-                  <p className="text-[10px] text-gray-400 text-center mb-1">{(currentGallery as any).merchantName}</p>
-                )}
-                {(currentGallery as any)?.description && (
-                  <p className="text-[10px] text-gray-500 text-center mb-2 leading-relaxed px-2">{(currentGallery as any).description}</p>
-                )}
-                <div
-                  className="grid gap-1.5"
-                  style={{ gridTemplateColumns: `repeat(${editCols}, 1fr)` }}
-                >
-                  {draftItems.filter(i => i.status !== 'hidden').map(item => (
-                    <div key={item.id} className="flex flex-col border border-gray-200 rounded-lg overflow-hidden bg-white">
-                      <img
-                        src={item.imageUrl}
-                        alt={item.itemName}
-                        className="w-full aspect-square object-cover"
-                      />
-                      <div className="px-1 py-1">
-                        <p className="text-[8px] text-center text-gray-700 truncate leading-tight">{item.itemName}</p>
-                        {Number(item.price) > 0 && (
-                          <p className="text-[8px] text-center text-orange-600 font-semibold leading-tight">HK${item.price}</p>
-                        )}
-                      </div>
+      {showPosterModal && (() => {
+        const posterItems = draftItems.filter(i => i.status !== 'hidden');
+        const posterCols = editCols;
+        const isCompact = posterCols >= 7;
+        const activeCount = posterItems.filter(i => i.status === 'active').length;
+        const soldCount = posterItems.filter(i => i.status === 'sold').length;
+        return (
+          <div className="fixed inset-0 z-[300] bg-black/70 flex flex-col" style={{ paddingLeft: 3, paddingRight: 3, paddingTop: 3 }}>
+            <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#ECECEC', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+              {/* scrollable preview — min-h-0 stops flex overflow leak */}
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                {/* ── Hero Banner (exact copy of PublicGallery) ── */}
+                <div className="mx-3 mt-3 mb-3 rounded-2xl overflow-hidden shadow-lg" style={{
+                  background: 'linear-gradient(145deg, #0D1B2A 0%, #1B263B 40%, #1F3A5F 100%)',
+                }}>
+                  <div className="relative px-4 pt-4 pb-4 overflow-hidden">
+                    <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-10" style={{ background: '#FFB347' }} />
+                    <div className="absolute -bottom-8 -left-4 w-24 h-24 rounded-full opacity-10" style={{ background: '#4A90D9' }} />
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="text-[11px] font-semibold" style={{ color: '#FFB347' }}>{(currentGallery as any)?.merchantName}</span>
                     </div>
-                  ))}
+                    <h1 className="text-[17px] font-bold leading-snug mb-1.5 relative z-10" style={{ color: '#FFFFFF' }}>
+                      {currentGallery?.title}
+                    </h1>
+                    {(currentGallery as any)?.description && (
+                      <p className="text-[11px] leading-relaxed mb-2.5 relative z-10 whitespace-pre-line" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                        {(currentGallery as any).description}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2 flex-wrap relative z-10">
+                      {activeCount > 0 && (
+                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{
+                          background: 'rgba(34,197,94,0.2)', color: '#4ADE80', border: '1px solid rgba(34,197,94,0.25)'
+                        }}>
+                          <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#4ADE80' }} />
+                          {activeCount} 件在售
+                        </span>
+                      )}
+                      {soldCount > 0 && (
+                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{
+                          background: 'rgba(239,68,68,0.18)', color: '#FCA5A5', border: '1px solid rgba(239,68,68,0.2)'
+                        }}>
+                          {soldCount} 件已售
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                {draftItems.filter(i => i.status !== 'hidden').length === 0 && (
+
+                {/* ── Grid (exact copy of PublicGallery) ── */}
+                {posterItems.length === 0 ? (
                   <p className="text-xs text-gray-400 text-center py-8">未有商品可顯示</p>
+                ) : (
+                  <div
+                    className="px-3 pb-3"
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: `repeat(${posterCols}, 1fr)`,
+                      gap: posterCols >= 8 ? '2px' : '5px',
+                    }}
+                  >
+                    {posterItems.map(item => {
+                      const price = parseFloat(item.price);
+                      const isSold = item.status === 'sold';
+                      const showBuyBtn = !isCompact;
+                      const ribbonSize = posterCols >= 5 ? 36 : 46;
+                      return (
+                        <div
+                          key={item.id}
+                          className="overflow-hidden"
+                          style={{
+                            borderRadius: isCompact ? '4px' : '10px',
+                            background: '#fff',
+                            boxShadow: isCompact ? 'none' : '0 1px 6px rgba(0,0,0,0.10)',
+                          }}
+                        >
+                          {/* Image with overlay */}
+                          <div className="relative w-full" style={{ aspectRatio: '1/1' }}>
+                            <img
+                              src={item.imageUrl}
+                              alt={item.itemName || '商品'}
+                              className="w-full h-full object-cover"
+                              style={{ filter: isSold ? 'grayscale(50%) brightness(0.88)' : 'none' }}
+                            />
+                            {/* Bottom-left info overlay */}
+                            {!isCompact && (item.itemNumber || item.itemName || price > 0) && (
+                              <div
+                                className="absolute bottom-0 left-0 right-0"
+                                style={{
+                                  background: 'linear-gradient(to top, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.25) 60%, transparent 100%)',
+                                  padding: '18px 6px 5px 6px',
+                                }}
+                              >
+                                {item.itemNumber && (
+                                  <p className="font-mono leading-none mb-0.5" style={{ fontSize: posterCols >= 4 ? '7px' : '8px', color: 'rgba(255,255,255,0.7)' }}>
+                                    #{item.itemNumber}
+                                  </p>
+                                )}
+                                {item.itemName && (
+                                  <p className="font-semibold text-white leading-tight truncate" style={{ fontSize: posterCols >= 4 ? '8px' : '10px', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                                    {item.itemName}
+                                  </p>
+                                )}
+                                {price > 0 && (
+                                  <p className="font-bold leading-none mt-0.5" style={{ fontSize: posterCols >= 4 ? '8px' : '10px', color: '#FFD580' }}>
+                                    HK${price.toLocaleString('en-HK')}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            {/* Sold ribbon */}
+                            {isSold && (
+                              isCompact ? (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <span className="font-bold text-white rounded" style={{ fontSize: '5px', padding: '1px 2px', background: 'rgba(185,28,28,0.85)' }}>已售</span>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="absolute" style={{
+                                    top: 0, right: 0, width: 0, height: 0,
+                                    borderStyle: 'solid',
+                                    borderWidth: `0 ${ribbonSize}px ${ribbonSize}px 0`,
+                                    borderColor: `transparent #DC2626 transparent transparent`,
+                                  }} />
+                                  <div className="absolute font-bold text-white" style={{
+                                    top: posterCols >= 5 ? '3px' : '5px',
+                                    right: posterCols >= 5 ? '1px' : '2px',
+                                    fontSize: posterCols >= 5 ? '6px' : '7px',
+                                    transform: 'rotate(45deg)',
+                                  }}>已售</div>
+                                </>
+                              )
+                            )}
+                          </div>
+                          {/* Buy button strip */}
+                          {showBuyBtn && (
+                            isSold ? (
+                              <div
+                                className="w-full flex items-center justify-center py-1.5"
+                                style={{ background: '#F3F4F6', fontSize: posterCols >= 4 ? '9px' : '11px', color: '#9CA3AF', fontWeight: 600 }}
+                              >
+                                已售出 · 聯繫商戶
+                              </div>
+                            ) : (
+                              <div
+                                className="w-full flex items-center justify-center py-1.5"
+                                style={{
+                                  backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)',
+                                  backgroundColor: '#FBBF24',
+                                  fontSize: posterCols >= 4 ? '9px' : '11px',
+                                  color: '#fff',
+                                  fontWeight: 700,
+                                }}
+                              >
+                                立即落單
+                              </div>
+                            )
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
-            </div>
-            {/* bottom action buttons — safe-area padding for iPhone notch */}
-            <div
-              className="flex gap-3 px-4 pt-3 bg-white border-t border-gray-100"
-              style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
-            >
-              <button
-                onClick={() => setShowPosterModal(false)}
-                className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+
+              {/* bottom action buttons — safe-area padding for iPhone notch */}
+              <div
+                className="flex gap-3 px-4 pt-3 bg-white border-t border-gray-100"
+                style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
               >
-                取消
-              </button>
-              <button
-                onClick={handleSavePoster}
-                disabled={savingPoster}
-                className="flex-1 py-3 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
-                style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
-              >
-                {savingPoster ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                {savingPoster ? '生成中…' : '儲存圖片'}
-              </button>
+                <button
+                  onClick={() => setShowPosterModal(false)}
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleSavePoster}
+                  disabled={savingPoster}
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+                  style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
+                >
+                  {savingPoster ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  {savingPoster ? '生成中…' : '儲存圖片'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <BottomNav />
     </div>
