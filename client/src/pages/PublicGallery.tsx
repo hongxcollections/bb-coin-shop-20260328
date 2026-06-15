@@ -296,7 +296,7 @@ export default function PublicGallery() {
             <button
               onClick={() => { setLightboxItem(null); setBuyingItem(lightboxItem); }}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold"
-              style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)', color: '#fff' }}
+              style={{ background: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', color: '#fff' }}
             >
               <ShoppingCart className="w-3.5 h-3.5" />
               立即落單
@@ -501,7 +501,7 @@ export default function PublicGallery() {
                           onClick={() => setBuyingItem(item)}
                           className="w-full flex items-center justify-center gap-1 py-1.5"
                           style={{
-                            background: 'linear-gradient(135deg, #FF8C00, #FF6B00)',
+                            background: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)',
                             fontSize: displayCols >= 4 ? '9px' : '11px',
                             color: '#fff',
                             fontWeight: 700,
