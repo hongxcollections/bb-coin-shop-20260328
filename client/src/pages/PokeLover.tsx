@@ -1458,7 +1458,7 @@ export default function PokeLover() {
 
             {result.ebaySearchQuery && (
               <div data-share-skip="true" className="rounded-xl p-3 mb-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>更多市場參考</p>
+                <p className="text-[10px] font-bold mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>更多市場參考（11）</p>
                 <div className="grid grid-cols-3 gap-2">
                   <a
                     href={`https://auctions.yahoo.co.jp/search/search?p=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}&va=${encodeURIComponent(result.cardNameJa ?? result.ebaySearchQuery)}&exflg=1&b=1&n=50&s1=cbids&o1=d&aucminprice=1`}
