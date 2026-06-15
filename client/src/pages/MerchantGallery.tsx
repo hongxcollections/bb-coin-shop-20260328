@@ -262,15 +262,47 @@ export default function MerchantGallery() {
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d')!;
 
-      // ── Hero: dark gradient background ──
+      // arcTo-based rounded rect — works in ALL browsers, no roundRect API needed
+      function rrect(x: number, y: number, w: number, h: number, r: number) {
+        const rv = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + rv, y);
+        ctx.lineTo(x + w - rv, y);
+        ctx.arcTo(x + w, y, x + w, y + rv, rv);
+        ctx.lineTo(x + w, y + h - rv);
+        ctx.arcTo(x + w, y + h, x + w - rv, y + h, rv);
+        ctx.lineTo(x + rv, y + h);
+        ctx.arcTo(x, y + h, x, y + h - rv, rv);
+        ctx.lineTo(x, y + rv);
+        ctx.arcTo(x, y, x + rv, y, rv);
+        ctx.closePath();
+      }
+
+      // top-rounded-only clip for image (top two corners rounded, bottom flat)
+      function rrectTop(x: number, y: number, w: number, h: number, r: number) {
+        const rv = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + rv, y);
+        ctx.lineTo(x + w - rv, y);
+        ctx.arcTo(x + w, y, x + w, y + rv, rv);
+        ctx.lineTo(x + w, y + h);
+        ctx.lineTo(x, y + h);
+        ctx.lineTo(x, y + rv);
+        ctx.arcTo(x, y, x + rv, y, rv);
+        ctx.closePath();
+      }
+
+      // ── Full canvas background (#ECECEC like PublicGallery) ──
+      ctx.fillStyle = '#ECECEC';
+      ctx.fillRect(0, 0, W, H);
+
+      // ── Hero: dark gradient background (rounded card) ──
       const heroGrad = ctx.createLinearGradient(0, 0, W, heroH);
       heroGrad.addColorStop(0, '#0D1B2A');
       heroGrad.addColorStop(0.4, '#1B263B');
       heroGrad.addColorStop(1, '#1F3A5F');
       ctx.fillStyle = heroGrad;
-      (ctx as any).roundRect?.(hPad / 2, hPad / 2, W - hPad, heroH - hPad / 2, 16);
-      ctx.beginPath();
-      (ctx as any).roundRect(hPad / 2, hPad / 2, W - hPad, heroH - hPad / 2, 16);
+      rrect(hPad / 2, hPad / 2, W - hPad, heroH - hPad / 2, 16);
       ctx.fill();
 
       let hy = 28 + hPad / 2;
@@ -304,18 +336,18 @@ export default function MerchantGallery() {
       // badges (在售 / 已售)
       if (activeCount > 0) {
         ctx.fillStyle = 'rgba(34,197,94,0.2)';
-        ctx.beginPath(); (ctx as any).roundRect(hPad * 2, hy, 140, 30, 15); ctx.fill();
+        rrect(hPad * 2, hy, 140, 30, 15); ctx.fill();
         ctx.strokeStyle = 'rgba(34,197,94,0.25)'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); (ctx as any).roundRect(hPad * 2, hy, 140, 30, 15); ctx.stroke();
+        rrect(hPad * 2, hy, 140, 30, 15); ctx.stroke();
         ctx.fillStyle = '#4ADE80'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText(`${activeCount} 件在售`, hPad * 2 + 70, hy + 21);
       }
       if (soldCount > 0) {
         const bx = activeCount > 0 ? hPad * 2 + 150 : hPad * 2;
         ctx.fillStyle = 'rgba(239,68,68,0.18)';
-        ctx.beginPath(); (ctx as any).roundRect(bx, hy, 120, 30, 15); ctx.fill();
+        rrect(bx, hy, 120, 30, 15); ctx.fill();
         ctx.strokeStyle = 'rgba(239,68,68,0.2)'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); (ctx as any).roundRect(bx, hy, 120, 30, 15); ctx.stroke();
+        rrect(bx, hy, 120, 30, 15); ctx.stroke();
         ctx.fillStyle = '#FCA5A5'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText(`${soldCount} 件已售`, bx + 60, hy + 21);
       }
@@ -354,18 +386,16 @@ export default function MerchantGallery() {
           ctx.shadowBlur = 6; ctx.shadowOffsetY = 1;
         }
         ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        (ctx as any).roundRect(cx, cy, cellW, cardH, cardR);
+        rrect(cx, cy, cellW, cardH, cardR);
         ctx.fill();
         ctx.restore();
 
         // clip image
         ctx.save();
-        ctx.beginPath();
         if (buyStripH > 0) {
-          (ctx as any).roundRect(cx, cy, cellW, cellW, [cardR, cardR, 0, 0]);
+          rrectTop(cx, cy, cellW, cellW, cardR);
         } else {
-          (ctx as any).roundRect(cx, cy, cellW, cellW, cardR);
+          rrect(cx, cy, cellW, cellW, cardR);
         }
         ctx.clip();
 
@@ -445,11 +475,19 @@ export default function MerchantGallery() {
 
         ctx.restore();
 
-        // buy button strip
+        // buy button strip (bottom-rounded only)
         if (buyStripH > 0) {
           ctx.save();
+          // bottom-rounded rect: top flat, bottom rounded
           ctx.beginPath();
-          (ctx as any).roundRect(cx, cy + cellW, cellW, buyStripH, [0, 0, cardR, cardR]);
+          ctx.moveTo(cx, cy + cellW);
+          ctx.lineTo(cx + cellW, cy + cellW);
+          ctx.lineTo(cx + cellW, cy + cellW + buyStripH - cardR);
+          ctx.arcTo(cx + cellW, cy + cellW + buyStripH, cx + cellW - cardR, cy + cellW + buyStripH, cardR);
+          ctx.lineTo(cx + cardR, cy + cellW + buyStripH);
+          ctx.arcTo(cx, cy + cellW + buyStripH, cx, cy + cellW + buyStripH - cardR, cardR);
+          ctx.lineTo(cx, cy + cellW);
+          ctx.closePath();
           if (isSold) {
             ctx.fillStyle = '#F3F4F6';
           } else {
