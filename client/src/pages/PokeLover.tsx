@@ -730,13 +730,13 @@ export default function PokeLover() {
       canvas.width = Math.round(ow * scale);
       canvas.height = Math.round(oh * scale);
       canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-      // 同步生成 history 縮圖（150px），存 ref 供 onSuccess 直接用，避免 stale closure
+      // 同步生成 history 縮圖（600px，供 lightbox 放大用），存 ref 供 onSuccess 直接用，避免 stale closure
       try {
-        const ts = Math.min(150 / Math.max(canvas.width, canvas.height), 1);
+        const ts = Math.min(600 / Math.max(canvas.width, canvas.height), 1);
         const tc = document.createElement("canvas");
         tc.width = Math.round(canvas.width * ts); tc.height = Math.round(canvas.height * ts);
         tc.getContext("2d")!.drawImage(canvas, 0, 0, tc.width, tc.height);
-        historyThumbRef.current = tc.toDataURL("image/jpeg", 0.65);
+        historyThumbRef.current = tc.toDataURL("image/jpeg", 0.72);
       } catch { historyThumbRef.current = ""; }
       canvas.toBlob((blob) => {
         if (!blob) { setIsAnalyzing(false); setAnalysisError("圖片處理失敗，請重試"); return; }
