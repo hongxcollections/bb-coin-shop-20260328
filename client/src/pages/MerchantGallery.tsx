@@ -218,47 +218,48 @@ export default function MerchantGallery() {
     if (!posterRef.current) return;
     setSavingPoster(true);
     try {
-      // ── Step 1: pre-load all images as blob URLs to bypass S3 CORS taint ──
-      const imgEls = Array.from(posterRef.current.querySelectorAll('img'));
-      const origSrcs = imgEls.map(el => el.src);
-      const blobUrls: string[] = [];
+      const el = posterRef.current;
 
-      await Promise.all(imgEls.map(async (el, i) => {
+      // ── Step 1: pre-load images as blob URLs so html2canvas can draw them ──
+      const imgEls = Array.from(el.querySelectorAll('img')) as HTMLImageElement[];
+      const origSrcs = imgEls.map(img => img.getAttribute('src') ?? '');
+      await Promise.all(imgEls.map(async (img, i) => {
         try {
           const resp = await fetch(origSrcs[i]);
           const blob = await resp.blob();
           const burl = URL.createObjectURL(blob);
-          blobUrls[i] = burl;
-          el.src = burl;
-          // wait for img to re-render with blob URL
-          if (!el.complete) await new Promise<void>(res => { el.onload = () => res(); el.onerror = () => res(); });
-        } catch {
-          blobUrls[i] = origSrcs[i]; // keep original on failure
-        }
+          img.src = burl;
+          if (!img.complete) await new Promise<void>(res => { img.onload = () => res(); img.onerror = () => res(); });
+        } catch { /* leave as-is */ }
       }));
 
-      // ── Step 2: html2canvas captures the exact rendered DOM ──
+      // ── Step 2: snapshot full scroll height (expand for capture) ──
+      const fullH = el.scrollHeight;
+      const fullW = el.scrollWidth;
+
+      // ── Step 3: html2canvas — capture exact DOM visuals ──
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(posterRef.current, {
-        useCORS: false,
-        allowTaint: true,
-        scale: 3,
+      const canvas = await html2canvas(el, {
+        useCORS: true,
+        allowTaint: false,
+        scale: 2,
         backgroundColor: '#ECECEC',
+        width: fullW,
+        height: fullH,
         scrollX: 0,
         scrollY: 0,
-        windowWidth: posterRef.current.scrollWidth,
-        windowHeight: posterRef.current.scrollHeight,
-        width: posterRef.current.scrollWidth,
-        height: posterRef.current.scrollHeight,
+        x: 0,
+        y: 0,
+        logging: false,
       });
 
-      // ── Step 3: restore original src & revoke blob URLs ──
-      imgEls.forEach((el, i) => {
-        el.src = origSrcs[i];
-        if (blobUrls[i] && blobUrls[i] !== origSrcs[i]) URL.revokeObjectURL(blobUrls[i]);
+      // ── Step 4: revoke blob URLs & restore original src ──
+      imgEls.forEach((img, i) => {
+        const cur = img.getAttribute('src') ?? '';
+        if (cur.startsWith('blob:')) { URL.revokeObjectURL(cur); img.src = origSrcs[i]; }
       });
 
-      // ── Step 4: download PNG ──
+      // ── Step 5: download ──
       canvas.toBlob((blob) => {
         if (!blob) { toast.error('生成失敗'); setSavingPoster(false); return; }
         const url = URL.createObjectURL(blob);
@@ -270,12 +271,11 @@ export default function MerchantGallery() {
         toast.success('圖片已儲存');
         setSavingPoster(false);
       }, 'image/png');
-      return; // early return — rest of old canvas code removed
+
     } catch (err) {
-      console.error('poster generation error', err);
+      console.error('[poster] error:', err);
       toast.error('生成圖片失敗，請重試');
       setSavingPoster(false);
-      return;
     }
   }
 
