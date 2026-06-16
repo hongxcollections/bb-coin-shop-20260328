@@ -907,7 +907,7 @@ export default function MerchantGallery() {
                       ref={fileInputRef}
                       type="file"
                       multiple
-                      accept="image/*"
+                      accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/heic,image/heif"
                       onChange={handleUpload}
                       style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
                     />
