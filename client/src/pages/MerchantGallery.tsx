@@ -908,8 +908,8 @@ export default function MerchantGallery() {
                       type="file"
                       multiple
                       accept="image/*"
-                      className="hidden"
                       onChange={handleUpload}
+                      style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
                     />
                     <button
                       onClick={() => fileInputRef.current?.click()}
