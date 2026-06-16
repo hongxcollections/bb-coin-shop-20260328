@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import {
   ChevronLeft, ChevronDown, Plus, Loader2, Trash2, X, Upload, Save,
-  EyeOff, Images, FileImage, Check, Download,
+  EyeOff, Images, FileImage, Check, Download, ExternalLink,
 } from "lucide-react";
 import { GalleryShareMenu } from "@/components/ShareMenu";
 
@@ -1138,11 +1138,25 @@ export default function MerchantGallery() {
                           複製
                         </button>
                       </div>
-                      <GalleryShareMenu
-                        galleryId={editGalleryId!}
-                        title={currentGallery?.title ?? ''}
-                        merchantName={currentGallery?.merchantName ?? null}
-                      />
+                      <div className="flex gap-2">
+                        <a
+                          href={`/gallery/${editGalleryId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 py-2 rounded-xl text-xs font-semibold text-center text-white flex items-center justify-center gap-1"
+                          style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          圖片集頁面
+                        </a>
+                        <div className="flex-1">
+                          <GalleryShareMenu
+                            galleryId={editGalleryId!}
+                            title={currentGallery?.title ?? ''}
+                            merchantName={currentGallery?.merchantName ?? null}
+                          />
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -1184,7 +1198,7 @@ export default function MerchantGallery() {
         const soldCount = posterItems.filter(i => i.status === 'sold').length;
         return (
           <div className="fixed inset-0 z-[300] bg-black/70 flex flex-col" style={{ paddingLeft: 3, paddingRight: 3, paddingTop: 3, paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}>
-            <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#ECECEC', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+            <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#ECECEC', borderRadius: 16 }}>
               {/* scrollable preview — min-h-0 stops flex overflow leak */}
               <div className="flex-1 min-h-0 overflow-y-auto pb-4">
                 {/* posterRef wraps the full scrollable content for html2canvas capture */}
