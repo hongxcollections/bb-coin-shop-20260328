@@ -1875,6 +1875,24 @@ Output ONLY the JSON, nothing else.`;
   });
 
   // ── OG 圖片代理（藏品社區）：對應 collectionPostImages ──
+  app.get('/api/og-image-gallery/:galleryId', async (req, res) => {
+    try {
+      const galleryId = parseInt(req.params.galleryId, 10);
+      if (isNaN(galleryId) || galleryId <= 0) { res.status(400).send('Invalid gallery ID'); return; }
+      const { listProductGalleryItems } = await import('../db');
+      const items = await listProductGalleryItems(galleryId);
+      const firstImage = items.find((i: any) => i.imageUrl)?.imageUrl;
+      if (!firstImage) { res.status(404).send('No image'); return; }
+      const result = await fetchAllowlistedImage(firstImage);
+      if (!result.ok) { res.status(result.status).send(result.reason); return; }
+      const cropped = await cropToOgSize(result.buf);
+      sendImageResponse(res, 'image/jpeg', cropped);
+    } catch (err) {
+      console.error('[OG Image Gallery Proxy] Error:', err);
+      res.status(500).send('Error');
+    }
+  });
+
   app.get('/api/og-image-community/:postId', async (req, res) => {
     try {
       const postId = parseInt(req.params.postId, 10);
