@@ -1139,16 +1139,14 @@ export default function MerchantGallery() {
                         </button>
                       </div>
                       <div className="flex gap-2">
-                        <a
+                        <Link
                           href={`/gallery/${editGalleryId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
                           className="flex-1 py-2 rounded-xl text-xs font-semibold text-center text-white flex items-center justify-center gap-1"
                           style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
                         >
                           <ExternalLink className="w-3 h-3" />
                           圖片集頁面
-                        </a>
+                        </Link>
                         <div className="flex-1">
                           <GalleryShareMenu
                             galleryId={editGalleryId!}
