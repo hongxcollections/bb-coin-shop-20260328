@@ -29,7 +29,7 @@ interface GalleryItem {
 }
 
 type View = 'list' | 'create' | 'edit';
-type EditTab = 'info' | 'items' | 'publish';
+type EditTab = 'info' | 'items' | 'orders' | 'publish';
 
 // ──────────────────────────────────────────────
 // Helpers
@@ -150,6 +150,18 @@ export default function MerchantGallery() {
     onError: (e) => toast.error(e.message),
   });
   const deleteItemM = trpc.productGalleries.deleteItem.useMutation({
+    onError: (e) => toast.error(e.message),
+  });
+  const ordersQ = trpc.productGalleries.listOrdersForGallery.useQuery(
+    { galleryId: editGalleryId! },
+    { enabled: editGalleryId !== null && editTab === 'orders', refetchOnWindowFocus: false }
+  );
+  const confirmOrderM = trpc.productGalleries.confirmOrder.useMutation({
+    onSuccess: () => { ordersQ.refetch(); toast.success('已確認成交，傭金已扣除'); },
+    onError: (e) => toast.error(e.message),
+  });
+  const cancelOrderM = trpc.productGalleries.cancelOrder.useMutation({
+    onSuccess: () => { ordersQ.refetch(); getForEditQ.refetch(); toast.success('訂單已取消，商品恢復上架'); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -855,7 +867,7 @@ export default function MerchantGallery() {
 
           {/* Tabs */}
           <div className="flex bg-white rounded-xl border border-gray-100 p-1 mb-4 gap-0.5">
-            {([['info', '基本設定'], ['items', '圖片商品'], ['publish', '發佈']] as [EditTab, string][]).map(([tab, label]) => (
+            {([['info', '基本設定'], ['items', '圖片商品'], ['orders', '訂單'], ['publish', '發佈']] as [EditTab, string][]).map(([tab, label]) => (
               <button
                 key={tab}
                 onClick={() => setEditTab(tab)}
@@ -1115,6 +1127,69 @@ export default function MerchantGallery() {
                       </button>
                     </>
                   )}
+                </div>
+              )}
+
+              {/* Tab: 訂單 */}
+              {editTab === 'orders' && (
+                <div className="space-y-3">
+                  {ordersQ.isLoading && (
+                    <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-orange-400" /></div>
+                  )}
+                  {!ordersQ.isLoading && (!ordersQ.data || ordersQ.data.length === 0) && (
+                    <div className="text-center py-10 text-gray-400 text-sm">暫無訂單</div>
+                  )}
+                  {(ordersQ.data ?? []).map((order: any) => {
+                    const statusMap: Record<string, { label: string; color: string }> = {
+                      pending:   { label: '待確認', color: 'bg-yellow-100 text-yellow-700' },
+                      confirmed: { label: '已確認', color: 'bg-green-100 text-green-700' },
+                      cancelled: { label: '已取消', color: 'bg-gray-100 text-gray-500' },
+                    };
+                    const s = statusMap[order.status] ?? { label: order.status, color: 'bg-gray-100 text-gray-500' };
+                    const price = parseFloat(order.price) || 0;
+                    const commission = parseFloat(order.commissionAmount) || 0;
+                    const date = order.createdAt ? new Date(order.createdAt).toLocaleDateString('zh-HK', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+                    return (
+                      <div key={order.id} className="bg-white rounded-2xl p-4 space-y-2 shadow-sm">
+                        <div className="flex items-start gap-3">
+                          {order.imageUrl && (
+                            <img src={order.imageUrl} alt="" className="w-14 h-14 object-cover rounded-xl flex-shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-semibold text-sm text-gray-900 truncate">{order.title || `訂單 #${order.id}`}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${s.color}`}>{s.label}</span>
+                            </div>
+                            {order.itemNumber && <p className="text-xs text-gray-400">編號：{order.itemNumber}</p>}
+                            <p className="text-xs text-gray-500">{order.currency} ${price.toLocaleString('en-HK', { minimumFractionDigits: 0 })}</p>
+                            <p className="text-xs text-gray-400">傭金：{order.currency} ${commission.toFixed(2)} ({(parseFloat(order.commissionRate) * 100).toFixed(1)}%)</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-1 border-t border-gray-50">
+                          <div>
+                            <p className="text-xs text-gray-500">買家：{order.buyerDisplayName || `#${order.buyerId}`}{order.buyerPhone ? ` ${order.buyerPhone}` : ''}</p>
+                            {order.buyerNote && <p className="text-xs text-gray-400 mt-0.5">備注：{order.buyerNote}</p>}
+                            <p className="text-xs text-gray-300 mt-0.5">{date}</p>
+                          </div>
+                          {order.status === 'pending' && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => cancelOrderM.mutate({ orderId: order.id })}
+                                disabled={cancelOrderM.isPending}
+                                className="text-xs px-3 py-1.5 rounded-xl border border-gray-200 text-gray-500 disabled:opacity-50"
+                              >取消</button>
+                              <button
+                                onClick={() => confirmOrderM.mutate({ orderId: order.id })}
+                                disabled={confirmOrderM.isPending}
+                                className="text-xs px-3 py-1.5 rounded-xl font-semibold text-white disabled:opacity-50"
+                                style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
+                              >確認成交</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 

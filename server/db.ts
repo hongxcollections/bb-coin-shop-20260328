@@ -7709,3 +7709,113 @@ export async function getPublicGalleryWithItems(id: number): Promise<{
   );
   return { gallery: gRows[0] as ProductGalleryRow, items: items as ProductGalleryItemRow[] };
 }
+
+// ── Gallery Orders ─────────────────────────────────────────────────────────
+
+let _galleryOrdersTableChecked = false;
+
+async function ensureGalleryOrdersTable(): Promise<void> {
+  if (_galleryOrdersTableChecked) return;
+  const pool = await getRawPool();
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS galleryOrders (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      galleryId INT NOT NULL,
+      galleryItemId INT NOT NULL,
+      merchantId INT NOT NULL,
+      buyerId INT NOT NULL,
+      title VARCHAR(200) NOT NULL DEFAULT '',
+      itemNumber VARCHAR(100) DEFAULT '',
+      imageUrl VARCHAR(500) DEFAULT '',
+      price DECIMAL(10,2) NOT NULL DEFAULT 0,
+      currency VARCHAR(10) NOT NULL DEFAULT 'HKD',
+      commissionRate DECIMAL(5,4) NOT NULL DEFAULT 0.0500,
+      commissionAmount DECIMAL(10,2) NOT NULL DEFAULT 0,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      buyerNote TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      confirmedAt DATETIME,
+      cancelledAt DATETIME,
+      cancelReason TEXT
+    )
+  `);
+  _galleryOrdersTableChecked = true;
+}
+
+export async function createGalleryOrder(data: {
+  galleryId: number; galleryItemId: number; merchantId: number; buyerId: number;
+  title: string; itemNumber: string; imageUrl: string;
+  price: number; currency: string; commissionRate: number; buyerNote?: string;
+}): Promise<number> {
+  await ensureGalleryOrdersTable();
+  const pool = await getRawPool();
+  const commissionAmount = (data.price * data.commissionRate).toFixed(2);
+  const [result]: any = await pool.execute(
+    `INSERT INTO galleryOrders
+      (galleryId, galleryItemId, merchantId, buyerId, title, itemNumber, imageUrl,
+       price, currency, commissionRate, commissionAmount, status, buyerNote)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+    [data.galleryId, data.galleryItemId, data.merchantId, data.buyerId,
+     data.title, data.itemNumber, data.imageUrl,
+     data.price.toFixed(2), data.currency,
+     data.commissionRate.toFixed(4), commissionAmount, data.buyerNote ?? null]
+  );
+  return result.insertId as number;
+}
+
+export async function getGalleryOrdersByMerchant(merchantId: number, galleryId?: number): Promise<any[]> {
+  await ensureGalleryOrdersTable();
+  const pool = await getRawPool();
+  const params: any[] = [merchantId];
+  const galleryFilter = galleryId ? 'AND o.galleryId = ?' : '';
+  if (galleryId) params.push(galleryId);
+  const [rows]: any = await pool.execute(
+    `SELECT o.*, u.name AS buyerDisplayName, u.phone AS buyerPhone
+     FROM galleryOrders o
+     LEFT JOIN users u ON u.id = o.buyerId
+     WHERE o.merchantId = ? ${galleryFilter}
+     ORDER BY o.createdAt DESC`,
+    params
+  );
+  return rows ?? [];
+}
+
+export async function confirmGalleryOrder(orderId: number, merchantId: number): Promise<{ ok: boolean; error?: string }> {
+  await ensureGalleryOrdersTable();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute('SELECT * FROM galleryOrders WHERE id = ? LIMIT 1', [orderId]);
+  const order = rows[0];
+  if (!order) return { ok: false, error: '找不到此訂單' };
+  if (order.merchantId !== merchantId) return { ok: false, error: '無權操作' };
+  if (order.status !== 'pending') return { ok: false, error: '只有待確認的訂單可確認' };
+  await pool.execute('UPDATE galleryOrders SET status = "confirmed", confirmedAt = NOW() WHERE id = ?', [orderId]);
+  const commissionAmount = parseFloat(order.commissionAmount);
+  if (commissionAmount > 0) {
+    try {
+      await deductCommission(
+        merchantId, commissionAmount, 0,
+        `圖片集訂單 #${orderId}：${order.title}（${order.currency} $${parseFloat(order.price).toFixed(2)}）`
+      );
+    } catch (e) {
+      console.error('[confirmGalleryOrder] deductCommission failed', e);
+    }
+  }
+  return { ok: true };
+}
+
+export async function cancelGalleryOrder(orderId: number, byUserId: number, isAdmin: boolean, reason?: string): Promise<{ ok: boolean; error?: string }> {
+  await ensureGalleryOrdersTable();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute('SELECT * FROM galleryOrders WHERE id = ? LIMIT 1', [orderId]);
+  const order = rows[0];
+  if (!order) return { ok: false, error: '找不到此訂單' };
+  if (!isAdmin && order.merchantId !== byUserId && order.buyerId !== byUserId) return { ok: false, error: '無權操作' };
+  if (order.status === 'confirmed') return { ok: false, error: '已確認的訂單不可取消' };
+  await pool.execute(
+    'UPDATE galleryOrders SET status = "cancelled", cancelledAt = NOW(), cancelReason = ? WHERE id = ?',
+    [reason ?? null, orderId]
+  );
+  // Restore item to active so it can be re-purchased
+  await pool.execute('UPDATE productGalleryItems SET status = "active" WHERE id = ?', [order.galleryItemId]);
+  return { ok: true };
+}

@@ -12354,6 +12354,27 @@ EXAMPLE OUTPUT (exact format):
           'UPDATE productGalleryItems SET status = "sold" WHERE id = ? AND status = "active"',
           [input.itemId]
         );
+        // Create gallery order record + deduct commission on confirm
+        try {
+          const { getOrCreateSellerDeposit, createGalleryOrder } = await import('./db') as any;
+          const deposit = await getOrCreateSellerDeposit(item.merchantId);
+          const commissionRate = parseFloat(String(deposit.productCommissionRate ?? 0.05));
+          await createGalleryOrder({
+            galleryId: item.galleryId,
+            galleryItemId: item.id,
+            merchantId: item.merchantId,
+            buyerId: ctx.user.id,
+            title: item.itemName || `圖片商品 #${item.id}`,
+            itemNumber: item.itemNumber || '',
+            imageUrl: item.imageUrl || '',
+            price: parseFloat(item.price) || 0,
+            currency: item.currency || 'HKD',
+            commissionRate,
+            buyerNote: input.buyerNote,
+          });
+        } catch (e) {
+          console.error('[markSold] createGalleryOrder failed', e);
+        }
         // Fire-and-forget: notify merchant via chat
         try {
           const { openOrGetChatRoom, sendChatMessage } = await import('./db') as any;
@@ -12366,6 +12387,32 @@ EXAMPLE OUTPUT (exact format):
             await sendChatMessage(roomId, item.merchantId, msg, 'system');
           }
         } catch {}
+        return { ok: true };
+      }),
+
+    listOrdersForGallery: protectedProcedure
+      .input(z.object({ galleryId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const { getGalleryOrdersByMerchant } = await import('./db') as any;
+        return getGalleryOrdersByMerchant(ctx.user.id, input.galleryId);
+      }),
+
+    confirmOrder: protectedProcedure
+      .input(z.object({ orderId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const { confirmGalleryOrder } = await import('./db') as any;
+        const result = await confirmGalleryOrder(input.orderId, ctx.user.id);
+        if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
+        return { ok: true };
+      }),
+
+    cancelOrder: protectedProcedure
+      .input(z.object({ orderId: z.number(), reason: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const { cancelGalleryOrder } = await import('./db') as any;
+        const isAdmin = ctx.user.role === 'admin';
+        const result = await cancelGalleryOrder(input.orderId, ctx.user.id, isAdmin, input.reason);
+        if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
         return { ok: true };
       }),
   }),
