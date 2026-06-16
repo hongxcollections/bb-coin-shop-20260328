@@ -832,12 +832,12 @@ export default function PokeLover() {
         bgsEstimate: result.bgsEstimate ?? undefined,
         cgcEstimate: result.cgcEstimate ?? undefined,
         tagEstimate: result.tagEstimate ?? undefined,
-        condition: result.condition,
+        condition: result.condition ?? undefined,
         marketPriceHKD: result.marketPriceHKD ?? undefined,
         psa9HKD: result.psa9HKD ?? undefined,
         psa10HKD: result.psa10HKD ?? undefined,
-        cardSet: result.set,
-        rarity: result.rarity,
+        cardSet: result.set ?? undefined,
+        rarity: result.rarity ?? undefined,
       });
     });
   }, [result, isAuthenticated, imagePreview, saveCardMut]);
