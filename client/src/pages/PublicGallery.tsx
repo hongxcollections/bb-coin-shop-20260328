@@ -140,9 +140,22 @@ function SoldSheet({ item, merchantId, onClose }: { item: GalleryItem; merchantI
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 pb-20" onClick={onClose}>
       <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center" onClick={e => e.stopPropagation()}>
-        <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-          <span className="text-2xl">🏷️</span>
-        </div>
+        {item.imageUrl ? (
+          <div className="relative w-20 h-20 mx-auto mb-3">
+            <img
+              src={item.imageUrl}
+              alt={item.itemName || ''}
+              className="w-20 h-20 rounded-full object-cover border-2 border-red-100"
+            />
+            <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center border-2 border-white">
+              <span className="text-white text-xs font-bold">售</span>
+            </div>
+          </div>
+        ) : (
+          <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <span className="text-2xl">🏷️</span>
+          </div>
+        )}
         <h2 className="font-bold text-gray-800 mb-1">此貨品已售出</h2>
         {item.itemName && <p className="text-sm text-gray-500 mb-1">{item.itemName}</p>}
         <p className="text-sm text-gray-400 mb-5">詳情可以聯繫商戶查詢</p>

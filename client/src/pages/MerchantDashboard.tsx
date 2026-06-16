@@ -104,13 +104,27 @@ function TxRow({ tx, showBalance, onGroupCommission }: {
   const hasGroupRound = !!tx.relatedGroupAuctionRoundId;
   const winPrice = tx.auctionCurrentPrice != null ? parseFloat(String(tx.auctionCurrentPrice)) : null;
 
+  // Detect gallery order description format: 圖片集訂單｜galleryTitle｜itemName｜currency $price
+  const isGalleryOrder = typeof tx.description === 'string' && tx.description.startsWith('圖片集訂單｜');
+  const galleryParts = isGalleryOrder ? tx.description!.split('｜') : [];
+  // galleryParts: [0]="圖片集訂單", [1]=galleryTitle, [2]=itemName, [3]="HKD $xxx"
+
   const inner = (
     <div className={`flex items-start gap-3 py-2.5 border-b last:border-0 ${hasAuction ? "cursor-pointer hover:bg-amber-50/60 rounded-lg px-1 -mx-1 transition-colors" : ""}`}>
       <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${isIn ? "bg-emerald-50" : "bg-red-50"}`}>
         {isIn ? <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600" /> : <ArrowUpRight className="w-3.5 h-3.5 text-red-500" />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-gray-800 truncate">{tx.description ?? TX_LABEL[tx.type] ?? tx.type}</p>
+        <p className="text-xs font-medium text-gray-800 truncate">
+          {isGalleryOrder ? TX_LABEL[tx.type] ?? '傭金扣除' : (tx.description ?? TX_LABEL[tx.type] ?? tx.type)}
+        </p>
+        {isGalleryOrder && (
+          <div className="mt-0.5 space-y-0.5">
+            {galleryParts[1] && <p className="text-xs text-purple-700 font-medium truncate">🖼 {galleryParts[1]}</p>}
+            {galleryParts[2] && <p className="text-xs text-gray-700 truncate">📦 {galleryParts[2]}</p>}
+            {galleryParts[3] && <p className="text-xs text-gray-500">{galleryParts[3]}</p>}
+          </div>
+        )}
         {hasAuction && (
           <div className="mt-0.5 space-y-0.5">
             <p className="text-xs text-amber-700 font-medium truncate">📦 {tx.auctionTitle}</p>

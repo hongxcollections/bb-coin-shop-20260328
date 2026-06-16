@@ -7792,9 +7792,12 @@ export async function confirmGalleryOrder(orderId: number, merchantId: number): 
   const commissionAmount = parseFloat(order.commissionAmount);
   if (commissionAmount > 0) {
     try {
+      const [galleryRows]: any = await pool.execute('SELECT title FROM productGalleries WHERE id = ? LIMIT 1', [order.galleryId]);
+      const galleryTitle = galleryRows[0]?.title ?? '';
+      const priceFmt = `${order.currency} $${parseFloat(order.price).toFixed(2)}`;
       await deductCommission(
         merchantId, commissionAmount, 0,
-        `圖片集訂單 #${orderId}：${order.title}（${order.currency} $${parseFloat(order.price).toFixed(2)}）`
+        `圖片集訂單｜${galleryTitle}｜${order.title}｜${priceFmt}`
       );
     } catch (e) {
       console.error('[confirmGalleryOrder] deductCommission failed', e);
