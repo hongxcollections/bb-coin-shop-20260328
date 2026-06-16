@@ -232,7 +232,6 @@ export default function MerchantGallery() {
       // ── Constants matching DOM layout (CSS px, drawn at 2× scale) ──
       const items = draftItems.filter(i => i.status !== 'hidden');
       const cols = editCols;
-      const isCompact = cols >= 7;
       const activeCount = items.filter(i => i.status === 'active').length;
       const soldCount   = items.filter(i => i.status === 'sold').length;
       const title       = currentGallery?.title ?? '';
@@ -240,14 +239,14 @@ export default function MerchantGallery() {
       const description  = (currentGallery as any)?.description ?? '';
 
       const S   = 2;           // scale: 2× CSS px → canvas px
-      const CW  = 375;         // canvas width in CSS px (standard mobile)
+      let CW  = 375;           // canvas width in CSS px; may expand for extra cols
       const M   = 12;          // mx-3 / mt-3 / mb-3
       const hPX = 16;          // hero px-4
       const hPT = 16;          // hero pt-4
       const hPB = 16;          // hero pb-4
       const hR  = 16;          // hero rounded-2xl
       const heroX = M;
-      const heroW = CW - M * 2; // 351 px
+      let heroW = CW - M * 2; // 351 px; updated after grid sizing
 
       // ── Measure description line count ──
       const tmp = document.createElement('canvas');
@@ -274,13 +273,19 @@ export default function MerchantGallery() {
         badgeRowH;
       const heroH = hPT + heroContentH + hPB;
 
-      // Grid measurements
+      // Grid measurements — cell always sized at 3-col equivalent; canvas expands for extra cols
       const gridPX = 12; const gridPB = 12;
       const gridGap = cols >= 8 ? 2 : 5;
-      const gridInnerW = heroW - gridPX * 2;
-      const cellW = Math.floor((gridInnerW - gridGap * (cols - 1)) / cols);
-      const buyFontSz = cols >= 4 ? 9 : 11;
-      const buyStripH = isCompact ? 0 : (12 + buyFontSz); // py-1.5(6×2) + font
+      // Fixed cell width = what 3 columns would produce in a 375-wide canvas
+      const BASE_CW = 375;
+      const BASE_INNER = BASE_CW - M * 2 - gridPX * 2; // 375 - 24 - 24 = 327
+      const cellW = Math.floor((BASE_INNER - gridGap * (3 - 1)) / 3); // 3-col cell size
+      // Canvas width expands to fit all cols at that cell size
+      const totalGridW = cols * cellW + (cols - 1) * gridGap + gridPX * 2;
+      CW = Math.max(BASE_CW, M * 2 + totalGridW);
+      heroW = CW - M * 2;
+      const buyFontSz = 11; // always 3-col size (not compact)
+      const buyStripH = 12 + buyFontSz; // py-1.5(6×2=12) + font
       const cardH   = cellW + buyStripH;
       const rows    = Math.ceil(items.length / cols);
       const gridH   = rows * (cardH + gridGap) - gridGap + gridPB;
@@ -293,7 +298,7 @@ export default function MerchantGallery() {
       ctx.scale(S, S);
 
       // rounded-rect helper (arcTo, works everywhere)
-      function rrect(x: number, y: number, w: number, h: number, r: number) {
+      const rrect = (x: number, y: number, w: number, h: number, r: number) => {
         const rv = Math.min(r, w / 2, h / 2);
         ctx.beginPath();
         ctx.moveTo(x + rv, y); ctx.lineTo(x + w - rv, y);
@@ -305,7 +310,7 @@ export default function MerchantGallery() {
         ctx.lineTo(x, y + rv);
         ctx.arcTo(x, y,         x + rv, y,          rv);
         ctx.closePath();
-      }
+      };
 
       // ── Background ──
       ctx.fillStyle = '#ECECEC';
@@ -388,11 +393,11 @@ export default function MerchantGallery() {
       // ── Grid items ──
       const gridTop  = M + heroH + M;
       const gridLeft = heroX + gridPX; // = 24
-      const cardR    = isCompact ? 4 : 10;
-      const rs       = cols >= 5 ? 36 : 46; // ribbon size
-      const numFSz   = cols >= 4 ? 7 : 8;
-      const nameFSz  = cols >= 4 ? 8 : 10;
-      const priceFSz = cols >= 4 ? 8 : 10;
+      const cardR    = 10;  // always 3-col size (not compact)
+      const rs       = 46;  // ribbon size fixed at 3-col
+      const numFSz   = 8;
+      const nameFSz  = 10;
+      const priceFSz = 10;
 
       items.forEach((item, idx) => {
         const col = idx % cols; const row = Math.floor(idx / cols);
@@ -402,9 +407,9 @@ export default function MerchantGallery() {
         const price  = parseFloat(item.price);
         const img    = loadedImgs[idx];
 
-        // 1. Card white bg + shadow (non-compact)
+        // 1. Card white bg + shadow
         ctx.save();
-        if (!isCompact) { ctx.shadowColor = 'rgba(0,0,0,0.10)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 1; }
+        ctx.shadowColor = 'rgba(0,0,0,0.10)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 1;
         ctx.fillStyle = '#fff'; rrect(cx, cy, cellW, cardH, cardR); ctx.fill();
         ctx.restore();
 
@@ -437,8 +442,8 @@ export default function MerchantGallery() {
           ctx.fillStyle = '#f3f4f6'; ctx.fillRect(cx, cy, cellW, cellW);
         }
 
-        // Overlay + text (!isCompact)
-        if (!isCompact && (item.itemNumber || item.itemName || price > 0)) {
+        // Overlay + text
+        if (item.itemNumber || item.itemName || price > 0) {
           const ovH  = Math.round(cellW * 0.55);
           const ovG  = ctx.createLinearGradient(0, cy + cellW - ovH, 0, cy + cellW);
           ovG.addColorStop(0, 'transparent'); ovG.addColorStop(0.4, 'rgba(0,0,0,0.25)'); ovG.addColorStop(1, 'rgba(0,0,0,0.68)');
@@ -462,32 +467,22 @@ export default function MerchantGallery() {
           }
         }
 
-        // Sold indicator
+        // Sold indicator — triangle ribbon (always 3-col style)
         if (isSold) {
-          if (isCompact) {
-            ctx.fillStyle = 'rgba(185,28,28,0.85)'; ctx.font = 'bold 5px sans-serif';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            const bw2 = ctx.measureText('已售').width + 4;
-            rrect(cx + cellW / 2 - bw2 / 2, cy + cellW / 2 - 4, bw2, 8, 2); ctx.fill();
-            ctx.fillStyle = '#fff'; ctx.fillText('已售', cx + cellW / 2, cy + cellW / 2);
-          } else {
-            // Triangle ribbon (CSS border trick: border-width 0 rs rs 0, color transparent #DC2626)
-            ctx.beginPath();
-            ctx.moveTo(cx + cellW - rs, cy); ctx.lineTo(cx + cellW, cy); ctx.lineTo(cx + cellW, cy + rs);
-            ctx.closePath(); ctx.fillStyle = '#DC2626'; ctx.fill();
-            // "已售" text rotated 45° at triangle centroid
-            ctx.save();
-            ctx.translate(cx + cellW - rs * 0.38, cy + rs * 0.38);
-            ctx.rotate(Math.PI / 4);
-            ctx.fillStyle = '#fff'; ctx.font = `bold ${cols >= 5 ? 6 : 7}px sans-serif`;
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText('已售', 0, 0);
-            ctx.restore();
-          }
+          ctx.beginPath();
+          ctx.moveTo(cx + cellW - rs, cy); ctx.lineTo(cx + cellW, cy); ctx.lineTo(cx + cellW, cy + rs);
+          ctx.closePath(); ctx.fillStyle = '#DC2626'; ctx.fill();
+          ctx.save();
+          ctx.translate(cx + cellW - rs * 0.38, cy + rs * 0.38);
+          ctx.rotate(Math.PI / 4);
+          ctx.fillStyle = '#fff'; ctx.font = 'bold 7px sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('已售', 0, 0);
+          ctx.restore();
         }
         ctx.restore(); // end image clip
 
-        // 3. Buy strip (bottom, !isCompact)
+        // 3. Buy strip (bottom)
         if (buyStripH > 0) {
           const sy = cy + cellW;
           const rv = Math.min(cardR, cellW / 2);
@@ -1332,7 +1327,6 @@ export default function MerchantGallery() {
       {showPosterModal && (() => {
         const posterItems = draftItems.filter(i => i.status !== 'hidden');
         const posterCols = editCols;
-        const isCompact = posterCols >= 7;
         const activeCount = posterItems.filter(i => i.status === 'active').length;
         const soldCount = posterItems.filter(i => i.status === 'sold').length;
         return (
@@ -1380,31 +1374,37 @@ export default function MerchantGallery() {
                   </div>
                 </div>
 
-                {/* ── Grid (exact copy of PublicGallery) ── */}
+                {/* ── Grid — items always at 3-col visual size; overflow-x scrolls extra cols ── */}
                 {posterItems.length === 0 ? (
                   <p className="text-xs text-gray-400 text-center py-8">未有商品可顯示</p>
                 ) : (
-                  <div
-                    className="px-3 pb-3"
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: `repeat(${posterCols}, 1fr)`,
-                      gap: posterCols >= 8 ? '2px' : '5px',
-                    }}
-                  >
+                  <div className="overflow-x-auto">
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: `repeat(${posterCols}, calc((100vw - 24px) / 3))`,
+                        gap: `${posterCols >= 8 ? 2 : 5}px`,
+                        paddingLeft: 12,
+                        paddingRight: 12,
+                        paddingBottom: 12,
+                        width: 'max-content',
+                        minWidth: '100%',
+                        boxSizing: 'border-box',
+                      }}
+                    >
                     {posterItems.map(item => {
                       const price = parseFloat(item.price);
                       const isSold = item.status === 'sold';
-                      const showBuyBtn = !isCompact;
-                      const ribbonSize = posterCols >= 5 ? 36 : 46;
+                      // Always 3-col visual size
+                      const ribbonSize = 46;
                       return (
                         <div
                           key={item.id}
                           className="overflow-hidden"
                           style={{
-                            borderRadius: isCompact ? '4px' : '10px',
+                            borderRadius: '10px',
                             background: '#fff',
-                            boxShadow: isCompact ? 'none' : '0 1px 6px rgba(0,0,0,0.10)',
+                            boxShadow: '0 1px 6px rgba(0,0,0,0.10)',
                           }}
                         >
                           {/* Image with overlay */}
@@ -1416,7 +1416,7 @@ export default function MerchantGallery() {
                               style={{ filter: isSold ? 'grayscale(50%) brightness(0.88)' : 'none' }}
                             />
                             {/* Bottom-left info overlay */}
-                            {!isCompact && (item.itemNumber || item.itemName || price > 0) && (
+                            {(item.itemNumber || item.itemName || price > 0) && (
                               <div
                                 className="absolute bottom-0 left-0 right-0"
                                 style={{
@@ -1425,17 +1425,17 @@ export default function MerchantGallery() {
                                 }}
                               >
                                 {item.itemNumber && (
-                                  <p className="font-mono leading-none mb-0.5" style={{ fontSize: posterCols >= 4 ? '7px' : '8px', color: 'rgba(255,255,255,0.7)' }}>
+                                  <p className="font-mono leading-none mb-0.5" style={{ fontSize: '8px', color: 'rgba(255,255,255,0.7)' }}>
                                     #{item.itemNumber}
                                   </p>
                                 )}
                                 {item.itemName && (
-                                  <p className="font-semibold text-white leading-tight truncate" style={{ fontSize: posterCols >= 4 ? '8px' : '10px', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                                  <p className="font-semibold text-white leading-tight truncate" style={{ fontSize: '10px', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                     {item.itemName}
                                   </p>
                                 )}
                                 {price > 0 && (
-                                  <p className="font-bold leading-none mt-0.5" style={{ fontSize: posterCols >= 4 ? '8px' : '10px', color: '#FFD580' }}>
+                                  <p className="font-bold leading-none mt-0.5" style={{ fontSize: '10px', color: '#FFD580' }}>
                                     HK${price.toLocaleString('en-HK')}
                                   </p>
                                 )}
@@ -1443,55 +1443,46 @@ export default function MerchantGallery() {
                             )}
                             {/* Sold ribbon */}
                             {isSold && (
-                              isCompact ? (
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <span className="font-bold text-white rounded" style={{ fontSize: '5px', padding: '1px 2px', background: 'rgba(185,28,28,0.85)' }}>已售</span>
-                                </div>
-                              ) : (
-                                <>
-                                  <div className="absolute" style={{
-                                    top: 0, right: 0, width: 0, height: 0,
-                                    borderStyle: 'solid',
-                                    borderWidth: `0 ${ribbonSize}px ${ribbonSize}px 0`,
-                                    borderColor: `transparent #DC2626 transparent transparent`,
-                                  }} />
-                                  <div className="absolute font-bold text-white" style={{
-                                    top: posterCols >= 5 ? '3px' : '5px',
-                                    right: posterCols >= 5 ? '1px' : '2px',
-                                    fontSize: posterCols >= 5 ? '6px' : '7px',
-                                    transform: 'rotate(45deg)',
-                                  }}>已售</div>
-                                </>
-                              )
+                              <>
+                                <div className="absolute" style={{
+                                  top: 0, right: 0, width: 0, height: 0,
+                                  borderStyle: 'solid',
+                                  borderWidth: `0 ${ribbonSize}px ${ribbonSize}px 0`,
+                                  borderColor: `transparent #DC2626 transparent transparent`,
+                                }} />
+                                <div className="absolute font-bold text-white" style={{
+                                  top: '5px', right: '2px', fontSize: '7px',
+                                  transform: 'rotate(45deg)',
+                                }}>已售</div>
+                              </>
                             )}
                           </div>
-                          {/* Buy button strip */}
-                          {showBuyBtn && (
-                            isSold ? (
-                              <div
-                                className="w-full flex items-center justify-center py-1.5"
-                                style={{ background: '#F3F4F6', fontSize: posterCols >= 4 ? '9px' : '11px', color: '#9CA3AF', fontWeight: 600 }}
-                              >
-                                已售出 · 聯繫商戶
-                              </div>
-                            ) : (
-                              <div
-                                className="w-full flex items-center justify-center py-1.5"
-                                style={{
-                                  backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)',
-                                  backgroundColor: '#FBBF24',
-                                  fontSize: posterCols >= 4 ? '9px' : '11px',
-                                  color: '#fff',
-                                  fontWeight: 700,
-                                }}
-                              >
-                                立即落單
-                              </div>
-                            )
+                          {/* Buy button strip — always shown at 3-col size */}
+                          {isSold ? (
+                            <div
+                              className="w-full flex items-center justify-center py-1.5"
+                              style={{ background: '#F3F4F6', fontSize: '11px', color: '#9CA3AF', fontWeight: 600 }}
+                            >
+                              已售出 · 聯繫商戶
+                            </div>
+                          ) : (
+                            <div
+                              className="w-full flex items-center justify-center py-1.5"
+                              style={{
+                                backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)',
+                                backgroundColor: '#FBBF24',
+                                fontSize: '11px',
+                                color: '#fff',
+                                fontWeight: 700,
+                              }}
+                            >
+                              立即落單
+                            </div>
                           )}
                         </div>
                       );
                     })}
+                    </div>
                   </div>
                 )}
                 </div>{/* /posterRef */}
