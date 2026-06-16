@@ -395,35 +395,40 @@ export default function PublicGallery() {
           </div>
 
           {/* ── Grid ── */}
+          {/* Items always sized at 3-column width; extra columns overflow horizontally */}
           {items.length === 0 ? (
             <div className="text-center py-16 px-4">
               <Images className="w-10 h-10 mx-auto mb-2" style={{ color: '#D1D5DB' }} />
               <p className="text-sm" style={{ color: '#9CA3AF' }}>暫無商品</p>
             </div>
           ) : (
-            <div
-              className="px-3"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${displayCols}, 1fr)`,
-                gap: displayCols >= 8 ? '2px' : '5px',
-              }}
-            >
+            <div className="overflow-x-auto">
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${displayCols}, calc((100vw - 24px) / 3))`,
+                  gap: `${displayCols >= 8 ? 2 : 5}px`,
+                  paddingLeft: 12,
+                  paddingRight: 12,
+                  width: 'max-content',
+                  minWidth: '100%',
+                  boxSizing: 'border-box',
+                }}
+              >
               {items.map(item => {
                 const price = parseFloat(item.price);
                 const isSold = item.status === 'sold' || localSold.has(item.id);
-                const isCompact = displayCols >= 7;
-                const ribbonSize = displayCols >= 5 ? 36 : 46;
-                const showBuyBtn = !isCompact;
+                // Always render at 3-column visual size regardless of displayCols
+                const ribbonSize = 46;
 
                 return (
                   <div
                     key={item.id}
                     className="overflow-hidden"
                     style={{
-                      borderRadius: isCompact ? '4px' : '10px',
+                      borderRadius: '10px',
                       background: '#fff',
-                      boxShadow: isCompact ? 'none' : '0 1px 6px rgba(0,0,0,0.10)',
+                      boxShadow: '0 1px 6px rgba(0,0,0,0.10)',
                     }}
                   >
                     {/* ── Image (clickable → lightbox) ── */}
@@ -441,7 +446,7 @@ export default function PublicGallery() {
                       />
 
                       {/* Bottom-left info overlay (name + price) */}
-                      {!isCompact && (item.itemNumber || item.itemName || price > 0) && (
+                      {(item.itemNumber || item.itemName || price > 0) && (
                         <div
                           className="absolute bottom-0 left-0 right-0"
                           style={{
@@ -450,17 +455,17 @@ export default function PublicGallery() {
                           }}
                         >
                           {item.itemNumber && (
-                            <p className="font-mono leading-none mb-0.5" style={{ fontSize: displayCols >= 4 ? '7px' : '8px', color: 'rgba(255,255,255,0.7)' }}>
+                            <p className="font-mono leading-none mb-0.5" style={{ fontSize: '8px', color: 'rgba(255,255,255,0.7)' }}>
                               #{item.itemNumber}
                             </p>
                           )}
                           {item.itemName && (
-                            <p className="font-semibold text-white leading-tight truncate" style={{ fontSize: displayCols >= 4 ? '8px' : '10px', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                            <p className="font-semibold text-white leading-tight truncate" style={{ fontSize: '10px', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                               {item.itemName}
                             </p>
                           )}
                           {price > 0 && (
-                            <p className="font-bold leading-none mt-0.5" style={{ fontSize: displayCols >= 4 ? '8px' : '10px', color: '#FFD580' }}>
+                            <p className="font-bold leading-none mt-0.5" style={{ fontSize: '10px', color: '#FFD580' }}>
                               HK${price.toLocaleString('en-HK')}
                             </p>
                           )}
@@ -469,66 +474,55 @@ export default function PublicGallery() {
 
                       {/* Sold ribbon */}
                       {isSold && (
-                        isCompact ? (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="font-bold text-white rounded" style={{
-                              fontSize: '5px', padding: '1px 2px', background: 'rgba(185,28,28,0.85)',
-                            }}>已售</span>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="absolute" style={{
-                              top: 0, right: 0, width: 0, height: 0,
-                              borderStyle: 'solid',
-                              borderWidth: `0 ${ribbonSize}px ${ribbonSize}px 0`,
-                              borderColor: `transparent #DC2626 transparent transparent`,
-                            }} />
-                            <div className="absolute font-bold text-white" style={{
-                              top: displayCols >= 5 ? '3px' : '5px',
-                              right: displayCols >= 5 ? '1px' : '2px',
-                              fontSize: displayCols >= 5 ? '6px' : '7px',
-                              transform: 'rotate(45deg)',
-                            }}>已售</div>
-                          </>
-                        )
+                        <>
+                          <div className="absolute" style={{
+                            top: 0, right: 0, width: 0, height: 0,
+                            borderStyle: 'solid',
+                            borderWidth: `0 ${ribbonSize}px ${ribbonSize}px 0`,
+                            borderColor: `transparent #DC2626 transparent transparent`,
+                          }} />
+                          <div className="absolute font-bold text-white" style={{
+                            top: '5px', right: '2px', fontSize: '7px',
+                            transform: 'rotate(45deg)',
+                          }}>已售</div>
+                        </>
                       )}
                     </div>
 
-                    {/* ── Buy button strip (non-compact only) ── */}
-                    {showBuyBtn && (
-                      isSold ? (
-                        <button
-                          onClick={() => setSoldItem(item)}
-                          className="w-full flex items-center justify-center gap-1 py-1.5"
-                          style={{
-                            background: '#F3F4F6',
-                            fontSize: displayCols >= 4 ? '9px' : '11px',
-                            color: '#9CA3AF',
-                            fontWeight: 600,
-                          }}
-                        >
-                          <span>已售出 · 聯繫商戶</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => setBuyingItem(item)}
-                          className="w-full flex items-center justify-center gap-1 py-1.5"
-                          style={{
-                            backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)',
-                            backgroundColor: '#FBBF24',
-                            fontSize: displayCols >= 4 ? '9px' : '11px',
-                            color: '#fff',
-                            fontWeight: 700,
-                          }}
-                        >
-                          <ShoppingCart style={{ width: displayCols >= 4 ? '9px' : '11px', height: displayCols >= 4 ? '9px' : '11px' }} />
-                          <span>立即落單</span>
-                        </button>
-                      )
+                    {/* ── Buy button strip (always shown at 3-col size) ── */}
+                    {isSold ? (
+                      <button
+                        onClick={() => setSoldItem(item)}
+                        className="w-full flex items-center justify-center gap-1 py-1.5"
+                        style={{
+                          background: '#F3F4F6',
+                          fontSize: '11px',
+                          color: '#9CA3AF',
+                          fontWeight: 600,
+                        }}
+                      >
+                        <span>已售出 · 聯繫商戶</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setBuyingItem(item)}
+                        className="w-full flex items-center justify-center gap-1 py-1.5"
+                        style={{
+                          backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)',
+                          backgroundColor: '#FBBF24',
+                          fontSize: '11px',
+                          color: '#fff',
+                          fontWeight: 700,
+                        }}
+                      >
+                        <ShoppingCart style={{ width: '11px', height: '11px' }} />
+                        <span>立即落單</span>
+                      </button>
                     )}
                   </div>
                 );
               })}
+              </div>
             </div>
           )}
         </>
