@@ -519,14 +519,10 @@ export default function MerchantGallery() {
     }
   }
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (!files || files.length === 0 || !editGalleryId) return;
-
+  async function processFiles(allFiles: File[]) {
+    if (allFiles.length === 0 || !editGalleryId) return;
     const maxNew = 200 - draftItems.length;
     if (maxNew <= 0) { toast.error('已達最多 200 張上限'); return; }
-    const allFiles = Array.from(files);
-    e.target.value = '';
     const fileArr = allFiles.slice(0, maxNew);
     if (fileArr.length < allFiles.length) toast.info(`已達上限，只上載首 ${maxNew} 張`);
 
@@ -567,6 +563,34 @@ export default function MerchantGallery() {
       }
     }
     setUploading(false);
+  }
+
+  async function handleUploadClick() {
+    if (uploading || draftItems.length >= 200) return;
+    // Try File System Access API first — uses Chrome's own picker,
+    // avoids the Android System Photo Picker blank-screen bug entirely.
+    if ('showOpenFilePicker' in window) {
+      try {
+        const handles = await (window as any).showOpenFilePicker({
+          multiple: true,
+          types: [{ description: 'Images', accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.heic', '.heif'] } }],
+        });
+        const files: File[] = await Promise.all(handles.map((h: any) => h.getFile()));
+        await processFiles(files);
+        return;
+      } catch (err: any) {
+        // AbortError = user cancelled; anything else = unsupported, fall through
+        if (err?.name === 'AbortError') return;
+      }
+    }
+    // Fallback: traditional file input click
+    fileInputRef.current?.click();
+  }
+
+  function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    processFiles(files);
   }
 
   function updateDraftItem(id: number, patch: Partial<GalleryItem>) {
@@ -912,7 +936,7 @@ export default function MerchantGallery() {
                       style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
                     />
                     <button
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={handleUploadClick}
                       disabled={uploading || draftItems.length >= 200}
                       className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
                       style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
