@@ -1057,7 +1057,6 @@ export default function MerchantGallery() {
                                   src={img.imageUrl}
                                   alt=""
                                   className="w-full h-full object-cover"
-                                  onClick={() => openLightbox(img.imageUrl)}
                                 />
                                 <div className="absolute inset-0 flex flex-col pointer-events-none">
                                   <div className="flex justify-end p-0.5 pointer-events-auto">
@@ -1186,8 +1185,6 @@ export default function MerchantGallery() {
                                                     setCarouselIdx(prev => ({ ...prev, [item.id]: ci + 1 }));
                                                   else if (diff < -40 && ci > 0)
                                                     setCarouselIdx(prev => ({ ...prev, [item.id]: ci - 1 }));
-                                                  else
-                                                    openLightbox(cur.imageUrl, itemImages.map(i => i.imageUrl));
                                                 }}
                                               >
                                                 <img
