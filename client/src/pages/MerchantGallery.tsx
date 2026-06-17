@@ -128,6 +128,8 @@ export default function MerchantGallery() {
 
   // Pool assign picker
   const [assignPickerImageId, setAssignPickerImageId] = useState<number | null>(null);
+  const [carouselIdx, setCarouselIdx] = useState<Record<number, number>>({});
+  const carouselTouchX = useRef<Record<number, number>>({});
 
   // ── tRPC ──
   const galleriesQ = trpc.productGalleries.myGalleries.useQuery(undefined, {
@@ -1138,32 +1140,55 @@ export default function MerchantGallery() {
                                   return (
                                     <div key={item.id} className="bg-white rounded-xl overflow-hidden border border-gray-100">
                                       <div className="relative bg-gray-50">
-                                        {coverImg ? (
-                                          <>
-                                            <img
-                                              src={coverImg.imageUrl}
-                                              alt=""
-                                              className="w-full aspect-square object-cover cursor-zoom-in"
-                                              onClick={() => openLightbox(coverImg.imageUrl)}
-                                              style={{ filter: item.status === 'sold' ? 'grayscale(50%) brightness(0.88)' : 'none' }}
-                                            />
-                                            {item.status === 'sold' && (
-                                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none">
-                                                <span className="text-white text-xs font-bold bg-black/60 px-2 py-0.5 rounded-full">已售出</span>
+                                        {itemImages.length > 0 ? (() => {
+                                          const ci = Math.min(carouselIdx[item.id] ?? 0, itemImages.length - 1);
+                                          const cur = itemImages[ci];
+                                          return (
+                                            <>
+                                              <div
+                                                className="w-full aspect-square relative overflow-hidden"
+                                                onTouchStart={e => { carouselTouchX.current[item.id] = e.touches[0].clientX; }}
+                                                onTouchEnd={e => {
+                                                  const diff = (carouselTouchX.current[item.id] ?? 0) - e.changedTouches[0].clientX;
+                                                  if (diff > 40 && ci < itemImages.length - 1)
+                                                    setCarouselIdx(prev => ({ ...prev, [item.id]: ci + 1 }));
+                                                  else if (diff < -40 && ci > 0)
+                                                    setCarouselIdx(prev => ({ ...prev, [item.id]: ci - 1 }));
+                                                  else
+                                                    openLightbox(cur.imageUrl);
+                                                }}
+                                              >
+                                                <img
+                                                  src={cur.imageUrl}
+                                                  alt=""
+                                                  className="w-full h-full object-cover"
+                                                  style={{ filter: item.status === 'sold' ? 'grayscale(50%) brightness(0.88)' : 'none' }}
+                                                />
+                                                {item.status === 'sold' && (
+                                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none">
+                                                    <span className="text-white text-xs font-bold bg-black/60 px-2 py-0.5 rounded-full">已售出</span>
+                                                  </div>
+                                                )}
+                                                {item.status === 'hidden' && (
+                                                  <div className="absolute top-1.5 right-1.5 pointer-events-none">
+                                                    <EyeOff className="w-4 h-4 text-white drop-shadow-sm" />
+                                                  </div>
+                                                )}
+                                                {itemImages.length > 1 && (
+                                                  <div className="absolute flex gap-0.5 pointer-events-none" style={{ bottom: 6, left: 0, right: 0, justifyContent: 'center' }}>
+                                                    {itemImages.map((_, di) => (
+                                                      <div key={di} style={{
+                                                        width: di === ci ? 10 : 4, height: 4, borderRadius: 2,
+                                                        background: di === ci ? '#fff' : 'rgba(255,255,255,0.5)',
+                                                        transition: 'width 0.2s',
+                                                      }} />
+                                                    ))}
+                                                  </div>
+                                                )}
                                               </div>
-                                            )}
-                                            {item.status === 'hidden' && (
-                                              <div className="absolute top-1.5 right-1.5 pointer-events-none">
-                                                <EyeOff className="w-4 h-4 text-white drop-shadow-sm" />
-                                              </div>
-                                            )}
-                                            {itemImages.length > 1 && (
-                                              <div className="absolute top-1.5 left-8 bg-black/60 rounded-full px-1.5 py-0.5 text-white text-[9px] font-bold pointer-events-none">
-                                                {itemImages.length}張
-                                              </div>
-                                            )}
-                                          </>
-                                        ) : (
+                                            </>
+                                          );
+                                        })() : (
                                           <div className="w-full aspect-square flex flex-col items-center justify-center gap-1">
                                             <FileImage className="w-8 h-8 text-gray-200" />
                                             <p className="text-[10px] text-gray-400">尚未分配圖片</p>
@@ -1176,16 +1201,17 @@ export default function MerchantGallery() {
                                           <X className="w-3 h-3 text-white" />
                                         </button>
                                       </div>
-                                      {/* Thumbnail strip */}
+                                      {/* Thumbnail strip — click to jump to that image */}
                                       {itemImages.length > 0 && (
                                         <div className="flex gap-1 overflow-x-auto px-1.5 pt-1.5" style={{ scrollbarWidth: 'none' }}>
-                                          {itemImages.map(img => (
+                                          {itemImages.map((img, imgIdx) => (
                                             <div key={img.id} className="relative flex-shrink-0 w-9 h-9">
                                               <img
                                                 src={img.imageUrl}
                                                 alt=""
-                                                className="w-full h-full object-cover rounded cursor-zoom-in"
-                                                onClick={() => openLightbox(img.imageUrl)}
+                                                className="w-full h-full object-cover rounded cursor-pointer"
+                                                style={{ outline: (carouselIdx[item.id] ?? 0) === imgIdx ? '2px solid #FF8C00' : 'none' }}
+                                                onClick={() => setCarouselIdx(prev => ({ ...prev, [item.id]: imgIdx }))}
                                               />
                                               <button
                                                 onClick={() => unassignImageM.mutate({ imageId: img.id })}
