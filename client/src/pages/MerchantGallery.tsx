@@ -106,6 +106,8 @@ export default function MerchantGallery() {
 
   // Lightbox + pinch-zoom
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxImgIdx, setLightboxImgIdx] = useState(0);
   const [lbZoom, setLbZoom] = useState(1);
   const [lbPanX, setLbPanX] = useState(0);
   const [lbPanY, setLbPanY] = useState(0);
@@ -114,6 +116,7 @@ export default function MerchantGallery() {
   const panStartTouch = useRef({ x: 0, y: 0 });
   const panStartOffset = useRef({ x: 0, y: 0 });
   const lastTapTime = useRef(0);
+  const lbSwipeTouchX = useRef(0);
 
   // Batch edit panel
   const [showBatchPanel, setShowBatchPanel] = useState(false);
@@ -662,7 +665,11 @@ export default function MerchantGallery() {
   if (!isAuthenticated) return null;
 
   // ── Lightbox helpers ──
-  function openLightbox(src: string) {
+  function openLightbox(src: string, images?: string[]) {
+    const imgs = images && images.length > 0 ? images : [src];
+    const idx = imgs.indexOf(src);
+    setLightboxImages(imgs);
+    setLightboxImgIdx(idx >= 0 ? idx : 0);
     setLightboxSrc(src);
     setLbZoom(1); setLbPanX(0); setLbPanY(0);
   }
@@ -679,6 +686,7 @@ export default function MerchantGallery() {
       const now = Date.now();
       if (now - lastTapTime.current < 280) { setLbZoom(1); setLbPanX(0); setLbPanY(0); }
       lastTapTime.current = now;
+      lbSwipeTouchX.current = e.touches[0].clientX;
       panStartTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       panStartOffset.current = { x: lbPanX, y: lbPanY };
     }
@@ -690,6 +698,17 @@ export default function MerchantGallery() {
     } else if (e.touches.length === 1 && lbZoom > 1) {
       setLbPanX(panStartOffset.current.x + e.touches[0].clientX - panStartTouch.current.x);
       setLbPanY(panStartOffset.current.y + e.touches[0].clientY - panStartTouch.current.y);
+    }
+  }
+  function lbTouchEnd(e: React.TouchEvent) {
+    if (lbZoom > 1 || lightboxImages.length <= 1) return;
+    const diff = lbSwipeTouchX.current - e.changedTouches[0].clientX;
+    if (diff > 50 && lightboxImgIdx < lightboxImages.length - 1) {
+      setLightboxImgIdx(i => i + 1);
+      setLbZoom(1); setLbPanX(0); setLbPanY(0);
+    } else if (diff < -50 && lightboxImgIdx > 0) {
+      setLightboxImgIdx(i => i - 1);
+      setLbZoom(1); setLbPanX(0); setLbPanY(0);
     }
   }
 
@@ -710,10 +729,12 @@ export default function MerchantGallery() {
 
   // ── Lightbox overlay ──
   if (lightboxSrc) {
+    const lbCurSrc = lightboxImages[lightboxImgIdx] ?? lightboxSrc;
     return (
       <div
         className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
         onClick={() => { if (lbZoom <= 1) setLightboxSrc(null); }}
+        onTouchEnd={lbTouchEnd}
       >
         <button
           className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center z-10"
@@ -730,7 +751,7 @@ export default function MerchantGallery() {
           </button>
         )}
         <img
-          src={lightboxSrc}
+          src={lbCurSrc}
           className="max-w-full max-h-full object-contain rounded-lg select-none"
           style={{
             transform: `translate(${lbPanX}px, ${lbPanY}px) scale(${lbZoom})`,
@@ -744,6 +765,17 @@ export default function MerchantGallery() {
           alt=""
           draggable={false}
         />
+        {lightboxImages.length > 1 && (
+          <div className="absolute flex gap-1.5 pointer-events-none" style={{ bottom: 32, left: 0, right: 0, justifyContent: 'center' }}>
+            {lightboxImages.map((_, i) => (
+              <div key={i} style={{
+                width: i === lightboxImgIdx ? 14 : 6, height: 6, borderRadius: 3,
+                background: i === lightboxImgIdx ? '#fff' : 'rgba(255,255,255,0.4)',
+                transition: 'width 0.2s',
+              }} />
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -1155,7 +1187,7 @@ export default function MerchantGallery() {
                                                   else if (diff < -40 && ci > 0)
                                                     setCarouselIdx(prev => ({ ...prev, [item.id]: ci - 1 }));
                                                   else
-                                                    openLightbox(cur.imageUrl);
+                                                    openLightbox(cur.imageUrl, itemImages.map(i => i.imageUrl));
                                                 }}
                                               >
                                                 <img
