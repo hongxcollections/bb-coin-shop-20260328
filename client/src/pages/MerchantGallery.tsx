@@ -1001,6 +1001,58 @@ export default function MerchantGallery() {
                     )}
                   </div>
 
+                  {/* Pool section — above batch panel */}
+                  {(() => {
+                    const poolImages = (galleryImagesQ.data ?? []).filter(img => img.itemId === null);
+                    return (
+                      <div className="bg-white rounded-2xl p-3 mb-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                            <Images className="w-4 h-4 text-orange-500" />
+                            相片池 ({poolImages.length})
+                          </h3>
+                          <p className="text-[10px] text-gray-400">點「指定」把圖片加入商品</p>
+                        </div>
+                        {poolImages.length === 0 ? (
+                          <p className="text-xs text-gray-400 py-4 text-center">上載圖片後會顯示於此，再指定給各商品</p>
+                        ) : (
+                          <div className="grid grid-cols-4 gap-1.5">
+                            {poolImages.map(img => (
+                              <div key={img.id} className="relative rounded-lg overflow-hidden bg-gray-100" style={{ aspectRatio: '1/1' }}>
+                                <img
+                                  src={img.imageUrl}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                  onClick={() => openLightbox(img.imageUrl)}
+                                />
+                                <div className="absolute inset-0 flex flex-col pointer-events-none">
+                                  <div className="flex justify-end p-0.5 pointer-events-auto">
+                                    <button
+                                      onClick={() => deleteGalleryImageM.mutate({ imageId: img.id })}
+                                      className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
+                                    >
+                                      <X className="w-2.5 h-2.5 text-white" />
+                                    </button>
+                                  </div>
+                                  <div className="mt-auto p-0.5 pointer-events-auto">
+                                    <button
+                                      onClick={() => setAssignPickerImageId(img.id)}
+                                      disabled={draftItems.length === 0}
+                                      className="w-full text-[9px] font-bold text-white rounded py-0.5 disabled:opacity-50"
+                                      style={{ background: 'rgba(255,120,0,0.85)' }}
+                                    >
+                                      指定商品
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {/* Batch edit panel */}
                   {draftItems.length > 0 && (
                     <div className="bg-white rounded-2xl mb-3 overflow-hidden">
@@ -1066,12 +1118,11 @@ export default function MerchantGallery() {
 
                   {(() => {
                     const allGalleryImages: GalleryImageRow[] = galleryImagesQ.data ?? [];
-                    const poolImages = allGalleryImages.filter(img => img.itemId === null);
                     const getItemImages = (itemId: number) => allGalleryImages.filter(img => img.itemId === itemId);
 
                     return (
                       <>
-                        {draftItems.length === 0 && poolImages.length === 0 ? (
+                        {draftItems.length === 0 ? (
                           <div className="bg-white rounded-2xl p-12 text-center">
                             <FileImage className="w-10 h-10 text-gray-200 mx-auto mb-2" />
                             <p className="text-sm text-gray-400 mb-1">點擊「上載到相片池」批量上載圖片</p>
@@ -1195,52 +1246,6 @@ export default function MerchantGallery() {
                               </div>
                             )}
 
-                            {/* Pool section */}
-                            <div className="mt-4 bg-white rounded-2xl p-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
-                                  <Images className="w-4 h-4 text-orange-500" />
-                                  相片池 ({poolImages.length})
-                                </h3>
-                                <p className="text-[10px] text-gray-400">點「指定」把圖片加入商品</p>
-                              </div>
-                              {poolImages.length === 0 ? (
-                                <p className="text-xs text-gray-400 py-4 text-center">上載圖片後會顯示於此，再指定給各商品</p>
-                              ) : (
-                                <div className="grid grid-cols-4 gap-1.5">
-                                  {poolImages.map(img => (
-                                    <div key={img.id} className="relative rounded-lg overflow-hidden bg-gray-100" style={{ aspectRatio: '1/1' }}>
-                                      <img
-                                        src={img.imageUrl}
-                                        alt=""
-                                        className="w-full h-full object-cover"
-                                        onClick={() => openLightbox(img.imageUrl)}
-                                      />
-                                      <div className="absolute inset-0 flex flex-col pointer-events-none">
-                                        <div className="flex justify-end p-0.5 pointer-events-auto">
-                                          <button
-                                            onClick={() => deleteGalleryImageM.mutate({ imageId: img.id })}
-                                            className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
-                                          >
-                                            <X className="w-2.5 h-2.5 text-white" />
-                                          </button>
-                                        </div>
-                                        <div className="mt-auto p-0.5 pointer-events-auto">
-                                          <button
-                                            onClick={() => setAssignPickerImageId(img.id)}
-                                            disabled={draftItems.length === 0}
-                                            className="w-full text-[9px] font-bold text-white rounded py-0.5 disabled:opacity-50"
-                                            style={{ background: 'rgba(255,120,0,0.85)' }}
-                                          >
-                                            指定商品
-                                          </button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
                           </>
                         )}
                       </>
