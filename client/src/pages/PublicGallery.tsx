@@ -244,6 +244,7 @@ export default function PublicGallery() {
   const galleryId = parseInt(params.id ?? '', 10);
 
   const [lightboxItem, setLightboxItem] = useState<GalleryItem | null>(null);
+  const [lbImgIdx, setLbImgIdx] = useState(0);
   const [lbZoom, setLbZoom] = useState(1);
   const [lbPanX, setLbPanX] = useState(0);
   const [lbPanY, setLbPanY] = useState(0);
@@ -252,6 +253,7 @@ export default function PublicGallery() {
   const panStartTouch = useRef({ x: 0, y: 0 });
   const panStartOffset = useRef({ x: 0, y: 0 });
   const lastTapTime = useRef(0);
+  const lbSwipeTouchX = useRef(0);
 
   const [buyingItem, setBuyingItem] = useState<GalleryItem | null>(null);
   const [soldItem, setSoldItem] = useState<GalleryItem | null>(null);
@@ -273,7 +275,10 @@ export default function PublicGallery() {
 
   // ── Lightbox helpers ──
   function openLightbox(item: GalleryItem) {
+    const imgs = item.images ?? [];
+    const startIdx = imgs.findIndex(i => i.imageUrl === item.imageUrl);
     setLightboxItem(item);
+    setLbImgIdx(startIdx >= 0 ? startIdx : 0);
     setLbZoom(1); setLbPanX(0); setLbPanY(0);
   }
   function lbPinchDist(t: React.TouchList) {
@@ -289,6 +294,7 @@ export default function PublicGallery() {
       const now = Date.now();
       if (now - lastTapTime.current < 280) { setLbZoom(1); setLbPanX(0); setLbPanY(0); }
       lastTapTime.current = now;
+      lbSwipeTouchX.current = e.touches[0].clientX;
       panStartTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       panStartOffset.current = { x: lbPanX, y: lbPanY };
     }
@@ -302,16 +308,31 @@ export default function PublicGallery() {
       setLbPanY(panStartOffset.current.y + e.touches[0].clientY - panStartTouch.current.y);
     }
   }
+  function lbTouchEnd(e: React.TouchEvent) {
+    const imgs = lightboxItem?.images ?? [];
+    if (lbZoom > 1 || imgs.length <= 1) return;
+    const diff = lbSwipeTouchX.current - e.changedTouches[0].clientX;
+    if (diff > 50 && lbImgIdx < imgs.length - 1) {
+      setLbImgIdx(i => i + 1);
+      setLbZoom(1); setLbPanX(0); setLbPanY(0);
+    } else if (diff < -50 && lbImgIdx > 0) {
+      setLbImgIdx(i => i - 1);
+      setLbZoom(1); setLbPanX(0); setLbPanY(0);
+    }
+  }
 
   // ── Lightbox overlay ──
   if (lightboxItem) {
     const p = parseFloat(lightboxItem.price);
     const isItemSold = lightboxItem.status === 'sold' || localSold.has(lightboxItem.id);
+    const lbImgs = lightboxItem.images ?? [];
+    const lbCurSrc = lbImgs[lbImgIdx]?.imageUrl ?? lightboxItem.imageUrl;
     return (
       <div
         className="fixed inset-0 z-50 flex flex-col"
         style={{ background: 'rgba(0,0,0,0.96)' }}
         onClick={() => { if (lbZoom <= 1) setLightboxItem(null); }}
+        onTouchEnd={lbTouchEnd}
       >
         <div className="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
           <div className="flex-1 min-w-0 pr-2">
@@ -332,9 +353,9 @@ export default function PublicGallery() {
           </button>
         </div>
 
-        <div className="flex-1 flex items-center justify-center overflow-hidden px-2">
+        <div className="flex-1 flex items-center justify-center overflow-hidden px-2 relative">
           <img
-            src={lightboxItem.imageUrl}
+            src={lbCurSrc}
             className="max-w-full max-h-full object-contain rounded-xl select-none"
             style={{
               transform: `translate(${lbPanX}px, ${lbPanY}px) scale(${lbZoom})`,
@@ -348,6 +369,17 @@ export default function PublicGallery() {
             alt=""
             draggable={false}
           />
+          {lbImgs.length > 1 && (
+            <div className="absolute flex gap-1.5 pointer-events-none" style={{ bottom: 10, left: 0, right: 0, justifyContent: 'center' }}>
+              {lbImgs.map((_, i) => (
+                <div key={i} style={{
+                  width: i === lbImgIdx ? 14 : 6, height: 6, borderRadius: 3,
+                  background: i === lbImgIdx ? '#fff' : 'rgba(255,255,255,0.35)',
+                  transition: 'width 0.2s',
+                }} />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between px-4 pt-2 pb-5 flex-shrink-0" onClick={e => e.stopPropagation()}>
@@ -358,7 +390,7 @@ export default function PublicGallery() {
               onClick={() => { setLbZoom(1); setLbPanX(0); setLbPanY(0); }}
             >重設縮放</button>
           ) : (
-            <p className="text-[11px] text-white/30">捏合手勢可放大</p>
+            <p className="text-[11px] text-white/30">{lbImgs.length > 1 ? '左右滑動切換圖片' : '捏合手勢可放大'}</p>
           )}
           {isItemSold ? (
             <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: '#DC2626', color: '#fff' }}>已售出</span>
