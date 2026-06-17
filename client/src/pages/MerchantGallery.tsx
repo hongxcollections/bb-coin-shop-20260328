@@ -1287,7 +1287,7 @@ export default function MerchantGallery() {
                         {draftItems.length === 0 ? (
                           <p className="text-sm text-gray-400 py-6 text-center">請先點「新增商品」建立商品</p>
                         ) : (
-                          <div className="space-y-1 pb-8">
+                          <div className="space-y-1 pb-20">
                             {draftItems.map(item => {
                               const iImgs = (galleryImagesQ.data ?? []).filter((img: GalleryImageRow) => img.itemId === item.id);
                               return (
