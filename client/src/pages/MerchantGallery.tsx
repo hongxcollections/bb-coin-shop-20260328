@@ -28,6 +28,11 @@ interface GalleryItem {
   s3Key: string | null; status: string; sortOrder: number;
 }
 
+interface GalleryImageRow {
+  id: number; galleryId: number; merchantId: number; itemId: number | null;
+  imageUrl: string; s3Key: string | null; sortOrder: number;
+}
+
 type View = 'list' | 'create' | 'edit';
 type EditTab = 'info' | 'items' | 'orders' | 'publish';
 
@@ -121,6 +126,9 @@ export default function MerchantGallery() {
   const [savingPoster, setSavingPoster] = useState(false);
   const posterRef = useRef<HTMLDivElement>(null);
 
+  // Pool assign picker
+  const [assignPickerImageId, setAssignPickerImageId] = useState<number | null>(null);
+
   // ── tRPC ──
   const galleriesQ = trpc.productGalleries.myGalleries.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -162,6 +170,38 @@ export default function MerchantGallery() {
   });
   const cancelOrderM = trpc.productGalleries.cancelOrder.useMutation({
     onSuccess: () => { ordersQ.refetch(); getForEditQ.refetch(); toast.success('訂單已取消，商品恢復上架'); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const galleryImagesQ = trpc.productGalleries.getGalleryImages.useQuery(
+    { galleryId: editGalleryId! },
+    { enabled: editGalleryId !== null && editTab === 'items', refetchOnWindowFocus: false }
+  );
+  const addToPoolM = trpc.productGalleries.addToPool.useMutation();
+  const assignImageM = trpc.productGalleries.assignImage.useMutation({
+    onSuccess: () => { galleryImagesQ.refetch(); getForEditQ.refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const unassignImageM = trpc.productGalleries.unassignImage.useMutation({
+    onSuccess: () => { galleryImagesQ.refetch(); getForEditQ.refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const deleteGalleryImageM = trpc.productGalleries.deleteGalleryImage.useMutation({
+    onSuccess: () => galleryImagesQ.refetch(),
+    onError: (e) => toast.error(e.message),
+  });
+  const createEmptyItemM = trpc.productGalleries.createEmptyItem.useMutation({
+    onSuccess: async () => {
+      const refreshed = await getForEditQ.refetch();
+      if (refreshed.data) {
+        const serverItems = refreshed.data.items as GalleryItem[];
+        setDraftItems(prev => {
+          const prevMap = new Map(prev.map(i => [i.id, i]));
+          return serverItems.map(si => prevMap.get(si.id) ?? si);
+        });
+      }
+      toast.success('已新增空白商品');
+    },
     onError: (e) => toast.error(e.message),
   });
 
@@ -528,17 +568,12 @@ export default function MerchantGallery() {
 
   async function processFiles(allFiles: File[]) {
     if (allFiles.length === 0 || !editGalleryId) return;
-    const maxNew = 200 - draftItems.length;
-    if (maxNew <= 0) { toast.error('已達最多 200 張上限'); return; }
-    const fileArr = allFiles.slice(0, maxNew);
-    if (fileArr.length < allFiles.length) toast.info(`已達上限，只上載首 ${maxNew} 張`);
-
     setUploading(true);
     setUploadDone(0);
-    setUploadTotal(fileArr.length);
+    setUploadTotal(allFiles.length);
 
     const uploaded: { imageUrl: string; s3Key: string }[] = [];
-    for (const file of fileArr) {
+    for (const file of allFiles) {
       try {
         const compressed = await compressImage(file);
         const { uploadUrl, finalUrl, key } = await signUploadM.mutateAsync({
@@ -555,16 +590,9 @@ export default function MerchantGallery() {
 
     if (uploaded.length > 0) {
       try {
-        await addItemsM.mutateAsync({ galleryId: editGalleryId, items: uploaded });
-        const refreshed = await getForEditQ.refetch();
-        if (refreshed.data) {
-          const serverItems = refreshed.data.items as GalleryItem[];
-          setDraftItems(prev => {
-            const prevMap = new Map(prev.map(i => [i.id, i]));
-            return serverItems.map(si => prevMap.get(si.id) ?? si);
-          });
-        }
-        toast.success(`成功上載 ${uploaded.length} 張`);
+        await addToPoolM.mutateAsync({ galleryId: editGalleryId, images: uploaded });
+        await galleryImagesQ.refetch();
+        toast.success(`成功上載 ${uploaded.length} 張，圖片已加入相片池`);
       } catch (err: any) {
         toast.error(err.message ?? '儲存失敗');
       }
@@ -573,7 +601,7 @@ export default function MerchantGallery() {
   }
 
   async function handleUploadClick() {
-    if (uploading || draftItems.length >= 200) return;
+    if (uploading) return;
     // Try File System Access API first — uses Chrome's own picker,
     // avoids the Android System Photo Picker blank-screen bug entirely.
     if ('showOpenFilePicker' in window) {
@@ -944,14 +972,22 @@ export default function MerchantGallery() {
                     />
                     <button
                       onClick={handleUploadClick}
-                      disabled={uploading || draftItems.length >= 200}
+                      disabled={uploading}
                       className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
                       style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
                     >
                       <Upload className="w-4 h-4" />
-                      {uploading ? `上載中 ${uploadDone}/${uploadTotal}` : '上載圖片'}
+                      {uploading ? `上載中 ${uploadDone}/${uploadTotal}` : '上載到相片池'}
                     </button>
-                    <span className="text-xs text-gray-400">{draftItems.length} / 200</span>
+                    <button
+                      onClick={() => editGalleryId && createEmptyItemM.mutate({ galleryId: editGalleryId })}
+                      disabled={createEmptyItemM.isPending}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold disabled:opacity-50"
+                      style={{ background: '#F0F0F0', color: '#555' }}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      新增商品
+                    </button>
                     {draftItems.length > 0 && (
                       <button
                         onClick={handleBatchSave}
@@ -1028,99 +1064,258 @@ export default function MerchantGallery() {
                     </div>
                   )}
 
-                  {draftItems.length === 0 ? (
-                    <div className="bg-white rounded-2xl p-12 text-center">
-                      <FileImage className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-                      <p className="text-sm text-gray-400">點擊「上載圖片」開始添加商品</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-2 gap-2">
-                        {draftItems.map(item => (
-                          <div key={item.id} className="bg-white rounded-xl overflow-hidden border border-gray-100">
-                            <div className="relative">
-                              <img
-                                src={item.imageUrl}
-                                alt=""
-                                className="w-full aspect-square object-cover cursor-zoom-in"
-                                onClick={() => openLightbox(item.imageUrl)}
-                              />
-                              {item.status === 'sold' && (
-                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                  <span className="text-white text-xs font-bold bg-black/60 px-2 py-0.5 rounded-full">已售出</span>
-                                </div>
-                              )}
-                              {item.status === 'hidden' && (
-                                <div className="absolute top-1.5 right-1.5">
-                                  <EyeOff className="w-4 h-4 text-white drop-shadow-sm" />
-                                </div>
-                              )}
-                              <button
-                                onClick={() => handleDeleteItem(item.id)}
-                                className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70"
-                              >
-                                <X className="w-3 h-3 text-white" />
-                              </button>
-                            </div>
-                            <div className="p-2 space-y-1.5">
-                              <input
-                                value={item.itemNumber ?? ''}
-                                onChange={e => updateDraftItem(item.id, { itemNumber: e.target.value })}
-                                placeholder="#編號"
-                                maxLength={100}
-                                className="w-full px-2 py-1 text-xs outline-none"
-                                style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '8px' }}
-                              />
-                              <input
-                                value={item.itemName}
-                                onChange={e => updateDraftItem(item.id, { itemName: e.target.value })}
-                                placeholder="商品名稱"
-                                maxLength={200}
-                                className="w-full px-2 py-1 text-xs outline-none"
-                                style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '8px' }}
-                              />
-                              <input
-                                value={item.price}
-                                onChange={e => updateDraftItem(item.id, { price: e.target.value })}
-                                placeholder="HKD$ 價格"
-                                inputMode="decimal"
-                                className="w-full px-2 py-1 text-xs outline-none"
-                                style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '8px' }}
-                              />
-                              <div className="flex gap-1">
-                                {(['active', 'sold', 'hidden'] as const).map(s => (
-                                  <button
-                                    key={s}
-                                    onClick={() => updateDraftItem(item.id, { status: s })}
-                                    className={`flex-1 py-1 rounded text-[9px] font-semibold transition-colors ${
-                                      item.status === s
-                                        ? s === 'active' ? 'bg-green-500 text-white'
-                                          : s === 'sold' ? 'bg-gray-400 text-white'
-                                          : 'bg-yellow-400 text-white'
-                                        : 'bg-gray-100 text-gray-400'
-                                    }`}
-                                  >
-                                    {ITEM_STATUS_LABELS[s]}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                  {(() => {
+                    const allGalleryImages: GalleryImageRow[] = galleryImagesQ.data ?? [];
+                    const poolImages = allGalleryImages.filter(img => img.itemId === null);
+                    const getItemImages = (itemId: number) => allGalleryImages.filter(img => img.itemId === itemId);
 
-                      <button
-                        onClick={handleBatchSave}
-                        disabled={batchUpdateM.isPending}
-                        className="w-full mt-4 py-3 rounded-2xl font-semibold text-sm text-white disabled:opacity-50 flex items-center justify-center gap-2"
-                        style={{ background: 'linear-gradient(135deg, #22C55E, #16A34A)' }}
+                    return (
+                      <>
+                        {draftItems.length === 0 && poolImages.length === 0 ? (
+                          <div className="bg-white rounded-2xl p-12 text-center">
+                            <FileImage className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+                            <p className="text-sm text-gray-400 mb-1">點擊「上載到相片池」批量上載圖片</p>
+                            <p className="text-xs text-gray-300">再點「新增商品」，然後把相片指定到各商品</p>
+                          </div>
+                        ) : (
+                          <>
+                            {draftItems.length > 0 && (
+                              <div className="grid grid-cols-2 gap-2">
+                                {draftItems.map(item => {
+                                  const itemImages = getItemImages(item.id);
+                                  const coverImg = itemImages[0];
+                                  return (
+                                    <div key={item.id} className="bg-white rounded-xl overflow-hidden border border-gray-100">
+                                      <div className="relative bg-gray-50">
+                                        {coverImg ? (
+                                          <>
+                                            <img
+                                              src={coverImg.imageUrl}
+                                              alt=""
+                                              className="w-full aspect-square object-cover cursor-zoom-in"
+                                              onClick={() => openLightbox(coverImg.imageUrl)}
+                                              style={{ filter: item.status === 'sold' ? 'grayscale(50%) brightness(0.88)' : 'none' }}
+                                            />
+                                            {item.status === 'sold' && (
+                                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none">
+                                                <span className="text-white text-xs font-bold bg-black/60 px-2 py-0.5 rounded-full">已售出</span>
+                                              </div>
+                                            )}
+                                            {item.status === 'hidden' && (
+                                              <div className="absolute top-1.5 right-1.5 pointer-events-none">
+                                                <EyeOff className="w-4 h-4 text-white drop-shadow-sm" />
+                                              </div>
+                                            )}
+                                            {itemImages.length > 1 && (
+                                              <div className="absolute top-1.5 left-8 bg-black/60 rounded-full px-1.5 py-0.5 text-white text-[9px] font-bold pointer-events-none">
+                                                {itemImages.length}張
+                                              </div>
+                                            )}
+                                          </>
+                                        ) : (
+                                          <div className="w-full aspect-square flex flex-col items-center justify-center gap-1">
+                                            <FileImage className="w-8 h-8 text-gray-200" />
+                                            <p className="text-[10px] text-gray-400">尚未分配圖片</p>
+                                          </div>
+                                        )}
+                                        <button
+                                          onClick={() => handleDeleteItem(item.id)}
+                                          className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70"
+                                        >
+                                          <X className="w-3 h-3 text-white" />
+                                        </button>
+                                      </div>
+                                      {/* Thumbnail strip */}
+                                      {itemImages.length > 0 && (
+                                        <div className="flex gap-1 overflow-x-auto px-1.5 pt-1.5" style={{ scrollbarWidth: 'none' }}>
+                                          {itemImages.map(img => (
+                                            <div key={img.id} className="relative flex-shrink-0 w-9 h-9">
+                                              <img
+                                                src={img.imageUrl}
+                                                alt=""
+                                                className="w-full h-full object-cover rounded cursor-zoom-in"
+                                                onClick={() => openLightbox(img.imageUrl)}
+                                              />
+                                              <button
+                                                onClick={() => unassignImageM.mutate({ imageId: img.id })}
+                                                className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center"
+                                              >
+                                                <X className="w-2 h-2 text-white" />
+                                              </button>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                      <div className="p-2 space-y-1.5">
+                                        <input
+                                          value={item.itemNumber ?? ''}
+                                          onChange={e => updateDraftItem(item.id, { itemNumber: e.target.value })}
+                                          placeholder="#編號"
+                                          maxLength={100}
+                                          className="w-full px-2 py-1 text-xs outline-none"
+                                          style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '8px' }}
+                                        />
+                                        <input
+                                          value={item.itemName}
+                                          onChange={e => updateDraftItem(item.id, { itemName: e.target.value })}
+                                          placeholder="商品名稱"
+                                          maxLength={200}
+                                          className="w-full px-2 py-1 text-xs outline-none"
+                                          style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '8px' }}
+                                        />
+                                        <input
+                                          value={item.price}
+                                          onChange={e => updateDraftItem(item.id, { price: e.target.value })}
+                                          placeholder="HKD$ 價格"
+                                          inputMode="decimal"
+                                          className="w-full px-2 py-1 text-xs outline-none"
+                                          style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '8px' }}
+                                        />
+                                        <div className="flex gap-1">
+                                          {(['active', 'sold', 'hidden'] as const).map(s => (
+                                            <button
+                                              key={s}
+                                              onClick={() => updateDraftItem(item.id, { status: s })}
+                                              className={`flex-1 py-1 rounded text-[9px] font-semibold transition-colors ${
+                                                item.status === s
+                                                  ? s === 'active' ? 'bg-green-500 text-white'
+                                                    : s === 'sold' ? 'bg-gray-400 text-white'
+                                                    : 'bg-yellow-400 text-white'
+                                                  : 'bg-gray-100 text-gray-400'
+                                              }`}
+                                            >
+                                              {ITEM_STATUS_LABELS[s]}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {/* Pool section */}
+                            <div className="mt-4 bg-white rounded-2xl p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                                  <Images className="w-4 h-4 text-orange-500" />
+                                  相片池 ({poolImages.length})
+                                </h3>
+                                <p className="text-[10px] text-gray-400">點「指定」把圖片加入商品</p>
+                              </div>
+                              {poolImages.length === 0 ? (
+                                <p className="text-xs text-gray-400 py-4 text-center">上載圖片後會顯示於此，再指定給各商品</p>
+                              ) : (
+                                <div className="grid grid-cols-4 gap-1.5">
+                                  {poolImages.map(img => (
+                                    <div key={img.id} className="relative rounded-lg overflow-hidden bg-gray-100" style={{ aspectRatio: '1/1' }}>
+                                      <img
+                                        src={img.imageUrl}
+                                        alt=""
+                                        className="w-full h-full object-cover"
+                                        onClick={() => openLightbox(img.imageUrl)}
+                                      />
+                                      <div className="absolute inset-0 flex flex-col pointer-events-none">
+                                        <div className="flex justify-end p-0.5 pointer-events-auto">
+                                          <button
+                                            onClick={() => deleteGalleryImageM.mutate({ imageId: img.id })}
+                                            className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
+                                          >
+                                            <X className="w-2.5 h-2.5 text-white" />
+                                          </button>
+                                        </div>
+                                        <div className="mt-auto p-0.5 pointer-events-auto">
+                                          <button
+                                            onClick={() => setAssignPickerImageId(img.id)}
+                                            disabled={draftItems.length === 0}
+                                            className="w-full text-[9px] font-bold text-white rounded py-0.5 disabled:opacity-50"
+                                            style={{ background: 'rgba(255,120,0,0.85)' }}
+                                          >
+                                            指定商品
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
+
+                  {draftItems.length > 0 && (
+                    <button
+                      onClick={handleBatchSave}
+                      disabled={batchUpdateM.isPending}
+                      className="w-full mt-4 py-3 rounded-2xl font-semibold text-sm text-white disabled:opacity-50 flex items-center justify-center gap-2"
+                      style={{ background: 'linear-gradient(135deg, #22C55E, #16A34A)' }}
+                    >
+                      {batchUpdateM.isPending
+                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                        : <><Save className="w-4 h-4" />儲存所有變更</>
+                      }
+                    </button>
+                  )}
+
+                  {/* Assign picker modal */}
+                  {assignPickerImageId !== null && (
+                    <div
+                      className="fixed inset-0 z-50 bg-black/70 flex items-end"
+                      onClick={() => setAssignPickerImageId(null)}
+                    >
+                      <div
+                        className="bg-white w-full rounded-t-2xl px-4 pt-4"
+                        style={{ maxHeight: '65vh', overflowY: 'auto' }}
+                        onClick={e => e.stopPropagation()}
                       >
-                        {batchUpdateM.isPending
-                          ? <Loader2 className="w-4 h-4 animate-spin" />
-                          : <><Save className="w-4 h-4" />儲存所有變更</>
-                        }
-                      </button>
-                    </>
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-semibold text-gray-900 text-sm">指定到哪個商品？</h3>
+                          <button onClick={() => setAssignPickerImageId(null)}>
+                            <X className="w-5 h-5 text-gray-400" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-400 mb-3">選擇後圖片會從相片池移至該商品</p>
+                        {draftItems.length === 0 ? (
+                          <p className="text-sm text-gray-400 py-6 text-center">請先點「新增商品」建立商品</p>
+                        ) : (
+                          <div className="space-y-1 pb-8">
+                            {draftItems.map(item => {
+                              const iImgs = (galleryImagesQ.data ?? []).filter((img: GalleryImageRow) => img.itemId === item.id);
+                              return (
+                                <button
+                                  key={item.id}
+                                  onClick={() => {
+                                    assignImageM.mutate({ imageId: assignPickerImageId!, itemId: item.id });
+                                    setAssignPickerImageId(null);
+                                  }}
+                                  className="w-full flex items-center gap-3 py-2 px-2 rounded-xl text-left"
+                                  style={{ background: '#F9F9F9' }}
+                                >
+                                  {iImgs[0] ? (
+                                    <img src={iImgs[0].imageUrl} className="w-10 h-10 object-cover rounded-lg flex-shrink-0" alt="" />
+                                  ) : (
+                                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex-shrink-0 flex items-center justify-center">
+                                      <FileImage className="w-5 h-5 text-gray-300" />
+                                    </div>
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-gray-800 truncate">
+                                      {item.itemName || `商品 #${item.id}`}
+                                    </p>
+                                    {item.itemNumber && <p className="text-xs text-gray-400">#{item.itemNumber}</p>}
+                                    <p className="text-xs text-orange-500">{iImgs.length} 張圖片</p>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}

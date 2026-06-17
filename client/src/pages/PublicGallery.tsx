@@ -7,10 +7,15 @@ import BottomNav from "@/components/BottomNav";
 import { Loader2, X, Images, Store, ShoppingCart, MessageCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
+interface GalleryItemImage {
+  id: number; imageUrl: string;
+}
+
 interface GalleryItem {
   id: number; galleryId: number; merchantId: number; itemName: string;
   itemNumber: string | null; price: string; currency: string; imageUrl: string;
   status: string; sortOrder: number;
+  images?: GalleryItemImage[];
 }
 
 interface PublicGalleryData {
@@ -20,6 +25,58 @@ interface PublicGalleryData {
     status: string;
   };
   items: GalleryItem[];
+}
+
+// ── Per-item swipeable image carousel ──
+function ItemCarousel({
+  images, primaryUrl, isSold, onClick,
+}: {
+  images: GalleryItemImage[];
+  primaryUrl: string;
+  isSold: boolean;
+  onClick: (url: string) => void;
+}) {
+  const [idx, setIdx] = useState(0);
+  const touchStartX = useRef(0);
+  const allUrls = images.length > 0 ? images.map(i => i.imageUrl) : (primaryUrl ? [primaryUrl] : []);
+  const currentUrl = allUrls[idx] ?? allUrls[0] ?? '';
+
+  if (!currentUrl) return null;
+
+  return (
+    <div
+      className="w-full h-full relative"
+      onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+      onTouchEnd={e => {
+        const diff = touchStartX.current - e.changedTouches[0].clientX;
+        if (diff > 40 && idx < allUrls.length - 1) setIdx(i => i + 1);
+        else if (diff < -40 && idx > 0) setIdx(i => i - 1);
+      }}
+      onClick={() => onClick(currentUrl)}
+    >
+      <img
+        src={currentUrl}
+        alt="商品"
+        className="w-full h-full object-cover"
+        style={{ filter: isSold ? 'grayscale(50%) brightness(0.88)' : 'none' }}
+        loading="lazy"
+      />
+      {allUrls.length > 1 && (
+        <div className="absolute flex gap-0.5 pointer-events-none" style={{ bottom: 22, left: 0, right: 0, justifyContent: 'center' }}>
+          {allUrls.map((_, i) => (
+            <div
+              key={i}
+              style={{
+                width: i === idx ? 12 : 5, height: 4, borderRadius: 2,
+                background: i === idx ? '#fff' : 'rgba(255,255,255,0.5)',
+                transition: 'width 0.2s',
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Buy confirmation bottom sheet ──
@@ -431,18 +488,16 @@ export default function PublicGallery() {
                       boxShadow: '0 1px 6px rgba(0,0,0,0.10)',
                     }}
                   >
-                    {/* ── Image (clickable → lightbox) ── */}
+                    {/* ── Image carousel (swipe for multi-image) ── */}
                     <div
-                      className="relative w-full cursor-pointer"
+                      className="relative w-full"
                       style={{ aspectRatio: '1/1' }}
-                      onClick={() => openLightbox(item)}
                     >
-                      <img
-                        src={item.imageUrl}
-                        alt={item.itemName || '商品'}
-                        className="w-full h-full object-cover"
-                        style={{ filter: isSold ? 'grayscale(50%) brightness(0.88)' : 'none' }}
-                        loading="lazy"
+                      <ItemCarousel
+                        images={item.images ?? []}
+                        primaryUrl={item.imageUrl}
+                        isSold={isSold}
+                        onClick={(url) => openLightbox({ ...item, imageUrl: url })}
                       />
 
                       {/* Bottom-left info overlay (name + price) */}

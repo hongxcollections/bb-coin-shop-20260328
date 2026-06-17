@@ -7542,7 +7542,150 @@ export async function ensureProductGalleriesTable(): Promise<void> {
       createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS productGalleryImages (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      galleryId INT NOT NULL,
+      merchantId INT NOT NULL,
+      itemId INT NULL,
+      imageUrl VARCHAR(500) NOT NULL,
+      s3Key VARCHAR(500),
+      sortOrder INT NOT NULL DEFAULT 0,
+      createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
   _productGalleriesTableChecked = true;
+}
+
+export interface GalleryImageRow {
+  id: number; galleryId: number; merchantId: number; itemId: number | null;
+  imageUrl: string; s3Key: string | null; sortOrder: number; createdAt: Date;
+}
+
+export async function migrateGalleryItemImages(galleryId: number): Promise<void> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const [countRows]: any = await pool.execute(
+    'SELECT COUNT(*) as cnt FROM productGalleryImages WHERE galleryId = ?',
+    [galleryId]
+  );
+  if ((countRows[0]?.cnt ?? 0) > 0) return;
+  const [items]: any = await pool.execute(
+    'SELECT id, merchantId, imageUrl FROM productGalleryItems WHERE galleryId = ? AND imageUrl != "" ORDER BY sortOrder ASC, id ASC',
+    [galleryId]
+  );
+  for (const item of items) {
+    await pool.execute(
+      'INSERT INTO productGalleryImages (galleryId, merchantId, itemId, imageUrl, sortOrder) VALUES (?, ?, ?, ?, 0)',
+      [galleryId, item.merchantId, item.id, item.imageUrl]
+    );
+  }
+}
+
+export async function addGalleryImagesToPool(images: Array<{
+  galleryId: number; merchantId: number; imageUrl: string; s3Key?: string;
+}>): Promise<number[]> {
+  if (!images.length) return [];
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const [maxRow]: any = await pool.execute(
+    'SELECT COALESCE(MAX(sortOrder), -1) as maxOrder FROM productGalleryImages WHERE galleryId = ? AND itemId IS NULL',
+    [images[0].galleryId]
+  );
+  let startOrder = (maxRow[0]?.maxOrder ?? -1) + 1;
+  const ids: number[] = [];
+  for (const img of images) {
+    const [r]: any = await pool.execute(
+      'INSERT INTO productGalleryImages (galleryId, merchantId, itemId, imageUrl, s3Key, sortOrder) VALUES (?, ?, NULL, ?, ?, ?)',
+      [img.galleryId, img.merchantId, img.imageUrl, img.s3Key ?? null, startOrder++]
+    );
+    ids.push(r.insertId);
+  }
+  return ids;
+}
+
+export async function assignGalleryImage(imageId: number, itemId: number, merchantId: number): Promise<void> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const [imgRows]: any = await pool.execute(
+    'SELECT * FROM productGalleryImages WHERE id = ? AND merchantId = ?',
+    [imageId, merchantId]
+  );
+  if (!imgRows[0]) throw new Error('Image not found');
+  const img = imgRows[0];
+  const [maxRow]: any = await pool.execute(
+    'SELECT COALESCE(MAX(sortOrder), -1) as maxOrder FROM productGalleryImages WHERE itemId = ?',
+    [itemId]
+  );
+  const sortOrder = (maxRow[0]?.maxOrder ?? -1) + 1;
+  await pool.execute('UPDATE productGalleryImages SET itemId = ?, sortOrder = ? WHERE id = ?', [itemId, sortOrder, imageId]);
+  const [itemRows]: any = await pool.execute('SELECT imageUrl FROM productGalleryItems WHERE id = ?', [itemId]);
+  if (itemRows[0] && (!itemRows[0].imageUrl || itemRows[0].imageUrl === '')) {
+    await pool.execute('UPDATE productGalleryItems SET imageUrl = ? WHERE id = ?', [img.imageUrl, itemId]);
+  }
+}
+
+export async function unassignGalleryImage(imageId: number, merchantId: number): Promise<void> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const [imgRows]: any = await pool.execute(
+    'SELECT * FROM productGalleryImages WHERE id = ? AND merchantId = ?',
+    [imageId, merchantId]
+  );
+  if (!imgRows[0]) return;
+  const { itemId } = imgRows[0];
+  await pool.execute('UPDATE productGalleryImages SET itemId = NULL WHERE id = ?', [imageId]);
+  if (itemId) {
+    const [remainingRows]: any = await pool.execute(
+      'SELECT imageUrl FROM productGalleryImages WHERE itemId = ? ORDER BY sortOrder ASC, id ASC LIMIT 1',
+      [itemId]
+    );
+    await pool.execute('UPDATE productGalleryItems SET imageUrl = ? WHERE id = ?', [remainingRows[0]?.imageUrl ?? '', itemId]);
+  }
+}
+
+export async function deleteGalleryImage(imageId: number, merchantId: number): Promise<void> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const [imgRows]: any = await pool.execute(
+    'SELECT * FROM productGalleryImages WHERE id = ? AND merchantId = ?',
+    [imageId, merchantId]
+  );
+  if (!imgRows[0]) return;
+  const { itemId } = imgRows[0];
+  await pool.execute('DELETE FROM productGalleryImages WHERE id = ?', [imageId]);
+  if (itemId) {
+    const [remainingRows]: any = await pool.execute(
+      'SELECT imageUrl FROM productGalleryImages WHERE itemId = ? ORDER BY sortOrder ASC, id ASC LIMIT 1',
+      [itemId]
+    );
+    await pool.execute('UPDATE productGalleryItems SET imageUrl = ? WHERE id = ?', [remainingRows[0]?.imageUrl ?? '', itemId]);
+  }
+}
+
+export async function listGalleryImages(galleryId: number): Promise<GalleryImageRow[]> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    'SELECT * FROM productGalleryImages WHERE galleryId = ? ORDER BY itemId ASC, sortOrder ASC, id ASC',
+    [galleryId]
+  );
+  return rows as GalleryImageRow[];
+}
+
+export async function createEmptyGalleryItem(galleryId: number, merchantId: number): Promise<number> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const [maxRow]: any = await pool.execute(
+    'SELECT COALESCE(MAX(sortOrder), -1) as maxOrder FROM productGalleryItems WHERE galleryId = ?',
+    [galleryId]
+  );
+  const sortOrder = (maxRow[0]?.maxOrder ?? -1) + 1;
+  const [r]: any = await pool.execute(
+    'INSERT INTO productGalleryItems (galleryId, merchantId, imageUrl, sortOrder) VALUES (?, ?, "", ?)',
+    [galleryId, merchantId, sortOrder]
+  );
+  return r.insertId;
 }
 
 export interface ProductGalleryRow {
@@ -7694,7 +7837,8 @@ export async function batchUpdateProductGalleryItems(
 }
 
 export async function getPublicGalleryWithItems(id: number): Promise<{
-  gallery: ProductGalleryRow; items: ProductGalleryItemRow[];
+  gallery: ProductGalleryRow;
+  items: Array<ProductGalleryItemRow & { images: GalleryImageRow[] }>;
 } | null> {
   await ensureProductGalleriesTable();
   const pool = await getRawPool();
@@ -7707,7 +7851,20 @@ export async function getPublicGalleryWithItems(id: number): Promise<{
     'SELECT * FROM productGalleryItems WHERE galleryId = ? ORDER BY sortOrder ASC, id ASC',
     [id]
   );
-  return { gallery: gRows[0] as ProductGalleryRow, items: items as ProductGalleryItemRow[] };
+  const [allImages]: any = await pool.execute(
+    'SELECT * FROM productGalleryImages WHERE galleryId = ? AND itemId IS NOT NULL ORDER BY sortOrder ASC, id ASC',
+    [id]
+  );
+  const imagesByItem = new Map<number, GalleryImageRow[]>();
+  for (const img of allImages) {
+    if (!imagesByItem.has(img.itemId)) imagesByItem.set(img.itemId, []);
+    imagesByItem.get(img.itemId)!.push(img as GalleryImageRow);
+  }
+  const itemsWithImages = (items as ProductGalleryItemRow[]).map(item => ({
+    ...item,
+    images: imagesByItem.get(item.id) ?? [],
+  }));
+  return { gallery: gRows[0] as ProductGalleryRow, items: itemsWithImages };
 }
 
 // ── Gallery Orders ─────────────────────────────────────────────────────────

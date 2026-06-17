@@ -12210,11 +12210,12 @@ EXAMPLE OUTPUT (exact format):
     getForEdit: protectedProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .query(async ({ input, ctx }) => {
-        const { getProductGallery, listProductGalleryItems } = await import('./db') as any;
+        const { getProductGallery, listProductGalleryItems, migrateGalleryItemImages } = await import('./db') as any;
         const gallery = await getProductGallery(input.id);
         if (!gallery || gallery.merchantId !== ctx.user.id) {
           throw new TRPCError({ code: 'NOT_FOUND' });
         }
+        await migrateGalleryItemImages(input.id);
         const items = await listProductGalleryItems(input.id);
         return { gallery, items };
       }),
@@ -12317,6 +12318,72 @@ EXAMPLE OUTPUT (exact format):
         }
         await batchUpdateProductGalleryItems(input.items, ctx.user.id);
         return { ok: true };
+      }),
+
+    addToPool: protectedProcedure
+      .input(z.object({
+        galleryId: z.number().int().positive(),
+        images: z.array(z.object({
+          imageUrl: z.string().url(),
+          s3Key: z.string().optional(),
+        })).max(200),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, addGalleryImagesToPool } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        const ids = await addGalleryImagesToPool(input.images.map((img: any) => ({
+          galleryId: input.galleryId, merchantId: ctx.user.id,
+          imageUrl: img.imageUrl, s3Key: img.s3Key,
+        })));
+        return { ids };
+      }),
+
+    getGalleryImages: protectedProcedure
+      .input(z.object({ galleryId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        const { getProductGallery, migrateGalleryItemImages, listGalleryImages } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        await migrateGalleryItemImages(input.galleryId);
+        return listGalleryImages(input.galleryId);
+      }),
+
+    assignImage: protectedProcedure
+      .input(z.object({
+        imageId: z.number().int().positive(),
+        itemId: z.number().int().positive(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { assignGalleryImage } = await import('./db') as any;
+        await assignGalleryImage(input.imageId, input.itemId, ctx.user.id);
+        return { ok: true };
+      }),
+
+    unassignImage: protectedProcedure
+      .input(z.object({ imageId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const { unassignGalleryImage } = await import('./db') as any;
+        await unassignGalleryImage(input.imageId, ctx.user.id);
+        return { ok: true };
+      }),
+
+    deleteGalleryImage: protectedProcedure
+      .input(z.object({ imageId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const { deleteGalleryImage } = await import('./db') as any;
+        await deleteGalleryImage(input.imageId, ctx.user.id);
+        return { ok: true };
+      }),
+
+    createEmptyItem: protectedProcedure
+      .input(z.object({ galleryId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, createEmptyGalleryItem } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        const id = await createEmptyGalleryItem(input.galleryId, ctx.user.id);
+        return { id };
       }),
 
     getPublic: publicProcedure
