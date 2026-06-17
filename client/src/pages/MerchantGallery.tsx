@@ -141,6 +141,10 @@ export default function MerchantGallery() {
   // Items layout: false = grid (2 cols wrap), true = horizontal scroll
   const [itemsScrollMode, setItemsScrollMode] = useState(false);
 
+  // Auction import picker
+  const [auctionPickerOpen, setAuctionPickerOpen] = useState(false);
+  const [selectedAuctionIds, setSelectedAuctionIds] = useState<Set<number>>(new Set());
+
   // ── tRPC ──
   const galleriesQ = trpc.productGalleries.myGalleries.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -200,6 +204,20 @@ export default function MerchantGallery() {
   });
   const deleteGalleryImageM = trpc.productGalleries.deleteGalleryImage.useMutation({
     onSuccess: () => galleryImagesQ.refetch(),
+    onError: (e) => toast.error(e.message),
+  });
+  const myUnsoldAuctionsQ = trpc.productGalleries.myUnsoldAuctions.useQuery(undefined, {
+    enabled: auctionPickerOpen,
+    refetchOnWindowFocus: false,
+  });
+  const importFromAuctionsM = trpc.productGalleries.importFromAuctions.useMutation({
+    onSuccess: (data) => {
+      toast.success(`已置入 ${data.created} 件拍賣商品`);
+      setAuctionPickerOpen(false);
+      setSelectedAuctionIds(new Set());
+      getForEditQ.refetch();
+      galleryImagesQ.refetch();
+    },
     onError: (e) => toast.error(e.message),
   });
   const createEmptyItemM = trpc.productGalleries.createEmptyItem.useMutation({
@@ -1030,6 +1048,14 @@ export default function MerchantGallery() {
                       <Plus className="w-3.5 h-3.5" />
                       新增商品
                     </button>
+                    <button
+                      onClick={() => { setSelectedAuctionIds(new Set()); setAuctionPickerOpen(true); }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
+                      style={{ background: '#EEF6FF', color: '#3B82F6' }}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      置入拍賣商品
+                    </button>
                     {draftItems.length > 0 && (
                       <button
                         onClick={handleBatchSave}
@@ -1404,6 +1430,113 @@ export default function MerchantGallery() {
                               );
                             })}
                           </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Auction import picker modal */}
+                  {auctionPickerOpen && (
+                    <div
+                      className="fixed inset-0 z-50 bg-black/70 flex items-end"
+                      onClick={() => setAuctionPickerOpen(false)}
+                    >
+                      <div
+                        className="bg-white w-full rounded-t-2xl px-4 pt-4 pb-10"
+                        style={{ maxHeight: '75vh', display: 'flex', flexDirection: 'column' }}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                          <h3 className="font-semibold text-gray-900 text-sm">選取流拍商品置入圖片集</h3>
+                          <button onClick={() => setAuctionPickerOpen(false)}>
+                            <X className="w-5 h-5 text-gray-400" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-400 mb-3 flex-shrink-0">選取後自動使用拍賣圖片，起拍價設為售價</p>
+                        {myUnsoldAuctionsQ.isLoading ? (
+                          <div className="flex justify-center py-8 flex-shrink-0">
+                            <Loader2 className="w-5 h-5 animate-spin text-orange-400" />
+                          </div>
+                        ) : !myUnsoldAuctionsQ.data?.length ? (
+                          <div className="text-center py-8 text-sm text-gray-400 flex-shrink-0">
+                            沒有流拍商品
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                              <span className="text-xs text-gray-500">
+                                已選 {selectedAuctionIds.size} / {myUnsoldAuctionsQ.data.length} 件
+                              </span>
+                              <button
+                                className="text-xs font-semibold text-orange-500"
+                                onClick={() => {
+                                  if (selectedAuctionIds.size === myUnsoldAuctionsQ.data!.length) {
+                                    setSelectedAuctionIds(new Set());
+                                  } else {
+                                    setSelectedAuctionIds(new Set(myUnsoldAuctionsQ.data!.map(a => a.id)));
+                                  }
+                                }}
+                              >
+                                {selectedAuctionIds.size === myUnsoldAuctionsQ.data.length ? '取消全選' : '全選'}
+                              </button>
+                            </div>
+                            <div className="overflow-y-auto flex-1 space-y-1.5 pr-0.5">
+                              {myUnsoldAuctionsQ.data.map(auction => {
+                                const selected = selectedAuctionIds.has(auction.id);
+                                return (
+                                  <button
+                                    key={auction.id}
+                                    onClick={() => {
+                                      setSelectedAuctionIds(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(auction.id)) next.delete(auction.id);
+                                        else next.add(auction.id);
+                                        return next;
+                                      });
+                                    }}
+                                    className="w-full flex items-center gap-3 p-2 rounded-xl text-left"
+                                    style={{ background: selected ? '#FFF7ED' : '#F8F8F8', border: `1.5px solid ${selected ? '#FF8C00' : 'transparent'}` }}
+                                  >
+                                    {auction.firstImageUrl ? (
+                                      <img src={auction.firstImageUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded-lg bg-gray-200 flex-shrink-0 flex items-center justify-center">
+                                        <FileImage className="w-5 h-5 text-gray-300" />
+                                      </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-semibold text-gray-800 truncate">{auction.title}</p>
+                                      <p className="text-xs text-orange-500 font-semibold">
+                                        起拍 HKD${parseFloat(auction.startingPrice).toLocaleString('en-HK')}
+                                      </p>
+                                    </div>
+                                    <div
+                                      className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center"
+                                      style={{ borderColor: selected ? '#FF8C00' : '#D1D5DB', background: selected ? '#FF8C00' : 'white' }}
+                                    >
+                                      {selected && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <button
+                              onClick={() => {
+                                if (!editGalleryId || selectedAuctionIds.size === 0) return;
+                                importFromAuctionsM.mutate({
+                                  galleryId: editGalleryId,
+                                  auctionIds: Array.from(selectedAuctionIds),
+                                });
+                              }}
+                              disabled={selectedAuctionIds.size === 0 || importFromAuctionsM.isPending}
+                              className="mt-3 w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 flex-shrink-0 flex items-center justify-center gap-2"
+                              style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
+                            >
+                              {importFromAuctionsM.isPending
+                                ? <><Loader2 className="w-4 h-4 animate-spin" />置入中...</>
+                                : `置入 ${selectedAuctionIds.size} 件商品`}
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>

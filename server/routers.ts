@@ -12482,6 +12482,74 @@ EXAMPLE OUTPUT (exact format):
         if (!result.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: result.error });
         return { ok: true };
       }),
+
+    myUnsoldAuctions: protectedProcedure.query(async ({ ctx }) => {
+      const { getRawPool } = await import('./db') as any;
+      const pool = await getRawPool();
+      if (!pool) return [];
+      const [rows]: any = await pool.execute(
+        `SELECT a.id, a.title, a.startingPrice,
+                (SELECT ai.imageUrl FROM auctionImages ai WHERE ai.auctionId = a.id ORDER BY ai.displayOrder ASC, ai.id ASC LIMIT 1) AS firstImageUrl
+         FROM auctions a
+         WHERE a.createdBy = ? AND a.status = 'ended' AND a.highestBidderId IS NULL AND COALESCE(a.archived, 0) = 0
+         ORDER BY a.updatedAt DESC
+         LIMIT 300`,
+        [ctx.user.id]
+      );
+      return rows as Array<{ id: number; title: string; startingPrice: string; firstImageUrl: string | null }>;
+    }),
+
+    importFromAuctions: protectedProcedure
+      .input(z.object({
+        galleryId: z.number().int().positive(),
+        auctionIds: z.array(z.number().int().positive()).min(1).max(100),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, listProductGalleryItems, getRawPool, addGalleryImagesToPool, assignGalleryImage } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        const existing = await listProductGalleryItems(input.galleryId);
+        if (existing.length + input.auctionIds.length > 200) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `最多 200 件，目前已有 ${existing.length} 件` });
+        }
+        const pool = await getRawPool();
+        if (!pool) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        let created = 0;
+        for (const auctionId of input.auctionIds) {
+          const [aRows]: any = await pool.execute(
+            `SELECT * FROM auctions WHERE id = ? AND createdBy = ? AND status = 'ended' AND highestBidderId IS NULL LIMIT 1`,
+            [auctionId, ctx.user.id]
+          );
+          const auction = aRows[0];
+          if (!auction) continue;
+          const [maxRow]: any = await pool.execute(
+            'SELECT COALESCE(MAX(sortOrder), -1) as maxOrder FROM productGalleryItems WHERE galleryId = ?',
+            [input.galleryId]
+          );
+          const sortOrder = (maxRow[0]?.maxOrder ?? -1) + 1;
+          const [r]: any = await pool.execute(
+            'INSERT INTO productGalleryItems (galleryId, merchantId, imageUrl, itemName, price, sortOrder) VALUES (?, ?, "", ?, ?, ?)',
+            [input.galleryId, ctx.user.id, auction.title ?? '', parseFloat(auction.startingPrice) || 0, sortOrder]
+          );
+          const itemId: number = r.insertId;
+          const [imgRows]: any = await pool.execute(
+            'SELECT imageUrl FROM auctionImages WHERE auctionId = ? ORDER BY displayOrder ASC, id ASC',
+            [auctionId]
+          );
+          if (imgRows.length > 0) {
+            const poolIds = await addGalleryImagesToPool(imgRows.map((img: any) => ({
+              galleryId: input.galleryId,
+              merchantId: ctx.user.id,
+              imageUrl: img.imageUrl,
+            })));
+            for (const pid of poolIds) {
+              await assignGalleryImage(pid, itemId, ctx.user.id);
+            }
+          }
+          created++;
+        }
+        return { created };
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;
