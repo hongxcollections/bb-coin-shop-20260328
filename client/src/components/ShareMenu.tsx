@@ -985,11 +985,12 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
 interface GalleryShareMenuProps {
   galleryId: number;
   title: string;
+  description?: string | null;
   merchantName?: string | null;
   iconOnly?: boolean;
 }
 
-export function GalleryShareMenu({ galleryId, title, merchantName, iconOnly }: GalleryShareMenuProps) {
+export function GalleryShareMenu({ galleryId, title, description, merchantName, iconOnly }: GalleryShareMenuProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
@@ -998,7 +999,9 @@ export function GalleryShareMenu({ galleryId, title, merchantName, iconOnly }: G
   const galleryUrl = `${SHARE_ORIGIN}/gallery/${galleryId}`;
   const shareText = [
     `📸 ${title}`,
+    description ? description : null,
     merchantName ? `${merchantName} 圖片集` : null,
+    `@所有人 歡迎登入網站齊來選購！`,
     galleryUrl,
   ].filter(Boolean).join("\n");
 

@@ -1219,8 +1219,9 @@ export default function MerchantGallery() {
                                                 <img
                                                   src={cur.imageUrl}
                                                   alt=""
-                                                  className="w-full h-full object-cover"
+                                                  className="w-full h-full object-cover cursor-zoom-in"
                                                   style={{ filter: item.status === 'sold' ? 'grayscale(50%) brightness(0.88)' : 'none' }}
+                                                  onClick={() => openLightbox(cur.imageUrl, itemImages.map(i => i.imageUrl))}
                                                 />
                                                 {item.status === 'sold' && (
                                                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none">
@@ -1617,6 +1618,7 @@ export default function MerchantGallery() {
                           <GalleryShareMenu
                             galleryId={editGalleryId!}
                             title={currentGallery?.title ?? ''}
+                            description={currentGallery?.description ?? null}
                             merchantName={currentGallery?.merchantName ?? null}
                           />
                         </div>
