@@ -139,7 +139,8 @@ export default function MerchantGallery() {
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
 
   // Items layout: false = grid (2 cols wrap), true = horizontal scroll
-  const [itemsScrollMode, setItemsScrollMode] = useState(false);
+  const [itemsScrollMode, setItemsScrollMode] = useState(true);
+  const scrollToItemIdRef = useRef<number | null>(null);
 
   // Auction import picker
   const [auctionPickerOpen, setAuctionPickerOpen] = useState(false);
@@ -220,6 +221,7 @@ export default function MerchantGallery() {
       setAuctionPickerOpen(false);
       setSelectedAuctionIds(new Set());
       didSyncRef.current = false;
+      scrollToItemIdRef.current = -1;
       getForEditQ.refetch();
       galleryImagesQ.refetch();
     },
@@ -235,6 +237,7 @@ export default function MerchantGallery() {
       setProductPickerOpen(false);
       setSelectedProductIds(new Set());
       didSyncRef.current = false;
+      scrollToItemIdRef.current = -1;
       getForEditQ.refetch();
       galleryImagesQ.refetch();
     },
@@ -247,6 +250,8 @@ export default function MerchantGallery() {
         const serverItems = refreshed.data.items as GalleryItem[];
         setDraftItems(prev => {
           const prevMap = new Map(prev.map(i => [i.id, i]));
+          const newItems = serverItems.filter(si => !prevMap.has(si.id));
+          if (newItems.length > 0) scrollToItemIdRef.current = newItems[newItems.length - 1].id;
           return serverItems.map(si => prevMap.get(si.id) ?? si);
         });
       }
@@ -265,6 +270,18 @@ export default function MerchantGallery() {
     setDraftItems(d.items as GalleryItem[]);
     didSyncRef.current = true;
   }, [getForEditQ.data]);
+
+  // Scroll to newly added item
+  useEffect(() => {
+    const target = scrollToItemIdRef.current;
+    if (target === null || draftItems.length === 0) return;
+    scrollToItemIdRef.current = null;
+    const itemId = target === -1 ? draftItems[draftItems.length - 1].id : target;
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`gallery-item-${itemId}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    });
+  }, [draftItems]);
 
   function openEdit(id: number) {
     setEditGalleryId(id);
@@ -1250,6 +1267,7 @@ export default function MerchantGallery() {
                                   return (
                                     <div
                                       key={item.id}
+                                      id={`gallery-item-${item.id}`}
                                       className="bg-white rounded-xl overflow-hidden border border-gray-100"
                                       style={itemsScrollMode ? { flexShrink: 0, width: 'calc(50vw - 20px)' } : undefined}
                                     >
