@@ -219,6 +219,7 @@ export default function MerchantGallery() {
       toast.success(`已置入 ${data.created} 件拍賣商品`);
       setAuctionPickerOpen(false);
       setSelectedAuctionIds(new Set());
+      didSyncRef.current = false;
       getForEditQ.refetch();
       galleryImagesQ.refetch();
     },
@@ -233,6 +234,7 @@ export default function MerchantGallery() {
       toast.success(`已置入 ${data.created} 件商品`);
       setProductPickerOpen(false);
       setSelectedProductIds(new Set());
+      didSyncRef.current = false;
       getForEditQ.refetch();
       galleryImagesQ.refetch();
     },
