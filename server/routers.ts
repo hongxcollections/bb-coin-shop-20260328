@@ -12499,6 +12499,80 @@ EXAMPLE OUTPUT (exact format):
       return rows as Array<{ id: number; title: string; startingPrice: string; firstImageUrl: string | null }>;
     }),
 
+    myActiveProducts: protectedProcedure.query(async ({ ctx }) => {
+      const { getRawPool } = await import('./db') as any;
+      const pool = await getRawPool();
+      if (!pool) return [];
+      const [rows]: any = await pool.execute(
+        `SELECT id, title, price, currency, images FROM merchantProducts
+         WHERE merchantId = ? AND status = 'active'
+         ORDER BY createdAt DESC LIMIT 300`,
+        [ctx.user.id]
+      );
+      return (rows as any[]).map((r: any) => {
+        let imgs: string[] = [];
+        try { imgs = JSON.parse(r.images ?? '[]'); } catch {}
+        return {
+          id: r.id as number,
+          title: r.title as string,
+          price: r.price as string,
+          currency: r.currency as string,
+          firstImageUrl: (imgs[0] ?? null) as string | null,
+          allImages: imgs as string[],
+        };
+      });
+    }),
+
+    importFromProducts: protectedProcedure
+      .input(z.object({
+        galleryId: z.number().int().positive(),
+        productIds: z.array(z.number().int().positive()).min(1).max(100),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, listProductGalleryItems, getRawPool, addGalleryImagesToPool, assignGalleryImage } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        const existing = await listProductGalleryItems(input.galleryId);
+        if (existing.length + input.productIds.length > 200) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `最多 200 件，目前已有 ${existing.length} 件` });
+        }
+        const pool = await getRawPool();
+        if (!pool) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        let created = 0;
+        for (const productId of input.productIds) {
+          const [pRows]: any = await pool.execute(
+            `SELECT * FROM merchantProducts WHERE id = ? AND merchantId = ? AND status = 'active' LIMIT 1`,
+            [productId, ctx.user.id]
+          );
+          const product = pRows[0];
+          if (!product) continue;
+          let imgs: string[] = [];
+          try { imgs = JSON.parse(product.images ?? '[]'); } catch {}
+          const [maxRow]: any = await pool.execute(
+            'SELECT COALESCE(MAX(sortOrder), -1) as maxOrder FROM productGalleryItems WHERE galleryId = ?',
+            [input.galleryId]
+          );
+          const sortOrder = (maxRow[0]?.maxOrder ?? -1) + 1;
+          const [r]: any = await pool.execute(
+            'INSERT INTO productGalleryItems (galleryId, merchantId, imageUrl, itemName, price, sortOrder) VALUES (?, ?, "", ?, ?, ?)',
+            [input.galleryId, ctx.user.id, product.title ?? '', parseFloat(product.price) || 0, sortOrder]
+          );
+          const itemId: number = r.insertId;
+          if (imgs.length > 0) {
+            const poolIds = await addGalleryImagesToPool(imgs.map((url: string) => ({
+              galleryId: input.galleryId,
+              merchantId: ctx.user.id,
+              imageUrl: url,
+            })));
+            for (const pid of poolIds) {
+              await assignGalleryImage(pid, itemId, ctx.user.id);
+            }
+          }
+          created++;
+        }
+        return { created };
+      }),
+
     importFromAuctions: protectedProcedure
       .input(z.object({
         galleryId: z.number().int().positive(),

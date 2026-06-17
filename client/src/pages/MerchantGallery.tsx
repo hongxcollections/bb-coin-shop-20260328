@@ -145,6 +145,10 @@ export default function MerchantGallery() {
   const [auctionPickerOpen, setAuctionPickerOpen] = useState(false);
   const [selectedAuctionIds, setSelectedAuctionIds] = useState<Set<number>>(new Set());
 
+  // Product import picker
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(new Set());
+
   // ── tRPC ──
   const galleriesQ = trpc.productGalleries.myGalleries.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -215,6 +219,20 @@ export default function MerchantGallery() {
       toast.success(`已置入 ${data.created} 件拍賣商品`);
       setAuctionPickerOpen(false);
       setSelectedAuctionIds(new Set());
+      getForEditQ.refetch();
+      galleryImagesQ.refetch();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const myActiveProductsQ = trpc.productGalleries.myActiveProducts.useQuery(undefined, {
+    enabled: productPickerOpen,
+    refetchOnWindowFocus: false,
+  });
+  const importFromProductsM = trpc.productGalleries.importFromProducts.useMutation({
+    onSuccess: (data) => {
+      toast.success(`已置入 ${data.created} 件商品`);
+      setProductPickerOpen(false);
+      setSelectedProductIds(new Set());
       getForEditQ.refetch();
       galleryImagesQ.refetch();
     },
@@ -1056,6 +1074,14 @@ export default function MerchantGallery() {
                       <Plus className="w-3.5 h-3.5" />
                       置入拍賣商品
                     </button>
+                    <button
+                      onClick={() => { setSelectedProductIds(new Set()); setProductPickerOpen(true); }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
+                      style={{ background: '#F0FDF4', color: '#16A34A' }}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      置入商品出售
+                    </button>
                     {draftItems.length > 0 && (
                       <button
                         onClick={handleBatchSave}
@@ -1442,8 +1468,8 @@ export default function MerchantGallery() {
                       onClick={() => setAuctionPickerOpen(false)}
                     >
                       <div
-                        className="bg-white w-full rounded-t-2xl px-4 pt-4 pb-10"
-                        style={{ maxHeight: '75vh', display: 'flex', flexDirection: 'column' }}
+                        className="bg-white w-full rounded-t-2xl px-4 pt-4"
+                        style={{ maxHeight: '75vh', display: 'flex', flexDirection: 'column', paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
                         onClick={e => e.stopPropagation()}
                       >
                         <div className="flex items-center justify-between mb-2 flex-shrink-0">
@@ -1535,6 +1561,113 @@ export default function MerchantGallery() {
                               {importFromAuctionsM.isPending
                                 ? <><Loader2 className="w-4 h-4 animate-spin" />置入中...</>
                                 : `置入 ${selectedAuctionIds.size} 件商品`}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Product import picker modal */}
+                  {productPickerOpen && (
+                    <div
+                      className="fixed inset-0 z-50 bg-black/70 flex items-end"
+                      onClick={() => setProductPickerOpen(false)}
+                    >
+                      <div
+                        className="bg-white w-full rounded-t-2xl px-4 pt-4"
+                        style={{ maxHeight: '75vh', display: 'flex', flexDirection: 'column', paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                          <h3 className="font-semibold text-gray-900 text-sm">選取商品出售置入圖片集</h3>
+                          <button onClick={() => setProductPickerOpen(false)}>
+                            <X className="w-5 h-5 text-gray-400" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-400 mb-3 flex-shrink-0">選取後自動使用商品圖片，售價照舊</p>
+                        {myActiveProductsQ.isLoading ? (
+                          <div className="flex justify-center py-8 flex-shrink-0">
+                            <Loader2 className="w-5 h-5 animate-spin text-orange-400" />
+                          </div>
+                        ) : !myActiveProductsQ.data?.length ? (
+                          <div className="text-center py-8 text-sm text-gray-400 flex-shrink-0">
+                            沒有在售商品
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                              <span className="text-xs text-gray-500">
+                                已選 {selectedProductIds.size} / {myActiveProductsQ.data.length} 件
+                              </span>
+                              <button
+                                className="text-xs font-semibold text-orange-500"
+                                onClick={() => {
+                                  if (selectedProductIds.size === myActiveProductsQ.data!.length) {
+                                    setSelectedProductIds(new Set());
+                                  } else {
+                                    setSelectedProductIds(new Set(myActiveProductsQ.data!.map(p => p.id)));
+                                  }
+                                }}
+                              >
+                                {selectedProductIds.size === myActiveProductsQ.data.length ? '取消全選' : '全選'}
+                              </button>
+                            </div>
+                            <div className="overflow-y-auto flex-1 space-y-1.5 pr-0.5">
+                              {myActiveProductsQ.data.map(product => {
+                                const selected = selectedProductIds.has(product.id);
+                                return (
+                                  <button
+                                    key={product.id}
+                                    onClick={() => {
+                                      setSelectedProductIds(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(product.id)) next.delete(product.id);
+                                        else next.add(product.id);
+                                        return next;
+                                      });
+                                    }}
+                                    className="w-full flex items-center gap-3 p-2 rounded-xl text-left"
+                                    style={{ background: selected ? '#F0FDF4' : '#F8F8F8', border: `1.5px solid ${selected ? '#16A34A' : 'transparent'}` }}
+                                  >
+                                    {product.firstImageUrl ? (
+                                      <img src={product.firstImageUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded-lg bg-gray-200 flex-shrink-0 flex items-center justify-center">
+                                        <FileImage className="w-5 h-5 text-gray-300" />
+                                      </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-semibold text-gray-800 truncate">{product.title}</p>
+                                      <p className="text-xs text-green-600 font-semibold">
+                                        售價 {product.currency}${parseFloat(product.price).toLocaleString('en-HK')}
+                                      </p>
+                                    </div>
+                                    <div
+                                      className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center"
+                                      style={{ borderColor: selected ? '#16A34A' : '#D1D5DB', background: selected ? '#16A34A' : 'white' }}
+                                    >
+                                      {selected && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <button
+                              onClick={() => {
+                                if (!editGalleryId || selectedProductIds.size === 0) return;
+                                importFromProductsM.mutate({
+                                  galleryId: editGalleryId,
+                                  productIds: Array.from(selectedProductIds),
+                                });
+                              }}
+                              disabled={selectedProductIds.size === 0 || importFromProductsM.isPending}
+                              className="mt-3 w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 flex-shrink-0 flex items-center justify-center gap-2"
+                              style={{ background: 'linear-gradient(135deg, #22C55E, #16A34A)' }}
+                            >
+                              {importFromProductsM.isPending
+                                ? <><Loader2 className="w-4 h-4 animate-spin" />置入中...</>
+                                : `置入 ${selectedProductIds.size} 件商品`}
                             </button>
                           </>
                         )}
