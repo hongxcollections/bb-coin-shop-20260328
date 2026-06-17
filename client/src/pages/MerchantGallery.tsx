@@ -134,6 +134,13 @@ export default function MerchantGallery() {
   const [carouselIdx, setCarouselIdx] = useState<Record<number, number>>({});
   const carouselTouchX = useRef<Record<number, number>>({});
 
+  // Delete gallery with name confirmation
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
+
+  // Items layout: false = grid (2 cols wrap), true = horizontal scroll
+  const [itemsScrollMode, setItemsScrollMode] = useState(false);
+
   // ── tRPC ──
   const galleriesQ = trpc.productGalleries.myGalleries.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -264,11 +271,12 @@ export default function MerchantGallery() {
     const ok = await confirm({
       title: '刪除圖片集',
       description: '確定刪除整個圖片集及所有圖片？此動作不可還原。',
-      confirmText: '確定刪除',
+      confirmText: '下一步',
       cancelText: '取消',
     });
     if (!ok) return;
-    deleteGalleryM.mutate({ id: editGalleryId });
+    setDeleteConfirmName('');
+    setDeleteConfirmOpen(true);
   }
 
   async function handleSavePoster() {
@@ -1056,7 +1064,8 @@ export default function MerchantGallery() {
                                 <img
                                   src={img.imageUrl}
                                   alt=""
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-cover cursor-zoom-in"
+                                  onClick={() => openLightbox(img.imageUrl)}
                                 />
                                 <div className="absolute inset-0 flex flex-col pointer-events-none">
                                   <div className="flex justify-end p-0.5 pointer-events-auto">
@@ -1164,12 +1173,32 @@ export default function MerchantGallery() {
                         ) : (
                           <>
                             {draftItems.length > 0 && (
-                              <div className="grid grid-cols-2 gap-2">
+                              <>
+                                {/* Layout toggle */}
+                                <div className="flex justify-end mb-2">
+                                  <button
+                                    onClick={() => setItemsScrollMode(v => !v)}
+                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold"
+                                    style={{ background: '#F0F0F0', color: '#555' }}
+                                  >
+                                    {itemsScrollMode ? '換回多行顯示' : '換為橫向捲動'}
+                                  </button>
+                                </div>
+                                <div
+                                  className={itemsScrollMode
+                                    ? 'flex gap-2 overflow-x-auto pb-2'
+                                    : 'grid grid-cols-2 gap-2'}
+                                  style={{ scrollbarWidth: 'none' }}
+                                >
                                 {draftItems.map(item => {
                                   const itemImages = getItemImages(item.id);
                                   const coverImg = itemImages[0];
                                   return (
-                                    <div key={item.id} className="bg-white rounded-xl overflow-hidden border border-gray-100">
+                                    <div
+                                      key={item.id}
+                                      className="bg-white rounded-xl overflow-hidden border border-gray-100"
+                                      style={itemsScrollMode ? { flexShrink: 0, width: 'calc(50vw - 20px)' } : undefined}
+                                    >
                                       <div className="relative bg-gray-50">
                                         {itemImages.length > 0 ? (() => {
                                           const ci = Math.min(carouselIdx[item.id] ?? 0, itemImages.length - 1);
@@ -1298,7 +1327,8 @@ export default function MerchantGallery() {
                                     </div>
                                   );
                                 })}
-                              </div>
+                                </div>
+                              </>
                             )}
 
                           </>
@@ -1374,6 +1404,51 @@ export default function MerchantGallery() {
                             })}
                           </div>
                         )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Delete gallery name confirmation modal */}
+                  {deleteConfirmOpen && (
+                    <div
+                      className="fixed inset-0 z-50 bg-black/70 flex items-end"
+                      onClick={() => setDeleteConfirmOpen(false)}
+                    >
+                      <div
+                        className="bg-white w-full rounded-t-2xl px-4 pt-4 pb-10"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-semibold text-red-600 text-sm">最終確認</h3>
+                          <button onClick={() => setDeleteConfirmOpen(false)}>
+                            <X className="w-5 h-5 text-gray-400" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-500 mb-3">
+                          請輸入圖片集名稱「<span className="font-bold text-gray-800">{editTitle}</span>」以確認刪除
+                        </p>
+                        <input
+                          value={deleteConfirmName}
+                          onChange={e => setDeleteConfirmName(e.target.value)}
+                          placeholder="輸入圖片集名稱"
+                          className="w-full px-3 py-2 text-sm outline-none mb-3"
+                          style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '12px' }}
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => {
+                            if (deleteConfirmName.trim() !== editTitle.trim()) {
+                              toast.error('名稱不符，請重新輸入');
+                              return;
+                            }
+                            setDeleteConfirmOpen(false);
+                            deleteGalleryM.mutate({ id: editGalleryId! });
+                          }}
+                          disabled={deleteConfirmName.trim() !== editTitle.trim() || deleteGalleryM.isPending}
+                          className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 disabled:opacity-40"
+                        >
+                          確認永久刪除
+                        </button>
                       </div>
                     </div>
                   )}
