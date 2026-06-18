@@ -2066,7 +2066,18 @@ export default function MerchantGallery() {
                             {order.status === 'pending' && (
                               <div className="flex gap-2">
                                 <button
-                                  onClick={() => cancelOrderM.mutate({ orderId: order.id })}
+                                  onClick={async () => {
+                                    const price = parseFloat(order.price ?? '0');
+                                    const priceStr = `${order.currency} $${price.toLocaleString('en-HK', { minimumFractionDigits: 0 })}`;
+                                    const title = order.title || `訂單 #${order.id}`;
+                                    const ok = await confirm({
+                                      title: '取消訂單？',
+                                      description: `商品：${title}\n售價：${priceStr}\n\n取消後商品恢復上架。`,
+                                      confirmLabel: '確認取消',
+                                      cancelLabel: '返回',
+                                    });
+                                    if (ok) cancelOrderM.mutate({ orderId: order.id });
+                                  }}
                                   disabled={cancelOrderM.isPending}
                                   className="text-xs px-3 py-1.5 rounded-xl border border-gray-200 text-gray-500 disabled:opacity-50"
                                 >取消</button>
