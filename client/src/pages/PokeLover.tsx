@@ -32,7 +32,7 @@ type PokeResult = {
   authenticityScore?: number | null;
   ebaySearchQuery?: string;
   funFact?: string;
-  isNotPokemon?: boolean;
+  isNotCardZzz?: boolean;
 };
 
 const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
@@ -254,7 +254,7 @@ function ShareImageDialog({ imgUrl, cardName, onClose }: { imgUrl: string; cardN
   function handleSave() {
     const a = document.createElement("a");
     a.href = imgUrl;
-    a.download = `${cardName || "pokemon"}-analysis.png`;
+    a.download = `${cardName || "cardzzz"}-analysis.png`;
     a.click();
   }
 
@@ -296,7 +296,7 @@ function ShareImageDialog({ imgUrl, cardName, onClose }: { imgUrl: string; cardN
   );
 }
 
-// ─── Inline Share Menu for PokeLover ─────────────────────────────────────────
+// ─── Inline Share Menu for CardZzz ─────────────────────────────────────────
 
 function PokeShareMenu({ result }: { result: PokeResult }) {
   const [open, setOpen] = useState(false);
@@ -304,7 +304,7 @@ function PokeShareMenu({ result }: { result: PokeResult }) {
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  const pokeUrl = `${SHARE_ORIGIN}/pokemon`;
+  const pokeUrl = `${SHARE_ORIGIN}/cardzzz`;
 
   const priceLine = [
     result.marketPriceHKD ? `裸卡 ~HK$${result.marketPriceHKD.toLocaleString("en-HK")}` : null,
@@ -313,11 +313,11 @@ function PokeShareMenu({ result }: { result: PokeResult }) {
   ].filter(Boolean).join(" | ");
 
   const shareText = [
-    `🃏 ${result.cardName ?? "Pokemon 卡片"}${result.cardNameJa ? `（${result.cardNameJa}）` : ""}`,
+    `🃏 ${result.cardName ?? "CardZzz 卡片"}${result.cardNameJa ? `（${result.cardNameJa}）` : ""}`,
     result.set ? `📦 ${result.set}${result.setNumber ? ` #${result.setNumber}` : ""}` : null,
     result.rarity ? `⭐ ${result.rarity}${result.hp ? ` | HP ${result.hp}` : ""}` : null,
     priceLine ? `💰 ${priceLine}` : null,
-    `AI Pokemon 卡片鑑定 👇\n${pokeUrl}`,
+    `AI CardZzz 卡片鑑定 👇\n${pokeUrl}`,
   ].filter(Boolean).join("\n");
 
   const calcPos = useCallback(() => {
@@ -358,7 +358,7 @@ function PokeShareMenu({ result }: { result: PokeResult }) {
     if (navigator.share) {
       try {
         await navigator.clipboard.writeText(shareText).catch(() => {});
-        await navigator.share({ title: result.cardName ?? "Pokemon 卡片", text: shareText.replace("\n" + pokeUrl, "").trim(), url: pokeUrl });
+        await navigator.share({ title: result.cardName ?? "CardZzz 卡片", text: shareText.replace("\n" + pokeUrl, "").trim(), url: pokeUrl });
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== "AbortError") {
           try { await navigator.clipboard.writeText(shareText); } catch {}
@@ -512,7 +512,7 @@ function PokeBallUpload({ onFiles, disabled }: { onFiles: (files: File[]) => voi
           <Upload className="w-6 h-6" style={{ color: "#333" }} />
         </div>
       </div>
-      <p className="text-sm font-semibold" style={{ color: "#FFDE00" }}>點擊或拖放 Pokemon 卡片圖片</p>
+      <p className="text-sm font-semibold" style={{ color: "#FFDE00" }}>點擊或拖放 CardZzz 卡片圖片</p>
       <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>支援 JPG / PNG / WEBP</p>
       <input ref={ref} type="file" accept="image/*" multiple className="hidden" onChange={e => { const files = Array.from(e.target.files ?? []).filter(f => f.type.startsWith("image/")); if (files.length) onFiles(files); e.target.value = ""; }} />
     </div>
@@ -569,7 +569,7 @@ function GradeBar({ grade }: { grade: number }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function PokeLover() {
+export default function CardZzz() {
   const [, navigate] = useLocation();
   const { isAuthenticated, user } = useAuth();
   const [imagePreview, setImagePreview] = useState<string>("");
@@ -663,8 +663,8 @@ export default function PokeLover() {
     onSuccess: (res) => {
       const data = res.data as PokeResult;
       setAnalysisError(null);
-      if (data.isNotPokemon) {
-        toast.error("呢張唔似係 Pokemon 卡，請重新上載", { className: "bb-toast-err" });
+      if (data.isNotCardZzz) {
+        toast.error("呢張唔似係 CardZzz 卡，請重新上載", { className: "bb-toast-err" });
         setResult(null);
       } else {
         setResult(data);
@@ -908,9 +908,9 @@ export default function PokeLover() {
           <div className="w-9 h-9 rounded-full flex-shrink-0" style={{ background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "2px solid #333" }} />
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-black tracking-tight leading-none" style={{ color: "#FFDE00", textShadow: "0 2px 8px rgba(255,222,0,0.4)" }}>
-              PokeLover
+              CardZzz
             </h1>
-            <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>AI 智能 Pokemon 卡片鑑定 · 市場估價</p>
+            <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>AI 智能 CardZzz 卡片鑑定 · 市場估價</p>
           </div>
         </div>
 
@@ -1054,13 +1054,13 @@ export default function PokeLover() {
               ↩ 重新上載
             </button>
             <button
-              onClick={() => { setImagePreview(""); setResult(null); setRawPriceInput(""); setAnalysisError(null); setPendingFileData(null); setSavedCardId(null); setIsBatchMode(false); setBatchTotal(0); setBatchDone(0); setBatchSummary([]); batchQueueRef.current = []; navigate("/pokemon"); }}
+              onClick={() => { setImagePreview(""); setResult(null); setRawPriceInput(""); setAnalysisError(null); setPendingFileData(null); setSavedCardId(null); setIsBatchMode(false); setBatchTotal(0); setBatchDone(0); setBatchSummary([]); batchQueueRef.current = []; navigate("/cardzzz"); }}
               className="text-xs px-3 py-1 rounded-full font-medium"
               style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.15)" }}>
               回主頁
             </button>
             {isAuthenticated && (
-              <button onClick={() => navigate("/pokemon/collection")} className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,222,0,0.12)", border: "1px solid rgba(255,222,0,0.25)", color: "#FFDE00" }}>
+              <button onClick={() => navigate("/cardzzz/collection")} className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(255,222,0,0.12)", border: "1px solid rgba(255,222,0,0.25)", color: "#FFDE00" }}>
                 <BookOpen className="w-3.5 h-3.5" />
                 卡冊
               </button>
@@ -1191,7 +1191,7 @@ export default function PokeLover() {
           </div>
         )}
 
-        {result && !result.isNotPokemon && (
+        {result && !result.isNotCardZzz && (
           <>
             {result.attacks && result.attacks.length > 0 && (
               <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
@@ -1538,7 +1538,7 @@ export default function PokeLover() {
             {/* Share footer — visible in generated image */}
             <div style={{ textAlign: "center", paddingTop: 10, paddingBottom: 10 }}>
               <span style={{ fontSize: 10, background: "linear-gradient(to right, #FF8C00, #FFDE00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-                hongxcollections.com · PokeLover AI
+                hongxcollections.com · CardZzz AI
               </span>
             </div>
           </>
@@ -1548,7 +1548,7 @@ export default function PokeLover() {
         {!imagePreview && !analysisError && (
           <>
             <div data-share-skip="true" className="rounded-xl p-4 mt-2" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <p className="text-xs font-bold mb-2 tracking-widest uppercase" style={{ background: "linear-gradient(to right, #FF8C00, #FFDE00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", filter: "drop-shadow(0 0 6px rgba(255,160,0,0.45))" }}>PokeLover 可以做到</p>
+              <p className="text-xs font-bold mb-2 tracking-widest uppercase" style={{ background: "linear-gradient(to right, #FF8C00, #FFDE00)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", filter: "drop-shadow(0 0 6px rgba(255,160,0,0.45))" }}>CardZzz 可以做到</p>
               {[
                 "識別卡片名稱、系列、卡號、稀有度",
                 "參考市場估價（裸卡 / PSA 9 / PSA 10）",
@@ -1623,7 +1623,7 @@ export default function PokeLover() {
       {shareDialogOpen && shareImgUrl && (
         <ShareImageDialog
           imgUrl={shareImgUrl}
-          cardName={result?.cardName ?? "pokemon"}
+          cardName={result?.cardName ?? "cardzzz"}
           onClose={() => setShareDialogOpen(false)}
         />
       )}
@@ -1637,8 +1637,8 @@ export default function PokeLover() {
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(to bottom, #CC0000 50%, #f5f5f5 50%)", border: "2px solid #333", flexShrink: 0 }} />
             <div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: "#FFDE00", lineHeight: 1 }}>PokeLover</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>AI 智能 Pokemon 卡片鑑定 · 市場估價</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: "#FFDE00", lineHeight: 1 }}>CardZzz</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>AI 智能 CardZzz 卡片鑑定 · 市場估價</div>
             </div>
           </div>
 
@@ -1775,7 +1775,7 @@ export default function PokeLover() {
 
           {/* Footer */}
           <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 10, marginTop: 4, textAlign: "center" }}>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>hongxcollections.com · PokeLover AI</div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>hongxcollections.com · CardZzz AI</div>
           </div>
         </div>
       )}

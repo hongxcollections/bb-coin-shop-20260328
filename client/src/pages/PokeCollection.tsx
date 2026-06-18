@@ -289,8 +289,8 @@ export default function PokeCollection() {
     <div className="min-h-screen pb-20" style={{ background: "linear-gradient(160deg, #0d0d1f 0%, #1a0505 40%, #0d0d1f 100%)", color: "#fff" }}>
       <Header />
       <div className="max-w-lg mx-auto px-4 pt-4">
-        <button onClick={() => navigate("/pokemon")} className="flex items-center gap-1 text-xs mb-4" style={{ color: "rgba(255,255,255,0.5)" }}>
-          <ChevronLeft className="w-4 h-4" /> 返回 PokeLover
+        <button onClick={() => navigate("/cardzzz")} className="flex items-center gap-1 text-xs mb-4" style={{ color: "rgba(255,255,255,0.5)" }}>
+          <ChevronLeft className="w-4 h-4" /> 返回 CardZzz
         </button>
 
         {/* Title + D1 share button */}
@@ -378,7 +378,7 @@ export default function PokeCollection() {
               {search ? "搜尋不到結果" : "卡冊仍是空的"}
             </p>
             {!search && (
-              <button onClick={() => navigate("/pokemon")} className="mt-2 px-4 py-2 rounded-xl text-xs font-bold"
+              <button onClick={() => navigate("/cardzzz")} className="mt-2 px-4 py-2 rounded-xl text-xs font-bold"
                 style={{ background: "rgba(255,222,0,0.12)", border: "1px solid rgba(255,222,0,0.25)", color: "#FFDE00" }}>
                 去分析卡片
               </button>
@@ -526,7 +526,7 @@ export default function PokeCollection() {
                       localStorage.setItem("poke_reanalyze", JSON.stringify({ imageThumb: selectedCard.imageThumb }));
                     }
                     setSelectedCard(null);
-                    navigate("/pokemon");
+                    navigate("/cardzzz");
                   }}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold"
                   style={{ background: "rgba(255,222,0,0.1)", border: "1px solid rgba(255,222,0,0.25)", color: "#FFDE00" }}>
