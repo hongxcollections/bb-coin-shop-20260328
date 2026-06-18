@@ -192,7 +192,7 @@ export default function MerchantGallery() {
   });
   const ordersQ = trpc.productGalleries.listOrdersForGallery.useQuery(
     { galleryId: editGalleryId! },
-    { enabled: editGalleryId !== null && editTab === 'orders', refetchOnWindowFocus: false }
+    { enabled: editGalleryId !== null, refetchOnWindowFocus: false }
   );
   const confirmOrderM = trpc.productGalleries.confirmOrder.useMutation({
     onSuccess: () => { ordersQ.refetch(); toast.success('已確認成交，傭金已扣除'); },
@@ -1027,17 +1027,33 @@ export default function MerchantGallery() {
 
           {/* Tabs */}
           <div className="flex bg-white rounded-xl border border-gray-100 p-1 mb-4 gap-0.5">
-            {([['info', '基本設定'], ['items', '圖片商品'], ['orders', '訂單'], ['publish', '發佈']] as [EditTab, string][]).map(([tab, label]) => (
-              <button
-                key={tab}
-                onClick={() => setEditTab(tab)}
-                className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                  editTab === tab ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            {([['info', '基本設定'], ['items', '圖片商品'], ['orders', '訂單'], ['publish', '發佈']] as [EditTab, string][]).map(([tab, label]) => {
+              const hasPendingOrders = tab === 'orders' && (ordersQ.data ?? []).some(o => o.status === 'pending');
+              const itemBadge = tab === 'items' && draftItems.length > 0 ? draftItems.length : null;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setEditTab(tab)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors relative ${
+                    editTab === tab ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {label}
+                  {itemBadge !== null && (
+                    <span
+                      className="ml-0.5 text-xs font-bold"
+                      style={{ color: editTab === tab ? 'rgba(255,255,255,0.85)' : '#FF8C00' }}
+                    > {itemBadge}</span>
+                  )}
+                  {hasPendingOrders && (
+                    <span
+                      className="absolute top-1 right-1 w-2 h-2 rounded-full animate-pulse"
+                      style={{ background: '#EF4444' }}
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {getForEditQ.isLoading ? (
@@ -2053,7 +2069,18 @@ export default function MerchantGallery() {
                                   className="text-xs px-3 py-1.5 rounded-xl border border-gray-200 text-gray-500 disabled:opacity-50"
                                 >取消</button>
                                 <button
-                                  onClick={() => confirmOrderM.mutate({ orderId: order.id })}
+                                  onClick={async () => {
+                                    const price = parseFloat(order.price ?? '0');
+                                    const priceStr = `${order.currency} $${price.toLocaleString('en-HK', { minimumFractionDigits: 0 })}`;
+                                    const title = order.title || `訂單 #${order.id}`;
+                                    const ok = await confirm({
+                                      title: '確認成交？',
+                                      description: `商品：${title}\n售價：${priceStr}\n\n確認後將扣除傭金，此操作不可撤銷。`,
+                                      confirmLabel: '確認成交',
+                                      cancelLabel: '取消',
+                                    });
+                                    if (ok) confirmOrderM.mutate({ orderId: order.id });
+                                  }}
                                   disabled={confirmOrderM.isPending}
                                   className="text-xs px-3 py-1.5 rounded-xl font-semibold text-white disabled:opacity-50"
                                   style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
