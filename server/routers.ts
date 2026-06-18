@@ -12632,6 +12632,93 @@ EXAMPLE OUTPUT (exact format):
         }
         return { created };
       }),
+
+    convertToAuctionDrafts: protectedProcedure
+      .input(z.object({
+        galleryId: z.number().int().positive(),
+        itemIds: z.array(z.number().int().positive()).min(1).max(50),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, getRawPool } = await import('./db') as any;
+        const { createAuction, addAuctionImage } = await import('./db');
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        const pool = await getRawPool();
+        if (!pool) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        let created = 0;
+        const placeholderEndTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        for (const itemId of input.itemIds) {
+          const [iRows]: any = await pool.execute(
+            'SELECT * FROM productGalleryItems WHERE id = ? AND merchantId = ? LIMIT 1',
+            [itemId, ctx.user.id]
+          );
+          const item = iRows[0];
+          if (!item) continue;
+          const title = (item.itemName || '').trim() || '未命名商品';
+          const price = parseFloat(item.price) || 0;
+          const newAuction = await createAuction({
+            title,
+            startingPrice: price.toFixed(2),
+            currentPrice: price.toFixed(2),
+            endTime: placeholderEndTime,
+            status: 'draft',
+            bidIncrement: 30,
+            currency: 'HKD',
+            createdBy: ctx.user.id,
+          });
+          const [imgRows]: any = await pool.execute(
+            'SELECT imageUrl FROM productGalleryImages WHERE itemId = ? ORDER BY sortOrder ASC, id ASC',
+            [itemId]
+          );
+          if (imgRows.length > 0) {
+            for (let i = 0; i < imgRows.length; i++) {
+              await addAuctionImage({ auctionId: newAuction.id, imageUrl: imgRows[i].imageUrl, displayOrder: i });
+            }
+          } else if (item.imageUrl) {
+            await addAuctionImage({ auctionId: newAuction.id, imageUrl: item.imageUrl, displayOrder: 0 });
+          }
+          created++;
+        }
+        return { created };
+      }),
+
+    convertToProductDrafts: protectedProcedure
+      .input(z.object({
+        galleryId: z.number().int().positive(),
+        itemIds: z.array(z.number().int().positive()).min(1).max(50),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, getRawPool, getMerchantApplicationByUser } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        const app = await getMerchantApplicationByUser(ctx.user.id);
+        const pool = await getRawPool();
+        if (!pool) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        let created = 0;
+        for (const itemId of input.itemIds) {
+          const [iRows]: any = await pool.execute(
+            'SELECT * FROM productGalleryItems WHERE id = ? AND merchantId = ? LIMIT 1',
+            [itemId, ctx.user.id]
+          );
+          const item = iRows[0];
+          if (!item) continue;
+          const title = (item.itemName || '').trim() || '未命名商品';
+          const price = parseFloat(item.price) || 0;
+          const [imgRows]: any = await pool.execute(
+            'SELECT imageUrl FROM productGalleryImages WHERE itemId = ? ORDER BY sortOrder ASC, id ASC',
+            [itemId]
+          );
+          let imageUrls: string[] = imgRows.map((r: any) => r.imageUrl);
+          if (imageUrls.length === 0 && item.imageUrl) imageUrls = [item.imageUrl];
+          const imagesJson = JSON.stringify(imageUrls);
+          await pool.execute(
+            `INSERT INTO merchantProducts (merchantId, merchantName, merchantIcon, title, price, currency, images, status, stock) VALUES (?, ?, ?, ?, ?, 'HKD', ?, 'hidden', 1)`,
+            [ctx.user.id, app?.merchantName ?? ctx.user.name ?? '商戶', app?.merchantIcon ?? null, title, price.toFixed(2), imagesJson]
+          );
+          created++;
+        }
+        return { created };
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;

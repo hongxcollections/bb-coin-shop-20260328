@@ -142,6 +142,10 @@ export default function MerchantGallery() {
   const [itemsScrollMode, setItemsScrollMode] = useState(true);
   const scrollToItemIdRef = useRef<number | null>(null);
 
+  // Batch convert mode
+  const [batchSelectMode, setBatchSelectMode] = useState(false);
+  const [batchSelectedIds, setBatchSelectedIds] = useState<Set<number>>(new Set());
+
   // Auction import picker
   const [auctionPickerOpen, setAuctionPickerOpen] = useState(false);
   const [selectedAuctionIds, setSelectedAuctionIds] = useState<Set<number>>(new Set());
@@ -243,6 +247,23 @@ export default function MerchantGallery() {
     },
     onError: (e) => toast.error(e.message),
   });
+  const convertToAuctionDraftsM = trpc.productGalleries.convertToAuctionDrafts.useMutation({
+    onSuccess: (data) => {
+      toast.success(`已建立 ${data.created} 個拍賣草稿，請到拍賣商品草稿 tab 查看`);
+      setBatchSelectedIds(new Set());
+      setBatchSelectMode(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const convertToProductDraftsM = trpc.productGalleries.convertToProductDrafts.useMutation({
+    onSuccess: (data) => {
+      toast.success(`已建立 ${data.created} 件商品草稿，請到商品管理查看`);
+      setBatchSelectedIds(new Set());
+      setBatchSelectMode(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   const createEmptyItemM = trpc.productGalleries.createEmptyItem.useMutation({
     onSuccess: async () => {
       const refreshed = await getForEditQ.refetch();
@@ -1245,8 +1266,20 @@ export default function MerchantGallery() {
                           <>
                             {draftItems.length > 0 && (
                               <>
-                                {/* Layout toggle */}
-                                <div className="flex justify-end mb-2">
+                                {/* Layout toggle + batch select toggle */}
+                                <div className="flex justify-between items-center mb-2">
+                                  <button
+                                    onClick={() => {
+                                      setBatchSelectMode(v => !v);
+                                      setBatchSelectedIds(new Set());
+                                    }}
+                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold"
+                                    style={batchSelectMode
+                                      ? { background: 'linear-gradient(135deg,#FF8C00,#FF6B00)', color: '#fff' }
+                                      : { background: '#F0F0F0', color: '#555' }}
+                                  >
+                                    {batchSelectMode ? `批量轉換 (${batchSelectedIds.size})` : '批量轉換'}
+                                  </button>
                                   <button
                                     onClick={() => setItemsScrollMode(v => !v)}
                                     className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold"
@@ -1268,9 +1301,29 @@ export default function MerchantGallery() {
                                     <div
                                       key={item.id}
                                       id={`gallery-item-${item.id}`}
-                                      className="bg-white rounded-xl overflow-hidden border border-gray-100"
+                                      className="bg-white rounded-xl overflow-hidden border border-gray-100 relative"
                                       style={itemsScrollMode ? { flexShrink: 0, width: 'calc(50vw - 20px)' } : undefined}
+                                      onClick={batchSelectMode ? () => setBatchSelectedIds(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+                                        return next;
+                                      }) : undefined}
                                     >
+                                      {batchSelectMode && (
+                                        <div
+                                          className="absolute top-1.5 right-1.5 z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center"
+                                          style={{
+                                            background: batchSelectedIds.has(item.id) ? '#FF8C00' : 'rgba(255,255,255,0.85)',
+                                            borderColor: batchSelectedIds.has(item.id) ? '#FF8C00' : '#ccc',
+                                          }}
+                                        >
+                                          {batchSelectedIds.has(item.id) && (
+                                            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                              <path d="M1 4l2.5 2.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                                            </svg>
+                                          )}
+                                        </div>
+                                      )}
                                       <div className="relative bg-gray-50">
                                         {itemImages.length > 0 ? (() => {
                                           const ci = Math.min(carouselIdx[item.id] ?? 0, itemImages.length - 1);
@@ -1401,6 +1454,68 @@ export default function MerchantGallery() {
                                   );
                                 })}
                                 </div>
+
+                                {/* Batch convert action bar */}
+                                {batchSelectMode && (
+                                  <div className="mt-3 space-y-2">
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => setBatchSelectedIds(
+                                          batchSelectedIds.size === draftItems.length
+                                            ? new Set()
+                                            : new Set(draftItems.map(i => i.id))
+                                        )}
+                                        className="flex-1 py-2 rounded-xl text-xs font-semibold"
+                                        style={{ background: '#F0F0F0', color: '#555' }}
+                                      >
+                                        {batchSelectedIds.size === draftItems.length ? '取消全選' : '全選'}
+                                      </button>
+                                      <button
+                                        onClick={() => { setBatchSelectMode(false); setBatchSelectedIds(new Set()); }}
+                                        className="px-4 py-2 rounded-xl text-xs font-semibold"
+                                        style={{ background: '#F0F0F0', color: '#555' }}
+                                      >
+                                        取消
+                                      </button>
+                                    </div>
+                                    {batchSelectedIds.size > 0 && (
+                                      <div className="flex flex-col gap-2">
+                                        <button
+                                          disabled={convertToAuctionDraftsM.isPending}
+                                          onClick={() => {
+                                            if (editGalleryId === null) return;
+                                            convertToAuctionDraftsM.mutate({
+                                              galleryId: editGalleryId,
+                                              itemIds: Array.from(batchSelectedIds),
+                                            });
+                                          }}
+                                          className="w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
+                                          style={{ background: 'linear-gradient(135deg,#FF8C00,#FF6B00)' }}
+                                        >
+                                          {convertToAuctionDraftsM.isPending
+                                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                                            : `轉為拍賣草稿（${batchSelectedIds.size} 件）`}
+                                        </button>
+                                        <button
+                                          disabled={convertToProductDraftsM.isPending}
+                                          onClick={() => {
+                                            if (editGalleryId === null) return;
+                                            convertToProductDraftsM.mutate({
+                                              galleryId: editGalleryId,
+                                              itemIds: Array.from(batchSelectedIds),
+                                            });
+                                          }}
+                                          className="w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
+                                          style={{ background: 'linear-gradient(135deg,#6366F1,#4F46E5)' }}
+                                        >
+                                          {convertToProductDraftsM.isPending
+                                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                                            : `轉為商品出售草稿（${batchSelectedIds.size} 件）`}
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </>
                             )}
 
