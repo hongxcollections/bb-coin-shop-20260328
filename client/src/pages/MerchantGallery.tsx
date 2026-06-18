@@ -305,7 +305,6 @@ export default function MerchantGallery() {
   const batchAssignImagesM = trpc.productGalleries.batchAssignImages.useMutation({
     onSuccess: async (data, variables) => {
       toast.success(`已將 ${data.assigned} 張圖片加入商品`);
-      scrollToItemIdRef.current = variables.itemId;
       setEditTab('items');
       setPoolSelectedIds(new Set());
       setPoolBatchMode(false);
@@ -313,6 +312,10 @@ export default function MerchantGallery() {
       setPoolItemEditOpen(false);
       setPoolItemEditItem(null);
       await galleryImagesQ.refetch();
+      setTimeout(() => {
+        const el = document.getElementById(`gallery-item-${variables.itemId}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }, 350);
     },
     onError: (e) => toast.error(e.message),
   });
@@ -1726,11 +1729,11 @@ export default function MerchantGallery() {
                           </button>
                         </div>
                         <p className="text-xs text-gray-400 mb-3">選擇後圖片會從相片池移至該商品</p>
-                        {draftItems.length === 0 ? (
+                        {draftItems.filter(i => i.status !== 'sold').length === 0 ? (
                           <p className="text-sm text-gray-400 py-6 text-center">請先點「新增商品」建立商品</p>
                         ) : (
                           <div className="space-y-1 pb-20">
-                            {[...draftItems].sort((a, b) => b.id - a.id).map(item => {
+                            {[...draftItems].filter(i => i.status !== 'sold').sort((a, b) => b.id - a.id).map(item => {
                               const iImgs = (galleryImagesQ.data ?? []).filter((img: GalleryImageRow) => img.itemId === item.id);
                               return (
                                 <button
@@ -1787,11 +1790,11 @@ export default function MerchantGallery() {
                         <p className="text-xs text-gray-400 mb-3">
                           已選 {poolSelectedIds.size} 張圖片，選擇商品後進入編輯頁
                         </p>
-                        {draftItems.length === 0 ? (
+                        {draftItems.filter(i => i.status !== 'sold').length === 0 ? (
                           <p className="text-sm text-gray-400 py-6 text-center">請先點「新增商品」建立商品</p>
                         ) : (
                           <div className="space-y-1 pb-20">
-                            {[...draftItems].sort((a, b) => b.id - a.id).map(item => {
+                            {[...draftItems].filter(i => i.status !== 'sold').sort((a, b) => b.id - a.id).map(item => {
                               const iImgs = (galleryImagesQ.data ?? []).filter((img: GalleryImageRow) => img.itemId === item.id);
                               return (
                                 <button
@@ -1800,7 +1803,7 @@ export default function MerchantGallery() {
                                     setPoolItemEditItem(item);
                                     setPoolItemEditName(item.itemName || '');
                                     setPoolItemEditNumber(item.itemNumber || '');
-                                    setPoolItemEditPrice(item.price ? String(item.price) : '');
+                                    setPoolItemEditPrice(String(parseFloat(item.price) || 0));
                                     setPoolAssignPickerOpen(false);
                                     setPoolItemEditOpen(true);
                                   }}
@@ -1840,6 +1843,7 @@ export default function MerchantGallery() {
                       (img: GalleryImageRow) => poolSelectedIds.has(img.id)
                     );
                     const isSaving = batchAssignImagesM.isPending || updateItemM.isPending;
+                    const isSold = poolItemEditItem.status === 'sold';
 
                     const handleClose = () => {
                       setPoolItemEditOpen(false);
@@ -1891,17 +1895,25 @@ export default function MerchantGallery() {
 
                           {/* Title row */}
                           <div className="px-4 pb-2 flex-shrink-0">
-                            <h2 className="text-sm font-bold text-gray-900">
-                              {poolItemEditItem.itemName || `商品 #${poolItemEditItem.id}`}
-                            </h2>
+                            <div className="flex items-center gap-2">
+                              <h2 className="text-sm font-bold text-gray-900">
+                                {poolItemEditItem.itemName || `商品 #${poolItemEditItem.id}`}
+                              </h2>
+                              {isSold && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">已售出</span>
+                              )}
+                            </div>
+                            {isSold && (
+                              <p className="text-xs text-gray-400 mt-1">已售出商品不容許更改或加圖</p>
+                            )}
                           </div>
 
                           {/* Scrollable body */}
                           <div className="flex-1 overflow-y-auto" style={{ padding: '0 3px' }}>
                             <div className="px-2 pb-3">
 
-                              {/* Pending images */}
-                              {pendingImgs.length > 0 && (
+                              {/* Pending images — hidden for sold items */}
+                              {pendingImgs.length > 0 && !isSold && (
                                 <div className="mb-3">
                                   <p className="text-xs font-semibold text-orange-500 mb-1.5">
                                     待加入圖片（{pendingImgs.length} 張）
@@ -1930,7 +1942,7 @@ export default function MerchantGallery() {
                                 </div>
                               )}
 
-                              {/* Existing images */}
+                              {/* Existing images — no unassign button for sold items */}
                               {existingImgs.length > 0 && (
                                 <div className="mb-3">
                                   <p className="text-xs font-semibold text-gray-500 mb-1.5">
@@ -1949,24 +1961,26 @@ export default function MerchantGallery() {
                                           className="w-full h-full object-cover cursor-zoom-in"
                                           onClick={() => openLightbox(img.imageUrl)}
                                         />
-                                        <button
-                                          onClick={() => unassignImageM.mutate({ imageId: img.id })}
-                                          className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
-                                          title="移回相片池"
-                                        >
-                                          <X className="w-2.5 h-2.5 text-white" />
-                                        </button>
+                                        {!isSold && (
+                                          <button
+                                            onClick={() => unassignImageM.mutate({ imageId: img.id })}
+                                            className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
+                                            title="移回相片池"
+                                          >
+                                            <X className="w-2.5 h-2.5 text-white" />
+                                          </button>
+                                        )}
                                       </div>
                                     ))}
                                   </div>
                                 </div>
                               )}
 
-                              {existingImgs.length === 0 && pendingImgs.length === 0 && (
+                              {existingImgs.length === 0 && (
                                 <p className="text-xs text-gray-400 text-center py-4">未有圖片</p>
                               )}
 
-                              {/* Editable fields — 編號 / 名稱 / 售價 */}
+                              {/* Editable fields — disabled for sold items */}
                               <div className="space-y-2.5 mt-1">
                                 <div>
                                   <label className="text-xs text-gray-500 font-medium block mb-1">編號（選填）</label>
@@ -1974,7 +1988,8 @@ export default function MerchantGallery() {
                                     value={poolItemEditNumber}
                                     onChange={e => setPoolItemEditNumber(e.target.value)}
                                     placeholder="例：001"
-                                    className="w-full px-3 py-2.5 text-sm outline-none"
+                                    disabled={isSold}
+                                    className="w-full px-3 py-2.5 text-sm outline-none disabled:opacity-50"
                                     style={{ background: '#F9F9F9', border: '1px solid #E5E5E5', borderRadius: 12 }}
                                   />
                                 </div>
@@ -1984,7 +1999,8 @@ export default function MerchantGallery() {
                                     value={poolItemEditName}
                                     onChange={e => setPoolItemEditName(e.target.value)}
                                     placeholder="例：1887年香港一仙"
-                                    className="w-full px-3 py-2.5 text-sm outline-none"
+                                    disabled={isSold}
+                                    className="w-full px-3 py-2.5 text-sm outline-none disabled:opacity-50"
                                     style={{ background: '#F9F9F9', border: '1px solid #E5E5E5', borderRadius: 12 }}
                                   />
                                 </div>
@@ -1995,7 +2011,8 @@ export default function MerchantGallery() {
                                     value={poolItemEditPrice}
                                     onChange={e => setPoolItemEditPrice(e.target.value)}
                                     placeholder="例：350"
-                                    className="w-full px-3 py-2.5 text-sm outline-none"
+                                    disabled={isSold}
+                                    className="w-full px-3 py-2.5 text-sm outline-none disabled:opacity-50"
                                     style={{ background: '#F9F9F9', border: '1px solid #E5E5E5', borderRadius: 12 }}
                                   />
                                 </div>
@@ -2003,7 +2020,7 @@ export default function MerchantGallery() {
                             </div>
                           </div>
 
-                          {/* Sticky bottom bar: 取消 + 儲存 */}
+                          {/* Sticky bottom bar: 取消 + 儲存（sold 時只顯示取消） */}
                           <div className="flex-shrink-0 px-3 pt-2 pb-3 border-t border-gray-100 flex gap-2">
                             <button
                               onClick={handleClose}
@@ -2012,21 +2029,23 @@ export default function MerchantGallery() {
                             >
                               取消
                             </button>
-                            <button
-                              disabled={isSaving}
-                              onClick={handleSave}
-                              className="flex-[2] py-3 rounded-2xl text-sm font-bold text-white disabled:opacity-50 flex items-center justify-center gap-1.5"
-                              style={{ background: 'linear-gradient(135deg,#FF8C00,#FF6B00)' }}
-                            >
-                              {isSaving
-                                ? <><Loader2 className="w-4 h-4 animate-spin" /> 儲存中…</>
-                                : <><Save className="w-4 h-4" />
-                                    {poolSelectedIds.size > 0
-                                      ? `加入 ${poolSelectedIds.size} 張圖並儲存`
-                                      : '儲存'}
-                                  </>
-                              }
-                            </button>
+                            {!isSold && (
+                              <button
+                                disabled={isSaving}
+                                onClick={handleSave}
+                                className="flex-[2] py-3 rounded-2xl text-sm font-bold text-white disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                style={{ background: 'linear-gradient(135deg,#FF8C00,#FF6B00)' }}
+                              >
+                                {isSaving
+                                  ? <><Loader2 className="w-4 h-4 animate-spin" /> 儲存中…</>
+                                  : <><Save className="w-4 h-4" />
+                                      {poolSelectedIds.size > 0
+                                        ? `加入 ${poolSelectedIds.size} 張圖並儲存`
+                                        : '儲存'}
+                                    </>
+                                }
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
