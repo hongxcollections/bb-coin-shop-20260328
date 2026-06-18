@@ -5,7 +5,7 @@ import Header from "@/components/Header";
 import { toast } from "sonner";
 import {
   ChevronLeft, Trash2, BookOpen, Search, X, Pencil, Check,
-  SortAsc, Layers, Share2, Loader2, RefreshCw,
+  SortAsc, Layers, Share2, Loader2, RefreshCw, LayoutGrid, AlignJustify,
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useConfirm } from "@/components/ui/confirm-provider";
@@ -54,6 +54,7 @@ export default function PokeCollection() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("date");
   const [groupBySet, setGroupBySet] = useState(false);
+  const [scrollMode, setScrollMode] = useState(true);
   const [selectedCard, setSelectedCard] = useState<SavedCard | null>(null);
   const [editingPrice, setEditingPrice] = useState(false);
   const [priceInput, setPriceInput] = useState("");
@@ -248,40 +249,51 @@ export default function PokeCollection() {
     );
   }
 
+  const renderCard = (card: SavedCard, widthStyle?: React.CSSProperties) => (
+    <div key={card.id} onClick={() => openModal(card)}
+      className="rounded-xl overflow-hidden flex flex-col cursor-pointer active:scale-95 transition-transform flex-shrink-0"
+      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", ...widthStyle }}>
+      {card.imageThumb ? (
+        <div className="relative">
+          <img src={card.imageThumb} alt={card.cardName ?? ""} className="w-full object-cover" style={{ height: 140 }} />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)" }} />
+          {card.gradeEstimate != null && (
+            <span className="absolute bottom-2 left-2 text-[10px] font-black px-1.5 py-0.5 rounded"
+              style={{ background: `${GRADE_COLOR[Math.floor(card.gradeEstimate)] ?? "#9C27B0"}cc`, color: "#fff" }}>
+              PSA {card.gradeEstimate}
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center justify-center" style={{ height: 100, background: "rgba(255,222,0,0.06)" }}>
+          <span style={{ fontSize: 36 }}>🃏</span>
+        </div>
+      )}
+      <div className="p-2.5 flex flex-col flex-1">
+        <p className="text-xs font-bold leading-tight line-clamp-2 text-white mb-0.5">{card.cardName ?? "未知卡片"}</p>
+        {card.cardNameJa && <p className="text-[10px] leading-tight mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>{card.cardNameJa}</p>}
+        {card.cardSet && <p className="text-[9px] mb-1.5 truncate" style={{ color: "rgba(255,255,255,0.3)" }}>{card.cardSet}</p>}
+        {card.marketPriceHKD != null && (
+          <p className="text-xs font-black mt-auto" style={{ color: "#FFDE00" }}>HKD${card.marketPriceHKD.toLocaleString("en-HK")}</p>
+        )}
+        <p className="text-[9px] mt-1" style={{ color: "rgba(255,255,255,0.2)" }}>
+          {new Date(card.savedAt).toLocaleDateString("zh-HK", { month: "numeric", day: "numeric" })}
+        </p>
+      </div>
+    </div>
+  );
+
+  const renderScroll = (list: SavedCard[]) => (
+    <div className="overflow-x-auto" style={{ marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16 }}>
+      <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
+        {list.map(card => renderCard(card, { width: "calc(45vw - 8px)", maxWidth: 180 }))}
+      </div>
+    </div>
+  );
+
   const renderGrid = (list: SavedCard[]) => (
     <div className="grid grid-cols-2 gap-3">
-      {list.map(card => (
-        <div key={card.id} onClick={() => openModal(card)} className="rounded-xl overflow-hidden flex flex-col cursor-pointer active:scale-95 transition-transform"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-          {card.imageThumb ? (
-            <div className="relative">
-              <img src={card.imageThumb} alt={card.cardName ?? ""} className="w-full object-cover" style={{ height: 140 }} />
-              <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)" }} />
-              {card.gradeEstimate != null && (
-                <span className="absolute bottom-2 left-2 text-[10px] font-black px-1.5 py-0.5 rounded"
-                  style={{ background: `${GRADE_COLOR[Math.floor(card.gradeEstimate)] ?? "#9C27B0"}cc`, color: "#fff" }}>
-                  PSA {card.gradeEstimate}
-                </span>
-              )}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center" style={{ height: 100, background: "rgba(255,222,0,0.06)" }}>
-              <span style={{ fontSize: 36 }}>🃏</span>
-            </div>
-          )}
-          <div className="p-2.5 flex flex-col flex-1">
-            <p className="text-xs font-bold leading-tight line-clamp-2 text-white mb-0.5">{card.cardName ?? "未知卡片"}</p>
-            {card.cardNameJa && <p className="text-[10px] leading-tight mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>{card.cardNameJa}</p>}
-            {card.cardSet && <p className="text-[9px] mb-1.5 truncate" style={{ color: "rgba(255,255,255,0.3)" }}>{card.cardSet}</p>}
-            {card.marketPriceHKD != null && (
-              <p className="text-xs font-black mt-auto" style={{ color: "#FFDE00" }}>HKD${card.marketPriceHKD.toLocaleString("en-HK")}</p>
-            )}
-            <p className="text-[9px] mt-1" style={{ color: "rgba(255,255,255,0.2)" }}>
-              {new Date(card.savedAt).toLocaleDateString("zh-HK", { month: "numeric", day: "numeric" })}
-            </p>
-          </div>
-        </div>
-      ))}
+      {list.map(card => renderCard(card))}
     </div>
   );
 
@@ -353,6 +365,17 @@ export default function PokeCollection() {
               <Layers className="w-3 h-3" />
               按套裝
             </button>
+            <button onClick={() => setScrollMode(s => !s)}
+              className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg transition-all ml-auto"
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "rgba(255,255,255,0.4)",
+              }}
+              title={scrollMode ? "切換多行顯示" : "切換橫向捲動"}>
+              {scrollMode ? <LayoutGrid className="w-3 h-3" /> : <AlignJustify className="w-3 h-3" />}
+              {scrollMode ? "多行" : "橫向"}
+            </button>
           </div>
         )}
 
@@ -399,11 +422,11 @@ export default function PokeCollection() {
                       {setCards.some(c => c.marketPriceHKD) && ` · HKD$${setCards.reduce((s, c) => s + (c.marketPriceHKD ?? 0), 0).toLocaleString("en-HK")}`}
                     </p>
                   </div>
-                  {renderGrid(setCards)}
+                  {scrollMode ? renderScroll(setCards) : renderGrid(setCards)}
                 </div>
               ))}
             </div>
-          ) : renderGrid(filtered)
+          ) : scrollMode ? renderScroll(filtered) : renderGrid(filtered)
         )}
       </div>
 
