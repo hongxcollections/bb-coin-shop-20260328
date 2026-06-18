@@ -192,7 +192,7 @@ export default function MerchantGallery() {
   });
   const ordersQ = trpc.productGalleries.listOrdersForGallery.useQuery(
     { galleryId: editGalleryId! },
-    { enabled: editGalleryId !== null, refetchOnWindowFocus: false }
+    { enabled: editGalleryId !== null, refetchOnWindowFocus: true, refetchInterval: 30000 }
   );
   const confirmOrderM = trpc.productGalleries.confirmOrder.useMutation({
     onSuccess: () => { ordersQ.refetch(); toast.success('已確認成交，傭金已扣除'); },
@@ -1038,19 +1038,21 @@ export default function MerchantGallery() {
                     editTab === tab ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  {label}
-                  {itemBadge !== null && (
-                    <span
-                      className="ml-0.5 text-xs font-bold"
-                      style={{ color: editTab === tab ? 'rgba(255,255,255,0.85)' : '#FF8C00' }}
-                    > {itemBadge}</span>
-                  )}
-                  {hasPendingOrders && (
-                    <span
-                      className="absolute top-1 right-1 w-2 h-2 rounded-full animate-pulse"
-                      style={{ background: '#EF4444' }}
-                    />
-                  )}
+                  <span className="inline-flex items-center gap-0.5 justify-center">
+                    {label}
+                    {itemBadge !== null && (
+                      <span
+                        className="text-xs font-bold"
+                        style={{ color: editTab === tab ? 'rgba(255,255,255,0.85)' : '#FF8C00' }}
+                      >({itemBadge})</span>
+                    )}
+                    {hasPendingOrders && (
+                      <span
+                        className="w-2 h-2 rounded-full animate-pulse flex-shrink-0"
+                        style={{ background: '#EF4444' }}
+                      />
+                    )}
+                  </span>
                 </button>
               );
             })}
