@@ -151,6 +151,11 @@ export default function MerchantGallery() {
   const [copyPickerOpen, setCopyPickerOpen] = useState(false);
   const [copyTargetIds, setCopyTargetIds] = useState<Set<number>>(new Set());
 
+  // Merge selected pool items into one product
+  const [mergeProductOpen, setMergeProductOpen] = useState(false);
+  const [mergeTitle, setMergeTitle] = useState('');
+  const [mergePriceStr, setMergePriceStr] = useState('');
+
   // Auction import picker
   const [auctionPickerOpen, setAuctionPickerOpen] = useState(false);
   const [selectedAuctionIds, setSelectedAuctionIds] = useState<Set<number>>(new Set());
@@ -269,6 +274,18 @@ export default function MerchantGallery() {
       toast.success(`已建立 ${data.created} 件商品草稿，請到商品管理查看`);
       setBatchSelectedIds(new Set());
       setBatchSelectMode(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const mergeItemsToOneProductM = trpc.productGalleries.mergeItemsToOneProduct.useMutation({
+    onSuccess: (data) => {
+      toast.success(`已建立商品草稿（共 ${data.imageCount} 張圖），請到商品管理查看`);
+      setBatchSelectedIds(new Set());
+      setBatchSelectMode(false);
+      setMergeProductOpen(false);
+      setMergeTitle('');
+      setMergePriceStr('');
     },
     onError: (e) => toast.error(e.message),
   });
@@ -1550,6 +1567,13 @@ export default function MerchantGallery() {
                                             : `轉為商品出售草稿（${batchSelectedIds.size} 件）`}
                                         </button>
                                         <button
+                                          onClick={() => { setMergeTitle(''); setMergePriceStr(''); setMergeProductOpen(true); }}
+                                          className="w-full py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
+                                          style={{ background: 'linear-gradient(135deg,#7C3AED,#6D28D9)' }}
+                                        >
+                                          合併為一個商品（{batchSelectedIds.size} 張圖）
+                                        </button>
+                                        <button
                                           onClick={() => { setCopyTargetIds(new Set()); setCopyPickerOpen(true); }}
                                           className="w-full py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
                                           style={{ background: 'linear-gradient(135deg,#10B981,#059669)' }}
@@ -1855,6 +1879,70 @@ export default function MerchantGallery() {
                   )}
 
                   {/* Copy to gallery picker */}
+                  {mergeProductOpen && (
+                    <div
+                      className="fixed inset-0 z-50 bg-black/70 flex items-end"
+                      onClick={() => setMergeProductOpen(false)}
+                    >
+                      <div
+                        className="bg-white w-full rounded-t-2xl px-4 pt-4"
+                        style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-semibold text-gray-900 text-sm">合併為一個商品</h3>
+                          <button onClick={() => setMergeProductOpen(false)}>
+                            <X className="w-5 h-5 text-gray-400" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-400 mb-4">
+                          已選 {batchSelectedIds.size} 張圖片將合併成一個商品（multi-photo），建立為草稿
+                        </p>
+                        <div className="space-y-3 mb-4">
+                          <div>
+                            <label className="text-xs font-semibold text-gray-600 block mb-1">商品名稱</label>
+                            <input
+                              value={mergeTitle}
+                              onChange={e => setMergeTitle(e.target.value)}
+                              placeholder="輸入商品名稱"
+                              className="w-full px-3 py-2 text-sm outline-none"
+                              style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '12px' }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-gray-600 block mb-1">價錢（HKD）</label>
+                            <input
+                              type="number"
+                              value={mergePriceStr}
+                              onChange={e => setMergePriceStr(e.target.value)}
+                              placeholder="0"
+                              className="w-full px-3 py-2 text-sm outline-none"
+                              style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '12px' }}
+                            />
+                          </div>
+                        </div>
+                        <button
+                          disabled={!mergeTitle.trim() || mergeItemsToOneProductM.isPending}
+                          onClick={() => {
+                            if (!editGalleryId || !mergeTitle.trim()) return;
+                            mergeItemsToOneProductM.mutate({
+                              galleryId: editGalleryId,
+                              itemIds: Array.from(batchSelectedIds),
+                              title: mergeTitle.trim(),
+                              price: parseFloat(mergePriceStr) || 0,
+                            });
+                          }}
+                          className="w-full py-3 rounded-xl text-sm font-bold text-white disabled:opacity-40 flex items-center justify-center gap-2"
+                          style={{ background: 'linear-gradient(135deg,#7C3AED,#6D28D9)' }}
+                        >
+                          {mergeItemsToOneProductM.isPending
+                            ? <><Loader2 className="w-4 h-4 animate-spin" />建立中…</>
+                            : `建立商品草稿（${batchSelectedIds.size} 張圖）`}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {copyPickerOpen && (() => {
                     const otherGalleries = galleries.filter(g => g.id !== editGalleryId);
                     return (
