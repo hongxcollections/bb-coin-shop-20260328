@@ -12555,7 +12555,7 @@ EXAMPLE OUTPUT (exact format):
           const sortOrder = (maxRow[0]?.maxOrder ?? -1) + 1;
           const productDesc = (product.description ?? '').trim();
           const productItemName = productDesc
-            ? `${product.title ?? ''}\n${productDesc}`
+            ? `${product.title ?? ''}。${productDesc}`
             : (product.title ?? '');
           const [r]: any = await pool.execute(
             'INSERT INTO productGalleryItems (galleryId, merchantId, imageUrl, itemName, price, sortOrder) VALUES (?, ?, "", ?, ?, ?)',
@@ -12607,7 +12607,7 @@ EXAMPLE OUTPUT (exact format):
           const sortOrder = (maxRow[0]?.maxOrder ?? -1) + 1;
           const auctionDesc = (auction.description ?? '').trim();
           const auctionItemName = auctionDesc
-            ? `${auction.title ?? ''}\n${auctionDesc}`
+            ? `${auction.title ?? ''}。${auctionDesc}`
             : (auction.title ?? '');
           const [r]: any = await pool.execute(
             'INSERT INTO productGalleryItems (galleryId, merchantId, imageUrl, itemName, price, sortOrder) VALUES (?, ?, "", ?, ?, ?)',

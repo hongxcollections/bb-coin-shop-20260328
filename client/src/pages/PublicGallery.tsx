@@ -127,7 +127,7 @@ function BuySheet({
           <p className="text-sm text-gray-500 mb-2">已成功落單，商戶已收到通知</p>
           {item.itemName && (
             <div className="bg-amber-50 rounded-xl px-4 py-2.5 mb-4 text-left">
-              <p className="text-sm font-medium text-gray-800" style={{ whiteSpace: 'pre-wrap' }}>{item.itemName}</p>
+              <p className="text-sm font-medium text-gray-800">{item.itemName}</p>
               {price > 0 && <p className="text-amber-600 font-bold text-sm mt-0.5">HK${price.toLocaleString('en-HK')}</p>}
             </div>
           )}
@@ -214,7 +214,7 @@ function SoldSheet({ item, merchantId, onClose }: { item: GalleryItem; merchantI
           </div>
         )}
         <h2 className="font-bold text-gray-800 mb-1">此貨品已售出</h2>
-        {item.itemName && <p className="text-sm text-gray-500 mb-1" style={{ whiteSpace: 'pre-wrap' }}>{item.itemName}</p>}
+        {item.itemName && <p className="text-sm text-gray-500 mb-1">{item.itemName}</p>}
         <p className="text-sm text-gray-400 mb-5">詳情可以聯繫商戶查詢</p>
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-sm">關閉</button>
@@ -339,7 +339,7 @@ export default function PublicGallery() {
             {lightboxItem.itemNumber && (
               <p className="text-[10px] text-amber-400/80 font-mono mb-0.5">#{lightboxItem.itemNumber}</p>
             )}
-            <p className="text-sm font-semibold text-white truncate">{(lightboxItem.itemName || '').split('\n')[0]}</p>
+            <p className="text-sm font-semibold text-white leading-snug">{lightboxItem.itemName || ''}</p>
             {p > 0 && (
               <p className="text-sm font-bold mt-0.5" style={{ color: '#FFB347' }}>HK${p.toLocaleString('en-HK')}</p>
             )}
@@ -548,7 +548,7 @@ export default function PublicGallery() {
                           )}
                           {item.itemName && (
                             <p className="font-semibold text-white leading-tight truncate" style={{ fontSize: '10px', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
-                              {item.itemName.split('\n')[0]}
+                              {item.itemName}
                             </p>
                           )}
                           {price > 0 && (
