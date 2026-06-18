@@ -12712,7 +12712,7 @@ EXAMPLE OUTPUT (exact format):
           if (imageUrls.length === 0 && item.imageUrl) imageUrls = [item.imageUrl];
           const imagesJson = JSON.stringify(imageUrls);
           await pool.execute(
-            `INSERT INTO merchantProducts (merchantId, merchantName, merchantIcon, title, price, currency, images, status, stock) VALUES (?, ?, ?, ?, ?, 'HKD', ?, 'hidden', 1)`,
+            `INSERT INTO merchantProducts (merchantId, merchantName, merchantIcon, title, price, currency, images, status, stock) VALUES (?, ?, ?, ?, ?, 'HKD', ?, 'draft', 1)`,
             [ctx.user.id, app?.merchantName ?? ctx.user.name ?? '商戶', app?.merchantIcon ?? null, title, price.toFixed(2), imagesJson]
           );
           created++;
