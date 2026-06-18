@@ -156,6 +156,11 @@ export default function MerchantGallery() {
   const [mergeTitle, setMergeTitle] = useState('');
   const [mergePriceStr, setMergePriceStr] = useState('');
 
+  // Pool batch select mode (select pool images → assign to existing item)
+  const [poolBatchMode, setPoolBatchMode] = useState(false);
+  const [poolSelectedIds, setPoolSelectedIds] = useState<Set<number>>(new Set());
+  const [poolAssignPickerOpen, setPoolAssignPickerOpen] = useState(false);
+
   // Auction import picker
   const [auctionPickerOpen, setAuctionPickerOpen] = useState(false);
   const [selectedAuctionIds, setSelectedAuctionIds] = useState<Set<number>>(new Set());
@@ -286,6 +291,17 @@ export default function MerchantGallery() {
       setMergeProductOpen(false);
       setMergeTitle('');
       setMergePriceStr('');
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const batchAssignImagesM = trpc.productGalleries.batchAssignImages.useMutation({
+    onSuccess: async (data) => {
+      toast.success(`已將 ${data.assigned} 張圖片加入商品`);
+      setPoolSelectedIds(new Set());
+      setPoolBatchMode(false);
+      setPoolAssignPickerOpen(false);
+      await galleryImagesQ.refetch();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -1199,43 +1215,112 @@ export default function MerchantGallery() {
                             <Images className="w-4 h-4 text-orange-500" />
                             相片池 ({poolImages.length})
                           </h3>
-                          <p className="text-[10px] text-gray-400">點「指定」把圖片加入商品</p>
+                          {poolImages.length > 0 && (
+                            <button
+                              onClick={() => { setPoolBatchMode(v => !v); setPoolSelectedIds(new Set()); }}
+                              className="text-[10px] font-semibold px-2 py-0.5 rounded-lg"
+                              style={{
+                                background: poolBatchMode ? 'rgba(255,120,0,0.12)' : '#F0F0F0',
+                                color: poolBatchMode ? '#FF6B00' : '#555',
+                              }}
+                            >
+                              {poolBatchMode ? `批量模式（已選 ${poolSelectedIds.size}）` : '批量選擇'}
+                            </button>
+                          )}
                         </div>
                         {poolImages.length === 0 ? (
                           <p className="text-xs text-gray-400 py-4 text-center">上載圖片後會顯示於此，再指定給各商品</p>
                         ) : (
-                          <div className="grid grid-cols-4 gap-1.5">
-                            {poolImages.map(img => (
-                              <div key={img.id} className="relative rounded-lg overflow-hidden bg-gray-100" style={{ aspectRatio: '1/1' }}>
-                                <img
-                                  src={img.imageUrl}
-                                  alt=""
-                                  className="w-full h-full object-cover cursor-zoom-in"
-                                  onClick={() => openLightbox(img.imageUrl)}
-                                />
-                                <div className="absolute inset-0 flex flex-col pointer-events-none">
-                                  <div className="flex justify-end p-0.5 pointer-events-auto">
-                                    <button
-                                      onClick={() => deleteGalleryImageM.mutate({ imageId: img.id })}
-                                      className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
-                                    >
-                                      <X className="w-2.5 h-2.5 text-white" />
-                                    </button>
+                          <>
+                            <div className="grid grid-cols-4 gap-1.5">
+                              {poolImages.map(img => {
+                                const isSelected = poolSelectedIds.has(img.id);
+                                return (
+                                  <div
+                                    key={img.id}
+                                    className="relative rounded-lg overflow-hidden bg-gray-100"
+                                    style={{ aspectRatio: '1/1', outline: isSelected ? '2px solid #FF6B00' : 'none' }}
+                                    onClick={poolBatchMode ? () => {
+                                      setPoolSelectedIds(prev => {
+                                        const next = new Set(prev);
+                                        next.has(img.id) ? next.delete(img.id) : next.add(img.id);
+                                        return next;
+                                      });
+                                    } : undefined}
+                                  >
+                                    <img
+                                      src={img.imageUrl}
+                                      alt=""
+                                      className="w-full h-full object-cover"
+                                      style={{ cursor: poolBatchMode ? 'pointer' : 'zoom-in' }}
+                                      onClick={!poolBatchMode ? () => openLightbox(img.imageUrl) : undefined}
+                                    />
+                                    {poolBatchMode ? (
+                                      <div className="absolute top-0.5 left-0.5 pointer-events-none">
+                                        <div className="w-4 h-4 rounded flex items-center justify-center"
+                                          style={{ background: isSelected ? '#FF6B00' : 'rgba(255,255,255,0.85)', border: '1.5px solid #ccc' }}>
+                                          {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="absolute inset-0 flex flex-col pointer-events-none">
+                                        <div className="flex justify-end p-0.5 pointer-events-auto">
+                                          <button
+                                            onClick={() => deleteGalleryImageM.mutate({ imageId: img.id })}
+                                            className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
+                                          >
+                                            <X className="w-2.5 h-2.5 text-white" />
+                                          </button>
+                                        </div>
+                                        <div className="mt-auto p-0.5 pointer-events-auto">
+                                          <button
+                                            onClick={() => setAssignPickerImageId(img.id)}
+                                            disabled={draftItems.length === 0}
+                                            className="w-full text-[9px] font-bold text-white rounded py-0.5 disabled:opacity-50"
+                                            style={{ background: 'rgba(255,120,0,0.85)' }}
+                                          >
+                                            指定商品
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
-                                  <div className="mt-auto p-0.5 pointer-events-auto">
-                                    <button
-                                      onClick={() => setAssignPickerImageId(img.id)}
-                                      disabled={draftItems.length === 0}
-                                      className="w-full text-[9px] font-bold text-white rounded py-0.5 disabled:opacity-50"
-                                      style={{ background: 'rgba(255,120,0,0.85)' }}
-                                    >
-                                      指定商品
-                                    </button>
-                                  </div>
-                                </div>
+                                );
+                              })}
+                            </div>
+                            {poolBatchMode && (
+                              <div className="flex gap-2 mt-2">
+                                <button
+                                  onClick={() => setPoolSelectedIds(
+                                    poolSelectedIds.size === poolImages.length
+                                      ? new Set()
+                                      : new Set(poolImages.map(i => i.id))
+                                  )}
+                                  className="flex-1 py-2 rounded-xl text-xs font-semibold"
+                                  style={{ background: '#F0F0F0', color: '#555' }}
+                                >
+                                  {poolSelectedIds.size === poolImages.length ? '取消全選' : '全選'}
+                                </button>
+                                <button
+                                  disabled={poolSelectedIds.size === 0 || draftItems.length === 0 || batchAssignImagesM.isPending}
+                                  onClick={() => setPoolAssignPickerOpen(true)}
+                                  className="flex-1 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40 flex items-center justify-center gap-1"
+                                  style={{ background: 'linear-gradient(135deg,#FF8C00,#FF6B00)' }}
+                                >
+                                  {batchAssignImagesM.isPending
+                                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                                    : `指定到商品（${poolSelectedIds.size}張）`}
+                                </button>
+                                <button
+                                  onClick={() => { setPoolBatchMode(false); setPoolSelectedIds(new Set()); }}
+                                  className="px-3 py-2 rounded-xl text-xs font-semibold"
+                                  style={{ background: '#F0F0F0', color: '#555' }}
+                                >
+                                  取消
+                                </button>
                               </div>
-                            ))}
-                          </div>
+                            )}
+                          </>
                         )}
                       </div>
                     );
@@ -1655,6 +1740,74 @@ export default function MerchantGallery() {
                                     {item.itemNumber && <p className="text-xs text-gray-400">#{item.itemNumber}</p>}
                                     <p className="text-xs text-orange-500">{iImgs.length} 張圖片</p>
                                   </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pool batch assign picker modal */}
+                  {poolAssignPickerOpen && (
+                    <div
+                      className="fixed inset-0 z-50 bg-black/70 flex items-end"
+                      onClick={() => setPoolAssignPickerOpen(false)}
+                    >
+                      <div
+                        className="bg-white w-full rounded-t-2xl px-4 pt-4"
+                        style={{ maxHeight: '65vh', overflowY: 'auto' }}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-semibold text-gray-900 text-sm">
+                            批量指定到哪個商品？
+                          </h3>
+                          <button onClick={() => setPoolAssignPickerOpen(false)}>
+                            <X className="w-5 h-5 text-gray-400" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-400 mb-3">
+                          已選 {poolSelectedIds.size} 張圖片，選擇商品後全部移入
+                        </p>
+                        {draftItems.length === 0 ? (
+                          <p className="text-sm text-gray-400 py-6 text-center">請先點「新增商品」建立商品</p>
+                        ) : (
+                          <div className="space-y-1 pb-20">
+                            {draftItems.map(item => {
+                              const iImgs = (galleryImagesQ.data ?? []).filter((img: GalleryImageRow) => img.itemId === item.id);
+                              return (
+                                <button
+                                  key={item.id}
+                                  disabled={batchAssignImagesM.isPending}
+                                  onClick={() => {
+                                    if (!editGalleryId) return;
+                                    batchAssignImagesM.mutate({
+                                      imageIds: Array.from(poolSelectedIds),
+                                      itemId: item.id,
+                                    });
+                                  }}
+                                  className="w-full flex items-center gap-3 py-2 px-2 rounded-xl text-left disabled:opacity-50"
+                                  style={{ background: '#F9F9F9' }}
+                                >
+                                  {iImgs[0] ? (
+                                    <img src={iImgs[0].imageUrl} className="w-10 h-10 object-cover rounded-lg flex-shrink-0" alt="" />
+                                  ) : (
+                                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex-shrink-0 flex items-center justify-center">
+                                      <FileImage className="w-5 h-5 text-gray-300" />
+                                    </div>
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-gray-800 truncate">
+                                      {item.itemName || `商品 #${item.id}`}
+                                    </p>
+                                    {item.itemNumber && <p className="text-xs text-gray-400">#{item.itemNumber}</p>}
+                                    <p className="text-xs text-orange-500">{iImgs.length} 張圖片</p>
+                                  </div>
+                                  {batchAssignImagesM.isPending && (
+                                    <Loader2 className="w-4 h-4 animate-spin text-orange-400 flex-shrink-0" />
+                                  )}
                                 </button>
                               );
                             })}

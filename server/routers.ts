@@ -12372,6 +12372,21 @@ EXAMPLE OUTPUT (exact format):
         return { ok: true };
       }),
 
+    batchAssignImages: protectedProcedure
+      .input(z.object({
+        imageIds: z.array(z.number().int().positive()).min(1).max(200),
+        itemId: z.number().int().positive(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { assignGalleryImage } = await import('./db') as any;
+        let assigned = 0;
+        for (const imageId of input.imageIds) {
+          await assignGalleryImage(imageId, input.itemId, ctx.user.id);
+          assigned++;
+        }
+        return { assigned };
+      }),
+
     unassignImage: protectedProcedure
       .input(z.object({ imageId: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
