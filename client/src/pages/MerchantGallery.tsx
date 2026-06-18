@@ -1467,7 +1467,7 @@ export default function MerchantGallery() {
                                   )}
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm font-semibold text-gray-800 truncate">
-                                      {item.itemName || `商品 #${item.id}`}
+                                      {(item.itemName || `商品 #${item.id}`).split('\n')[0]}
                                     </p>
                                     {item.itemNumber && <p className="text-xs text-gray-400">#{item.itemNumber}</p>}
                                     <p className="text-xs text-orange-500">{iImgs.length} 張圖片</p>
@@ -2049,7 +2049,7 @@ export default function MerchantGallery() {
                                 )}
                                 {item.itemName && (
                                   <p className="font-semibold text-white leading-tight truncate" style={{ fontSize: '10px', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
-                                    {item.itemName}
+                                    {item.itemName.split('\n')[0]}
                                   </p>
                                 )}
                                 {price > 0 && (

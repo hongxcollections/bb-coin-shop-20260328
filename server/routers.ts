@@ -12553,9 +12553,13 @@ EXAMPLE OUTPUT (exact format):
             [input.galleryId]
           );
           const sortOrder = (maxRow[0]?.maxOrder ?? -1) + 1;
+          const productDesc = (product.description ?? '').trim();
+          const productItemName = productDesc
+            ? `${product.title ?? ''}\n${productDesc}`
+            : (product.title ?? '');
           const [r]: any = await pool.execute(
             'INSERT INTO productGalleryItems (galleryId, merchantId, imageUrl, itemName, price, sortOrder) VALUES (?, ?, "", ?, ?, ?)',
-            [input.galleryId, ctx.user.id, product.title ?? '', parseFloat(product.price) || 0, sortOrder]
+            [input.galleryId, ctx.user.id, productItemName, parseFloat(product.price) || 0, sortOrder]
           );
           const itemId: number = r.insertId;
           if (imgs.length > 0) {
@@ -12601,9 +12605,13 @@ EXAMPLE OUTPUT (exact format):
             [input.galleryId]
           );
           const sortOrder = (maxRow[0]?.maxOrder ?? -1) + 1;
+          const auctionDesc = (auction.description ?? '').trim();
+          const auctionItemName = auctionDesc
+            ? `${auction.title ?? ''}\n${auctionDesc}`
+            : (auction.title ?? '');
           const [r]: any = await pool.execute(
             'INSERT INTO productGalleryItems (galleryId, merchantId, imageUrl, itemName, price, sortOrder) VALUES (?, ?, "", ?, ?, ?)',
-            [input.galleryId, ctx.user.id, auction.title ?? '', parseFloat(auction.startingPrice) || 0, sortOrder]
+            [input.galleryId, ctx.user.id, auctionItemName, parseFloat(auction.startingPrice) || 0, sortOrder]
           );
           const itemId: number = r.insertId;
           const [imgRows]: any = await pool.execute(
