@@ -159,7 +159,7 @@ export default function PokeCollection() {
       ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
       ctx.fillStyle = "#FFDE00"; ctx.font = "bold 22px sans-serif";
-      ctx.fillText("我的 Pokémon 卡冊", PAD, 32);
+      ctx.fillText("我的 CardZzz 卡冊", PAD, 32);
       ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.font = "12px sans-serif";
       ctx.fillText(`${filtered.length} 張  ·  合計估值 HKD$${totalValue.toLocaleString("en-HK")}`, PAD, 52);
 
@@ -221,7 +221,7 @@ export default function PokeCollection() {
         const res = await fetch(dataUrl);
         const blob = await res.blob();
         const file = new File([blob], "我的卡冊.png", { type: "image/png" });
-        await navigator.share({ files: [file], title: "我的 Pokémon 卡冊" });
+        await navigator.share({ files: [file], title: "我的 CardZzz 卡冊" });
       } else {
         const a = document.createElement("a"); a.download = "我的卡冊.png"; a.href = dataUrl; a.click();
       }
