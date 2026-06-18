@@ -102,6 +102,16 @@ function injectStaticPageMeta(html: string, reqPath: string, base: string): stri
       description: "了解 hongxcollections 各級會員及商戶訂閱方案，享受更多競投優惠、優先預覽及商戶刊登功能。",
       canonical: `${base}/plans`,
     },
+    "/cardzzz": {
+      title: "CardZzz AI 卡片鑑定 — hongxcollections",
+      description: "上傳卡片照片，AI 即時識別品名、套裝、稀有度及市場估值，支援 Pokémon、One Piece、MTG 等主流 TCG。",
+      canonical: `${base}/cardzzz`,
+    },
+    "/cardzzz/collection": {
+      title: "我的 CardZzz 卡冊 — hongxcollections",
+      description: "CardZzz AI 卡片鑑定卡冊，記錄你的 TCG 收藏品名、稀有度及估值總覽。",
+      canonical: `${base}/cardzzz/collection`,
+    },
   };
 
   let page = pages[reqPath];
@@ -597,6 +607,71 @@ async function injectCollectionPostOgMeta(html: string, reqPath: string, protoco
   }
 }
 
+async function injectCardZzzzOgMeta(html: string, reqPath: string, protocol: string, host: string): Promise<string | null> {
+  const m = reqPath.match(/^\/cardzzz\/card\/(\d+)$/);
+  if (!m) return null;
+  try {
+    const cardId = parseInt(m[1], 10);
+    const { getDb } = await import("../db");
+    const db = getDb();
+    const [rows] = await (db as any).execute(
+      'SELECT cardName, cardNameJa, cardSet, rarity, marketPriceHKD, cardGame, imageThumb FROM pokeloverCards WHERE id = ? LIMIT 1',
+      [cardId]
+    );
+    const card = (rows as any[])[0];
+    if (!card) return null;
+
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const name = (card.cardName ?? "CardZzz 卡片").toString();
+    const nameForOg = name.length > 25 ? name.slice(0, 25) + "…" : name;
+    const game = card.cardGame ? ` (${card.cardGame})` : "";
+    const setPart = card.cardSet ? ` | ${card.cardSet}` : "";
+    const pricePart = card.marketPriceHKD ? ` | HKD$${Number(card.marketPriceHKD).toLocaleString("en-HK")}` : "";
+    const ogTitle = `${nameForOg}${game}${setPart}${pricePart} | hongxcollections.com`;
+    const ogDesc = `AI 卡片鑑定：${name}${card.cardNameJa ? `（${card.cardNameJa}）` : ""}${setPart}${pricePart} | CardZzz by hongxcollections`;
+    const fullUrl = `${protocol}://${host}${reqPath}`;
+    const hasImage = !!card.imageThumb;
+    const ogImageUrl = hasImage ? `${protocol}://${host}/api/og-image-card/${cardId}` : "";
+
+    const ogMeta = [
+      `<meta property="og:type" content="website" />`,
+      `<meta property="og:site_name" content="hongxcollections" />`,
+      `<meta property="og:title" content="${esc(ogTitle)}" />`,
+      `<meta property="og:description" content="${esc(ogDesc)}" />`,
+      `<meta property="og:url" content="${esc(fullUrl)}" />`,
+      `<meta property="og:locale" content="zh_HK" />`,
+      ogImageUrl ? `<meta property="og:image" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:secure_url" content="${esc(ogImageUrl)}" />` : "",
+      ogImageUrl ? `<meta property="og:image:type" content="image/jpeg" />` : "",
+      ogImageUrl ? `<meta property="og:image:width" content="1200" />` : "",
+      ogImageUrl ? `<meta property="og:image:height" content="630" />` : "",
+      `<meta name="twitter:card" content="${ogImageUrl ? "summary_large_image" : "summary"}" />`,
+      `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
+      `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
+      ogImageUrl ? `<meta name="twitter:image" content="${esc(ogImageUrl)}" />` : "",
+      `<meta name="description" content="${esc(ogDesc)}" />`,
+      `<link rel="canonical" href="${esc(fullUrl)}" />`,
+      `<title>${esc(ogTitle)}</title>`,
+    ].filter(Boolean).join("\n    ");
+
+    let result = html
+      .replace(/<title>[^<]*<\/title>/gi, "")
+      .replace(/<meta\s+(?:property|name)="(?:og:|twitter:)[^"]*"[^>]*\/?>/gi, "")
+      .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "")
+      .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "")
+      .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
+    const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+    result = viewportRe.test(result)
+      ? result.replace(viewportRe, (m2) => `${m2}\n    ${ogMeta}`)
+      : result.replace("</head>", () => `    ${ogMeta}\n  </head>`);
+    console.log(`[OG Meta] Injected for CardZzz card ${cardId}: title="${ogTitle}"`);
+    return result;
+  } catch (err) {
+    console.error("[OG Meta] Error generating CardZzz card OG tags:", err);
+    return null;
+  }
+}
+
 async function injectGalleryOgMeta(html: string, reqPath: string, protocol: string, host: string): Promise<string | null> {
   const galleryMatch = reqPath.match(/^\/gallery\/(\d+)$/);
   if (!galleryMatch) return null;
@@ -703,6 +778,7 @@ export async function setupVite(app: Express, server: Server) {
       const ogHtml = await injectOgMeta(template, _cleanPath, protocol, host)
         ?? await injectProductOgMeta(template, _cleanPath, protocol, host)
         ?? await injectCollectionPostOgMeta(template, _cleanPath, protocol, host)
+        ?? await injectCardZzzzOgMeta(template, _cleanPath, protocol, host)
         ?? await injectGalleryOgMeta(template, _cleanPath, protocol, host)
         ?? injectStaticPageMeta(template, _cleanPath, base);
       if (ogHtml) {
@@ -873,6 +949,7 @@ export function serveStatic(app: Express) {
     const ogHtml = await injectOgMeta(html, cleanPath, protocol, host)
       ?? await injectProductOgMeta(html, cleanPath, protocol, host)
       ?? await injectCollectionPostOgMeta(html, cleanPath, protocol, host)
+      ?? await injectCardZzzzOgMeta(html, cleanPath, protocol, host)
       ?? await injectGalleryOgMeta(html, cleanPath, protocol, host)
       ?? injectStaticPageMeta(html, cleanPath, base);
     if (ogHtml) {

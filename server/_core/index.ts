@@ -1893,6 +1893,27 @@ Output ONLY the JSON, nothing else.`;
     }
   });
 
+  app.get('/api/og-image-card/:cardId', async (req, res) => {
+    try {
+      const cardId = parseInt(req.params.cardId, 10);
+      if (isNaN(cardId) || cardId <= 0) { res.status(400).send('Invalid card ID'); return; }
+      const { getDb } = await import('../db');
+      const db = getDb();
+      const [rows] = await (db as any).execute('SELECT imageThumb FROM pokeloverCards WHERE id = ? LIMIT 1', [cardId]);
+      const row = (rows as any[])[0];
+      if (!row || !row.imageThumb) { res.status(404).send('No image'); return; }
+      const dataUrl: string = row.imageThumb;
+      const m = dataUrl.match(/^data:(image\/[a-z+]+);base64,(.+)$/);
+      if (!m) { res.status(415).send('Not a base64 image'); return; }
+      const buf = Buffer.from(m[2], 'base64');
+      const cropped = await cropToOgSize(buf);
+      sendImageResponse(res, 'image/jpeg', cropped);
+    } catch (err) {
+      console.error('[OG Image Card Proxy] Error:', err);
+      res.status(500).send('Error');
+    }
+  });
+
   app.get('/api/og-image-community/:postId', async (req, res) => {
     try {
       const postId = parseInt(req.params.postId, 10);

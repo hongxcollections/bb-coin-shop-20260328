@@ -299,13 +299,15 @@ function ShareImageDialog({ imgUrl, cardName, onClose }: { imgUrl: string; cardN
 
 // ─── Inline Share Menu for CardZzz ─────────────────────────────────────────
 
-function PokeShareMenu({ result }: { result: PokeResult }) {
+function PokeShareMenu({ result, savedCardId }: { result: PokeResult; savedCardId?: number | null }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  const pokeUrl = `${SHARE_ORIGIN}/cardzzz`;
+  const pokeUrl = savedCardId
+    ? `${SHARE_ORIGIN}/cardzzz/card/${savedCardId}`
+    : `${SHARE_ORIGIN}/cardzzz`;
 
   const priceLine = [
     result.marketPriceHKD ? `裸卡 ~HK$${result.marketPriceHKD.toLocaleString("en-HK")}` : null,
@@ -1402,7 +1404,7 @@ export default function CardZzz() {
             )}
 
             <div data-share-skip="true" className="flex gap-2 mb-3 flex-wrap">
-              <PokeShareMenu result={result} />
+              <PokeShareMenu result={result} savedCardId={savedCardId} />
               <button
                 onClick={() => toast.info("本站搜尋功能開發中，敬請期待", { className: "bb-toast-info" })}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm"
