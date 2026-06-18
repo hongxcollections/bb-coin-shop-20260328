@@ -111,6 +111,7 @@ export default function MerchantGallery() {
   const [lbZoom, setLbZoom] = useState(1);
   const [lbPanX, setLbPanX] = useState(0);
   const [lbPanY, setLbPanY] = useState(0);
+  const lightboxItemIdRef = useRef<number | null>(null);
   const pinchStartDist = useRef(0);
   const pinchStartZoom = useRef(1);
   const panStartTouch = useRef({ x: 0, y: 0 });
@@ -252,13 +253,6 @@ export default function MerchantGallery() {
     onError: (e) => toast.error(e.message),
   });
   const copyItemsToGalleriesM = trpc.productGalleries.copyItemsToGalleries.useMutation({
-    onSuccess: (data) => {
-      toast.success(`已複製 ${data.created} 件商品到所選圖片集`);
-      setCopyPickerOpen(false);
-      setCopyTargetIds(new Set());
-      setBatchSelectedIds(new Set());
-      setBatchSelectMode(false);
-    },
     onError: (e) => toast.error(e.message),
   });
 
@@ -764,13 +758,23 @@ export default function MerchantGallery() {
   if (!isAuthenticated) return null;
 
   // ── Lightbox helpers ──
-  function openLightbox(src: string, images?: string[]) {
+  function openLightbox(src: string, images?: string[], itemId?: number) {
     const imgs = images && images.length > 0 ? images : [src];
     const idx = imgs.indexOf(src);
     setLightboxImages(imgs);
     setLightboxImgIdx(idx >= 0 ? idx : 0);
     setLightboxSrc(src);
     setLbZoom(1); setLbPanX(0); setLbPanY(0);
+    lightboxItemIdRef.current = itemId ?? null;
+  }
+  function closeLightbox() {
+    const itemId = lightboxItemIdRef.current;
+    setLightboxSrc(null);
+    if (itemId !== null) {
+      setTimeout(() => {
+        document.getElementById(`gallery-item-${itemId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }, 60);
+    }
   }
   function lbPinchDist(t: React.TouchList) {
     const dx = t[0].clientX - t[1].clientX;
@@ -832,12 +836,12 @@ export default function MerchantGallery() {
     return (
       <div
         className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
-        onClick={() => { if (lbZoom <= 1) setLightboxSrc(null); }}
+        onClick={() => { if (lbZoom <= 1) closeLightbox(); }}
         onTouchEnd={lbTouchEnd}
       >
         <button
           className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center z-10"
-          onClick={() => setLightboxSrc(null)}
+          onClick={() => closeLightbox()}
         >
           <X className="w-5 h-5 text-white" />
         </button>
@@ -1361,7 +1365,7 @@ export default function MerchantGallery() {
                                                   alt=""
                                                   className="w-full h-full object-cover cursor-zoom-in"
                                                   style={{ filter: item.status === 'sold' ? 'grayscale(50%) brightness(0.88)' : 'none' }}
-                                                  onClick={() => openLightbox(cur.imageUrl, itemImages.map(i => i.imageUrl))}
+                                                  onClick={() => openLightbox(cur.imageUrl, itemImages.map(i => i.imageUrl), item.id)}
                                                 />
                                                 {item.status === 'sold' && (
                                                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none">
@@ -1908,10 +1912,22 @@ export default function MerchantGallery() {
                                 disabled={copyTargetIds.size === 0 || copyItemsToGalleriesM.isPending}
                                 onClick={() => {
                                   if (!editGalleryId || batchSelectedIds.size === 0 || copyTargetIds.size === 0) return;
+                                  const targetNames = galleries
+                                    .filter(g => copyTargetIds.has(g.id))
+                                    .map(g => g.title)
+                                    .join('、');
                                   copyItemsToGalleriesM.mutate({
                                     sourceGalleryId: editGalleryId,
                                     itemIds: Array.from(batchSelectedIds),
                                     targetGalleryIds: Array.from(copyTargetIds),
+                                  }, {
+                                    onSuccess: (data) => {
+                                      toast.success(`已複製 ${data.created} 件商品到：${targetNames}`);
+                                      setCopyPickerOpen(false);
+                                      setCopyTargetIds(new Set());
+                                      setBatchSelectedIds(new Set());
+                                      setBatchSelectMode(false);
+                                    },
                                   });
                                 }}
                                 className="mt-3 w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 flex-shrink-0 flex items-center justify-center gap-2"
