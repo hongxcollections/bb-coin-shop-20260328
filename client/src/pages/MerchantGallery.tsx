@@ -303,8 +303,10 @@ export default function MerchantGallery() {
   });
 
   const batchAssignImagesM = trpc.productGalleries.batchAssignImages.useMutation({
-    onSuccess: async (data) => {
+    onSuccess: async (data, variables) => {
       toast.success(`已將 ${data.assigned} 張圖片加入商品`);
+      scrollToItemIdRef.current = variables.itemId;
+      setEditTab('items');
       setPoolSelectedIds(new Set());
       setPoolBatchMode(false);
       setPoolAssignPickerOpen(false);
@@ -1829,7 +1831,7 @@ export default function MerchantGallery() {
                     </div>
                   )}
 
-                  {/* Pool item edit full-screen page */}
+                  {/* Pool item edit bottom sheet */}
                   {poolItemEditOpen && poolItemEditItem && (() => {
                     const existingImgs = (galleryImagesQ.data ?? []).filter(
                       (img: GalleryImageRow) => img.itemId === poolItemEditItem.id
@@ -1838,197 +1840,194 @@ export default function MerchantGallery() {
                       (img: GalleryImageRow) => poolSelectedIds.has(img.id)
                     );
                     const isSaving = batchAssignImagesM.isPending || updateItemM.isPending;
+
+                    const handleClose = () => {
+                      setPoolItemEditOpen(false);
+                      setPoolItemEditItem(null);
+                      setPoolBatchMode(false);
+                      setPoolSelectedIds(new Set());
+                    };
+
+                    const handleSave = async () => {
+                      const targetId = poolItemEditItem.id;
+                      const priceVal = parseFloat(poolItemEditPrice) || 0;
+                      await updateItemM.mutateAsync({
+                        id: targetId,
+                        itemName: poolItemEditName,
+                        itemNumber: poolItemEditNumber || undefined,
+                        price: priceVal,
+                      });
+                      if (poolSelectedIds.size > 0) {
+                        batchAssignImagesM.mutate({
+                          imageIds: Array.from(poolSelectedIds),
+                          itemId: targetId,
+                        });
+                      } else {
+                        toast.success('已儲存商品資料');
+                        scrollToItemIdRef.current = targetId;
+                        setEditTab('items');
+                        handleClose();
+                      }
+                    };
+
                     return (
-                      <div className="fixed inset-0 z-[60] bg-white flex flex-col" style={{ paddingLeft: 3, paddingRight: 3 }}>
-                        {/* Header */}
-                        <div className="flex items-center justify-between px-3 py-3 border-b border-gray-100 flex-shrink-0">
-                          <button
-                            onClick={() => {
-                              setPoolItemEditOpen(false);
-                              setPoolAssignPickerOpen(true);
-                            }}
-                            className="flex items-center gap-1 text-sm text-gray-600 font-medium"
-                          >
-                            <ChevronLeft className="w-4 h-4" />
-                            返回
-                          </button>
-                          <h2 className="text-sm font-bold text-gray-900 truncate max-w-[180px]">
-                            {poolItemEditItem.itemName || `商品 #${poolItemEditItem.id}`}
-                          </h2>
-                          <button
-                            disabled={isSaving}
-                            onClick={async () => {
-                              const priceVal = parseFloat(poolItemEditPrice) || 0;
-                              await updateItemM.mutateAsync({
-                                id: poolItemEditItem.id,
-                                itemName: poolItemEditName,
-                                itemNumber: poolItemEditNumber || undefined,
-                                price: priceVal,
-                              });
-                              if (poolSelectedIds.size > 0) {
-                                batchAssignImagesM.mutate({
-                                  imageIds: Array.from(poolSelectedIds),
-                                  itemId: poolItemEditItem.id,
-                                });
-                              } else {
-                                toast.success('已儲存商品資料');
-                                setPoolItemEditOpen(false);
-                                setPoolItemEditItem(null);
-                                setPoolBatchMode(false);
-                              }
-                            }}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-white disabled:opacity-50"
-                            style={{ background: 'linear-gradient(135deg,#FF8C00,#FF6B00)' }}
-                          >
-                            {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                            儲存
-                          </button>
-                        </div>
+                      <div
+                        className="fixed inset-0 z-[60] flex flex-col justify-end"
+                        style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
+                      >
+                        {/* Backdrop */}
+                        <div className="absolute inset-0 bg-black/50" onClick={handleClose} />
 
-                        {/* Scrollable body */}
-                        <div className="flex-1 overflow-y-auto px-1 pt-3 pb-24">
-                          {/* Pending images section */}
-                          {pendingImgs.length > 0 && (
-                            <div className="mb-4">
-                              <p className="text-xs font-semibold text-orange-500 mb-2 px-1">
-                                待加入圖片（{pendingImgs.length} 張）
-                              </p>
-                              <div className="grid grid-cols-4 gap-1">
-                                {pendingImgs.map(img => (
-                                  <div
-                                    key={img.id}
-                                    className="relative rounded-lg overflow-hidden bg-gray-100"
-                                    style={{ aspectRatio: '1/1', outline: '2px solid #FF6B00' }}
-                                  >
-                                    <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
-                                    <button
-                                      onClick={() => {
-                                        setPoolSelectedIds(prev => {
-                                          const next = new Set(prev);
-                                          next.delete(img.id);
-                                          return next;
-                                        });
-                                      }}
-                                      className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
-                                    >
-                                      <X className="w-2.5 h-2.5 text-white" />
-                                    </button>
+                        {/* Sheet */}
+                        <div
+                          className="relative z-10 bg-white rounded-t-2xl flex flex-col overflow-hidden"
+                          style={{ maxHeight: '88vh' }}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {/* Drag handle */}
+                          <div className="flex justify-center pt-2 pb-1 flex-shrink-0">
+                            <div className="w-8 h-1 rounded-full bg-gray-200" />
+                          </div>
+
+                          {/* Title row */}
+                          <div className="px-4 pb-2 flex-shrink-0">
+                            <h2 className="text-sm font-bold text-gray-900">
+                              {poolItemEditItem.itemName || `商品 #${poolItemEditItem.id}`}
+                            </h2>
+                          </div>
+
+                          {/* Scrollable body */}
+                          <div className="flex-1 overflow-y-auto" style={{ padding: '0 3px' }}>
+                            <div className="px-2 pb-3">
+
+                              {/* Pending images */}
+                              {pendingImgs.length > 0 && (
+                                <div className="mb-3">
+                                  <p className="text-xs font-semibold text-orange-500 mb-1.5">
+                                    待加入圖片（{pendingImgs.length} 張）
+                                  </p>
+                                  <div className="grid grid-cols-4 gap-1">
+                                    {pendingImgs.map(img => (
+                                      <div
+                                        key={img.id}
+                                        className="relative rounded-lg overflow-hidden bg-gray-100"
+                                        style={{ aspectRatio: '1/1', outline: '2px solid #FF6B00' }}
+                                      >
+                                        <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                                        <button
+                                          onClick={() => setPoolSelectedIds(prev => {
+                                            const next = new Set(prev);
+                                            next.delete(img.id);
+                                            return next;
+                                          })}
+                                          className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
+                                        >
+                                          <X className="w-2.5 h-2.5 text-white" />
+                                        </button>
+                                      </div>
+                                    ))}
                                   </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                                </div>
+                              )}
 
-                          {/* Existing images section */}
-                          {existingImgs.length > 0 && (
-                            <div className="mb-4">
-                              <p className="text-xs font-semibold text-gray-500 mb-2 px-1">
-                                已有圖片（{existingImgs.length} 張）
-                              </p>
-                              <div className="grid grid-cols-4 gap-1">
-                                {existingImgs.map(img => (
-                                  <div
-                                    key={img.id}
-                                    className="relative rounded-lg overflow-hidden bg-gray-100"
-                                    style={{ aspectRatio: '1/1' }}
-                                  >
-                                    <img
-                                      src={img.imageUrl}
-                                      alt=""
-                                      className="w-full h-full object-cover cursor-zoom-in"
-                                      onClick={() => openLightbox(img.imageUrl)}
-                                    />
-                                    <button
-                                      onClick={() => unassignImageM.mutate({ imageId: img.id })}
-                                      className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
-                                      title="移回相片池"
-                                    >
-                                      <X className="w-2.5 h-2.5 text-white" />
-                                    </button>
+                              {/* Existing images */}
+                              {existingImgs.length > 0 && (
+                                <div className="mb-3">
+                                  <p className="text-xs font-semibold text-gray-500 mb-1.5">
+                                    已有圖片（{existingImgs.length} 張）
+                                  </p>
+                                  <div className="grid grid-cols-4 gap-1">
+                                    {existingImgs.map(img => (
+                                      <div
+                                        key={img.id}
+                                        className="relative rounded-lg overflow-hidden bg-gray-100"
+                                        style={{ aspectRatio: '1/1' }}
+                                      >
+                                        <img
+                                          src={img.imageUrl}
+                                          alt=""
+                                          className="w-full h-full object-cover cursor-zoom-in"
+                                          onClick={() => openLightbox(img.imageUrl)}
+                                        />
+                                        <button
+                                          onClick={() => unassignImageM.mutate({ imageId: img.id })}
+                                          className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
+                                          title="移回相片池"
+                                        >
+                                          <X className="w-2.5 h-2.5 text-white" />
+                                        </button>
+                                      </div>
+                                    ))}
                                   </div>
-                                ))}
+                                </div>
+                              )}
+
+                              {existingImgs.length === 0 && pendingImgs.length === 0 && (
+                                <p className="text-xs text-gray-400 text-center py-4">未有圖片</p>
+                              )}
+
+                              {/* Editable fields — 編號 / 名稱 / 售價 */}
+                              <div className="space-y-2.5 mt-1">
+                                <div>
+                                  <label className="text-xs text-gray-500 font-medium block mb-1">編號（選填）</label>
+                                  <input
+                                    value={poolItemEditNumber}
+                                    onChange={e => setPoolItemEditNumber(e.target.value)}
+                                    placeholder="例：001"
+                                    className="w-full px-3 py-2.5 text-sm outline-none"
+                                    style={{ background: '#F9F9F9', border: '1px solid #E5E5E5', borderRadius: 12 }}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-500 font-medium block mb-1">商品名稱</label>
+                                  <input
+                                    value={poolItemEditName}
+                                    onChange={e => setPoolItemEditName(e.target.value)}
+                                    placeholder="例：1887年香港一仙"
+                                    className="w-full px-3 py-2.5 text-sm outline-none"
+                                    style={{ background: '#F9F9F9', border: '1px solid #E5E5E5', borderRadius: 12 }}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-500 font-medium block mb-1">售價（HKD）</label>
+                                  <input
+                                    inputMode="decimal"
+                                    value={poolItemEditPrice}
+                                    onChange={e => setPoolItemEditPrice(e.target.value)}
+                                    placeholder="例：350"
+                                    className="w-full px-3 py-2.5 text-sm outline-none"
+                                    style={{ background: '#F9F9F9', border: '1px solid #E5E5E5', borderRadius: 12 }}
+                                  />
+                                </div>
                               </div>
-                            </div>
-                          )}
-
-                          {existingImgs.length === 0 && pendingImgs.length === 0 && (
-                            <div className="flex items-center justify-center py-8">
-                              <p className="text-xs text-gray-400">未有圖片</p>
-                            </div>
-                          )}
-
-                          {/* Editable fields */}
-                          <div className="space-y-3 px-1 mt-2">
-                            <div>
-                              <label className="text-xs text-gray-500 font-medium block mb-1">商品名稱</label>
-                              <input
-                                value={poolItemEditName}
-                                onChange={e => setPoolItemEditName(e.target.value)}
-                                placeholder="例：1887年香港一仙"
-                                className="w-full px-3 py-2.5 text-sm outline-none"
-                                style={{ background: '#F9F9F9', border: '1px solid #E5E5E5', borderRadius: 12 }}
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-500 font-medium block mb-1">編號（選填）</label>
-                              <input
-                                value={poolItemEditNumber}
-                                onChange={e => setPoolItemEditNumber(e.target.value)}
-                                placeholder="例：001"
-                                className="w-full px-3 py-2.5 text-sm outline-none"
-                                style={{ background: '#F9F9F9', border: '1px solid #E5E5E5', borderRadius: 12 }}
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-gray-500 font-medium block mb-1">售價（HKD）</label>
-                              <input
-                                type="number"
-                                inputMode="decimal"
-                                value={poolItemEditPrice}
-                                onChange={e => setPoolItemEditPrice(e.target.value)}
-                                placeholder="例：350"
-                                className="w-full px-3 py-2.5 text-sm outline-none"
-                                style={{ background: '#F9F9F9', border: '1px solid #E5E5E5', borderRadius: 12 }}
-                              />
                             </div>
                           </div>
-                        </div>
 
-                        {/* Sticky save bar */}
-                        <div
-                          className="flex-shrink-0 px-3 py-3 border-t border-gray-100"
-                          style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))' }}
-                        >
-                          <button
-                            disabled={isSaving}
-                            onClick={async () => {
-                              const priceVal = parseFloat(poolItemEditPrice) || 0;
-                              await updateItemM.mutateAsync({
-                                id: poolItemEditItem.id,
-                                itemName: poolItemEditName,
-                                itemNumber: poolItemEditNumber || undefined,
-                                price: priceVal,
-                              });
-                              if (poolSelectedIds.size > 0) {
-                                batchAssignImagesM.mutate({
-                                  imageIds: Array.from(poolSelectedIds),
-                                  itemId: poolItemEditItem.id,
-                                });
-                              } else {
-                                toast.success('已儲存商品資料');
-                                setPoolItemEditOpen(false);
-                                setPoolItemEditItem(null);
-                                setPoolBatchMode(false);
+                          {/* Sticky bottom bar: 取消 + 儲存 */}
+                          <div className="flex-shrink-0 px-3 pt-2 pb-3 border-t border-gray-100 flex gap-2">
+                            <button
+                              onClick={handleClose}
+                              className="flex-1 py-3 rounded-2xl text-sm font-semibold"
+                              style={{ background: '#F0F0F0', color: '#555' }}
+                            >
+                              取消
+                            </button>
+                            <button
+                              disabled={isSaving}
+                              onClick={handleSave}
+                              className="flex-[2] py-3 rounded-2xl text-sm font-bold text-white disabled:opacity-50 flex items-center justify-center gap-1.5"
+                              style={{ background: 'linear-gradient(135deg,#FF8C00,#FF6B00)' }}
+                            >
+                              {isSaving
+                                ? <><Loader2 className="w-4 h-4 animate-spin" /> 儲存中…</>
+                                : <><Save className="w-4 h-4" />
+                                    {poolSelectedIds.size > 0
+                                      ? `加入 ${poolSelectedIds.size} 張圖並儲存`
+                                      : '儲存'}
+                                  </>
                               }
-                            }}
-                            className="w-full py-3 rounded-2xl text-sm font-bold text-white disabled:opacity-50 flex items-center justify-center gap-2"
-                            style={{ background: 'linear-gradient(135deg,#FF8C00,#FF6B00)' }}
-                          >
-                            {isSaving
-                              ? <><Loader2 className="w-4 h-4 animate-spin" /> 儲存中…</>
-                              : <><Save className="w-4 h-4" /> 儲存（{poolSelectedIds.size > 0 ? `加入 ${poolSelectedIds.size} 張圖` : '更新資料'}）</>
-                            }
-                          </button>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
