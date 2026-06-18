@@ -30,9 +30,10 @@ type PokeResult = {
   worthGrading?: boolean;
   authenticityWarning?: string | null;
   authenticityScore?: number | null;
+  cardGame?: string;
   ebaySearchQuery?: string;
   funFact?: string;
-  isNotCardZzz?: boolean;
+  isNotSupportedCard?: boolean;
 };
 
 const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
@@ -512,7 +513,8 @@ function PokeBallUpload({ onFiles, disabled }: { onFiles: (files: File[]) => voi
           <Upload className="w-6 h-6" style={{ color: "#333" }} />
         </div>
       </div>
-      <p className="text-sm font-semibold" style={{ color: "#FFDE00" }}>點擊或拖放 CardZzz 卡片圖片</p>
+      <p className="text-sm font-semibold" style={{ color: "#FFDE00" }}>點擊或拖放卡片圖片</p>
+      <p className="text-xs mt-1" style={{ color: "rgba(255,222,0,0.6)" }}>Pokemon・航海王・MTG・遊戲王・龍珠・數碼暴龍等</p>
       <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>支援 JPG / PNG / WEBP</p>
       <input ref={ref} type="file" accept="image/*" multiple className="hidden" onChange={e => { const files = Array.from(e.target.files ?? []).filter(f => f.type.startsWith("image/")); if (files.length) onFiles(files); e.target.value = ""; }} />
     </div>
@@ -663,8 +665,8 @@ export default function CardZzz() {
     onSuccess: (res) => {
       const data = res.data as PokeResult;
       setAnalysisError(null);
-      if (data.isNotCardZzz) {
-        toast.error("呢張唔似係 CardZzz 卡，請重新上載", { className: "bb-toast-err" });
+      if (data.isNotSupportedCard) {
+        toast.error("呢張唔似係支援嘅 TCG 卡牌，請重新上載", { className: "bb-toast-err" });
         setResult(null);
       } else {
         setResult(data);
@@ -1019,6 +1021,11 @@ export default function CardZzz() {
                   </div>
                 </button>
                 <div className="flex-1 min-w-0">
+                  {result.cardGame && (
+                    <span className="inline-block text-xs font-bold px-2 py-0.5 rounded-full mb-1" style={{ background: "rgba(255,222,0,0.15)", color: "#FFDE00", border: "1px solid rgba(255,222,0,0.3)" }}>
+                      {result.cardGame}
+                    </span>
+                  )}
                   <p className="text-xl font-black leading-tight" style={{ color: "#FFDE00" }}>{result.cardName ?? "未知卡片"}</p>
                   {result.cardNameJa && <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{result.cardNameJa}</p>}
                   <div className="flex flex-wrap gap-1.5 mt-2">
@@ -1191,7 +1198,7 @@ export default function CardZzz() {
           </div>
         )}
 
-        {result && !result.isNotCardZzz && (
+        {result && !result.isNotSupportedCard && (
           <>
             {result.attacks && result.attacks.length > 0 && (
               <div className="rounded-xl p-4 mb-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>

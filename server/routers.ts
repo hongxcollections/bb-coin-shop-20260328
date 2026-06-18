@@ -7248,15 +7248,27 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
         const keys = [ENV.geminiApiKey, ENV.geminiApiKey2].filter(Boolean) as string[];
         if (keys.length === 0) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "AI 服務暫不可用" });
 
-        const systemPrompt = `你係 Pokemon TCG（集換式卡牌遊戲）頂尖鑑定專家，熟悉自 1996 年至今所有系列及版本。請仔細分析圖片中的 Pokemon 卡片，以純 JSON 格式回覆（不可有任何 markdown、說明文字或 code block，直接輸出 JSON object）：
+        const systemPrompt = `你係集換式卡牌（TCG）頂尖鑑定專家，熟悉以下所有主流卡牌遊戲及其歷史版本：
+- Pokemon TCG（1996 至今）
+- One Piece Card Game（航海王，2022 至今）
+- Magic: The Gathering（MTG，1993 至今）
+- Yu-Gi-Oh!（遊戲王，1999 至今）
+- Dragon Ball Super Card Game（龍珠，2017 至今）
+- Cardfight!! Vanguard（Bushiroad，2011 至今）
+- Digimon Card Game（2020 至今）
+- Weiss Schwarz（白雪姬，2008 至今）
+- Final Fantasy TCG、Flesh and Blood 等其他主流 TCG
+
+請仔細分析圖片中的卡片，先識別係邊款遊戲，再以純 JSON 格式回覆（不可有任何 markdown、說明文字或 code block，直接輸出 JSON object）：
 {
-  "cardName": "卡片英文名稱（如 Charizard）",
+  "cardGame": "卡片所屬遊戲，如 Pokemon / One Piece / Magic: The Gathering / Yu-Gi-Oh! / Dragon Ball Super / Vanguard / Digimon / Weiss Schwarz / Other",
+  "cardName": "卡片名稱（英文或原文，如 Charizard / Monkey D. Luffy / Black Lotus）",
   "cardNameJa": "日文名稱（如 リザードン，唔知填 null）",
-  "set": "系列名稱（如 Base Set、Scarlet & Violet）",
-  "setNumber": "卡號（如 4/102，唔知填 null）",
-  "rarity": "稀有度（Common/Uncommon/Rare/Holo Rare/Ultra Rare/Secret Rare/Promo 等）",
-  "hp": HP 數字或 null,
-  "types": ["屬性陣列，如 Fire/Water/Grass/Lightning/Psychic/Fighting/Darkness/Metal/Dragon/Colorless"],
+  "set": "系列名稱（如 Base Set、Romance Dawn、Alpha）",
+  "setNumber": "卡號（如 4/102、OP01-001，唔知填 null）",
+  "rarity": "稀有度（Common/Uncommon/Rare/Super Rare/Secret Rare/Promo 等，按各遊戲標準）",
+  "hp": HP 或生命值數字（如有）或 null,
+  "types": ["屬性或顏色陣列（按各遊戲標準，如 Fire/Water 或 Red/Blue 或 W/U）"],
   "attacks": [{"name":"技能名","damage":"傷害如100或空","cost":["Fire","Colorless"]}],
   "releaseYear": "發售年份如 1999",
   "language": "Japanese/English/Chinese/Other",
@@ -7274,7 +7286,7 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
   "authenticityScore": 正版可信度 0-100（100=確信正版，80以上=可信，低於60=需注意，僅供參考）,
   "ebaySearchQuery": "建議 eBay 搜尋詞",
   "funFact": "關於此卡嘅冷知識（1-2 句廣東話）",
-  "isNotPokemon": false（圖片唔係 Pokemon 卡填 true）
+  "isNotSupportedCard": false（圖片唔係任何支援卡牌遊戲的卡片填 true）
 }`;
 
         const payload = {
@@ -7284,7 +7296,7 @@ Reply in JSON. All fields are REQUIRED — if uncertain, provide your best exper
             { role: "system", content: systemPrompt },
             { role: "user", content: [
               { type: "image_url", image_url: { url: dataUrl } },
-              { type: "text", text: "請分析呢張 Pokemon 卡片。" },
+              { type: "text", text: "請分析呢張卡片，先識別係邊款 TCG 遊戲，再輸出完整分析。" },
             ]},
           ],
         };
