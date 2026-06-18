@@ -146,6 +146,10 @@ export default function MerchantGallery() {
   const [batchSelectMode, setBatchSelectMode] = useState(false);
   const [batchSelectedIds, setBatchSelectedIds] = useState<Set<number>>(new Set());
 
+  // Copy to other galleries picker
+  const [copyPickerOpen, setCopyPickerOpen] = useState(false);
+  const [copyTargetIds, setCopyTargetIds] = useState<Set<number>>(new Set());
+
   // Auction import picker
   const [auctionPickerOpen, setAuctionPickerOpen] = useState(false);
   const [selectedAuctionIds, setSelectedAuctionIds] = useState<Set<number>>(new Set());
@@ -247,6 +251,17 @@ export default function MerchantGallery() {
     },
     onError: (e) => toast.error(e.message),
   });
+  const copyItemsToGalleriesM = trpc.productGalleries.copyItemsToGalleries.useMutation({
+    onSuccess: (data) => {
+      toast.success(`已複製 ${data.created} 件商品到所選圖片集`);
+      setCopyPickerOpen(false);
+      setCopyTargetIds(new Set());
+      setBatchSelectedIds(new Set());
+      setBatchSelectMode(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   const convertToAuctionDraftsM = trpc.productGalleries.convertToAuctionDrafts.useMutation({
     onSuccess: (data) => {
       toast.success(`已建立 ${data.created} 個拍賣草稿，請到拍賣商品草稿 tab 查看`);
@@ -1512,6 +1527,13 @@ export default function MerchantGallery() {
                                             ? <Loader2 className="w-4 h-4 animate-spin" />
                                             : `轉為商品出售草稿（${batchSelectedIds.size} 件）`}
                                         </button>
+                                        <button
+                                          onClick={() => { setCopyTargetIds(new Set()); setCopyPickerOpen(true); }}
+                                          className="w-full py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
+                                          style={{ background: 'linear-gradient(135deg,#10B981,#059669)' }}
+                                        >
+                                          複製到其他圖片集（{batchSelectedIds.size} 件）
+                                        </button>
                                       </div>
                                     )}
                                   </div>
@@ -1809,6 +1831,102 @@ export default function MerchantGallery() {
                       </div>
                     </div>
                   )}
+
+                  {/* Copy to gallery picker */}
+                  {copyPickerOpen && (() => {
+                    const otherGalleries = galleries.filter(g => g.id !== editGalleryId);
+                    return (
+                      <div
+                        className="fixed inset-0 z-50 bg-black/70 flex items-end"
+                        onClick={() => setCopyPickerOpen(false)}
+                      >
+                        <div
+                          className="bg-white w-full rounded-t-2xl px-4 pt-4"
+                          style={{ maxHeight: '75vh', display: 'flex', flexDirection: 'column', paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                            <h3 className="font-semibold text-gray-900 text-sm">複製到哪個圖片集？</h3>
+                            <button onClick={() => setCopyPickerOpen(false)}>
+                              <X className="w-5 h-5 text-gray-400" />
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-400 mb-3 flex-shrink-0">可選多個目標圖片集，商品名稱、圖片、價錢一併複製</p>
+                          {otherGalleries.length === 0 ? (
+                            <div className="text-center py-8 text-sm text-gray-400 flex-shrink-0">沒有其他圖片集</div>
+                          ) : (
+                            <>
+                              <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                                <span className="text-xs text-gray-500">已選 {copyTargetIds.size} / {otherGalleries.length} 個圖片集</span>
+                                <button
+                                  className="text-xs font-semibold text-orange-500"
+                                  onClick={() => setCopyTargetIds(
+                                    copyTargetIds.size === otherGalleries.length
+                                      ? new Set()
+                                      : new Set(otherGalleries.map(g => g.id))
+                                  )}
+                                >
+                                  {copyTargetIds.size === otherGalleries.length ? '取消全選' : '全選'}
+                                </button>
+                              </div>
+                              <div className="overflow-y-auto flex-1 space-y-1.5 pr-0.5">
+                                {otherGalleries.map(g => {
+                                  const selected = copyTargetIds.has(g.id);
+                                  return (
+                                    <button
+                                      key={g.id}
+                                      onClick={() => setCopyTargetIds(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(g.id)) next.delete(g.id); else next.add(g.id);
+                                        return next;
+                                      })}
+                                      className="w-full flex items-center gap-3 p-2 rounded-xl text-left"
+                                      style={{ background: selected ? '#ECFDF5' : '#F8F8F8', border: `1.5px solid ${selected ? '#10B981' : 'transparent'}` }}
+                                    >
+                                      {g.coverImageUrl ? (
+                                        <img src={g.coverImageUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                                      ) : (
+                                        <div className="w-10 h-10 rounded-lg bg-gray-100 flex-shrink-0 flex items-center justify-center">
+                                          <Images className="w-5 h-5 text-gray-300" />
+                                        </div>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-semibold text-gray-800 truncate">{g.title}</p>
+                                        <p className="text-xs text-gray-400">{(g as any).itemCount ?? ''} 件商品</p>
+                                      </div>
+                                      <div
+                                        className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center"
+                                        style={{ borderColor: selected ? '#10B981' : '#D1D5DB', background: selected ? '#10B981' : 'white' }}
+                                      >
+                                        {selected && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <button
+                                disabled={copyTargetIds.size === 0 || copyItemsToGalleriesM.isPending}
+                                onClick={() => {
+                                  if (!editGalleryId || batchSelectedIds.size === 0 || copyTargetIds.size === 0) return;
+                                  copyItemsToGalleriesM.mutate({
+                                    sourceGalleryId: editGalleryId,
+                                    itemIds: Array.from(batchSelectedIds),
+                                    targetGalleryIds: Array.from(copyTargetIds),
+                                  });
+                                }}
+                                className="mt-3 w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 flex-shrink-0 flex items-center justify-center gap-2"
+                                style={{ background: 'linear-gradient(135deg,#10B981,#059669)' }}
+                              >
+                                {copyItemsToGalleriesM.isPending
+                                  ? <><Loader2 className="w-4 h-4 animate-spin" />複製中...</>
+                                  : `複製 ${batchSelectedIds.size} 件商品到 ${copyTargetIds.size} 個圖片集`}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Delete gallery name confirmation modal */}
                   {deleteConfirmOpen && (
