@@ -361,6 +361,7 @@ export default function BottomNav() {
                 key={item.label}
                 href={item.path!}
                 className="bottom-nav-item"
+                onClick={item.path === "/" ? () => window.dispatchEvent(new CustomEvent("bottom-nav-home")) : undefined}
               >
                 <div className={`bottom-nav-btn ${active ? "bottom-nav-active" : ""}`}>
                   <item.icon className={`bottom-nav-icon ${active ? "bottom-nav-icon-active" : ""}`} />

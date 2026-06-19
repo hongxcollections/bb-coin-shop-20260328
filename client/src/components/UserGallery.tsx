@@ -744,7 +744,7 @@ export default function UserGallery({ onClose }: Props) {
   if (assignPickerImageId !== null && draftItems.length > 0) {
     return (
       <div className="fixed inset-0 z-50 bg-black/60 flex items-end" onClick={() => setAssignPickerImageId(null)}>
-        <div className="w-full bg-white rounded-t-2xl p-4 max-h-[60vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="w-full bg-white rounded-t-2xl p-4 max-h-[60vh] overflow-y-auto" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }} onClick={e => e.stopPropagation()}>
           <p className="text-sm font-bold text-gray-800 mb-3">選擇指定商品</p>
           <div className="space-y-2">
             {draftItems.map(item => (

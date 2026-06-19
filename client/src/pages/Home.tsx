@@ -1163,6 +1163,12 @@ export default function Home() {
     };
   }, [showUserGallery]);
 
+  useEffect(() => {
+    const handler = () => setShowUserGallery(false);
+    window.addEventListener("bottom-nav-home", handler);
+    return () => window.removeEventListener("bottom-nav-home", handler);
+  }, []);
+
   // 落單按鈕：未登入直接跳登入頁，登入後返回商品詳情頁
   const handleBuy = async (product: any) => {
     if (!isAuthenticated) {
