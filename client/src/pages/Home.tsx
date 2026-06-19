@@ -1515,7 +1515,7 @@ export default function Home() {
           style={{
             position: "fixed",
             top: 64,
-            bottom: 60,
+            bottom: 0,
             left: 0,
             right: 0,
             zIndex: 45,
@@ -1523,7 +1523,7 @@ export default function Home() {
             background: "#F5F5F5",
           }}
         >
-          <div className="container px-3 py-3">
+          <div style={{ padding: "12px 16px", paddingBottom: "calc(60px + env(safe-area-inset-bottom, 0px) + 12px)" }}>
             <UserGallery onClose={() => setShowUserGallery(false)} />
           </div>
         </div>
