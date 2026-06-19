@@ -254,12 +254,15 @@ export default function PublicGallery() {
   const panStartOffset = useRef({ x: 0, y: 0 });
   const lastTapTime = useRef(0);
   const lbScrollRef = useRef<HTMLDivElement>(null);
+  const lbVScrollRef = useRef<HTMLDivElement>(null);
   const lbZoomRef = useRef(1);
   const lastOpenedItemId = useRef<number | null>(null);
+  const [lbVZoomIdx, setLbVZoomIdx] = useState(-1);
+  const lbVZoomIdxRef = useRef(-1);
 
   const [buyingItem, setBuyingItem] = useState<GalleryItem | null>(null);
   const [soldItem, setSoldItem] = useState<GalleryItem | null>(null);
-  const [lbMode, setLbMode] = useState<'h' | 'v'>('h');
+  const [lbMode, setLbMode] = useState<'h' | 'v'>('v');
 
   const galleryQ = trpc.productGalleries.getPublic.useQuery(
     { id: galleryId },
@@ -286,7 +289,8 @@ export default function PublicGallery() {
     setLbImgIdx(idx);
     setLbZoom(1); lbZoomRef.current = 1;
     setLbPanX(0); setLbPanY(0);
-    setLbMode('h');
+    setLbMode('v');
+    setLbVZoomIdx(-1); lbVZoomIdxRef.current = -1;
     // scroll strip to correct index after render
     setTimeout(() => {
       if (lbScrollRef.current) {
@@ -307,6 +311,56 @@ export default function PublicGallery() {
       }, 60);
     }
   }, [lightboxItem]);
+
+  // native touchstart with passive:false on vertical scroll container — pinch zoom
+  useEffect(() => {
+    const el = lbVScrollRef.current;
+    if (!el || !lightboxItem || lbMode !== 'v') return;
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        // detect which image is under midpoint
+        const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        const imgs = el!.querySelectorAll('img');
+        let found = 0;
+        imgs.forEach((img, i) => {
+          const r = img.getBoundingClientRect();
+          if (my >= r.top && my <= r.bottom) found = i;
+        });
+        lbVZoomIdxRef.current = found;
+        setLbVZoomIdx(found);
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        pinchStartDist.current = Math.sqrt(dx * dx + dy * dy);
+        pinchStartZoom.current = lbZoomRef.current;
+      } else if (e.touches.length === 1) {
+        const now = Date.now();
+        if (now - lastTapTime.current < 280 && lbZoomRef.current > 1) {
+          setLbZoom(1); lbZoomRef.current = 1; setLbPanX(0); setLbPanY(0);
+        }
+        lastTapTime.current = now;
+        if (lbZoomRef.current > 1) {
+          panStartTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+          panStartOffset.current = { x: lbPanX, y: lbPanY };
+        }
+      }
+    }
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    return () => el.removeEventListener('touchstart', onTouchStart);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lightboxItem, lbMode, lbPanX, lbPanY]);
+
+  function lbVTouchMove(e: React.TouchEvent) {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const z = Math.min(6, Math.max(1, pinchStartZoom.current * (lbPinchDist(e.touches) / pinchStartDist.current)));
+      setLbZoom(z); lbZoomRef.current = z;
+    } else if (e.touches.length === 1 && lbZoomRef.current > 1) {
+      e.preventDefault();
+      setLbPanX(panStartOffset.current.x + e.touches[0].clientX - panStartTouch.current.x);
+      setLbPanY(panStartOffset.current.y + e.touches[0].clientY - panStartTouch.current.y);
+    }
+  }
 
   // native touchstart with passive:false on scroll strip — needed for pinch preventDefault
   useEffect(() => {
@@ -384,7 +438,7 @@ export default function PublicGallery() {
           {lbImgs.length > 1 && (
             <div className="flex rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(255,255,255,0.2)', alignSelf: 'flex-start', marginTop: 2 }}>
               <button
-                onClick={() => { setLbMode('h'); setLbZoom(1); lbZoomRef.current = 1; setLbPanX(0); setLbPanY(0); }}
+                onClick={() => { setLbMode('h'); setLbZoom(1); lbZoomRef.current = 1; setLbPanX(0); setLbPanY(0); setLbVZoomIdx(-1); lbVZoomIdxRef.current = -1; }}
                 style={{
                   padding: '5px 8px',
                   background: lbMode === 'h' ? 'rgba(255,255,255,0.25)' : 'transparent',
@@ -395,7 +449,7 @@ export default function PublicGallery() {
                 <LayoutGrid className="w-3.5 h-3.5" />
               </button>
               <button
-                onClick={() => { setLbMode('v'); setLbZoom(1); lbZoomRef.current = 1; setLbPanX(0); setLbPanY(0); }}
+                onClick={() => { setLbMode('v'); setLbZoom(1); lbZoomRef.current = 1; setLbPanX(0); setLbPanY(0); setLbVZoomIdx(-1); lbVZoomIdxRef.current = -1; }}
                 style={{
                   padding: '5px 8px',
                   background: lbMode === 'v' ? 'rgba(255,255,255,0.25)' : 'transparent',
@@ -420,10 +474,16 @@ export default function PublicGallery() {
         <div className="flex-1 relative overflow-hidden">
 
           {lbMode === 'v' ? (
-            /* ── Vertical mode: all images stacked, each portrait full-width ── */
+            /* ── Vertical mode: all images stacked, pinch-to-zoom per image ── */
             <div
-              className="h-full overflow-y-auto"
-              style={{ scrollbarWidth: 'none' } as React.CSSProperties}
+              ref={lbVScrollRef}
+              className="h-full"
+              style={{
+                overflowY: lbZoom > 1 ? 'hidden' : 'auto',
+                overflowX: 'hidden',
+                scrollbarWidth: 'none',
+              } as React.CSSProperties}
+              onTouchMove={lbVTouchMove}
             >
               {lbImgs.map((img, i) => (
                 <div
@@ -439,6 +499,11 @@ export default function PublicGallery() {
                       objectFit: 'contain',
                       borderRadius: 14,
                       display: 'block',
+                      transform: lbVZoomIdx === i
+                        ? `translate(${lbPanX}px, ${lbPanY}px) scale(${lbZoom})`
+                        : 'none',
+                      transformOrigin: 'center center',
+                      pointerEvents: 'none',
                     }}
                     alt=""
                     draggable={false}
