@@ -50,6 +50,7 @@ import EarlyBirdBanner from "@/components/EarlyBirdBanner";
 import { SilverValuationTool } from "@/components/SilverValuationTool";
 import { AuctionCard } from "@/components/AuctionCard";
 import { FeaturedProductSideCard, FeaturedBuyDialog } from "@/components/FeaturedProductSideCard";
+import UserGallery from "@/components/UserGallery";
 
 function AuctionImageOverlay({ endTime }: { endTime: Date | string }) {
   const [txt, setTxt] = useState("");
@@ -1135,9 +1136,10 @@ export default function Home() {
   const [buyingProduct, setBuyingProduct] = useState<any | null>(null);
   // 商戶申請流程彈窗
   const [showMerchantFlow, setShowMerchantFlow] = useState(false);
-  // 微工具 dropdown + 銀工具 modal
+  // 微工具 dropdown + 銀工具 modal + user gallery
   const [toolsOpen, setToolsOpen] = useState(false);
   const [silverToolOpen, setSilverToolOpen] = useState(false);
+  const [showUserGallery, setShowUserGallery] = useState(false);
 
   // 落單按鈕：未登入直接跳登入頁，登入後返回商品詳情頁
   const handleBuy = async (product: any) => {
@@ -1411,6 +1413,17 @@ export default function Home() {
                       >
                         🪙 銀工具
                       </button>
+                      <div className="h-px bg-gray-100" />
+                      <button
+                        onClick={() => {
+                          setToolsOpen(false);
+                          if (!isAuthenticated) { toast.error("請先登入"); return; }
+                          setShowUserGallery(v => !v);
+                        }}
+                        className="flex items-center gap-2 w-full px-3.5 py-2.5 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50 whitespace-nowrap"
+                      >
+                        🖼️ 圖片集
+                      </button>
                     </div>
                   </>
                 )}
@@ -1473,6 +1486,13 @@ export default function Home() {
 
       {/* 早鳥會員名額 banner */}
       <EarlyBirdBanner />
+
+      {/* ── 圖片集（微工具） ── */}
+      {showUserGallery && isAuthenticated && (
+        <div className="container px-3 py-3">
+          <UserGallery onClose={() => setShowUserGallery(false)} />
+        </div>
+      )}
 
       {/* ── 主打出售商品：右側浮動滑入卡 ── */}
       {featuredProducts.length > 0 && (

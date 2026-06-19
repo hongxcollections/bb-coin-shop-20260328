@@ -12846,6 +12846,231 @@ EXAMPLE OUTPUT (exact format):
         );
         return { productId: insertResult.insertId, imageCount: allImageUrls.length };
       }),
+
+    // ── User Gallery (any authenticated user, no merchant approval needed) ──
+
+    userMyGalleries: protectedProcedure.query(async ({ ctx }) => {
+      const { listProductGalleriesForMerchant } = await import('./db') as any;
+      return listProductGalleriesForMerchant(ctx.user.id);
+    }),
+
+    userCreateGallery: protectedProcedure
+      .input(z.object({
+        title: z.string().min(1).max(200),
+        description: z.string().max(2000).optional(),
+        columnsPerRow: z.number().int().min(1).max(20).default(3),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { createProductGallery } = await import('./db') as any;
+        const id = await createProductGallery({
+          merchantId: ctx.user.id,
+          merchantName: ctx.user.name ?? '用戶',
+          title: input.title,
+          description: input.description,
+          columnsPerRow: input.columnsPerRow,
+        });
+        return { id };
+      }),
+
+    userUpdateGallery: protectedProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        title: z.string().min(1).max(200).optional(),
+        description: z.string().max(2000).optional(),
+        columnsPerRow: z.number().int().min(1).max(20).optional(),
+        status: z.enum(['draft', 'active', 'hidden']).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, updateProductGallery } = await import('./db') as any;
+        const gallery = await getProductGallery(input.id);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        await updateProductGallery(input.id, {
+          title: input.title,
+          description: input.description,
+          columnsPerRow: input.columnsPerRow,
+          status: input.status,
+        });
+        return { ok: true };
+      }),
+
+    userDeleteGallery: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, deleteProductGallery } = await import('./db') as any;
+        const gallery = await getProductGallery(input.id);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        await deleteProductGallery(input.id);
+        return { ok: true };
+      }),
+
+    userGetForEdit: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        const { getProductGallery, listProductGalleryItems, migrateGalleryItemImages } = await import('./db') as any;
+        const gallery = await getProductGallery(input.id);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        await migrateGalleryItemImages(input.id);
+        const items = await listProductGalleryItems(input.id);
+        return { gallery, items };
+      }),
+
+    userSignImageUpload: protectedProcedure
+      .input(z.object({
+        mimeType: z.string().default('image/jpeg'),
+        fileName: z.string().default('image.jpg'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+        const mime = (input.mimeType || 'image/jpeg').toLowerCase();
+        if (!allowed.includes(mime)) throw new TRPCError({ code: 'BAD_REQUEST', message: `不支援格式 ${mime}` });
+        const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
+        const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const key = `user-galleries/${ctx.user.id}/${uid}.${ext}`;
+        const signed = await storageSignPut(key, mime, 300);
+        return { uploadUrl: signed.uploadUrl, finalUrl: signed.finalUrl, key: signed.key };
+      }),
+
+    userAddToPool: protectedProcedure
+      .input(z.object({
+        galleryId: z.number().int().positive(),
+        images: z.array(z.object({
+          imageUrl: z.string().url(),
+          s3Key: z.string().optional(),
+        })).max(200),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, addGalleryImagesToPool } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        const ids = await addGalleryImagesToPool(input.images.map((img: any) => ({
+          galleryId: input.galleryId, merchantId: ctx.user.id,
+          imageUrl: img.imageUrl, s3Key: img.s3Key,
+        })));
+        return { ids };
+      }),
+
+    userGetGalleryImages: protectedProcedure
+      .input(z.object({ galleryId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        const { getProductGallery, migrateGalleryItemImages, listGalleryImages } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        await migrateGalleryItemImages(input.galleryId);
+        return listGalleryImages(input.galleryId);
+      }),
+
+    userBatchUpdateItems: protectedProcedure
+      .input(z.object({
+        galleryId: z.number().int().positive(),
+        items: z.array(z.object({
+          id: z.number().int().positive(),
+          itemName: z.string().max(200),
+          itemNumber: z.string().max(100),
+          price: z.number().min(0),
+          status: z.enum(['active', 'sold', 'hidden']),
+        })).max(200),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, batchUpdateProductGalleryItems } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        await batchUpdateProductGalleryItems(input.items, ctx.user.id);
+        return { ok: true };
+      }),
+
+    userDeleteItem: protectedProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const { deleteProductGalleryItem } = await import('./db') as any;
+        await deleteProductGalleryItem(input.id, ctx.user.id);
+        return { ok: true };
+      }),
+
+    userDeleteGalleryImage: protectedProcedure
+      .input(z.object({ imageId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const { deleteGalleryImage } = await import('./db') as any;
+        await deleteGalleryImage(input.imageId, ctx.user.id);
+        return { ok: true };
+      }),
+
+    userAssignImage: protectedProcedure
+      .input(z.object({
+        imageId: z.number().int().positive(),
+        itemId: z.number().int().positive(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { assignGalleryImage } = await import('./db') as any;
+        await assignGalleryImage(input.imageId, input.itemId, ctx.user.id);
+        return { ok: true };
+      }),
+
+    userCreateEmptyItem: protectedProcedure
+      .input(z.object({ galleryId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, createEmptyGalleryItem } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        const id = await createEmptyGalleryItem(input.galleryId, ctx.user.id);
+        return { id };
+      }),
+
+    userCopyItemsToGalleries: protectedProcedure
+      .input(z.object({
+        sourceGalleryId: z.number().int().positive(),
+        itemIds: z.array(z.number().int().positive()).min(1).max(50),
+        targetGalleryIds: z.array(z.number().int().positive()).min(1).max(10),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, listProductGalleryItems, getRawPool, addGalleryImagesToPool, assignGalleryImage } = await import('./db') as any;
+        const source = await getProductGallery(input.sourceGalleryId);
+        if (!source || source.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        const pool = await getRawPool();
+        if (!pool) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        let totalCreated = 0;
+        for (const targetGalleryId of input.targetGalleryIds) {
+          const target = await getProductGallery(targetGalleryId);
+          if (!target || target.merchantId !== ctx.user.id) continue;
+          const existing = await listProductGalleryItems(targetGalleryId);
+          const canAdd = Math.min(input.itemIds.length, 200 - existing.length);
+          if (canAdd <= 0) continue;
+          let added = 0;
+          for (const itemId of input.itemIds.slice(0, canAdd)) {
+            const [iRows]: any = await pool.execute(
+              'SELECT * FROM productGalleryItems WHERE id = ? AND merchantId = ? LIMIT 1',
+              [itemId, ctx.user.id]
+            );
+            const item = iRows[0];
+            if (!item) continue;
+            const [maxRow]: any = await pool.execute(
+              'SELECT COALESCE(MAX(sortOrder), -1) as maxOrder FROM productGalleryItems WHERE galleryId = ?',
+              [targetGalleryId]
+            );
+            const sortOrder = (maxRow[0]?.maxOrder ?? -1) + 1;
+            const [r]: any = await pool.execute(
+              'INSERT INTO productGalleryItems (galleryId, merchantId, imageUrl, itemName, itemNumber, price, status, sortOrder) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+              [targetGalleryId, ctx.user.id, item.imageUrl ?? '', item.itemName ?? '', item.itemNumber ?? null, item.price ?? 0, item.status ?? 'active', sortOrder]
+            );
+            const newItemId: number = r.insertId;
+            const [imgRows]: any = await pool.execute(
+              'SELECT imageUrl, s3Key FROM productGalleryImages WHERE itemId = ? ORDER BY sortOrder ASC, id ASC',
+              [itemId]
+            );
+            if (imgRows.length > 0) {
+              const poolIds = await addGalleryImagesToPool(imgRows.map((img: any) => ({
+                galleryId: targetGalleryId, merchantId: ctx.user.id,
+                imageUrl: img.imageUrl, s3Key: img.s3Key ?? undefined,
+              })));
+              for (const pid of poolIds) {
+                await assignGalleryImage(pid, newItemId, ctx.user.id);
+              }
+            }
+            added++;
+          }
+          totalCreated += added;
+        }
+        return { created: totalCreated };
+      }),
   }),
 });
 export type AppRouter = typeof appRouter;
