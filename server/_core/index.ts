@@ -1893,6 +1893,23 @@ Output ONLY the JSON, nothing else.`;
     }
   });
 
+  app.get('/api/og-image-gallery-item/:itemId', async (req, res) => {
+    try {
+      const itemId = parseInt(req.params.itemId, 10);
+      if (isNaN(itemId) || itemId <= 0) { res.status(400).send('Invalid item ID'); return; }
+      const { getProductGalleryItem } = await import('../db');
+      const item = await getProductGalleryItem(itemId);
+      if (!item || !item.imageUrl) { res.status(404).send('No image'); return; }
+      const result = await fetchAllowlistedImage(item.imageUrl);
+      if (!result.ok) { res.status(result.status).send(result.reason); return; }
+      const cropped = await cropToOgSize(result.buf);
+      sendImageResponse(res, 'image/jpeg', cropped);
+    } catch (err) {
+      console.error('[OG Image Gallery Item Proxy] Error:', err);
+      res.status(500).send('Error');
+    }
+  });
+
   app.get('/api/og-image-card/:cardId', async (req, res) => {
     try {
       const cardId = parseInt(req.params.cardId, 10);

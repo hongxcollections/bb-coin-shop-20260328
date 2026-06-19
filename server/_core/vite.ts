@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
-import { getAuctionById, getAuctionImages, getMerchantProduct, getProductGallery, listProductGalleryItems } from "../db";
+import { getAuctionById, getAuctionImages, getMerchantProduct, getProductGallery, listProductGalleryItems, getProductGalleryItem } from "../db";
 import { getCollectionPostForOg } from "../community";
 import { getCurrencySymbol } from "./currency";
 
@@ -672,7 +672,7 @@ async function injectCardZzzzOgMeta(html: string, reqPath: string, protocol: str
   }
 }
 
-async function injectGalleryOgMeta(html: string, reqPath: string, protocol: string, host: string): Promise<string | null> {
+async function injectGalleryOgMeta(html: string, reqPath: string, reqQuery: Record<string, string | string[] | undefined>, protocol: string, host: string): Promise<string | null> {
   const galleryMatch = reqPath.match(/^\/gallery\/(\d+)$/);
   if (!galleryMatch) return null;
 
@@ -682,11 +682,60 @@ async function injectGalleryOgMeta(html: string, reqPath: string, protocol: stri
     if (!gallery || gallery.status !== 'active') return null;
 
     const items = await listProductGalleryItems(galleryId);
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    // ── Item-specific OG when ?item= present ──
+    const itemIdParam = typeof reqQuery.item === 'string' ? parseInt(reqQuery.item, 10) : NaN;
+    if (!isNaN(itemIdParam) && itemIdParam > 0) {
+      const item = await getProductGalleryItem(itemIdParam);
+      if (item && item.galleryId === galleryId && item.imageUrl) {
+        const priceNum = parseFloat(item.price ?? '0');
+        const priceStr = priceNum > 0 ? `HK$${priceNum.toLocaleString('en-HK')}` : '面議';
+        const itemLabel = item.itemNumber ? `# ${item.itemNumber}` : (item.itemName ?? '圖集商品');
+        const ogTitle = `${itemLabel} | ${priceStr} | hongxcollections.com`;
+        const ogDesc = `${item.itemName ?? itemLabel} | ${priceStr} | ${gallery.title ?? '圖片集'} | 香港錢幣 hongxcollections`;
+        const ogImageUrl = `${protocol}://${host}/api/og-image-gallery-item/${item.id}`;
+        const fullUrl = `${protocol}://${host}${reqPath}?item=${item.id}`;
+        const ogMeta = [
+          `<meta property="og:type" content="website" />`,
+          `<meta property="og:site_name" content="hongxcollections" />`,
+          `<meta property="og:title" content="${esc(ogTitle)}" />`,
+          `<meta property="og:description" content="${esc(ogDesc)}" />`,
+          `<meta property="og:url" content="${esc(fullUrl)}" />`,
+          `<meta property="og:locale" content="zh_HK" />`,
+          `<meta property="og:image" content="${esc(ogImageUrl)}" />`,
+          `<meta property="og:image:secure_url" content="${esc(ogImageUrl)}" />`,
+          `<meta property="og:image:type" content="image/jpeg" />`,
+          `<meta property="og:image:width" content="1200" />`,
+          `<meta property="og:image:height" content="630" />`,
+          `<meta name="twitter:card" content="summary_large_image" />`,
+          `<meta name="twitter:title" content="${esc(ogTitle)}" />`,
+          `<meta name="twitter:description" content="${esc(ogDesc)}" />`,
+          `<meta name="twitter:image" content="${esc(ogImageUrl)}" />`,
+          `<meta name="description" content="${esc(ogDesc)}" />`,
+          `<link rel="canonical" href="${esc(fullUrl)}" />`,
+          `<title>${esc(ogTitle)}</title>`,
+        ].join("\n    ");
+        let result = html
+          .replace(/<title>[^<]*<\/title>/gi, "")
+          .replace(/<meta\s+(?:property|name)="(?:og:|twitter:)[^"]*"[^>]*\/?>/gi, "")
+          .replace(/<meta\s+(?:name|property)="description"[^>]*\/?>/gi, "")
+          .replace(/<link\s+rel="canonical"[^>]*\/?>/gi, "")
+          .replace(/<script\s+type="application\/ld\+json">[\s\S]*?<\/script>/gi, "");
+        const viewportRe = /(<meta\s+name="viewport"[^>]*\/?>)/i;
+        result = viewportRe.test(result)
+          ? result.replace(viewportRe, (m) => `${m}\n    ${ogMeta}`)
+          : result.replace("</head>", () => `    ${ogMeta}\n  </head>`);
+        console.log(`[OG Meta] Injected for gallery item ${item.id}: title="${ogTitle}"`);
+        return result;
+      }
+    }
+
+    // ── Gallery-level OG (no item param) ──
     const firstImage = items.find(i => i.imageUrl)?.imageUrl ?? null;
     const ogImageUrl = firstImage ? `${protocol}://${host}/api/og-image-gallery/${galleryId}` : "";
     const imgMime = "image/jpeg";
 
-    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const rawTitle = (gallery.title ?? '圖片集').replace(/\s+/g, " ").trim();
     const titleForOg = rawTitle.length > 25 ? rawTitle.slice(0, 25) + "…" : rawTitle;
     const merchantPart = gallery.merchantName ? ` | ${gallery.merchantName}` : "";
@@ -779,7 +828,7 @@ export async function setupVite(app: Express, server: Server) {
         ?? await injectProductOgMeta(template, _cleanPath, protocol, host)
         ?? await injectCollectionPostOgMeta(template, _cleanPath, protocol, host)
         ?? await injectCardZzzzOgMeta(template, _cleanPath, protocol, host)
-        ?? await injectGalleryOgMeta(template, _cleanPath, protocol, host)
+        ?? await injectGalleryOgMeta(template, _cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
         ?? injectStaticPageMeta(template, _cleanPath, base);
       if (ogHtml) {
         // For bots: serve injected HTML directly (skip Vite transform to preserve tags)
@@ -950,7 +999,7 @@ export function serveStatic(app: Express) {
       ?? await injectProductOgMeta(html, cleanPath, protocol, host)
       ?? await injectCollectionPostOgMeta(html, cleanPath, protocol, host)
       ?? await injectCardZzzzOgMeta(html, cleanPath, protocol, host)
-      ?? await injectGalleryOgMeta(html, cleanPath, protocol, host)
+      ?? await injectGalleryOgMeta(html, cleanPath, req.query as Record<string, string | string[] | undefined>, protocol, host)
       ?? injectStaticPageMeta(html, cleanPath, base);
     if (ogHtml) {
       res.status(200).set({ "Content-Type": "text/html", ...noCacheHeaders }).end(ogHtml);

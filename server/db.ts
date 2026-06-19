@@ -7782,6 +7782,16 @@ export async function listProductGalleryItems(galleryId: number): Promise<Produc
   return rows as ProductGalleryItemRow[];
 }
 
+export async function getProductGalleryItem(id: number): Promise<ProductGalleryItemRow | null> {
+  await ensureProductGalleriesTable();
+  const pool = await getRawPool();
+  const [rows]: any = await pool.execute(
+    'SELECT * FROM productGalleryItems WHERE id = ? LIMIT 1',
+    [id]
+  );
+  return (rows as ProductGalleryItemRow[])[0] ?? null;
+}
+
 export async function addProductGalleryItems(items: Array<{
   galleryId: number; merchantId: number; imageUrl: string; s3Key?: string; sortOrder: number;
 }>): Promise<number[]> {
