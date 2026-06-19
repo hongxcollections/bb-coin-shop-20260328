@@ -1436,17 +1436,6 @@ export default function UserGallery({ onClose }: Props) {
                                     style={{ background: '#F8F8F8', border: '1px solid #E5E5E5', borderRadius: '8px' }}
                                   />
                                 </div>
-                                <select
-                                  value={item.status}
-                                  onChange={e => updateDraftItem(item.id, { status: e.target.value as any })}
-                                  onClick={e => e.stopPropagation()}
-                                  className="w-full text-xs px-2 py-1.5 outline-none rounded-lg border border-gray-200 bg-white"
-                                  style={{ color: ITEM_STATUS_COLORS[item.status] ?? '#555' }}
-                                >
-                                  {Object.entries(ITEM_STATUS_LABELS).map(([v, l]) => (
-                                    <option key={v} value={v}>{l}</option>
-                                  ))}
-                                </select>
                               </div>
                             </div>
                           );
