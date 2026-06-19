@@ -4,9 +4,9 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
-import { Loader2, X, Images, Store, ShoppingCart, MessageCircle, CheckCircle2, LayoutGrid, LayoutList, Share2 } from "lucide-react";
+import { Loader2, X, Images, Store, ShoppingCart, MessageCircle, CheckCircle2, LayoutGrid, LayoutList } from "lucide-react";
 import { toast } from "sonner";
-import { SHARE_ORIGIN } from "@/lib/shareUrl";
+import { GalleryItemShareMenu } from "@/components/ShareMenu";
 
 interface GalleryItemImage {
   id: number; imageUrl: string;
@@ -646,40 +646,13 @@ export default function PublicGallery() {
                 立即落單
               </button>
             )}
-            <button
-              className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-medium"
-              style={{ background: 'rgba(255,255,255,0.15)', color: '#fff' }}
-              onClick={async () => {
-                const price = parseFloat(lightboxItem.price);
-                const galleryUrl = `${SHARE_ORIGIN}/gallery/${lightboxItem.galleryId}`;
-                const lines = [
-                  lightboxItem.itemName || '',
-                  lightboxItem.itemNumber ? `編號：${lightboxItem.itemNumber}` : null,
-                  price > 0 ? `HK$${price.toLocaleString('en-HK')}` : '面議',
-                  galleryUrl,
-                ].filter(Boolean).join('\n');
-                if (navigator.share) {
-                  try {
-                    await navigator.share({
-                      title: `${lightboxItem.itemName || '圖集商品'}${price > 0 ? ` | HK$${price.toLocaleString('en-HK')}` : ''}`,
-                      text: lines,
-                      url: galleryUrl,
-                    });
-                  } catch (err: unknown) {
-                    if (err instanceof Error && err.name !== 'AbortError') {
-                      try { await navigator.clipboard.writeText(lines); } catch {}
-                      toast.success('已複製商品資料');
-                    }
-                  }
-                } else {
-                  try { await navigator.clipboard.writeText(lines); } catch {}
-                  toast.success('已複製商品資料');
-                }
-              }}
-            >
-              <Share2 className="w-3.5 h-3.5" />
-              分享
-            </button>
+            <GalleryItemShareMenu
+              galleryId={lightboxItem.galleryId}
+              itemName={lightboxItem.itemName}
+              itemNumber={lightboxItem.itemNumber}
+              price={lightboxItem.price}
+              variant="light"
+            />
           </div>
         </div>
       </div>
