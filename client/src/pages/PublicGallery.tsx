@@ -125,12 +125,20 @@ function BuySheet({
           </div>
           <h2 className="font-bold text-gray-800 text-lg mb-1">落單成功！</h2>
           <p className="text-sm text-gray-500 mb-2">已成功落單，商戶已收到通知</p>
-          {item.itemName && (
-            <div className="bg-amber-50 rounded-xl px-4 py-2.5 mb-4 text-left">
-              <p className="text-sm font-medium text-gray-800">{item.itemName}</p>
-              {price > 0 && <p className="text-amber-600 font-bold text-sm mt-0.5">HK${price.toLocaleString('en-HK')}</p>}
+          <div className="bg-amber-50 rounded-xl px-3 py-2.5 mb-4 flex gap-3 text-left">
+            {item.imageUrl && (
+              <img
+                src={item.imageUrl}
+                alt=""
+                style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }}
+              />
+            )}
+            <div className="flex-1 min-w-0 flex flex-col justify-center space-y-0.5">
+              <p className="text-sm font-medium text-gray-800 leading-snug">{item.itemName || `圖集商品 #${item.id}`}</p>
+              {item.itemNumber && <p className="text-xs text-gray-400">編號：{item.itemNumber}</p>}
+              {price > 0 && <p className="text-amber-600 font-bold text-sm">HK${price.toLocaleString('en-HK')}</p>}
             </div>
-          )}
+          </div>
           <p className="text-sm text-gray-500 mb-6">請等候商戶確認成交，確認後我們會通知你。</p>
           <button onClick={onClose} className="w-full bg-amber-500 text-white font-semibold py-2.5 rounded-xl">完成</button>
         </div>
@@ -149,10 +157,19 @@ function BuySheet({
           </button>
         </div>
 
-        <div className="bg-amber-50 rounded-xl p-3 space-y-1">
-          <p className="font-semibold text-gray-800 text-sm">{item.itemName || `圖集商品 #${item.id}`}</p>
-          {item.itemNumber && <p className="text-xs text-gray-400">編號：{item.itemNumber}</p>}
-          <p className="text-amber-600 font-bold">{price > 0 ? `HK$${price.toLocaleString('en-HK')}` : '面議'}</p>
+        <div className="bg-amber-50 rounded-xl p-3 flex gap-3">
+          {item.imageUrl && (
+            <img
+              src={item.imageUrl}
+              alt=""
+              style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 10, flexShrink: 0 }}
+            />
+          )}
+          <div className="flex-1 min-w-0 space-y-0.5 flex flex-col justify-center">
+            <p className="font-semibold text-gray-800 text-sm leading-snug">{item.itemName || `圖集商品 #${item.id}`}</p>
+            {item.itemNumber && <p className="text-xs text-gray-400">編號：{item.itemNumber}</p>}
+            <p className="text-amber-600 font-bold">{price > 0 ? `HK$${price.toLocaleString('en-HK')}` : '面議'}</p>
+          </div>
         </div>
 
         <div className="space-y-1">
