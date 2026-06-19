@@ -1140,6 +1140,14 @@ export default function Home() {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [silverToolOpen, setSilverToolOpen] = useState(false);
   const [showUserGallery, setShowUserGallery] = useState(false);
+  useEffect(() => {
+    if (showUserGallery) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [showUserGallery]);
 
   // 落單按鈕：未登入直接跳登入頁，登入後返回商品詳情頁
   const handleBuy = async (product: any) => {
