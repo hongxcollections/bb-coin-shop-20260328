@@ -344,6 +344,9 @@ export default function PublicGallery() {
     const lbImgs = lightboxItem.images && lightboxItem.images.length > 0
       ? lightboxItem.images
       : (lightboxItem.imageUrl ? [{ id: 0, imageUrl: lightboxItem.imageUrl }] : []);
+    // append clone of first image for loop-back effect
+    const loopImgs = lbImgs.length > 1 ? [...lbImgs, lbImgs[0]] : lbImgs;
+    const dotIdx = lbImgIdx % lbImgs.length;
     return (
       <div
         className="fixed inset-0 z-50 flex flex-col"
@@ -352,7 +355,7 @@ export default function PublicGallery() {
           paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
         }}
       >
-        {/* Top bar: info + close */}
+        {/* Top bar: info + 關閉 button */}
         <div className="flex items-start justify-between px-3 pt-3 pb-2 flex-shrink-0">
           <div className="flex-1 min-w-0 pr-3">
             {lightboxItem.itemNumber && (
@@ -364,15 +367,15 @@ export default function PublicGallery() {
             )}
           </div>
           <button
-            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: 'rgba(255,255,255,0.15)' }}
+            className="px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0"
+            style={{ background: 'rgba(255,255,255,0.15)', color: '#fff' }}
             onClick={() => setLightboxItem(null)}
           >
-            <X className="w-4 h-4 text-white" />
+            關閉
           </button>
         </div>
 
-        {/* Horizontal scroll strip — 3px side gap, scroll-snap, pinch zoom */}
+        {/* Horizontal scroll strip — 3px side gap, scroll-snap, loop, pinch zoom */}
         <div className="flex-1 relative overflow-hidden">
           <div
             ref={lbScrollRef}
@@ -387,7 +390,16 @@ export default function PublicGallery() {
             } as React.CSSProperties}
             onScroll={() => {
               if (!lbScrollRef.current || lbZoomRef.current > 1) return;
-              const idx = Math.round(lbScrollRef.current.scrollLeft / lbScrollRef.current.clientWidth);
+              const w = lbScrollRef.current.clientWidth;
+              const idx = Math.round(lbScrollRef.current.scrollLeft / w);
+              // clone at end reached — instant jump to real first
+              if (lbImgs.length > 1 && idx === lbImgs.length) {
+                lbScrollRef.current.scrollLeft = 0;
+                setLbImgIdx(0);
+                setLbZoom(1); lbZoomRef.current = 1;
+                setLbPanX(0); setLbPanY(0);
+                return;
+              }
               if (idx !== lbImgIdx) {
                 setLbImgIdx(idx);
                 setLbZoom(1); lbZoomRef.current = 1;
@@ -396,7 +408,7 @@ export default function PublicGallery() {
             }}
             onTouchMove={lbTouchMove}
           >
-            {lbImgs.map((img, i) => (
+            {loopImgs.map((img, i) => (
               <div
                 key={img.id + '-' + i}
                 className="flex-shrink-0 h-full flex items-center justify-center"
@@ -424,7 +436,7 @@ export default function PublicGallery() {
             ))}
           </div>
 
-          {/* Dots indicator */}
+          {/* Dots indicator (based on real image count) */}
           {lbImgs.length > 1 && (
             <div
               className="absolute flex gap-1.5 pointer-events-none"
@@ -432,10 +444,10 @@ export default function PublicGallery() {
             >
               {lbImgs.map((_, i) => (
                 <div key={i} style={{
-                  width: i === lbImgIdx ? 14 : 6,
+                  width: i === dotIdx ? 14 : 6,
                   height: 6,
                   borderRadius: 3,
-                  background: i === lbImgIdx ? '#fff' : 'rgba(255,255,255,0.35)',
+                  background: i === dotIdx ? '#fff' : 'rgba(255,255,255,0.35)',
                   transition: 'width 0.2s',
                 }} />
               ))}
