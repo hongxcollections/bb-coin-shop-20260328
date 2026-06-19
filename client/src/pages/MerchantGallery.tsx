@@ -474,8 +474,8 @@ export default function MerchantGallery() {
       const totalGridW = cols * cellW + (cols - 1) * gridGap + gridPX * 2;
       CW = Math.max(BASE_CW, M * 2 + totalGridW);
       heroW = CW - M * 2;
-      const buyFontSz = 11; // always 3-col size (not compact)
-      const buyStripH = 12 + buyFontSz; // py-1.5(6×2=12) + font
+      const buyFontSz = 11;
+      const buyStripH = 0;
       const cardH   = cellW + buyStripH;
       const rows    = Math.ceil(items.length / cols);
       const gridH   = rows * (cardH + gridGap) - gridGap + gridPB;
@@ -2844,28 +2844,6 @@ export default function MerchantGallery() {
                               </>
                             )}
                           </div>
-                          {/* Buy button strip — always shown at 3-col size */}
-                          {isSold ? (
-                            <div
-                              className="w-full flex items-center justify-center py-1.5"
-                              style={{ background: '#F3F4F6', fontSize: '11px', color: '#9CA3AF', fontWeight: 600 }}
-                            >
-                              已售出 · 聯繫商戶
-                            </div>
-                          ) : (
-                            <div
-                              className="w-full flex items-center justify-center py-1.5"
-                              style={{
-                                backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)',
-                                backgroundColor: '#FBBF24',
-                                fontSize: '11px',
-                                color: '#fff',
-                                fontWeight: 700,
-                              }}
-                            >
-                              購買
-                            </div>
-                          )}
                         </div>
                       );
                     })}
