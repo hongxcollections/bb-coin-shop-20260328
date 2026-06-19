@@ -974,6 +974,14 @@ export default function UserGallery({ onClose }: Props) {
                 {STATUS_LABELS[currentGallery.status] ?? currentGallery.status}
               </span>
             )}
+            <button
+              onClick={() => setShowPosterModal(true)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white flex-shrink-0"
+              style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
+            >
+              <Images className="w-3.5 h-3.5" />
+              生成圖片集
+            </button>
           </div>
 
           {/* Tab bar */}
