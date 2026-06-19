@@ -1487,10 +1487,23 @@ export default function Home() {
       {/* 早鳥會員名額 banner */}
       <EarlyBirdBanner />
 
-      {/* ── 圖片集（微工具） ── */}
+      {/* ── 圖片集（微工具）fixed panel between navbars ── */}
       {showUserGallery && isAuthenticated && (
-        <div className="container px-3 py-3">
-          <UserGallery onClose={() => setShowUserGallery(false)} />
+        <div
+          style={{
+            position: "fixed",
+            top: 64,
+            bottom: 60,
+            left: 0,
+            right: 0,
+            zIndex: 45,
+            overflowY: "auto",
+            background: "#F5F5F5",
+          }}
+        >
+          <div className="container px-3 py-3">
+            <UserGallery onClose={() => setShowUserGallery(false)} />
+          </div>
         </div>
       )}
 
