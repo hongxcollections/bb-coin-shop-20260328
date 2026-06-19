@@ -261,7 +261,7 @@ export default function PublicGallery() {
   const params = useParams<{ id: string }>();
   const galleryId = parseInt(params.id ?? '', 10);
   const [, navigate] = useLocation();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const [lightboxItem, setLightboxItem] = useState<GalleryItem | null>(null);
   const [lbImgIdx, setLbImgIdx] = useState(0);
@@ -289,10 +289,22 @@ export default function PublicGallery() {
     { enabled: !isNaN(galleryId) && galleryId > 0, refetchOnWindowFocus: false }
   );
 
+  // Auth loads asynchronously; once auth state settles, refetch so server can compute isOwner with the session cookie.
+  const authSettled = useRef(false);
+  useEffect(() => {
+    if (authLoading) return;
+    if (authSettled.current) return;
+    authSettled.current = true;
+    if (galleryQ.data !== undefined) {
+      galleryQ.refetch();
+    }
+  }, [authLoading]);
+
   const data = galleryQ.data as (PublicGalleryData & { ownerIsMerchant?: boolean; isOwner?: boolean }) | null | undefined;
   const gallery = data?.gallery;
   const ownerIsMerchant = data?.ownerIsMerchant ?? false;
-  const isOwner = data?.isOwner ?? false;
+  // isOwner: server-computed flag (reliable), with client-side Number() coercion as fallback
+  const isOwner = (data?.isOwner ?? false) || (user != null && Number(user.id) === Number(gallery?.merchantId));
   const allItems = (data?.items ?? []) as GalleryItem[];
   const [localSold, setLocalSold] = useState<Set<number>>(new Set());
   const items = allItems.filter(i => i.status !== 'hidden');
