@@ -30,6 +30,7 @@ interface GalleryImageRow {
 }
 
 type View = 'list' | 'create' | 'edit';
+type EditTab = 'info' | 'items' | 'publish';
 
 const STATUS_LABELS: Record<string, string> = { draft: '草稿', active: '已發佈', hidden: '已下架' };
 const STATUS_COLORS: Record<string, string> = {
@@ -80,6 +81,7 @@ export default function UserGallery({ onClose }: Props) {
 
   const [view, setView] = useState<View>('list');
   const [editGalleryId, setEditGalleryId] = useState<number | null>(null);
+  const [editTab, setEditTab] = useState<EditTab>('info');
 
   // Create form
   const [createTitle, setCreateTitle] = useState('');
@@ -151,7 +153,7 @@ export default function UserGallery({ onClose }: Props) {
   );
   const galleryImagesQ = trpc.productGalleries.userGetGalleryImages.useQuery(
     { galleryId: editGalleryId! },
-    { enabled: editGalleryId !== null && view === 'edit', refetchOnWindowFocus: false }
+    { enabled: editGalleryId !== null && view === 'edit' && editTab === 'items', refetchOnWindowFocus: false }
   );
 
   const createM = trpc.productGalleries.userCreateGallery.useMutation({
@@ -235,6 +237,7 @@ export default function UserGallery({ onClose }: Props) {
   function openEdit(id: number) {
     setEditGalleryId(id);
     setView('edit');
+    setEditTab('info');
     didSyncRef.current = false;
     setDraftItems([]);
     setBatchSelectMode(false);
@@ -709,11 +712,11 @@ export default function UserGallery({ onClose }: Props) {
         </div>
       )}
 
-      {/* ── EDIT VIEW (single-page, no tabs) ── */}
+      {/* ── EDIT VIEW (tabbed) ── */}
       {view === 'edit' && editGalleryId !== null && (
-        <div className="px-4 py-4">
+        <div>
           {/* Header */}
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 px-4 pt-4 pb-2">
             <button onClick={goList} className="p-1 rounded-full hover:bg-gray-200">
               <ChevronLeft className="w-5 h-5 text-gray-600" />
             </button>
@@ -725,473 +728,503 @@ export default function UserGallery({ onClose }: Props) {
             )}
           </div>
 
+          {/* Tab bar */}
+          <div className="flex px-4 pb-1 gap-1 overflow-x-auto">
+            {([
+              ['info', '基本設定'],
+              ['items', '圖片商品'],
+              ['publish', '發佈'],
+            ] as [EditTab, string][]).map(([tab, label]) => {
+              const itemBadge = tab === 'items' && draftItems.length > 0 ? draftItems.length : null;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setEditTab(tab)}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                    editTab === tab ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 bg-white'
+                  }`}
+                >
+                  {label}
+                  {itemBadge !== null && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                      style={{ color: editTab === tab ? 'rgba(255,255,255,0.85)' : '#FF8C00', background: editTab === tab ? 'rgba(255,255,255,0.2)' : 'rgba(255,140,0,0.12)' }}>
+                      {itemBadge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
           {getForEditQ.isLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-orange-400" /></div>
           ) : (
-            <div className="space-y-4">
+            <div className="px-4 pb-4 pt-2 space-y-4">
 
-              {/* ── 基本設定 ── */}
-              <div className="bg-white rounded-2xl p-4 space-y-4">
-                <p className="text-sm font-bold text-gray-700">基本設定</p>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">圖片集名稱 *</label>
-                  <input
-                    value={editTitle}
-                    onChange={e => setEditTitle(e.target.value)}
-                    maxLength={200}
-                    className="w-full px-3 py-2.5 text-sm outline-none"
-                    style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '12px' }}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">描述</label>
-                  <textarea
-                    value={editDesc}
-                    onChange={e => setEditDesc(e.target.value)}
-                    maxLength={2000}
-                    rows={2}
-                    className="w-full px-3 py-2.5 text-sm outline-none resize-none"
-                    style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '12px' }}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">公開版面每行顯示</label>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                      <button
-                        key={n}
-                        onClick={() => setEditCols(n)}
-                        className={`w-8 h-8 rounded-xl text-sm font-bold border transition-colors ${
-                          editCols === n ? 'border-orange-400 bg-orange-50 text-orange-600' : 'border-gray-200 text-gray-500 bg-white'
-                        }`}
-                      >
-                        {n}
-                      </button>
-                    ))}
+              {/* ── Tab: 基本設定 ── */}
+              {editTab === 'info' && (
+                <div className="bg-white rounded-2xl p-4 space-y-4">
+                  <p className="text-sm font-bold text-gray-700">基本設定</p>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">圖片集名稱 *</label>
+                    <input
+                      value={editTitle}
+                      onChange={e => setEditTitle(e.target.value)}
+                      maxLength={200}
+                      className="w-full px-3 py-2.5 text-sm outline-none"
+                      style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '12px' }}
+                    />
                   </div>
-                </div>
-                <button
-                  onClick={handleSaveInfo}
-                  disabled={updateInfoM.isPending}
-                  className="w-full py-2.5 rounded-xl font-semibold text-sm text-white disabled:opacity-50 flex items-center justify-center"
-                  style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
-                >
-                  {updateInfoM.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : '儲存設定'}
-                </button>
-              </div>
-
-              {/* ── 發佈狀態 ── */}
-              <div className="bg-white rounded-2xl p-4">
-                <p className="text-sm font-bold text-gray-700 mb-3">發佈狀態</p>
-                <div className="flex gap-2">
-                  {(['draft', 'active', 'hidden'] as const).map(s => (
-                    <button
-                      key={s}
-                      onClick={() => handleSetStatus(s)}
-                      disabled={updateInfoM.isPending}
-                      className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-colors ${
-                        currentGallery?.status === s
-                          ? s === 'active' ? 'border-green-400 bg-green-50 text-green-700'
-                            : s === 'hidden' ? 'border-gray-300 bg-gray-100 text-gray-500'
-                            : 'border-orange-400 bg-orange-50 text-orange-600'
-                          : 'border-gray-200 text-gray-400 bg-white'
-                      }`}
-                    >
-                      {STATUS_LABELS[s]}
-                    </button>
-                  ))}
-                </div>
-                {currentGallery?.status === 'active' && (
-                  <a
-                    href={`/gallery/${editGalleryId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 mt-3 text-xs font-semibold text-orange-600"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    查看公開頁面
-                  </a>
-                )}
-              </div>
-
-              {/* ── 相片池 ── */}
-              <div className="bg-white rounded-2xl p-4">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/heic,image/heif"
-                  onChange={handleUploadChange}
-                  style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
-                />
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-bold text-gray-700 flex items-center gap-1.5">
-                    <Images className="w-4 h-4 text-orange-500" />
-                    相片池
-                  </p>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">描述</label>
+                    <textarea
+                      value={editDesc}
+                      onChange={e => setEditDesc(e.target.value)}
+                      maxLength={2000}
+                      rows={3}
+                      className="w-full px-3 py-2.5 text-sm outline-none resize-none"
+                      style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '12px' }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">公開版面每行顯示</label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                        <button
+                          key={n}
+                          onClick={() => setEditCols(n)}
+                          className={`w-8 h-8 rounded-xl text-sm font-bold border transition-colors ${
+                            editCols === n ? 'border-orange-400 bg-orange-50 text-orange-600' : 'border-gray-200 text-gray-500 bg-white'
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <button
-                    onClick={handleUploadClick}
-                    disabled={uploading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
+                    onClick={handleSaveInfo}
+                    disabled={updateInfoM.isPending}
+                    className="w-full py-2.5 rounded-xl font-semibold text-sm text-white disabled:opacity-50 flex items-center justify-center"
                     style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
                   >
-                    <Upload className="w-3.5 h-3.5" />
-                    {uploading ? `上載中 ${uploadDone}/${uploadTotal}` : '上載圖片'}
+                    {updateInfoM.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : '儲存設定'}
                   </button>
                 </div>
+              )}
 
-                {(() => {
-                  const poolImages = ((galleryImagesQ.data ?? []) as GalleryImageRow[]).filter(img => img.itemId === null);
-                  if (poolImages.length === 0) {
-                    return <p className="text-xs text-gray-400 text-center py-4">上載圖片後會顯示於此，再指定給各商品</p>;
-                  }
-                  return (
-                    <>
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs text-gray-400">{poolImages.length} 張待指定</p>
-                        {poolImages.length > 0 && (
+              {/* ── Tab: 圖片商品 ── */}
+              {editTab === 'items' && (
+                <>
+                  {/* 相片池 */}
+                  <div className="bg-white rounded-2xl p-4">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/heic,image/heif"
+                      onChange={handleUploadChange}
+                      style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+                    />
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-bold text-gray-700 flex items-center gap-1.5">
+                        <Images className="w-4 h-4 text-orange-500" />
+                        相片池
+                      </p>
+                      <button
+                        onClick={handleUploadClick}
+                        disabled={uploading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
+                        style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        {uploading ? `上載中 ${uploadDone}/${uploadTotal}` : '上載圖片'}
+                      </button>
+                    </div>
+                    {(() => {
+                      const poolImages = ((galleryImagesQ.data ?? []) as GalleryImageRow[]).filter(img => img.itemId === null);
+                      if (poolImages.length === 0) {
+                        return <p className="text-xs text-gray-400 text-center py-4">上載圖片後會顯示於此，再指定給各商品</p>;
+                      }
+                      return (
+                        <>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs text-gray-400">{poolImages.length} 張待指定</p>
+                            <button
+                              onClick={() => { setPoolBatchMode(v => !v); setPoolSelectedIds(new Set()); }}
+                              className="text-[10px] font-semibold px-2 py-0.5 rounded-lg"
+                              style={{ background: poolBatchMode ? 'rgba(255,120,0,0.12)' : '#F0F0F0', color: poolBatchMode ? '#FF6B00' : '#555' }}
+                            >
+                              {poolBatchMode ? `批選（${poolSelectedIds.size}）` : '批量選擇'}
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-4 gap-1.5">
+                            {poolImages.map(img => {
+                              const isSelected = poolSelectedIds.has(img.id);
+                              return (
+                                <div
+                                  key={img.id}
+                                  className="relative rounded-lg overflow-hidden bg-gray-100"
+                                  style={{ aspectRatio: '1/1', outline: isSelected ? '2px solid #FF6B00' : 'none' }}
+                                  onClick={poolBatchMode ? () => {
+                                    setPoolSelectedIds(prev => {
+                                      const next = new Set(prev);
+                                      next.has(img.id) ? next.delete(img.id) : next.add(img.id);
+                                      return next;
+                                    });
+                                  } : undefined}
+                                >
+                                  <img
+                                    src={img.imageUrl} alt="" className="w-full h-full object-cover"
+                                    style={{ cursor: poolBatchMode ? 'pointer' : 'zoom-in' }}
+                                    onClick={!poolBatchMode ? () => openLightbox(img.imageUrl) : undefined}
+                                  />
+                                  {poolBatchMode ? (
+                                    <div className="absolute top-0.5 left-0.5 pointer-events-none">
+                                      <div className="w-4 h-4 rounded flex items-center justify-center"
+                                        style={{ background: isSelected ? '#FF6B00' : 'rgba(255,255,255,0.85)', border: '1.5px solid #ccc' }}>
+                                        {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="absolute inset-0 flex flex-col pointer-events-none">
+                                      <div className="flex justify-end p-0.5 pointer-events-auto">
+                                        <button onClick={() => deletePoolImageM.mutate({ imageId: img.id })} className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center">
+                                          <X className="w-2.5 h-2.5 text-white" />
+                                        </button>
+                                      </div>
+                                      <div className="mt-auto p-0.5 pointer-events-auto">
+                                        <button
+                                          onClick={() => setAssignPickerImageId(img.id)}
+                                          disabled={draftItems.length === 0}
+                                          className="w-full text-[9px] font-bold text-white rounded py-0.5 disabled:opacity-50"
+                                          style={{ background: 'rgba(255,120,0,0.85)' }}
+                                        >
+                                          指定商品
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {poolBatchMode && (
+                            <div className="flex gap-2 mt-2">
+                              <button
+                                onClick={() => setPoolSelectedIds(poolSelectedIds.size === poolImages.length ? new Set() : new Set(poolImages.map(i => i.id)))}
+                                className="flex-1 py-2 rounded-xl text-xs font-semibold"
+                                style={{ background: '#F0F0F0', color: '#555' }}
+                              >
+                                {poolSelectedIds.size === poolImages.length ? '取消全選' : '全選'}
+                              </button>
+                              <button
+                                disabled={poolSelectedIds.size === 0 || draftItems.length === 0}
+                                onClick={() => {
+                                  if (poolSelectedIds.size === 0 || draftItems.length === 0) return;
+                                  setPoolAssignItemId(draftItems[0].id);
+                                }}
+                                className="flex-1 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40"
+                                style={{ background: 'linear-gradient(135deg,#FF8C00,#FF6B00)' }}
+                              >
+                                指定到商品
+                              </button>
+                              <button onClick={() => { setPoolBatchMode(false); setPoolSelectedIds(new Set()); }} className="px-3 py-2 rounded-xl text-xs font-semibold" style={{ background: '#F0F0F0', color: '#555' }}>
+                                取消
+                              </button>
+                            </div>
+                          )}
+                          {poolAssignItemId !== null && (
+                            <div className="mt-3 p-3 rounded-xl bg-orange-50 border border-orange-200">
+                              <p className="text-xs font-semibold text-orange-700 mb-2">選擇商品（指定 {poolSelectedIds.size} 張）</p>
+                              <div className="space-y-1.5">
+                                {draftItems.map(item => (
+                                  <button
+                                    key={item.id}
+                                    onClick={async () => {
+                                      for (const imgId of Array.from(poolSelectedIds)) {
+                                        await assignImageM.mutateAsync({ imageId: imgId, itemId: item.id });
+                                      }
+                                      setPoolAssignItemId(null);
+                                    }}
+                                    className="w-full flex items-center gap-2 py-1.5 px-2 rounded-lg text-left hover:bg-orange-100"
+                                  >
+                                    <p className="text-xs font-medium text-gray-900 truncate flex-1">{item.itemName || '(未命名)'}</p>
+                                    {item.itemNumber && <p className="text-[10px] text-gray-400">#{item.itemNumber}</p>}
+                                  </button>
+                                ))}
+                              </div>
+                              <button onClick={() => setPoolAssignItemId(null)} className="mt-2 text-xs text-gray-400">取消</button>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  {/* 圖片商品 */}
+                  <div className="bg-white rounded-2xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-bold text-gray-700">圖片商品 {draftItems.length > 0 ? `(${draftItems.length})` : ''}</p>
+                      <div className="flex items-center gap-2">
+                        {draftItems.length > 0 && (
                           <button
-                            onClick={() => { setPoolBatchMode(v => !v); setPoolSelectedIds(new Set()); }}
-                            className="text-[10px] font-semibold px-2 py-0.5 rounded-lg"
-                            style={{ background: poolBatchMode ? 'rgba(255,120,0,0.12)' : '#F0F0F0', color: poolBatchMode ? '#FF6B00' : '#555' }}
+                            onClick={handleBatchSave}
+                            disabled={batchUpdateM.isPending}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
+                            style={{ background: '#22C55E' }}
                           >
-                            {poolBatchMode ? `批選（${poolSelectedIds.size}）` : '批量選擇'}
+                            <Save className="w-3 h-3" />
+                            {batchUpdateM.isPending ? '儲存…' : '儲存所有'}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => editGalleryId && createEmptyItemM.mutate({ galleryId: editGalleryId })}
+                          disabled={createEmptyItemM.isPending}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold disabled:opacity-50"
+                          style={{ background: '#F0F0F0', color: '#555' }}
+                        >
+                          <Plus className="w-3 h-3" />
+                          新增
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Batch tools */}
+                    {draftItems.length > 0 && (
+                      <div className="mb-3">
+                        <button
+                          onClick={() => setShowBatchPanel(v => !v)}
+                          className="flex items-center justify-between w-full text-xs font-semibold text-gray-500 px-3 py-2 rounded-xl"
+                          style={{ background: '#F8F8F8' }}
+                        >
+                          <span>批量設定</span>
+                          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showBatchPanel ? 'rotate-180' : ''}`} />
+                        </button>
+                        {showBatchPanel && (
+                          <div className="mt-2 space-y-3 px-1">
+                            <div>
+                              <p className="text-[10px] font-semibold text-gray-400 mb-1.5">批量命名（前綴＋流水號）</p>
+                              <div className="flex gap-2">
+                                <input
+                                  value={batchName}
+                                  onChange={e => setBatchName(e.target.value)}
+                                  placeholder="名稱前綴"
+                                  maxLength={50}
+                                  className="flex-1 px-2.5 py-1.5 text-sm outline-none"
+                                  style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '10px' }}
+                                />
+                                <input
+                                  value={batchStartNum}
+                                  onChange={e => setBatchStartNum(e.target.value)}
+                                  placeholder="起#"
+                                  inputMode="numeric"
+                                  className="w-12 px-2 py-1.5 text-sm outline-none text-center"
+                                  style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '10px' }}
+                                />
+                                <button onClick={applyBatchName} className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white" style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}>套用</button>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-semibold text-gray-400 mb-1.5">批量統一價錢</p>
+                              <div className="flex gap-2">
+                                <input
+                                  value={batchPrice}
+                                  onChange={e => setBatchPrice(e.target.value)}
+                                  placeholder="HKD$ 價格"
+                                  inputMode="decimal"
+                                  className="flex-1 px-2.5 py-1.5 text-sm outline-none"
+                                  style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '10px' }}
+                                />
+                                <button onClick={applyBatchPrice} className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white" style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}>套用</button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Batch select mode */}
+                    {draftItems.length > 0 && (
+                      <div className="flex items-center gap-2 mb-3">
+                        <button
+                          onClick={() => { setBatchSelectMode(v => !v); setBatchSelectedIds(new Set()); }}
+                          className="text-xs font-semibold px-2.5 py-1 rounded-lg"
+                          style={{ background: batchSelectMode ? 'rgba(255,120,0,0.12)' : '#F0F0F0', color: batchSelectMode ? '#FF6B00' : '#555' }}
+                        >
+                          {batchSelectMode ? `批選（${batchSelectedIds.size}）` : '批量選擇'}
+                        </button>
+                        {batchSelectMode && batchSelectedIds.size > 0 && (
+                          <button
+                            onClick={() => { setCopyTargetIds(new Set()); setCopyPickerOpen(true); }}
+                            className="text-xs font-semibold px-2.5 py-1 rounded-lg text-white"
+                            style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
+                          >
+                            複製到圖片集
+                          </button>
+                        )}
+                        {batchSelectMode && (
+                          <button
+                            onClick={() => setBatchSelectedIds(batchSelectedIds.size === draftItems.length ? new Set() : new Set(draftItems.map(i => i.id)))}
+                            className="text-xs font-semibold px-2.5 py-1 rounded-lg"
+                            style={{ background: '#F0F0F0', color: '#555' }}
+                          >
+                            {batchSelectedIds.size === draftItems.length ? '取消全選' : '全選'}
                           </button>
                         )}
                       </div>
-                      <div className="grid grid-cols-4 gap-1.5">
-                        {poolImages.map(img => {
-                          const isSelected = poolSelectedIds.has(img.id);
+                    )}
+
+                    {draftItems.length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-6">尚未有圖片商品，點「新增」或從相片池指定圖片</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {draftItems.map(item => {
+                          const isSelected = batchSelectedIds.has(item.id);
+                          const itemImages = ((galleryImagesQ.data ?? []) as GalleryImageRow[])
+                            .filter(img => img.itemId === item.id)
+                            .map(img => img.imageUrl);
+                          const displaySrc = itemImages[0] ?? item.imageUrl;
                           return (
                             <div
-                              key={img.id}
-                              className="relative rounded-lg overflow-hidden bg-gray-100"
-                              style={{ aspectRatio: '1/1', outline: isSelected ? '2px solid #FF6B00' : 'none' }}
-                              onClick={poolBatchMode ? () => {
-                                setPoolSelectedIds(prev => {
+                              key={item.id}
+                              id={`ug-item-${item.id}`}
+                              className="rounded-xl border p-3"
+                              style={{ borderColor: isSelected ? '#FF8C00' : '#E8E8E8', background: isSelected ? '#FFF7ED' : '#FAFAFA' }}
+                              onClick={batchSelectMode ? () => {
+                                setBatchSelectedIds(prev => {
                                   const next = new Set(prev);
-                                  next.has(img.id) ? next.delete(img.id) : next.add(img.id);
+                                  next.has(item.id) ? next.delete(item.id) : next.add(item.id);
                                   return next;
                                 });
                               } : undefined}
                             >
-                              <img
-                                src={img.imageUrl} alt="" className="w-full h-full object-cover"
-                                style={{ cursor: poolBatchMode ? 'pointer' : 'zoom-in' }}
-                                onClick={!poolBatchMode ? () => openLightbox(img.imageUrl) : undefined}
-                              />
-                              {poolBatchMode ? (
-                                <div className="absolute top-0.5 left-0.5 pointer-events-none">
-                                  <div className="w-4 h-4 rounded flex items-center justify-center"
-                                    style={{ background: isSelected ? '#FF6B00' : 'rgba(255,255,255,0.85)', border: '1.5px solid #ccc' }}>
-                                    {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
-                                  </div>
+                              <div className="flex gap-3">
+                                <div
+                                  className="flex-shrink-0 rounded-xl overflow-hidden bg-gray-100"
+                                  style={{ width: 72, height: 72, cursor: displaySrc ? 'zoom-in' : 'default' }}
+                                  onClick={!batchSelectMode && displaySrc ? (e) => { e.stopPropagation(); openLightbox(displaySrc, itemImages, item.id); } : undefined}
+                                >
+                                  {displaySrc ? (
+                                    <img src={displaySrc} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <Images className="w-6 h-6 text-gray-300" />
+                                    </div>
+                                  )}
                                 </div>
-                              ) : (
-                                <div className="absolute inset-0 flex flex-col pointer-events-none">
-                                  <div className="flex justify-end p-0.5 pointer-events-auto">
-                                    <button onClick={() => deletePoolImageM.mutate({ imageId: img.id })} className="w-5 h-5 bg-black/60 rounded-full flex items-center justify-center">
-                                      <X className="w-2.5 h-2.5 text-white" />
-                                    </button>
+                                <div className="flex-1 min-w-0 space-y-1.5">
+                                  <input
+                                    value={item.itemName}
+                                    onChange={e => updateDraftItem(item.id, { itemName: e.target.value })}
+                                    placeholder="商品名稱"
+                                    maxLength={200}
+                                    onClick={e => e.stopPropagation()}
+                                    className="w-full px-2.5 py-1.5 text-sm outline-none"
+                                    style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '8px' }}
+                                  />
+                                  <div className="flex gap-1.5">
+                                    <input
+                                      value={item.itemNumber ?? ''}
+                                      onChange={e => updateDraftItem(item.id, { itemNumber: e.target.value })}
+                                      placeholder="#編號"
+                                      maxLength={100}
+                                      onClick={e => e.stopPropagation()}
+                                      className="w-20 px-2 py-1.5 text-xs outline-none"
+                                      style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '8px' }}
+                                    />
+                                    <input
+                                      value={item.price}
+                                      onChange={e => updateDraftItem(item.id, { price: e.target.value })}
+                                      placeholder="HK$ 價錢"
+                                      inputMode="decimal"
+                                      onClick={e => e.stopPropagation()}
+                                      className="flex-1 px-2 py-1.5 text-xs outline-none"
+                                      style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '8px' }}
+                                    />
                                   </div>
-                                  <div className="mt-auto p-0.5 pointer-events-auto">
-                                    <button
-                                      onClick={() => setAssignPickerImageId(img.id)}
-                                      disabled={draftItems.length === 0}
-                                      className="w-full text-[9px] font-bold text-white rounded py-0.5 disabled:opacity-50"
-                                      style={{ background: 'rgba(255,120,0,0.85)' }}
+                                  <div className="flex gap-1.5 items-center">
+                                    <select
+                                      value={item.status}
+                                      onChange={e => updateDraftItem(item.id, { status: e.target.value as any })}
+                                      onClick={e => e.stopPropagation()}
+                                      className="text-xs px-2 py-1.5 outline-none rounded-lg border border-gray-200 bg-white"
+                                      style={{ color: ITEM_STATUS_COLORS[item.status] ?? '#555' }}
                                     >
-                                      指定商品
-                                    </button>
+                                      {Object.entries(ITEM_STATUS_LABELS).map(([v, l]) => (
+                                        <option key={v} value={v}>{l}</option>
+                                      ))}
+                                    </select>
+                                    <div className="flex-1" />
+                                    {!batchSelectMode && (
+                                      <button
+                                        onClick={e => { e.stopPropagation(); handleDeleteItem(item.id); }}
+                                        className="w-7 h-7 rounded-lg flex items-center justify-center"
+                                        style={{ background: '#FEE2E2' }}
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
-                              )}
+                              </div>
                             </div>
                           );
                         })}
                       </div>
-                      {poolBatchMode && (
-                        <div className="flex gap-2 mt-2">
-                          <button
-                            onClick={() => setPoolSelectedIds(poolSelectedIds.size === poolImages.length ? new Set() : new Set(poolImages.map(i => i.id)))}
-                            className="flex-1 py-2 rounded-xl text-xs font-semibold"
-                            style={{ background: '#F0F0F0', color: '#555' }}
-                          >
-                            {poolSelectedIds.size === poolImages.length ? '取消全選' : '全選'}
-                          </button>
-                          <button
-                            disabled={poolSelectedIds.size === 0 || draftItems.length === 0}
-                            onClick={() => {
-                              if (poolSelectedIds.size === 0 || draftItems.length === 0) return;
-                              setPoolAssignItemId(draftItems[0].id);
-                            }}
-                            className="flex-1 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40"
-                            style={{ background: 'linear-gradient(135deg,#FF8C00,#FF6B00)' }}
-                          >
-                            指定到商品
-                          </button>
-                          <button onClick={() => { setPoolBatchMode(false); setPoolSelectedIds(new Set()); }} className="px-3 py-2 rounded-xl text-xs font-semibold" style={{ background: '#F0F0F0', color: '#555' }}>
-                            取消
-                          </button>
-                        </div>
-                      )}
-                      {poolAssignItemId !== null && (
-                        <div className="mt-3 p-3 rounded-xl bg-orange-50 border border-orange-200">
-                          <p className="text-xs font-semibold text-orange-700 mb-2">選擇商品（指定 {poolSelectedIds.size} 張）</p>
-                          <div className="space-y-1.5">
-                            {draftItems.map(item => (
-                              <button
-                                key={item.id}
-                                onClick={async () => {
-                                  for (const imgId of Array.from(poolSelectedIds)) {
-                                    await assignImageM.mutateAsync({ imageId: imgId, itemId: item.id });
-                                  }
-                                  setPoolAssignItemId(null);
-                                }}
-                                className="w-full flex items-center gap-2 py-1.5 px-2 rounded-lg text-left hover:bg-orange-100"
-                              >
-                                <p className="text-xs font-medium text-gray-900 truncate flex-1">{item.itemName || '(未命名)'}</p>
-                                {item.itemNumber && <p className="text-[10px] text-gray-400">#{item.itemNumber}</p>}
-                              </button>
-                            ))}
-                          </div>
-                          <button onClick={() => setPoolAssignItemId(null)} className="mt-2 text-xs text-gray-400">取消</button>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-
-              {/* ── 圖片商品 ── */}
-              <div className="bg-white rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-bold text-gray-700">圖片商品 {draftItems.length > 0 ? `(${draftItems.length})` : ''}</p>
-                  <div className="flex items-center gap-2">
-                    {draftItems.length > 0 && (
-                      <button
-                        onClick={handleBatchSave}
-                        disabled={batchUpdateM.isPending}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
-                        style={{ background: '#22C55E' }}
-                      >
-                        <Save className="w-3 h-3" />
-                        {batchUpdateM.isPending ? '儲存…' : '儲存所有'}
-                      </button>
-                    )}
-                    <button
-                      onClick={() => editGalleryId && createEmptyItemM.mutate({ galleryId: editGalleryId })}
-                      disabled={createEmptyItemM.isPending}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold disabled:opacity-50"
-                      style={{ background: '#F0F0F0', color: '#555' }}
-                    >
-                      <Plus className="w-3 h-3" />
-                      新增
-                    </button>
-                  </div>
-                </div>
-
-                {/* Batch tools */}
-                {draftItems.length > 0 && (
-                  <div className="mb-3">
-                    <button
-                      onClick={() => setShowBatchPanel(v => !v)}
-                      className="flex items-center justify-between w-full text-xs font-semibold text-gray-500 px-3 py-2 rounded-xl"
-                      style={{ background: '#F8F8F8' }}
-                    >
-                      <span>批量設定</span>
-                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showBatchPanel ? 'rotate-180' : ''}`} />
-                    </button>
-                    {showBatchPanel && (
-                      <div className="mt-2 space-y-3 px-1">
-                        <div>
-                          <p className="text-[10px] font-semibold text-gray-400 mb-1.5">批量命名（前綴＋流水號）</p>
-                          <div className="flex gap-2">
-                            <input
-                              value={batchName}
-                              onChange={e => setBatchName(e.target.value)}
-                              placeholder="名稱前綴"
-                              maxLength={50}
-                              className="flex-1 px-2.5 py-1.5 text-sm outline-none"
-                              style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '10px' }}
-                            />
-                            <input
-                              value={batchStartNum}
-                              onChange={e => setBatchStartNum(e.target.value)}
-                              placeholder="起#"
-                              inputMode="numeric"
-                              className="w-12 px-2 py-1.5 text-sm outline-none text-center"
-                              style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '10px' }}
-                            />
-                            <button onClick={applyBatchName} className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white" style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}>套用</button>
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-semibold text-gray-400 mb-1.5">批量統一價錢</p>
-                          <div className="flex gap-2">
-                            <input
-                              value={batchPrice}
-                              onChange={e => setBatchPrice(e.target.value)}
-                              placeholder="HKD$ 價格"
-                              inputMode="decimal"
-                              className="flex-1 px-2.5 py-1.5 text-sm outline-none"
-                              style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '10px' }}
-                            />
-                            <button onClick={applyBatchPrice} className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white" style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}>套用</button>
-                          </div>
-                        </div>
-                      </div>
                     )}
                   </div>
-                )}
+                </>
+              )}
 
-                {/* Batch select mode */}
-                {draftItems.length > 0 && (
-                  <div className="flex items-center gap-2 mb-3">
-                    <button
-                      onClick={() => { setBatchSelectMode(v => !v); setBatchSelectedIds(new Set()); }}
-                      className="text-xs font-semibold px-2.5 py-1 rounded-lg"
-                      style={{ background: batchSelectMode ? 'rgba(255,120,0,0.12)' : '#F0F0F0', color: batchSelectMode ? '#FF6B00' : '#555' }}
-                    >
-                      {batchSelectMode ? `批選（${batchSelectedIds.size}）` : '批量選擇'}
-                    </button>
-                    {batchSelectMode && batchSelectedIds.size > 0 && (
-                      <button
-                        onClick={() => { setCopyTargetIds(new Set()); setCopyPickerOpen(true); }}
-                        className="text-xs font-semibold px-2.5 py-1 rounded-lg text-white"
-                        style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
-                      >
-                        複製到圖片集
-                      </button>
-                    )}
-                    {batchSelectMode && (
-                      <button
-                        onClick={() => setBatchSelectedIds(batchSelectedIds.size === draftItems.length ? new Set() : new Set(draftItems.map(i => i.id)))}
-                        className="text-xs font-semibold px-2.5 py-1 rounded-lg"
-                        style={{ background: '#F0F0F0', color: '#555' }}
-                      >
-                        {batchSelectedIds.size === draftItems.length ? '取消全選' : '全選'}
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {draftItems.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-6">尚未有圖片商品，點「新增」或從相片池指定圖片</p>
-                ) : (
-                  <div className="space-y-3">
-                    {draftItems.map(item => {
-                      const isSelected = batchSelectedIds.has(item.id);
-                      const itemImages = ((galleryImagesQ.data ?? []) as GalleryImageRow[])
-                        .filter(img => img.itemId === item.id)
-                        .map(img => img.imageUrl);
-                      const displaySrc = itemImages[0] ?? item.imageUrl;
-
-                      return (
-                        <div
-                          key={item.id}
-                          id={`ug-item-${item.id}`}
-                          className="rounded-xl border p-3"
-                          style={{ borderColor: isSelected ? '#FF8C00' : '#E8E8E8', background: isSelected ? '#FFF7ED' : '#FAFAFA' }}
-                          onClick={batchSelectMode ? () => {
-                            setBatchSelectedIds(prev => {
-                              const next = new Set(prev);
-                              next.has(item.id) ? next.delete(item.id) : next.add(item.id);
-                              return next;
-                            });
-                          } : undefined}
+              {/* ── Tab: 發佈 ── */}
+              {editTab === 'publish' && (
+                <>
+                  <div className="bg-white rounded-2xl p-4">
+                    <p className="text-sm font-bold text-gray-700 mb-3">發佈狀態</p>
+                    <div className="flex gap-2">
+                      {(['draft', 'active', 'hidden'] as const).map(s => (
+                        <button
+                          key={s}
+                          onClick={() => handleSetStatus(s)}
+                          disabled={updateInfoM.isPending}
+                          className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-colors ${
+                            currentGallery?.status === s
+                              ? s === 'active' ? 'border-green-400 bg-green-50 text-green-700'
+                                : s === 'hidden' ? 'border-gray-300 bg-gray-100 text-gray-500'
+                                : 'border-orange-400 bg-orange-50 text-orange-600'
+                              : 'border-gray-200 text-gray-400 bg-white'
+                          }`}
                         >
-                          <div className="flex gap-3">
-                            {/* Image thumbnail */}
-                            <div
-                              className="flex-shrink-0 rounded-xl overflow-hidden bg-gray-100"
-                              style={{ width: 72, height: 72, cursor: displaySrc ? 'zoom-in' : 'default' }}
-                              onClick={!batchSelectMode && displaySrc ? (e) => { e.stopPropagation(); openLightbox(displaySrc, itemImages, item.id); } : undefined}
-                            >
-                              {displaySrc ? (
-                                <img src={displaySrc} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <Images className="w-6 h-6 text-gray-300" />
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Fields */}
-                            <div className="flex-1 min-w-0 space-y-1.5">
-                              <input
-                                value={item.itemName}
-                                onChange={e => updateDraftItem(item.id, { itemName: e.target.value })}
-                                placeholder="商品名稱"
-                                maxLength={200}
-                                onClick={e => e.stopPropagation()}
-                                className="w-full px-2.5 py-1.5 text-sm outline-none"
-                                style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '8px' }}
-                              />
-                              <div className="flex gap-1.5">
-                                <input
-                                  value={item.itemNumber ?? ''}
-                                  onChange={e => updateDraftItem(item.id, { itemNumber: e.target.value })}
-                                  placeholder="#編號"
-                                  maxLength={100}
-                                  onClick={e => e.stopPropagation()}
-                                  className="w-20 px-2 py-1.5 text-xs outline-none"
-                                  style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '8px' }}
-                                />
-                                <input
-                                  value={item.price}
-                                  onChange={e => updateDraftItem(item.id, { price: e.target.value })}
-                                  placeholder="HK$ 價錢"
-                                  inputMode="decimal"
-                                  onClick={e => e.stopPropagation()}
-                                  className="flex-1 px-2 py-1.5 text-xs outline-none"
-                                  style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '8px' }}
-                                />
-                              </div>
-                              <div className="flex gap-1.5 items-center">
-                                <select
-                                  value={item.status}
-                                  onChange={e => updateDraftItem(item.id, { status: e.target.value as any })}
-                                  onClick={e => e.stopPropagation()}
-                                  className="text-xs px-2 py-1.5 outline-none rounded-lg border border-gray-200 bg-white"
-                                  style={{ color: ITEM_STATUS_COLORS[item.status] ?? '#555' }}
-                                >
-                                  {Object.entries(ITEM_STATUS_LABELS).map(([v, l]) => (
-                                    <option key={v} value={v}>{l}</option>
-                                  ))}
-                                </select>
-                                <div className="flex-1" />
-                                {!batchSelectMode && (
-                                  <button
-                                    onClick={e => { e.stopPropagation(); handleDeleteItem(item.id); }}
-                                    className="w-7 h-7 rounded-lg flex items-center justify-center"
-                                    style={{ background: '#FEE2E2' }}
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                          {STATUS_LABELS[s]}
+                        </button>
+                      ))}
+                    </div>
+                    {currentGallery?.status === 'active' && (
+                      <a
+                        href={`/gallery/${editGalleryId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 mt-3 text-xs font-semibold text-orange-600"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        查看公開頁面
+                      </a>
+                    )}
                   </div>
-                )}
-              </div>
-
-              {/* ── 刪除圖片集 ── */}
-              <div className="bg-white rounded-2xl p-4">
-                <p className="text-sm font-bold text-gray-700 mb-3">危險操作</p>
-                <button
-                  onClick={handleDeleteGallery}
-                  disabled={deleteGalleryM.isPending}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-red-600 border border-red-200 hover:border-red-400 disabled:opacity-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  刪除整個圖片集
-                </button>
-              </div>
+                  <div className="bg-white rounded-2xl p-4">
+                    <p className="text-sm font-bold text-gray-700 mb-3">危險操作</p>
+                    <button
+                      onClick={handleDeleteGallery}
+                      disabled={deleteGalleryM.isPending}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-red-600 border border-red-200 hover:border-red-400 disabled:opacity-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      刪除整個圖片集
+                    </button>
+                  </div>
+                </>
+              )}
 
             </div>
           )}
