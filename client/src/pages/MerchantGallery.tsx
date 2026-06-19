@@ -695,7 +695,7 @@ export default function MerchantGallery() {
           }
           ctx.font = `${isSold ? '' : 'bold '}${buyFontSz}px sans-serif`;
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText(isSold ? '已售出 · 聯繫商戶' : '立即落單', cx + cellW / 2, sy + buyStripH / 2);
+          ctx.fillText(isSold ? '已售出 · 聯繫商戶' : '購買', cx + cellW / 2, sy + buyStripH / 2);
           ctx.restore();
         }
       });
@@ -2859,7 +2859,7 @@ export default function MerchantGallery() {
                                 fontWeight: 700,
                               }}
                             >
-                              立即落單
+                              購買
                             </div>
                           )}
                         </div>

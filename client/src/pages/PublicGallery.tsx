@@ -658,7 +658,7 @@ export default function PublicGallery() {
                 style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24', color: '#fff' }}
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
-                立即落單
+                購買
               </button>
             )}
             <GalleryItemShareMenu
@@ -870,7 +870,7 @@ export default function PublicGallery() {
                         }}
                       >
                         <ShoppingCart style={{ width: '11px', height: '11px' }} />
-                        <span>立即落單</span>
+                        <span>購買</span>
                       </button>
                     )}
                   </div>
