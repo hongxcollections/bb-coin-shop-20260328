@@ -197,7 +197,7 @@ export default function UserGallery({ onClose }: Props) {
           const prevMap = new Map(prev.map(i => [i.id, i]));
           const newItems = serverItems.filter(si => !prevMap.has(si.id));
           if (newItems.length > 0) scrollToItemIdRef.current = newItems[newItems.length - 1].id;
-          return serverItems.map(si => prevMap.get(si.id) ?? si);
+          return serverItems.map(si => prevMap.get(si.id) ?? { ...si, price: normalizePrice(si.price) });
         });
       }
       toast.success('已新增空白商品');
@@ -215,6 +215,12 @@ export default function UserGallery({ onClose }: Props) {
     onError: (e) => toast.error(e.message),
   });
 
+  function normalizePrice(raw: unknown): string {
+    const n = Number(raw);
+    if (!raw || n === 0) return '';
+    return String(raw);
+  }
+
   // Sync items on load
   useEffect(() => {
     const d = getForEditQ.data;
@@ -222,7 +228,7 @@ export default function UserGallery({ onClose }: Props) {
     setEditTitle(d.gallery.title);
     setEditDesc((d.gallery as any).description ?? '');
     setEditCols((d.gallery as any).columnsPerRow ?? 3);
-    setDraftItems(d.items as GalleryItem[]);
+    setDraftItems((d.items as GalleryItem[]).map(i => ({ ...i, price: normalizePrice(i.price) })));
     didSyncRef.current = true;
   }, [getForEditQ.data]);
 
@@ -1243,24 +1249,14 @@ export default function UserGallery({ onClose }: Props) {
                           複製
                         </button>
                       </div>
-                      <div className="flex gap-2">
-                        <Link
-                          href={`/gallery/${editGalleryId}`}
-                          className="flex-1 py-2 rounded-xl text-xs font-semibold text-center text-white flex items-center justify-center gap-1"
-                          style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          圖片集頁面
-                        </Link>
-                        <div className="flex-1">
-                          <GalleryShareMenu
-                            galleryId={editGalleryId!}
-                            title={currentGallery?.title ?? ''}
-                            description={(currentGallery as any)?.description ?? null}
-                            merchantName={null}
-                          />
-                        </div>
-                      </div>
+                      <Link
+                        href={`/gallery/${editGalleryId}`}
+                        className="w-full py-2 rounded-xl text-xs font-semibold text-center text-white flex items-center justify-center gap-1"
+                        style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        圖片集頁面
+                      </Link>
                     </div>
                   )}
 
