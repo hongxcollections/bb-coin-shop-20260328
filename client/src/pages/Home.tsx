@@ -1523,7 +1523,7 @@ export default function Home() {
             background: "#F5F5F5",
           }}
         >
-          <div style={{ padding: "12px 16px", paddingBottom: "calc(60px + env(safe-area-inset-bottom, 0px) + 12px)" }}>
+          <div style={{ paddingTop: "12px", paddingBottom: "calc(60px + env(safe-area-inset-bottom, 0px) + 12px)" }}>
             <UserGallery onClose={() => setShowUserGallery(false)} />
           </div>
         </div>
