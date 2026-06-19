@@ -255,6 +255,7 @@ export default function PublicGallery() {
   const lastTapTime = useRef(0);
   const lbScrollRef = useRef<HTMLDivElement>(null);
   const lbZoomRef = useRef(1);
+  const lastOpenedItemId = useRef<number | null>(null);
 
   const [buyingItem, setBuyingItem] = useState<GalleryItem | null>(null);
   const [soldItem, setSoldItem] = useState<GalleryItem | null>(null);
@@ -279,6 +280,7 @@ export default function PublicGallery() {
     const imgs = item.images ?? [];
     const startIdx = imgs.findIndex(i => i.imageUrl === item.imageUrl);
     const idx = startIdx >= 0 ? startIdx : 0;
+    lastOpenedItemId.current = item.id;
     setLightboxItem(item);
     setLbImgIdx(idx);
     setLbZoom(1); lbZoomRef.current = 1;
@@ -293,6 +295,16 @@ export default function PublicGallery() {
 
   // keep zoom ref in sync so native touch handlers can read it without stale closure
   useEffect(() => { lbZoomRef.current = lbZoom; }, [lbZoom]);
+
+  // scroll back to the opened item after lightbox closes
+  useEffect(() => {
+    if (!lightboxItem && lastOpenedItemId.current !== null) {
+      const id = lastOpenedItemId.current;
+      setTimeout(() => {
+        document.getElementById(`lb-item-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }, 60);
+    }
+  }, [lightboxItem]);
 
   // native touchstart with passive:false on scroll strip — needed for pinch preventDefault
   useEffect(() => {
@@ -391,7 +403,11 @@ export default function PublicGallery() {
             onScroll={() => {
               if (!lbScrollRef.current || lbZoomRef.current > 1) return;
               const w = lbScrollRef.current.clientWidth;
-              const idx = Math.round(lbScrollRef.current.scrollLeft / w);
+              const scrollLeft = lbScrollRef.current.scrollLeft;
+              // only act when scroll has settled exactly at a snap boundary (±2px)
+              const remainder = scrollLeft % w;
+              if (remainder > 2 && remainder < w - 2) return;
+              const idx = Math.round(scrollLeft / w);
               // clone at end reached — instant jump to real first
               if (lbImgs.length > 1 && idx === lbImgs.length) {
                 lbScrollRef.current.scrollLeft = 0;
@@ -592,6 +608,7 @@ export default function PublicGallery() {
                 return (
                   <div
                     key={item.id}
+                    id={`lb-item-${item.id}`}
                     className="overflow-hidden"
                     style={{
                       borderRadius: '10px',
