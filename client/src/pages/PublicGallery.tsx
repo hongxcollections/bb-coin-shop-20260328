@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -253,7 +253,8 @@ export default function PublicGallery() {
   const panStartTouch = useRef({ x: 0, y: 0 });
   const panStartOffset = useRef({ x: 0, y: 0 });
   const lastTapTime = useRef(0);
-  const lbSwipeTouchX = useRef(0);
+  const lbScrollRef = useRef<HTMLDivElement>(null);
+  const lbZoomRef = useRef(1);
 
   const [buyingItem, setBuyingItem] = useState<GalleryItem | null>(null);
   const [soldItem, setSoldItem] = useState<GalleryItem | null>(null);
@@ -277,47 +278,62 @@ export default function PublicGallery() {
   function openLightbox(item: GalleryItem) {
     const imgs = item.images ?? [];
     const startIdx = imgs.findIndex(i => i.imageUrl === item.imageUrl);
+    const idx = startIdx >= 0 ? startIdx : 0;
     setLightboxItem(item);
-    setLbImgIdx(startIdx >= 0 ? startIdx : 0);
-    setLbZoom(1); setLbPanX(0); setLbPanY(0);
+    setLbImgIdx(idx);
+    setLbZoom(1); lbZoomRef.current = 1;
+    setLbPanX(0); setLbPanY(0);
+    // scroll strip to correct index after render
+    setTimeout(() => {
+      if (lbScrollRef.current) {
+        lbScrollRef.current.scrollLeft = idx * lbScrollRef.current.clientWidth;
+      }
+    }, 20);
   }
+
+  // keep zoom ref in sync so native touch handlers can read it without stale closure
+  useEffect(() => { lbZoomRef.current = lbZoom; }, [lbZoom]);
+
+  // native touchstart with passive:false on scroll strip — needed for pinch preventDefault
+  useEffect(() => {
+    const el = lbScrollRef.current;
+    if (!el || !lightboxItem) return;
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        pinchStartDist.current = Math.sqrt(dx * dx + dy * dy);
+        pinchStartZoom.current = lbZoomRef.current;
+      } else if (e.touches.length === 1) {
+        const now = Date.now();
+        if (now - lastTapTime.current < 280) {
+          setLbZoom(1); lbZoomRef.current = 1; setLbPanX(0); setLbPanY(0);
+        }
+        lastTapTime.current = now;
+        panStartTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        panStartOffset.current = { x: lbPanX, y: lbPanY };
+      }
+    }
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    return () => el.removeEventListener('touchstart', onTouchStart);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lightboxItem, lbPanX, lbPanY]);
+
   function lbPinchDist(t: React.TouchList) {
     const dx = t[0].clientX - t[1].clientX;
     const dy = t[0].clientY - t[1].clientY;
     return Math.sqrt(dx * dx + dy * dy);
   }
-  function lbTouchStart(e: React.TouchEvent) {
-    if (e.touches.length === 2) {
-      pinchStartDist.current = lbPinchDist(e.touches);
-      pinchStartZoom.current = lbZoom;
-    } else if (e.touches.length === 1) {
-      const now = Date.now();
-      if (now - lastTapTime.current < 280) { setLbZoom(1); setLbPanX(0); setLbPanY(0); }
-      lastTapTime.current = now;
-      lbSwipeTouchX.current = e.touches[0].clientX;
-      panStartTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-      panStartOffset.current = { x: lbPanX, y: lbPanY };
-    }
-  }
   function lbTouchMove(e: React.TouchEvent) {
     if (e.touches.length === 2) {
+      e.preventDefault();
       const z = Math.min(6, Math.max(1, pinchStartZoom.current * (lbPinchDist(e.touches) / pinchStartDist.current)));
-      setLbZoom(z);
-    } else if (e.touches.length === 1 && lbZoom > 1) {
+      setLbZoom(z); lbZoomRef.current = z;
+    } else if (e.touches.length === 1 && lbZoomRef.current > 1) {
+      e.preventDefault();
       setLbPanX(panStartOffset.current.x + e.touches[0].clientX - panStartTouch.current.x);
       setLbPanY(panStartOffset.current.y + e.touches[0].clientY - panStartTouch.current.y);
-    }
-  }
-  function lbTouchEnd(e: React.TouchEvent) {
-    const imgs = lightboxItem?.images ?? [];
-    if (lbZoom > 1 || imgs.length <= 1) return;
-    const diff = lbSwipeTouchX.current - e.changedTouches[0].clientX;
-    if (diff > 50 && lbImgIdx < imgs.length - 1) {
-      setLbImgIdx(i => i + 1);
-      setLbZoom(1); setLbPanX(0); setLbPanY(0);
-    } else if (diff < -50 && lbImgIdx > 0) {
-      setLbImgIdx(i => i - 1);
-      setLbZoom(1); setLbPanX(0); setLbPanY(0);
     }
   }
 
@@ -325,8 +341,9 @@ export default function PublicGallery() {
   if (lightboxItem) {
     const p = parseFloat(lightboxItem.price);
     const isItemSold = lightboxItem.status === 'sold' || localSold.has(lightboxItem.id);
-    const lbImgs = lightboxItem.images ?? [];
-    const lbCurSrc = lbImgs[lbImgIdx]?.imageUrl ?? lightboxItem.imageUrl;
+    const lbImgs = lightboxItem.images && lightboxItem.images.length > 0
+      ? lightboxItem.images
+      : (lightboxItem.imageUrl ? [{ id: 0, imageUrl: lightboxItem.imageUrl }] : []);
     return (
       <div
         className="fixed inset-0 z-50 flex flex-col"
@@ -334,11 +351,9 @@ export default function PublicGallery() {
           background: 'rgba(0,0,0,0.97)',
           paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
         }}
-        onClick={() => { if (lbZoom <= 1) setLightboxItem(null); }}
-        onTouchEnd={lbTouchEnd}
       >
         {/* Top bar: info + close */}
-        <div className="flex items-start justify-between px-3 pt-3 pb-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between px-3 pt-3 pb-2 flex-shrink-0">
           <div className="flex-1 min-w-0 pr-3">
             {lightboxItem.itemNumber && (
               <p className="text-[10px] text-amber-400/80 font-mono mb-0.5">#{lightboxItem.itemNumber}</p>
@@ -357,36 +372,63 @@ export default function PublicGallery() {
           </button>
         </div>
 
-        {/* Image area — 3px side padding, maximised, rounded frame */}
-        <div
-          className="flex-1 flex items-center justify-center overflow-hidden relative"
-          style={{ padding: '0 3px' }}
-        >
-          <img
-            src={lbCurSrc}
-            className="select-none"
+        {/* Horizontal scroll strip — 3px side gap, scroll-snap, pinch zoom */}
+        <div className="flex-1 relative overflow-hidden">
+          <div
+            ref={lbScrollRef}
+            className="flex h-full"
             style={{
-              maxWidth: '100%',
-              maxHeight: '100%',
-              objectFit: 'contain',
-              borderRadius: 14,
-              transform: `translate(${lbPanX}px, ${lbPanY}px) scale(${lbZoom})`,
-              transformOrigin: 'center center',
-              touchAction: 'none',
-              cursor: lbZoom > 1 ? 'grab' : 'default',
-              display: 'block',
+              overflowX: lbZoom > 1 ? 'hidden' : 'auto',
+              overflowY: 'hidden',
+              scrollSnapType: 'x mandatory',
+              scrollBehavior: 'auto',
+              scrollbarWidth: 'none',
+              WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+            } as React.CSSProperties}
+            onScroll={() => {
+              if (!lbScrollRef.current || lbZoomRef.current > 1) return;
+              const idx = Math.round(lbScrollRef.current.scrollLeft / lbScrollRef.current.clientWidth);
+              if (idx !== lbImgIdx) {
+                setLbImgIdx(idx);
+                setLbZoom(1); lbZoomRef.current = 1;
+                setLbPanX(0); setLbPanY(0);
+              }
             }}
-            onClick={e => e.stopPropagation()}
-            onTouchStart={lbTouchStart}
             onTouchMove={lbTouchMove}
-            alt=""
-            draggable={false}
-          />
+          >
+            {lbImgs.map((img, i) => (
+              <div
+                key={img.id + '-' + i}
+                className="flex-shrink-0 h-full flex items-center justify-center"
+                style={{ width: '100%', scrollSnapAlign: 'start', padding: '0 3px' }}
+              >
+                <img
+                  src={img.imageUrl}
+                  className="select-none"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    objectFit: 'contain',
+                    borderRadius: 14,
+                    display: 'block',
+                    transform: i === lbImgIdx
+                      ? `translate(${lbPanX}px, ${lbPanY}px) scale(${lbZoom})`
+                      : 'none',
+                    transformOrigin: 'center center',
+                    pointerEvents: 'none',
+                  }}
+                  alt=""
+                  draggable={false}
+                />
+              </div>
+            ))}
+          </div>
+
           {/* Dots indicator */}
           {lbImgs.length > 1 && (
             <div
               className="absolute flex gap-1.5 pointer-events-none"
-              style={{ bottom: 8, left: 0, right: 0, justifyContent: 'center' }}
+              style={{ bottom: 6, left: 0, right: 0, justifyContent: 'center' }}
             >
               {lbImgs.map((_, i) => (
                 <div key={i} style={{
@@ -402,15 +444,15 @@ export default function PublicGallery() {
         </div>
 
         {/* Bottom bar: hint/reset + sold/buy */}
-        <div
-          className="flex items-center justify-between px-4 pt-2 pb-3 flex-shrink-0"
-          onClick={e => e.stopPropagation()}
-        >
+        <div className="flex items-center justify-between px-4 pt-2 pb-3 flex-shrink-0">
           {lbZoom > 1 ? (
             <button
               className="text-white/60 text-xs px-3 py-1.5 rounded-xl"
               style={{ background: 'rgba(255,255,255,0.1)' }}
-              onClick={() => { setLbZoom(1); setLbPanX(0); setLbPanY(0); }}
+              onClick={() => {
+                setLbZoom(1); lbZoomRef.current = 1;
+                setLbPanX(0); setLbPanY(0);
+              }}
             >重設縮放</button>
           ) : (
             <p className="text-[11px] text-white/30">
