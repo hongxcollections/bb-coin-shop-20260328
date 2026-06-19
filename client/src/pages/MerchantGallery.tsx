@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Header from "@/components/Header";
@@ -79,6 +79,7 @@ const compressImage = (file: File, maxPx = 1280, quality = 0.78): Promise<File> 
 export default function MerchantGallery() {
   const { isAuthenticated } = useAuth();
   const confirm = useConfirm();
+  const [, navigate] = useLocation();
 
   const [view, setView] = useState<View>('list');
   const [editTab, setEditTab] = useState<EditTab>('info');
@@ -129,6 +130,18 @@ export default function MerchantGallery() {
   const [showPosterModal, setShowPosterModal] = useState(false);
   const [savingPoster, setSavingPoster] = useState(false);
   const posterRef = useRef<HTMLDivElement>(null);
+
+  // Auto-open poster modal from ?poster=<id> URL param (e.g. navigated from PublicGallery owner button)
+  useEffect(() => {
+    const posterId = parseInt(new URLSearchParams(window.location.search).get('poster') ?? '', 10);
+    if (!isNaN(posterId) && posterId > 0) {
+      openEdit(posterId);
+      setShowPosterModal(true);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  // openEdit is stable (defined in same component scope)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Pool assign picker
   const [assignPickerImageId, setAssignPickerImageId] = useState<number | null>(null);
@@ -993,6 +1006,14 @@ export default function MerchantGallery() {
                     <p className="text-xs text-gray-400">{g.itemCount} 張圖片 · {g.columnsPerRow} 列</p>
                   </div>
                   <button
+                    onClick={() => { openEdit(g.id); setShowPosterModal(true); }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white flex-shrink-0"
+                    style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
+                  >
+                    <Images className="w-3 h-3" />
+                    生成
+                  </button>
+                  <button
                     onClick={() => openEdit(g.id)}
                     className="text-xs font-semibold text-orange-600 px-3 py-1.5 rounded-xl border border-orange-200 hover:border-orange-300 flex-shrink-0"
                   >
@@ -1081,14 +1102,6 @@ export default function MerchantGallery() {
                 {STATUS_LABELS[currentGallery.status] ?? currentGallery.status}
               </span>
             )}
-            <button
-              onClick={() => setShowPosterModal(true)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white flex-shrink-0"
-              style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
-            >
-              <Images className="w-3.5 h-3.5" />
-              生成圖片集
-            </button>
           </div>
 
           {/* Tabs */}

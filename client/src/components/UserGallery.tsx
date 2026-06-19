@@ -885,6 +885,14 @@ export default function UserGallery({ onClose }: Props) {
                       </a>
                     )}
                     <button
+                      onClick={() => { openEdit(g.id); setShowPosterModal(true); }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white flex-shrink-0"
+                      style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
+                    >
+                      <Images className="w-3 h-3" />
+                      生成
+                    </button>
+                    <button
                       onClick={() => openEdit(g.id)}
                       className="text-xs font-semibold text-orange-600 px-3 py-1.5 rounded-xl border border-orange-200 hover:border-orange-300 flex-shrink-0"
                     >
@@ -974,14 +982,6 @@ export default function UserGallery({ onClose }: Props) {
                 {STATUS_LABELS[currentGallery.status] ?? currentGallery.status}
               </span>
             )}
-            <button
-              onClick={() => setShowPosterModal(true)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white flex-shrink-0"
-              style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
-            >
-              <Images className="w-3.5 h-3.5" />
-              生成圖片集
-            </button>
           </div>
 
           {/* Tab bar */}

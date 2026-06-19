@@ -260,6 +260,8 @@ function SoldSheet({ item, merchantId, onClose }: { item: GalleryItem; merchantI
 export default function PublicGallery() {
   const params = useParams<{ id: string }>();
   const galleryId = parseInt(params.id ?? '', 10);
+  const [, navigate] = useLocation();
+  const { user } = useAuth();
 
   const [lightboxItem, setLightboxItem] = useState<GalleryItem | null>(null);
   const [lbImgIdx, setLbImgIdx] = useState(0);
@@ -745,6 +747,16 @@ export default function PublicGallery() {
                   }}>
                     {soldCount} 件已售
                   </span>
+                )}
+                {user?.id === gallery?.merchantId && (
+                  <button
+                    onClick={() => navigate(`/merchant/galleries?poster=${galleryId}`)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold"
+                    style={{ background: 'rgba(251,191,36,0.2)', color: '#FBBF24', border: '1px solid rgba(251,191,36,0.3)' }}
+                  >
+                    <Images className="w-3 h-3" />
+                    生成圖片集
+                  </button>
                 )}
               </div>
             </div>
