@@ -123,6 +123,7 @@ export default function UserGallery({ onClose }: Props) {
 
   // Poster modal
   const [showPosterModal, setShowPosterModal] = useState(false);
+  const [posterFromList, setPosterFromList] = useState(false);
   const [savingPoster, setSavingPoster] = useState(false);
   const posterRef = useRef<HTMLDivElement>(null);
 
@@ -885,7 +886,7 @@ export default function UserGallery({ onClose }: Props) {
                       </a>
                     )}
                     <button
-                      onClick={() => { openEdit(g.id); setShowPosterModal(true); }}
+                      onClick={() => { setPosterFromList(true); openEdit(g.id); setShowPosterModal(true); }}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white flex-shrink-0"
                       style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
                     >
@@ -1508,7 +1509,7 @@ export default function UserGallery({ onClose }: Props) {
 
                   <div className="bg-white rounded-2xl p-3">
                     <button
-                      onClick={() => setShowPosterModal(true)}
+                      onClick={() => { setPosterFromList(false); setShowPosterModal(true); }}
                       className="w-full py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
                       style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
                     >
@@ -1613,7 +1614,7 @@ export default function UserGallery({ onClose }: Props) {
               <div className="py-2 text-center" style={{ background: '#ECECEC', fontSize: '11px', color: '#999' }}>- hongxcollections -</div>
 
               <div className="flex gap-3 px-4 pt-3 bg-white border-t border-gray-100" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
-                <button onClick={() => setShowPosterModal(false)} className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">取消</button>
+                <button onClick={() => { setShowPosterModal(false); if (posterFromList) goList(); }} className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">取消</button>
                 <button onClick={handleSavePoster} disabled={savingPoster} className="flex-1 py-3 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60" style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}>
                   {savingPoster ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                   {savingPoster ? '生成中…' : '儲存圖片'}
