@@ -330,12 +330,16 @@ export default function PublicGallery() {
     return (
       <div
         className="fixed inset-0 z-50 flex flex-col"
-        style={{ background: 'rgba(0,0,0,0.96)' }}
+        style={{
+          background: 'rgba(0,0,0,0.97)',
+          paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
+        }}
         onClick={() => { if (lbZoom <= 1) setLightboxItem(null); }}
         onTouchEnd={lbTouchEnd}
       >
-        <div className="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
-          <div className="flex-1 min-w-0 pr-2">
+        {/* Top bar: info + close */}
+        <div className="flex items-start justify-between px-3 pt-3 pb-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
+          <div className="flex-1 min-w-0 pr-3">
             {lightboxItem.itemNumber && (
               <p className="text-[10px] text-amber-400/80 font-mono mb-0.5">#{lightboxItem.itemNumber}</p>
             )}
@@ -346,22 +350,31 @@ export default function PublicGallery() {
           </div>
           <button
             className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: 'rgba(255,255,255,0.12)' }}
+            style={{ background: 'rgba(255,255,255,0.15)' }}
             onClick={() => setLightboxItem(null)}
           >
             <X className="w-4 h-4 text-white" />
           </button>
         </div>
 
-        <div className="flex-1 flex items-center justify-center overflow-hidden px-2 relative">
+        {/* Image area — 3px side padding, maximised, rounded frame */}
+        <div
+          className="flex-1 flex items-center justify-center overflow-hidden relative"
+          style={{ padding: '0 3px' }}
+        >
           <img
             src={lbCurSrc}
-            className="max-w-full max-h-full object-contain rounded-xl select-none"
+            className="select-none"
             style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              objectFit: 'contain',
+              borderRadius: 14,
               transform: `translate(${lbPanX}px, ${lbPanY}px) scale(${lbZoom})`,
               transformOrigin: 'center center',
               touchAction: 'none',
               cursor: lbZoom > 1 ? 'grab' : 'default',
+              display: 'block',
             }}
             onClick={e => e.stopPropagation()}
             onTouchStart={lbTouchStart}
@@ -369,11 +382,17 @@ export default function PublicGallery() {
             alt=""
             draggable={false}
           />
+          {/* Dots indicator */}
           {lbImgs.length > 1 && (
-            <div className="absolute flex gap-1.5 pointer-events-none" style={{ bottom: 10, left: 0, right: 0, justifyContent: 'center' }}>
+            <div
+              className="absolute flex gap-1.5 pointer-events-none"
+              style={{ bottom: 8, left: 0, right: 0, justifyContent: 'center' }}
+            >
               {lbImgs.map((_, i) => (
                 <div key={i} style={{
-                  width: i === lbImgIdx ? 14 : 6, height: 6, borderRadius: 3,
+                  width: i === lbImgIdx ? 14 : 6,
+                  height: 6,
+                  borderRadius: 3,
                   background: i === lbImgIdx ? '#fff' : 'rgba(255,255,255,0.35)',
                   transition: 'width 0.2s',
                 }} />
@@ -382,7 +401,11 @@ export default function PublicGallery() {
           )}
         </div>
 
-        <div className="flex items-center justify-between px-4 pt-2 pb-5 flex-shrink-0" onClick={e => e.stopPropagation()}>
+        {/* Bottom bar: hint/reset + sold/buy */}
+        <div
+          className="flex items-center justify-between px-4 pt-2 pb-3 flex-shrink-0"
+          onClick={e => e.stopPropagation()}
+        >
           {lbZoom > 1 ? (
             <button
               className="text-white/60 text-xs px-3 py-1.5 rounded-xl"
@@ -390,7 +413,9 @@ export default function PublicGallery() {
               onClick={() => { setLbZoom(1); setLbPanX(0); setLbPanY(0); }}
             >重設縮放</button>
           ) : (
-            <p className="text-[11px] text-white/30">{lbImgs.length > 1 ? '左右滑動切換圖片' : '捏合手勢可放大'}</p>
+            <p className="text-[11px] text-white/30">
+              {lbImgs.length > 1 ? '左右滑動切換' : '兩指放大'}
+            </p>
           )}
           {isItemSold ? (
             <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: '#DC2626', color: '#fff' }}>已售出</span>
