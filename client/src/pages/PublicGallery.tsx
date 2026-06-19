@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
-import { Loader2, X, Images, Store, ShoppingCart, MessageCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, X, Images, Store, ShoppingCart, MessageCircle, CheckCircle2, LayoutGrid, LayoutList } from "lucide-react";
 import { toast } from "sonner";
 
 interface GalleryItemImage {
@@ -259,6 +259,7 @@ export default function PublicGallery() {
 
   const [buyingItem, setBuyingItem] = useState<GalleryItem | null>(null);
   const [soldItem, setSoldItem] = useState<GalleryItem | null>(null);
+  const [lbMode, setLbMode] = useState<'h' | 'v'>('h');
 
   const galleryQ = trpc.productGalleries.getPublic.useQuery(
     { id: galleryId },
@@ -285,6 +286,7 @@ export default function PublicGallery() {
     setLbImgIdx(idx);
     setLbZoom(1); lbZoomRef.current = 1;
     setLbPanX(0); setLbPanY(0);
+    setLbMode('h');
     // scroll strip to correct index after render
     setTimeout(() => {
       if (lbScrollRef.current) {
@@ -367,9 +369,9 @@ export default function PublicGallery() {
           paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
         }}
       >
-        {/* Top bar: info + 關閉 button */}
-        <div className="flex items-start justify-between px-3 pt-3 pb-2 flex-shrink-0">
-          <div className="flex-1 min-w-0 pr-3">
+        {/* Top bar: info + mode toggle + 關閉 */}
+        <div className="flex items-start justify-between px-3 pt-3 pb-2 flex-shrink-0 gap-2">
+          <div className="flex-1 min-w-0">
             {lightboxItem.itemNumber && (
               <p className="text-[10px] text-amber-400/80 font-mono mb-0.5">#{lightboxItem.itemNumber}</p>
             )}
@@ -378,96 +380,157 @@ export default function PublicGallery() {
               <p className="text-sm font-bold mt-0.5" style={{ color: '#FFB347' }}>HK${p.toLocaleString('en-HK')}</p>
             )}
           </div>
+          {/* mode toggle — only show when multiple images */}
+          {lbImgs.length > 1 && (
+            <div className="flex rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(255,255,255,0.2)', alignSelf: 'flex-start', marginTop: 2 }}>
+              <button
+                onClick={() => { setLbMode('h'); setLbZoom(1); lbZoomRef.current = 1; setLbPanX(0); setLbPanY(0); }}
+                style={{
+                  padding: '5px 8px',
+                  background: lbMode === 'h' ? 'rgba(255,255,255,0.25)' : 'transparent',
+                  color: '#fff', display: 'flex', alignItems: 'center',
+                }}
+                title="橫向瀏覽"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => { setLbMode('v'); setLbZoom(1); lbZoomRef.current = 1; setLbPanX(0); setLbPanY(0); }}
+                style={{
+                  padding: '5px 8px',
+                  background: lbMode === 'v' ? 'rgba(255,255,255,0.25)' : 'transparent',
+                  color: '#fff', display: 'flex', alignItems: 'center',
+                }}
+                title="直立式瀏覽"
+              >
+                <LayoutList className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
           <button
             className="px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0"
-            style={{ background: 'rgba(255,255,255,0.15)', color: '#fff' }}
+            style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', alignSelf: 'flex-start', marginTop: 2 }}
             onClick={() => setLightboxItem(null)}
           >
             關閉
           </button>
         </div>
 
-        {/* Horizontal scroll strip — 3px side gap, scroll-snap, loop, pinch zoom */}
+        {/* Image area — horizontal (scroll-snap) or vertical (full-width stack) */}
         <div className="flex-1 relative overflow-hidden">
-          <div
-            ref={lbScrollRef}
-            className="flex h-full"
-            style={{
-              overflowX: lbZoom > 1 ? 'hidden' : 'auto',
-              overflowY: 'hidden',
-              scrollSnapType: 'x mandatory',
-              scrollBehavior: 'auto',
-              scrollbarWidth: 'none',
-              WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
-            } as React.CSSProperties}
-            onScroll={() => {
-              if (!lbScrollRef.current || lbZoomRef.current > 1) return;
-              const w = lbScrollRef.current.clientWidth;
-              const scrollLeft = lbScrollRef.current.scrollLeft;
-              // only act when scroll has settled exactly at a snap boundary (±2px)
-              const remainder = scrollLeft % w;
-              if (remainder > 2 && remainder < w - 2) return;
-              const idx = Math.round(scrollLeft / w);
-              // clone at end reached — instant jump to real first
-              if (lbImgs.length > 1 && idx === lbImgs.length) {
-                lbScrollRef.current.scrollLeft = 0;
-                setLbImgIdx(0);
-                setLbZoom(1); lbZoomRef.current = 1;
-                setLbPanX(0); setLbPanY(0);
-                return;
-              }
-              if (idx !== lbImgIdx) {
-                setLbImgIdx(idx);
-                setLbZoom(1); lbZoomRef.current = 1;
-                setLbPanX(0); setLbPanY(0);
-              }
-            }}
-            onTouchMove={lbTouchMove}
-          >
-            {loopImgs.map((img, i) => (
-              <div
-                key={img.id + '-' + i}
-                className="flex-shrink-0 h-full flex items-center justify-center"
-                style={{ width: '100%', scrollSnapAlign: 'start', padding: '0 3px' }}
-              >
-                <img
-                  src={img.imageUrl}
-                  className="select-none"
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    objectFit: 'contain',
-                    borderRadius: 14,
-                    display: 'block',
-                    transform: i === lbImgIdx
-                      ? `translate(${lbPanX}px, ${lbPanY}px) scale(${lbZoom})`
-                      : 'none',
-                    transformOrigin: 'center center',
-                    pointerEvents: 'none',
-                  }}
-                  alt=""
-                  draggable={false}
-                />
-              </div>
-            ))}
-          </div>
 
-          {/* Dots indicator (based on real image count) */}
-          {lbImgs.length > 1 && (
+          {lbMode === 'v' ? (
+            /* ── Vertical mode: all images stacked, each portrait full-width ── */
             <div
-              className="absolute flex gap-1.5 pointer-events-none"
-              style={{ bottom: 6, left: 0, right: 0, justifyContent: 'center' }}
+              className="h-full overflow-y-auto"
+              style={{ scrollbarWidth: 'none' } as React.CSSProperties}
             >
-              {lbImgs.map((_, i) => (
-                <div key={i} style={{
-                  width: i === dotIdx ? 14 : 6,
-                  height: 6,
-                  borderRadius: 3,
-                  background: i === dotIdx ? '#fff' : 'rgba(255,255,255,0.35)',
-                  transition: 'width 0.2s',
-                }} />
+              {lbImgs.map((img, i) => (
+                <div
+                  key={img.id + '-' + i}
+                  className="flex items-center justify-center"
+                  style={{ padding: '3px 3px', minHeight: '30vh' }}
+                >
+                  <img
+                    src={img.imageUrl}
+                    className="select-none"
+                    style={{
+                      width: '100%',
+                      objectFit: 'contain',
+                      borderRadius: 14,
+                      display: 'block',
+                    }}
+                    alt=""
+                    draggable={false}
+                    loading="lazy"
+                  />
+                </div>
               ))}
+              {/* bottom spacer so last image isn't flush against bottom bar */}
+              <div style={{ height: 12 }} />
             </div>
+          ) : (
+            /* ── Horizontal mode: scroll-snap strip, loop, pinch zoom ── */
+            <>
+              <div
+                ref={lbScrollRef}
+                className="flex h-full"
+                style={{
+                  overflowX: lbZoom > 1 ? 'hidden' : 'auto',
+                  overflowY: 'hidden',
+                  scrollSnapType: 'x mandatory',
+                  scrollBehavior: 'auto',
+                  scrollbarWidth: 'none',
+                  WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+                } as React.CSSProperties}
+                onScroll={() => {
+                  if (!lbScrollRef.current || lbZoomRef.current > 1) return;
+                  const w = lbScrollRef.current.clientWidth;
+                  const scrollLeft = lbScrollRef.current.scrollLeft;
+                  const remainder = scrollLeft % w;
+                  if (remainder > 2 && remainder < w - 2) return;
+                  const idx = Math.round(scrollLeft / w);
+                  if (lbImgs.length > 1 && idx === lbImgs.length) {
+                    lbScrollRef.current.scrollLeft = 0;
+                    setLbImgIdx(0);
+                    setLbZoom(1); lbZoomRef.current = 1;
+                    setLbPanX(0); setLbPanY(0);
+                    return;
+                  }
+                  if (idx !== lbImgIdx) {
+                    setLbImgIdx(idx);
+                    setLbZoom(1); lbZoomRef.current = 1;
+                    setLbPanX(0); setLbPanY(0);
+                  }
+                }}
+                onTouchMove={lbTouchMove}
+              >
+                {loopImgs.map((img, i) => (
+                  <div
+                    key={img.id + '-' + i}
+                    className="flex-shrink-0 h-full flex items-center justify-center"
+                    style={{ width: '100%', scrollSnapAlign: 'start', padding: '0 3px' }}
+                  >
+                    <img
+                      src={img.imageUrl}
+                      className="select-none"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        objectFit: 'contain',
+                        borderRadius: 14,
+                        display: 'block',
+                        transform: i === lbImgIdx
+                          ? `translate(${lbPanX}px, ${lbPanY}px) scale(${lbZoom})`
+                          : 'none',
+                        transformOrigin: 'center center',
+                        pointerEvents: 'none',
+                      }}
+                      alt=""
+                      draggable={false}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Dots indicator */}
+              {lbImgs.length > 1 && (
+                <div
+                  className="absolute flex gap-1.5 pointer-events-none"
+                  style={{ bottom: 6, left: 0, right: 0, justifyContent: 'center' }}
+                >
+                  {lbImgs.map((_, i) => (
+                    <div key={i} style={{
+                      width: i === dotIdx ? 14 : 6,
+                      height: 6,
+                      borderRadius: 3,
+                      background: i === dotIdx ? '#fff' : 'rgba(255,255,255,0.35)',
+                      transition: 'width 0.2s',
+                    }} />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
 
