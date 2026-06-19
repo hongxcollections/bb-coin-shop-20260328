@@ -7,6 +7,8 @@ import {
   ChevronLeft, ChevronDown, Plus, Loader2, Trash2, X, Upload, Save,
   Images, Check, ExternalLink,
 } from "lucide-react";
+import { Link } from "wouter";
+import { GalleryShareMenu } from "@/components/ShareMenu";
 
 // ─────────────────────────────────────────────────────────
 // Types
@@ -82,6 +84,7 @@ export default function UserGallery({ onClose }: Props) {
   const [view, setView] = useState<View>('list');
   const [editGalleryId, setEditGalleryId] = useState<number | null>(null);
   const [editTab, setEditTab] = useState<EditTab>('info');
+  const [itemsScrollMode, setItemsScrollMode] = useState(true);
 
   // Create form
   const [createTitle, setCreateTitle] = useState('');
@@ -1044,15 +1047,17 @@ export default function UserGallery({ onClose }: Props) {
                       </div>
                     )}
 
-                    {/* Batch select mode */}
+                    {/* Batch select + layout toggle */}
                     {draftItems.length > 0 && (
-                      <div className="flex items-center gap-2 mb-3">
+                      <div className="flex items-center gap-2 mb-3 flex-wrap">
                         <button
                           onClick={() => { setBatchSelectMode(v => !v); setBatchSelectedIds(new Set()); }}
                           className="text-xs font-semibold px-2.5 py-1 rounded-lg"
-                          style={{ background: batchSelectMode ? 'rgba(255,120,0,0.12)' : '#F0F0F0', color: batchSelectMode ? '#FF6B00' : '#555' }}
+                          style={batchSelectMode
+                            ? { background: 'linear-gradient(135deg,#FF8C00,#FF6B00)', color: '#fff' }
+                            : { background: '#F0F0F0', color: '#555' }}
                         >
-                          {batchSelectMode ? `批選（${batchSelectedIds.size}）` : '批量選擇'}
+                          {batchSelectMode ? `批量選擇 (${batchSelectedIds.size})` : '批量選擇'}
                         </button>
                         {batchSelectMode && batchSelectedIds.size > 0 && (
                           <button
@@ -1072,13 +1077,23 @@ export default function UserGallery({ onClose }: Props) {
                             {batchSelectedIds.size === draftItems.length ? '取消全選' : '全選'}
                           </button>
                         )}
+                        <button
+                          onClick={() => setItemsScrollMode(v => !v)}
+                          className="text-xs font-semibold px-2.5 py-1 rounded-lg ml-auto"
+                          style={{ background: '#F0F0F0', color: '#555' }}
+                        >
+                          {itemsScrollMode ? '換回多行顯示' : '換為橫向捲動'}
+                        </button>
                       </div>
                     )}
 
                     {draftItems.length === 0 ? (
                       <p className="text-xs text-gray-400 text-center py-6">尚未有圖片商品，點「新增」或從相片池指定圖片</p>
                     ) : (
-                      <div className="space-y-3">
+                      <div
+                        className={itemsScrollMode ? 'flex gap-2 overflow-x-auto pb-2' : 'grid grid-cols-2 gap-2'}
+                        style={{ scrollbarWidth: 'none' }}
+                      >
                         {draftItems.map(item => {
                           const isSelected = batchSelectedIds.has(item.id);
                           const itemImages = ((galleryImagesQ.data ?? []) as GalleryImageRow[])
@@ -1089,8 +1104,8 @@ export default function UserGallery({ onClose }: Props) {
                             <div
                               key={item.id}
                               id={`ug-item-${item.id}`}
-                              className="rounded-xl border p-3"
-                              style={{ borderColor: isSelected ? '#FF8C00' : '#E8E8E8', background: isSelected ? '#FFF7ED' : '#FAFAFA' }}
+                              className="bg-white rounded-xl overflow-hidden border border-gray-100 relative"
+                              style={itemsScrollMode ? { flexShrink: 0, width: 'calc(50vw - 20px)' } : undefined}
                               onClick={batchSelectMode ? () => {
                                 setBatchSelectedIds(prev => {
                                   const next = new Set(prev);
@@ -1099,74 +1114,81 @@ export default function UserGallery({ onClose }: Props) {
                                 });
                               } : undefined}
                             >
-                              <div className="flex gap-3">
+                              {batchSelectMode && (
                                 <div
-                                  className="flex-shrink-0 rounded-xl overflow-hidden bg-gray-100"
-                                  style={{ width: 72, height: 72, cursor: displaySrc ? 'zoom-in' : 'default' }}
-                                  onClick={!batchSelectMode && displaySrc ? (e) => { e.stopPropagation(); openLightbox(displaySrc, itemImages, item.id); } : undefined}
+                                  className="absolute top-1.5 right-1.5 z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center"
+                                  style={{
+                                    background: isSelected ? '#FF8C00' : 'rgba(255,255,255,0.85)',
+                                    borderColor: isSelected ? '#FF8C00' : '#ccc',
+                                  }}
                                 >
-                                  {displaySrc ? (
-                                    <img src={displaySrc} alt="" className="w-full h-full object-cover" />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center">
-                                      <Images className="w-6 h-6 text-gray-300" />
-                                    </div>
-                                  )}
+                                  {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                                 </div>
-                                <div className="flex-1 min-w-0 space-y-1.5">
+                              )}
+                              {/* Image */}
+                              <div
+                                className="relative bg-gray-50 w-full aspect-square overflow-hidden"
+                                style={{ cursor: displaySrc ? 'zoom-in' : 'default' }}
+                                onClick={!batchSelectMode && displaySrc ? () => openLightbox(displaySrc, itemImages, item.id) : undefined}
+                              >
+                                {displaySrc ? (
+                                  <img src={displaySrc} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Images className="w-8 h-8 text-gray-200" />
+                                  </div>
+                                )}
+                                {!batchSelectMode && (
+                                  <button
+                                    onClick={e => { e.stopPropagation(); handleDeleteItem(item.id); }}
+                                    className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-black/50 flex items-center justify-center"
+                                  >
+                                    <X className="w-3 h-3 text-white" />
+                                  </button>
+                                )}
+                              </div>
+                              {/* Fields */}
+                              <div className="p-2 space-y-1.5">
+                                <input
+                                  value={item.itemName}
+                                  onChange={e => updateDraftItem(item.id, { itemName: e.target.value })}
+                                  placeholder="商品名稱"
+                                  maxLength={200}
+                                  onClick={e => e.stopPropagation()}
+                                  className="w-full px-2 py-1.5 text-xs outline-none"
+                                  style={{ background: '#F8F8F8', border: '1px solid #E5E5E5', borderRadius: '8px' }}
+                                />
+                                <div className="flex gap-1">
                                   <input
-                                    value={item.itemName}
-                                    onChange={e => updateDraftItem(item.id, { itemName: e.target.value })}
-                                    placeholder="商品名稱"
-                                    maxLength={200}
+                                    value={item.itemNumber ?? ''}
+                                    onChange={e => updateDraftItem(item.id, { itemNumber: e.target.value })}
+                                    placeholder="#編號"
+                                    maxLength={100}
                                     onClick={e => e.stopPropagation()}
-                                    className="w-full px-2.5 py-1.5 text-sm outline-none"
-                                    style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '8px' }}
+                                    className="w-16 px-2 py-1.5 text-xs outline-none"
+                                    style={{ background: '#F8F8F8', border: '1px solid #E5E5E5', borderRadius: '8px' }}
                                   />
-                                  <div className="flex gap-1.5">
-                                    <input
-                                      value={item.itemNumber ?? ''}
-                                      onChange={e => updateDraftItem(item.id, { itemNumber: e.target.value })}
-                                      placeholder="#編號"
-                                      maxLength={100}
-                                      onClick={e => e.stopPropagation()}
-                                      className="w-20 px-2 py-1.5 text-xs outline-none"
-                                      style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '8px' }}
-                                    />
-                                    <input
-                                      value={item.price}
-                                      onChange={e => updateDraftItem(item.id, { price: e.target.value })}
-                                      placeholder="HK$ 價錢"
-                                      inputMode="decimal"
-                                      onClick={e => e.stopPropagation()}
-                                      className="flex-1 px-2 py-1.5 text-xs outline-none"
-                                      style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '8px' }}
-                                    />
-                                  </div>
-                                  <div className="flex gap-1.5 items-center">
-                                    <select
-                                      value={item.status}
-                                      onChange={e => updateDraftItem(item.id, { status: e.target.value as any })}
-                                      onClick={e => e.stopPropagation()}
-                                      className="text-xs px-2 py-1.5 outline-none rounded-lg border border-gray-200 bg-white"
-                                      style={{ color: ITEM_STATUS_COLORS[item.status] ?? '#555' }}
-                                    >
-                                      {Object.entries(ITEM_STATUS_LABELS).map(([v, l]) => (
-                                        <option key={v} value={v}>{l}</option>
-                                      ))}
-                                    </select>
-                                    <div className="flex-1" />
-                                    {!batchSelectMode && (
-                                      <button
-                                        onClick={e => { e.stopPropagation(); handleDeleteItem(item.id); }}
-                                        className="w-7 h-7 rounded-lg flex items-center justify-center"
-                                        style={{ background: '#FEE2E2' }}
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                                      </button>
-                                    )}
-                                  </div>
+                                  <input
+                                    value={item.price}
+                                    onChange={e => updateDraftItem(item.id, { price: e.target.value })}
+                                    placeholder="HK$"
+                                    inputMode="decimal"
+                                    onClick={e => e.stopPropagation()}
+                                    className="flex-1 px-2 py-1.5 text-xs outline-none"
+                                    style={{ background: '#F8F8F8', border: '1px solid #E5E5E5', borderRadius: '8px' }}
+                                  />
                                 </div>
+                                <select
+                                  value={item.status}
+                                  onChange={e => updateDraftItem(item.id, { status: e.target.value as any })}
+                                  onClick={e => e.stopPropagation()}
+                                  className="w-full text-xs px-2 py-1.5 outline-none rounded-lg border border-gray-200 bg-white"
+                                  style={{ color: ITEM_STATUS_COLORS[item.status] ?? '#555' }}
+                                >
+                                  {Object.entries(ITEM_STATUS_LABELS).map(([v, l]) => (
+                                    <option key={v} value={v}>{l}</option>
+                                  ))}
+                                </select>
                               </div>
                             </div>
                           );
@@ -1179,51 +1201,81 @@ export default function UserGallery({ onClose }: Props) {
 
               {/* ── Tab: 發佈 ── */}
               {editTab === 'publish' && (
-                <>
-                  <div className="bg-white rounded-2xl p-4">
-                    <p className="text-sm font-bold text-gray-700 mb-3">發佈狀態</p>
+                <div className="space-y-3">
+                  <div className="bg-white rounded-2xl p-3">
+                    <p className="text-xs font-semibold text-gray-400 mb-2">發佈狀態</p>
                     <div className="flex gap-2">
-                      {(['draft', 'active', 'hidden'] as const).map(s => (
+                      {([
+                        ['draft',  '草稿'],
+                        ['active', '已發佈'],
+                        ['hidden', '已下架'],
+                      ] as [string, string][]).map(([s, label]) => (
                         <button
                           key={s}
-                          onClick={() => handleSetStatus(s)}
+                          onClick={() => handleSetStatus(s as 'draft' | 'active' | 'hidden')}
                           disabled={updateInfoM.isPending}
-                          className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-colors ${
+                          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors disabled:opacity-60 ${
                             currentGallery?.status === s
-                              ? s === 'active' ? 'border-green-400 bg-green-50 text-green-700'
-                                : s === 'hidden' ? 'border-gray-300 bg-gray-100 text-gray-500'
-                                : 'border-orange-400 bg-orange-50 text-orange-600'
-                              : 'border-gray-200 text-gray-400 bg-white'
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                           }`}
                         >
-                          {STATUS_LABELS[s]}
+                          {label}
                         </button>
                       ))}
                     </div>
-                    {currentGallery?.status === 'active' && (
-                      <a
-                        href={`/gallery/${editGalleryId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 mt-3 text-xs font-semibold text-orange-600"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        查看公開頁面
-                      </a>
-                    )}
                   </div>
-                  <div className="bg-white rounded-2xl p-4">
-                    <p className="text-sm font-bold text-gray-700 mb-3">危險操作</p>
+
+                  {currentGallery?.status === 'active' && (
+                    <div className="bg-white rounded-2xl p-3">
+                      <p className="text-xs font-semibold text-gray-400 mb-2">公開連結</p>
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="text-xs text-blue-600 break-all flex-1 leading-relaxed">
+                          {window.location.origin}/gallery/{editGalleryId}
+                        </p>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/gallery/${editGalleryId}`);
+                            toast.success('已複製連結');
+                          }}
+                          className="text-xs text-gray-500 px-2.5 py-1.5 rounded-lg bg-gray-100 flex-shrink-0"
+                        >
+                          複製
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <Link
+                          href={`/gallery/${editGalleryId}`}
+                          className="flex-1 py-2 rounded-xl text-xs font-semibold text-center text-white flex items-center justify-center gap-1"
+                          style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          圖片集頁面
+                        </Link>
+                        <div className="flex-1">
+                          <GalleryShareMenu
+                            galleryId={editGalleryId!}
+                            title={currentGallery?.title ?? ''}
+                            description={(currentGallery as any)?.description ?? null}
+                            merchantName={null}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="bg-white rounded-2xl p-3">
+                    <p className="text-xs font-semibold text-red-400 mb-2">危險操作</p>
                     <button
                       onClick={handleDeleteGallery}
                       disabled={deleteGalleryM.isPending}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-red-600 border border-red-200 hover:border-red-400 disabled:opacity-50"
+                      className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       <Trash2 className="w-4 h-4" />
-                      刪除整個圖片集
+                      刪除此圖片集
                     </button>
                   </div>
-                </>
+                </div>
               )}
 
             </div>
