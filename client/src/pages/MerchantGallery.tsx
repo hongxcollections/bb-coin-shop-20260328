@@ -479,7 +479,8 @@ export default function MerchantGallery() {
       const cardH   = cellW + buyStripH;
       const rows    = Math.ceil(items.length / cols);
       const gridH   = rows * (cardH + gridGap) - gridGap + gridPB;
-      const totalH  = M + heroH + M + gridH;
+      const footerFontSz = 5; const footerPY = 10; const footerH = footerPY * 2 + footerFontSz;
+      const totalH  = M + heroH + M + gridH + footerH;
 
       // ── Canvas ──
       const canvas = document.createElement('canvas');
@@ -699,6 +700,11 @@ export default function MerchantGallery() {
           ctx.restore();
         }
       });
+
+      const footerY = M + heroH + M + gridH;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#999999'; ctx.font = `${footerFontSz}px sans-serif`;
+      ctx.fillText('- hongxcollections -', CW / 2, footerY + footerPY + footerFontSz / 2);
 
       // ── Download (toDataURL — same as PokeCollection, synchronous & reliable) ──
       const dataUrl = canvas.toDataURL('image/png');
@@ -2870,6 +2876,8 @@ export default function MerchantGallery() {
                 )}
                 </div>{/* /posterRef */}
               </div>
+
+              <div className="py-2 text-center" style={{ background: '#ECECEC', fontSize: '11px', color: '#999' }}>- hongxcollections -</div>
 
               {/* bottom action buttons — safe-area padding for iPhone notch */}
               <div

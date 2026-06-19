@@ -270,7 +270,8 @@ export default function UserGallery({ onClose }: Props) {
       const cardH = cellW;
       const rows = Math.ceil(items.length / cols);
       const gridH = rows * (cardH + gridGap) - gridGap + gridPB;
-      const totalH = M + heroH + M + gridH;
+      const footerFontSz = 5; const footerPY = 10; const footerH = footerPY * 2 + footerFontSz;
+      const totalH = M + heroH + M + gridH + footerH;
 
       const canvas = document.createElement('canvas');
       canvas.width = CW * S; canvas.height = totalH * S;
@@ -435,6 +436,11 @@ export default function UserGallery({ onClose }: Props) {
         ctx.restore();
 
       });
+
+      const footerY = M + heroH + M + gridH;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#999999'; ctx.font = `${footerFontSz}px sans-serif`;
+      ctx.fillText('- hongxcollections -', CW / 2, footerY + footerPY + footerFontSz / 2);
 
       const dataUrl = canvas.toDataURL('image/png');
       const a = document.createElement('a');
@@ -1595,6 +1601,8 @@ export default function UserGallery({ onClose }: Props) {
                   )}
                 </div>
               </div>
+
+              <div className="py-2 text-center" style={{ background: '#ECECEC', fontSize: '11px', color: '#999' }}>- hongxcollections -</div>
 
               <div className="flex gap-3 px-4 pt-3 bg-white border-t border-gray-100" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
                 <button onClick={() => setShowPosterModal(false)} className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">取消</button>
