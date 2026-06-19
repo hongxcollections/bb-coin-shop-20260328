@@ -289,9 +289,10 @@ export default function PublicGallery() {
     { enabled: !isNaN(galleryId) && galleryId > 0, refetchOnWindowFocus: false }
   );
 
-  const data = galleryQ.data as (PublicGalleryData & { ownerIsMerchant?: boolean }) | null | undefined;
+  const data = galleryQ.data as (PublicGalleryData & { ownerIsMerchant?: boolean; isOwner?: boolean }) | null | undefined;
   const gallery = data?.gallery;
   const ownerIsMerchant = data?.ownerIsMerchant ?? false;
+  const isOwner = data?.isOwner ?? false;
   const allItems = (data?.items ?? []) as GalleryItem[];
   const [localSold, setLocalSold] = useState<Set<number>>(new Set());
   const items = allItems.filter(i => i.status !== 'hidden');
@@ -748,7 +749,7 @@ export default function PublicGallery() {
                     {soldCount} 件已售
                   </span>
                 )}
-                {user?.id === gallery?.merchantId && (
+                {isOwner && (
                   <button
                     onClick={() => navigate(`/merchant/galleries?poster=${galleryId}`)}
                     className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold"

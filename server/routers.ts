@@ -12415,7 +12415,7 @@ EXAMPLE OUTPUT (exact format):
 
     getPublic: publicProcedure
       .input(z.object({ id: z.number().int().positive() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
         const { getPublicGalleryWithItems, getRawPool } = await import('./db') as any;
         const data = await getPublicGalleryWithItems(input.id);
         if (!data) return null;
@@ -12424,7 +12424,8 @@ EXAMPLE OUTPUT (exact format):
           "SELECT 1 FROM merchantApplications WHERE userId = ? AND status = 'approved' LIMIT 1",
           [data.gallery.merchantId]
         );
-        return { ...data, ownerIsMerchant: maRows.length > 0 };
+        const isOwner = ctx.user != null && Number(ctx.user.id) === Number(data.gallery.merchantId);
+        return { ...data, ownerIsMerchant: maRows.length > 0, isOwner };
       }),
 
     listPublicByMerchant: publicProcedure
