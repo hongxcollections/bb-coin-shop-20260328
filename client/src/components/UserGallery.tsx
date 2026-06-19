@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import {
   ChevronLeft, ChevronDown, Plus, Loader2, Trash2, X, Upload, Save,
-  Images, Check, ExternalLink,
+  Images, Check, ExternalLink, Download,
 } from "lucide-react";
 import { Link } from "wouter";
 import { GalleryShareMenu } from "@/components/ShareMenu";
@@ -121,6 +121,11 @@ export default function UserGallery({ onClose }: Props) {
   const lastTapTime = useRef(0);
   const lbSwipeTouchX = useRef(0);
 
+  // Poster modal
+  const [showPosterModal, setShowPosterModal] = useState(false);
+  const [savingPoster, setSavingPoster] = useState(false);
+  const posterRef = useRef<HTMLDivElement>(null);
+
   // Batch edit panel
   const [showBatchPanel, setShowBatchPanel] = useState(false);
   const [batchName, setBatchName] = useState('');
@@ -219,6 +224,253 @@ export default function UserGallery({ onClose }: Props) {
     const n = Number(raw);
     if (!raw || n === 0) return '';
     return String(raw);
+  }
+
+  async function handleSavePoster() {
+    setSavingPoster(true);
+    try {
+      const items = draftItems.filter(i => i.status !== 'hidden');
+      const cols = editCols;
+      const activeCount = items.filter(i => i.status === 'active').length;
+      const soldCount   = items.filter(i => i.status === 'sold').length;
+      const title       = currentGallery?.title ?? '';
+      const merchantName = (currentGallery as any)?.merchantName ?? '';
+      const description  = (currentGallery as any)?.description ?? '';
+
+      const S = 2; let CW = 375;
+      const M = 12; const hPX = 16; const hPT = 16; const hPB = 16; const hR = 16;
+      const heroX = M; let heroW = CW - M * 2;
+
+      const tmp = document.createElement('canvas');
+      tmp.width = heroW * S; tmp.height = 4;
+      const tc = tmp.getContext('2d')!;
+      let descLines = 0;
+      if (description) {
+        tc.font = `${11 * S}px sans-serif`;
+        const maxDescW = (heroW - hPX * 2) * S;
+        let line = '';
+        for (const ch of description) {
+          const t = line + ch;
+          if (tc.measureText(t).width > maxDescW && line) { descLines++; line = ch; } else line = t;
+        }
+        if (line) descLines++;
+      }
+
+      const nameLineH = 16; const titleLineH = 24; const descLineH = 18; const badgeRowH = 18;
+      const heroContentH = nameLineH + 8 + titleLineH + 6 + (descLines > 0 ? descLines * descLineH + 10 : 0) + badgeRowH;
+      const heroH = hPT + heroContentH + hPB;
+
+      const gridPX = 12; const gridPB = 12;
+      const gridGap = cols >= 8 ? 2 : 5;
+      const BASE_CW = 375; const BASE_INNER = BASE_CW - M * 2 - gridPX * 2;
+      const cellW = Math.floor((BASE_INNER - gridGap * (3 - 1)) / 3);
+      const totalGridW = cols * cellW + (cols - 1) * gridGap + gridPX * 2;
+      CW = Math.max(BASE_CW, M * 2 + totalGridW);
+      heroW = CW - M * 2;
+      const buyFontSz = 11; const buyStripH = 12 + buyFontSz;
+      const cardH = cellW + buyStripH;
+      const rows = Math.ceil(items.length / cols);
+      const gridH = rows * (cardH + gridGap) - gridGap + gridPB;
+      const totalH = M + heroH + M + gridH;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = CW * S; canvas.height = totalH * S;
+      const ctx = canvas.getContext('2d')!;
+      ctx.scale(S, S);
+
+      const rrect = (x: number, y: number, w: number, h: number, r: number) => {
+        const rv = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + rv, y); ctx.lineTo(x + w - rv, y);
+        ctx.arcTo(x + w, y, x + w, y + rv, rv);
+        ctx.lineTo(x + w, y + h - rv);
+        ctx.arcTo(x + w, y + h, x + w - rv, y + h, rv);
+        ctx.lineTo(x + rv, y + h);
+        ctx.arcTo(x, y + h, x, y + h - rv, rv);
+        ctx.lineTo(x, y + rv);
+        ctx.arcTo(x, y, x + rv, y, rv);
+        ctx.closePath();
+      };
+
+      ctx.fillStyle = '#ECECEC'; ctx.fillRect(0, 0, CW, totalH);
+
+      const heroY = M;
+      ctx.save();
+      rrect(heroX, heroY, heroW, heroH, hR); ctx.clip();
+      const hGrad = ctx.createLinearGradient(heroX, heroY, heroX + heroW * 0.6, heroY + heroH * 0.85);
+      hGrad.addColorStop(0, '#0D1B2A'); hGrad.addColorStop(0.4, '#1B263B'); hGrad.addColorStop(1, '#1F3A5F');
+      ctx.fillStyle = hGrad; ctx.fillRect(heroX, heroY, heroW, heroH);
+      ctx.fillStyle = 'rgba(255,179,71,0.1)';
+      ctx.beginPath(); ctx.arc(heroX + heroW - 32, heroY + 32, 56, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(74,144,217,0.1)';
+      ctx.beginPath(); ctx.arc(heroX + 32, heroY + heroH - 16, 48, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+
+      const cX = heroX + hPX; const cMaxW = heroW - hPX * 2;
+      let cY = heroY + hPT;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillStyle = '#FFB347'; ctx.font = 'bold 11px sans-serif';
+      ctx.fillText(merchantName, cX, cY); cY += nameLineH + 8;
+      ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 17px sans-serif';
+      ctx.fillText(title, cX, cY); cY += titleLineH + 6;
+      if (description) {
+        ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '11px sans-serif';
+        let line = '';
+        for (const ch of description) {
+          const t = line + ch;
+          if (ctx.measureText(t).width > cMaxW && line) { ctx.fillText(line, cX, cY); cY += descLineH; line = ch; } else line = t;
+        }
+        if (line) { ctx.fillText(line, cX, cY); cY += descLineH; }
+        cY += 10;
+      }
+      let bX = cX;
+      const bPX = 10; const bPY = 4; const bFSz = 10;
+      const bH2 = bFSz + bPY * 2; const bR2 = bH2 / 2;
+      ctx.font = `bold ${bFSz}px sans-serif`; ctx.textBaseline = 'middle';
+      if (activeCount > 0) {
+        const tW = ctx.measureText(`${activeCount} 件在售`).width;
+        const bW = bPX * 2 + 10 + tW;
+        ctx.fillStyle = 'rgba(34,197,94,0.2)'; rrect(bX, cY, bW, bH2, bR2); ctx.fill();
+        ctx.strokeStyle = 'rgba(34,197,94,0.25)'; ctx.lineWidth = 1; rrect(bX, cY, bW, bH2, bR2); ctx.stroke();
+        ctx.fillStyle = '#4ADE80';
+        ctx.beginPath(); ctx.arc(bX + bPX + 3, cY + bH2 / 2, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillText(`${activeCount} 件在售`, bX + bPX + 10, cY + bH2 / 2); bX += bW + 8;
+      }
+      if (soldCount > 0) {
+        const tW = ctx.measureText(`${soldCount} 件已售`).width;
+        const bW = bPX * 2 + tW;
+        ctx.fillStyle = 'rgba(239,68,68,0.18)'; rrect(bX, cY, bW, bH2, bR2); ctx.fill();
+        ctx.strokeStyle = 'rgba(239,68,68,0.2)'; ctx.lineWidth = 1; rrect(bX, cY, bW, bH2, bR2); ctx.stroke();
+        ctx.fillStyle = '#FCA5A5'; ctx.fillText(`${soldCount} 件已售`, bX + bPX, cY + bH2 / 2);
+      }
+
+      const loadedImgs = await Promise.all(items.map(async (item) => {
+        try {
+          const resp = await fetch(item.imageUrl);
+          const blob = await resp.blob();
+          const burl = URL.createObjectURL(blob);
+          return await new Promise<HTMLImageElement | null>((resolve) => {
+            const img = new Image();
+            img.onload = () => { URL.revokeObjectURL(burl); resolve(img); };
+            img.onerror = () => { URL.revokeObjectURL(burl); resolve(null); };
+            img.src = burl;
+          });
+        } catch { return null; }
+      }));
+
+      const gridTop = M + heroH + M; const gridLeft = heroX + gridPX;
+      const cardR = 10; const rs = 46;
+      const numFSz = 8; const nameFSz = 10; const priceFSz = 10;
+
+      items.forEach((item, idx) => {
+        const col = idx % cols; const row = Math.floor(idx / cols);
+        const cx = gridLeft + col * (cellW + gridGap);
+        const cy = gridTop + row * (cardH + gridGap);
+        const isSold = item.status === 'sold';
+        const price = parseFloat(item.price);
+        const img = loadedImgs[idx];
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.10)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 1;
+        ctx.fillStyle = '#fff'; rrect(cx, cy, cellW, cardH, cardR); ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.beginPath();
+        const rv2 = Math.min(cardR, cellW / 2);
+        ctx.moveTo(cx + rv2, cy); ctx.lineTo(cx + cellW - rv2, cy);
+        ctx.arcTo(cx + cellW, cy, cx + cellW, cy + rv2, rv2);
+        ctx.lineTo(cx + cellW, cy + cellW); ctx.lineTo(cx, cy + cellW);
+        ctx.lineTo(cx, cy + rv2); ctx.arcTo(cx, cy, cx + rv2, cy, rv2);
+        ctx.closePath(); ctx.clip();
+
+        if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+          try {
+            if (isSold) ctx.filter = 'grayscale(50%) brightness(0.88)';
+            const nw = img.naturalWidth, nh = img.naturalHeight;
+            let sx = 0, sy = 0, sw = nw, sh = nh;
+            if (nw / nh > 1) { sw = nh; sx = (nw - sw) / 2; } else { sh = nw; sy = (nh - sh) / 2; }
+            ctx.drawImage(img, sx, sy, sw, sh, cx, cy, cellW, cellW);
+            ctx.filter = 'none';
+          } catch { ctx.filter = 'none'; ctx.fillStyle = '#f3f4f6'; ctx.fillRect(cx, cy, cellW, cellW); }
+        } else {
+          ctx.fillStyle = '#f3f4f6'; ctx.fillRect(cx, cy, cellW, cellW);
+        }
+
+        if (item.itemNumber || item.itemName || price > 0) {
+          const ovH = Math.round(cellW * 0.55);
+          const ovG = ctx.createLinearGradient(0, cy + cellW - ovH, 0, cy + cellW);
+          ovG.addColorStop(0, 'transparent'); ovG.addColorStop(0.4, 'rgba(0,0,0,0.25)'); ovG.addColorStop(1, 'rgba(0,0,0,0.68)');
+          ctx.fillStyle = ovG; ctx.fillRect(cx, cy + cellW - ovH, cellW, ovH);
+          let ty = cy + cellW - 5;
+          ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+          if (price > 0) {
+            ctx.fillStyle = '#FFD580'; ctx.font = `bold ${priceFSz}px sans-serif`;
+            ctx.fillText(`HK$${price.toLocaleString('en-HK')}`, cx + 6, ty); ty -= priceFSz + 2;
+          }
+          if (item.itemName) {
+            ctx.fillStyle = '#fff'; ctx.font = `600 ${nameFSz}px sans-serif`;
+            let nm = item.itemName;
+            while (nm.length > 1 && ctx.measureText(nm).width > cellW - 12) nm = nm.slice(0, -1);
+            if (nm !== item.itemName) nm += '…';
+            ctx.fillText(nm, cx + 6, ty); ty -= nameFSz + 2;
+          }
+          if (item.itemNumber) {
+            ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = `${numFSz}px monospace`;
+            ctx.fillText(`#${item.itemNumber}`, cx + 6, ty);
+          }
+        }
+
+        if (isSold) {
+          ctx.beginPath();
+          ctx.moveTo(cx + cellW - rs, cy); ctx.lineTo(cx + cellW, cy); ctx.lineTo(cx + cellW, cy + rs);
+          ctx.closePath(); ctx.fillStyle = '#DC2626'; ctx.fill();
+          ctx.save();
+          ctx.translate(cx + cellW - rs * 0.38, cy + rs * 0.38);
+          ctx.rotate(Math.PI / 4);
+          ctx.fillStyle = '#fff'; ctx.font = 'bold 7px sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('已售', 0, 0);
+          ctx.restore();
+        }
+        ctx.restore();
+
+        const stripY = cy + cellW;
+        const rv3 = Math.min(cardR, cellW / 2);
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(cx, stripY); ctx.lineTo(cx + cellW, stripY);
+        ctx.lineTo(cx + cellW, stripY + buyStripH - rv3);
+        ctx.arcTo(cx + cellW, stripY + buyStripH, cx + cellW - rv3, stripY + buyStripH, rv3);
+        ctx.lineTo(cx + rv3, stripY + buyStripH);
+        ctx.arcTo(cx, stripY + buyStripH, cx, stripY + buyStripH - rv3, rv3);
+        ctx.lineTo(cx, stripY); ctx.closePath(); ctx.clip();
+        if (isSold) {
+          ctx.fillStyle = '#F3F4F6'; ctx.fillRect(cx, stripY, cellW, buyStripH);
+          ctx.fillStyle = '#9CA3AF';
+        } else {
+          const bg = ctx.createLinearGradient(0, stripY, 0, stripY + buyStripH);
+          bg.addColorStop(0, '#FBBF24'); bg.addColorStop(1, '#78350F');
+          ctx.fillStyle = bg; ctx.fillRect(cx, stripY, cellW, buyStripH);
+          ctx.fillStyle = '#fff';
+        }
+        ctx.font = `${isSold ? '' : 'bold '}${buyFontSz}px sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(isSold ? '已售出 · 聯繫商戶' : '購買', cx + cellW / 2, stripY + buyStripH / 2);
+        ctx.restore();
+      });
+
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.download = `gallery-${editGalleryId}.png`;
+      a.href = dataUrl; a.click();
+      toast.success('圖片已儲存');
+      setSavingPoster(false);
+    } catch (err) {
+      console.error('[poster] error:', err);
+      toast.error('生成圖片失敗，請重試');
+      setSavingPoster(false);
+    }
   }
 
   // Sync items on load
@@ -1249,16 +1501,37 @@ export default function UserGallery({ onClose }: Props) {
                           複製
                         </button>
                       </div>
-                      <Link
-                        href={`/gallery/${editGalleryId}`}
-                        className="w-full py-2 rounded-xl text-xs font-semibold text-center text-white flex items-center justify-center gap-1"
-                        style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                        圖片集頁面
-                      </Link>
+                      <div className="flex gap-2">
+                        <Link
+                          href={`/gallery/${editGalleryId}`}
+                          className="flex-1 py-2 rounded-xl text-xs font-semibold text-center text-white flex items-center justify-center gap-1"
+                          style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          圖片集頁面
+                        </Link>
+                        <div className="flex-1">
+                          <GalleryShareMenu
+                            galleryId={editGalleryId!}
+                            title={currentGallery?.title ?? ''}
+                            description={(currentGallery as any)?.description ?? null}
+                            merchantName={(currentGallery as any)?.merchantName ?? null}
+                          />
+                        </div>
+                      </div>
                     </div>
                   )}
+
+                  <div className="bg-white rounded-2xl p-3">
+                    <button
+                      onClick={() => setShowPosterModal(true)}
+                      className="w-full py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
+                      style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
+                    >
+                      <Images className="w-4 h-4" />
+                      生成圖片集
+                    </button>
+                  </div>
 
                   <div className="bg-white rounded-2xl p-3">
                     <p className="text-xs font-semibold text-red-400 mb-2">危險操作</p>
@@ -1278,6 +1551,97 @@ export default function UserGallery({ onClose }: Props) {
           )}
         </div>
       )}
+
+      {/* Gallery Poster Modal */}
+      {showPosterModal && (() => {
+        const posterItems = draftItems.filter(i => i.status !== 'hidden');
+        const posterCols = editCols;
+        const activeCount = posterItems.filter(i => i.status === 'active').length;
+        const soldCount = posterItems.filter(i => i.status === 'sold').length;
+        return (
+          <div className="fixed inset-0 z-[300] bg-black/70 flex flex-col" style={{ paddingLeft: 3, paddingRight: 3, paddingTop: 3, paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}>
+            <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#ECECEC', borderRadius: 16 }}>
+              <div className="flex-1 min-h-0 overflow-y-auto pb-4">
+                <div ref={posterRef}>
+                  <div className="mx-3 mt-3 mb-3 rounded-2xl overflow-hidden shadow-lg" style={{ background: 'linear-gradient(145deg, #0D1B2A 0%, #1B263B 40%, #1F3A5F 100%)' }}>
+                    <div className="relative px-4 pt-4 pb-4 overflow-hidden">
+                      <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-10" style={{ background: '#FFB347' }} />
+                      <div className="absolute -bottom-8 -left-4 w-24 h-24 rounded-full opacity-10" style={{ background: '#4A90D9' }} />
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <span className="text-[11px] font-semibold" style={{ color: '#FFB347' }}>{(currentGallery as any)?.merchantName}</span>
+                      </div>
+                      <h1 className="text-[17px] font-bold leading-snug mb-1.5 relative z-10" style={{ color: '#FFFFFF' }}>{currentGallery?.title}</h1>
+                      {(currentGallery as any)?.description && (
+                        <p className="text-[11px] leading-relaxed mb-2.5 relative z-10 whitespace-pre-line" style={{ color: 'rgba(255,255,255,0.55)' }}>{(currentGallery as any).description}</p>
+                      )}
+                      <div className="flex items-center gap-2 flex-wrap relative z-10">
+                        {activeCount > 0 && (
+                          <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{ background: 'rgba(34,197,94,0.2)', color: '#4ADE80', border: '1px solid rgba(34,197,94,0.25)' }}>
+                            <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#4ADE80' }} />
+                            {activeCount} 件在售
+                          </span>
+                        )}
+                        {soldCount > 0 && (
+                          <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{ background: 'rgba(239,68,68,0.18)', color: '#FCA5A5', border: '1px solid rgba(239,68,68,0.2)' }}>
+                            {soldCount} 件已售
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {posterItems.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-8">未有商品可顯示</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${posterCols}, calc((100vw - 24px) / 3))`, gap: `${posterCols >= 8 ? 2 : 5}px`, paddingLeft: 12, paddingRight: 12, paddingBottom: 12, width: 'max-content', minWidth: '100%', boxSizing: 'border-box' }}>
+                        {posterItems.map(item => {
+                          const price = parseFloat(item.price);
+                          const isSold = item.status === 'sold';
+                          const ribbonSize = 46;
+                          return (
+                            <div key={item.id} className="overflow-hidden" style={{ borderRadius: '10px', background: '#fff', boxShadow: '0 1px 6px rgba(0,0,0,0.10)' }}>
+                              <div className="relative w-full" style={{ aspectRatio: '1/1' }}>
+                                <img src={item.imageUrl} alt={item.itemName || '商品'} className="w-full h-full object-cover" style={{ filter: isSold ? 'grayscale(50%) brightness(0.88)' : 'none' }} />
+                                {(item.itemNumber || item.itemName || price > 0) && (
+                                  <div className="absolute bottom-0 left-0 right-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.25) 60%, transparent 100%)', padding: '18px 6px 5px 6px' }}>
+                                    {item.itemNumber && <p className="font-mono leading-none mb-0.5" style={{ fontSize: '8px', color: 'rgba(255,255,255,0.7)' }}>#{item.itemNumber}</p>}
+                                    {item.itemName && <p className="font-semibold text-white leading-tight truncate" style={{ fontSize: '10px', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>{item.itemName}</p>}
+                                    {price > 0 && <p className="font-bold leading-none mt-0.5" style={{ fontSize: '10px', color: '#FFD580' }}>HK${price.toLocaleString('en-HK')}</p>}
+                                  </div>
+                                )}
+                                {isSold && (
+                                  <>
+                                    <div className="absolute" style={{ top: 0, right: 0, width: 0, height: 0, borderStyle: 'solid', borderWidth: `0 ${ribbonSize}px ${ribbonSize}px 0`, borderColor: `transparent #DC2626 transparent transparent` }} />
+                                    <div className="absolute font-bold text-white" style={{ top: '5px', right: '2px', fontSize: '7px', transform: 'rotate(45deg)' }}>已售</div>
+                                  </>
+                                )}
+                              </div>
+                              {isSold ? (
+                                <div className="w-full flex items-center justify-center py-1.5" style={{ background: '#F3F4F6', fontSize: '11px', color: '#9CA3AF', fontWeight: 600 }}>已售出 · 聯繫商戶</div>
+                              ) : (
+                                <div className="w-full flex items-center justify-center py-1.5" style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24', fontSize: '11px', color: '#fff', fontWeight: 700 }}>購買</div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3 px-4 pt-3 bg-white border-t border-gray-100" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+                <button onClick={() => setShowPosterModal(false)} className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">取消</button>
+                <button onClick={handleSavePoster} disabled={savingPoster} className="flex-1 py-3 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60" style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}>
+                  {savingPoster ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  {savingPoster ? '生成中…' : '儲存圖片'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
