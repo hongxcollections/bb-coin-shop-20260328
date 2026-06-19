@@ -984,6 +984,7 @@ export function ShareMenu({ auctionId, title, latestBid, currency, endTime, shar
 
 interface GalleryItemShareMenuProps {
   galleryId: number;
+  itemId: number;
   itemName: string;
   itemNumber?: string | null;
   price: string;
@@ -992,21 +993,21 @@ interface GalleryItemShareMenuProps {
   variant?: "default" | "light";
 }
 
-export function GalleryItemShareMenu({ galleryId, itemName, itemNumber, price, variant = "default" }: GalleryItemShareMenuProps) {
+export function GalleryItemShareMenu({ galleryId, itemId, itemName, itemNumber, price, variant = "default" }: GalleryItemShareMenuProps) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  const galleryUrl = `${SHARE_ORIGIN}/gallery/${galleryId}`;
+  const galleryUrl = `${SHARE_ORIGIN}/gallery/${galleryId}?item=${itemId}`;
   const priceNum = parseFloat(price);
   const priceStr = priceNum > 0 ? `HK$${priceNum.toLocaleString("en-HK")}` : "面議";
   const shareText = [
-    itemName || "圖集商品",
-    itemNumber ? `編號：${itemNumber}` : null,
+    itemNumber ? `# ${itemNumber}` : (itemName || "圖集商品"),
     priceStr,
+    "@所有人 歡迎登入網站齊來選購！",
     galleryUrl,
-  ].filter(Boolean).join("\n");
+  ].join("\n");
 
   const calcPosition = useCallback(() => {
     if (!btnRef.current) return;

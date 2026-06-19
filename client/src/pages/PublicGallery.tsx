@@ -297,6 +297,21 @@ export default function PublicGallery() {
   const activeCount = items.filter(i => i.status === 'active' && !localSold.has(i.id)).length;
   const soldCount = items.filter(i => i.status === 'sold' || localSold.has(i.id)).length;
 
+  // ── Deep-link: ?item={id} auto-opens lightbox ──
+  const deepLinkHandled = useRef(false);
+  useEffect(() => {
+    if (deepLinkHandled.current || items.length === 0) return;
+    const itemId = parseInt(new URLSearchParams(window.location.search).get('item') ?? '', 10);
+    if (!isNaN(itemId) && itemId > 0) {
+      const target = items.find(i => i.id === itemId);
+      if (target) {
+        deepLinkHandled.current = true;
+        openLightbox(target);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
   // ── Lightbox helpers ──
   function openLightbox(item: GalleryItem) {
     const imgs = item.images ?? [];
@@ -648,6 +663,7 @@ export default function PublicGallery() {
             )}
             <GalleryItemShareMenu
               galleryId={lightboxItem.galleryId}
+              itemId={lightboxItem.id}
               itemName={lightboxItem.itemName}
               itemNumber={lightboxItem.itemNumber}
               price={lightboxItem.price}
