@@ -287,8 +287,9 @@ export default function PublicGallery() {
     { enabled: !isNaN(galleryId) && galleryId > 0, refetchOnWindowFocus: false }
   );
 
-  const data = galleryQ.data as PublicGalleryData | null | undefined;
+  const data = galleryQ.data as (PublicGalleryData & { ownerIsMerchant?: boolean }) | null | undefined;
   const gallery = data?.gallery;
+  const ownerIsMerchant = data?.ownerIsMerchant ?? false;
   const allItems = (data?.items ?? []) as GalleryItem[];
   const [localSold, setLocalSold] = useState<Set<number>>(new Set());
   const items = allItems.filter(i => i.status !== 'hidden');
@@ -649,9 +650,18 @@ export default function PublicGallery() {
             </p>
           )}
           <div className="flex items-center gap-2">
-            {isItemSold && (
+            {isItemSold ? (
               <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: '#DC2626', color: '#fff' }}>已售出</span>
-            )}
+            ) : ownerIsMerchant ? (
+              <button
+                onClick={() => { setLightboxItem(null); setBuyingItem(lightboxItem); }}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold"
+                style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24', color: '#fff' }}
+              >
+                <ShoppingCart className="w-3.5 h-3.5" />
+                購買
+              </button>
+            ) : null}
             <GalleryItemShareMenu
               galleryId={lightboxItem.galleryId}
               itemId={lightboxItem.id}
@@ -834,6 +844,27 @@ export default function PublicGallery() {
                       )}
                     </div>
 
+                    {/* ── Buy button strip ── */}
+                    {ownerIsMerchant && (
+                      isSold ? (
+                        <button
+                          onClick={() => setSoldItem(item)}
+                          className="w-full flex items-center justify-center gap-1 py-1.5"
+                          style={{ background: '#F3F4F6', fontSize: '11px', color: '#9CA3AF', fontWeight: 600 }}
+                        >
+                          <span>已售出 · 聯繫商戶</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setBuyingItem(item)}
+                          className="w-full flex items-center justify-center gap-1 py-1.5"
+                          style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24', fontSize: '11px', color: '#fff', fontWeight: 700 }}
+                        >
+                          <ShoppingCart style={{ width: '11px', height: '11px' }} />
+                          <span>購買</span>
+                        </button>
+                      )
+                    )}
                   </div>
                 );
               })}
