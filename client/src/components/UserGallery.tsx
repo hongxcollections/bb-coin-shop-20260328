@@ -327,13 +327,13 @@ export default function UserGallery({ onClose }: Props) {
       const bH2 = bFSz + bPY * 2; const bR2 = bH2 / 2;
       ctx.font = `bold ${bFSz}px sans-serif`; ctx.textBaseline = 'middle';
       if (activeCount > 0) {
-        const tW = ctx.measureText(`${activeCount} 件在售`).width;
+        const tW = ctx.measureText(`${activeCount} 件展示`).width;
         const bW = bPX * 2 + 10 + tW;
         ctx.fillStyle = 'rgba(34,197,94,0.2)'; rrect(bX, cY, bW, bH2, bR2); ctx.fill();
         ctx.strokeStyle = 'rgba(34,197,94,0.25)'; ctx.lineWidth = 1; rrect(bX, cY, bW, bH2, bR2); ctx.stroke();
         ctx.fillStyle = '#4ADE80';
         ctx.beginPath(); ctx.arc(bX + bPX + 3, cY + bH2 / 2, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.fillText(`${activeCount} 件在售`, bX + bPX + 10, cY + bH2 / 2); bX += bW + 8;
+        ctx.fillText(`${activeCount} 件展示`, bX + bPX + 10, cY + bH2 / 2); bX += bW + 8;
       }
       if (soldCount > 0) {
         const tW = ctx.measureText(`${soldCount} 件已售`).width;
@@ -1548,7 +1548,7 @@ export default function UserGallery({ onClose }: Props) {
                         {activeCount > 0 && (
                           <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{ background: 'rgba(34,197,94,0.2)', color: '#4ADE80', border: '1px solid rgba(34,197,94,0.25)' }}>
                             <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#4ADE80' }} />
-                            {activeCount} 件在售
+                            {activeCount} 件展示
                           </span>
                         )}
                         {soldCount > 0 && (

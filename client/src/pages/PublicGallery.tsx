@@ -736,7 +736,7 @@ export default function PublicGallery() {
                     background: 'rgba(34,197,94,0.2)', color: '#4ADE80', border: '1px solid rgba(34,197,94,0.25)'
                   }}>
                     <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#4ADE80' }} />
-                    {activeCount} 件在售
+                    {activeCount} 件展示
                   </span>
                 )}
                 {soldCount > 0 && (
