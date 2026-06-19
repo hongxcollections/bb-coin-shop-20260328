@@ -267,8 +267,7 @@ export default function UserGallery({ onClose }: Props) {
       const totalGridW = cols * cellW + (cols - 1) * gridGap + gridPX * 2;
       CW = Math.max(BASE_CW, M * 2 + totalGridW);
       heroW = CW - M * 2;
-      const buyFontSz = 11; const buyStripH = 12 + buyFontSz;
-      const cardH = cellW + buyStripH;
+      const cardH = cellW;
       const rows = Math.ceil(items.length / cols);
       const gridH = rows * (cardH + gridGap) - gridGap + gridPB;
       const totalH = M + heroH + M + gridH;
@@ -435,29 +434,6 @@ export default function UserGallery({ onClose }: Props) {
         }
         ctx.restore();
 
-        const stripY = cy + cellW;
-        const rv3 = Math.min(cardR, cellW / 2);
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(cx, stripY); ctx.lineTo(cx + cellW, stripY);
-        ctx.lineTo(cx + cellW, stripY + buyStripH - rv3);
-        ctx.arcTo(cx + cellW, stripY + buyStripH, cx + cellW - rv3, stripY + buyStripH, rv3);
-        ctx.lineTo(cx + rv3, stripY + buyStripH);
-        ctx.arcTo(cx, stripY + buyStripH, cx, stripY + buyStripH - rv3, rv3);
-        ctx.lineTo(cx, stripY); ctx.closePath(); ctx.clip();
-        if (isSold) {
-          ctx.fillStyle = '#F3F4F6'; ctx.fillRect(cx, stripY, cellW, buyStripH);
-          ctx.fillStyle = '#9CA3AF';
-        } else {
-          const bg = ctx.createLinearGradient(0, stripY, 0, stripY + buyStripH);
-          bg.addColorStop(0, '#FBBF24'); bg.addColorStop(1, '#78350F');
-          ctx.fillStyle = bg; ctx.fillRect(cx, stripY, cellW, buyStripH);
-          ctx.fillStyle = '#fff';
-        }
-        ctx.font = `${isSold ? '' : 'bold '}${buyFontSz}px sans-serif`;
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(isSold ? '已售出 · 聯繫商戶' : '購買', cx + cellW / 2, stripY + buyStripH / 2);
-        ctx.restore();
       });
 
       const dataUrl = canvas.toDataURL('image/png');
@@ -745,7 +721,12 @@ export default function UserGallery({ onClose }: Props) {
     return (
       <div className="fixed inset-0 z-50 bg-black/60 flex items-end" onClick={() => setAssignPickerImageId(null)}>
         <div className="w-full bg-white rounded-t-2xl p-4 max-h-[60vh] overflow-y-auto" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }} onClick={e => e.stopPropagation()}>
-          <p className="text-sm font-bold text-gray-800 mb-3">選擇指定商品</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-bold text-gray-800">選擇指定商品</p>
+            <button onClick={() => setAssignPickerImageId(null)} className="p-1 rounded-full hover:bg-gray-100">
+              <X className="w-4 h-4 text-gray-400" />
+            </button>
+          </div>
           <div className="space-y-2">
             {draftItems.map(item => (
               <button
@@ -1606,11 +1587,6 @@ export default function UserGallery({ onClose }: Props) {
                                   </>
                                 )}
                               </div>
-                              {isSold ? (
-                                <div className="w-full flex items-center justify-center py-1.5" style={{ background: '#F3F4F6', fontSize: '11px', color: '#9CA3AF', fontWeight: 600 }}>已售出 · 聯繫商戶</div>
-                              ) : (
-                                <div className="w-full flex items-center justify-center py-1.5" style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24', fontSize: '11px', color: '#fff', fontWeight: 700 }}>購買</div>
-                              )}
                             </div>
                           );
                         })}
