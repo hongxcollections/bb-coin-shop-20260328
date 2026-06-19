@@ -1084,7 +1084,7 @@ export default function MerchantGallery() {
           </div>
 
           {/* Tabs */}
-          <div className="flex bg-white rounded-xl border border-gray-100 p-1 mb-4 gap-0.5">
+          <div className="flex px-4 pb-1 gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             {([['info', '基本設定'], ['items', '圖片商品'], ['orders', '訂單'], ['publish', '發佈']] as [EditTab, string][]).map(([tab, label]) => {
               const hasPendingOrders = tab === 'orders' && (ordersQ.data ?? []).some(o => o.status === 'pending');
               const itemBadge = tab === 'items' && draftItems.length > 0 ? draftItems.length : null;
@@ -1092,25 +1092,23 @@ export default function MerchantGallery() {
                 <button
                   key={tab}
                   onClick={() => setEditTab(tab)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors relative ${
-                    editTab === tab ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                    editTab === tab ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 bg-white'
                   }`}
                 >
-                  <span className="inline-flex items-center gap-0.5 justify-center">
-                    {label}
-                    {itemBadge !== null && (
-                      <span
-                        className="text-xs font-bold"
-                        style={{ color: editTab === tab ? 'rgba(255,255,255,0.85)' : '#FF8C00' }}
-                      >({itemBadge})</span>
-                    )}
-                    {hasPendingOrders && (
-                      <span
-                        className="w-2 h-2 rounded-full animate-pulse flex-shrink-0"
-                        style={{ background: '#EF4444' }}
-                      />
-                    )}
-                  </span>
+                  {label}
+                  {itemBadge !== null && (
+                    <span
+                      className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
+                      style={{ color: editTab === tab ? 'rgba(255,255,255,0.85)' : '#FF8C00', background: editTab === tab ? 'rgba(255,255,255,0.2)' : 'rgba(255,140,0,0.12)' }}
+                    >{itemBadge}</span>
+                  )}
+                  {hasPendingOrders && (
+                    <span
+                      className="w-2 h-2 rounded-full animate-pulse flex-shrink-0"
+                      style={{ background: editTab === tab ? '#fff' : '#EF4444' }}
+                    />
+                  )}
                 </button>
               );
             })}
