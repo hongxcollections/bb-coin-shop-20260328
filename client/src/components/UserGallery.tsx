@@ -149,7 +149,8 @@ export default function UserGallery({ onClose }: Props) {
   const [copyPickerOpen, setCopyPickerOpen] = useState(false);
   const [copyTargetIds, setCopyTargetIds] = useState<Set<number>>(new Set());
 
-  // Delete confirm (name input required)
+  // Delete gallery — step 1 warning, step 2 name confirmation
+  const [deleteWarningOpen, setDeleteWarningOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
 
@@ -532,17 +533,9 @@ export default function UserGallery({ onClose }: Props) {
     });
   }
 
-  async function handleDeleteGallery() {
+  function handleDeleteGallery() {
     if (!editGalleryId) return;
-    const ok = await confirm({
-      title: '刪除圖片集',
-      description: '確定刪除整個圖片集及所有圖片？此動作不可還原。',
-      confirmText: '下一步',
-      cancelText: '取消',
-    });
-    if (!ok) return;
-    setDeleteConfirmName('');
-    setDeleteConfirmOpen(true);
+    setDeleteWarningOpen(true);
   }
 
   async function processFiles(allFiles: File[]) {
@@ -1696,6 +1689,33 @@ export default function UserGallery({ onClose }: Props) {
 
             </div>
           )}
+        </div>
+      )}
+
+      {/* Delete gallery — step 1 warning bottom sheet */}
+      {deleteWarningOpen && (
+        <div className="fixed inset-0 z-[250] bg-black/70 flex items-end" onClick={() => setDeleteWarningOpen(false)}>
+          <div className="bg-white w-full rounded-t-2xl px-4 pt-4" style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-red-600 text-sm">刪除圖片集</h3>
+              <button onClick={() => setDeleteWarningOpen(false)}><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">確定刪除整個圖片集及所有圖片？此動作不可還原。</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteWarningOpen(false)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100"
+              >取消</button>
+              <button
+                onClick={() => {
+                  setDeleteWarningOpen(false);
+                  setDeleteConfirmName('');
+                  setDeleteConfirmOpen(true);
+                }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500"
+              >下一步</button>
+            </div>
+          </div>
         </div>
       )}
 
