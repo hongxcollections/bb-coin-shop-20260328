@@ -12424,13 +12424,48 @@ EXAMPLE OUTPUT (exact format):
         itemIds: z.array(z.number().int().positive()).min(1).max(200),
       }))
       .mutation(async ({ input, ctx }) => {
-        const { getProductGallery, assignGalleryImage } = await import('./db') as any;
+        const { getProductGallery, assignGalleryImage, getRawPool } = await import('./db') as any;
         const gallery = await getProductGallery(input.galleryId);
         if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        const pool = await getRawPool();
+
+        // Fetch original image rows first (while they are still in pool, itemId IS NULL)
+        const placeholders = input.imageIds.map(() => '?').join(',');
+        const [imgRows]: any = await pool.execute(
+          `SELECT * FROM productGalleryImages WHERE id IN (${placeholders}) AND merchantId = ?`,
+          [...input.imageIds, ctx.user.id]
+        );
+        const imgMap: Record<number, any> = {};
+        for (const row of imgRows) imgMap[row.id] = row;
+
         let assigned = 0;
-        for (const itemId of input.itemIds) {
+        for (let i = 0; i < input.itemIds.length; i++) {
+          const itemId = input.itemIds[i];
+          const [maxRow]: any = await pool.execute(
+            'SELECT COALESCE(MAX(sortOrder), -1) as maxOrder FROM productGalleryImages WHERE itemId = ?',
+            [itemId]
+          );
+          let sortCursor = (maxRow[0]?.maxOrder ?? -1) + 1;
+
           for (const imageId of input.imageIds) {
-            await assignGalleryImage(imageId, itemId, ctx.user.id);
+            const img = imgMap[imageId];
+            if (!img) continue;
+            if (i === 0) {
+              // First item: move original record
+              await assignGalleryImage(imageId, itemId, ctx.user.id);
+            } else {
+              // Subsequent items: INSERT a copy
+              await pool.execute(
+                'INSERT INTO productGalleryImages (galleryId, merchantId, itemId, imageUrl, s3Key, sortOrder) VALUES (?, ?, ?, ?, ?, ?)',
+                [img.galleryId, ctx.user.id, itemId, img.imageUrl, img.s3Key ?? null, sortCursor]
+              );
+              // Set item cover if empty
+              const [itemRow]: any = await pool.execute('SELECT imageUrl FROM productGalleryItems WHERE id = ?', [itemId]);
+              if (itemRow[0] && (!itemRow[0].imageUrl || itemRow[0].imageUrl === '')) {
+                await pool.execute('UPDATE productGalleryItems SET imageUrl = ? WHERE id = ?', [img.imageUrl, itemId]);
+              }
+            }
+            sortCursor++;
             assigned++;
           }
         }
