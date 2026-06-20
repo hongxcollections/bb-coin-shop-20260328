@@ -177,6 +177,10 @@ export default function MerchantGallery() {
   const [poolSelectedIds, setPoolSelectedIds] = useState<Set<number>>(new Set());
   const [poolAssignPickerOpen, setPoolAssignPickerOpen] = useState(false);
 
+  // Distribute pool images → multi-select items picker
+  const [distributeItemPickerOpen, setDistributeItemPickerOpen] = useState(false);
+  const [distributeSelectedItemIds, setDistributeSelectedItemIds] = useState<Set<number>>(new Set());
+
   // Pool item edit full-screen page (opened after picking target item)
   const [poolItemEditOpen, setPoolItemEditOpen] = useState(false);
   const [poolItemEditItem, setPoolItemEditItem] = useState<GalleryItem | null>(null);
@@ -323,9 +327,20 @@ export default function MerchantGallery() {
   const distributeImagesToItemsM = trpc.productGalleries.distributeImagesToItems.useMutation({
     onSuccess: (data) => {
       const msg = data.skipped > 0
-        ? `已分配 ${data.assigned} 張，${data.skipped} 張因無空缺商品跳過`
-        : `已按序分配 ${data.assigned} 張圖片到各商品`;
+        ? `已分配 ${data.assigned} 張，${data.skipped} 張圖片多於選定商品數量`
+        : `已分配 ${data.assigned} 張圖片到各商品`;
       toast.success(msg);
+      setPoolSelectedIds(new Set());
+      setPoolBatchMode(false);
+      setDistributeItemPickerOpen(false);
+      setDistributeSelectedItemIds(new Set());
+      galleryImagesQ.refetch();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const batchDeleteGalleryImagesM = trpc.productGalleries.batchDeleteGalleryImages.useMutation({
+    onSuccess: (data) => {
+      toast.success(`已刪除 ${data.deleted} 張圖片`);
       setPoolSelectedIds(new Set());
       setPoolBatchMode(false);
       galleryImagesQ.refetch();
@@ -1423,24 +1438,31 @@ export default function MerchantGallery() {
                                   </button>
                                 </div>
                                 {poolSelectedIds.size > 0 && (
-                                  <button
-                                    disabled={distributeImagesToItemsM.isPending || draftItems.length === 0}
-                                    onClick={() => {
-                                      if (!editGalleryId || poolSelectedIds.size === 0) return;
-                                      distributeImagesToItemsM.mutate({
-                                        galleryId: editGalleryId,
-                                        imageIds: (galleryImagesQ.data ?? [])
-                                          .filter(img => img.itemId === null && poolSelectedIds.has(img.id))
-                                          .map(img => img.id),
-                                      });
-                                    }}
-                                    className="w-full py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40 flex items-center justify-center gap-1"
-                                    style={{ background: 'linear-gradient(135deg,#6366F1,#4F46E5)' }}
-                                  >
-                                    {distributeImagesToItemsM.isPending
-                                      ? <Loader2 className="w-3 h-3 animate-spin" />
-                                      : `按序分配到各商品（${poolSelectedIds.size}張）`}
-                                  </button>
+                                  <div className="flex gap-1.5">
+                                    <button
+                                      disabled={distributeImagesToItemsM.isPending || draftItems.length === 0}
+                                      onClick={() => { setDistributeSelectedItemIds(new Set()); setDistributeItemPickerOpen(true); }}
+                                      className="flex-1 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40 flex items-center justify-center gap-1"
+                                      style={{ background: 'linear-gradient(135deg,#6366F1,#4F46E5)' }}
+                                    >
+                                      選擇商品分配（{poolSelectedIds.size}張）
+                                    </button>
+                                    <button
+                                      disabled={batchDeleteGalleryImagesM.isPending}
+                                      onClick={() => {
+                                        if (!editGalleryId || poolSelectedIds.size === 0) return;
+                                        batchDeleteGalleryImagesM.mutate({
+                                          imageIds: Array.from(poolSelectedIds),
+                                        });
+                                      }}
+                                      className="px-3 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40 flex items-center justify-center"
+                                      style={{ background: 'linear-gradient(135deg,#EF4444,#DC2626)' }}
+                                    >
+                                      {batchDeleteGalleryImagesM.isPending
+                                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                                        : '批量刪除'}
+                                    </button>
+                                  </div>
                                 )}
                               </div>
                             )}
@@ -1954,6 +1976,124 @@ export default function MerchantGallery() {
                       </div>
                     </div>
                   )}
+
+                  {/* Distribute images to items picker modal */}
+                  {distributeItemPickerOpen && (() => {
+                    const poolImgIds = (galleryImagesQ.data ?? [])
+                      .filter(img => img.itemId === null && poolSelectedIds.has(img.id))
+                      .map(img => img.id);
+                    const availableItems = [...draftItems].filter(i => i.status !== 'sold').sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+                    return (
+                      <div
+                        className="fixed inset-0 z-50 bg-black/70 flex items-end"
+                        onClick={() => setDistributeItemPickerOpen(false)}
+                      >
+                        <div
+                          className="bg-white w-full rounded-t-2xl px-4 pt-4"
+                          style={{ maxHeight: '75vh', display: 'flex', flexDirection: 'column', paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-between mb-1 flex-shrink-0">
+                            <h3 className="font-semibold text-gray-900 text-sm">選擇商品分配圖片</h3>
+                            <button onClick={() => setDistributeItemPickerOpen(false)}>
+                              <X className="w-5 h-5 text-gray-400" />
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-400 mb-3 flex-shrink-0">
+                            已選 {poolImgIds.length} 張圖片，按順序分配到選定商品（第1張→第1件，如此類推）
+                          </p>
+                          <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                            <span className="text-xs text-gray-500">
+                              已選 {distributeSelectedItemIds.size} 件商品
+                            </span>
+                            <button
+                              className="text-xs font-semibold text-indigo-500"
+                              onClick={() => {
+                                if (distributeSelectedItemIds.size === availableItems.length) {
+                                  setDistributeSelectedItemIds(new Set());
+                                } else {
+                                  setDistributeSelectedItemIds(new Set(availableItems.map(i => i.id)));
+                                }
+                              }}
+                            >
+                              {distributeSelectedItemIds.size === availableItems.length ? '取消全選' : '全選'}
+                            </button>
+                          </div>
+                          {availableItems.length === 0 ? (
+                            <p className="text-sm text-gray-400 py-6 text-center flex-shrink-0">請先建立商品</p>
+                          ) : (
+                            <>
+                              <div className="overflow-y-auto flex-1 space-y-1.5 pr-0.5">
+                                {availableItems.map((item, idx) => {
+                                  const selected = distributeSelectedItemIds.has(item.id);
+                                  const selectedArr = availableItems.filter(i => distributeSelectedItemIds.has(i.id));
+                                  const assignIdx = selectedArr.findIndex(i => i.id === item.id);
+                                  const iImgs = (galleryImagesQ.data ?? []).filter((img: GalleryImageRow) => img.itemId === item.id);
+                                  return (
+                                    <button
+                                      key={item.id}
+                                      onClick={() => setDistributeSelectedItemIds(prev => {
+                                        const next = new Set(prev);
+                                        next.has(item.id) ? next.delete(item.id) : next.add(item.id);
+                                        return next;
+                                      })}
+                                      className="w-full flex items-center gap-3 p-2 rounded-xl text-left"
+                                      style={{ background: selected ? '#EEF2FF' : '#F8F8F8', border: `1.5px solid ${selected ? '#6366F1' : 'transparent'}` }}
+                                    >
+                                      {iImgs[0] ? (
+                                        <img src={iImgs[0].imageUrl} className="w-10 h-10 object-cover rounded-lg flex-shrink-0" alt="" />
+                                      ) : (
+                                        <div className="w-10 h-10 bg-gray-100 rounded-lg flex-shrink-0 flex items-center justify-center">
+                                          <FileImage className="w-5 h-5 text-gray-300" />
+                                        </div>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-semibold text-gray-800 truncate">
+                                          {item.itemNumber ? `${item.itemNumber}. ` : ''}{item.itemName || `商品 #${item.id}`}
+                                        </p>
+                                        <p className="text-xs text-gray-400">
+                                          {iImgs.length > 0 ? `已有 ${iImgs.length} 張` : '暫無圖片'}
+                                          {selected && assignIdx !== -1 && assignIdx < poolImgIds.length && (
+                                            <span className="text-indigo-500 font-semibold ml-1">← 第 {assignIdx + 1} 張</span>
+                                          )}
+                                        </p>
+                                      </div>
+                                      <div
+                                        className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center"
+                                        style={{ borderColor: selected ? '#6366F1' : '#D1D5DB', background: selected ? '#6366F1' : 'white' }}
+                                      >
+                                        {selected && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <button
+                                disabled={distributeSelectedItemIds.size === 0 || distributeImagesToItemsM.isPending || !editGalleryId}
+                                onClick={() => {
+                                  if (!editGalleryId) return;
+                                  const orderedItemIds = availableItems
+                                    .filter(i => distributeSelectedItemIds.has(i.id))
+                                    .map(i => i.id);
+                                  distributeImagesToItemsM.mutate({
+                                    galleryId: editGalleryId,
+                                    imageIds: poolImgIds,
+                                    itemIds: orderedItemIds,
+                                  });
+                                }}
+                                className="mt-3 w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 flex-shrink-0 flex items-center justify-center gap-2"
+                                style={{ background: 'linear-gradient(135deg,#6366F1,#4F46E5)' }}
+                              >
+                                {distributeImagesToItemsM.isPending
+                                  ? <><Loader2 className="w-4 h-4 animate-spin" />分配中...</>
+                                  : `分配 ${Math.min(poolImgIds.length, distributeSelectedItemIds.size)} 張到 ${distributeSelectedItemIds.size} 件商品`}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Pool item edit bottom sheet */}
                   {poolItemEditOpen && poolItemEditItem && (() => {

@@ -12421,27 +12421,32 @@ EXAMPLE OUTPUT (exact format):
       .input(z.object({
         galleryId: z.number().int().positive(),
         imageIds: z.array(z.number().int().positive()).min(1).max(200),
+        itemIds: z.array(z.number().int().positive()).min(1).max(200),
       }))
       .mutation(async ({ input, ctx }) => {
-        const { getProductGallery, getRawPool, assignGalleryImage } = await import('./db') as any;
+        const { getProductGallery, assignGalleryImage } = await import('./db') as any;
         const gallery = await getProductGallery(input.galleryId);
         if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
-        const pool = await getRawPool();
-        if (!pool) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
-        const [itemRows]: any = await pool.execute(
-          `SELECT pgi.id FROM productGalleryItems pgi
-           WHERE pgi.galleryId = ? AND pgi.merchantId = ?
-             AND (SELECT COUNT(*) FROM productGalleryImages WHERE itemId = pgi.id) = 0
-           ORDER BY pgi.sortOrder ASC, pgi.id ASC`,
-          [input.galleryId, ctx.user.id]
-        );
-        const items: { id: number }[] = itemRows;
         let assigned = 0;
-        for (let i = 0; i < Math.min(input.imageIds.length, items.length); i++) {
-          await assignGalleryImage(input.imageIds[i], items[i].id, ctx.user.id);
+        for (let i = 0; i < Math.min(input.imageIds.length, input.itemIds.length); i++) {
+          await assignGalleryImage(input.imageIds[i], input.itemIds[i], ctx.user.id);
           assigned++;
         }
         return { assigned, skipped: input.imageIds.length - assigned };
+      }),
+
+    batchDeleteGalleryImages: protectedProcedure
+      .input(z.object({
+        imageIds: z.array(z.number().int().positive()).min(1).max(200),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { deleteGalleryImage } = await import('./db') as any;
+        let deleted = 0;
+        for (const imageId of input.imageIds) {
+          await deleteGalleryImage(imageId, ctx.user.id);
+          deleted++;
+        }
+        return { deleted };
       }),
 
     deleteGalleryImage: protectedProcedure
