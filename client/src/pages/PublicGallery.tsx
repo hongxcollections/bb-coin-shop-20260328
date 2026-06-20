@@ -723,28 +723,17 @@ export default function PublicGallery() {
       ) : (
         <>
           {/* ── Hero Banner ── */}
-          <div className="mx-3 mt-3 mb-3 rounded-2xl overflow-hidden shadow-lg" style={{
-            background: 'linear-gradient(145deg, #0D1B2A 0%, #1B263B 40%, #1F3A5F 100%)',
-            position: 'relative',
-          }}>
-            {gallery.coverImageUrl && (
-              <>
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  backgroundImage: `url(${gallery.coverImageUrl})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  filter: 'brightness(0.45) saturate(0.65)',
-                  zIndex: 0,
-                }} />
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  background: 'linear-gradient(to bottom, rgba(8,12,22,0.55) 0%, rgba(8,12,22,0.78) 100%)',
-                  zIndex: 1,
-                }} />
-              </>
-            )}
-            <div className="relative px-4 pt-4 pb-4 overflow-hidden" style={{ zIndex: 2 }}>
+          <div className="mx-3 mt-3 mb-3 rounded-2xl overflow-hidden shadow-lg" style={
+            gallery.coverImageUrl ? {
+              backgroundImage: `linear-gradient(to bottom, rgba(8,12,22,0.62) 0%, rgba(8,12,22,0.84) 100%), url(${gallery.coverImageUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundBlendMode: 'normal',
+            } : {
+              background: 'linear-gradient(145deg, #0D1B2A 0%, #1B263B 40%, #1F3A5F 100%)',
+            }
+          }>
+            <div className="relative px-4 pt-4 pb-4 overflow-hidden">
               {!gallery.coverImageUrl && (
                 <>
                   <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-10" style={{ background: '#FFB347' }} />

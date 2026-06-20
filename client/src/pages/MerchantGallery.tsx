@@ -1334,6 +1334,20 @@ export default function MerchantGallery() {
                     )}
                   </div>
 
+                  {/* Cover image preview */}
+                  {getForEditQ.data?.gallery?.coverImageUrl && (
+                    <div className="bg-white rounded-2xl p-3 mb-3">
+                      <p className="text-xs font-semibold mb-2" style={{ color: '#9CA3AF' }}>目前主題圖片</p>
+                      <img
+                        src={getForEditQ.data.gallery.coverImageUrl}
+                        alt="圖片集主題圖片"
+                        className="w-full rounded-xl object-cover"
+                        style={{ maxHeight: 180, cursor: 'zoom-in' }}
+                        onClick={() => openLightbox(getForEditQ.data!.gallery.coverImageUrl!)}
+                      />
+                    </div>
+                  )}
+
                   {/* Pool section — above batch panel */}
                   {(() => {
                     const poolImages = (galleryImagesQ.data ?? []).filter(img => img.itemId === null);
