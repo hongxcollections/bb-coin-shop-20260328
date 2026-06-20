@@ -313,6 +313,12 @@ export default function PublicGallery() {
   const activeCount = items.filter(i => i.status === 'active' && !localSold.has(i.id)).length;
   const soldCount = items.filter(i => i.status === 'sold' || localSold.has(i.id)).length;
 
+  const heroImageUrl = gallery?.coverImageUrl
+    ?? allItems.find(i => (i.images && i.images.length > 0) ? i.images[0].imageUrl : i.imageUrl)
+        ?.images?.[0]?.imageUrl
+    ?? allItems.find(i => i.imageUrl)?.imageUrl
+    ?? null;
+
   // ── Deep-link: ?item={id} auto-opens lightbox ──
   const deepLinkHandled = useRef(false);
   useEffect(() => {
@@ -724,15 +730,15 @@ export default function PublicGallery() {
         <>
           {/* ── Hero Banner ── */}
           <div className="mx-3 mt-3 mb-3 rounded-2xl overflow-hidden shadow-lg">
-            <div style={gallery.coverImageUrl ? {
-              backgroundImage: `linear-gradient(145deg, rgba(13,27,42,0.82) 0%, rgba(27,38,59,0.78) 40%, rgba(31,58,95,0.74) 100%), url(${gallery.coverImageUrl})`,
+            <div style={heroImageUrl ? {
+              backgroundImage: `linear-gradient(145deg, rgba(13,27,42,0.82) 0%, rgba(27,38,59,0.78) 40%, rgba(31,58,95,0.74) 100%), url(${heroImageUrl})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             } : {
               background: 'linear-gradient(145deg, #0D1B2A 0%, #1B263B 40%, #1F3A5F 100%)',
             }}>
               <div className="relative px-4 pt-4 pb-4 overflow-hidden">
-                {!gallery.coverImageUrl && (
+                {!heroImageUrl && (
                   <>
                     <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-10" style={{ background: '#FFB347' }} />
                     <div className="absolute -bottom-8 -left-4 w-24 h-24 rounded-full opacity-10" style={{ background: '#4A90D9' }} />
