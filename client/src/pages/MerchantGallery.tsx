@@ -224,6 +224,10 @@ export default function MerchantGallery() {
     onError: (e) => toast.error(e.message),
   });
   const signUploadM = trpc.productGalleries.signItemImageUpload.useMutation();
+  const generateCoverM = trpc.productGalleries.generateGalleryCover.useMutation({
+    onSuccess: () => { getForEditQ.refetch(); toast.success('主題圖片已生成並儲存'); },
+    onError: (e) => toast.error(e.message),
+  });
   const addItemsM = trpc.productGalleries.addItems.useMutation();
   const batchUpdateM = trpc.productGalleries.batchUpdateItems.useMutation({
     onSuccess: () => toast.success('已儲存所有變更'),
@@ -1306,6 +1310,16 @@ export default function MerchantGallery() {
                     >
                       <Plus className="w-3.5 h-3.5" />
                       置入團拍商品
+                    </button>
+                    <button
+                      onClick={() => editGalleryId && generateCoverM.mutate({ galleryId: editGalleryId })}
+                      disabled={generateCoverM.isPending}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold disabled:opacity-50"
+                      style={{ background: '#FFF3E0', color: '#E65C00' }}
+                      title="選取每件商品第一張圖，生成圖片集主題圖片"
+                    >
+                      <Images className="w-3.5 h-3.5" />
+                      {generateCoverM.isPending ? '生成中…' : '生成主題圖片'}
                     </button>
                     {draftItems.length > 0 && (
                       <button

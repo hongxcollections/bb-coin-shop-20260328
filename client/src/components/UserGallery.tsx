@@ -182,6 +182,10 @@ export default function UserGallery({ onClose }: Props) {
     onError: (e) => toast.error(e.message),
   });
   const signUploadM = trpc.productGalleries.userSignImageUpload.useMutation();
+  const generateCoverM = trpc.productGalleries.userGenerateGalleryCover.useMutation({
+    onSuccess: () => { getForEditQ.refetch(); toast.success('主題圖片已生成並儲存'); },
+    onError: (e) => toast.error(e.message),
+  });
   const addToPoolM = trpc.productGalleries.userAddToPool.useMutation();
   const batchUpdateM = trpc.productGalleries.userBatchUpdateItems.useMutation({
     onSuccess: () => toast.success('已儲存所有變更'),
@@ -1229,6 +1233,16 @@ export default function UserGallery({ onClose }: Props) {
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-sm font-bold text-gray-700">圖片商品 {draftItems.length > 0 ? `(${draftItems.length})` : ''}</p>
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => editGalleryId && generateCoverM.mutate({ galleryId: editGalleryId })}
+                          disabled={generateCoverM.isPending}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold disabled:opacity-50"
+                          style={{ background: '#FFF3E0', color: '#E65C00' }}
+                          title="選取每件商品第一張圖，生成圖片集主題圖片"
+                        >
+                          <Images className="w-3 h-3" />
+                          {generateCoverM.isPending ? '生成中…' : '生成主題圖片'}
+                        </button>
                         {draftItems.length > 0 && (
                           <button
                             onClick={handleBatchSave}

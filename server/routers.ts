@@ -12207,6 +12207,56 @@ EXAMPLE OUTPUT (exact format):
         return { ok: true };
       }),
 
+    generateGalleryCover: protectedProcedure
+      .input(z.object({ galleryId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, listProductGalleryItems, updateProductGallery } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+        const items = await listProductGalleryItems(input.galleryId);
+        const imageUrls: string[] = (items as any[])
+          .filter((i: any) => i.imageUrl)
+          .map((i: any) => String(i.imageUrl))
+          .slice(0, 9);
+        if (imageUrls.length === 0) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '圖片集暫無商品圖片' });
+        }
+        const sharp = (await import('sharp')).default;
+        const W = 1200, H = 630;
+        const cols = imageUrls.length === 1 ? 1 : imageUrls.length <= 4 ? 2 : 3;
+        const rows = Math.ceil(imageUrls.length / cols);
+        const cellW = Math.floor(W / cols);
+        const cellH = Math.floor(H / rows);
+        const composites: any[] = [];
+        for (let i = 0; i < imageUrls.length; i++) {
+          try {
+            const resp = await fetch(imageUrls[i], { signal: AbortSignal.timeout(10000) });
+            if (!resp.ok) continue;
+            const buf = Buffer.from(await resp.arrayBuffer());
+            const resized = await sharp(buf)
+              .resize(cellW, cellH, { fit: 'cover', position: 'centre' })
+              .jpeg({ quality: 85 })
+              .toBuffer();
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            composites.push({ input: resized, left: col * cellW, top: row * cellH });
+          } catch { /* skip failed images */ }
+        }
+        if (composites.length === 0) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '無法讀取圖片，請重試' });
+        }
+        const finalBuf = await sharp({
+          create: { width: W, height: H, channels: 3, background: { r: 20, g: 20, b: 24 } },
+        }).composite(composites).jpeg({ quality: 90 }).toBuffer();
+        const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const key = `merchant-galleries/${ctx.user.id}/cover-${uid}.jpg`;
+        const { finalUrl } = await storagePut(key, finalBuf, 'image/jpeg');
+        await updateProductGallery(input.galleryId, { coverImageUrl: finalUrl });
+        return { coverImageUrl: finalUrl };
+      }),
+
     deleteGallery: protectedProcedure
       .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
@@ -13109,6 +13159,7 @@ EXAMPLE OUTPUT (exact format):
         description: z.string().max(2000).optional(),
         columnsPerRow: z.number().int().min(1).max(20).optional(),
         status: z.enum(['draft', 'active', 'hidden']).optional(),
+        coverImageUrl: z.string().url().nullable().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const { getProductGallery, updateProductGallery } = await import('./db') as any;
@@ -13119,8 +13170,59 @@ EXAMPLE OUTPUT (exact format):
           description: input.description,
           columnsPerRow: input.columnsPerRow,
           status: input.status,
+          coverImageUrl: input.coverImageUrl,
         });
         return { ok: true };
+      }),
+
+    userGenerateGalleryCover: protectedProcedure
+      .input(z.object({ galleryId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, listProductGalleryItems, updateProductGallery } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) {
+          throw new TRPCError({ code: 'NOT_FOUND' });
+        }
+        const items = await listProductGalleryItems(input.galleryId);
+        const imageUrls: string[] = (items as any[])
+          .filter((i: any) => i.imageUrl)
+          .map((i: any) => String(i.imageUrl))
+          .slice(0, 9);
+        if (imageUrls.length === 0) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: '圖片集暫無商品圖片' });
+        }
+        const sharp = (await import('sharp')).default;
+        const W = 1200, H = 630;
+        const cols = imageUrls.length === 1 ? 1 : imageUrls.length <= 4 ? 2 : 3;
+        const rows = Math.ceil(imageUrls.length / cols);
+        const cellW = Math.floor(W / cols);
+        const cellH = Math.floor(H / rows);
+        const composites: any[] = [];
+        for (let i = 0; i < imageUrls.length; i++) {
+          try {
+            const resp = await fetch(imageUrls[i], { signal: AbortSignal.timeout(10000) });
+            if (!resp.ok) continue;
+            const buf = Buffer.from(await resp.arrayBuffer());
+            const resized = await sharp(buf)
+              .resize(cellW, cellH, { fit: 'cover', position: 'centre' })
+              .jpeg({ quality: 85 })
+              .toBuffer();
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            composites.push({ input: resized, left: col * cellW, top: row * cellH });
+          } catch { /* skip failed images */ }
+        }
+        if (composites.length === 0) {
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: '無法讀取圖片，請重試' });
+        }
+        const finalBuf = await sharp({
+          create: { width: W, height: H, channels: 3, background: { r: 20, g: 20, b: 24 } },
+        }).composite(composites).jpeg({ quality: 90 }).toBuffer();
+        const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const key = `user-galleries/${ctx.user.id}/cover-${uid}.jpg`;
+        const { finalUrl } = await storagePut(key, finalBuf, 'image/jpeg');
+        await updateProductGallery(input.galleryId, { coverImageUrl: finalUrl });
+        return { coverImageUrl: finalUrl };
       }),
 
     userDeleteGallery: protectedProcedure

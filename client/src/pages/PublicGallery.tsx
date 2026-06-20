@@ -725,10 +725,32 @@ export default function PublicGallery() {
           {/* ── Hero Banner ── */}
           <div className="mx-3 mt-3 mb-3 rounded-2xl overflow-hidden shadow-lg" style={{
             background: 'linear-gradient(145deg, #0D1B2A 0%, #1B263B 40%, #1F3A5F 100%)',
+            position: 'relative',
           }}>
-            <div className="relative px-4 pt-4 pb-4 overflow-hidden">
-              <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-10" style={{ background: '#FFB347' }} />
-              <div className="absolute -bottom-8 -left-4 w-24 h-24 rounded-full opacity-10" style={{ background: '#4A90D9' }} />
+            {gallery.coverImageUrl && (
+              <>
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  backgroundImage: `url(${gallery.coverImageUrl})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  filter: 'brightness(0.45) saturate(0.65)',
+                  zIndex: 0,
+                }} />
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: 'linear-gradient(to bottom, rgba(8,12,22,0.55) 0%, rgba(8,12,22,0.78) 100%)',
+                  zIndex: 1,
+                }} />
+              </>
+            )}
+            <div className="relative px-4 pt-4 pb-4 overflow-hidden" style={{ zIndex: 2 }}>
+              {!gallery.coverImageUrl && (
+                <>
+                  <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-10" style={{ background: '#FFB347' }} />
+                  <div className="absolute -bottom-8 -left-4 w-24 h-24 rounded-full opacity-10" style={{ background: '#4A90D9' }} />
+                </>
+              )}
 
               <div className="flex items-center gap-1.5 mb-2">
                 <Store className="w-3 h-3 flex-shrink-0" style={{ color: '#FFB347' }} />

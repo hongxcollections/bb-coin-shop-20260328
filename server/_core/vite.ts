@@ -733,7 +733,7 @@ async function injectGalleryOgMeta(html: string, reqPath: string, reqQuery: Reco
 
     // ── Gallery-level OG (no item param) ──
     const firstImage = items.find(i => i.imageUrl)?.imageUrl ?? null;
-    const ogImageUrl = firstImage ? `${protocol}://${host}/api/og-image-gallery/${galleryId}` : "";
+    const ogImageUrl = (gallery.coverImageUrl || firstImage) ? `${protocol}://${host}/api/og-image-gallery/${galleryId}` : "";
     const imgMime = "image/jpeg";
 
     const rawTitle = (gallery.title ?? '圖片集').replace(/\s+/g, " ").trim();

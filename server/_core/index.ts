@@ -1879,11 +1879,12 @@ Output ONLY the JSON, nothing else.`;
     try {
       const galleryId = parseInt(req.params.galleryId, 10);
       if (isNaN(galleryId) || galleryId <= 0) { res.status(400).send('Invalid gallery ID'); return; }
-      const { listProductGalleryItems } = await import('../db');
-      const items = await listProductGalleryItems(galleryId);
-      const firstImage = items.find((i: any) => i.imageUrl)?.imageUrl;
-      if (!firstImage) { res.status(404).send('No image'); return; }
-      const result = await fetchAllowlistedImage(firstImage);
+      const { getProductGallery, listProductGalleryItems } = await import('../db');
+      const gallery = await getProductGallery(galleryId);
+      const imageUrl: string | undefined = gallery?.coverImageUrl
+        ?? (await listProductGalleryItems(galleryId)).find((i: any) => i.imageUrl)?.imageUrl;
+      if (!imageUrl) { res.status(404).send('No image'); return; }
+      const result = await fetchAllowlistedImage(imageUrl);
       if (!result.ok) { res.status(result.status).send(result.reason); return; }
       const cropped = await cropToOgSize(result.buf);
       sendImageResponse(res, 'image/jpeg', cropped);
