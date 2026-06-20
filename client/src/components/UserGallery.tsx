@@ -778,7 +778,7 @@ export default function UserGallery({ onClose }: Props) {
     const otherGalleries = galleries.filter(g => g.id !== editGalleryId);
     return (
       <div className="fixed inset-0 z-50 bg-black/60 flex items-end" onClick={() => setCopyPickerOpen(false)}>
-        <div className="w-full bg-white rounded-t-2xl p-4 max-h-[70vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="w-full bg-white rounded-t-2xl p-4 max-h-[70vh] overflow-y-auto" style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }} onClick={e => e.stopPropagation()}>
           <p className="text-sm font-bold text-gray-800 mb-1">複製到圖片集</p>
           <p className="text-xs text-gray-400 mb-3">選擇目標圖片集（可多選）</p>
           {otherGalleries.length === 0 ? (
@@ -841,8 +841,8 @@ export default function UserGallery({ onClose }: Props) {
   return (
     <div style={{ background: '#F5F5F5' }} className="rounded-2xl overflow-hidden">
 
-      {/* ── LIST VIEW ── */}
-      {view === 'list' && (
+      {/* ── LIST VIEW ── (also renders as backdrop when create sheet is open) */}
+      {(view === 'list' || view === 'create') && (
         <div className="px-4 py-4">
           <div className="flex items-center gap-2 mb-4">
             <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200">
@@ -922,71 +922,72 @@ export default function UserGallery({ onClose }: Props) {
         </div>
       )}
 
-      {/* ── CREATE VIEW ── */}
+      {/* ── CREATE VIEW — bottom sheet overlay ── */}
       {view === 'create' && (
-        <div className="px-4 py-4">
-          <div className="flex items-center gap-2 mb-4">
-            <button onClick={goList} className="p-1 rounded-full hover:bg-gray-200">
-              <ChevronLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            <h2 className="text-base font-bold text-gray-900">新增圖片集</h2>
-          </div>
-
-          <div className="bg-white rounded-2xl p-5 space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">圖片集名稱 *</label>
-              <input
-                value={createTitle}
-                onChange={e => setCreateTitle(e.target.value)}
-                placeholder="例：2024 銀幣精選"
-                maxLength={200}
-                className="w-full px-3 py-2.5 text-sm outline-none"
-                style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '12px' }}
-              />
+        <div className="fixed inset-0 z-[250] bg-black/60 flex items-end" onClick={goList}>
+          <div
+            className="bg-white w-full rounded-t-2xl px-4 pt-4"
+            style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-gray-900">新增圖片集</h2>
+              <button onClick={goList}><X className="w-5 h-5 text-gray-400" /></button>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">描述（選填）</label>
-              <textarea
-                value={createDesc}
-                onChange={e => setCreateDesc(e.target.value)}
-                placeholder="例：全新未玩，有碼有盒..."
-                maxLength={2000}
-                rows={3}
-                className="w-full px-3 py-2.5 text-sm outline-none resize-none"
-                style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '12px' }}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">公開版面每行顯示</label>
-              <div className="flex gap-1.5 flex-wrap">
-                {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                  <button
-                    key={n}
-                    onClick={() => setCreateCols(n)}
-                    className={`w-8 h-8 rounded-xl text-sm font-bold border transition-colors ${
-                      createCols === n ? 'border-orange-400 bg-orange-50 text-orange-600' : 'border-gray-200 text-gray-500 bg-white'
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">圖片集名稱 *</label>
+                <input
+                  value={createTitle}
+                  onChange={e => setCreateTitle(e.target.value)}
+                  placeholder="例：2024 銀幣精選"
+                  maxLength={200}
+                  className="w-full px-3 py-2.5 text-sm outline-none"
+                  style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '12px' }}
+                />
               </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">描述（選填）</label>
+                <textarea
+                  value={createDesc}
+                  onChange={e => setCreateDesc(e.target.value)}
+                  placeholder="例：全新未玩，有碼有盒..."
+                  maxLength={2000}
+                  rows={3}
+                  className="w-full px-3 py-2.5 text-sm outline-none resize-none"
+                  style={{ background: '#fff', border: '1px solid #E5E5E5', borderRadius: '12px' }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">公開版面每行顯示</label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setCreateCols(n)}
+                      className={`w-8 h-8 rounded-xl text-sm font-bold border transition-colors ${
+                        createCols === n ? 'border-orange-400 bg-orange-50 text-orange-600' : 'border-gray-200 text-gray-500 bg-white'
+                      }`}
+                    >{n}</button>
+                  ))}
+                </div>
+              </div>
+              <button
+                onClick={handleCreate}
+                disabled={createM.isPending || !createTitle.trim()}
+                className="w-full py-3 rounded-2xl font-semibold text-white text-sm disabled:opacity-50 flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
+              >
+                {createM.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : '建立圖片集'}
+              </button>
             </div>
-            <button
-              onClick={handleCreate}
-              disabled={createM.isPending || !createTitle.trim()}
-              className="w-full py-3 rounded-2xl font-semibold text-white text-sm disabled:opacity-50 flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
-            >
-              {createM.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : '建立圖片集'}
-            </button>
           </div>
         </div>
       )}
 
       {/* ── EDIT VIEW (tabbed) ── */}
       {view === 'edit' && editGalleryId !== null && (
-        <div>
+        <div className="pb-20">
           {/* Header */}
           <div className="flex items-center gap-2 px-4 pt-4 pb-2">
             <button onClick={goList} className="p-1 rounded-full hover:bg-gray-200">
@@ -1701,7 +1702,7 @@ export default function UserGallery({ onClose }: Props) {
       {/* Delete name confirm modal */}
       {deleteConfirmOpen && (
         <div className="fixed inset-0 z-[250] bg-black/70 flex items-end" onClick={() => setDeleteConfirmOpen(false)}>
-          <div className="bg-white w-full rounded-t-2xl p-4 pb-8" onClick={e => e.stopPropagation()}>
+          <div className="bg-white w-full rounded-t-2xl p-4" style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-red-600 text-sm">最終確認</h3>
               <button onClick={() => setDeleteConfirmOpen(false)}><X className="w-5 h-5 text-gray-400" /></button>
