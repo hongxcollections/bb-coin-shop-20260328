@@ -771,7 +771,7 @@ export default function UserGallery({ onClose }: Props) {
     const otherGalleries = galleries.filter(g => g.id !== editGalleryId);
     return (
       <div className="fixed inset-0 z-50 bg-black/60 flex items-end" onClick={() => setCopyPickerOpen(false)}>
-        <div className="w-full bg-white rounded-t-2xl p-4 max-h-[70vh] overflow-y-auto" style={{ paddingBottom: 'calc(90px + env(safe-area-inset-bottom, 0px))' }} onClick={e => e.stopPropagation()}>
+        <div className="w-full bg-white rounded-t-2xl p-4 max-h-[70vh] overflow-y-auto" style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' }} onClick={e => e.stopPropagation()}>
           <p className="text-sm font-bold text-gray-800 mb-1">複製到圖片集</p>
           <p className="text-xs text-gray-400 mb-3">選擇目標圖片集（可多選）</p>
           {otherGalleries.length === 0 ? (
@@ -920,7 +920,7 @@ export default function UserGallery({ onClose }: Props) {
         <div className="fixed inset-0 z-[250] bg-black/60 flex items-end" onClick={goList}>
           <div
             className="bg-white w-full rounded-t-2xl px-4 pt-4"
-            style={{ paddingBottom: 'calc(90px + env(safe-area-inset-bottom, 0px))' }}
+            style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' }}
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
@@ -1695,7 +1695,7 @@ export default function UserGallery({ onClose }: Props) {
       {/* Delete gallery — step 1 warning bottom sheet */}
       {deleteWarningOpen && (
         <div className="fixed inset-0 z-[250] bg-black/70 flex items-end" onClick={() => setDeleteWarningOpen(false)}>
-          <div className="bg-white w-full rounded-t-2xl px-4 pt-4" style={{ paddingBottom: 'calc(90px + env(safe-area-inset-bottom, 0px))' }} onClick={e => e.stopPropagation()}>
+          <div className="bg-white w-full rounded-t-2xl px-4 pt-4" style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-red-600 text-sm">刪除圖片集</h3>
               <button onClick={() => setDeleteWarningOpen(false)}><X className="w-5 h-5 text-gray-400" /></button>
@@ -1722,7 +1722,7 @@ export default function UserGallery({ onClose }: Props) {
       {/* Delete name confirm modal */}
       {deleteConfirmOpen && (
         <div className="fixed inset-0 z-[250] bg-black/70 flex items-end" onClick={() => setDeleteConfirmOpen(false)}>
-          <div className="bg-white w-full rounded-t-2xl p-4" style={{ paddingBottom: 'calc(90px + env(safe-area-inset-bottom, 0px))' }} onClick={e => e.stopPropagation()}>
+          <div className="bg-white w-full rounded-t-2xl p-4" style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-red-600 text-sm">最終確認</h3>
               <button onClick={() => setDeleteConfirmOpen(false)}><X className="w-5 h-5 text-gray-400" /></button>
@@ -1761,7 +1761,7 @@ export default function UserGallery({ onClose }: Props) {
         const activeCount = draftItems.filter(i => i.status === 'active').length;
         const soldCount = draftItems.filter(i => i.status === 'sold').length;
         return (
-          <div className="fixed inset-0 z-[300] bg-black/70 flex flex-col" style={{ paddingLeft: 3, paddingRight: 3, paddingTop: 3, paddingBottom: 'calc(90px + env(safe-area-inset-bottom, 0px))' }}>
+          <div className="fixed inset-0 z-[300] bg-black/70 flex flex-col" style={{ paddingLeft: 3, paddingRight: 3, paddingTop: 3, paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' }}>
             <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#ECECEC', borderRadius: 16 }}>
               <div className="flex-1 min-h-0 overflow-y-auto pb-4">
                 <div ref={posterRef}>
