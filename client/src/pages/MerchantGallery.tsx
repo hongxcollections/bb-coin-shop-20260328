@@ -2862,11 +2862,11 @@ export default function MerchantGallery() {
                   {/* Delete gallery name confirmation modal */}
                   {deleteConfirmOpen && (
                     <div
-                      className="fixed inset-0 z-50 bg-black/70 flex items-end"
+                      className="fixed inset-0 z-[250] bg-black/70 flex items-end"
                       onClick={() => setDeleteConfirmOpen(false)}
                     >
                       <div
-                        className="bg-white w-full rounded-t-2xl px-4 pt-4 pb-10"
+                        className="bg-white w-full rounded-t-2xl px-4 pt-4 pb-8"
                         onClick={e => e.stopPropagation()}
                       >
                         <div className="flex items-center justify-between mb-3">

@@ -1544,8 +1544,8 @@ export default function UserGallery({ onClose }: Props) {
 
       {/* Delete name confirm modal */}
       {deleteConfirmOpen && (
-        <div className="fixed inset-0 z-[60] bg-black/70 flex items-end" onClick={() => setDeleteConfirmOpen(false)}>
-          <div className="bg-white w-full rounded-t-2xl p-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[250] bg-black/70 flex items-end" onClick={() => setDeleteConfirmOpen(false)}>
+          <div className="bg-white w-full rounded-t-2xl p-4 pb-8" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-red-600 text-sm">最終確認</h3>
               <button onClick={() => setDeleteConfirmOpen(false)}><X className="w-5 h-5 text-gray-400" /></button>
