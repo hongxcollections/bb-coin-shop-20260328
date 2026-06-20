@@ -1266,7 +1266,7 @@ export default function MerchantGallery() {
               {/* Tab: 圖片商品 */}
               {editTab === 'items' && (
                 <div>
-                  <div className="bg-white rounded-2xl p-3 mb-3 flex items-center gap-3 flex-wrap">
+                  <div className="bg-white rounded-2xl p-3 mb-3 space-y-2.5">
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -1275,72 +1275,88 @@ export default function MerchantGallery() {
                       onChange={handleUpload}
                       style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
                     />
-                    <button
-                      onClick={handleUploadClick}
-                      disabled={uploading}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
-                      style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
-                    >
-                      <Upload className="w-4 h-4" />
-                      {uploading ? `上載中 ${uploadDone}/${uploadTotal}` : '上載到相片池'}
-                    </button>
-                    <button
-                      onClick={() => editGalleryId && createEmptyItemM.mutate({ galleryId: editGalleryId })}
-                      disabled={createEmptyItemM.isPending}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold disabled:opacity-50"
-                      style={{ background: '#F0F0F0', color: '#555' }}
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      新增商品
-                    </button>
-                    <button
-                      onClick={() => { setSelectedAuctionIds(new Set()); setAuctionPickerOpen(true); }}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
-                      style={{ background: '#EEF6FF', color: '#3B82F6' }}
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      置入拍賣商品
-                    </button>
-                    <button
-                      onClick={() => { setSelectedProductIds(new Set()); setProductPickerOpen(true); }}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
-                      style={{ background: '#F0FDF4', color: '#16A34A' }}
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      置入商品出售
-                    </button>
-                    <button
-                      onClick={() => { setSelectedGroupRoundId(null); setSelectedGroupItemIds(new Set()); setGroupAuctionPickerOpen(true); }}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
-                      style={{ background: '#FDF4FF', color: '#9333EA' }}
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      置入團拍商品
-                    </button>
-                    <button
-                      onClick={() => {
-                        const withImg = draftItems.filter(i => i.imageUrl);
-                        setCoverPickerSelectedIds(new Set(withImg.map(i => i.id)));
-                        setShowCoverPicker(v => !v);
-                      }}
-                      disabled={generateCoverM.isPending}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold disabled:opacity-50"
-                      style={{ background: showCoverPicker ? '#E65C00' : '#FFF3E0', color: showCoverPicker ? '#fff' : '#E65C00' }}
-                    >
-                      <Images className="w-3.5 h-3.5" />
-                      {generateCoverM.isPending ? '生成中…' : showCoverPicker ? '收起' : '生成主題圖片'}
-                    </button>
-                    {draftItems.length > 0 && (
+                    {/* Row 1: Upload + Save */}
+                    <div className="flex items-center gap-2">
                       <button
-                        onClick={handleBatchSave}
-                        disabled={batchUpdateM.isPending}
-                        className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
-                        style={{ background: '#22C55E' }}
+                        onClick={handleUploadClick}
+                        disabled={uploading}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex-1"
+                        style={{ background: 'linear-gradient(135deg, #FF8C00, #FF6B00)' }}
                       >
-                        <Save className="w-3.5 h-3.5" />
-                        {batchUpdateM.isPending ? '儲存中…' : '儲存所有'}
+                        <Upload className="w-4 h-4 flex-shrink-0" />
+                        {uploading ? `上載中 ${uploadDone}/${uploadTotal}` : '上載到相片池'}
                       </button>
-                    )}
+                      {draftItems.length > 0 && (
+                        <button
+                          onClick={handleBatchSave}
+                          disabled={batchUpdateM.isPending}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-50 flex-shrink-0"
+                          style={{ background: '#22C55E' }}
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                          {batchUpdateM.isPending ? '儲存中…' : '儲存所有'}
+                        </button>
+                      )}
+                    </div>
+                    {/* Divider + Add section */}
+                    <div className="border-t border-gray-100 pt-2">
+                      <p className="text-[10px] font-semibold text-gray-400 mb-1.5">加入商品</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          onClick={() => editGalleryId && createEmptyItemM.mutate({ galleryId: editGalleryId })}
+                          disabled={createEmptyItemM.isPending}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold disabled:opacity-50"
+                          style={{ background: '#F0F0F0', color: '#555' }}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          新增空白商品
+                        </button>
+                        <button
+                          onClick={() => { setSelectedAuctionIds(new Set()); setAuctionPickerOpen(true); }}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
+                          style={{ background: '#EEF6FF', color: '#3B82F6' }}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          置入拍賣商品
+                        </button>
+                        <button
+                          onClick={() => { setSelectedProductIds(new Set()); setProductPickerOpen(true); }}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
+                          style={{ background: '#F0FDF4', color: '#16A34A' }}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          置入商品出售
+                        </button>
+                        <button
+                          onClick={() => { setSelectedGroupRoundId(null); setSelectedGroupItemIds(new Set()); setGroupAuctionPickerOpen(true); }}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
+                          style={{ background: '#FDF4FF', color: '#9333EA' }}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          置入團拍商品
+                        </button>
+                      </div>
+                    </div>
+                    {/* Divider + Cover generation */}
+                    <div className="border-t border-gray-100 pt-2 flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] font-semibold text-gray-400">主題封面圖片</p>
+                        <p className="text-[10px] text-gray-300">選擇商品圖片合成封面</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const withImg = draftItems.filter(i => i.imageUrl);
+                          setCoverPickerSelectedIds(new Set(withImg.map(i => i.id)));
+                          setShowCoverPicker(v => !v);
+                        }}
+                        disabled={generateCoverM.isPending}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold disabled:opacity-50"
+                        style={{ background: showCoverPicker ? '#E65C00' : '#FFF3E0', color: showCoverPicker ? '#fff' : '#E65C00' }}
+                      >
+                        <Images className="w-3.5 h-3.5" />
+                        {generateCoverM.isPending ? '生成中…' : showCoverPicker ? '收起選擇器' : '生成主題圖片'}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Cover image picker */}
@@ -2979,6 +2995,30 @@ export default function MerchantGallery() {
               {/* Tab: 訂單 */}
               {editTab === 'orders' && (
                 <div className="space-y-3">
+                  {/* Summary header */}
+                  {!ordersQ.isLoading && (ordersQ.data ?? []).length > 0 && (() => {
+                    const all = ordersQ.data ?? [];
+                    const pending = all.filter((o: any) => o.status === 'pending').length;
+                    const confirmed = all.filter((o: any) => o.status === 'confirmed').length;
+                    return (
+                      <div className="bg-white rounded-2xl px-4 py-3 flex items-center gap-4">
+                        <div className="flex-1 text-center">
+                          <p className="text-lg font-bold text-gray-800">{all.length}</p>
+                          <p className="text-[10px] text-gray-400">全部訂單</p>
+                        </div>
+                        <div className="w-px h-8 bg-gray-100" />
+                        <div className="flex-1 text-center">
+                          <p className="text-lg font-bold text-yellow-600">{pending}</p>
+                          <p className="text-[10px] text-gray-400">待確認</p>
+                        </div>
+                        <div className="w-px h-8 bg-gray-100" />
+                        <div className="flex-1 text-center">
+                          <p className="text-lg font-bold text-green-600">{confirmed}</p>
+                          <p className="text-[10px] text-gray-400">已成交</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {ordersQ.isLoading && (
                     <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-orange-400" /></div>
                   )}
@@ -3106,99 +3146,117 @@ export default function MerchantGallery() {
               {/* Tab: 發佈 */}
               {editTab === 'publish' && (
                 <div className="space-y-3">
-                  {/* Cover image preview in publish tab */}
-                  <div className="bg-white rounded-2xl p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-semibold text-gray-400">主題圖片</p>
+                  {/* Card 1: 主題圖片 */}
+                  <div className="bg-white rounded-2xl overflow-hidden">
+                    <div className="flex items-center justify-between px-4 pt-3 pb-2">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-700">主題封面圖片</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">顯示於圖片集列表及分享預覽</p>
+                      </div>
                       <button
                         onClick={() => { setEditTab('items'); setShowCoverPicker(false); setTimeout(() => { const withImg = draftItems.filter(i => i.imageUrl); setCoverPickerSelectedIds(new Set(withImg.map(i => i.id))); setShowCoverPicker(true); }, 50); }}
-                        className="text-[10px] font-semibold px-2 py-0.5 rounded-lg"
+                        className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-lg flex-shrink-0"
                         style={{ background: '#FFF3E0', color: '#E65C00' }}
-                      >{(generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl) ? '重新生成' : '生成主題圖片'}</button>
+                      >
+                        <Images className="w-3 h-3" />
+                        {(generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl) ? '重新生成' : '生成封面'}
+                      </button>
                     </div>
                     {(generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl) ? (
                       <img
                         src={(generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl)!}
                         alt="主題圖片"
-                        className="w-full rounded-xl object-cover"
-                        style={{ maxHeight: 200, cursor: 'zoom-in' }}
+                        className="w-full object-cover"
+                        style={{ maxHeight: 220, cursor: 'zoom-in' }}
                         onClick={() => openLightbox((generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl)!)}
                       />
                     ) : (
-                      <p className="text-xs text-gray-400 text-center py-3">尚未生成主題圖片<br/>前往「圖片商品」tab 生成</p>
+                      <div className="mx-4 mb-3 rounded-xl flex flex-col items-center justify-center py-8 gap-2"
+                        style={{ background: '#F8F8F8', border: '1.5px dashed #E0E0E0' }}>
+                        <Images className="w-8 h-8 text-gray-300" />
+                        <p className="text-xs text-gray-400 text-center leading-relaxed">尚未生成封面圖片<br/>點擊右上角「生成封面」</p>
+                      </div>
+                    )}
+                    {(generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl) && (
+                      <p className="text-[10px] text-gray-400 text-center py-1.5">點擊圖片放大查看</p>
                     )}
                   </div>
 
-                  <div className="bg-white rounded-2xl p-3">
-                    <p className="text-xs font-semibold text-gray-400 mb-2">發佈狀態</p>
-                    <div className="flex gap-2">
-                      {([
-                        ['draft',  '草稿'],
-                        ['active', '已發佈'],
-                        ['hidden', '已下架'],
-                      ] as [string, string][]).map(([s, label]) => (
-                        <button
-                          key={s}
-                          onClick={() => handleSetStatus(s as 'draft' | 'active' | 'hidden')}
-                          disabled={updateInfoM.isPending}
-                          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors disabled:opacity-60 ${
-                            currentGallery?.status === s
-                              ? 'bg-orange-500 text-white'
-                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {currentGallery?.status === 'active' && (
-                    <div className="bg-white rounded-2xl p-3">
-                      <p className="text-xs font-semibold text-gray-400 mb-2">公開連結</p>
-                      <div className="flex items-center gap-2 mb-2">
-                        <p className="text-xs text-blue-600 break-all flex-1 leading-relaxed">
-                          {window.location.origin}/gallery/{editGalleryId}
-                        </p>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}/gallery/${editGalleryId}`);
-                            toast.success('已複製連結');
-                          }}
-                          className="text-xs text-gray-500 px-2.5 py-1.5 rounded-lg bg-gray-100 flex-shrink-0"
-                        >
-                          複製
-                        </button>
-                      </div>
+                  {/* Card 2: 發佈狀態 + 公開連結（合併） */}
+                  <div className="bg-white rounded-2xl p-4 space-y-3">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 mb-2">發佈狀態</p>
                       <div className="flex gap-2">
-                        <Link
-                          href={`/gallery/${editGalleryId}`}
-                          className="flex-1 py-2 rounded-xl text-xs font-semibold text-center text-white flex items-center justify-center gap-1"
-                          style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          圖片集頁面
-                        </Link>
-                        <div className="flex-1">
-                          <GalleryShareMenu
-                            galleryId={editGalleryId!}
-                            title={currentGallery?.title ?? ''}
-                            description={currentGallery?.description ?? null}
-                            merchantName={currentGallery?.merchantName ?? null}
-                          />
+                        {([
+                          ['draft',  '草稿', '未公開'],
+                          ['active', '已發佈', '公開中'],
+                          ['hidden', '已下架', '暫停中'],
+                        ] as [string, string, string][]).map(([s, label, sub]) => (
+                          <button
+                            key={s}
+                            onClick={() => handleSetStatus(s as 'draft' | 'active' | 'hidden')}
+                            disabled={updateInfoM.isPending}
+                            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-colors disabled:opacity-60 flex flex-col items-center gap-0.5 ${
+                              currentGallery?.status === s
+                                ? 'bg-orange-500 text-white'
+                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                            }`}
+                          >
+                            <span>{label}</span>
+                            <span className={`text-[9px] font-normal ${currentGallery?.status === s ? 'text-orange-100' : 'text-gray-400'}`}>{sub}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {currentGallery?.status === 'active' && (
+                      <div className="border-t border-gray-100 pt-3">
+                        <p className="text-xs font-semibold text-gray-500 mb-2">公開連結</p>
+                        <div className="flex items-center gap-2 mb-2.5 px-3 py-2 rounded-xl" style={{ background: '#F5F5F5' }}>
+                          <p className="text-xs text-blue-600 break-all flex-1 leading-relaxed">
+                            {window.location.origin}/gallery/{editGalleryId}
+                          </p>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${window.location.origin}/gallery/${editGalleryId}`);
+                              toast.success('已複製連結');
+                            }}
+                            className="text-xs text-gray-500 px-2.5 py-1.5 rounded-lg bg-white flex-shrink-0 border border-gray-200"
+                          >
+                            複製
+                          </button>
+                        </div>
+                        <div className="flex gap-2">
+                          <Link
+                            href={`/gallery/${editGalleryId}`}
+                            className="flex-1 py-2 rounded-xl text-xs font-semibold text-center text-white flex items-center justify-center gap-1"
+                            style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            前往圖片集頁面
+                          </Link>
+                          <div className="flex-1">
+                            <GalleryShareMenu
+                              galleryId={editGalleryId!}
+                              title={currentGallery?.title ?? ''}
+                              description={currentGallery?.description ?? null}
+                              merchantName={currentGallery?.merchantName ?? null}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
-                  <div className="bg-white rounded-2xl p-3">
+                  {/* Card 3: 分享工具 */}
+                  <div className="bg-white rounded-2xl p-4">
+                    <p className="text-xs font-semibold text-gray-500 mb-2">分享工具</p>
                     <button
                       onClick={() => { setPosterCancelNav(null); setShowPosterModal(true); }}
                       className="w-full py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
                       style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
                     >
                       <Images className="w-4 h-4" />
-                      生成圖片集
+                      生成分享圖片集海報
                     </button>
                   </div>
 

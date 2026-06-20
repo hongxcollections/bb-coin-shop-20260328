@@ -1329,20 +1329,7 @@ export default function UserGallery({ onClose }: Props) {
                   <div className="bg-white rounded-2xl p-4">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-sm font-bold text-gray-700">圖片商品 {draftItems.length > 0 ? `(${draftItems.length})` : ''}</p>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            const withImg = draftItems.filter(i => i.imageUrl);
-                            setCoverPickerSelectedIds(new Set(withImg.map(i => i.id)));
-                            setShowCoverPicker(v => !v);
-                          }}
-                          disabled={generateCoverM.isPending}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold disabled:opacity-50"
-                          style={{ background: showCoverPicker ? '#E65C00' : '#FFF3E0', color: showCoverPicker ? '#fff' : '#E65C00' }}
-                        >
-                          <Images className="w-3 h-3" />
-                          {generateCoverM.isPending ? '生成中…' : showCoverPicker ? '收起' : '生成主題圖片'}
-                        </button>
+                      <div className="flex items-center gap-1.5">
                         {draftItems.length > 0 && (
                           <button
                             onClick={handleBatchSave}
@@ -1362,6 +1349,19 @@ export default function UserGallery({ onClose }: Props) {
                         >
                           <Plus className="w-3 h-3" />
                           新增
+                        </button>
+                        <button
+                          onClick={() => {
+                            const withImg = draftItems.filter(i => i.imageUrl);
+                            setCoverPickerSelectedIds(new Set(withImg.map(i => i.id)));
+                            setShowCoverPicker(v => !v);
+                          }}
+                          disabled={generateCoverM.isPending}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold disabled:opacity-50"
+                          style={{ background: showCoverPicker ? '#E65C00' : '#FFF3E0', color: showCoverPicker ? '#fff' : '#E65C00' }}
+                        >
+                          <Images className="w-3 h-3" />
+                          {generateCoverM.isPending ? '生成中…' : showCoverPicker ? '收起' : '封面'}
                         </button>
                       </div>
                     </div>
@@ -1564,103 +1564,122 @@ export default function UserGallery({ onClose }: Props) {
               {/* ── Tab: 發佈 ── */}
               {editTab === 'publish' && (
                 <div className="space-y-3">
-                  {/* Cover image preview in publish tab */}
-                  <div className="bg-white rounded-2xl p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-semibold text-gray-400">主題圖片</p>
+                  {/* Card 1: 主題封面圖片 */}
+                  <div className="bg-white rounded-2xl overflow-hidden">
+                    <div className="flex items-center justify-between px-4 pt-3 pb-2">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-700">主題封面圖片</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">顯示於圖片集列表及分享預覽</p>
+                      </div>
                       <button
                         onClick={() => { setEditTab('items'); setShowCoverPicker(false); setTimeout(() => { const withImg = draftItems.filter(i => i.imageUrl); setCoverPickerSelectedIds(new Set(withImg.map(i => i.id))); setShowCoverPicker(true); }, 50); }}
-                        className="text-[10px] font-semibold px-2 py-0.5 rounded-lg"
+                        className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-lg flex-shrink-0"
                         style={{ background: '#FFF3E0', color: '#E65C00' }}
-                      >{(generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl) ? '重新生成' : '生成主題圖片'}</button>
+                      >
+                        <Images className="w-3 h-3" />
+                        {(generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl) ? '重新生成' : '生成封面'}
+                      </button>
                     </div>
                     {(generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl) ? (
                       <img
                         src={(generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl)!}
                         alt="主題圖片"
-                        className="w-full rounded-xl object-cover"
-                        style={{ maxHeight: 200, cursor: 'zoom-in' }}
+                        className="w-full object-cover"
+                        style={{ maxHeight: 220, cursor: 'zoom-in' }}
                         onClick={() => openLightbox((generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl)!)}
                       />
                     ) : (
-                      <p className="text-xs text-gray-400 text-center py-3">尚未生成主題圖片<br/>前往「圖片商品」tab 生成</p>
+                      <div className="mx-4 mb-3 rounded-xl flex flex-col items-center justify-center py-8 gap-2"
+                        style={{ background: '#F8F8F8', border: '1.5px dashed #E0E0E0' }}>
+                        <Images className="w-8 h-8 text-gray-300" />
+                        <p className="text-xs text-gray-400 text-center leading-relaxed">尚未生成封面圖片<br/>點擊右上角「生成封面」</p>
+                      </div>
+                    )}
+                    {(generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl) && (
+                      <p className="text-[10px] text-gray-400 text-center py-1.5">點擊圖片放大查看</p>
                     )}
                   </div>
 
-                  <div className="bg-white rounded-2xl p-3">
-                    <p className="text-xs font-semibold text-gray-400 mb-2">發佈狀態</p>
-                    <div className="flex gap-2">
-                      {([
-                        ['draft',  '草稿'],
-                        ['active', '已發佈'],
-                        ['hidden', '已下架'],
-                      ] as [string, string][]).map(([s, label]) => (
-                        <button
-                          key={s}
-                          onClick={() => handleSetStatus(s as 'draft' | 'active' | 'hidden')}
-                          disabled={updateInfoM.isPending}
-                          className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors disabled:opacity-60 ${
-                            currentGallery?.status === s
-                              ? 'bg-orange-500 text-white'
-                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {currentGallery?.status === 'active' && (
-                    <div className="bg-white rounded-2xl p-3">
-                      <p className="text-xs font-semibold text-gray-400 mb-2">公開連結</p>
-                      <div className="flex items-center gap-2 mb-2">
-                        <p className="text-xs text-blue-600 break-all flex-1 leading-relaxed">
-                          {window.location.origin}/gallery/{editGalleryId}
-                        </p>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}/gallery/${editGalleryId}`);
-                            toast.success('已複製連結');
-                          }}
-                          className="text-xs text-gray-500 px-2.5 py-1.5 rounded-lg bg-gray-100 flex-shrink-0"
-                        >
-                          複製
-                        </button>
-                      </div>
+                  {/* Card 2: 發佈狀態 + 公開連結（合併） */}
+                  <div className="bg-white rounded-2xl p-4 space-y-3">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 mb-2">發佈狀態</p>
                       <div className="flex gap-2">
-                        <Link
-                          href={`/gallery/${editGalleryId}`}
-                          className="flex-1 py-2 rounded-xl text-xs font-semibold text-center text-white flex items-center justify-center gap-1"
-                          style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          圖片集頁面
-                        </Link>
-                        <div className="flex-1">
-                          <GalleryShareMenu
-                            galleryId={editGalleryId!}
-                            title={currentGallery?.title ?? ''}
-                            description={(currentGallery as any)?.description ?? null}
-                            merchantName={(currentGallery as any)?.merchantName ?? null}
-                          />
+                        {([
+                          ['draft',  '草稿', '未公開'],
+                          ['active', '已發佈', '公開中'],
+                          ['hidden', '已下架', '暫停中'],
+                        ] as [string, string, string][]).map(([s, label, sub]) => (
+                          <button
+                            key={s}
+                            onClick={() => handleSetStatus(s as 'draft' | 'active' | 'hidden')}
+                            disabled={updateInfoM.isPending}
+                            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-colors disabled:opacity-60 flex flex-col items-center gap-0.5 ${
+                              currentGallery?.status === s
+                                ? 'bg-orange-500 text-white'
+                                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                            }`}
+                          >
+                            <span>{label}</span>
+                            <span className={`text-[9px] font-normal ${currentGallery?.status === s ? 'text-orange-100' : 'text-gray-400'}`}>{sub}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {currentGallery?.status === 'active' && (
+                      <div className="border-t border-gray-100 pt-3">
+                        <p className="text-xs font-semibold text-gray-500 mb-2">公開連結</p>
+                        <div className="flex items-center gap-2 mb-2.5 px-3 py-2 rounded-xl" style={{ background: '#F5F5F5' }}>
+                          <p className="text-xs text-blue-600 break-all flex-1 leading-relaxed">
+                            {window.location.origin}/gallery/{editGalleryId}
+                          </p>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${window.location.origin}/gallery/${editGalleryId}`);
+                              toast.success('已複製連結');
+                            }}
+                            className="text-xs text-gray-500 px-2.5 py-1.5 rounded-lg bg-white flex-shrink-0 border border-gray-200"
+                          >
+                            複製
+                          </button>
+                        </div>
+                        <div className="flex gap-2">
+                          <Link
+                            href={`/gallery/${editGalleryId}`}
+                            className="flex-1 py-2 rounded-xl text-xs font-semibold text-center text-white flex items-center justify-center gap-1"
+                            style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            前往圖片集頁面
+                          </Link>
+                          <div className="flex-1">
+                            <GalleryShareMenu
+                              galleryId={editGalleryId!}
+                              title={currentGallery?.title ?? ''}
+                              description={(currentGallery as any)?.description ?? null}
+                              merchantName={(currentGallery as any)?.merchantName ?? null}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
-                  <div className="bg-white rounded-2xl p-3">
+                  {/* Card 3: 分享工具 */}
+                  <div className="bg-white rounded-2xl p-4">
+                    <p className="text-xs font-semibold text-gray-500 mb-2">分享工具</p>
                     <button
                       onClick={() => { setPosterFromList(false); setShowPosterModal(true); }}
                       className="w-full py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
                       style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
                     >
                       <Images className="w-4 h-4" />
-                      生成圖片集
+                      生成分享圖片集海報
                     </button>
                   </div>
 
-                  <div className="bg-white rounded-2xl p-3">
+                  {/* Card 4: 危險操作 */}
+                  <div className="bg-white rounded-2xl p-4">
                     <p className="text-xs font-semibold text-red-400 mb-2">危險操作</p>
                     <button
                       onClick={handleDeleteGallery}
