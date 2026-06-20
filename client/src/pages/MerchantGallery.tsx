@@ -2859,51 +2859,6 @@ export default function MerchantGallery() {
                     );
                   })()}
 
-                  {/* Delete gallery name confirmation modal */}
-                  {deleteConfirmOpen && (
-                    <div
-                      className="fixed inset-0 z-[250] bg-black/70 flex items-end"
-                      onClick={() => setDeleteConfirmOpen(false)}
-                    >
-                      <div
-                        className="bg-white w-full rounded-t-2xl px-4 pt-4 pb-8"
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="font-semibold text-red-600 text-sm">最終確認</h3>
-                          <button onClick={() => setDeleteConfirmOpen(false)}>
-                            <X className="w-5 h-5 text-gray-400" />
-                          </button>
-                        </div>
-                        <p className="text-xs text-gray-500 mb-3">
-                          請輸入圖片集名稱「<span className="font-bold text-gray-800">{editTitle}</span>」以確認刪除
-                        </p>
-                        <input
-                          value={deleteConfirmName}
-                          onChange={e => setDeleteConfirmName(e.target.value)}
-                          placeholder="輸入圖片集名稱"
-                          className="w-full px-3 py-2 text-sm outline-none mb-3"
-                          style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '12px' }}
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => {
-                            if (deleteConfirmName.trim() !== editTitle.trim()) {
-                              toast.error('名稱不符，請重新輸入');
-                              return;
-                            }
-                            setDeleteConfirmOpen(false);
-                            deleteGalleryM.mutate({ id: editGalleryId! });
-                          }}
-                          disabled={deleteConfirmName.trim() !== editTitle.trim() || deleteGalleryM.isPending}
-                          className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 disabled:opacity-40"
-                        >
-                          確認永久刪除
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
                 </div>
               )}
 
@@ -3125,6 +3080,40 @@ export default function MerchantGallery() {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {/* Delete gallery name confirmation modal — top-level so fixed positioning works */}
+      {deleteConfirmOpen && (
+        <div className="fixed inset-0 z-[250] bg-black/70 flex items-end" onClick={() => setDeleteConfirmOpen(false)}>
+          <div className="bg-white w-full rounded-t-2xl px-4 pt-4 pb-8" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-red-600 text-sm">最終確認</h3>
+              <button onClick={() => setDeleteConfirmOpen(false)}><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              請輸入圖片集名稱「<span className="font-bold text-gray-800">{editTitle}</span>」以確認刪除
+            </p>
+            <input
+              value={deleteConfirmName}
+              onChange={e => setDeleteConfirmName(e.target.value)}
+              placeholder="輸入圖片集名稱"
+              className="w-full px-3 py-2 text-sm outline-none mb-3"
+              style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '12px' }}
+              autoFocus
+            />
+            <button
+              onClick={() => {
+                if (deleteConfirmName.trim() !== editTitle.trim()) { toast.error('名稱不符，請重新輸入'); return; }
+                setDeleteConfirmOpen(false);
+                deleteGalleryM.mutate({ id: editGalleryId! });
+              }}
+              disabled={deleteConfirmName.trim() !== editTitle.trim() || deleteGalleryM.isPending}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 disabled:opacity-40"
+            >
+              確認永久刪除
+            </button>
+          </div>
         </div>
       )}
 
