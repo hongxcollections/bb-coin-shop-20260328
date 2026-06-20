@@ -3273,7 +3273,7 @@ export default function MerchantGallery() {
 
       {/* Delete gallery — step 1 warning bottom sheet */}
       {deleteWarningOpen && (
-        <div className="fixed inset-0 z-[250] bg-black/70 flex items-end" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }} onClick={() => setDeleteWarningOpen(false)}>
+        <div className="fixed inset-0 z-[250] bg-black/70 flex items-end" style={{ paddingBottom: 'calc(70px + env(safe-area-inset-bottom, 0px))' }} onClick={() => setDeleteWarningOpen(false)}>
           <div className="bg-white w-full rounded-2xl px-4 pt-4 pb-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-red-600 text-sm">刪除圖片集</h3>
@@ -3300,7 +3300,7 @@ export default function MerchantGallery() {
 
       {/* Delete gallery name confirmation modal — top-level so fixed positioning works */}
       {deleteConfirmOpen && (
-        <div className="fixed inset-0 z-[250] bg-black/70 flex items-end" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }} onClick={() => setDeleteConfirmOpen(false)}>
+        <div className="fixed inset-0 z-[250] bg-black/70 flex items-end" style={{ paddingBottom: 'calc(70px + env(safe-area-inset-bottom, 0px))' }} onClick={() => setDeleteConfirmOpen(false)}>
           <div className="bg-white w-full rounded-2xl px-4 pt-4 pb-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-red-600 text-sm">最終確認</h3>
