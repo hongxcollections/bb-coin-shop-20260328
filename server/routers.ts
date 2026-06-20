@@ -12208,7 +12208,10 @@ EXAMPLE OUTPUT (exact format):
       }),
 
     generateGalleryCover: protectedProcedure
-      .input(z.object({ galleryId: z.number().int().positive() }))
+      .input(z.object({
+        galleryId: z.number().int().positive(),
+        itemIds: z.array(z.number().int().positive()).min(1).optional(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { getProductGallery, listProductGalleryItems, updateProductGallery } = await import('./db') as any;
         const gallery = await getProductGallery(input.galleryId);
@@ -12216,10 +12219,12 @@ EXAMPLE OUTPUT (exact format):
           throw new TRPCError({ code: 'NOT_FOUND' });
         }
         const items = await listProductGalleryItems(input.galleryId);
-        const imageUrls: string[] = (items as any[])
-          .filter((i: any) => i.imageUrl)
-          .map((i: any) => String(i.imageUrl))
-          .slice(0, 9);
+        let filtered = (items as any[]).filter((i: any) => i.imageUrl);
+        if (input.itemIds && input.itemIds.length > 0) {
+          const idSet = new Set(input.itemIds);
+          filtered = filtered.filter((i: any) => idSet.has(i.id));
+        }
+        const imageUrls: string[] = filtered.map((i: any) => String(i.imageUrl)).slice(0, 9);
         if (imageUrls.length === 0) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '圖片集暫無商品圖片' });
         }
@@ -13176,7 +13181,10 @@ EXAMPLE OUTPUT (exact format):
       }),
 
     userGenerateGalleryCover: protectedProcedure
-      .input(z.object({ galleryId: z.number().int().positive() }))
+      .input(z.object({
+        galleryId: z.number().int().positive(),
+        itemIds: z.array(z.number().int().positive()).min(1).optional(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { getProductGallery, listProductGalleryItems, updateProductGallery } = await import('./db') as any;
         const gallery = await getProductGallery(input.galleryId);
@@ -13184,10 +13192,12 @@ EXAMPLE OUTPUT (exact format):
           throw new TRPCError({ code: 'NOT_FOUND' });
         }
         const items = await listProductGalleryItems(input.galleryId);
-        const imageUrls: string[] = (items as any[])
-          .filter((i: any) => i.imageUrl)
-          .map((i: any) => String(i.imageUrl))
-          .slice(0, 9);
+        let filtered = (items as any[]).filter((i: any) => i.imageUrl);
+        if (input.itemIds && input.itemIds.length > 0) {
+          const idSet = new Set(input.itemIds);
+          filtered = filtered.filter((i: any) => idSet.has(i.id));
+        }
+        const imageUrls: string[] = filtered.map((i: any) => String(i.imageUrl)).slice(0, 9);
         if (imageUrls.length === 0) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: '圖片集暫無商品圖片' });
         }

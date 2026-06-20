@@ -133,6 +133,10 @@ export default function MerchantGallery() {
   const [savingPoster, setSavingPoster] = useState(false);
   const posterRef = useRef<HTMLDivElement>(null);
 
+  // Cover image picker
+  const [showCoverPicker, setShowCoverPicker] = useState(false);
+  const [coverPickerSelectedIds, setCoverPickerSelectedIds] = useState<Set<number>>(new Set());
+
   // Auto-open poster modal from ?poster=<id> URL param (e.g. navigated from PublicGallery owner button)
   useEffect(() => {
     const posterId = parseInt(new URLSearchParams(window.location.search).get('poster') ?? '', 10);
@@ -1312,14 +1316,17 @@ export default function MerchantGallery() {
                       置入團拍商品
                     </button>
                     <button
-                      onClick={() => editGalleryId && generateCoverM.mutate({ galleryId: editGalleryId })}
+                      onClick={() => {
+                        const withImg = draftItems.filter(i => i.imageUrl);
+                        setCoverPickerSelectedIds(new Set(withImg.map(i => i.id)));
+                        setShowCoverPicker(v => !v);
+                      }}
                       disabled={generateCoverM.isPending}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold disabled:opacity-50"
-                      style={{ background: '#FFF3E0', color: '#E65C00' }}
-                      title="選取每件商品第一張圖，生成圖片集主題圖片"
+                      style={{ background: showCoverPicker ? '#E65C00' : '#FFF3E0', color: showCoverPicker ? '#fff' : '#E65C00' }}
                     >
                       <Images className="w-3.5 h-3.5" />
-                      {generateCoverM.isPending ? '生成中…' : '生成主題圖片'}
+                      {generateCoverM.isPending ? '生成中…' : showCoverPicker ? '收起' : '生成主題圖片'}
                     </button>
                     {draftItems.length > 0 && (
                       <button
@@ -1334,10 +1341,87 @@ export default function MerchantGallery() {
                     )}
                   </div>
 
+                  {/* Cover image picker */}
+                  {showCoverPicker && (
+                    <div className="bg-white rounded-2xl p-3 mb-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold text-gray-700">選擇要合成的商品圖片（最多9件）</p>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => setCoverPickerSelectedIds(new Set(draftItems.filter(i => i.imageUrl).map(i => i.id)))}
+                            className="text-[10px] font-semibold px-2 py-0.5 rounded-lg"
+                            style={{ background: '#FFF3E0', color: '#E65C00' }}
+                          >全選</button>
+                          <button
+                            onClick={() => setCoverPickerSelectedIds(new Set())}
+                            className="text-[10px] font-semibold px-2 py-0.5 rounded-lg"
+                            style={{ background: '#F0F0F0', color: '#555' }}
+                          >取消全選</button>
+                        </div>
+                      </div>
+                      {draftItems.filter(i => i.imageUrl).length === 0 ? (
+                        <p className="text-xs text-gray-400 text-center py-4">暫無商品圖片</p>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-1.5 mb-3">
+                          {draftItems.filter(i => i.imageUrl).map(item => {
+                            const sel = coverPickerSelectedIds.has(item.id);
+                            return (
+                              <div
+                                key={item.id}
+                                className="relative rounded-xl overflow-hidden cursor-pointer"
+                                style={{ aspectRatio: '1/1', outline: sel ? '2.5px solid #E65C00' : '2.5px solid transparent' }}
+                                onClick={() => setCoverPickerSelectedIds(prev => {
+                                  const next = new Set(prev);
+                                  next.has(item.id) ? next.delete(item.id) : next.add(item.id);
+                                  return next;
+                                })}
+                              >
+                                <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+                                <div
+                                  className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                                  style={{ background: sel ? '#E65C00' : 'rgba(255,255,255,0.88)', border: sel ? 'none' : '1.5px solid #ccc' }}
+                                >
+                                  {sel && <span className="text-white text-[9px] font-bold leading-none">✓</span>}
+                                </div>
+                                {item.itemName && (
+                                  <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5" style={{ background: 'rgba(0,0,0,0.52)' }}>
+                                    <p className="text-[9px] text-white truncate">{item.itemName}</p>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between pt-1">
+                        <p className="text-xs text-gray-400">已選 {coverPickerSelectedIds.size} 件</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setShowCoverPicker(false)}
+                            className="px-3 py-1.5 rounded-xl text-xs font-semibold"
+                            style={{ background: '#F0F0F0', color: '#555' }}
+                          >取消</button>
+                          <button
+                            onClick={() => {
+                              if (!editGalleryId || coverPickerSelectedIds.size === 0) return;
+                              setShowCoverPicker(false);
+                              generateCoverM.mutate({ galleryId: editGalleryId, itemIds: [...coverPickerSelectedIds] });
+                            }}
+                            disabled={coverPickerSelectedIds.size === 0 || generateCoverM.isPending}
+                            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
+                            style={{ background: 'linear-gradient(135deg, #FF8C00, #E65C00)' }}
+                          >
+                            {generateCoverM.isPending ? '生成中…' : `確認生成（${coverPickerSelectedIds.size}件）`}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Cover image preview */}
                   {getForEditQ.data?.gallery?.coverImageUrl && (
                     <div className="bg-white rounded-2xl p-3 mb-3">
-                      <p className="text-xs font-semibold mb-2" style={{ color: '#9CA3AF' }}>目前主題圖片</p>
+                      <p className="text-xs font-semibold mb-2" style={{ color: '#9CA3AF' }}>目前主題圖片（點擊放大）</p>
                       <img
                         src={getForEditQ.data.gallery.coverImageUrl}
                         alt="圖片集主題圖片"
