@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "pnpm install --frozen-lockfile"
+buildCommand = "pnpm install --frozen-lockfile && git checkout HEAD -- dist"
 
 [deploy]
 startCommand = "node dist/index.js"
