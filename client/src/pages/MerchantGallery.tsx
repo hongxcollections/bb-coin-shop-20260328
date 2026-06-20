@@ -311,6 +311,27 @@ export default function MerchantGallery() {
     },
     onError: (e) => toast.error(e.message),
   });
+  const batchUnassignItemImagesM = trpc.productGalleries.batchUnassignItemImages.useMutation({
+    onSuccess: (data) => {
+      toast.success(`已拆除 ${data.unassigned} 張圖片，返回相片池`);
+      setBatchSelectedIds(new Set());
+      setBatchSelectMode(false);
+      galleryImagesQ.refetch();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const distributeImagesToItemsM = trpc.productGalleries.distributeImagesToItems.useMutation({
+    onSuccess: (data) => {
+      const msg = data.skipped > 0
+        ? `已分配 ${data.assigned} 張，${data.skipped} 張因無空缺商品跳過`
+        : `已按序分配 ${data.assigned} 張圖片到各商品`;
+      toast.success(msg);
+      setPoolSelectedIds(new Set());
+      setPoolBatchMode(false);
+      galleryImagesQ.refetch();
+    },
+    onError: (e) => toast.error(e.message),
+  });
   const copyItemsToGalleriesM = trpc.productGalleries.copyItemsToGalleries.useMutation({
     onError: (e) => toast.error(e.message),
   });
@@ -1370,35 +1391,57 @@ export default function MerchantGallery() {
                               })}
                             </div>
                             {poolBatchMode && (
-                              <div className="flex gap-2 mt-2">
-                                <button
-                                  onClick={() => setPoolSelectedIds(
-                                    poolSelectedIds.size === poolImages.length
-                                      ? new Set()
-                                      : new Set(poolImages.map(i => i.id))
-                                  )}
-                                  className="flex-1 py-2 rounded-xl text-xs font-semibold"
-                                  style={{ background: '#F0F0F0', color: '#555' }}
-                                >
-                                  {poolSelectedIds.size === poolImages.length ? '取消全選' : '全選'}
-                                </button>
-                                <button
-                                  disabled={poolSelectedIds.size === 0 || draftItems.length === 0 || batchAssignImagesM.isPending}
-                                  onClick={() => setPoolAssignPickerOpen(true)}
-                                  className="flex-1 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40 flex items-center justify-center gap-1"
-                                  style={{ background: 'linear-gradient(135deg,#FF8C00,#FF6B00)' }}
-                                >
-                                  {batchAssignImagesM.isPending
-                                    ? <Loader2 className="w-3 h-3 animate-spin" />
-                                    : `指定到商品（${poolSelectedIds.size}張）`}
-                                </button>
-                                <button
-                                  onClick={() => { setPoolBatchMode(false); setPoolSelectedIds(new Set()); }}
-                                  className="px-3 py-2 rounded-xl text-xs font-semibold"
-                                  style={{ background: '#F0F0F0', color: '#555' }}
-                                >
-                                  取消
-                                </button>
+                              <div className="mt-2 space-y-1.5">
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => setPoolSelectedIds(
+                                      poolSelectedIds.size === poolImages.length
+                                        ? new Set()
+                                        : new Set(poolImages.map(i => i.id))
+                                    )}
+                                    className="flex-1 py-2 rounded-xl text-xs font-semibold"
+                                    style={{ background: '#F0F0F0', color: '#555' }}
+                                  >
+                                    {poolSelectedIds.size === poolImages.length ? '取消全選' : '全選'}
+                                  </button>
+                                  <button
+                                    disabled={poolSelectedIds.size === 0 || draftItems.length === 0 || batchAssignImagesM.isPending}
+                                    onClick={() => setPoolAssignPickerOpen(true)}
+                                    className="flex-1 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40 flex items-center justify-center gap-1"
+                                    style={{ background: 'linear-gradient(135deg,#FF8C00,#FF6B00)' }}
+                                  >
+                                    {batchAssignImagesM.isPending
+                                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                                      : `指定到商品（${poolSelectedIds.size}張）`}
+                                  </button>
+                                  <button
+                                    onClick={() => { setPoolBatchMode(false); setPoolSelectedIds(new Set()); }}
+                                    className="px-3 py-2 rounded-xl text-xs font-semibold"
+                                    style={{ background: '#F0F0F0', color: '#555' }}
+                                  >
+                                    取消
+                                  </button>
+                                </div>
+                                {poolSelectedIds.size > 0 && (
+                                  <button
+                                    disabled={distributeImagesToItemsM.isPending || draftItems.length === 0}
+                                    onClick={() => {
+                                      if (!editGalleryId || poolSelectedIds.size === 0) return;
+                                      distributeImagesToItemsM.mutate({
+                                        galleryId: editGalleryId,
+                                        imageIds: (galleryImagesQ.data ?? [])
+                                          .filter(img => img.itemId === null && poolSelectedIds.has(img.id))
+                                          .map(img => img.id),
+                                      });
+                                    }}
+                                    className="w-full py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40 flex items-center justify-center gap-1"
+                                    style={{ background: 'linear-gradient(135deg,#6366F1,#4F46E5)' }}
+                                  >
+                                    {distributeImagesToItemsM.isPending
+                                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                                      : `按序分配到各商品（${poolSelectedIds.size}張）`}
+                                  </button>
+                                )}
                               </div>
                             )}
                           </>
@@ -1745,6 +1788,22 @@ export default function MerchantGallery() {
                                           style={{ background: 'linear-gradient(135deg,#10B981,#059669)' }}
                                         >
                                           複製到其他圖片集（{batchSelectedIds.size} 件）
+                                        </button>
+                                        <button
+                                          disabled={batchUnassignItemImagesM.isPending}
+                                          onClick={() => {
+                                            if (editGalleryId === null) return;
+                                            batchUnassignItemImagesM.mutate({
+                                              galleryId: editGalleryId,
+                                              itemIds: Array.from(batchSelectedIds),
+                                            });
+                                          }}
+                                          className="w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
+                                          style={{ background: 'linear-gradient(135deg,#EF4444,#DC2626)' }}
+                                        >
+                                          {batchUnassignItemImagesM.isPending
+                                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                                            : `批量拆除圖片（${batchSelectedIds.size} 件）`}
                                         </button>
                                       </div>
                                     )}

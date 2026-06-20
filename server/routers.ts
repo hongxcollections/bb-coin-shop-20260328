@@ -12395,6 +12395,55 @@ EXAMPLE OUTPUT (exact format):
         return { ok: true };
       }),
 
+    batchUnassignItemImages: protectedProcedure
+      .input(z.object({
+        galleryId: z.number().int().positive(),
+        itemIds: z.array(z.number().int().positive()).min(1).max(200),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, getRawPool } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        const pool = await getRawPool();
+        if (!pool) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        let unassigned = 0;
+        for (const itemId of input.itemIds) {
+          const [res]: any = await pool.execute(
+            'UPDATE productGalleryImages SET itemId = NULL WHERE itemId = ? AND merchantId = ?',
+            [itemId, ctx.user.id]
+          );
+          unassigned += res.affectedRows ?? 0;
+        }
+        return { unassigned };
+      }),
+
+    distributeImagesToItems: protectedProcedure
+      .input(z.object({
+        galleryId: z.number().int().positive(),
+        imageIds: z.array(z.number().int().positive()).min(1).max(200),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, getRawPool, assignGalleryImage } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        const pool = await getRawPool();
+        if (!pool) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const [itemRows]: any = await pool.execute(
+          `SELECT pgi.id FROM productGalleryItems pgi
+           WHERE pgi.galleryId = ? AND pgi.merchantId = ?
+             AND (SELECT COUNT(*) FROM productGalleryImages WHERE itemId = pgi.id) = 0
+           ORDER BY pgi.sortOrder ASC, pgi.id ASC`,
+          [input.galleryId, ctx.user.id]
+        );
+        const items: { id: number }[] = itemRows;
+        let assigned = 0;
+        for (let i = 0; i < Math.min(input.imageIds.length, items.length); i++) {
+          await assignGalleryImage(input.imageIds[i], items[i].id, ctx.user.id);
+          assigned++;
+        }
+        return { assigned, skipped: input.imageIds.length - assigned };
+      }),
+
     deleteGalleryImage: protectedProcedure
       .input(z.object({ imageId: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
