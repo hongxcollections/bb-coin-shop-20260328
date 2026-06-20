@@ -723,67 +723,111 @@ export default function PublicGallery() {
       ) : (
         <>
           {/* ── Hero Banner ── */}
-          <div className="mx-3 mt-3 mb-3 rounded-2xl overflow-hidden shadow-lg" style={
-            gallery.coverImageUrl ? {
-              backgroundImage: `linear-gradient(to bottom, rgba(8,12,22,0.62) 0%, rgba(8,12,22,0.84) 100%), url(${gallery.coverImageUrl})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundBlendMode: 'normal',
-            } : {
-              background: 'linear-gradient(145deg, #0D1B2A 0%, #1B263B 40%, #1F3A5F 100%)',
-            }
-          }>
-            <div className="relative px-4 pt-4 pb-4 overflow-hidden">
-              {!gallery.coverImageUrl && (
-                <>
+          <div className="mx-3 mt-3 mb-3 rounded-2xl overflow-hidden shadow-lg">
+            {gallery.coverImageUrl ? (
+              /* ── 有主題圖片：上方展示圖，下方資訊條 ── */
+              <>
+                <div className="relative" style={{ minHeight: 180 }}>
+                  <img
+                    src={gallery.coverImageUrl}
+                    alt={gallery.title}
+                    className="w-full object-cover"
+                    style={{ maxHeight: 260, display: 'block' }}
+                  />
+                  {/* 底部漸變，讓下方資訊條融合 */}
+                  <div className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"
+                    style={{ background: 'linear-gradient(to bottom, transparent, rgba(8,12,22,0.72))' }} />
+                </div>
+                <div className="px-4 pt-2.5 pb-3" style={{ background: 'linear-gradient(145deg, #0D1B2A 0%, #1B263B 100%)' }}>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Store className="w-3 h-3 flex-shrink-0" style={{ color: '#FFB347' }} />
+                    <span className="text-[11px] font-semibold" style={{ color: '#FFB347' }}>{gallery.merchantName}</span>
+                  </div>
+                  <h1 className="text-[16px] font-bold leading-snug mb-1.5" style={{ color: '#FFFFFF' }}>
+                    {gallery.title}
+                  </h1>
+                  {gallery.description && (
+                    <p className="text-[11px] leading-relaxed mb-2 whitespace-pre-line" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                      {gallery.description}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {activeCount > 0 && (
+                      <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{
+                        background: 'rgba(34,197,94,0.2)', color: '#4ADE80', border: '1px solid rgba(34,197,94,0.25)'
+                      }}>
+                        <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#4ADE80' }} />
+                        {activeCount} 件展示
+                      </span>
+                    )}
+                    {soldCount > 0 && (
+                      <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{
+                        background: 'rgba(239,68,68,0.18)', color: '#FCA5A5', border: '1px solid rgba(239,68,68,0.2)'
+                      }}>
+                        {soldCount} 件已售
+                      </span>
+                    )}
+                    {isOwner && (
+                      <button
+                        onClick={() => navigate(`/merchant/galleries?poster=${galleryId}`)}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold"
+                        style={{ background: 'rgba(251,191,36,0.2)', color: '#FBBF24', border: '1px solid rgba(251,191,36,0.3)' }}
+                      >
+                        <Images className="w-3 h-3" />
+                        生成圖片集
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* ── 無主題圖片：原有深色漸變 ── */
+              <div style={{ background: 'linear-gradient(145deg, #0D1B2A 0%, #1B263B 40%, #1F3A5F 100%)' }}>
+                <div className="relative px-4 pt-4 pb-4 overflow-hidden">
                   <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-10" style={{ background: '#FFB347' }} />
                   <div className="absolute -bottom-8 -left-4 w-24 h-24 rounded-full opacity-10" style={{ background: '#4A90D9' }} />
-                </>
-              )}
-
-              <div className="flex items-center gap-1.5 mb-2">
-                <Store className="w-3 h-3 flex-shrink-0" style={{ color: '#FFB347' }} />
-                <span className="text-[11px] font-semibold" style={{ color: '#FFB347' }}>{gallery.merchantName}</span>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Store className="w-3 h-3 flex-shrink-0" style={{ color: '#FFB347' }} />
+                    <span className="text-[11px] font-semibold" style={{ color: '#FFB347' }}>{gallery.merchantName}</span>
+                  </div>
+                  <h1 className="text-[17px] font-bold leading-snug mb-1.5 relative z-10" style={{ color: '#FFFFFF' }}>
+                    {gallery.title}
+                  </h1>
+                  {gallery.description && (
+                    <p className="text-[11px] leading-relaxed mb-2.5 relative z-10 whitespace-pre-line" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                      {gallery.description}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 flex-wrap relative z-10">
+                    {activeCount > 0 && (
+                      <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{
+                        background: 'rgba(34,197,94,0.2)', color: '#4ADE80', border: '1px solid rgba(34,197,94,0.25)'
+                      }}>
+                        <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#4ADE80' }} />
+                        {activeCount} 件展示
+                      </span>
+                    )}
+                    {soldCount > 0 && (
+                      <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{
+                        background: 'rgba(239,68,68,0.18)', color: '#FCA5A5', border: '1px solid rgba(239,68,68,0.2)'
+                      }}>
+                        {soldCount} 件已售
+                      </span>
+                    )}
+                    {isOwner && (
+                      <button
+                        onClick={() => navigate(`/merchant/galleries?poster=${galleryId}`)}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold"
+                        style={{ background: 'rgba(251,191,36,0.2)', color: '#FBBF24', border: '1px solid rgba(251,191,36,0.3)' }}
+                      >
+                        <Images className="w-3 h-3" />
+                        生成圖片集
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-
-              <h1 className="text-[17px] font-bold leading-snug mb-1.5 relative z-10" style={{ color: '#FFFFFF' }}>
-                {gallery.title}
-              </h1>
-
-              {gallery.description && (
-                <p className="text-[11px] leading-relaxed mb-2.5 relative z-10 whitespace-pre-line" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                  {gallery.description}
-                </p>
-              )}
-
-              <div className="flex items-center gap-2 flex-wrap relative z-10">
-                {activeCount > 0 && (
-                  <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{
-                    background: 'rgba(34,197,94,0.2)', color: '#4ADE80', border: '1px solid rgba(34,197,94,0.25)'
-                  }}>
-                    <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#4ADE80' }} />
-                    {activeCount} 件展示
-                  </span>
-                )}
-                {soldCount > 0 && (
-                  <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{
-                    background: 'rgba(239,68,68,0.18)', color: '#FCA5A5', border: '1px solid rgba(239,68,68,0.2)'
-                  }}>
-                    {soldCount} 件已售
-                  </span>
-                )}
-                {isOwner && (
-                  <button
-                    onClick={() => navigate(`/merchant/galleries?poster=${galleryId}`)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold"
-                    style={{ background: 'rgba(251,191,36,0.2)', color: '#FBBF24', border: '1px solid rgba(251,191,36,0.3)' }}
-                  >
-                    <Images className="w-3 h-3" />
-                    生成圖片集
-                  </button>
-                )}
-              </div>
-            </div>
+            )}
           </div>
 
           {/* ── Grid ── */}

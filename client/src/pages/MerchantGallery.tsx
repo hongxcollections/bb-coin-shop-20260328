@@ -3314,10 +3314,11 @@ export default function MerchantGallery() {
 
       {/* Gallery Poster Modal — z-[300] > BottomNav z-[200] */}
       {showPosterModal && (() => {
-        const posterItems = draftItems.filter(i => i.status !== 'hidden');
+        const posterCoverUrl = generatedCoverUrl ?? (currentGallery as any)?.coverImageUrl ?? null;
+        const posterItems = draftItems.filter(i => i.status !== 'hidden' && i.imageUrl);
         const posterCols = editCols;
-        const activeCount = posterItems.filter(i => i.status === 'active').length;
-        const soldCount = posterItems.filter(i => i.status === 'sold').length;
+        const activeCount = draftItems.filter(i => i.status === 'active').length;
+        const soldCount = draftItems.filter(i => i.status === 'sold').length;
         return (
           <div className="fixed inset-0 z-[300] bg-black/70 flex flex-col" style={{ paddingLeft: 3, paddingRight: 3, paddingTop: 3, paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}>
             <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#ECECEC', borderRadius: 16 }}>
@@ -3325,42 +3326,71 @@ export default function MerchantGallery() {
               <div className="flex-1 min-h-0 overflow-y-auto pb-4">
                 {/* posterRef wraps the full scrollable content for html2canvas capture */}
                 <div ref={posterRef}>
-                {/* ── Hero Banner (exact copy of PublicGallery) ── */}
-                <div className="mx-3 mt-3 mb-3 rounded-2xl overflow-hidden shadow-lg" style={{
-                  background: 'linear-gradient(145deg, #0D1B2A 0%, #1B263B 40%, #1F3A5F 100%)',
-                }}>
-                  <div className="relative px-4 pt-4 pb-4 overflow-hidden">
-                    <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-10" style={{ background: '#FFB347' }} />
-                    <div className="absolute -bottom-8 -left-4 w-24 h-24 rounded-full opacity-10" style={{ background: '#4A90D9' }} />
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <span className="text-[11px] font-semibold" style={{ color: '#FFB347' }}>{(currentGallery as any)?.merchantName}</span>
+                {/* ── Hero Banner ── */}
+                <div className="mx-3 mt-3 mb-3 rounded-2xl overflow-hidden shadow-lg">
+                  {posterCoverUrl ? (
+                    <>
+                      <div className="relative" style={{ minHeight: 160 }}>
+                        <img
+                          src={posterCoverUrl}
+                          alt={currentGallery?.title ?? ''}
+                          className="w-full object-cover"
+                          style={{ maxHeight: 240, display: 'block' }}
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 h-14 pointer-events-none"
+                          style={{ background: 'linear-gradient(to bottom, transparent, rgba(8,12,22,0.72))' }} />
+                      </div>
+                      <div className="px-4 pt-2.5 pb-3" style={{ background: 'linear-gradient(145deg, #0D1B2A 0%, #1B263B 100%)' }}>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <span className="text-[11px] font-semibold" style={{ color: '#FFB347' }}>{(currentGallery as any)?.merchantName}</span>
+                        </div>
+                        <h1 className="text-[17px] font-bold leading-snug mb-1.5" style={{ color: '#FFFFFF' }}>{currentGallery?.title}</h1>
+                        {(currentGallery as any)?.description && (
+                          <p className="text-[11px] leading-relaxed mb-2 whitespace-pre-line" style={{ color: 'rgba(255,255,255,0.55)' }}>{(currentGallery as any).description}</p>
+                        )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {activeCount > 0 && (
+                            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{ background: 'rgba(34,197,94,0.2)', color: '#4ADE80', border: '1px solid rgba(34,197,94,0.25)' }}>
+                              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#4ADE80' }} />
+                              {activeCount} 件在售
+                            </span>
+                          )}
+                          {soldCount > 0 && (
+                            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{ background: 'rgba(239,68,68,0.18)', color: '#FCA5A5', border: '1px solid rgba(239,68,68,0.2)' }}>
+                              {soldCount} 件已售
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ background: 'linear-gradient(145deg, #0D1B2A 0%, #1B263B 40%, #1F3A5F 100%)' }}>
+                      <div className="relative px-4 pt-4 pb-4 overflow-hidden">
+                        <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-10" style={{ background: '#FFB347' }} />
+                        <div className="absolute -bottom-8 -left-4 w-24 h-24 rounded-full opacity-10" style={{ background: '#4A90D9' }} />
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <span className="text-[11px] font-semibold" style={{ color: '#FFB347' }}>{(currentGallery as any)?.merchantName}</span>
+                        </div>
+                        <h1 className="text-[17px] font-bold leading-snug mb-1.5 relative z-10" style={{ color: '#FFFFFF' }}>{currentGallery?.title}</h1>
+                        {(currentGallery as any)?.description && (
+                          <p className="text-[11px] leading-relaxed mb-2.5 relative z-10 whitespace-pre-line" style={{ color: 'rgba(255,255,255,0.55)' }}>{(currentGallery as any).description}</p>
+                        )}
+                        <div className="flex items-center gap-2 flex-wrap relative z-10">
+                          {activeCount > 0 && (
+                            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{ background: 'rgba(34,197,94,0.2)', color: '#4ADE80', border: '1px solid rgba(34,197,94,0.25)' }}>
+                              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#4ADE80' }} />
+                              {activeCount} 件在售
+                            </span>
+                          )}
+                          {soldCount > 0 && (
+                            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{ background: 'rgba(239,68,68,0.18)', color: '#FCA5A5', border: '1px solid rgba(239,68,68,0.2)' }}>
+                              {soldCount} 件已售
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <h1 className="text-[17px] font-bold leading-snug mb-1.5 relative z-10" style={{ color: '#FFFFFF' }}>
-                      {currentGallery?.title}
-                    </h1>
-                    {(currentGallery as any)?.description && (
-                      <p className="text-[11px] leading-relaxed mb-2.5 relative z-10 whitespace-pre-line" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                        {(currentGallery as any).description}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 flex-wrap relative z-10">
-                      {activeCount > 0 && (
-                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{
-                          background: 'rgba(34,197,94,0.2)', color: '#4ADE80', border: '1px solid rgba(34,197,94,0.25)'
-                        }}>
-                          <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#4ADE80' }} />
-                          {activeCount} 件在售
-                        </span>
-                      )}
-                      {soldCount > 0 && (
-                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{
-                          background: 'rgba(239,68,68,0.18)', color: '#FCA5A5', border: '1px solid rgba(239,68,68,0.2)'
-                        }}>
-                          {soldCount} 件已售
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* ── Grid — items always at 3-col visual size; overflow-x scrolls extra cols ── */}
