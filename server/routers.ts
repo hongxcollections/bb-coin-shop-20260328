@@ -12428,11 +12428,12 @@ EXAMPLE OUTPUT (exact format):
         const gallery = await getProductGallery(input.galleryId);
         if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
         let assigned = 0;
-        for (let i = 0; i < Math.min(input.imageIds.length, input.itemIds.length); i++) {
-          await assignGalleryImage(input.imageIds[i], input.itemIds[i], ctx.user.id);
+        for (let i = 0; i < input.imageIds.length; i++) {
+          const targetItemId = input.itemIds[i % input.itemIds.length];
+          await assignGalleryImage(input.imageIds[i], targetItemId, ctx.user.id);
           assigned++;
         }
-        return { assigned, skipped: input.imageIds.length - assigned };
+        return { assigned, skipped: 0 };
       }),
 
     batchDeleteGalleryImages: protectedProcedure

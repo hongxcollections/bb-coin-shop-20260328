@@ -326,9 +326,7 @@ export default function MerchantGallery() {
   });
   const distributeImagesToItemsM = trpc.productGalleries.distributeImagesToItems.useMutation({
     onSuccess: (data) => {
-      const msg = data.skipped > 0
-        ? `已分配 ${data.assigned} 張，${data.skipped} 張圖片多於選定商品數量`
-        : `已分配 ${data.assigned} 張圖片到各商品`;
+      const msg = `已分配 ${data.assigned} 張圖片到選定商品`;
       toast.success(msg);
       setPoolSelectedIds(new Set());
       setPoolBatchMode(false);
@@ -2000,7 +1998,7 @@ export default function MerchantGallery() {
                             </button>
                           </div>
                           <p className="text-xs text-gray-400 mb-3 flex-shrink-0">
-                            已選 {poolImgIds.length} 張圖片，按順序分配到選定商品（第1張→第1件，如此類推）
+                            已選 {poolImgIds.length} 張圖片，逐一輪流分配到選定商品（圖1→商品1，圖2→商品2……循環）
                           </p>
                           <div className="flex items-center justify-between mb-2 flex-shrink-0">
                             <span className="text-xs text-gray-500">
@@ -2086,7 +2084,7 @@ export default function MerchantGallery() {
                               >
                                 {distributeImagesToItemsM.isPending
                                   ? <><Loader2 className="w-4 h-4 animate-spin" />分配中...</>
-                                  : `分配 ${Math.min(poolImgIds.length, distributeSelectedItemIds.size)} 張到 ${distributeSelectedItemIds.size} 件商品`}
+                                  : `分配 ${poolImgIds.length} 張到 ${distributeSelectedItemIds.size} 件商品`}
                               </button>
                             </>
                           )}
