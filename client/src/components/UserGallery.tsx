@@ -1695,7 +1695,7 @@ export default function UserGallery({ onClose }: Props) {
       {/* Delete gallery — step 1 warning bottom sheet */}
       {deleteWarningOpen && (
         <div className="fixed inset-0 z-[250] bg-black/70 flex items-end" onClick={() => setDeleteWarningOpen(false)}>
-          <div className="bg-white w-full rounded-t-2xl px-4 pt-4" style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' }} onClick={e => e.stopPropagation()}>
+          <div className="bg-white w-full rounded-2xl px-4 pt-4" style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-red-600 text-sm">刪除圖片集</h3>
               <button onClick={() => setDeleteWarningOpen(false)}><X className="w-5 h-5 text-gray-400" /></button>
@@ -1722,7 +1722,7 @@ export default function UserGallery({ onClose }: Props) {
       {/* Delete name confirm modal */}
       {deleteConfirmOpen && (
         <div className="fixed inset-0 z-[250] bg-black/70 flex items-end" onClick={() => setDeleteConfirmOpen(false)}>
-          <div className="bg-white w-full rounded-t-2xl p-4" style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' }} onClick={e => e.stopPropagation()}>
+          <div className="bg-white w-full rounded-2xl p-4" style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-red-600 text-sm">最終確認</h3>
               <button onClick={() => setDeleteConfirmOpen(false)}><X className="w-5 h-5 text-gray-400" /></button>
