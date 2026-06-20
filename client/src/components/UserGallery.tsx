@@ -144,6 +144,12 @@ export default function UserGallery({ onClose }: Props) {
   const [copyPickerOpen, setCopyPickerOpen] = useState(false);
   const [copyTargetIds, setCopyTargetIds] = useState<Set<number>>(new Set());
 
+  // Delete / publish confirm
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
+  const [publishConfirmName, setPublishConfirmName] = useState('');
+
   // Pool batch select
   const [poolBatchMode, setPoolBatchMode] = useState(false);
   const [poolSelectedIds, setPoolSelectedIds] = useState<Set<number>>(new Set());
@@ -510,6 +516,18 @@ export default function UserGallery({ onClose }: Props) {
 
   async function handleSetStatus(status: 'draft' | 'active' | 'hidden') {
     if (!editGalleryId) return;
+    if (status === 'active') {
+      const ok = await confirm({
+        title: '確認發佈',
+        description: '發佈後公眾可見此圖片集。請再次確認。',
+        confirmText: '下一步',
+        cancelText: '取消',
+      });
+      if (!ok) return;
+      setPublishConfirmName('');
+      setPublishConfirmOpen(true);
+      return;
+    }
     updateInfoM.mutate({ id: editGalleryId, status }, {
       onSuccess: () => {
         const msgs: Record<string, string> = { draft: '已設為草稿', active: '已發佈', hidden: '已下架' };
@@ -523,11 +541,12 @@ export default function UserGallery({ onClose }: Props) {
     const ok = await confirm({
       title: '刪除圖片集',
       description: '確定刪除整個圖片集及所有圖片？此動作不可還原。',
-      confirmText: '刪除',
+      confirmText: '下一步',
       cancelText: '取消',
     });
     if (!ok) return;
-    deleteGalleryM.mutate({ id: editGalleryId });
+    setDeleteConfirmName('');
+    setDeleteConfirmOpen(true);
   }
 
   async function processFiles(allFiles: File[]) {
@@ -1534,6 +1553,77 @@ export default function UserGallery({ onClose }: Props) {
 
             </div>
           )}
+        </div>
+      )}
+
+      {/* Delete name confirm modal */}
+      {deleteConfirmOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/70 flex items-end" onClick={() => setDeleteConfirmOpen(false)}>
+          <div className="bg-white w-full rounded-t-2xl p-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-red-600 text-sm">最終確認</h3>
+              <button onClick={() => setDeleteConfirmOpen(false)}><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              請輸入圖片集名稱「<span className="font-bold text-gray-800">{editTitle}</span>」以確認刪除
+            </p>
+            <input
+              value={deleteConfirmName}
+              onChange={e => setDeleteConfirmName(e.target.value)}
+              placeholder="輸入圖片集名稱"
+              className="w-full px-3 py-2 text-sm outline-none mb-3"
+              style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '12px' }}
+              autoFocus
+            />
+            <button
+              onClick={() => {
+                if (deleteConfirmName.trim() !== editTitle.trim()) { toast.error('名稱不符，請重新輸入'); return; }
+                setDeleteConfirmOpen(false);
+                deleteGalleryM.mutate({ id: editGalleryId! });
+              }}
+              disabled={deleteConfirmName.trim() !== editTitle.trim() || deleteGalleryM.isPending}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 disabled:opacity-40"
+            >
+              確認永久刪除
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Publish name confirm modal */}
+      {publishConfirmOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/70 flex items-end" onClick={() => setPublishConfirmOpen(false)}>
+          <div className="bg-white w-full rounded-t-2xl p-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-900 text-sm">確認發佈</h3>
+              <button onClick={() => setPublishConfirmOpen(false)}><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              請輸入圖片集名稱「<span className="font-bold text-gray-800">{editTitle}</span>」以確認發佈
+            </p>
+            <input
+              value={publishConfirmName}
+              onChange={e => setPublishConfirmName(e.target.value)}
+              placeholder="輸入圖片集名稱"
+              className="w-full px-3 py-2 text-sm outline-none mb-3"
+              style={{ background: '#F8F8F8', border: '1px solid #E8E8E8', borderRadius: '12px' }}
+              autoFocus
+            />
+            <button
+              onClick={() => {
+                if (publishConfirmName.trim() !== editTitle.trim()) { toast.error('名稱不符，請重新輸入'); return; }
+                setPublishConfirmOpen(false);
+                updateInfoM.mutate({ id: editGalleryId!, status: 'active' }, {
+                  onSuccess: () => { galleriesQ.refetch(); getForEditQ.refetch(); toast.success('已發佈'); },
+                });
+              }}
+              disabled={publishConfirmName.trim() !== editTitle.trim() || updateInfoM.isPending}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40"
+              style={{ background: 'linear-gradient(135deg,#F97316,#EA580C)' }}
+            >
+              確認發佈
+            </button>
+          </div>
         </div>
       )}
 
