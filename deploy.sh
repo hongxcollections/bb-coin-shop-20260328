@@ -37,6 +37,11 @@ fi
 
 SOURCE_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Build frontend + backend so dist/ is always up to date
+echo "==> Building frontend + backend (pnpm build)..."
+cd "$SOURCE_DIR" && pnpm build 2>&1 | tail -5
+cd "$SOURCE_DIR"
+
 SKIP_CLONE="${SKIP_CLONE:-false}"
 if [ "$SKIP_CLONE" = "true" ] && [ -n "$TMP_DIR" ] && [ -d "$TMP_DIR/.git" ]; then
   echo "==> SKIP_CLONE: using existing dir $TMP_DIR"
@@ -58,7 +63,6 @@ else
     tar -cf - \
       --exclude='./.git' \
       --exclude='./node_modules' \
-      --exclude='./dist' \
       --exclude='./.env' \
       -C "$SOURCE_DIR" . | tar -xf - -C "$TMP_DIR"
   fi

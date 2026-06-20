@@ -1,0 +1,62 @@
+# Pre-include Cloudflare Managed Content AI bot directives so Cloudflare's edge
+# injection becomes a no-op (otherwise CF appends ~1.7KB without updating
+# Content-Length, causing FB scraper to report 403).
+User-agent: Amazonbot
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: CloudflareBrowserRenderingCrawler
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: *
+Allow: /
+Allow: /api/og-image/
+Disallow: /admin/
+Disallow: /api/trpc/
+
+User-agent: facebookexternalhit
+Allow: /
+Allow: /api/og-image/
+
+User-agent: meta-externalagent
+Allow: /auctions/
+Allow: /api/og-image/
+Allow: /merchants/
+Allow: /plans/
+Allow: /collection-square/
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+Allow: /api/og-image/
+
+User-agent: WhatsApp
+Allow: /
+Allow: /api/og-image/
+
+User-agent: LinkedInBot
+Allow: /
+Allow: /api/og-image/
+
+User-agent: Googlebot
+Allow: /
+Disallow: /admin/
+
+Sitemap: https://hongxcollections.com/sitemap.xml
