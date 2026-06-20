@@ -136,6 +136,7 @@ export default function MerchantGallery() {
   // Cover image picker
   const [showCoverPicker, setShowCoverPicker] = useState(false);
   const [coverPickerSelectedIds, setCoverPickerSelectedIds] = useState<Set<number>>(new Set());
+  const [generatedCoverUrl, setGeneratedCoverUrl] = useState<string | null>(null);
 
   // Auto-open poster modal from ?poster=<id> URL param (e.g. navigated from PublicGallery owner button)
   useEffect(() => {
@@ -229,7 +230,7 @@ export default function MerchantGallery() {
   });
   const signUploadM = trpc.productGalleries.signItemImageUpload.useMutation();
   const generateCoverM = trpc.productGalleries.generateGalleryCover.useMutation({
-    onSuccess: () => { getForEditQ.refetch(); toast.success('主題圖片已生成並儲存'); },
+    onSuccess: (data) => { setGeneratedCoverUrl(data.coverImageUrl); getForEditQ.refetch(); toast.success('主題圖片已生成並儲存'); },
     onError: (e) => toast.error(e.message),
   });
   const addItemsM = trpc.productGalleries.addItems.useMutation();
@@ -451,6 +452,7 @@ export default function MerchantGallery() {
 
   function openEdit(id: number) {
     setEditGalleryId(id);
+    setGeneratedCoverUrl(null);
     setView('edit');
     setEditTab('info');
     didSyncRef.current = false;
@@ -1419,15 +1421,15 @@ export default function MerchantGallery() {
                   )}
 
                   {/* Cover image preview */}
-                  {getForEditQ.data?.gallery?.coverImageUrl && (
+                  {(generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl) && (
                     <div className="bg-white rounded-2xl p-3 mb-3">
                       <p className="text-xs font-semibold mb-2" style={{ color: '#9CA3AF' }}>目前主題圖片（點擊放大）</p>
                       <img
-                        src={getForEditQ.data.gallery.coverImageUrl}
+                        src={(generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl)!}
                         alt="圖片集主題圖片"
                         className="w-full rounded-xl object-cover"
                         style={{ maxHeight: 180, cursor: 'zoom-in' }}
-                        onClick={() => openLightbox(getForEditQ.data!.gallery.coverImageUrl!)}
+                        onClick={() => openLightbox((generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl)!)}
                       />
                     </div>
                   )}
@@ -3112,15 +3114,15 @@ export default function MerchantGallery() {
                         onClick={() => { setEditTab('items'); setShowCoverPicker(false); setTimeout(() => { const withImg = draftItems.filter(i => i.imageUrl); setCoverPickerSelectedIds(new Set(withImg.map(i => i.id))); setShowCoverPicker(true); }, 50); }}
                         className="text-[10px] font-semibold px-2 py-0.5 rounded-lg"
                         style={{ background: '#FFF3E0', color: '#E65C00' }}
-                      >{getForEditQ.data?.gallery?.coverImageUrl ? '重新生成' : '生成主題圖片'}</button>
+                      >{(generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl) ? '重新生成' : '生成主題圖片'}</button>
                     </div>
-                    {getForEditQ.data?.gallery?.coverImageUrl ? (
+                    {(generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl) ? (
                       <img
-                        src={getForEditQ.data.gallery.coverImageUrl}
+                        src={(generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl)!}
                         alt="主題圖片"
                         className="w-full rounded-xl object-cover"
                         style={{ maxHeight: 200, cursor: 'zoom-in' }}
-                        onClick={() => openLightbox(getForEditQ.data!.gallery.coverImageUrl!)}
+                        onClick={() => openLightbox((generatedCoverUrl ?? getForEditQ.data?.gallery?.coverImageUrl)!)}
                       />
                     ) : (
                       <p className="text-xs text-gray-400 text-center py-3">尚未生成主題圖片<br/>前往「圖片商品」tab 生成</p>
