@@ -7,7 +7,7 @@ import BottomNav from "@/components/BottomNav";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import {
-  ChevronLeft, ChevronDown, Plus, Loader2, Trash2, X, Upload, Save,
+  ChevronLeft, ChevronRight, ChevronDown, Plus, Loader2, Trash2, X, Upload, Save,
   EyeOff, Images, FileImage, Check, Download, ExternalLink,
 } from "lucide-react";
 import { GalleryShareMenu } from "@/components/ShareMenu";
@@ -192,6 +192,11 @@ export default function MerchantGallery() {
   const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(new Set());
 
+  // Group auction import picker
+  const [groupAuctionPickerOpen, setGroupAuctionPickerOpen] = useState(false);
+  const [selectedGroupRoundId, setSelectedGroupRoundId] = useState<number | null>(null);
+  const [selectedGroupItemIds, setSelectedGroupItemIds] = useState<Set<number>>(new Set());
+
   // ── tRPC ──
   const galleriesQ = trpc.productGalleries.myGalleries.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -278,6 +283,27 @@ export default function MerchantGallery() {
       toast.success(`已置入 ${data.created} 件商品`);
       setProductPickerOpen(false);
       setSelectedProductIds(new Set());
+      didSyncRef.current = false;
+      scrollToItemIdRef.current = -1;
+      getForEditQ.refetch();
+      galleryImagesQ.refetch();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const myGroupAuctionsQ = trpc.productGalleries.myGroupAuctions.useQuery(undefined, {
+    enabled: groupAuctionPickerOpen,
+    refetchOnWindowFocus: false,
+  });
+  const groupAuctionItemsQ = trpc.productGalleries.getGroupAuctionItemsForImport.useQuery(
+    { roundId: selectedGroupRoundId! },
+    { enabled: selectedGroupRoundId !== null && groupAuctionPickerOpen, refetchOnWindowFocus: false }
+  );
+  const importFromGroupAuctionM = trpc.productGalleries.importFromGroupAuction.useMutation({
+    onSuccess: (data) => {
+      toast.success(`已置入 ${data.created} 件團拍商品`);
+      setGroupAuctionPickerOpen(false);
+      setSelectedGroupRoundId(null);
+      setSelectedGroupItemIds(new Set());
       didSyncRef.current = false;
       scrollToItemIdRef.current = -1;
       getForEditQ.refetch();
@@ -1238,6 +1264,14 @@ export default function MerchantGallery() {
                     >
                       <Plus className="w-3.5 h-3.5" />
                       置入商品出售
+                    </button>
+                    <button
+                      onClick={() => { setSelectedGroupRoundId(null); setSelectedGroupItemIds(new Set()); setGroupAuctionPickerOpen(true); }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold"
+                      style={{ background: '#FDF4FF', color: '#9333EA' }}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      置入團拍商品
                     </button>
                     {draftItems.length > 0 && (
                       <button
@@ -2288,6 +2322,168 @@ export default function MerchantGallery() {
                                 ? <><Loader2 className="w-4 h-4 animate-spin" />置入中...</>
                                 : `置入 ${selectedProductIds.size} 件商品`}
                             </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Group auction import picker */}
+                  {groupAuctionPickerOpen && (
+                    <div
+                      className="fixed inset-0 z-50 bg-black/70 flex items-end"
+                      onClick={() => { setGroupAuctionPickerOpen(false); setSelectedGroupRoundId(null); setSelectedGroupItemIds(new Set()); }}
+                    >
+                      <div
+                        className="bg-white w-full rounded-t-2xl px-4 pt-4"
+                        style={{ maxHeight: '75vh', display: 'flex', flexDirection: 'column', paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {selectedGroupRoundId === null ? (
+                          <>
+                            <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                              <h3 className="font-semibold text-gray-900 text-sm">選取團拍場次</h3>
+                              <button onClick={() => setGroupAuctionPickerOpen(false)}>
+                                <X className="w-5 h-5 text-gray-400" />
+                              </button>
+                            </div>
+                            <p className="text-xs text-gray-400 mb-3 flex-shrink-0">選取場次後再揀選個別商品</p>
+                            {myGroupAuctionsQ.isLoading ? (
+                              <div className="flex justify-center py-8 flex-shrink-0">
+                                <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
+                              </div>
+                            ) : !myGroupAuctionsQ.data?.length ? (
+                              <div className="text-center py-8 text-sm text-gray-400 flex-shrink-0">
+                                沒有已發布或已結束的團拍場次
+                              </div>
+                            ) : (
+                              <div className="overflow-y-auto flex-1 space-y-1.5 pr-0.5">
+                                {myGroupAuctionsQ.data.map(round => (
+                                  <button
+                                    key={round.id}
+                                    onClick={() => { setSelectedGroupRoundId(round.id); setSelectedGroupItemIds(new Set()); }}
+                                    className="w-full flex items-center justify-between gap-3 p-3 rounded-xl text-left"
+                                    style={{ background: '#F9F5FF', border: '1.5px solid #E9D5FF' }}
+                                  >
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-semibold text-gray-800 truncate">{round.title || `第 ${round.periodNumber} 期`}</p>
+                                      <p className="text-xs text-purple-500 font-medium mt-0.5">
+                                        {round.status === 'published' ? '進行中' : '已結束'}
+                                      </p>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                              <button
+                                onClick={() => { setSelectedGroupRoundId(null); setSelectedGroupItemIds(new Set()); }}
+                                className="flex items-center gap-1 text-purple-500 text-xs font-semibold"
+                              >
+                                <ChevronLeft className="w-4 h-4" />
+                                返回
+                              </button>
+                              <h3 className="font-semibold text-gray-900 text-sm">選取團拍商品</h3>
+                              <button onClick={() => { setGroupAuctionPickerOpen(false); setSelectedGroupRoundId(null); setSelectedGroupItemIds(new Set()); }}>
+                                <X className="w-5 h-5 text-gray-400" />
+                              </button>
+                            </div>
+                            <p className="text-xs text-gray-400 mb-3 flex-shrink-0">名稱格式：編號。商品名稱，起拍價設為售價</p>
+                            {groupAuctionItemsQ.isLoading ? (
+                              <div className="flex justify-center py-8 flex-shrink-0">
+                                <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
+                              </div>
+                            ) : !groupAuctionItemsQ.data?.length ? (
+                              <div className="text-center py-8 text-sm text-gray-400 flex-shrink-0">
+                                此場次沒有商品
+                              </div>
+                            ) : (
+                              <>
+                                <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                                  <span className="text-xs text-gray-500">
+                                    已選 {selectedGroupItemIds.size} / {groupAuctionItemsQ.data.length} 件
+                                  </span>
+                                  <button
+                                    className="text-xs font-semibold text-purple-500"
+                                    onClick={() => {
+                                      if (selectedGroupItemIds.size === groupAuctionItemsQ.data!.length) {
+                                        setSelectedGroupItemIds(new Set());
+                                      } else {
+                                        setSelectedGroupItemIds(new Set(groupAuctionItemsQ.data!.map(i => i.id)));
+                                      }
+                                    }}
+                                  >
+                                    {selectedGroupItemIds.size === groupAuctionItemsQ.data.length ? '取消全選' : '全選'}
+                                  </button>
+                                </div>
+                                <div className="overflow-y-auto flex-1 space-y-1.5 pr-0.5">
+                                  {groupAuctionItemsQ.data.map(item => {
+                                    const selected = selectedGroupItemIds.has(item.id);
+                                    const displayName = item.itemNumber && item.itemName
+                                      ? `${item.itemNumber}。${item.itemName}`
+                                      : item.itemNumber || item.itemName || `#${item.id}`;
+                                    return (
+                                      <button
+                                        key={item.id}
+                                        onClick={() => {
+                                          setSelectedGroupItemIds(prev => {
+                                            const next = new Set(prev);
+                                            if (next.has(item.id)) next.delete(item.id);
+                                            else next.add(item.id);
+                                            return next;
+                                          });
+                                        }}
+                                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left"
+                                        style={{ background: selected ? '#F9F5FF' : '#F8F8F8', border: `1.5px solid ${selected ? '#9333EA' : 'transparent'}` }}
+                                      >
+                                        {item.imageUrl ? (
+                                          <img src={item.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                                        ) : (
+                                          <div className="w-10 h-10 rounded-lg bg-gray-200 flex-shrink-0 flex items-center justify-center">
+                                            <FileImage className="w-5 h-5 text-gray-300" />
+                                          </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-semibold text-gray-800 truncate">{displayName}</p>
+                                          {item.startPrice != null && Number(item.startPrice) > 0 && (
+                                            <p className="text-xs text-purple-500 font-semibold">
+                                              起拍 HKD${Number(item.startPrice).toLocaleString('en-HK')}
+                                            </p>
+                                          )}
+                                        </div>
+                                        <div
+                                          className="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center"
+                                          style={{ borderColor: selected ? '#9333EA' : '#D1D5DB', background: selected ? '#9333EA' : 'white' }}
+                                        >
+                                          {selected && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    if (!editGalleryId || selectedGroupItemIds.size === 0 || selectedGroupRoundId === null) return;
+                                    importFromGroupAuctionM.mutate({
+                                      galleryId: editGalleryId,
+                                      roundId: selectedGroupRoundId,
+                                      itemIds: Array.from(selectedGroupItemIds),
+                                    });
+                                  }}
+                                  disabled={selectedGroupItemIds.size === 0 || importFromGroupAuctionM.isPending}
+                                  className="mt-3 w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 flex-shrink-0 flex items-center justify-center gap-2"
+                                  style={{ background: 'linear-gradient(135deg, #A855F7, #7C3AED)' }}
+                                >
+                                  {importFromGroupAuctionM.isPending
+                                    ? <><Loader2 className="w-4 h-4 animate-spin" />置入中...</>
+                                    : `置入 ${selectedGroupItemIds.size} 件商品`}
+                                </button>
+                              </>
+                            )}
                           </>
                         )}
                       </div>

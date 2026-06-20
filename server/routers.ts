@@ -12855,6 +12855,137 @@ EXAMPLE OUTPUT (exact format):
         return { productId: insertResult.insertId, imageCount: allImageUrls.length };
       }),
 
+    myGroupAuctions: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      const { desc } = await import('drizzle-orm');
+      const rounds = await db.select({
+        id: groupAuctionRounds.id,
+        title: groupAuctionRounds.title,
+        periodNumber: groupAuctionRounds.periodNumber,
+        status: groupAuctionRounds.status,
+        createdAt: groupAuctionRounds.createdAt,
+      }).from(groupAuctionRounds)
+        .where(and(
+          eq(groupAuctionRounds.merchantUserId, ctx.user.id),
+          eq(groupAuctionRounds.isArchived, 0)
+        ))
+        .orderBy(desc(groupAuctionRounds.createdAt))
+        .limit(100);
+      return rounds.filter(r => r.status === 'published' || r.status === 'ended');
+    }),
+
+    getGroupAuctionItemsForImport: protectedProcedure
+      .input(z.object({ roundId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(and(eq(groupAuctionRounds.id, input.roundId), eq(groupAuctionRounds.merchantUserId, ctx.user.id)))
+          .limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND' });
+        let columns: Array<{ key: string; label: string; role: string }> = [];
+        try { columns = JSON.parse(round.columnsJson ?? '[]'); } catch {}
+        const numCol = columns.find(c => c.role === 'itemNumber');
+        const titleCol = columns.find(c => c.role === 'itemTitle');
+        const { asc } = await import('drizzle-orm');
+        const items = await db.select().from(groupAuctionItems)
+          .where(eq(groupAuctionItems.roundId, input.roundId))
+          .orderBy(asc(groupAuctionItems.displayOrder), asc(groupAuctionItems.id));
+        const images = await db.select().from(groupAuctionImages)
+          .where(eq(groupAuctionImages.roundId, input.roundId));
+        const imageById = new Map(images.map(img => [img.id, img]));
+        return items.map(item => {
+          let data: Record<string, string> = {};
+          try { data = JSON.parse((item as any).dataJson ?? '{}'); } catch {}
+          let imageIds: number[] = [];
+          try { imageIds = JSON.parse((item as any).imageIdsJson ?? '[]'); } catch {}
+          const itemNumber = numCol ? (data[numCol.key] ?? '').trim() : '';
+          const itemName = titleCol ? (data[titleCol.key] ?? '').trim() : '';
+          const firstImage = imageIds.length > 0 ? imageById.get(imageIds[0]) : null;
+          return {
+            id: item.id,
+            itemNumber,
+            itemName,
+            startPrice: item.startPrice,
+            imageUrl: firstImage?.url ?? null,
+          };
+        });
+      }),
+
+    importFromGroupAuction: protectedProcedure
+      .input(z.object({
+        galleryId: z.number().int().positive(),
+        roundId: z.number().int().positive(),
+        itemIds: z.array(z.number().int().positive()).min(1).max(200),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getProductGallery, listProductGalleryItems, getRawPool, addGalleryImagesToPool, assignGalleryImage } = await import('./db') as any;
+        const gallery = await getProductGallery(input.galleryId);
+        if (!gallery || gallery.merchantId !== ctx.user.id) throw new TRPCError({ code: 'NOT_FOUND' });
+        const db = await getDb();
+        const [round] = await db.select().from(groupAuctionRounds)
+          .where(and(eq(groupAuctionRounds.id, input.roundId), eq(groupAuctionRounds.merchantUserId, ctx.user.id)))
+          .limit(1);
+        if (!round) throw new TRPCError({ code: 'NOT_FOUND' });
+        const existing = await listProductGalleryItems(input.galleryId);
+        if (existing.length + input.itemIds.length > 200) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `最多 200 件，目前已有 ${existing.length} 件` });
+        }
+        let columns: Array<{ key: string; label: string; role: string }> = [];
+        try { columns = JSON.parse(round.columnsJson ?? '[]'); } catch {}
+        const numCol = columns.find(c => c.role === 'itemNumber');
+        const titleCol = columns.find(c => c.role === 'itemTitle');
+        const images = await db.select().from(groupAuctionImages)
+          .where(eq(groupAuctionImages.roundId, input.roundId));
+        const imageById = new Map(images.map((img: any) => [img.id, img]));
+        const pool = await getRawPool();
+        if (!pool) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        let created = 0;
+        for (const itemId of input.itemIds) {
+          const [itemRows]: any = await pool.execute(
+            'SELECT * FROM groupAuctionItems WHERE id = ? AND roundId = ? LIMIT 1',
+            [itemId, input.roundId]
+          );
+          const item = itemRows[0];
+          if (!item) continue;
+          let data: Record<string, string> = {};
+          try { data = JSON.parse(item.dataJson ?? '{}'); } catch {}
+          let imageIds: number[] = [];
+          try { imageIds = JSON.parse(item.imageIdsJson ?? '[]'); } catch {}
+          const itemNumber = numCol ? (data[numCol.key] ?? '').trim() : '';
+          const rawItemName = titleCol ? (data[titleCol.key] ?? '').trim() : '';
+          const galleryItemName = itemNumber && rawItemName
+            ? `${itemNumber}。${rawItemName}`
+            : itemNumber || rawItemName;
+          const [maxRow]: any = await pool.execute(
+            'SELECT COALESCE(MAX(sortOrder), -1) as maxOrder FROM productGalleryItems WHERE galleryId = ?',
+            [input.galleryId]
+          );
+          const sortOrder = (maxRow[0]?.maxOrder ?? -1) + 1;
+          const [r]: any = await pool.execute(
+            'INSERT INTO productGalleryItems (galleryId, merchantId, imageUrl, itemName, price, sortOrder) VALUES (?, ?, "", ?, ?, ?)',
+            [input.galleryId, ctx.user.id, galleryItemName, Number(item.startPrice) || 0, sortOrder]
+          );
+          const newItemId: number = r.insertId;
+          const firstImageId = imageIds[0] ?? null;
+          if (firstImageId) {
+            const img = imageById.get(firstImageId) as any;
+            if (img?.url) {
+              const poolIds = await addGalleryImagesToPool([{
+                galleryId: input.galleryId,
+                merchantId: ctx.user.id,
+                imageUrl: img.url,
+                s3Key: img.s3Key ?? undefined,
+              }]);
+              for (const pid of poolIds) {
+                await assignGalleryImage(pid, newItemId, ctx.user.id);
+              }
+            }
+          }
+          created++;
+        }
+        return { created };
+      }),
+
     // ── User Gallery (any authenticated user, no merchant approval needed) ──
 
     userMyGalleries: protectedProcedure.query(async ({ ctx }) => {
