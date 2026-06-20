@@ -1562,6 +1562,29 @@ export default function UserGallery({ onClose }: Props) {
               {/* ── Tab: 發佈 ── */}
               {editTab === 'publish' && (
                 <div className="space-y-3">
+                  {/* Cover image preview in publish tab */}
+                  <div className="bg-white rounded-2xl p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-gray-400">主題圖片</p>
+                      <button
+                        onClick={() => { setEditTab('items'); setShowCoverPicker(false); setTimeout(() => { const withImg = draftItems.filter(i => i.imageUrl); setCoverPickerSelectedIds(new Set(withImg.map(i => i.id))); setShowCoverPicker(true); }, 50); }}
+                        className="text-[10px] font-semibold px-2 py-0.5 rounded-lg"
+                        style={{ background: '#FFF3E0', color: '#E65C00' }}
+                      >{getForEditQ.data?.gallery?.coverImageUrl ? '重新生成' : '生成主題圖片'}</button>
+                    </div>
+                    {getForEditQ.data?.gallery?.coverImageUrl ? (
+                      <img
+                        src={getForEditQ.data.gallery.coverImageUrl}
+                        alt="主題圖片"
+                        className="w-full rounded-xl object-cover"
+                        style={{ maxHeight: 200, cursor: 'zoom-in' }}
+                        onClick={() => openLightbox(getForEditQ.data!.gallery.coverImageUrl!)}
+                      />
+                    ) : (
+                      <p className="text-xs text-gray-400 text-center py-3">尚未生成主題圖片<br/>前往「圖片商品」tab 生成</p>
+                    )}
+                  </div>
+
                   <div className="bg-white rounded-2xl p-3">
                     <p className="text-xs font-semibold text-gray-400 mb-2">發佈狀態</p>
                     <div className="flex gap-2">

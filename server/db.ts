@@ -7554,6 +7554,10 @@ export async function ensureProductGalleriesTable(): Promise<void> {
       createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  // Add coverImageUrl to existing tables that pre-date this column
+  try {
+    await pool.execute('ALTER TABLE productGalleries ADD COLUMN coverImageUrl VARCHAR(500)');
+  } catch (_) { /* column already exists */ }
   _productGalleriesTableChecked = true;
 }
 
