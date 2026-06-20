@@ -12257,9 +12257,9 @@ EXAMPLE OUTPUT (exact format):
         }).composite(composites).jpeg({ quality: 90 }).toBuffer();
         const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const key = `merchant-galleries/${ctx.user.id}/cover-${uid}.jpg`;
-        const { finalUrl } = await storagePut(key, finalBuf, 'image/jpeg');
-        await updateProductGallery(input.galleryId, { coverImageUrl: finalUrl });
-        return { coverImageUrl: finalUrl };
+        const { url: coverUrl } = await storagePut(key, finalBuf, 'image/jpeg');
+        await updateProductGallery(input.galleryId, { coverImageUrl: coverUrl });
+        return { coverImageUrl: coverUrl };
       }),
 
     deleteGallery: protectedProcedure
@@ -13230,9 +13230,9 @@ EXAMPLE OUTPUT (exact format):
         }).composite(composites).jpeg({ quality: 90 }).toBuffer();
         const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const key = `user-galleries/${ctx.user.id}/cover-${uid}.jpg`;
-        const { finalUrl } = await storagePut(key, finalBuf, 'image/jpeg');
-        await updateProductGallery(input.galleryId, { coverImageUrl: finalUrl });
-        return { coverImageUrl: finalUrl };
+        const { url: coverUrl } = await storagePut(key, finalBuf, 'image/jpeg');
+        await updateProductGallery(input.galleryId, { coverImageUrl: coverUrl });
+        return { coverImageUrl: coverUrl };
       }),
 
     userDeleteGallery: protectedProcedure

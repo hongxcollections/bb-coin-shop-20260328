@@ -23013,9 +23013,9 @@ EXAMPLE OUTPUT (exact format):
       }).composite(composites).jpeg({ quality: 90 }).toBuffer();
       const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const key = `merchant-galleries/${ctx.user.id}/cover-${uid}.jpg`;
-      const { finalUrl } = await storagePut(key, finalBuf, "image/jpeg");
-      await updateProductGallery2(input.galleryId, { coverImageUrl: finalUrl });
-      return { coverImageUrl: finalUrl };
+      const { url: coverUrl } = await storagePut(key, finalBuf, "image/jpeg");
+      await updateProductGallery2(input.galleryId, { coverImageUrl: coverUrl });
+      return { coverImageUrl: coverUrl };
     }),
     deleteGallery: protectedProcedure.input(z2.object({ id: z2.number().int().positive() })).mutation(async ({ input, ctx }) => {
       const { getProductGallery: getProductGallery2, deleteProductGallery: deleteProductGallery2 } = await Promise.resolve().then(() => (init_db(), db_exports));
@@ -23879,9 +23879,9 @@ EXAMPLE OUTPUT (exact format):
       }).composite(composites).jpeg({ quality: 90 }).toBuffer();
       const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const key = `user-galleries/${ctx.user.id}/cover-${uid}.jpg`;
-      const { finalUrl } = await storagePut(key, finalBuf, "image/jpeg");
-      await updateProductGallery2(input.galleryId, { coverImageUrl: finalUrl });
-      return { coverImageUrl: finalUrl };
+      const { url: coverUrl } = await storagePut(key, finalBuf, "image/jpeg");
+      await updateProductGallery2(input.galleryId, { coverImageUrl: coverUrl });
+      return { coverImageUrl: coverUrl };
     }),
     userDeleteGallery: protectedProcedure.input(z2.object({ id: z2.number().int().positive() })).mutation(async ({ input, ctx }) => {
       const { getProductGallery: getProductGallery2, deleteProductGallery: deleteProductGallery2 } = await Promise.resolve().then(() => (init_db(), db_exports));
