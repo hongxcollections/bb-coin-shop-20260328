@@ -1298,8 +1298,8 @@ export default function MerchantStore() {
                         </div>
                       </div>
                       <div className="px-2 py-1.5">
-                        <p className="text-xs font-semibold text-gray-800 line-clamp-1 leading-tight">{g.title}</p>
-                        {g.description && <p className="text-[10px] text-gray-400 line-clamp-1 mt-0.5">{g.description}</p>}
+                        <p className="text-xs font-semibold text-gray-800 leading-snug break-words">{g.title}</p>
+                        <p className="text-[10px] text-indigo-500 font-medium mt-0.5">共 {count} 件商品</p>
                       </div>
                     </div>
                   </Link>

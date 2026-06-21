@@ -1182,13 +1182,13 @@ export default function MerchantGallery() {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <p className="font-semibold text-sm text-gray-900 truncate">{g.title}</p>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${STATUS_COLORS[g.status] ?? ''}`}>
+                    <div className="flex items-start gap-2 flex-wrap mb-0.5">
+                      <p className="font-semibold text-sm text-gray-900 break-words leading-snug">{g.title}</p>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 mt-0.5 ${STATUS_COLORS[g.status] ?? ''}`}>
                         {STATUS_LABELS[g.status] ?? g.status}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-400">{g.itemCount} 張圖片 · {g.columnsPerRow} 列</p>
+                    <p className="text-xs text-gray-400">共 {g.itemCount} 件商品 · {g.columnsPerRow} 列</p>
                   </div>
                   <button
                     onClick={() => { setPosterCancelNav('list'); openEdit(g.id); setShowPosterModal(true); }}
