@@ -313,11 +313,18 @@ export default function PublicGallery() {
   const activeCount = items.filter(i => i.status === 'active' && !localSold.has(i.id)).length;
   const soldCount = items.filter(i => i.status === 'sold' || localSold.has(i.id)).length;
 
-  const heroImageUrl = gallery?.coverImageUrl
-    ?? allItems.find(i => (i.images && i.images.length > 0) ? i.images[0].imageUrl : i.imageUrl)
-        ?.images?.[0]?.imageUrl
-    ?? allItems.find(i => i.imageUrl)?.imageUrl
-    ?? null;
+  const heroImageUrl: string | null = (() => {
+    const cover = gallery?.coverImageUrl;
+    if (cover) return cover;
+    for (const item of allItems) {
+      if (item.images && item.images.length > 0) {
+        const url = item.images[0]?.imageUrl;
+        if (url) return url;
+      }
+      if (item.imageUrl) return item.imageUrl;
+    }
+    return null;
+  })();
 
   // ── Deep-link: ?item={id} auto-opens lightbox ──
   const deepLinkHandled = useRef(false);
