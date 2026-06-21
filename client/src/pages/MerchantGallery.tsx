@@ -506,6 +506,11 @@ export default function MerchantGallery() {
       const title       = currentGallery?.title ?? '';
       const merchantName = (currentGallery as any)?.merchantName ?? '';
       const description  = (currentGallery as any)?.description ?? '';
+      const coverUrl: string | null =
+        generatedCoverUrl ||
+        (currentGallery as any)?.coverImageUrl ||
+        items.find((i: any) => i.imageUrl)?.imageUrl ||
+        null;
 
       const S   = 2;           // scale: 2× CSS px → canvas px
       let CW  = 375;           // canvas width in CSS px; may expand for extra cols
@@ -582,6 +587,22 @@ export default function MerchantGallery() {
         ctx.closePath();
       };
 
+      // ── Load hero cover image (fetch→blob to avoid canvas CORS taint) ──
+      let heroCoverImg: HTMLImageElement | null = null;
+      if (coverUrl) {
+        try {
+          const resp = await fetch(coverUrl);
+          const blob = await resp.blob();
+          const burl = URL.createObjectURL(blob);
+          heroCoverImg = await new Promise<HTMLImageElement | null>((resolve) => {
+            const img = new Image();
+            img.onload = () => { URL.revokeObjectURL(burl); resolve(img); };
+            img.onerror = () => { URL.revokeObjectURL(burl); resolve(null); };
+            img.src = burl;
+          });
+        } catch { heroCoverImg = null; }
+      }
+
       // ── Background ──
       ctx.fillStyle = '#ECECEC';
       ctx.fillRect(0, 0, CW, totalH);
@@ -590,14 +611,28 @@ export default function MerchantGallery() {
       const heroY = M;
       ctx.save();
       rrect(heroX, heroY, heroW, heroH, hR); ctx.clip();
-      const hGrad = ctx.createLinearGradient(heroX, heroY, heroX + heroW * 0.6, heroY + heroH * 0.85);
-      hGrad.addColorStop(0, '#0D1B2A'); hGrad.addColorStop(0.4, '#1B263B'); hGrad.addColorStop(1, '#1F3A5F');
-      ctx.fillStyle = hGrad; ctx.fillRect(heroX, heroY, heroW, heroH);
-      // Decorative circles (absolute -top-6 -right-6 w-28 / -bottom-8 -left-4 w-24)
-      ctx.fillStyle = 'rgba(255,179,71,0.1)';
-      ctx.beginPath(); ctx.arc(heroX + heroW - 32, heroY + 32, 56, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(74,144,217,0.1)';
-      ctx.beginPath(); ctx.arc(heroX + 32, heroY + heroH - 16, 48, 0, Math.PI * 2); ctx.fill();
+      if (heroCoverImg) {
+        // Draw photo (object-fit: cover, center)
+        const iw = heroCoverImg.naturalWidth; const ih = heroCoverImg.naturalHeight;
+        const heroAR = heroW / heroH; const imgAR = iw / ih;
+        let sx = 0, sy = 0, sw = iw, sh = ih;
+        if (imgAR > heroAR) { sw = Math.round(ih * heroAR); sx = Math.round((iw - sw) / 2); }
+        else                { sh = Math.round(iw / heroAR); sy = Math.round((ih - sh) / 2); }
+        ctx.drawImage(heroCoverImg, sx, sy, sw, sh, heroX, heroY, heroW, heroH);
+        // Dark overlay (matches CSS linear-gradient)
+        const ovGrad = ctx.createLinearGradient(heroX, heroY, heroX + heroW * 0.6, heroY + heroH * 0.85);
+        ovGrad.addColorStop(0, 'rgba(13,27,42,0.82)'); ovGrad.addColorStop(0.4, 'rgba(27,38,59,0.78)'); ovGrad.addColorStop(1, 'rgba(31,58,95,0.74)');
+        ctx.fillStyle = ovGrad; ctx.fillRect(heroX, heroY, heroW, heroH);
+      } else {
+        const hGrad = ctx.createLinearGradient(heroX, heroY, heroX + heroW * 0.6, heroY + heroH * 0.85);
+        hGrad.addColorStop(0, '#0D1B2A'); hGrad.addColorStop(0.4, '#1B263B'); hGrad.addColorStop(1, '#1F3A5F');
+        ctx.fillStyle = hGrad; ctx.fillRect(heroX, heroY, heroW, heroH);
+        // Decorative circles only when no photo
+        ctx.fillStyle = 'rgba(255,179,71,0.1)';
+        ctx.beginPath(); ctx.arc(heroX + heroW - 32, heroY + 32, 56, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(74,144,217,0.1)';
+        ctx.beginPath(); ctx.arc(heroX + 32, heroY + heroH - 16, 48, 0, Math.PI * 2); ctx.fill();
+      }
       ctx.restore();
 
       // ── Hero text ──
@@ -3334,7 +3369,8 @@ export default function MerchantGallery() {
 
       {/* Gallery Poster Modal — z-[300] > BottomNav z-[200] */}
       {showPosterModal && (() => {
-        const posterCoverUrl = generatedCoverUrl ?? (currentGallery as any)?.coverImageUrl ?? null;
+        const posterCoverUrl = generatedCoverUrl || (currentGallery as any)?.coverImageUrl ||
+          draftItems.find(i => i.status !== 'hidden' && i.imageUrl)?.imageUrl || null;
         const posterItems = draftItems.filter(i => i.status !== 'hidden' && i.imageUrl);
         const posterCols = editCols;
         const activeCount = draftItems.filter(i => i.status === 'active').length;
