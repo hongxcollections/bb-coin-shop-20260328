@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { Link, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -118,10 +117,6 @@ export default function MerchantGallery() {
   const lbVScrollRef = useRef<HTMLDivElement>(null);
   const lightboxItemIdRef = useRef<number | null>(null);
 
-  // Order lightbox — completely separate state (same pattern as PublicGallery)
-  const [orderLb, setOrderLb] = useState<{ src: string; title: string; itemNumber?: string; price?: string; currency?: string } | null>(null);
-  const [orderLbMode, setOrderLbMode] = useState<'v' | 'h'>('v');
-  const orderLbScrollRef = useRef<HTMLDivElement>(null);
   const pinchStartDist = useRef(0);
   const pinchStartZoom = useRef(1);
   const panStartTouch = useRef({ x: 0, y: 0 });
@@ -960,15 +955,6 @@ export default function MerchantGallery() {
         document.getElementById(`gallery-item-${itemId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       }, 60);
     }
-  }
-  function openOrderLightbox(src: string, info: { title: string; itemNumber?: string; price?: string; currency?: string }) {
-    setLightboxImages([src]);
-    setLightboxImgIdx(0);
-    setLightboxSrc(src);
-    setLbZoom(1); setLbPanX(0); setLbPanY(0);
-    setLbMode('v');
-    setLbItemInfo(info);
-    lightboxItemIdRef.current = null;
   }
   function lbPinchDist(t: React.TouchList) {
     const dx = t[0].clientX - t[1].clientX;
