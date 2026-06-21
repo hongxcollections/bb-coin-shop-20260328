@@ -1750,7 +1750,7 @@ export default function MerchantGallery() {
                                                   alt=""
                                                   className="w-full h-full object-cover cursor-zoom-in"
                                                   style={{ filter: item.status === 'sold' ? 'grayscale(50%) brightness(0.88)' : 'none' }}
-                                                  onClick={() => openLightbox(cur.imageUrl, itemImages.map(i => i.imageUrl), item.id)}
+                                                  onClick={() => { openLightbox(cur.imageUrl, itemImages.map(i => i.imageUrl), item.id); setLbMode('v'); }}
                                                 />
                                                 {item.status === 'sold' && (
                                                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none">
@@ -3040,6 +3040,7 @@ export default function MerchantGallery() {
                                   ? order.itemImages
                                   : [order.imageUrl];
                                 openLightbox(order.imageUrl, allImgs);
+                                setLbMode('v');
                                 setLbItemInfo({ title: order.title || `訂單 #${order.id}`, itemNumber: order.itemNumber ?? undefined, price: order.price ?? undefined, currency: order.currency ?? undefined });
                               }}
                               className="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden focus:outline-none"
