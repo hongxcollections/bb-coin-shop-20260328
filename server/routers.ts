@@ -12598,6 +12598,17 @@ EXAMPLE OUTPUT (exact format):
         if (item.status === 'hidden') throw new TRPCError({ code: 'BAD_REQUEST', message: '此商品不可購買' });
         if (item.status === 'sold') throw new TRPCError({ code: 'BAD_REQUEST', message: '此商品已售出' });
         if (item.merchantId === ctx.user.id) throw new TRPCError({ code: 'BAD_REQUEST', message: '不能購買自己的商品' });
+        // Resolve best imageUrl: item's own field first, then first image from productGalleryImages
+        let resolvedImageUrl: string = item.imageUrl || '';
+        if (!resolvedImageUrl) {
+          try {
+            const [imgRows]: any = await pool.execute(
+              'SELECT imageUrl FROM productGalleryImages WHERE itemId = ? ORDER BY sortOrder ASC, id ASC LIMIT 1',
+              [input.itemId]
+            );
+            resolvedImageUrl = imgRows[0]?.imageUrl || '';
+          } catch {}
+        }
         await pool.execute(
           'UPDATE productGalleryItems SET status = "sold" WHERE id = ? AND status = "active"',
           [input.itemId]
@@ -12614,7 +12625,7 @@ EXAMPLE OUTPUT (exact format):
             buyerId: ctx.user.id,
             title: item.itemName || `圖片商品 #${item.id}`,
             itemNumber: item.itemNumber || '',
-            imageUrl: item.imageUrl || '',
+            imageUrl: resolvedImageUrl,
             price: parseFloat(item.price) || 0,
             currency: item.currency || 'HKD',
             commissionRate,

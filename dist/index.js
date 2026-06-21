@@ -7444,7 +7444,17 @@ async function getGalleryOrdersByMerchant(merchantId, galleryId) {
   const galleryFilter = galleryId ? "AND o.galleryId = ?" : "";
   if (galleryId) params.push(galleryId);
   const [rows] = await pool.execute(
-    `SELECT o.*, u.name AS buyerDisplayName, u.phone AS buyerPhone
+    `SELECT o.id, o.galleryId, o.galleryItemId, o.merchantId, o.buyerId,
+            o.title, o.itemNumber,
+            COALESCE(NULLIF(o.imageUrl, ''),
+              (SELECT pgi.imageUrl FROM productGalleryImages pgi
+               WHERE pgi.itemId = o.galleryItemId ORDER BY pgi.sortOrder ASC, pgi.id ASC LIMIT 1),
+              (SELECT pit.imageUrl FROM productGalleryItems pit
+               WHERE pit.id = o.galleryItemId LIMIT 1)
+            ) AS imageUrl,
+            o.price, o.currency, o.commissionRate, o.commissionAmount,
+            o.status, o.buyerNote, o.createdAt, o.confirmedAt, o.cancelledAt, o.cancelReason,
+            u.name AS buyerDisplayName, u.phone AS buyerPhone
      FROM galleryOrders o
      LEFT JOIN users u ON u.id = o.buyerId
      WHERE o.merchantId = ? ${galleryFilter}
@@ -23289,6 +23299,17 @@ EXAMPLE OUTPUT (exact format):
       if (item.status === "hidden") throw new TRPCError3({ code: "BAD_REQUEST", message: "\u6B64\u5546\u54C1\u4E0D\u53EF\u8CFC\u8CB7" });
       if (item.status === "sold") throw new TRPCError3({ code: "BAD_REQUEST", message: "\u6B64\u5546\u54C1\u5DF2\u552E\u51FA" });
       if (item.merchantId === ctx.user.id) throw new TRPCError3({ code: "BAD_REQUEST", message: "\u4E0D\u80FD\u8CFC\u8CB7\u81EA\u5DF1\u7684\u5546\u54C1" });
+      let resolvedImageUrl = item.imageUrl || "";
+      if (!resolvedImageUrl) {
+        try {
+          const [imgRows] = await pool.execute(
+            "SELECT imageUrl FROM productGalleryImages WHERE itemId = ? ORDER BY sortOrder ASC, id ASC LIMIT 1",
+            [input.itemId]
+          );
+          resolvedImageUrl = imgRows[0]?.imageUrl || "";
+        } catch {
+        }
+      }
       await pool.execute(
         'UPDATE productGalleryItems SET status = "sold" WHERE id = ? AND status = "active"',
         [input.itemId]
@@ -23304,7 +23325,7 @@ EXAMPLE OUTPUT (exact format):
           buyerId: ctx.user.id,
           title: item.itemName || `\u5716\u7247\u5546\u54C1 #${item.id}`,
           itemNumber: item.itemNumber || "",
-          imageUrl: item.imageUrl || "",
+          imageUrl: resolvedImageUrl,
           price: parseFloat(item.price) || 0,
           currency: item.currency || "HKD",
           commissionRate,

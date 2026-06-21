@@ -7941,7 +7941,17 @@ export async function getGalleryOrdersByMerchant(merchantId: number, galleryId?:
   const galleryFilter = galleryId ? 'AND o.galleryId = ?' : '';
   if (galleryId) params.push(galleryId);
   const [rows]: any = await pool.execute(
-    `SELECT o.*, u.name AS buyerDisplayName, u.phone AS buyerPhone
+    `SELECT o.id, o.galleryId, o.galleryItemId, o.merchantId, o.buyerId,
+            o.title, o.itemNumber,
+            COALESCE(NULLIF(o.imageUrl, ''),
+              (SELECT pgi.imageUrl FROM productGalleryImages pgi
+               WHERE pgi.itemId = o.galleryItemId ORDER BY pgi.sortOrder ASC, pgi.id ASC LIMIT 1),
+              (SELECT pit.imageUrl FROM productGalleryItems pit
+               WHERE pit.id = o.galleryItemId LIMIT 1)
+            ) AS imageUrl,
+            o.price, o.currency, o.commissionRate, o.commissionAmount,
+            o.status, o.buyerNote, o.createdAt, o.confirmedAt, o.cancelledAt, o.cancelReason,
+            u.name AS buyerDisplayName, u.phone AS buyerPhone
      FROM galleryOrders o
      LEFT JOIN users u ON u.id = o.buyerId
      WHERE o.merchantId = ? ${galleryFilter}
