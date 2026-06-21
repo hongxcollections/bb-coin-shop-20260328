@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { useConfirm } from "@/components/ui/confirm-provider";
 import {
   ChevronLeft, ChevronRight, ChevronDown, Plus, Loader2, Trash2, X, Upload, Save,
-  EyeOff, Images, FileImage, Check, Download, ExternalLink,
+  EyeOff, Images, FileImage, Check, Download, ExternalLink, LayoutGrid, LayoutList,
 } from "lucide-react";
 import { GalleryShareMenu } from "@/components/ShareMenu";
 
@@ -112,6 +112,9 @@ export default function MerchantGallery() {
   const [lbZoom, setLbZoom] = useState(1);
   const [lbPanX, setLbPanX] = useState(0);
   const [lbPanY, setLbPanY] = useState(0);
+  const [lbMode, setLbMode] = useState<'h' | 'v'>('h');
+  const [lbItemInfo, setLbItemInfo] = useState<{ title: string; itemNumber?: string; price?: string; currency?: string } | null>(null);
+  const lbVScrollRef = useRef<HTMLDivElement>(null);
   const lightboxItemIdRef = useRef<number | null>(null);
   const pinchStartDist = useRef(0);
   const pinchStartZoom = useRef(1);
@@ -945,11 +948,21 @@ export default function MerchantGallery() {
   function closeLightbox() {
     const itemId = lightboxItemIdRef.current;
     setLightboxSrc(null);
+    setLbItemInfo(null);
     if (itemId !== null) {
       setTimeout(() => {
         document.getElementById(`gallery-item-${itemId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       }, 60);
     }
+  }
+  function openOrderLightbox(src: string, info: { title: string; itemNumber?: string; price?: string; currency?: string }) {
+    setLightboxImages([src]);
+    setLightboxImgIdx(0);
+    setLightboxSrc(src);
+    setLbZoom(1); setLbPanX(0); setLbPanY(0);
+    setLbMode('v');
+    setLbItemInfo(info);
+    lightboxItemIdRef.current = null;
   }
   function lbPinchDist(t: React.TouchList) {
     const dx = t[0].clientX - t[1].clientX;
@@ -1008,52 +1021,120 @@ export default function MerchantGallery() {
   // ── Lightbox overlay ──
   if (lightboxSrc) {
     const lbCurSrc = lightboxImages[lightboxImgIdx] ?? lightboxSrc;
+    const lbPrice = lbItemInfo?.price ? parseFloat(lbItemInfo.price) : 0;
     return (
       <div
-        className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
-        onClick={() => { if (lbZoom <= 1) closeLightbox(); }}
+        className="fixed inset-0 z-50 flex flex-col"
+        style={{ background: 'rgba(0,0,0,0.97)', paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
         onTouchEnd={lbTouchEnd}
       >
-        <button
-          className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center z-10"
-          onClick={() => closeLightbox()}
-        >
-          <X className="w-5 h-5 text-white" />
-        </button>
-        {lbZoom > 1 && (
-          <button
-            className="absolute top-4 left-4 text-white/70 text-xs px-3 py-1.5 rounded-xl bg-black/50"
-            onClick={() => { setLbZoom(1); setLbPanX(0); setLbPanY(0); }}
-          >
-            重設縮放
-          </button>
-        )}
-        <img
-          src={lbCurSrc}
-          className="max-w-full max-h-full object-contain rounded-lg select-none"
-          style={{
-            transform: `translate(${lbPanX}px, ${lbPanY}px) scale(${lbZoom})`,
-            transformOrigin: 'center center',
-            touchAction: 'none',
-            cursor: lbZoom > 1 ? 'grab' : 'default',
-          }}
-          onClick={e => e.stopPropagation()}
-          onTouchStart={lbTouchStart}
-          onTouchMove={lbTouchMove}
-          alt=""
-          draggable={false}
-        />
-        {lightboxImages.length > 1 && (
-          <div className="absolute flex gap-1.5 pointer-events-none" style={{ bottom: 32, left: 0, right: 0, justifyContent: 'center' }}>
-            {lightboxImages.map((_, i) => (
-              <div key={i} style={{
-                width: i === lightboxImgIdx ? 14 : 6, height: 6, borderRadius: 3,
-                background: i === lightboxImgIdx ? '#fff' : 'rgba(255,255,255,0.4)',
-                transition: 'width 0.2s',
-              }} />
-            ))}
+        {/* Top bar: info + mode toggle + 關閉 */}
+        <div className="flex items-start justify-between px-3 pt-3 pb-2 flex-shrink-0 gap-2">
+          <div className="flex-1 min-w-0">
+            {lbItemInfo?.itemNumber && (
+              <p className="text-[10px] text-amber-400/80 font-mono mb-0.5">#{lbItemInfo.itemNumber}</p>
+            )}
+            {lbItemInfo?.title && (
+              <p className="text-sm font-semibold text-white leading-snug">{lbItemInfo.title}</p>
+            )}
+            {lbPrice > 0 && (
+              <p className="text-sm font-bold mt-0.5" style={{ color: '#FFB347' }}>
+                {lbItemInfo?.currency ?? 'HKD'} ${lbPrice.toLocaleString('en-HK')}
+              </p>
+            )}
           </div>
-        )}
+          {/* mode toggle */}
+          <div className="flex rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(255,255,255,0.2)', alignSelf: 'flex-start', marginTop: 2 }}>
+            <button
+              onClick={() => { setLbMode('h'); setLbZoom(1); setLbPanX(0); setLbPanY(0); }}
+              style={{ padding: '5px 8px', background: lbMode === 'h' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center' }}
+              title="橫向瀏覽"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => { setLbMode('v'); setLbZoom(1); setLbPanX(0); setLbPanY(0); }}
+              style={{ padding: '5px 8px', background: lbMode === 'v' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center' }}
+              title="直立式瀏覽"
+            >
+              <LayoutList className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <button
+            className="px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0"
+            style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', alignSelf: 'flex-start', marginTop: 2 }}
+            onClick={() => closeLightbox()}
+          >
+            關閉
+          </button>
+        </div>
+
+        {/* Image area */}
+        <div className="flex-1 relative overflow-hidden">
+          {lbMode === 'v' ? (
+            /* Vertical mode: full-width stacked */
+            <div
+              ref={lbVScrollRef}
+              className="h-full"
+              style={{ overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: 'none' } as React.CSSProperties}
+            >
+              {lightboxImages.map((src, i) => (
+                <div key={i} className="flex items-center justify-center" style={{ padding: '3px 3px', minHeight: '30vh' }}>
+                  <img
+                    src={src}
+                    className="select-none"
+                    style={{ width: '100%', objectFit: 'contain', borderRadius: 14, display: 'block', pointerEvents: 'none' }}
+                    alt=""
+                    draggable={false}
+                    loading="lazy"
+                  />
+                </div>
+              ))}
+              <div style={{ height: 12 }} />
+            </div>
+          ) : (
+            /* Horizontal mode: centered with pinch-zoom */
+            <div
+              className="h-full flex items-center justify-center"
+              onClick={() => { if (lbZoom <= 1) closeLightbox(); }}
+            >
+              {lbZoom > 1 && (
+                <button
+                  className="absolute top-2 left-4 text-white/70 text-xs px-3 py-1.5 rounded-xl bg-black/50 z-10"
+                  onClick={(e) => { e.stopPropagation(); setLbZoom(1); setLbPanX(0); setLbPanY(0); }}
+                >
+                  重設縮放
+                </button>
+              )}
+              <img
+                src={lbCurSrc}
+                className="max-w-full max-h-full object-contain rounded-lg select-none"
+                style={{
+                  transform: `translate(${lbPanX}px, ${lbPanY}px) scale(${lbZoom})`,
+                  transformOrigin: 'center center',
+                  touchAction: 'none',
+                  cursor: lbZoom > 1 ? 'grab' : 'default',
+                }}
+                onClick={e => e.stopPropagation()}
+                onTouchStart={lbTouchStart}
+                onTouchMove={lbTouchMove}
+                alt=""
+                draggable={false}
+              />
+              {lightboxImages.length > 1 && (
+                <div className="absolute flex gap-1.5 pointer-events-none" style={{ bottom: 10, left: 0, right: 0, justifyContent: 'center' }}>
+                  {lightboxImages.map((_, i) => (
+                    <div key={i} style={{
+                      width: i === lightboxImgIdx ? 14 : 6, height: 6, borderRadius: 3,
+                      background: i === lightboxImgIdx ? '#fff' : 'rgba(255,255,255,0.4)',
+                      transition: 'width 0.2s',
+                    }} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -3075,7 +3156,7 @@ export default function MerchantGallery() {
                         <div className="flex items-start gap-3">
                           {order.imageUrl ? (
                             <button
-                              onClick={() => openLightbox(order.imageUrl)}
+                              onClick={() => openOrderLightbox(order.imageUrl, { title: order.title || `訂單 #${order.id}`, itemNumber: order.itemNumber ?? undefined, price: order.price ?? undefined, currency: order.currency ?? undefined })}
                               className="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden focus:outline-none"
                               title="點擊放大"
                             >
@@ -3152,7 +3233,7 @@ export default function MerchantGallery() {
                               `價錢 ${priceStr}`,
                               itemUrl,
                               '多謝購買 請聯繫及安排交收事宜🤝',
-                              `${merchantNameStr} 日期 ${ymd} 時間 ${hm}`,
+                              `${merchantNameStr} ${ymd} ${hm}`,
                             ].join('\n');
                             return (
                               <div className="flex gap-2 flex-wrap">
@@ -3184,7 +3265,7 @@ export default function MerchantGallery() {
                                 <button
                                   onClick={() => {
                                     navigator.clipboard.writeText(orderMsg)
-                                      .then(() => toast.success('訊息已複製'))
+                                      .then(() => toast.success('訊息已複製', { description: orderMsg, duration: 5000 }))
                                       .catch(() => toast.error('複製失敗'));
                                   }}
                                   className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl font-medium text-gray-600 flex-shrink-0 border border-gray-200 bg-white"
