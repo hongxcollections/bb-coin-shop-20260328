@@ -564,7 +564,10 @@ export default function MerchantGallery() {
       const rows    = Math.ceil(items.length / cols);
       const gridH   = rows * (cardH + gridGap) - gridGap + gridPB;
       const footerFontSz = 5; const footerPY = 10; const footerH = footerPY * 2 + footerFontSz;
-      const totalH  = M + heroH + M + gridH + footerH;
+      const contentH = M + heroH + M + gridH + footerH;
+      // Enforce min 9:16 aspect ratio so saved image fills phone screen without letterbox
+      const minH = Math.round(CW * 16 / 9);
+      const totalH = Math.max(contentH, minH);
 
       // ── Canvas ──
       const canvas = document.createElement('canvas');
@@ -815,7 +818,7 @@ export default function MerchantGallery() {
         }
       });
 
-      const footerY = M + heroH + M + gridH;
+      const footerY = totalH - footerH;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillStyle = '#999999'; ctx.font = `${footerFontSz}px sans-serif`;
       ctx.fillText('- hongxcollections -', CW / 2, footerY + footerPY + footerFontSz / 2);
