@@ -3049,7 +3049,7 @@ export default function MerchantGallery() {
                         <div className="flex items-start gap-3">
                           {order.imageUrl ? (
                             <button
-                              onClick={() => { toast.info('放大圖片…'); setOrderLb({ src: order.imageUrl, title: order.title || `訂單 #${order.id}`, itemNumber: order.itemNumber ?? undefined, price: order.price ?? undefined, currency: order.currency ?? undefined }); setOrderLbMode('v'); }}
+                              onClick={() => openOrderLightbox(order.imageUrl, { title: order.title || `訂單 #${order.id}`, itemNumber: order.itemNumber ?? undefined, price: order.price ?? undefined, currency: order.currency ?? undefined })}
                               className="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden focus:outline-none"
                               title="點擊放大"
                             >
@@ -3674,51 +3674,6 @@ export default function MerchantGallery() {
         );
       })()}
 
-      {/* ── Order image lightbox (portal → direct child of document.body, bypasses all stacking contexts) ── */}
-      {orderLb && createPortal(
-        (() => {
-          const olbPrice = orderLb.price ? parseFloat(orderLb.price) : 0;
-          return (
-            <div
-              style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.97)', paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '12px 12px 8px', flexShrink: 0, gap: 8 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  {orderLb.itemNumber && <p style={{ fontSize: 10, color: 'rgba(251,191,36,0.8)', fontFamily: 'monospace', marginBottom: 2 }}>#{orderLb.itemNumber}</p>}
-                  <p style={{ fontSize: 14, fontWeight: 600, color: '#fff', lineHeight: 1.3 }}>{orderLb.title}</p>
-                  {olbPrice > 0 && <p style={{ fontSize: 14, fontWeight: 700, marginTop: 2, color: '#FFB347' }}>{orderLb.currency ?? 'HKD'} ${olbPrice.toLocaleString('en-HK')}</p>}
-                </div>
-                <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', flexShrink: 0, border: '1px solid rgba(255,255,255,0.2)', alignSelf: 'flex-start', marginTop: 2 }}>
-                  <button type="button" onClick={() => setOrderLbMode('h')} title="橫向" style={{ padding: '5px 8px', background: orderLbMode === 'h' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center', border: 'none', cursor: 'pointer' }}>
-                    <LayoutGrid style={{ width: 14, height: 14 }} />
-                  </button>
-                  <button type="button" onClick={() => setOrderLbMode('v')} title="直立" style={{ padding: '5px 8px', background: orderLbMode === 'v' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center', border: 'none', cursor: 'pointer' }}>
-                    <LayoutList style={{ width: 14, height: 14 }} />
-                  </button>
-                </div>
-                <button type="button" onClick={() => setOrderLb(null)} style={{ padding: '6px 12px', borderRadius: 9999, fontSize: 12, fontWeight: 500, background: 'rgba(255,255,255,0.15)', color: '#fff', flexShrink: 0, alignSelf: 'flex-start', marginTop: 2, border: 'none', cursor: 'pointer' }}>
-                  關閉
-                </button>
-              </div>
-              <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                {orderLbMode === 'v' ? (
-                  <div ref={orderLbScrollRef} style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3px', minHeight: '60vh' }}>
-                      <img src={orderLb.src} alt="" draggable={false} style={{ width: '100%', objectFit: 'contain', borderRadius: 14, display: 'block', pointerEvents: 'none', userSelect: 'none' }} />
-                    </div>
-                    <div style={{ height: 12 }} />
-                  </div>
-                ) : (
-                  <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setOrderLb(null)}>
-                    <img src={orderLb.src} alt="" draggable={false} onClick={e => e.stopPropagation()} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, userSelect: 'none' }} />
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })(),
-        document.body
-      )}
     </div>
   );
 }
