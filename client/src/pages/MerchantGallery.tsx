@@ -1173,37 +1173,45 @@ export default function MerchantGallery() {
           ) : (
             <div className="space-y-3">
               {galleries.map(g => (
-                <div key={g.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3">
-                  {g.coverImageUrl ? (
-                    <img src={g.coverImageUrl} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" alt="" />
-                  ) : (
-                    <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                      <Images className="w-6 h-6 text-gray-300" />
+                <div key={g.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col gap-2.5">
+                  {/* Row 1: title */}
+                  <p className="font-semibold text-sm text-gray-900 break-words leading-snug">{g.title}</p>
+                  {/* Row 2: thumbnail + info/buttons */}
+                  <div className="flex items-stretch gap-3">
+                    {g.coverImageUrl ? (
+                      <img src={g.coverImageUrl} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" alt="" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        <Images className="w-6 h-6 text-gray-300" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                      {/* Info line: status + count */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${STATUS_COLORS[g.status] ?? ''}`}>
+                          {STATUS_LABELS[g.status] ?? g.status}
+                        </span>
+                        <span className="text-xs text-gray-400">共 {g.itemCount} 件商品 · {g.columnsPerRow} 列</span>
+                      </div>
+                      {/* Buttons line: right-aligned */}
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => { setPosterCancelNav('list'); openEdit(g.id); setShowPosterModal(true); }}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white"
+                          style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
+                        >
+                          <Images className="w-3 h-3" />
+                          生成
+                        </button>
+                        <button
+                          onClick={() => openEdit(g.id)}
+                          className="text-xs font-semibold text-orange-600 px-3 py-1.5 rounded-xl border border-orange-200 hover:border-orange-300"
+                        >
+                          管理
+                        </button>
+                      </div>
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start gap-2 flex-wrap mb-0.5">
-                      <p className="font-semibold text-sm text-gray-900 break-words leading-snug">{g.title}</p>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 mt-0.5 ${STATUS_COLORS[g.status] ?? ''}`}>
-                        {STATUS_LABELS[g.status] ?? g.status}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-400">共 {g.itemCount} 件商品 · {g.columnsPerRow} 列</p>
                   </div>
-                  <button
-                    onClick={() => { setPosterCancelNav('list'); openEdit(g.id); setShowPosterModal(true); }}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white flex-shrink-0"
-                    style={{ backgroundImage: 'linear-gradient(180deg, #FBBF24 0%, #78350F 100%)', backgroundColor: '#FBBF24' }}
-                  >
-                    <Images className="w-3 h-3" />
-                    生成
-                  </button>
-                  <button
-                    onClick={() => openEdit(g.id)}
-                    className="text-xs font-semibold text-orange-600 px-3 py-1.5 rounded-xl border border-orange-200 hover:border-orange-300 flex-shrink-0"
-                  >
-                    管理
-                  </button>
                 </div>
               ))}
             </div>
