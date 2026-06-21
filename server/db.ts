@@ -7958,7 +7958,26 @@ export async function getGalleryOrdersByMerchant(merchantId: number, galleryId?:
      ORDER BY o.createdAt DESC`,
     params
   );
-  return rows ?? [];
+  const orders: any[] = rows ?? [];
+  if (orders.length === 0) return orders;
+
+  // Batch-fetch ALL images for each gallery item so the lightbox can page through them
+  const itemIds = [...new Set(orders.map((o: any) => o.galleryItemId as number))];
+  const placeholders = itemIds.map(() => '?').join(',');
+  const [imgRows]: any = await pool.execute(
+    `SELECT itemId, imageUrl FROM productGalleryImages WHERE itemId IN (${placeholders}) ORDER BY sortOrder ASC, id ASC`,
+    itemIds
+  );
+  const imagesByItemId: Record<number, string[]> = {};
+  for (const r of imgRows as Array<{ itemId: number; imageUrl: string }>) {
+    if (!imagesByItemId[r.itemId]) imagesByItemId[r.itemId] = [];
+    if (r.imageUrl) imagesByItemId[r.itemId].push(r.imageUrl);
+  }
+
+  return orders.map((o: any) => ({
+    ...o,
+    itemImages: imagesByItemId[o.galleryItemId] ?? [],
+  }));
 }
 
 export async function confirmGalleryOrder(orderId: number, merchantId: number): Promise<{ ok: boolean; error?: string }> {

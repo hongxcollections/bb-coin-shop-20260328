@@ -7461,7 +7461,23 @@ async function getGalleryOrdersByMerchant(merchantId, galleryId) {
      ORDER BY o.createdAt DESC`,
     params
   );
-  return rows ?? [];
+  const orders = rows ?? [];
+  if (orders.length === 0) return orders;
+  const itemIds = [...new Set(orders.map((o) => o.galleryItemId))];
+  const placeholders = itemIds.map(() => "?").join(",");
+  const [imgRows] = await pool.execute(
+    `SELECT itemId, imageUrl FROM productGalleryImages WHERE itemId IN (${placeholders}) ORDER BY sortOrder ASC, id ASC`,
+    itemIds
+  );
+  const imagesByItemId = {};
+  for (const r of imgRows) {
+    if (!imagesByItemId[r.itemId]) imagesByItemId[r.itemId] = [];
+    if (r.imageUrl) imagesByItemId[r.itemId].push(r.imageUrl);
+  }
+  return orders.map((o) => ({
+    ...o,
+    itemImages: imagesByItemId[o.galleryItemId] ?? []
+  }));
 }
 async function confirmGalleryOrder(orderId, merchantId) {
   await ensureGalleryOrdersTable();
