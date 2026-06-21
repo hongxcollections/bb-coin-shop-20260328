@@ -514,7 +514,7 @@ export default function MerchantGallery() {
 
       const S   = 2;           // scale: 2× CSS px → canvas px
       let CW  = 375;           // canvas width in CSS px; may expand for extra cols
-      const M   = 12;          // mx-3 / mt-3 / mb-3
+      const M   = 4;           // top/side/bottom margin (reduced from 12 to eliminate excess top space)
       const hPX = 16;          // hero px-4
       const hPT = 16;          // hero pt-4
       const hPB = 16;          // hero pb-4
@@ -3383,7 +3383,7 @@ export default function MerchantGallery() {
                 {/* posterRef wraps the full scrollable content for html2canvas capture */}
                 <div ref={posterRef}>
                 {/* ── Hero Banner ── */}
-                <div className="mx-3 mt-3 mb-3 rounded-2xl overflow-hidden shadow-lg">
+                <div className="mx-3 mt-1 mb-3 rounded-2xl overflow-hidden shadow-lg">
                   <div style={posterCoverUrl ? {
                     backgroundImage: `linear-gradient(145deg, rgba(13,27,42,0.82) 0%, rgba(27,38,59,0.78) 40%, rgba(31,58,95,0.74) 100%), url(${posterCoverUrl})`,
                     backgroundSize: 'cover',
