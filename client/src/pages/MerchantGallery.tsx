@@ -116,6 +116,11 @@ export default function MerchantGallery() {
   const [lbItemInfo, setLbItemInfo] = useState<{ title: string; itemNumber?: string; price?: string; currency?: string } | null>(null);
   const lbVScrollRef = useRef<HTMLDivElement>(null);
   const lightboxItemIdRef = useRef<number | null>(null);
+
+  // Order lightbox — completely separate state (same pattern as PublicGallery)
+  const [orderLb, setOrderLb] = useState<{ src: string; title: string; itemNumber?: string; price?: string; currency?: string } | null>(null);
+  const [orderLbMode, setOrderLbMode] = useState<'v' | 'h'>('v');
+  const orderLbScrollRef = useRef<HTMLDivElement>(null);
   const pinchStartDist = useRef(0);
   const pinchStartZoom = useRef(1);
   const panStartTouch = useRef({ x: 0, y: 0 });
@@ -934,6 +939,90 @@ export default function MerchantGallery() {
   const galleries = (galleriesQ.data ?? []) as GalleryRow[];
 
   if (!isAuthenticated) return null;
+
+  // ── Order lightbox early return (identical pattern to PublicGallery) ──
+  if (orderLb) {
+    const olbPrice = orderLb.price ? parseFloat(orderLb.price) : 0;
+    return (
+      <div
+        className="fixed inset-0 z-50 flex flex-col"
+        style={{ background: 'rgba(0,0,0,0.97)', paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
+      >
+        {/* Top bar */}
+        <div className="flex items-start justify-between px-3 pt-3 pb-2 flex-shrink-0 gap-2">
+          <div className="flex-1 min-w-0">
+            {orderLb.itemNumber && (
+              <p className="text-[10px] text-amber-400/80 font-mono mb-0.5">#{orderLb.itemNumber}</p>
+            )}
+            <p className="text-sm font-semibold text-white leading-snug">{orderLb.title}</p>
+            {olbPrice > 0 && (
+              <p className="text-sm font-bold mt-0.5" style={{ color: '#FFB347' }}>
+                {orderLb.currency ?? 'HKD'} ${olbPrice.toLocaleString('en-HK')}
+              </p>
+            )}
+          </div>
+          {/* mode toggle */}
+          <div className="flex rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(255,255,255,0.2)', alignSelf: 'flex-start', marginTop: 2 }}>
+            <button
+              onClick={() => setOrderLbMode('h')}
+              style={{ padding: '5px 8px', background: orderLbMode === 'h' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center' }}
+              title="橫向瀏覽"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setOrderLbMode('v')}
+              style={{ padding: '5px 8px', background: orderLbMode === 'v' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center' }}
+              title="直立式瀏覽"
+            >
+              <LayoutList className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <button
+            className="px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0"
+            style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', alignSelf: 'flex-start', marginTop: 2 }}
+            onClick={() => setOrderLb(null)}
+          >
+            關閉
+          </button>
+        </div>
+        {/* Image area */}
+        <div className="flex-1 relative overflow-hidden">
+          {orderLbMode === 'v' ? (
+            <div
+              ref={orderLbScrollRef}
+              className="h-full"
+              style={{ overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: 'none' } as React.CSSProperties}
+            >
+              <div className="flex items-center justify-center" style={{ padding: '3px 3px', minHeight: '60vh' }}>
+                <img
+                  src={orderLb.src}
+                  className="select-none"
+                  style={{ width: '100%', objectFit: 'contain', borderRadius: 14, display: 'block', pointerEvents: 'none' }}
+                  alt=""
+                  draggable={false}
+                />
+              </div>
+              <div style={{ height: 12 }} />
+            </div>
+          ) : (
+            <div
+              className="h-full flex items-center justify-center"
+              onClick={() => setOrderLb(null)}
+            >
+              <img
+                src={orderLb.src}
+                className="max-w-full max-h-full object-contain rounded-lg select-none"
+                onClick={e => e.stopPropagation()}
+                alt=""
+                draggable={false}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // ── Lightbox helpers ──
   function openLightbox(src: string, images?: string[], itemId?: number) {
@@ -3043,7 +3132,7 @@ export default function MerchantGallery() {
                         <div className="flex items-start gap-3">
                           {order.imageUrl ? (
                             <button
-                              onClick={() => openOrderLightbox(order.imageUrl, { title: order.title || `訂單 #${order.id}`, itemNumber: order.itemNumber ?? undefined, price: order.price ?? undefined, currency: order.currency ?? undefined })}
+                              onClick={() => { setOrderLb({ src: order.imageUrl, title: order.title || `訂單 #${order.id}`, itemNumber: order.itemNumber ?? undefined, price: order.price ?? undefined, currency: order.currency ?? undefined }); setOrderLbMode('v'); }}
                               className="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden focus:outline-none"
                               title="點擊放大"
                             >
