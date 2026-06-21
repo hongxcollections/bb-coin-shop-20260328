@@ -1018,127 +1018,6 @@ export default function MerchantGallery() {
     toast.success('批量設價完成');
   }
 
-  // ── Lightbox overlay ──
-  if (lightboxSrc) {
-    const lbCurSrc = lightboxImages[lightboxImgIdx] ?? lightboxSrc;
-    const lbPrice = lbItemInfo?.price ? parseFloat(lbItemInfo.price) : 0;
-    return (
-      <div
-        className="fixed inset-0 z-50 flex flex-col"
-        style={{ background: 'rgba(0,0,0,0.97)', paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
-        onTouchEnd={lbTouchEnd}
-      >
-        {/* Top bar: info + mode toggle + 關閉 */}
-        <div className="flex items-start justify-between px-3 pt-3 pb-2 flex-shrink-0 gap-2">
-          <div className="flex-1 min-w-0">
-            {lbItemInfo?.itemNumber && (
-              <p className="text-[10px] text-amber-400/80 font-mono mb-0.5">#{lbItemInfo.itemNumber}</p>
-            )}
-            {lbItemInfo?.title && (
-              <p className="text-sm font-semibold text-white leading-snug">{lbItemInfo.title}</p>
-            )}
-            {lbPrice > 0 && (
-              <p className="text-sm font-bold mt-0.5" style={{ color: '#FFB347' }}>
-                {lbItemInfo?.currency ?? 'HKD'} ${lbPrice.toLocaleString('en-HK')}
-              </p>
-            )}
-          </div>
-          {/* mode toggle */}
-          <div className="flex rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(255,255,255,0.2)', alignSelf: 'flex-start', marginTop: 2 }}>
-            <button
-              onClick={() => { setLbMode('h'); setLbZoom(1); setLbPanX(0); setLbPanY(0); }}
-              style={{ padding: '5px 8px', background: lbMode === 'h' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center' }}
-              title="橫向瀏覽"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => { setLbMode('v'); setLbZoom(1); setLbPanX(0); setLbPanY(0); }}
-              style={{ padding: '5px 8px', background: lbMode === 'v' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center' }}
-              title="直立式瀏覽"
-            >
-              <LayoutList className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <button
-            className="px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0"
-            style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', alignSelf: 'flex-start', marginTop: 2 }}
-            onClick={() => closeLightbox()}
-          >
-            關閉
-          </button>
-        </div>
-
-        {/* Image area */}
-        <div className="flex-1 relative overflow-hidden">
-          {lbMode === 'v' ? (
-            /* Vertical mode: full-width stacked */
-            <div
-              ref={lbVScrollRef}
-              className="h-full"
-              style={{ overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: 'none' } as React.CSSProperties}
-            >
-              {lightboxImages.map((src, i) => (
-                <div key={i} className="flex items-center justify-center" style={{ padding: '3px 3px', minHeight: '30vh' }}>
-                  <img
-                    src={src}
-                    className="select-none"
-                    style={{ width: '100%', objectFit: 'contain', borderRadius: 14, display: 'block', pointerEvents: 'none' }}
-                    alt=""
-                    draggable={false}
-                    loading="lazy"
-                  />
-                </div>
-              ))}
-              <div style={{ height: 12 }} />
-            </div>
-          ) : (
-            /* Horizontal mode: centered with pinch-zoom */
-            <div
-              className="h-full flex items-center justify-center"
-              onClick={() => { if (lbZoom <= 1) closeLightbox(); }}
-            >
-              {lbZoom > 1 && (
-                <button
-                  className="absolute top-2 left-4 text-white/70 text-xs px-3 py-1.5 rounded-xl bg-black/50 z-10"
-                  onClick={(e) => { e.stopPropagation(); setLbZoom(1); setLbPanX(0); setLbPanY(0); }}
-                >
-                  重設縮放
-                </button>
-              )}
-              <img
-                src={lbCurSrc}
-                className="max-w-full max-h-full object-contain rounded-lg select-none"
-                style={{
-                  transform: `translate(${lbPanX}px, ${lbPanY}px) scale(${lbZoom})`,
-                  transformOrigin: 'center center',
-                  touchAction: 'none',
-                  cursor: lbZoom > 1 ? 'grab' : 'default',
-                }}
-                onClick={e => e.stopPropagation()}
-                onTouchStart={lbTouchStart}
-                onTouchMove={lbTouchMove}
-                alt=""
-                draggable={false}
-              />
-              {lightboxImages.length > 1 && (
-                <div className="absolute flex gap-1.5 pointer-events-none" style={{ bottom: 10, left: 0, right: 0, justifyContent: 'center' }}>
-                  {lightboxImages.map((_, i) => (
-                    <div key={i} style={{
-                      width: i === lightboxImgIdx ? 14 : 6, height: 6, borderRadius: 3,
-                      background: i === lightboxImgIdx ? '#fff' : 'rgba(255,255,255,0.4)',
-                      transition: 'width 0.2s',
-                    }} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen" style={{ background: '#F5F5F5' }}>
       <Header />
@@ -3666,6 +3545,128 @@ export default function MerchantGallery() {
       })()}
 
       <BottomNav />
+
+      {/* ── Lightbox overlay (inline, always reliable) ── */}
+      {lightboxSrc && (() => {
+        const lbCurSrc = lightboxImages[lightboxImgIdx] ?? lightboxSrc;
+        const lbPrice = lbItemInfo?.price ? parseFloat(lbItemInfo.price) : 0;
+        return (
+          <div
+            className="fixed inset-0 flex flex-col"
+            style={{ background: 'rgba(0,0,0,0.97)', zIndex: 999, paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
+            onTouchEnd={lbTouchEnd}
+          >
+            {/* Top bar: info + mode toggle + 關閉 */}
+            <div className="flex items-start justify-between px-3 pt-3 pb-2 flex-shrink-0 gap-2">
+              <div className="flex-1 min-w-0">
+                {lbItemInfo?.itemNumber && (
+                  <p className="text-[10px] text-amber-400/80 font-mono mb-0.5">#{lbItemInfo.itemNumber}</p>
+                )}
+                {lbItemInfo?.title && (
+                  <p className="text-sm font-semibold text-white leading-snug">{lbItemInfo.title}</p>
+                )}
+                {lbPrice > 0 && (
+                  <p className="text-sm font-bold mt-0.5" style={{ color: '#FFB347' }}>
+                    {lbItemInfo?.currency ?? 'HKD'} ${lbPrice.toLocaleString('en-HK')}
+                  </p>
+                )}
+              </div>
+              {/* mode toggle */}
+              <div className="flex rounded-lg overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(255,255,255,0.2)', alignSelf: 'flex-start', marginTop: 2 }}>
+                <button
+                  onClick={() => { setLbMode('h'); setLbZoom(1); setLbPanX(0); setLbPanY(0); }}
+                  style={{ padding: '5px 8px', background: lbMode === 'h' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center' }}
+                  title="橫向瀏覽"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => { setLbMode('v'); setLbZoom(1); setLbPanX(0); setLbPanY(0); }}
+                  style={{ padding: '5px 8px', background: lbMode === 'v' ? 'rgba(255,255,255,0.25)' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center' }}
+                  title="直立式瀏覽"
+                >
+                  <LayoutList className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <button
+                className="px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0"
+                style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', alignSelf: 'flex-start', marginTop: 2 }}
+                onClick={() => closeLightbox()}
+              >
+                關閉
+              </button>
+            </div>
+
+            {/* Image area */}
+            <div className="flex-1 relative overflow-hidden">
+              {lbMode === 'v' ? (
+                /* Vertical mode: full-width stacked */
+                <div
+                  ref={lbVScrollRef}
+                  className="h-full"
+                  style={{ overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: 'none' } as React.CSSProperties}
+                >
+                  {lightboxImages.map((src, i) => (
+                    <div key={i} className="flex items-center justify-center" style={{ padding: '3px 3px', minHeight: '30vh' }}>
+                      <img
+                        src={src}
+                        className="select-none"
+                        style={{ width: '100%', objectFit: 'contain', borderRadius: 14, display: 'block', pointerEvents: 'none' }}
+                        alt=""
+                        draggable={false}
+                        loading="lazy"
+                      />
+                    </div>
+                  ))}
+                  <div style={{ height: 12 }} />
+                </div>
+              ) : (
+                /* Horizontal mode: centered with pinch-zoom */
+                <div
+                  className="h-full flex items-center justify-center"
+                  onClick={() => { if (lbZoom <= 1) closeLightbox(); }}
+                >
+                  {lbZoom > 1 && (
+                    <button
+                      className="absolute top-2 left-4 text-white/70 text-xs px-3 py-1.5 rounded-xl bg-black/50"
+                      style={{ zIndex: 10 }}
+                      onClick={(e) => { e.stopPropagation(); setLbZoom(1); setLbPanX(0); setLbPanY(0); }}
+                    >
+                      重設縮放
+                    </button>
+                  )}
+                  <img
+                    src={lbCurSrc}
+                    className="max-w-full max-h-full object-contain rounded-lg select-none"
+                    style={{
+                      transform: `translate(${lbPanX}px, ${lbPanY}px) scale(${lbZoom})`,
+                      transformOrigin: 'center center',
+                      touchAction: 'none',
+                      cursor: lbZoom > 1 ? 'grab' : 'default',
+                    }}
+                    onClick={e => e.stopPropagation()}
+                    onTouchStart={lbTouchStart}
+                    onTouchMove={lbTouchMove}
+                    alt=""
+                    draggable={false}
+                  />
+                  {lightboxImages.length > 1 && (
+                    <div className="absolute flex gap-1.5 pointer-events-none" style={{ bottom: 10, left: 0, right: 0, justifyContent: 'center' }}>
+                      {lightboxImages.map((_, i) => (
+                        <div key={i} style={{
+                          width: i === lightboxImgIdx ? 14 : 6, height: 6, borderRadius: 3,
+                          background: i === lightboxImgIdx ? '#fff' : 'rgba(255,255,255,0.4)',
+                          transition: 'width 0.2s',
+                        }} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
