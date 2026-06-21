@@ -3049,7 +3049,7 @@ export default function MerchantGallery() {
                         <div className="flex items-start gap-3">
                           {order.imageUrl ? (
                             <button
-                              onClick={() => openOrderLightbox(order.imageUrl, { title: order.title || `訂單 #${order.id}`, itemNumber: order.itemNumber ?? undefined, price: order.price ?? undefined, currency: order.currency ?? undefined })}
+                              onClick={() => { openLightbox(order.imageUrl, [order.imageUrl]); setLbItemInfo({ title: order.title || `訂單 #${order.id}`, itemNumber: order.itemNumber ?? undefined, price: order.price ?? undefined, currency: order.currency ?? undefined }); }}
                               className="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden focus:outline-none"
                               title="點擊放大"
                             >
